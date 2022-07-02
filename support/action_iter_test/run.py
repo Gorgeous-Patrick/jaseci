@@ -40,6 +40,24 @@ def login():
     print(auth_header)
     return auth_header
 
+def load_remote_action(abs_path: str):
+    path = abs_path.replace("_","-")
+    print(path)
+    if path=="http://pdf-ext-local/":
+        path = "http://pdf-extractor-local/"
+    elif path=="http://cl-summer-local/":
+        path = "http://summarization-local/"
+    elif path=="http://text-seg-local/":
+        path = "http://js-segmenter-local/"
+    elif path=="http://use-qa-local/":
+        path = "http://js-use-qa-local/"
+    response = requests.post(
+        HOST + "/js_admin/actions_load_remote",
+        headers=auth_header,
+        json={"url": path},
+    )
+    print(f"Load Actions (Remote {path}): {response.text}")
+    return response.json()["success"]
 def load_module_actions(abs_path: str):
     response = requests.post(
         HOST + "/js_admin/actions_load_module",
@@ -99,10 +117,13 @@ for module in conf:
     local_path = module["local_path"]
     load_module = module.get("load_module", False)
     abs_action_path = localActionPath(local_path)
-    if load_module:
-        load_module_actions(f"jaseci_kit.{module_name}")
-    else:
-        load_actions(abs_action_path)
+    # if load_module:
+    #     load_module_actions(f"jaseci_kit.{module_name}")
+    # else:
+    #     load_actions(abs_action_path)
+    success = load_remote_action(f"http://{module_name}-local/")
+    if not success:
+        continue
 #     load_action_cmd = getActionLoadCommand(abs_action_path)
 #     print(load_action_cmd)
 #     os.system(load_action_cmd)
@@ -119,7 +140,7 @@ for module in conf:
         walkerRun(action_name, snt)
         duration = time.time() - t
         print(duration)
-        writer.writerow([module_name, action_name, iteration, duration] + ["local"])
+        writer.writerow([module_name, action_name, iteration, duration] + ["local-linked"])
 #         print(cmd)
 #         os.system(cmd)
 output.close()
