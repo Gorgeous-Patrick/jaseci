@@ -1,0 +1,11 @@
+Module Name,Action Name,iteration Number,Duration,Local/Remote
+bi_enc,dot_prod,100,1.0646698474884033,local-linked
+bi_enc,cosine_sim,100,0.6796281337738037,local-linked
+bi_enc,infer,100,1.6965773105621338,local-linked
+bi_enc,get_context_emb,100,0.3642003536224365,local-linked
+bi_enc,get_candidate_emb,100,0.34662795066833496,local-linked
+flair_ner,entity_detection,100,1.3002557754516602,local-linked
+pdf_ext,extract_pdf,100,0.3739662170410156,local-linked
+cl_summer,summarize,100,1.0986719131469727,local-linked
+text_seg,get_segments,100,80.41754221916199,local-linked
+tfm_ner,extract_entity,100,0.8722400665283203,local-linked
