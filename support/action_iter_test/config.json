@@ -2,6 +2,7 @@
     {
         "kit_module": "bi_enc",
         "local_path": "encoders/bi.py",
+        "ip" : "10.101.70.47",
         "actions": [
             {
                 "name": "dot_prod",
@@ -34,6 +35,7 @@
         "module_name": "flair_ner",
         "kit_module": "ent_ext",
         "local_path": "entity_extraction/entity_extraction.py",
+        "ip": "10.97.73.219",
         "actions": [
             {
                 "name": "entity_detection",
@@ -45,6 +47,7 @@
     {
         "kit_module": "pdf_ext",
         "local_path": "pdf_extractor/extractor.py",
+        "ip": "10.97.81.147",
         "actions": [
             {
                 "name": "extract_pdf",
@@ -56,6 +59,7 @@
     {
         "kit_module": "cl_summer",
         "local_path": "summarization/summarization.py",
+        "ip": "10.107.188.232",
         "actions": [
             {
                 "name": "summarize",
@@ -67,6 +71,7 @@
     {
         "kit_module": "text_seg",
         "local_path": "text_segmenter/text_segmenter.py",
+        "ip": "10.97.197.236",
         "actions": [
             {
                 "name": "get_segments",
@@ -78,6 +83,7 @@
     {
         "kit_module": "tfm_ner",
         "local_path": "entity_extraction_type_2/entity_extraction.py",
+        "ip": "10.109.112.173",
         "actions": [
             {
                 "name": "extract_entity",
@@ -91,6 +97,7 @@
         "module_name": "use_enc",
         "load_module": true,
         "local_path": "use_enc/use_enc.py",
+        "ip": "10.110.234.185",
         "actions": [
             {
                 "name": "encode",
@@ -119,6 +126,7 @@
         "module_name": "use_qa",
         "load_module": true,
         "local_path": "use_qa/use_qa.py",
+        "ip": "10.99.236.157",
         "actions": [
             {
                 "name": "question_encode",
