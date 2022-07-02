@@ -1,0 +1,20 @@
+Module Name,Action Name,iteration Number,Duration,Local/Remote
+bi_enc,dot_prod,100,0.5953912734985352,local-linked
+bi_enc,cosine_sim,100,0.6736388206481934,local-linked
+bi_enc,infer,100,0.843717098236084,local-linked
+bi_enc,get_context_emb,100,0.3479630947113037,local-linked
+bi_enc,get_candidate_emb,100,0.324368953704834,local-linked
+pdf_ext,extract_pdf,100,0.32662534713745117,local-linked
+cl_summer,summarize,100,0.9590787887573242,local-linked
+text_seg,get_segments,100,81.10802674293518,local-linked
+tfm_ner,extract_entity,100,0.581951379776001,local-linked
+use_qa,question_encode,100,1.498403549194336,local-linked
+use_qa,answer_encode,100,1.6047947406768799,local-linked
+use_qa,cos_sim_score,100,0.5707666873931885,local-linked
+use_qa,dist_score,100,0.613311767578125,local-linked
+use_qa,question_similarity,100,2.410226345062256,local-linked
+use_qa,question_classify,100,3.3205318450927734,local-linked
+use_qa,answer_similarity,100,2.581063985824585,local-linked
+use_qa,answer_classify,100,3.6218485832214355,local-linked
+use_qa,qa_similarity,100,2.62532114982605,local-linked
+use_qa,qa_classify,100,3.540515422821045,local-linked

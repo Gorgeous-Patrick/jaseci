@@ -1,0 +1,6 @@
+Module Name,Action Name,iteration Number,Duration,Local/Remote
+flair_ner,entity_detection,100,1.0948753356933594,local-linked
+use_enc,encode,100,2.5381112098693848,local-linked
+use_enc,cos_sim_score,100,0.5717203617095947,local-linked
+use_enc,text_similarity,100,0.8714046478271484,local-linked
+use_enc,text_classify,100,1.0850424766540527,local-linked

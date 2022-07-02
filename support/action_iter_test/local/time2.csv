@@ -1,0 +1,25 @@
+Module Name,Action Name,iteration Number,Duration,Local/Remote
+bi_enc,dot_prod,100,0.1915745735168457,local
+bi_enc,cosine_sim,100,0.18875861167907715,local
+bi_enc,infer,100,0.4501926898956299,local
+bi_enc,get_context_emb,100,1.5308947563171387,local
+bi_enc,get_candidate_emb,100,0.28841471672058105,local
+flair_ner,entity_detection,100,0.7550952434539795,local
+pdf_ext,extract_pdf,100,8.198769092559814,local
+cl_summer,summarize,100,0.5616343021392822,local
+text_seg,get_segments,100,81.2613034248352,local
+tfm_ner,extract_entity,100,0.2319943904876709,local
+use_enc,encode,100,0.29221057891845703,local
+use_enc,cos_sim_score,100,0.1851506233215332,local
+use_enc,text_similarity,100,0.519599199295044,local
+use_enc,text_classify,100,0.7133688926696777,local
+use_qa,question_encode,100,0.949920654296875,local
+use_qa,answer_encode,100,1.0378656387329102,local
+use_qa,cos_sim_score,100,0.18422293663024902,local
+use_qa,dist_score,100,0.1869676113128662,local
+use_qa,question_similarity,100,1.9151434898376465,local
+use_qa,question_classify,100,2.74727201461792,local
+use_qa,answer_similarity,100,2.029956579208374,local
+use_qa,answer_classify,100,2.9209511280059814,local
+use_qa,qa_similarity,100,2.0685317516326904,local
+use_qa,qa_classify,100,3.0030226707458496,local
