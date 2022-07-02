@@ -51,6 +51,8 @@ def load_remote_action(abs_path: str):
         path = "http://js-segmenter-local/"
     elif path=="http://use-qa-local/":
         path = "http://js-use-qa-local/"
+    elif path=="http://use-enc-local/":
+        path = "http://js-use-enc-local/"
     response = requests.post(
         HOST + "/js_admin/actions_load_remote",
         headers=auth_header,
