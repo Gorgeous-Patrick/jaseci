@@ -1,0 +1,5 @@
+Module Name,Action Name,iteration Number,Duration,Local/Remote
+use_enc,encode,100,2.4839792251586914,local-linked
+use_enc,cos_sim_score,100,1.095912218093872,local-linked
+use_enc,text_similarity,100,1.0170657634735107,local-linked
+use_enc,text_classify,100,1.4602153301239014,local-linked

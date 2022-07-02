@@ -1,0 +1,11 @@
+Module Name,Action Name,iteration Number,Duration,Local/Remote
+use_qa,question_encode,100,3.9883415699005127,local-linked
+use_qa,answer_encode,100,3.256211757659912,local-linked
+use_qa,cos_sim_score,100,1.5606803894042969,local-linked
+use_qa,dist_score,100,0.7383637428283691,local-linked
+use_qa,question_similarity,100,3.006422758102417,local-linked
+use_qa,question_classify,100,3.87265944480896,local-linked
+use_qa,answer_similarity,100,3.1020493507385254,local-linked
+use_qa,answer_classify,100,4.0823893547058105,local-linked
+use_qa,qa_similarity,100,3.110684394836426,local-linked
+use_qa,qa_classify,100,4.238516569137573,local-linked
