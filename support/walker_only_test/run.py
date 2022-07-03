@@ -3,6 +3,7 @@ import json
 import requests
 import time
 import csv
+import locust
 
 jaseci_path = "/jaseci/jaseci_kit/jaseci_kit/modules"
 
@@ -91,6 +92,19 @@ def walkerRun(SNT, req):
     walkerName = req["name"]
     print(f"Walker Run ({walkerName}): f{response.text}")
 
+class testUser(locust.HttpUser):
+    host = HOST
+    @locust.task
+    def walkerRunLocust(self):
+        req = {
+            "name": "get_suggested_parent",
+            "nd": "active:graph",
+            "snt": "active:sentinel",
+            "ctx": {"new_wkt_name": "run locust test"}
+        }
+        response =self.client.post("/js/walker_run", headers=auth_header, json=req)
+        
+        print(response.text)
 
 login()
 snt = getSentinel("myca/main.jir")
@@ -98,14 +112,6 @@ json = {
     "name": "init_test_graph",
     "nd": "active:graph",
     "snt": "active:sentinel",
-}
-
-walkerRun(snt, json)
-json = {
-    "name": "get_suggested_parent",
-    "nd": "active:graph",
-    "snt": "active:sentinel",
-    "ctx": {"new_wkt_name": "run locust test"}
 }
 
 walkerRun(snt, json)
