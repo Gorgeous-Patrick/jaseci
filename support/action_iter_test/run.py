@@ -115,18 +115,18 @@ for module in conf:
     name = module["kit_module"]
     ip = module["ip"]
     module_name = module.get("module_name", name)
-    # if module_name != "use_qa":
-    #     continue
+    if module_name != "bi_enc":
+        continue
     local_path = module["local_path"]
     load_module = module.get("load_module", False)
     abs_action_path = localActionPath(local_path)
-    # if load_module:
-    #     load_module_actions(f"jaseci_kit.{module_name}")
-    # else:
-    #     load_actions(abs_action_path)
-    success = load_remote_action(f"http://{ip}/")
-    if not success:
-        continue
+    if load_module:
+        load_module_actions(f"jaseci_kit.{module_name}")
+    else:
+        load_actions(abs_action_path)
+    # success = load_remote_action(f"http://{ip}/")
+    # if not success:
+    #     continue
 #     load_action_cmd = getActionLoadCommand(abs_action_path)
 #     print(load_action_cmd)
 #     os.system(load_action_cmd)

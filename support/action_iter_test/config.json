@@ -20,15 +20,15 @@
                 "iter": 100
             },
             {
-                "name": "get_context_emb",
-                "param": ["\"HelloWorld\""],
-                "iter": 100
-            },
-            {
                 "name": "get_candidate_emb",
-                "param": ["\"HelloWorld\""],
-                "iter": 100
-            } 
+                "param": ["\"Hello\""],
+                "iter": 500
+            }, 
+            {
+                "name": "get_context_emb",
+                "param": ["\"Hello, how are you doing?\""],
+                "iter": 500
+            }
         ]
     },
     {

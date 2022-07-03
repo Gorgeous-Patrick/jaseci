@@ -27,7 +27,7 @@ def localActionPath(kit_module: str):
 # os.system(getActionLoadCommand(localActionPath("entity_extraction/entity_extraction.py")))
 # os.system(getRunCommand("bi_enc/cos_sim_score.jac"))
 
-HOST = "http://clarity3.eecs.umich.edu:30001"
+HOST = "http://clarity31.eecs.umich.edu:8080"
 auth_header = {}
 
 
@@ -69,6 +69,8 @@ def getSentinel(codePath: str):
     req = {
         "name": "jac_prog_testers2",
         "code": code,
+        "mode": "ir",
+        "set_active": True
     }
     response = requests.post(
         HOST + "/js/sentinel_register",
@@ -91,15 +93,19 @@ def walkerRun(SNT, req):
 
 
 login()
-snt = getSentinel("zsb/zsb.jac")
+snt = getSentinel("myca/main.jir")
 json = {
-    "name": "add_bot",
+    "name": "init_test_graph",
     "nd": "active:graph",
-    "ctx": {
-        "name": "locustBot",
-        "description": "this is a test bot for Locust testing",
-    },
     "snt": "active:sentinel",
+}
+
+walkerRun(snt, json)
+json = {
+    "name": "get_suggested_parent",
+    "nd": "active:graph",
+    "snt": "active:sentinel",
+    "ctx": {"new_wkt_name": "run locust test"}
 }
 
 walkerRun(snt, json)
