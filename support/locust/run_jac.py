@@ -81,8 +81,13 @@ class SeqTask(SequentialTaskSet):
 
     @task
     def walker_run(self):
-        for walkerName in load_config(TEST_PATH)["walkers"]:
-            req = {"name": walkerName, "snt": SNT}
+        for walker in load_config(TEST_PATH)["walkers"]:
+            if isinstance(walker, str):
+                walkerName = walker
+                req = {"name": walker, "snt": SNT}
+            else:
+                walkerName = walker["name"]
+                req = {"name": walker["name"], "snt": SNT, "ctx": walker["ctx"]}
             # print(f"Walker {walkerName} running.")
             response = self.client.post(
                 "/js/walker_run",
