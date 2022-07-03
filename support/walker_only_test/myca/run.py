@@ -107,7 +107,7 @@ class testUser(locust.HttpUser):
         print(response.text)
 
 login()
-snt = getSentinel("myca/main.jir")
+snt = getSentinel("main.jir")
 json = {
     "name": "init_test_graph",
     "nd": "active:graph",
