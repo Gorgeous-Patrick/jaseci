@@ -18,10 +18,18 @@ def login(userID: int):
 
 # register sentinel, return the jid
 def registerSentinel(token: str):
-    req = {
-        "name": "jac_prog_testers2",
-        "code": utils.get_code(utils.load_config(TEST_PATH)["src"]),
-    }
+    src_file = utils.load_config(TEST_PATH)["src"]
+    if src_file.endswith(".jir"):
+        req = {
+            "name": "jac_prog_testers2",
+            "code": utils.get_code(utils.load_config(TEST_PATH)["src"]),
+            "mode": "ir"
+        }
+    else:
+        req = {
+            "name": "jac_prog_testers2",
+            "code": utils.get_code(utils.load_config(TEST_PATH)["src"]),
+        }
     response = requests.post(
         HOST + "/js/sentinel_register",
         headers={"authorization": f"Token {token}"},
