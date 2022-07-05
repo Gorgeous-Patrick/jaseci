@@ -1,1 +1,0 @@
-bi encoder cos_sim_score not found (cosine_sim instead)
