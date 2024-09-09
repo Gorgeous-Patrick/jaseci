@@ -1,18 +1,21 @@
-name: Linting and Pre-commit checks
+name: Linting and Pre-commit checks for jac-cloud
 
 on:
   pull_request:
     paths:
-      - "jaclang/**"
+      - "jac-cloud/**"
   push:
     branches:
       - main
     paths:
-      - "jaclang/**"
+      - "jac-cloud/**"
 
 jobs:
-  pre-commit:
+  pre-commit-cloud:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jac-cloud
     steps:
     - name: Check out code
       uses: actions/checkout@v2
@@ -26,4 +29,5 @@ jobs:
       run: pip install pre-commit
 
     - name: Run pre-commit hooks
-      run: pre-commit run --files jaclang/**/* --config jaclang/.pre-commit-config.yaml
+      run: pre-commit run --files $(find . -type f)
+
