@@ -1,17 +1,14 @@
-name: Linting and Pre-commit checks for jaclang
+name: Linting and Pre-commit checks for jaseci
 
 on:
   pull_request:
-    paths:
-      - "jac/**"
+    branches:
+      - main
   push:
     branches:
       - main
-    paths:
-      - "jac/**"
-
 jobs:
-  pre-commit-jaclang:
+  pre-commit-jaseci:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -29,4 +26,4 @@ jobs:
       run: pip install pre-commit
 
     - name: Run pre-commit hooks
-      run: pre-commit run --files $(find . -type f)
+      run: pre-commit run --all-files
