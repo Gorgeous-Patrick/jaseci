@@ -165,7 +165,7 @@ pattern: literal_pattern
     | class_pattern
 
 
-// [Heading]: Match litteral patterns.
+// [Heading]: Match literal patterns.
 literal_pattern: (INT | FLOAT | multistring)
 
 // [Heading]: Match singleton patterns.
