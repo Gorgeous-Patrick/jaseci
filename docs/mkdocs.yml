@@ -29,10 +29,6 @@ nav:
     - Learn Jac Language:
       - "learn/jac_coding_manual.md"
       - "learn/language_basics/basic_syntax.md"
-      - "learn/language_basics/types.md"
-      - "learn/language_basics/can_abilities.md"
-      - "learn/language_basics/import.md"
-      - "learn/language_basics/testing.md"
       - Language Reference: "learn/jac_ref.md"
       - Understanding Data Spatial:
         # - "learn/data_spatial/dataspatial.md" # Why data spatial

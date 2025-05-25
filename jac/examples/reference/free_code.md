@@ -26,6 +26,25 @@ with entry:name {
 }
 ```
 
+This type of block can be used to define the program's initialization and execution starting point, similar to Python's `if __name__ == "__main__"`: idiom. This design decision creates a clear separation between declarations and executable code at the module level, leading to more maintainable and better-organized programs. Note that declaring multiple instances of ```with entry``` in one script is supported and, they will be executed one after the other, top to bottom.
+
+Here's a with example usage of a named block:
+
+```jac linenums="1"
+"""Calculates the area of a circle"""
+can calculate_area(radius: float) -> float{
+    return math.pi * radius * radius;
+}
+
+# Main entry point for the program
+with entry:__main__{
+    # Define constants
+    RADIUS = 5.0;
+
+    # Program execution
+    print(f"Area of the circle: {calculate_area(RADIUS)}");
+}
+```
 **Module Organization**
 
 A typical Jac module structure includes:
