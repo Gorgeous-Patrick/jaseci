@@ -83,6 +83,8 @@ nav:
   - Community Hub:
     - Roadmap: "communityhub/roadmap.md"
     - Breaking Changes: "communityhub/breaking_changes.md"
+    - Fun Stuff:
+      - "communityhub/projects.md"
 
   - Jac Playground:
     - Playground: "playground/index.html"
