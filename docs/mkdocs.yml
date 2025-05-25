@@ -32,7 +32,6 @@ nav:
       - "learn/language_basics/types.md"
       - "learn/language_basics/can_abilities.md"
       - "learn/language_basics/import.md"
-      - "learn/language_basics/impl_docs.md"
       - "learn/language_basics/testing.md"
       - Language Reference: "learn/jac_ref.md"
       - Understanding Data Spatial:
