@@ -4,11 +4,11 @@ Tests in Jac provide built-in support for unit testing and validation of code fu
 
 ```jac
 test {
-    // test code
+    # test code
 }
 
 test "descriptive test name" {
-    // named test code
+    # named test code
 }
 ```
 

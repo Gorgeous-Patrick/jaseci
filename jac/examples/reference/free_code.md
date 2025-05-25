@@ -12,7 +12,7 @@ The `with entry` construct serves as a container for free-floating code that sho
 
 ```jac
 with entry {
-    // executable statements here
+    # executable statements here
 }
 ```
 
@@ -22,7 +22,7 @@ Entry blocks can optionally be given names for specific execution contexts:
 
 ```jac
 with entry:name {
-    // named entry point code
+    # named entry point code
 }
 ```
 

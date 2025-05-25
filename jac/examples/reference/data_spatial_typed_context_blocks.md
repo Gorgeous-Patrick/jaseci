@@ -4,7 +4,7 @@ Typed context blocks establish type-annotated scopes that provide compile-time t
 
 ```jac
 -> type_expression {
-    // type-constrained code block
+    # type-constrained code block
 }
 ```
 

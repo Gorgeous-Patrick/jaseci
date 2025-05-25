@@ -4,9 +4,9 @@ Yield statements in Jac provide the foundation for generator functions and itera
 
 Yield statements follow this pattern from the grammar:
 ```jac
-yield expression;     // Yield a value
-yield;               // Yield nothing (None/null)
-yield from iterable; // Yield all values from another iterable
+yield expression;     # Yield a value
+yield;               # Yield nothing (None/null)
+yield from iterable; # Yield all values from another iterable
 ```
 
 **Generator Function Example**
@@ -31,9 +31,9 @@ def myFunc {
 
 Generators are consumed through iteration:
 ```jac
-x = myFunc();        // Creates generator object
-for z in x {         // Iterates through yielded values
-    print(z);        // Prints: "Hello", 91, "Good Bye", None
+x = myFunc();        # Creates generator object
+for z in x {         # Iterates through yielded values
+    print(z);        # Prints: "Hello", 91, "Good Bye", None
 }
 ```
 
@@ -78,7 +78,7 @@ def data_generator {
 ```jac
 def sparse_generator {
     yield 1;
-    yield;        // Yields None/null
+    yield;        # Yields None/null
     yield 3;
 }
 ```
@@ -96,17 +96,17 @@ def sub_generator {
 
 def main_generator {
     yield 0;
-    yield from sub_generator();  // Yields 1, then 2
+    yield from sub_generator();  # Yields 1, then 2
     yield 3;
 }
-// Result sequence: 0, 1, 2, 3
+# Result sequence: 0, 1, 2, 3
 ```
 
 **Collection Delegation**
 ```jac
 def list_generator {
-    yield from [1, 2, 3];      // Yields each list element
-    yield from "abc";          // Yields each character
+    yield from [1, 2, 3];      # Yields each list element
+    yield from "abc";          # Yields each character
 }
 ```
 
@@ -120,7 +120,7 @@ def counter(start: int, end: int) {
     current = start;
     while current <= end {
         yield current;
-        current += 1;           // State persists between yields
+        current += 1;           # State persists between yields
     }
 }
 ```
@@ -132,7 +132,7 @@ def accumulator {
     values = [1, 2, 3, 4, 5];
     for value in values {
         total += value;
-        yield total;            // Yields running sum: 1, 3, 6, 10, 15
+        yield total;            # Yields running sum: 1, 3, 6, 10, 15
     }
 }
 ```
@@ -189,7 +189,7 @@ def batch_generator(data: list, batch_size: int) {
         }
     }
     if len(batch) > 0 {
-        yield batch;  // Final partial batch
+        yield batch;  # Final partial batch
     }
 }
 ```
@@ -257,14 +257,14 @@ node DataSource {
 
 **Memory Efficiency**
 ```jac
-// Memory efficient - generates values on demand
+# Memory efficient - generates values on demand
 def large_sequence {
     for i in range(1000000) {
         yield expensive_computation(i);
     }
 }
 
-// vs. Memory intensive - creates entire list
+# vs. Memory intensive - creates entire list
 def large_list {
     return [expensive_computation(i) for i in range(1000000)];
 }
@@ -331,7 +331,7 @@ def resource_generator {
             yield resource.next_item();
         }
     } finally {
-        resource.release();  // Cleanup when generator is destroyed
+        resource.release();  # Cleanup when generator is destroyed
     }
 }
 ```

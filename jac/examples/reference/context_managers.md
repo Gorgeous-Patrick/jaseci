@@ -4,17 +4,17 @@ Context managers in Jac provide automatic resource management through `with` sta
 
 ```jac
 with expression as variable {
-    // code using the resource
+    # code using the resource
 }
 
 # Multiple context managers
 with expr1 as var1, expr2 as var2 {
-    // code using both resources
+    # code using both resources
 }
 
 # Async context managers
 async with async_expression as variable {
-    // async code using the resource
+    # async code using the resource
 }
 ```
 

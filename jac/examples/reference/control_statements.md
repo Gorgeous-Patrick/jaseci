@@ -62,12 +62,12 @@ Control statements work with all Jac loop constructs:
 ```jac
 for item in collection {
     if condition {
-        break;     // Exit loop
+        break;     # Exit loop
     }
     if other_condition {
-        continue;  // Skip to next item
+        continue;  # Skip to next item
     }
-    // Process item
+    # Process item
 }
 ```
 
@@ -75,12 +75,12 @@ for item in collection {
 ```jac
 for i=0 to i<10 by i+=1 {
     if i % 2 == 0 {
-        continue;  // Skip even numbers
+        continue;  # Skip even numbers
     }
     if i > 7 {
-        break;     // Stop when i exceeds 7
+        break;     # Stop when i exceeds 7
     }
-    print(i);      // Prints 1, 3, 5, 7
+    print(i);      # Prints 1, 3, 5, 7
 }
 ```
 
@@ -88,12 +88,12 @@ for i=0 to i<10 by i+=1 {
 ```jac
 while condition {
     if exit_condition {
-        break;     // Exit while loop
+        break;     # Exit while loop
     }
     if skip_condition {
-        continue;  // Skip to condition check
+        continue;  # Skip to condition check
     }
-    // Loop body
+    # Loop body
 }
 ```
 
@@ -105,7 +105,7 @@ Control statements affect only the innermost loop:
 for i in range(3) {
     for j in range(3) {
         if j == 1 {
-            break;     // Exits inner loop only
+            break;     # Exits inner loop only
         }
         print(i, j);
     }
@@ -126,7 +126,7 @@ Control statements work seamlessly with Jac's conditional expressions:
 ```jac
 for item in items {
     if item.is_valid() {
-        continue;  // Skip invalid items
+        continue;  # Skip invalid items
     }
     process(item);
 }
@@ -137,7 +137,7 @@ for item in items {
 for data in dataset {
     if data.type == "error" and data.severity > threshold {
         print("Critical error found");
-        break;     // Stop processing on critical error
+        break;     # Stop processing on critical error
     }
     analyze(data);
 }
@@ -152,10 +152,10 @@ def process_list(items: list) -> list {
     results = [];
     for item in items {
         if item < 0 {
-            continue;   // Skip negative values
+            continue;   # Skip negative values
         }
         if item > 100 {
-            break;      // Stop at first value over 100
+            break;      # Stop at first value over 100
         }
         results.append(item * 2);
     }
@@ -172,10 +172,10 @@ walker Processor {
     can process_nodes with `root entry {
         for node in [-->] {
             if node.should_skip {
-                continue;  // Skip certain nodes
+                continue;  # Skip certain nodes
             }
             if node.stop_condition {
-                break;     // Exit processing loop
+                break;     # Exit processing loop
             }
             node.process();
         }
@@ -202,7 +202,7 @@ for operation in operations {
 ```jac
 for record in data_records {
     if not record.is_valid() {
-        continue;  // Skip malformed records
+        continue;  # Skip malformed records
     }
     process_record(record);
 }

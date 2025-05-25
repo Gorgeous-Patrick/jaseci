@@ -4,9 +4,9 @@ Raise statements in Jac provide the mechanism for explicitly throwing exceptions
 
 Raise statements follow this pattern from the grammar:
 ```jac
-raise exception_expression;           // Raise specific exception
-raise;                               // Re-raise current exception (in except block)
-raise exception_expression from cause; // Raise with explicit cause chain
+raise exception_expression;           # Raise specific exception
+raise;                               # Re-raise current exception (in except block)
+raise exception_expression from cause; # Raise with explicit cause chain
 ```
 
 **Example Implementation**
@@ -80,7 +80,7 @@ def process_data(data: list) {
     if len(data) == 0 {
         raise ValueError("Data cannot be empty");
     }
-    // Process data
+    # Process data
 }
 ```
 
@@ -105,7 +105,7 @@ def sensitive_operation() {
         risky_function();
     } except Exception as e {
         log_error("Operation failed", e);
-        raise;  // Re-raise the same exception
+        raise;  # Re-raise the same exception
     }
 }
 ```
@@ -160,7 +160,7 @@ def process_file(filename: str) {
     if not file_exists(filename) {
         raise FileNotFoundError("File does not exist");
     }
-    // Process file
+    # Process file
 }
 ```
 
@@ -270,7 +270,7 @@ def parse_config(config_data: str) {
 
 **Optimization Strategies**
 ```jac
-// Efficient: Check before expensive operation
+# Efficient: Check before expensive operation
 def safe_operation(data: list) {
     if not validate_data(data) {
         raise ValidationError("Invalid data");
@@ -278,7 +278,7 @@ def safe_operation(data: list) {
     return expensive_operation(data);
 }
 
-// Less efficient: Exception in expensive operation
+# Less efficient: Exception in expensive operation
 def unsafe_operation(data: list) {
     try {
         return expensive_operation(data);
@@ -356,7 +356,7 @@ def test_division_by_zero() {
         result = divide(10, 0);
         assert false, "Expected ZeroDivisionError";
     } except ZeroDivisionError {
-        // Test passes - expected exception
+        # Test passes - expected exception
         pass;
     }
 }

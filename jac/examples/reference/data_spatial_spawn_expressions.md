@@ -70,8 +70,8 @@ Once spawned, walkers gain access to spatial context:
 
 ```jac
 impl Adder.do {
-    here ++> node_a();  // 'here' refers to current location (root)
-    visit [-->];        // Navigate to connected nodes
+    here ++> node_a();  # 'here' refers to current location (root)
+    visit [-->];        # Navigate to connected nodes
 }
 ```
 
@@ -86,13 +86,13 @@ Spawned walkers trigger location-bound computation:
 
 ```jac
 node node_a {
-    can add with Adder entry;  // Responds to Adder walker visits
+    can add with Adder entry;  # Responds to Adder walker visits
 }
 
 impl node_a.add {
-    self.x = 550;              // Node modifies its own state
-    self.y = 450;              // Access to node properties via 'self'
-    print(int(self.x) + int(self.y));  // Computation at data location
+    self.x = 550;              # Node modifies its own state
+    self.y = 450;              # Access to node properties via 'self'
+    print(int(self.x) + int(self.y));  # Computation at data location
 }
 ```
 

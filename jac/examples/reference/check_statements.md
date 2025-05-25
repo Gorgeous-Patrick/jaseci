@@ -17,7 +17,7 @@ Check statements are most commonly used within `test` blocks, which are Jac's la
 test test_name {
     check condition1;
     check condition2;
-    // more checks...
+    # more checks...
 }
 ```
 

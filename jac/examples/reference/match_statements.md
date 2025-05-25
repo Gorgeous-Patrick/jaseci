@@ -5,9 +5,9 @@ Match statements provide powerful pattern matching capabilities in Jac, enabling
 ```jac
 match expression {
     case pattern: 
-        // statements
+        # statements
     case pattern if condition:
-        // guarded pattern statements
+        # guarded pattern statements
 }
 ```
 

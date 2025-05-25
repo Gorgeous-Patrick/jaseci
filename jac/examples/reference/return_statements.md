@@ -4,8 +4,8 @@ Return statements in Jac provide the mechanism for functions and methods to exit
 
 Return statements follow this pattern from the grammar:
 ```jac
-return expression;  // Return a value
-return;             // Return without a value (void)
+return expression;  # Return a value
+return;             # Return without a value (void)
 ```
 
 **Example Implementation**
@@ -37,7 +37,7 @@ def calculate(x: int, y: int) -> int {
 **Expression Returns**
 ```jac
 def add(a: int, b: int) -> int {
-    return a + b;  // Return expression directly
+    return a + b;  # Return expression directly
 }
 ```
 
@@ -55,7 +55,7 @@ def absolute(x: int) -> int {
 ```jac
 def print_message(msg: str) {
     print(msg);
-    return;  // Optional - function ends here
+    return;  # Optional - function ends here
 }
 ```
 
@@ -67,12 +67,12 @@ Return statements enable early function exit:
 ```jac
 def process_data(data: list) -> bool {
     if data is None {
-        return false;  // Early exit for invalid input
+        return false;  # Early exit for invalid input
     }
     if len(data) == 0 {
-        return false;  // Early exit for empty data
+        return false;  # Early exit for empty data
     }
-    // Main processing logic
+    # Main processing logic
     return process(data);
 }
 ```
@@ -81,7 +81,7 @@ def process_data(data: list) -> bool {
 ```jac
 def divide(a: float, b: float) -> float {
     if b == 0.0 {
-        return float('inf');  // Early return for division by zero
+        return float('inf');  # Early return for division by zero
     }
     return a / b;
 }
@@ -111,10 +111,10 @@ def grade_score(score: int) -> str {
 def search_array(arr: list, target: int) -> int {
     for i=0 to i<len(arr) by i+=1 {
         if arr[i] == target {
-            return i;  // Return index when found
+            return i;  # Return index when found
         }
     }
-    return -1;  // Return -1 when not found
+    return -1;  # Return -1 when not found
 }
 ```
 
@@ -125,15 +125,15 @@ Jac enforces return type consistency:
 **Type Matching**
 ```jac
 def get_name() -> str {
-    return "John";     // Valid: string literal
-    // return 42;      // Error: int doesn't match str
+    return "John";     # Valid: string literal
+    # return 42;      # Error: int doesn't match str
 }
 ```
 
 **Multiple Value Returns**
 ```jac
 def get_coordinates() -> (int, int) {
-    return (10, 20);   // Return tuple
+    return (10, 20);   # Return tuple
 }
 
 def get_stats() -> dict {
@@ -148,7 +148,7 @@ def find_user(id: int) -> User? {
     if user.exists {
         return user;
     }
-    return None;       // Explicit null return
+    return None;       # Explicit null return
 }
 ```
 
@@ -175,7 +175,7 @@ walker DataCollector {
 
 **Lambda Returns**
 ```jac
-square = lambda x: int : x * x;  // Implicit return
+square = lambda x: int : x * x;  # Implicit return
 ```
 
 **Data Spatial Context Returns**
@@ -202,7 +202,7 @@ node DataNode {
         if visitor.has_permission {
             return self.value;
         }
-        return 0;  // Default value for unauthorized access
+        return 0;  # Default value for unauthorized access
     }
 }
 ```
@@ -218,9 +218,9 @@ node DataNode {
 ```jac
 def complex_function(x: int) -> str {
     if x > 0 {
-        return "positive";  // Exits entire function
+        return "positive";  # Exits entire function
     }
-    // This code executes only if x <= 0
+    # This code executes only if x <= 0
     return "non-positive";
 }
 ```
@@ -230,10 +230,10 @@ def complex_function(x: int) -> str {
 def find_first_even(numbers: list) -> int {
     for num in numbers {
         if num % 2 == 0 {
-            return num;     // Exits function and loop
+            return num;     # Exits function and loop
         }
     }
-    return -1;  // No even number found
+    return -1;  # No even number found
 }
 ```
 
@@ -243,9 +243,9 @@ def find_first_even(numbers: list) -> int {
 ```jac
 def expensive_computation(data: list) -> bool {
     if len(data) == 0 {
-        return false;      // Avoid expensive computation
+        return false;      # Avoid expensive computation
     }
-    // Expensive processing only if needed
+    # Expensive processing only if needed
     return process_data(data);
 }
 ```
@@ -254,7 +254,7 @@ def expensive_computation(data: list) -> bool {
 ```jac
 def validate_and_process(input: str) -> str {
     if not is_valid(input) {
-        return "Invalid input";  // Skip processing
+        return "Invalid input";  # Skip processing
     }
     return expensive_process(input);
 }
@@ -283,7 +283,7 @@ def calculate_tax(income: float) -> float {
     if income <= 0 {
         return 0.0;
     }
-    // Single calculation responsibility
+    # Single calculation responsibility
     return income * TAX_RATE;
 }
 ```
@@ -334,7 +334,7 @@ def risky_operation() -> int {
         return result;
     } except OperationError as e {
         log_error(e);
-        return -1;  // Error indicator
+        return -1;  # Error indicator
     }
 }
 ```

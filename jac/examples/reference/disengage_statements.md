@@ -24,7 +24,7 @@ walker Visitor {
     can travel with `root entry {
         visit [-->] else {
             visit root;
-            // Walker disengages itself
+            # Walker disengages itself
         }
     }
 }
@@ -36,7 +36,7 @@ Nodes can disengage visiting walkers, as demonstrated in the example:
 node item {
     can speak with Visitor entry {
         print("Hey There!!!");
-        disengage;  // Node disengages the visiting walker
+        disengage;  # Node disengages the visiting walker
     }
 }
 ```

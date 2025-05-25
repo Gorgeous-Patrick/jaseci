@@ -76,13 +76,13 @@ The `output` variable contains the returned tuple, which can be:
 
 Jac supports combining positional and keyword arguments:
 ```jac
-// Positional arguments first
+# Positional arguments first
 result = foo(4, y=3, z=9);
 
-// All keyword arguments
+# All keyword arguments
 result = foo(x=4, y=3, z=9);
 
-// All positional arguments
+# All positional arguments
 result = foo(4, 3, 9);
 ```
 

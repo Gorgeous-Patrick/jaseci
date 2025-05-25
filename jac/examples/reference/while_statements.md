@@ -5,7 +5,7 @@ While statements in Jac provide iterative execution based on conditional express
 While statements follow this pattern from the grammar:
 ```jac
 while condition {
-    // code block
+    # code block
 }
 ```
 
@@ -51,7 +51,7 @@ While loops typically require explicit management of control variables:
 count = 0;
 while count < 10 {
     process_item(count);
-    count += 1;  // Manual increment required
+    count += 1;  # Manual increment required
 }
 ```
 
@@ -116,7 +116,7 @@ While loops require careful design to avoid infinite loops:
 attempts = 0;
 max_attempts = 100;
 while condition and attempts < max_attempts {
-    // loop body
+    # loop body
     attempts += 1;
 }
 ```
@@ -127,7 +127,7 @@ previous_value = initial_value;
 while not converged {
     current_value = compute_next();
     if current_value == previous_value {
-        break;  // Prevent infinite loop
+        break;  # Prevent infinite loop
     }
     previous_value = current_value;
 }
@@ -142,7 +142,7 @@ While loops work with control flow statements:
 while true {
     input = get_input();
     if input == "exit" {
-        break;  // Exit loop immediately
+        break;  # Exit loop immediately
     }
     process(input);
 }
@@ -154,7 +154,7 @@ i = 0;
 while i < 10 {
     i += 1;
     if i % 2 == 0 {
-        continue;  // Skip even numbers
+        continue;  # Skip even numbers
     }
     print(i);
 }
@@ -245,15 +245,15 @@ while queue.has_items() {
 
 **Loop Optimization**
 ```jac
-// Less efficient
+# Less efficient
 while expensive_function() < threshold {
-    // loop body
+    # loop body
 }
 
-// More efficient
+# More efficient
 limit = expensive_function();
 while counter < limit {
-    // loop body
+    # loop body
     counter += 1;
 }
 ```
@@ -283,10 +283,10 @@ while has_work() {
         task.execute();
     } except TaskError as e {
         log_error(e);
-        continue;  // Skip failed task, continue with next
+        continue;  # Skip failed task, continue with next
     } except CriticalError as e {
         log_critical(e);
-        break;     // Exit loop on critical error
+        break;     # Exit loop on critical error
     }
 }
 ```

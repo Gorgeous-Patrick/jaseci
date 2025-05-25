@@ -4,15 +4,15 @@ Try statements provide exception handling mechanisms in Jac, enabling robust err
 
 ```jac
 try {
-    // code that may raise exceptions
+    # code that may raise exceptions
 } except ExceptionType as e {
-    // handle specific exception
+    # handle specific exception
 } except {
-    // handle any exception
+    # handle any exception
 } else {
-    // executed if no exception occurs
+    # executed if no exception occurs
 } finally {
-    // always executed
+    # always executed
 }
 ```
 

@@ -12,7 +12,7 @@ lambda parameters : expression
 The provided example demonstrates basic lambda creation and invocation:
 ```jac
 x = lambda a: int, b: int : b + a;
-print(x(5, 4));  // Outputs: 9
+print(x(5, 4));  # Outputs: 9
 ```
 
 **Components breakdown:**
@@ -44,9 +44,9 @@ concat = lambda s1: str, s2: str : s1 + s2;
 
 Lambda return types are automatically inferred from the expression:
 ```jac
-lambda x: int : x * 2        // Returns int
-lambda x: float : x / 2.0    // Returns float
-lambda x: str : x.upper()    // Returns str
+lambda x: int : x * 2        # Returns int
+lambda x: float : x / 2.0    # Returns float
+lambda x: str : x.upper()    # Returns str
 ```
 
 **Functional Programming Patterns**
@@ -75,21 +75,21 @@ Lambda expressions are limited to single expressions:
 
 **Valid lambdas:**
 ```jac
-lambda x: int : x + 1                    // Arithmetic
-lambda x: int : x if x > 0 else -x       // Conditional expression  
-lambda pair: tuple : pair[0] + pair[1]   // Tuple access
-lambda obj: MyClass : obj.method()       // Method calls
+lambda x: int : x + 1                    # Arithmetic
+lambda x: int : x if x > 0 else -x       # Conditional expression  
+lambda pair: tuple : pair[0] + pair[1]   # Tuple access
+lambda obj: MyClass : obj.method()       # Method calls
 ```
 
 **Invalid lambdas (require full functions):**
 ```jac
-// Multiple statements not allowed
+# Multiple statements not allowed
 lambda x: int : {
     y = x * 2;
     return y + 1;
 }
 
-// Loops not allowed
+# Loops not allowed
 lambda items: list : for item in items { process(item); }
 ```
 
@@ -99,7 +99,7 @@ Lambdas can capture variables from their enclosing scope:
 ```jac
 multiplier = 3;
 triple = lambda x: int : x * multiplier;
-print(triple(5));  // Outputs: 15
+print(triple(5));  # Outputs: 15
 ```
 
 **Closure behavior:**
