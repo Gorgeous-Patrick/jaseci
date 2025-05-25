@@ -67,6 +67,7 @@ nav:
         - UniIR Nodes: "internals/uniir_node.md"
       - Runtime Plugin Interface: "internals/jac_plugins.md"
     - Planning Specs and Docs:
+      - Language Ref Roadmap: "internals/planning_specs/ref_roadmap.md"
       - Error System: "internals/planning_specs/error_system.md"
       - Formatter System: "internals/planning_specs/formatter_system.md"
       - Native Type System:
