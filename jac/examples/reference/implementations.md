@@ -1,8 +1,6 @@
-# Separating Implementation from Declaration
-
 Implementations in Jac provide a powerful mechanism for separating interface declarations from their concrete implementations. This feature supports modular programming, interface segregation, and flexible code organization patterns common in modern software development.
 
-## Implementation Concept
+#### Implementation Concept
 
 Jac-lang offers a unique feature which allows developers to separate the functional declaration of code from their implementation. This facilitates cleaner code organization without requiring manual imports.
 
@@ -13,7 +11,7 @@ The `impl` keyword (or the `:type:name` syntax) allows you to define the concret
 - **Enumeration implementations**: Defining the values and structure of enums
 - **Test implementations**: Defining test cases separately from main code
 
-## Comparison with Traditional Approaches
+#### Comparison with Traditional Approaches
 
 Usually when coding with Python, the body of a function or method is coded right after the function/method declaration as shown in the following Python code snippet:
 
@@ -40,11 +38,11 @@ print(Size.Medium.value)
 
 However, Jac-lang offers novel language features which allow programmers to organize their code effortlessly by separating declarations from implementations.
 
-## Function Implementations
+#### Function Implementations
 
 Functions can be declared with just their signature and implemented separately using two different syntaxes:
 
-### Modern `impl` Syntax
+##### Modern `impl` Syntax
 
 **Declaration:**
 ```jac
@@ -58,7 +56,7 @@ impl foo() -> str {
 }
 ```
 
-### Legacy Colon Syntax
+##### Legacy Colon Syntax
 
 **Declaration:**
 ```jac
@@ -77,11 +75,11 @@ This separation enables:
 - **Deferred implementation**: Implement functionality when convenient
 - **Multiple implementations**: Different implementations for different contexts
 
-## Object Implementations
+#### Object Implementations
 
 Objects can be declared as empty shells and have their structure defined later:
 
-### Modern `impl` Syntax
+##### Modern `impl` Syntax
 
 **Declaration:**
 ```jac
@@ -95,7 +93,7 @@ impl vehicle {
 }
 ```
 
-### Legacy Colon Syntax
+##### Legacy Colon Syntax
 
 **Declaration:**
 ```jac
@@ -114,11 +112,11 @@ This allows for:
 - **Modular design**: Separate interface from implementation concerns
 - **Flexible organization**: Organize code based on logical groupings
 
-## Enumeration Implementations
+#### Enumeration Implementations
 
 Enumerations can be declared and have their values specified in implementations:
 
-### Modern `impl` Syntax
+##### Modern `impl` Syntax
 
 **Declaration:**
 ```jac
@@ -134,7 +132,7 @@ impl Size {
 }
 ```
 
-### Legacy Colon Syntax
+##### Legacy Colon Syntax
 
 **Declaration:**
 ```jac
@@ -150,7 +148,7 @@ enum Size;
 }
 ```
 
-## Test Implementations
+#### Test Implementations
 
 Tests can also be declared and implemented separately:
 
@@ -166,7 +164,7 @@ test check_vehicle;
 }
 ```
 
-## Complete Example
+#### Complete Example
 
 Here's a complete example showing declarations and their usage:
 
@@ -184,11 +182,11 @@ with entry {
 }
 ```
 
-## File Organization Strategies
+#### File Organization Strategies
 
 There are multiple locations where implementations can be organized for optimal code management:
 
-### Same `.jac` File as Declaration
+##### Same `.jac` File as Declaration
 
 The implementations can be held in the same file as the declaration. This improves code organization visually during declaration while keeping everything in one place:
 
@@ -205,9 +203,9 @@ impl vehicle {
 }
 ```
 
-### Separate Implementation Files
+##### Separate Implementation Files
 
-#### Using `.impl.jac` and `.test.jac` Files
+###### Using `.impl.jac` and `.test.jac` Files
 
 For better codebase management, implementations can be separated into dedicated files living in the same directory as the main module, named as `<main_module_name>.impl.jac` and `<main_module_name>.test.jac`. Including or importing these files is not required - they are automatically discovered.
 
@@ -258,7 +256,7 @@ with entry {
 }
 ```
 
-#### Using `.impl` and `.test` Folders
+###### Using `.impl` and `.test` Folders
 
 For even better organization, implementations can be organized within individual `.impl` and `.test` folders named as `<main_module_name>.impl` and `<main_module_name>.test`.
 
@@ -310,7 +308,7 @@ base
 
 These file separation features in Jac-lang allow programmers to organize their code seamlessly without any extra `include` or `import` statements.
 
-## Benefits of Implementation Separation
+#### Benefits of Implementation Separation
 
 1. **Interface Clarity**: Clean separation between what is available (interface) and how it works (implementation)
 
@@ -326,7 +324,7 @@ These file separation features in Jac-lang allow programmers to organize their c
 
 7. **Progressive Development**: Define interfaces early and implement them as development progresses
 
-## Implementation Requirements
+#### Implementation Requirements
 
 - **Signature Matching**: Implementation must exactly match the declared signature
 - **Type Compatibility**: Return types and parameter types must be consistent

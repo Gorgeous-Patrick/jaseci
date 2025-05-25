@@ -27,8 +27,7 @@ nav:
         - Python MTLLM Interface: "learn/examples/jac-mtllm/python_integration.md"
         - Tutorials: "learn/examples/jac-mtllm/rpg_game.md"
     - Learn Jac Language:
-      - "learn/jac_coding_manual.md"
-      - "learn/language_basics/basic_syntax.md"
+      - Coding Manual: "learn/jac_coding_manual.md"
       - Language Reference: "learn/jac_ref.md"
       - Understanding Data Spatial:
         # - "learn/data_spatial/dataspatial.md" # Why data spatial

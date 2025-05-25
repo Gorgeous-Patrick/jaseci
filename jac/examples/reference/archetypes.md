@@ -25,7 +25,7 @@ The `class` archetype provides Python-compatible class definitions, while the se
 ```jac
 # Python-compatible class archetype
 class PythonStyleClass {
-    def init(self, value: int) {
+    def init(self: PythonStyleClass, value: int) {
         self.value = value;
     }
     
@@ -35,7 +35,7 @@ class PythonStyleClass {
     }
 }
 
-# Data spatial archetype with automated constructor semantics
+# Jac's obj with automated constructor semantics
 obj DataSpatialObject {
     has value: int;  # Automatically included in constructor
     
