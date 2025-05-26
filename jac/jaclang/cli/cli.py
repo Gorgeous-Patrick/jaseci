@@ -14,7 +14,7 @@ import jaclang.compiler.unitree as uni
 from jaclang.cli.cmdreg import CommandShell, cmd_registry
 from jaclang.compiler.passes.main import CompilerMode as CMode, PyastBuildPass
 from jaclang.compiler.program import JacProgram
-from jaclang.runtimelib.builtin import dotgen
+from jaclang.runtimelib.builtin import printgraph
 from jaclang.runtimelib.constructs import WalkerArchetype
 from jaclang.runtimelib.machine import (
     JacMachine,
@@ -537,7 +537,7 @@ def dot(
         globals().update(vars(module))
         try:
             node = globals().get(initial, eval(initial)) if initial else None
-            graph = dotgen(
+            graph = printgraph(
                 node=node,
                 depth=depth,
                 traverse=traverse,

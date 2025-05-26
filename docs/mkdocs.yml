@@ -32,7 +32,6 @@ nav:
       - Coding Manual: "learn/jac_coding_manual.md"
       - Language Reference: "learn/jac_ref.md"
       - Understanding Data Spatial:
-        # - "learn/data_spatial/dataspatial.md" # Why data spatial
         - "learn/data_spatial/nodes_and_edges.md" # Introduction to DS primitives
         - "learn/data_spatial/walkers.md" # Walker
         - "learn/data_spatial/filtering.md" # Filtering
@@ -84,6 +83,7 @@ nav:
 
   - Community Hub:
     - Roadmap: "communityhub/roadmap.md"
+    - Release Notes: "communityhub/release_notes.md"
     - Breaking Changes: "communityhub/breaking_changes.md"
     - Fun Stuff:
       - "communityhub/projects.md"

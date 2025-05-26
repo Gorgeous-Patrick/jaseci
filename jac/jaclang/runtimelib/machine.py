@@ -525,7 +525,7 @@ class JacBuiltin:
     """Jac Builtins."""
 
     @staticmethod
-    def dotgen(
+    def printgraph(
         node: NodeArchetype,
         depth: int,
         traverse: bool,
@@ -533,9 +533,10 @@ class JacBuiltin:
         bfs: bool,
         edge_limit: int,
         node_limit: int,
-        dot_file: Optional[str],
+        file: Optional[str],
+        format: str,
     ) -> str:
-        """Generate Dot file for visualizing nodes and edges."""
+        """Generate graph for visualizing nodes and edges."""
         edge_type = edge_type if edge_type else []
         visited_nodes: list[NodeArchetype] = []
         node_depths: dict[NodeArchetype, int] = {node: 0}
@@ -589,24 +590,32 @@ class JacBuiltin:
             'digraph {\nnode [style="filled", shape="ellipse", '
             'fillcolor="invis", fontcolor="black"];\n'
         )
+        mermaid_content = "flowchart LR\n"
         for source, target, edge in connections:
             edge_label = html.escape(str(edge.__jac__.archetype))
             dot_content += (
                 f"{visited_nodes.index(source)} -> {visited_nodes.index(target)} "
                 f' [label="{edge_label if "GenericEdge" not in edge_label else ""}"];\n'
             )
+            mermaid_content += (
+                f"{visited_nodes.index(source)} -->"
+                f"|{edge_label if 'GenericEdge' not in edge_label else ''}| {visited_nodes.index(target)}\n"
+            )
         for node_ in visited_nodes:
             color = (
                 colors[node_depths[node_]] if node_depths[node_] < 25 else colors[24]
             )
+            label = html.escape(str(node_.__jac__.archetype))
             dot_content += (
-                f'{visited_nodes.index(node_)} [label="{html.escape(str(node_.__jac__.archetype))}"'
+                f'{visited_nodes.index(node_)} [label="{label}"'
                 f'fillcolor="{color}"];\n'
             )
-        if dot_file:
-            with open(dot_file, "w") as f:
-                f.write(dot_content + "}")
-        return dot_content + "}"
+            mermaid_content += f'{visited_nodes.index(node_)}["{label}"]\n'
+        output = dot_content + "}" if format == "dot" else mermaid_content
+        if file:
+            with open(file, "w") as f:
+                f.write(output)
+        return output
 
 
 class JacCmd:

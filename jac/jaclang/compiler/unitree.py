@@ -32,10 +32,10 @@ from jaclang.compiler.constant import (
 from jaclang.compiler.constant import DELIM_MAP, SymbolAccess, Tokens as Tok
 from jaclang.utils import resolve_relative_path
 from jaclang.utils.treeprinter import (
-    dotgen_ast_tree,
-    dotgen_symtab_tree,
     print_ast_tree,
     print_symtab_tree,
+    printgraph_ast_tree,
+    printgraph_symtab_tree,
 )
 
 
@@ -203,9 +203,9 @@ class UniNode:
         """Print ast."""
         return print_ast_tree(self, max_depth=depth)
 
-    def dotgen(self) -> str:
+    def printgraph(self) -> str:
         """Print ast."""
-        return dotgen_ast_tree(self)
+        return printgraph_ast_tree(self)
 
     def flatten(self) -> list[UniNode]:
         """Flatten ast."""
@@ -501,9 +501,9 @@ class UniScopeNode(UniNode):
         """Pretty print."""
         return print_symtab_tree(root=self, depth=depth)
 
-    def sym_dotgen(self) -> str:
+    def sym_printgraph(self) -> str:
         """Generate dot graph for sym table."""
-        return dotgen_symtab_tree(self)
+        return printgraph_symtab_tree(self)
 
     def __repr__(self) -> str:
         """Repr."""

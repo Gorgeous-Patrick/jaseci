@@ -30,7 +30,7 @@ class TestCFGBuildPass(TestCase):
             prog=prog,
         )
 
-        dot = cfg_pass.dotgen_cfg()
+        dot = cfg_pass.printgraph_cfg()
 
         expected_dot = (
             "digraph G {\n"
@@ -78,7 +78,7 @@ class TestCFGBuildPass(TestCase):
             prog=prog,
         )
 
-        dot = cfg_pass.dotgen_cfg()
+        dot = cfg_pass.printgraph_cfg()
 
         expected_dot = (
             "digraph G {\n"
