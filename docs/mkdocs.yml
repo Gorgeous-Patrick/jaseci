@@ -101,7 +101,7 @@ theme:
     code: "Roboto Mono"
   features:
     - content.code.copy
-    - navigation.instant
+    - navigation.instant: false
     - navigation.tracking
     - navigation.tabs
     - navigation.path

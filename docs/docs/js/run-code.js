@@ -1,7 +1,10 @@
 let pyodideWorker = null;
 let pyodideReady = false;
 let pyodideInitPromise = null;
+let monacoLoaded = false;
+let monacoLoadPromise = null;
 
+// Initialize Pyodide Worker
 function initPyodideWorker() {
     if (pyodideWorker) return pyodideInitPromise;
     pyodideWorker = new Worker("/js/pyodide-worker.js");
@@ -18,6 +21,7 @@ function initPyodideWorker() {
     return pyodideInitPromise;
 }
 
+// Run Jac Code in Worker
 function runJacCodeInWorker(code) {
     return new Promise(async (resolve, reject) => {
         await initPyodideWorker();
@@ -35,74 +39,93 @@ function runJacCodeInWorker(code) {
     });
 }
 
-function setupCodeBlock(div) {
+// Load Monaco Editor Globally
+function loadMonacoEditor() {
+    if (monacoLoaded) return monacoLoadPromise;
+    if (monacoLoadPromise) return monacoLoadPromise;
+
+    monacoLoadPromise = new Promise((resolve, reject) => {
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            monacoLoaded = true;
+            resolve();
+        }, reject);
+    });
+    console.log("Loading Monaco Editor...");
+    return monacoLoadPromise;
+}
+
+// Setup Code Block with Monaco Editor
+async function setupCodeBlock(div) {
     if (div._monacoInitialized) return;
     div._monacoInitialized = true;
 
     const originalCode = div.textContent.trim();
 
     div.innerHTML = `
-        <div class="jac-code" style="border: 1px solid #ccc;"></div>
-        <button class="md-button md-button--primary run-code-btn">Run</button>
-        <pre class="code-output" style="display:none; white-space: pre-wrap; background: #1e1e1e; color: #d4d4d4; padding: 10px;"></pre>
+        <div class="jac-code-loading" style="padding: 10px; font-style: italic; color: gray;">
+            Loading editor...
+        </div>
+    `;
+
+    await loadMonacoEditor();
+
+    div.innerHTML = `
+    <div class="jac-code" style="border: 1px solid #ccc;"></div>
+    <button class="md-button md-button--primary run-code-btn">Run</button>
+    <pre class="code-output" style="display:none; white-space: pre-wrap; background: #1e1e1e; color: #d4d4d4; padding: 10px;"></pre>
     `;
 
     const container = div.querySelector(".jac-code");
     const runButton = div.querySelector(".run-code-btn");
     const outputBlock = div.querySelector(".code-output");
 
-    // Initialize Monaco editor on container
-    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
-    require(['vs/editor/editor.main'], function () {
-        const editor = monaco.editor.create(container, {
-            value: originalCode || '# Write your Jac code here',
-            language: 'python',
-            theme: 'vs-dark',
-            scrollBeyondLastLine: false,
-            scrollbar: {
-                vertical: 'hidden',
-                handleMouseWheel: false,
-            },
-            automaticLayout: true,
-            padding: {
-                top: 10,
-                bottom: 10
-            }
-        });
+    const editor = monaco.editor.create(container, {
+        value: originalCode || '# Write your Jac code here',
+        language: 'python',
+        theme: 'vs-dark',
+        scrollBeyondLastLine: false,
+        scrollbar: {
+            vertical: 'hidden',
+            handleMouseWheel: false,
+        },
+        automaticLayout: true,
+        padding: {
+            top: 10,
+            bottom: 10
+        }
+    });
 
-        function updateEditorHeight() {
-            const lineCount = editor.getModel().getLineCount();
-            const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
-            const height = lineCount * lineHeight + 20;
-            container.style.height = `${height}px`;
-            editor.layout();
+    function updateEditorHeight() {
+        const lineCount = editor.getModel().getLineCount();
+        const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
+        const height = lineCount * lineHeight + 20;
+        container.style.height = `${height}px`;
+        editor.layout();
+    }
+
+    updateEditorHeight();
+    editor.onDidChangeModelContent(updateEditorHeight);
+
+    runButton.addEventListener("click", async () => {
+        outputBlock.style.display = "block";
+
+        if (!pyodideReady) {
+            outputBlock.textContent = "Loading Jac runner...";
+            await initPyodideWorker();
         }
 
-        updateEditorHeight();
-        editor.onDidChangeModelContent(updateEditorHeight);
-
-        // On Run button click, get code from editor and run
-        runButton.addEventListener("click", async () => {
-            outputBlock.style.display = "block";
-
-            if (!pyodideReady) {
-                outputBlock.textContent = "Loading Jac runner...";
-                await initPyodideWorker();
-            }
-
-            outputBlock.textContent = "Running...";
-            try {
-                const codeToRun = editor.getValue();
-                const result = await runJacCodeInWorker(codeToRun);
-                outputBlock.textContent = `Output:\n${result}`;
-            } catch (error) {
-                outputBlock.textContent = `Error:\n${error}`;
-            }
-        });
+        outputBlock.textContent = "Running...";
+        try {
+            const codeToRun = editor.getValue();
+            const result = await runJacCodeInWorker(codeToRun);
+            outputBlock.textContent = `Output:\n${result}`;
+        } catch (error) {
+            outputBlock.textContent = `Error:\n${error}`;
+        }
     });
 }
 
-// Observe and apply when .code-blocks are added
 const observer = new MutationObserver(() => {
     document.querySelectorAll('.code-block').forEach(setupCodeBlock);
 });
@@ -112,8 +135,6 @@ observer.observe(document.body, {
     subtree: true
 });
 
-document.querySelectorAll('.code-block').forEach(setupCodeBlock);
-
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     initPyodideWorker();
 });
