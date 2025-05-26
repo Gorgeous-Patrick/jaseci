@@ -35,6 +35,13 @@ Jac provides built-in special references that enable data spatial programming pa
 | `root` | Any context | Root graph instance |
 | `init`/`postinit` | Archetype bodies | Lifecycle hook references |
 
+#### Explicit Notation for Special Variables
+
+These keywords are reserved by the language and must appear exactly as shown.
+They cannot be redefined or used for other identifiers.  Their explicit spelling
+makes data spatial code easier to read and prevents accidental shadowing of core
+context references.
+
 #### Data Spatial Reference Usage
 
 Special references enable the bidirectional interaction model central to data spatial programming:

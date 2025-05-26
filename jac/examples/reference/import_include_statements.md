@@ -61,3 +61,10 @@ walker MyWalker {
 ```
 
 Organized imports enable the Jac compiler to analyze dependencies effectively and optimize distributed execution graphs for data spatial operations.
+
+#### Application Bundling
+
+Jac programs can be packaged together with their dependencies into a single
+deployable bundle using the toolchain.  Bundling resolves imports at build time
+and embeds module contents so that applications can be distributed without
+external file dependencies.

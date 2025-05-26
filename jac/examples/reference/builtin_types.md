@@ -20,6 +20,21 @@ Jac provides a rich set of built-in data types that cover the fundamental data s
 - **`type`**: Represents the type of a type (metaclass)
 - **`any`**: Represents any type (used for type annotations when type is unknown or flexible)
 
+#### Implicit Typing Library
+
+Jac exposes common generics from Python's `typing` module without requiring
+explicit imports.  Standard type names such as `List`, `Dict`, and `Optional`
+can be referenced directly by prefixing them with a backtick:
+
+```jac
+let names: `List[str]` = [];
+let cache: `Dict[str, int]` = {};
+```
+
+These identifiers are recognized by the compiler automatically, simplifying type
+annotations and eliminating repetitive import statements. All available types from
+python `typing` library is availabe through this idiom. 
+
 **Type Usage**
 
 Built-in types can be used in several contexts:

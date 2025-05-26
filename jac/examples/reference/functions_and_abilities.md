@@ -1,5 +1,11 @@
 Jac provides two complementary approaches to defining executable code: traditional functions using `def` and data spatial abilities using `can`. This dual system supports both conventional programming patterns and the unique requirements of computation moving through topological structures.
 
+#### Omission of Gratuitous `self`
+
+Unlike Python, Jac methods of `obj`, `node`, `edge`, and `walker` do not require a `self` parameter unless it is
+actually used.  Instance methods implicitly receive the current object, reducing
+boilerplate and keeping signatures focused on relevant parameters.
+
 #### Function Definitions
 
 Traditional functions use the `def` keyword with mandatory type annotations:

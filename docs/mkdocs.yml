@@ -1,5 +1,7 @@
 site_name: The Jac Programming Language and Jaseci Stack
 site_url: https://jac-lang.org
+repo_url: https://github.com/Jaseci-Labs/jaseci
+edit_uri: edit/main/docs/docs
 use_directory_urls: true
 nav:
   - Learn:
@@ -101,7 +103,9 @@ theme:
     code: "Roboto Mono"
   features:
     - content.code.copy
-    - navigation.instant: false
+    - content.action.edit
+    - content.action.view
+    - navigation.instant
     - navigation.tracking
     - navigation.tabs
     - navigation.path

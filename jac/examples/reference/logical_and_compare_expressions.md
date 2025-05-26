@@ -81,4 +81,17 @@ if count < limit {  # Type-compatible comparison
 - Use parentheses for complex logical expressions
 - Avoid repeated expensive function calls in conditions
 
+#### Elvis Operator
+
+Jac offers a concise conditional expression using the Elvis operator `?:`.  The
+expression `a ?: b` evaluates to `a` if it is not `None`, otherwise it yields
+`b`:
+
+```jac
+let name = input_name ?: "anonymous";
+```
+
+This operator provides the common ternary pattern without repeating the tested
+value, improving readability for simple defaulting logic.
+
 Logical and comparison expressions provide the decision-making foundation for Jac programs, enabling sophisticated conditional logic while maintaining type safety and performance optimization.

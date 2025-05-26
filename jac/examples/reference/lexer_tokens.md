@@ -69,6 +69,18 @@ init postinit here visitor self super root
 ->              # Return type hint
 ```
 
+#### Comment Tokens
+
+Single-line comments begin with `#` and extend to the end of the line.  Jac also
+supports multiline comments delimited by `#*` and `*#`:
+
+```jac
+# This is a line comment
+#*
+This entire block is ignored by the compiler.
+*#
+```
+
 #### Identifier Rules
 
 - Case-sensitive token recognition
