@@ -36,19 +36,35 @@ A walker cycles through game stages using edges, demonstrating Data Spatial Prog
 Jac provides novel constructs for integrating LLMs into code. A function body can simply be replaced with a call to an LLM, removing the need for prompt engineering or extensive new libraries.
 
 ```jac
+import from mtllm.llms { Gemini }
+glob llm = Gemini(model_name="gemini-2.0-flash");
+
 enum Personality {
-    INTROVERT,
-    EXTROVERT,
-    AMBIVERT
+    INTROVERT = "Introvert",
+    EXTROVERT = "Extrovert",
+    AMBIVERT = "Ambivert"
 }
 
-can get_personality(name: str) -> Personality by llm();
+def get_personality(name: str) -> Personality by llm();
 
 with entry {
-    result = get_personality("Albert Einstein");
-    print(f"{result} personality detected");
+    name = "Albert Einstein";
+    result = get_personality(name);
+    print(f"{result.value} personality detected for {name}");
 }
 ```
+??? example "Output"
+    ```
+    Introvert personality detected for Albert Einstein
+    ```
+
+??? info "How To Run"
+    1. Install the MTLLM plugin by ```pip install mtllm[google]```
+    2. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`).
+    > **Note:**
+    >
+    > You can use OpenAI, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
+    3. Copy this code into `example.jac` file and run with `jac run example.jac`
 `by llm()` delegates execution to an LLM without any extra library code.
 
 
