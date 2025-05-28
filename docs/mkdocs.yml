@@ -109,7 +109,7 @@ theme:
     - content.code.copy
     - content.action.edit
     - content.action.view
-    - navigation.instant
+    - navigation.instant: false
     - navigation.tracking
     - navigation.tabs
     - navigation.path
