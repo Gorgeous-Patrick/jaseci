@@ -4600,9 +4600,4 @@ class PythonModuleAst(EmptyToken):
         super().__init__()
         self.ast = ast
         self.orig_src = orig_src
-
-        # This bellow attribute is un-necessary since it already exists in the orig_src
-        # however I'm keeping it here not to break existing code trying to access file_path.
-        # We can remove this in the future once we safley remove all references to it and
-        # use orig_src.
         self.file_path = orig_src.file_path
