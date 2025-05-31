@@ -164,7 +164,7 @@ class ImportReturn:
                         jac_file_path,
                     ),
                 )
-            codeobj = self.importer.jac_machine.jac_program.get_bytecode(
+            codeobj = self.importer.jac_machine.program.get_bytecode(
                 full_target=jac_file_path
             )
             if not codeobj:
@@ -398,7 +398,7 @@ class JacImporter(Importer):
                     spec.package_path,
                     spec.full_target,
                 )
-                codeobj = self.jac_machine.jac_program.get_bytecode(
+                codeobj = self.jac_machine.program.get_bytecode(
                     full_target=spec.full_target
                 )
 

@@ -302,7 +302,7 @@ class JacLanguageTests(TestCase):
         Jac.jac_import(
             mach, "deep_import_interp", base_path=self.fixture_abs_path("./")
         )
-        self.assertEqual(len(mach.jac_program.mod.hub.keys()), 1)
+        self.assertEqual(len(mach.program.mod.hub.keys()), 1)
         mach = JacMachine(self.fixture_abs_path("./"))
         Jac.attach_program(
             mach,
@@ -312,7 +312,7 @@ class JacLanguageTests(TestCase):
         Jac.jac_import(
             mach, "deep_import_interp", base_path=self.fixture_abs_path("./")
         )
-        self.assertEqual(len(mach.jac_program.mod.hub.keys()), 5)
+        self.assertEqual(len(mach.program.mod.hub.keys()), 5)
 
     def test_deep_imports_mods(self) -> None:
         """Parse micro jac file."""

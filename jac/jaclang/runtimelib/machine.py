@@ -833,7 +833,7 @@ class JacBasics:
             items,
         )
 
-        if not mach.jac_program:
+        if not mach.program:
             JacMachineInterface.attach_program(mach, JacProgram())
 
         if lng == "py":
@@ -1352,7 +1352,7 @@ class JacUtils:
     @staticmethod
     def attach_program(mach: JacMachine, jac_program: JacProgram) -> None:
         """Attach a JacProgram to the machine."""
-        mach.jac_program = jac_program
+        mach.program = jac_program
 
     @staticmethod
     def load_module(
@@ -1599,7 +1599,7 @@ class JacMachine(JacMachineInterface):
             if not os.path.isdir(base_path)
             else os.path.abspath(base_path)
         )
-        self.jac_program: JacProgram = JacProgram()
+        self.program: JacProgram = JacProgram()
         self.pool = ThreadPoolExecutor()
         self._event_loop = asyncio.new_event_loop()
         self.mem: Memory = ShelfStorage(session)

@@ -155,7 +155,7 @@ class JacMachine:
     ) -> Any:  # noqa: ANN401
         """Jac's with_llm feature."""
         machine = JacMachineInterface.py_get_jac_machine()
-        program_head = machine.jac_program.mod
+        program_head = machine.program.mod
         _scope = SemScope.get_scope_from_str(scope)
         mod_registry = SemRegistry(program_head=program_head, by_scope=_scope)
 
@@ -289,8 +289,14 @@ class JacMachine:
                 else []
             )
             # Use the ability name as action, and if docstring exists, append it
-            docstr =  ((node.doc and node.doc.lit_value) or "") if isinstance(node, uni.AstDocNode) else ""
-            action = _pass.sync(ast3.Constant(value=f"{docstr.strip()} ({node.name_ref.sym_name})\n"))
+            docstr = (
+                ((node.doc and node.doc.lit_value) or "")
+                if isinstance(node, uni.AstDocNode)
+                else ""
+            )
+            action = _pass.sync(
+                ast3.Constant(value=f"{docstr.strip()} ({node.name_ref.sym_name})\n")
+            )
             return [
                 _pass.sync(
                     ast3.Return(
