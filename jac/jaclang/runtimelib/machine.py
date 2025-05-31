@@ -1587,7 +1587,6 @@ class JacMachine(JacMachineInterface):
         base_path: str = "",
         session: Optional[str] = None,
         root: Optional[str] = None,
-        interp_mode: bool = False,
     ) -> None:
         """Initialize JacMachine."""
         self.loaded_modules: dict[str, types.ModuleType] = {}
@@ -1601,7 +1600,6 @@ class JacMachine(JacMachineInterface):
             else os.path.abspath(base_path)
         )
         self.jac_program: JacProgram = JacProgram()
-        self.interp_mode = interp_mode
         self.pool = ThreadPoolExecutor()
         self._event_loop = asyncio.new_event_loop()
         self.mem: Memory = ShelfStorage(session)

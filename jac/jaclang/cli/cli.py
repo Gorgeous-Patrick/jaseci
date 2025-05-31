@@ -85,7 +85,7 @@ def format(path: str, outfile: str = "", to_screen: bool = False) -> None:
 
 
 def proc_file_sess(
-    filename: str, session: str, root: Optional[str] = None, interp: bool = False
+    filename: str, session: str, root: Optional[str] = None
 ) -> tuple[str, str, JacMachine]:
     """Create JacMachine and return the base path, module name, and machine state."""
     if session == "":
@@ -99,7 +99,7 @@ def proc_file_sess(
     base, mod = os.path.split(filename)
     base = base if base else "./"
     mod = mod[:-4]
-    mach = JacMachine(base, session=session, root=root, interp_mode=interp)
+    mach = JacMachine(base, session=session, root=root)
     return base, mod, mach
 
 
@@ -109,7 +109,6 @@ def run(
     session: str = "",
     main: bool = True,
     cache: bool = True,
-    interp: bool = False,
 ) -> None:
     """Run the specified .jac file.
 
@@ -121,7 +120,6 @@ def run(
         session: Optional session identifier for persistent state
         main: Treat the module as __main__ (default: True)
         cache: Use cached compilation if available (default: True)
-        interp: Run in interpreter mode (default: False)
 
     Examples:
         jac run myprogram.jac
@@ -130,7 +128,7 @@ def run(
     """
     # if no session specified, check if it was defined when starting the command shell
     # otherwise default to jaclang.session
-    base, mod, mach = proc_file_sess(filename, session, interp=interp)
+    base, mod, mach = proc_file_sess(filename, session)
 
     if filename.endswith(".jac"):
         try:

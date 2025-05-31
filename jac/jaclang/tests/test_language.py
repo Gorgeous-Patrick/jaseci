@@ -135,7 +135,9 @@ class JacLanguageTests(TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         Jac.jac_import(
-            self.mach, "builtin_printgraph_mermaid", base_path=self.fixture_abs_path("./")
+            self.mach,
+            "builtin_printgraph_mermaid",
+            base_path=self.fixture_abs_path("./"),
         )
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
@@ -292,7 +294,7 @@ class JacLanguageTests(TestCase):
 
     def test_deep_imports_interp_mode(self) -> None:
         """Parse micro jac file."""
-        mach = JacMachine(self.fixture_abs_path("./"), interp_mode=True)
+        mach = JacMachine(self.fixture_abs_path("./"))
         Jac.attach_program(
             mach,
             JacProgram(),
@@ -300,17 +302,16 @@ class JacLanguageTests(TestCase):
         Jac.jac_import(
             mach, "deep_import_interp", base_path=self.fixture_abs_path("./")
         )
-        print(mach.jac_program.mod.hub.keys())
         self.assertEqual(len(mach.jac_program.mod.hub.keys()), 1)
-        mach = JacMachine(self.fixture_abs_path("./"), interp_mode=False)
+        mach = JacMachine(self.fixture_abs_path("./"))
         Jac.attach_program(
             mach,
-            JacProgram(),
+            (prog := JacProgram()),
         )
+        prog.compile(self.fixture_abs_path("./deep_import_interp.jac"))
         Jac.jac_import(
             mach, "deep_import_interp", base_path=self.fixture_abs_path("./")
         )
-        print(mach.jac_program.mod.hub.keys())
         self.assertEqual(len(mach.jac_program.mod.hub.keys()), 5)
 
     def test_deep_imports_mods(self) -> None:
@@ -1315,7 +1316,7 @@ class JacLanguageTests(TestCase):
         self.assertIn("MyWalker from edge MyWalker()", stdout_value[1])
         self.assertIn("MyWalker from node MyWalker()", stdout_value[6])
         self.assertIn("MyEdge from walker MyEdge(path=2)", stdout_value[16])
-    
+
     def test_backward_edge_visit(self) -> None:
         """Test backward edge visit in jaclang."""
         captured_output = io.StringIO()
