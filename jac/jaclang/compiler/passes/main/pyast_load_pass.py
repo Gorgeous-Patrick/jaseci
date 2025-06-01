@@ -1414,10 +1414,10 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         valid = [
             value for value in values if isinstance(value, (uni.String, uni.ExprStmt))
         ]
-        valid_values = uni.SubNodeList[uni.String | uni.ExprStmt](
-            items=valid, delim=None, kid=valid
+        return uni.FString(
+            parts=valid,
+            kid=[*valid] if valid else [uni.EmptyToken()],
         )
-        return uni.FString(parts=valid_values, kid=[valid_values])
 
     def proc_lambda(self, node: py_ast.Lambda) -> uni.LambdaExpr:
         """Process python node.

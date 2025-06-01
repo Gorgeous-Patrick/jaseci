@@ -2316,7 +2316,7 @@ class PyastGenPass(UniPass):
                 if isinstance(i, uni.String):
                     pieces.append(i.lit_value)
                 elif isinstance(i, uni.FString):
-                    pieces.extend(get_pieces(i.parts.items)) if i.parts else None
+                    pieces.extend(get_pieces(i.parts)) if i.parts else None
                 elif isinstance(i, uni.ExprStmt):
                     pieces.append(i.gen.py_ast[0])
                 else:
@@ -2355,11 +2355,11 @@ class PyastGenPass(UniPass):
             node.gen.py_ast = [combined_multi[0]]
 
     def exit_f_string(self, node: uni.FString) -> None:
-        node.gen.py_ast = (
-            node.parts.gen.py_ast
-            if node.parts
-            else [self.sync(ast3.Constant(value=""))]
-        )
+        py_parts: list[list[ast3.AST]] = [
+            cast(list[ast3.AST], p.gen.py_ast) for p in node.parts
+        ]
+        parts = self.flatten(cast(list[list[ast3.AST] | ast3.AST | None], py_parts))
+        node.gen.py_ast = parts if parts else [self.sync(ast3.Constant(value=""))]
 
     def exit_list_val(self, node: uni.ListVal) -> None:
         elts = [cast(ast3.expr, v.gen.py_ast[0]) for v in node.values]

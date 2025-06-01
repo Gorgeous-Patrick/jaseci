@@ -2073,7 +2073,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             target = self.match(uni.SubNodeList)
             self.match_token(Tok.FSTR_END) or self.consume_token(Tok.FSTR_SQ_END)
             return uni.FString(
-                parts=target,
+                parts=target.items if target else [],
                 kid=self.cur_nodes,
             )
 

@@ -3193,10 +3193,10 @@ class FString(AtomExpr):
 
     def __init__(
         self,
-        parts: Optional[SubNodeList[String | ExprStmt]],
+        parts: Sequence[String | ExprStmt],
         kid: Sequence[UniNode],
     ) -> None:
-        self.parts = parts
+        self.parts: list[String | ExprStmt] = list(parts)
         UniNode.__init__(self, kid=kid)
         Expr.__init__(self)
         AstSymbolStubNode.__init__(self, sym_type=SymbolType.STRING)
@@ -3204,26 +3204,30 @@ class FString(AtomExpr):
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
-            res = self.parts.normalize(deep) if self.parts else res
+            for part in self.parts:
+                res = res and part.normalize(deep)
         new_kid: list[UniNode] = []
         is_single_quote = (
             isinstance(self.kid[0], Token) and self.kid[0].name == Tok.FSTR_SQ_START
         )
-        if self.parts:
-            if is_single_quote:
-                new_kid.append(self.gen_token(Tok.FSTR_SQ_START))
+        if is_single_quote:
+            new_kid.append(self.gen_token(Tok.FSTR_SQ_START))
+        else:
+            new_kid.append(self.gen_token(Tok.FSTR_START))
+        for i in self.parts:
+            if isinstance(i, String):
+                i.value = (
+                    "{{" if i.value == "{" else "}}" if i.value == "}" else i.value
+                )
+                new_kid.append(i)
             else:
-                new_kid.append(self.gen_token(Tok.FSTR_START))
-            for i in self.parts.items:
-                if isinstance(i, String):
-                    i.value = (
-                        "{{" if i.value == "{" else "}}" if i.value == "}" else i.value
-                    )
-            new_kid.append(self.parts)
-            if is_single_quote:
-                new_kid.append(self.gen_token(Tok.FSTR_SQ_END))
-            else:
-                new_kid.append(self.gen_token(Tok.FSTR_END))
+                new_kid.append(self.gen_token(Tok.LBRACE))
+                new_kid.append(i)
+                new_kid.append(self.gen_token(Tok.RBRACE))
+        if is_single_quote:
+            new_kid.append(self.gen_token(Tok.FSTR_SQ_END))
+        else:
+            new_kid.append(self.gen_token(Tok.FSTR_END))
         self.set_kids(nodes=new_kid)
         return res
 
