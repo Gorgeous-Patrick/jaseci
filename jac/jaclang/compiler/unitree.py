@@ -1751,7 +1751,7 @@ class Ability(
         body: Optional[SubNodeList[CodeBlockStmt] | ImplDef | FuncCall],
         kid: Sequence[UniNode],
         doc: Optional[String] = None,
-        decorators: Optional[SubNodeList[Expr]] = None,
+        decorators: Sequence[Expr] | None = None,
     ) -> None:
         self.name_ref = name_ref
         self.is_override = is_override
@@ -1819,14 +1819,18 @@ class Ability(
             res = res and self.access.normalize(deep) if self.access else res
             res = res and self.signature.normalize(deep) if self.signature else res
             res = res and self.body.normalize(deep) if self.body else res
-            res = res and self.decorators.normalize(deep) if self.decorators else res
+            for dec in self.decorators or []:
+                res = res and dec.normalize(deep)
             res = res and self.doc.normalize(deep) if self.doc else res
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
         if self.decorators:
             new_kid.append(self.gen_token(Tok.DECOR_OP))
-            new_kid.append(self.decorators)
+            for idx, dec in enumerate(self.decorators):
+                new_kid.append(dec)
+                if idx < len(self.decorators) - 1:
+                    new_kid.append(self.gen_token(Tok.DECOR_OP))
             new_kid.append(self.gen_token(Tok.WS))
         if self.is_async:
             new_kid.append(self.gen_token(Tok.KW_ASYNC))

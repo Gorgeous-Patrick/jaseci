@@ -943,7 +943,11 @@ class PyastGenPass(UniPass):
                 f"Abstract ability {node.sym_name} should not have a body.",
                 node,
             )
-        decorator_list = node.decorators.gen.py_ast if node.decorators else []
+        decorator_list = (
+            [cast(ast3.expr, i.gen.py_ast[0]) for i in node.decorators]
+            if node.decorators
+            else []
+        )
         if isinstance(node.signature, uni.EventSignature):
             decorator_list.append(
                 self.jaclib_obj(

@@ -759,7 +759,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                                 ability.insert_kids_at_pos([static_kw], 1)
                         break
                 if decorators.items:
-                    ability.decorators = decorators
+                    ability.decorators = decorators.items
                     ability.add_kids_left([decorators])
 
             return ability
