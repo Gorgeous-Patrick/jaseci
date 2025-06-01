@@ -588,7 +588,7 @@ class JacLanguageTests(TestCase):
             ).ir_out.unparse()
         self.assertIn("if (0 <= x <= 5) {", output)
         self.assertIn("  case _:\n", output)
-        self.assertIn(" case Point ( x = int ( a ), y = 0 ):\n", output)
+        self.assertIn(" case Point(x = int(a), y = 0):\n", output)
         self.assertIn("class Sample {\n    def init", output)
 
     def test_py2jac(self) -> None:
@@ -608,8 +608,8 @@ class JacLanguageTests(TestCase):
                 prog=None,
             ).ir_out.unparse()
         self.assertIn("match Container(inner=Inner(x=a, y=b)) { \n", output)
-        self.assertIn("case Container ( inner = Inner ( x = a, y = 0 ) ):\n", output)
-        self.assertIn("case Container ( inner = Inner ( x = a, y = b ) ):\n", output)
+        self.assertIn("case Container(inner = Inner(x = a, y = 0)):\n", output)
+        self.assertIn("case Container(inner = Inner(x = a, y = b)):\n", output)
         self.assertIn("case _:\n", output)
 
     def test_refs_target(self) -> None:

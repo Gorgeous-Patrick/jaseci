@@ -2963,8 +2963,8 @@ class JacParser(Transform[uni.Source, uni.Module]):
             kid_nodes.append(rparen)
             return uni.MatchArch(
                 name=name,
-                arg_patterns=arg,
-                kw_patterns=kw,
+                arg_patterns=arg.items if arg else None,
+                kw_patterns=kw.items if kw else None,
                 kid=kid_nodes,
             )
 

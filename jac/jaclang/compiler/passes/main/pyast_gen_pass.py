@@ -3123,31 +3123,19 @@ class PyastGenPass(UniPass):
             self.sync(
                 ast3.MatchClass(
                     cls=cast(ast3.expr, node.name.gen.py_ast[0]),
-                    patterns=(
-                        [
-                            cast(ast3.pattern, x.gen.py_ast[0])
-                            for x in node.arg_patterns.items
-                        ]
-                        if node.arg_patterns
-                        else []
-                    ),
-                    kwd_attrs=(
-                        [
-                            x.key.sym_name
-                            for x in node.kw_patterns.items
-                            if isinstance(x.key, uni.NameAtom)
-                        ]
-                        if node.kw_patterns
-                        else []
-                    ),
-                    kwd_patterns=(
-                        [
-                            cast(ast3.pattern, x.value.gen.py_ast[0])
-                            for x in node.kw_patterns.items
-                        ]
-                        if node.kw_patterns
-                        else []
-                    ),
+                    patterns=[
+                        cast(ast3.pattern, x.gen.py_ast[0])
+                        for x in (node.arg_patterns or [])
+                    ],
+                    kwd_attrs=[
+                        x.key.sym_name
+                        for x in (node.kw_patterns or [])
+                        if isinstance(x.key, uni.NameAtom)
+                    ],
+                    kwd_patterns=[
+                        cast(ast3.pattern, x.value.gen.py_ast[0])
+                        for x in (node.kw_patterns or [])
+                    ],
                 )
             )
         ]

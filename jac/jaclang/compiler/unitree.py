@@ -4301,30 +4301,37 @@ class MatchArch(MatchPattern):
     def __init__(
         self,
         name: AtomTrailer | NameAtom,
-        arg_patterns: Optional[SubNodeList[MatchPattern]],
-        kw_patterns: Optional[SubNodeList[MatchKVPair]],
+        arg_patterns: Sequence[MatchPattern] | None,
+        kw_patterns: Sequence[MatchKVPair] | None,
         kid: Sequence[UniNode],
     ) -> None:
         self.name = name
-        self.arg_patterns = arg_patterns
-        self.kw_patterns = kw_patterns
+        self.arg_patterns = list(arg_patterns) if arg_patterns else None
+        self.kw_patterns = list(kw_patterns) if kw_patterns else None
         UniNode.__init__(self, kid=kid)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
             res = self.name.normalize(deep)
-            res = res and (not self.arg_patterns or self.arg_patterns.normalize(deep))
-            res = res and (not self.kw_patterns or self.kw_patterns.normalize(deep))
+            for arg in self.arg_patterns or []:
+                res = res and arg.normalize(deep)
+            for kw in self.kw_patterns or []:
+                res = res and kw.normalize(deep)
         new_kid: list[UniNode] = [self.name]
         new_kid.append(self.gen_token(Tok.LPAREN))
         if self.arg_patterns:
-            new_kid.append(self.arg_patterns)
-            new_kid.append(self.gen_token(Tok.COMMA))
+            for idx, arg in enumerate(self.arg_patterns):
+                new_kid.append(arg)
+                if idx < len(self.arg_patterns) - 1:
+                    new_kid.append(self.gen_token(Tok.COMMA))
+            if self.kw_patterns:
+                new_kid.append(self.gen_token(Tok.COMMA))
         if self.kw_patterns:
-            new_kid.append(self.kw_patterns)
-        else:
-            new_kid.pop()
+            for idx, kw in enumerate(self.kw_patterns):
+                new_kid.append(kw)
+                if idx < len(self.kw_patterns) - 1:
+                    new_kid.append(self.gen_token(Tok.COMMA))
         new_kid.append(self.gen_token(Tok.RPAREN))
         self.set_kids(nodes=new_kid)
         return res

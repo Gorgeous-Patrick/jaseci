@@ -1058,8 +1058,11 @@ class DocIRGenPass(UniPass):
         """Generate DocIR for match architecture patterns."""
         parts: list[doc.DocType] = []
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
+            if isinstance(i, uni.Token) and i.name == Tok.COMMA:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            else:
+                parts.append(i.gen.doc_ir)
         node.gen.doc_ir = self.finalize(parts)
 
     def exit_enum(self, node: uni.Enum) -> None:
