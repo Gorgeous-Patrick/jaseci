@@ -1157,7 +1157,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             self.consume_token(Tok.KW_ELSE)
             body = self.consume(uni.SubNodeList)
             return uni.ElseStmt(
-                body=body,
+                body=body.items,
                 kid=self.cur_nodes,
             )
 

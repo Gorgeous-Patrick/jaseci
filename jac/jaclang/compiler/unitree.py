@@ -2193,21 +2193,25 @@ class ElseStmt(UniScopeNode):
 
     def __init__(
         self,
-        body: SubNodeList[CodeBlockStmt],
+        body: Sequence[CodeBlockStmt],
         kid: Sequence[UniNode],
     ) -> None:
-        self.body = body
+        self.body: list[CodeBlockStmt] = list(body)
         UniNode.__init__(self, kid=kid)
         UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
-            res = self.body.normalize(deep)
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
         new_kid: list[UniNode] = [
             self.gen_token(Tok.KW_ELSE),
-            self.body,
+            self.gen_token(Tok.LBRACE),
         ]
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 

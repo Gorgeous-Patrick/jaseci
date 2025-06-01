@@ -521,20 +521,9 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         if len(val_orelse) != len(orelse):
             raise self.ice("Length mismatch in for orelse")
         if orelse:
-            valid_orelse = uni.SubNodeList[uni.CodeBlockStmt](
-                items=val_orelse,
-                delim=Tok.WS,
-                kid=orelse,
-                left_enc=self.operator(Tok.LBRACE, "{"),
-                right_enc=self.operator(Tok.RBRACE, "}"),
-            )
+            fin_orelse = uni.ElseStmt(body=val_orelse, kid=val_orelse)
         else:
-            valid_orelse = None
-        fin_orelse = (
-            uni.ElseStmt(body=valid_orelse, kid=[valid_orelse])
-            if valid_orelse
-            else None
-        )
+            fin_orelse = None
         if isinstance(target, uni.Expr) and isinstance(iter, uni.Expr):
             return uni.InForStmt(
                 target=target,
@@ -580,20 +569,9 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         if len(val_orelse) != len(orelse):
             raise self.ice("Length mismatch in for orelse")
         if orelse:
-            valid_orelse = uni.SubNodeList[uni.CodeBlockStmt](
-                items=val_orelse,
-                delim=Tok.WS,
-                kid=orelse,
-                left_enc=self.operator(Tok.LBRACE, "{"),
-                right_enc=self.operator(Tok.RBRACE, "}"),
-            )
+            fin_orelse = uni.ElseStmt(body=val_orelse, kid=val_orelse)
         else:
-            valid_orelse = None
-        fin_orelse = (
-            uni.ElseStmt(body=valid_orelse, kid=[valid_orelse])
-            if valid_orelse
-            else None
-        )
+            fin_orelse = None
         if isinstance(target, uni.Expr) and isinstance(iter, uni.Expr):
             return uni.InForStmt(
                 target=target,
@@ -670,14 +648,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                     kid=first_elm.kid,
                 )
             else:
-                orelse2 = uni.SubNodeList[uni.CodeBlockStmt](
-                    items=valid_orelse,
-                    delim=Tok.WS,
-                    kid=orelse,
-                    left_enc=self.operator(Tok.LBRACE, "{"),
-                    right_enc=self.operator(Tok.RBRACE, "}"),
-                )
-                else_body = uni.ElseStmt(body=orelse2, kid=[orelse2])
+                else_body = uni.ElseStmt(body=valid_orelse, kid=valid_orelse)
         else:
             else_body = None
         if isinstance(test, uni.Expr):
@@ -2031,15 +2002,9 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             valid_orelse = [i for i in orelse if isinstance(i, (uni.CodeBlockStmt))]
             if len(orelse) != len(valid_orelse):
                 raise self.ice("Length mismatch in try orelse")
-            else_body = uni.SubNodeList[uni.CodeBlockStmt](
-                items=valid_orelse,
-                delim=Tok.WS,
-                kid=valid_orelse,
-                left_enc=self.operator(Tok.LBRACE, "{"),
-                right_enc=self.operator(Tok.RBRACE, "}"),
-            )
-            elsestmt = uni.ElseStmt(body=else_body, kid=[else_body])
-            kid.append(else_body)
+            else_body = valid_orelse
+            elsestmt = uni.ElseStmt(body=else_body, kid=else_body)
+            kid.extend(else_body)
         else:
             else_body = None
 
