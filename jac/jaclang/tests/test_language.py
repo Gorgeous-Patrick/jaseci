@@ -1340,4 +1340,5 @@ class JacLanguageTests(TestCase):
         self.assertIn("MyWalker() from node MyNode(val=20)", stdout_value[2])
         self.assertIn("MyWalker() from node MyNode(val=60)", stdout_value[4])
         self.assertIn("MyWalker() from node MyNode(val=40)", stdout_value[6])
-        self.assertIn("MyWalker() from node MyNode(val=70)", stdout_value[7])
+        self.assertIn("MyWalker() from node MyNode(val=90)", stdout_value[7])
+        self.assertIn("MyWalker() from node MyNode(val=70)", stdout_value[9])
