@@ -1670,7 +1670,7 @@ class Enum(ArchSpec, AstAccessNode, AstImplNeedingNode, ArchBlockStmt, UniScopeN
         name: Name,
         access: Optional[SubTag[Token]],
         base_classes: Sequence[Expr] | None,
-        body: Optional[SubNodeList[Assignment] | ImplDef],
+        body: Optional[SubNodeList[EnumBlockStmt] | ImplDef],
         kid: Sequence[UniNode],
         doc: Optional[String] = None,
         decorators: Sequence[Expr] | None = None,
