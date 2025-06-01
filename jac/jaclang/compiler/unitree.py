@@ -2462,11 +2462,11 @@ class WhileStmt(CodeBlockStmt, UniScopeNode):
     def __init__(
         self,
         condition: Expr,
-        body: SubNodeList[CodeBlockStmt],
+        body: Sequence[CodeBlockStmt],
         kid: Sequence[UniNode],
     ) -> None:
         self.condition = condition
-        self.body = body
+        self.body: list[CodeBlockStmt] = list(body)
         UniNode.__init__(self, kid=kid)
         UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
         CodeBlockStmt.__init__(self)
@@ -2475,13 +2475,16 @@ class WhileStmt(CodeBlockStmt, UniScopeNode):
         res = True
         if deep:
             res = self.condition.normalize(deep)
-            res = res and self.body.normalize(deep)
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
         new_kid: list[UniNode] = [
             self.gen_token(Tok.KW_WHILE),
             self.condition,
+            self.gen_token(Tok.LBRACE),
         ]
-        if self.body:
-            new_kid.append(self.body)
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 
@@ -2493,11 +2496,11 @@ class WithStmt(AstAsyncNode, CodeBlockStmt, UniScopeNode):
         self,
         is_async: bool,
         exprs: Sequence[ExprAsItem],
-        body: SubNodeList[CodeBlockStmt],
+        body: Sequence[CodeBlockStmt],
         kid: Sequence[UniNode],
     ) -> None:
         self.exprs = exprs
-        self.body = body
+        self.body: list[CodeBlockStmt] = list(body)
         UniNode.__init__(self, kid=kid)
         AstAsyncNode.__init__(self, is_async=is_async)
         UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
@@ -2508,7 +2511,8 @@ class WithStmt(AstAsyncNode, CodeBlockStmt, UniScopeNode):
         if deep:
             for item in self.exprs:
                 res = res and item.normalize(deep)
-            res = res and self.body.normalize(deep)
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
         new_kid: list[UniNode] = []
         if self.is_async:
             new_kid.append(self.gen_token(Tok.KW_ASYNC))
@@ -2517,7 +2521,10 @@ class WithStmt(AstAsyncNode, CodeBlockStmt, UniScopeNode):
             new_kid.append(item)
             if idx < len(self.exprs) - 1:
                 new_kid.append(self.gen_token(Tok.COMMA))
-        new_kid.append(self.body)
+        new_kid.append(self.gen_token(Tok.LBRACE))
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 

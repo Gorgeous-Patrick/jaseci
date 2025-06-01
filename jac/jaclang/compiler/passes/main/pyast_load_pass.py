@@ -590,18 +590,11 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         valid_body = [stmt for stmt in body if isinstance(stmt, uni.CodeBlockStmt)]
         if len(valid_body) != len(body):
             raise self.ice("Length mismatch in while body")
-        fin_body = uni.SubNodeList[uni.CodeBlockStmt](
-            items=valid_body,
-            delim=Tok.WS,
-            kid=valid_body,
-            left_enc=self.operator(Tok.LBRACE, "{"),
-            right_enc=self.operator(Tok.RBRACE, "}"),
-        )
         if isinstance(test, uni.Expr):
             return uni.WhileStmt(
                 condition=test,
-                body=fin_body,
-                kid=[test, fin_body],
+                body=valid_body,
+                kid=[test, *valid_body],
             )
         else:
             raise self.ice()
@@ -666,18 +659,11 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         valid_body = [stmt for stmt in body if isinstance(stmt, uni.CodeBlockStmt)]
         if len(valid_body) != len(body):
             raise self.ice("Length mismatch in async for body")
-        body_sub = uni.SubNodeList[uni.CodeBlockStmt](
-            items=valid_body,
-            delim=Tok.WS,
-            kid=body,
-            left_enc=self.operator(Tok.LBRACE, "{"),
-            right_enc=self.operator(Tok.RBRACE, "}"),
-        )
         return uni.WithStmt(
             is_async=False,
             exprs=valid_items,
-            body=body_sub,
-            kid=[*valid_items, body_sub],
+            body=valid_body,
+            kid=[*valid_items, *valid_body],
         )
 
     def proc_async_with(self, node: py_ast.AsyncWith) -> uni.WithStmt:
@@ -696,18 +682,11 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         valid_body = [stmt for stmt in body if isinstance(stmt, uni.CodeBlockStmt)]
         if len(valid_body) != len(body):
             raise self.ice("Length mismatch in async for body")
-        body_sub = uni.SubNodeList[uni.CodeBlockStmt](
-            items=valid_body,
-            delim=Tok.WS,
-            kid=body,
-            left_enc=self.operator(Tok.LBRACE, "{"),
-            right_enc=self.operator(Tok.RBRACE, "}"),
-        )
         return uni.WithStmt(
             is_async=True,
             exprs=valid_items,
-            body=body_sub,
-            kid=[*valid_items, body_sub],
+            body=valid_body,
+            kid=[*valid_items, *valid_body],
         )
 
     def proc_raise(self, node: py_ast.Raise) -> uni.RaiseStmt:

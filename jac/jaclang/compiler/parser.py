@@ -1271,7 +1271,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             body = self.consume(uni.SubNodeList)
             return uni.WhileStmt(
                 condition=condition,
-                body=body,
+                body=body.items,
                 kid=self.cur_nodes,
             )
 
@@ -1287,7 +1287,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             return uni.WithStmt(
                 is_async=is_async,
                 exprs=exprs_node.items,
-                body=body,
+                body=body.items,
                 kid=self.cur_nodes,
             )
 
