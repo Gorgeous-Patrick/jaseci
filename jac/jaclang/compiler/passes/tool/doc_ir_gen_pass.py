@@ -760,17 +760,37 @@ class DocIRGenPass(UniPass):
     def exit_module_code(self, node: uni.ModuleCode) -> None:
         """Generate DocIR for module code."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = []
+        in_body = False
         for i in node.kid:
-            if i == node.doc:
+            if node.doc and i is node.doc:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.hard_line())
-            elif isinstance(i, uni.Token):
+            elif i == node.name:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif isinstance(node.body, Sequence) and i in node.body:
+                if not in_body:
+                    parts.pop()
+                    body_parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+                in_body = True
+            elif in_body:
+                in_body = False
+                body_parts.pop()
+                parts.append(self.indent(self.concat(body_parts)))
+                parts.append(self.hard_line())
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
+                parts.pop()
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
             else:
-                parts.append(self.concat([i.gen.doc_ir]))
-
-        node.gen.doc_ir = self.group(self.concat(parts))
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        node.gen.doc_ir = self.finalize(parts)
 
     def exit_global_stmt(self, node: uni.GlobalStmt) -> None:
         """Generate DocIR for global statements."""

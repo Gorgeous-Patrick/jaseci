@@ -338,7 +338,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             codeblock = self.consume(uni.SubNodeList)
             return uni.ModuleCode(
                 name=name,
-                body=codeblock,
+                body=codeblock.items,
                 kid=self.cur_nodes,
             )
 
@@ -1128,7 +1128,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             else_body = self.match(uni.ElseStmt) or self.match(uni.ElseIf)
             return uni.IfStmt(
                 condition=condition,
-                body=body,
+                body=body.items,
                 else_body=else_body,
                 kid=self.cur_nodes,
             )
@@ -1144,7 +1144,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             else_body = self.match(uni.ElseStmt) or self.match(uni.ElseIf)
             return uni.ElseIf(
                 condition=condition,
-                body=body,
+                body=body.items,
                 else_body=else_body,
                 kid=self.cur_nodes,
             )

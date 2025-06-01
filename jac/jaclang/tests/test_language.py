@@ -568,7 +568,7 @@ class JacLanguageTests(TestCase):
         self.assertIn(
             "class Circle {\n    def init(self: Circle, radius: float", output
         )
-        self.assertIn("<>node = 90;\n    \n\n    print(<>node);\n", output)
+        self.assertIn("<>node = 90;\n    print(<>node);\n", output)
 
     def test_pyfunc_3(self) -> None:
         """Test py ast to Jac ast conversion."""

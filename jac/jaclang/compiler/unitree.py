@@ -1126,7 +1126,7 @@ class Test(AstSymbolNode, ElementStmt, UniScopeNode):
             if not self.name.value.startswith("test_")
             else self.name.value
         )
-        self.body = body
+        self.body: list[CodeBlockStmt] = list(body)
         UniNode.__init__(self, kid=kid)
         if self.name not in self.kid:
             self.insert_kids_at_pos([self.name], pos=1, pos_update=False)
@@ -1165,7 +1165,7 @@ class ModuleCode(ElementStmt, ArchBlockStmt, EnumBlockStmt):
     def __init__(
         self,
         name: Optional[Name],
-        body: SubNodeList[CodeBlockStmt],
+        body: Sequence[CodeBlockStmt],
         kid: Sequence[UniNode],
         is_enum_stmt: bool = False,
         doc: Optional[String] = None,
@@ -1180,7 +1180,8 @@ class ModuleCode(ElementStmt, ArchBlockStmt, EnumBlockStmt):
         res = True
         if deep:
             res = self.name.normalize(deep) if self.name else res
-            res = res and self.body.normalize(deep)
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
             res = res and self.doc.normalize(deep) if self.doc else res
         new_kid: list[UniNode] = []
         if self.doc:
@@ -1190,7 +1191,10 @@ class ModuleCode(ElementStmt, ArchBlockStmt, EnumBlockStmt):
         if self.name:
             new_kid.append(self.gen_token(Tok.COLON))
             new_kid.append(self.name)
-        new_kid.append(self.body)
+        new_kid.append(self.gen_token(Tok.LBRACE))
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 
@@ -2128,12 +2132,12 @@ class IfStmt(CodeBlockStmt, AstElseBodyNode, UniScopeNode):
     def __init__(
         self,
         condition: Expr,
-        body: SubNodeList[CodeBlockStmt],
+        body: Sequence[CodeBlockStmt],
         else_body: Optional[ElseStmt | ElseIf],
         kid: Sequence[UniNode],
     ) -> None:
         self.condition = condition
-        self.body = body
+        self.body: list[CodeBlockStmt] = list(body)
         UniNode.__init__(self, kid=kid)
         AstElseBodyNode.__init__(self, else_body=else_body)
         UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
@@ -2143,13 +2147,17 @@ class IfStmt(CodeBlockStmt, AstElseBodyNode, UniScopeNode):
         res = True
         if deep:
             res = self.condition.normalize(deep)
-            res = res and self.body.normalize(deep)
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
             res = res and self.else_body.normalize(deep) if self.else_body else res
         new_kid: list[UniNode] = [
             self.gen_token(Tok.KW_IF),
             self.condition,
-            self.body,
+            self.gen_token(Tok.LBRACE),
         ]
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         if self.else_body:
             new_kid.append(self.else_body)
         self.set_kids(nodes=new_kid)
@@ -2163,13 +2171,17 @@ class ElseIf(IfStmt):
         res = True
         if deep:
             res = self.condition.normalize(deep)
-            res = res and self.body.normalize(deep)
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
             res = res and self.else_body.normalize(deep) if self.else_body else res
         new_kid: list[UniNode] = [
             self.gen_token(Tok.KW_ELIF),
             self.condition,
-            self.body,
+            self.gen_token(Tok.LBRACE),
         ]
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         if self.else_body:
             new_kid.append(self.else_body)
         self.set_kids(nodes=new_kid)
