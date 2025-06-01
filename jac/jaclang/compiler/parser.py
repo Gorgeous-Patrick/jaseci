@@ -1203,11 +1203,11 @@ class JacParser(Transform[uni.Source, uni.Module]):
             ex_type = self.consume(uni.Expr)
             if self.match_token(Tok.KW_AS):
                 name = self.consume(uni.Name)
-            body = self.consume(uni.SubNodeList)
+            body_node = self.consume(uni.SubNodeList)
             return uni.Except(
                 ex_type=ex_type,
                 name=name,
-                body=body,
+                body=body_node.items,
                 kid=self.cur_nodes,
             )
 

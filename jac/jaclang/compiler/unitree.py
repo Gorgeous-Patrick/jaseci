@@ -2297,12 +2297,12 @@ class Except(CodeBlockStmt, UniScopeNode):
         self,
         ex_type: Expr,
         name: Optional[Name],
-        body: SubNodeList[CodeBlockStmt],
+        body: Sequence[CodeBlockStmt],
         kid: Sequence[UniNode],
     ) -> None:
         self.ex_type = ex_type
         self.name = name
-        self.body = body
+        self.body: list[CodeBlockStmt] = list(body)
         UniNode.__init__(self, kid=kid)
         UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
         CodeBlockStmt.__init__(self)
@@ -2312,7 +2312,8 @@ class Except(CodeBlockStmt, UniScopeNode):
         if deep:
             res = self.ex_type.normalize(deep)
             res = res and self.name.normalize(deep) if self.name else res
-            res = res and self.body.normalize(deep) if self.body else res
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
         new_kid: list[UniNode] = [
             self.gen_token(Tok.KW_EXCEPT),
             self.ex_type,
@@ -2320,7 +2321,10 @@ class Except(CodeBlockStmt, UniScopeNode):
         if self.name:
             new_kid.append(self.gen_token(Tok.KW_AS))
             new_kid.append(self.name)
-        new_kid.append(self.body)
+        new_kid.append(self.gen_token(Tok.LBRACE))
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 

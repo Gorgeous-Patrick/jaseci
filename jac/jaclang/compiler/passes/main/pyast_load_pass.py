@@ -1215,7 +1215,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             return uni.Except(
                 ex_type=type,
                 name=name,
-                body=valid_body,
+                body=valid_body.items,
                 kid=kid,
             )
         else:
