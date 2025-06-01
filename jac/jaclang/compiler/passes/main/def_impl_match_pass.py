@@ -17,6 +17,8 @@ developers to define archetype and ability interfaces in one file while implemen
 their behavior in separate files.
 """
 
+from typing import Sequence
+
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.constant import Tokens as Tok
 from jaclang.compiler.passes.transform import Transform
@@ -124,7 +126,7 @@ class DeclImplMatchPass(Transform[uni.Module, uni.Module]):
 
             valid_decl.body = sym.decl.name_of
             sym.decl.name_of.decl_link = valid_decl
-            for idx, a in enumerate(sym.decl.name_of.target.items):
+            for idx, a in enumerate(sym.decl.name_of.target):
                 if idx < len(name_of_links) and name_of_links[idx]:
                     a.name_spec.name_of = name_of_links[idx].name_of
                     a.name_spec.sym = name_of_links[idx].sym
@@ -182,12 +184,10 @@ class DeclImplMatchPass(Transform[uni.Module, uni.Module]):
 
     def check_archetype(self, node: uni.Archetype) -> None:
         """Check a single archetype for issues."""
-        if node.arch_type.name == Tok.KW_OBJECT and isinstance(
-            node.body, uni.SubNodeList
-        ):
+        if node.arch_type.name == Tok.KW_OBJECT and isinstance(node.body, Sequence):
             self.cur_node = node
             found_default_init = False
-            for stmnt in node.body.items:
+            for stmnt in node.body:
                 if not isinstance(stmnt, uni.ArchHas):
                     continue
                 for var in stmnt.vars.items:
@@ -204,7 +204,7 @@ class DeclImplMatchPass(Transform[uni.Module, uni.Module]):
             post_init_vars: list[uni.HasVar] = []
             postinit_method: uni.Ability | None = None
 
-            for item in node.body.items:
+            for item in node.body:
 
                 if isinstance(item, uni.ArchHas):
                     for var in item.vars.items:
