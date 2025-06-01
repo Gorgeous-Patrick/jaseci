@@ -4631,7 +4631,6 @@ class String(Literal):
             if (not self.find_parent_of_type(FString)) or (
                 not (
                     self.parent
-                    and isinstance(self.parent, SubNodeList)
                     and self.parent.parent
                     and isinstance(self.parent.parent, FString)
                 )
