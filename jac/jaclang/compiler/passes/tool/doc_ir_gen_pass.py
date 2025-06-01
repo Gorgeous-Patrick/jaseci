@@ -440,8 +440,8 @@ class DocIRGenPass(UniPass):
                 parts.append(self.hard_line())
             elif (
                 isinstance(i, uni.SubNodeList)
-                and i == node.vars
                 and isinstance(i.gen.doc_ir, doc.Concat)
+                and all(it in node.vars for it in getattr(i, "items", []))
             ):
                 parts.append(self.align(i.gen.doc_ir))
             else:

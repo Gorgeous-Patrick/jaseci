@@ -1126,17 +1126,18 @@ class PyastGenPass(UniPass):
         ]
 
     def exit_arch_has(self, node: uni.ArchHas) -> None:
+        vars_py: list[ast3.AST] = self.flatten([v.gen.py_ast for v in node.vars])
         if node.doc:
             doc = self.sync(
                 ast3.Expr(value=cast(ast3.expr, node.doc.gen.py_ast[0])),
                 jac_node=node.doc,
             )
-            if isinstance(doc, ast3.AST) and isinstance(node.vars.gen.py_ast, list):
-                node.gen.py_ast = [doc] + node.vars.gen.py_ast
+            if isinstance(doc, ast3.AST):
+                node.gen.py_ast = [doc] + vars_py
             else:
                 raise self.ice()
         else:
-            node.gen.py_ast = node.vars.gen.py_ast  # TODO: This is a list
+            node.gen.py_ast = vars_py
 
     def exit_has_var(self, node: uni.HasVar) -> None:
         annotation = node.type_tag.gen.py_ast[0] if node.type_tag else None

@@ -2014,13 +2014,13 @@ class ArchHas(AstAccessNode, AstDocNode, ArchBlockStmt, CodeBlockStmt):
         self,
         is_static: bool,
         access: Optional[SubTag[Token]],
-        vars: SubNodeList[HasVar],
+        vars: Sequence[HasVar],
         is_frozen: bool,
         kid: Sequence[UniNode],
         doc: Optional[String] = None,
     ) -> None:
         self.is_static = is_static
-        self.vars = vars
+        self.vars: list[HasVar] = list(vars)
         self.is_frozen = is_frozen
         UniNode.__init__(self, kid=kid)
         AstAccessNode.__init__(self, access=access)
@@ -2031,7 +2031,8 @@ class ArchHas(AstAccessNode, AstDocNode, ArchBlockStmt, CodeBlockStmt):
         res = True
         if deep:
             res = self.access.normalize(deep) if self.access else res
-            res = res and self.vars.normalize(deep) if self.vars else res
+            for var in self.vars:
+                res = res and var.normalize(deep)
             res = res and self.doc.normalize(deep) if self.doc else res
         new_kid: list[UniNode] = []
         if self.doc:
@@ -2045,7 +2046,10 @@ class ArchHas(AstAccessNode, AstDocNode, ArchBlockStmt, CodeBlockStmt):
         )
         if self.access:
             new_kid.append(self.access)
-        new_kid.append(self.vars)
+        for i, var in enumerate(self.vars):
+            new_kid.append(var)
+            if i < len(self.vars) - 1:
+                new_kid.append(self.gen_token(Tok.COMMA))
         new_kid.append(self.gen_token(Tok.SEMI))
         self.set_kids(nodes=new_kid)
         return res

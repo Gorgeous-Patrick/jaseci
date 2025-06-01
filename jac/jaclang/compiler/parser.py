@@ -939,7 +939,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             assign = chomp[0]
             if isinstance(assign, uni.SubNodeList):
                 return uni.ArchHas(
-                    vars=assign,
+                    vars=assign.items,
                     is_static=is_static,
                     is_frozen=is_freeze,
                     access=access,
