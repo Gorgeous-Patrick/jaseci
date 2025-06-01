@@ -226,6 +226,7 @@ class PyastGenPass(UniPass):
         self,
         node: (
             Sequence[uni.CodeBlockStmt]
+            | Sequence[uni.EnumBlockStmt]
             | uni.SubNodeList[uni.CodeBlockStmt]
             | uni.SubNodeList[uni.ArchBlockStmt]
             | uni.SubNodeList[uni.EnumBlockStmt]
