@@ -1113,7 +1113,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             body = self.consume(uni.SubNodeList)
             return uni.TypedCtxBlock(
                 type_ctx=ctx,
-                body=body,
+                body=body.items,
                 kid=self.cur_nodes,
             )
 

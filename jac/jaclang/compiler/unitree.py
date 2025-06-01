@@ -2095,7 +2095,7 @@ class TypedCtxBlock(CodeBlockStmt, UniScopeNode):
     def __init__(
         self,
         type_ctx: Expr,
-        body: SubNodeList[CodeBlockStmt],
+        body: Sequence[CodeBlockStmt],
         kid: Sequence[UniNode],
     ) -> None:
         self.type_ctx = type_ctx
@@ -2108,12 +2108,16 @@ class TypedCtxBlock(CodeBlockStmt, UniScopeNode):
         res = True
         if deep:
             res = self.type_ctx.normalize(deep)
-            res = res and self.body.normalize(deep)
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
         new_kid: list[UniNode] = [
             self.gen_token(Tok.RETURN_HINT),
             self.type_ctx,
-            self.body,
+            self.gen_token(Tok.LBRACE),
         ]
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 
