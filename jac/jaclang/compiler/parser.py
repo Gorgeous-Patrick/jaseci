@@ -1219,7 +1219,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             self.consume_token(Tok.KW_FINALLY)
             body = self.consume(uni.SubNodeList)
             return uni.FinallyStmt(
-                body=body,
+                body=body.items,
                 kid=self.cur_nodes,
             )
 
@@ -1243,7 +1243,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     iter=iter,
                     condition=condition,
                     count_by=count_by,
-                    body=body,
+                    body=body.items,
                     else_body=else_body,
                     kid=self.cur_nodes,
                 )
@@ -1256,7 +1256,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 is_async=is_async,
                 target=target,
                 collection=collection,
-                body=body,
+                body=body.items,
                 else_body=else_body,
                 kid=self.cur_nodes,
             )

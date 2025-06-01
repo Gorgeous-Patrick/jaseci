@@ -509,13 +509,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         if len(val_body) != len(body):
             raise self.ice("Length mismatch in for body")
 
-        valid_body = uni.SubNodeList[uni.CodeBlockStmt](
-            items=val_body,
-            delim=Tok.WS,
-            kid=val_body,
-            left_enc=self.operator(Tok.LBRACE, "{"),
-            right_enc=self.operator(Tok.RBRACE, "}"),
-        )
+        valid_body = val_body
         orelse = [self.convert(i) for i in node.orelse]
         val_orelse = [i for i in orelse if isinstance(i, uni.CodeBlockStmt)]
         if len(val_orelse) != len(orelse):
@@ -532,9 +526,9 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                 body=valid_body,
                 else_body=fin_orelse,
                 kid=(
-                    [target, iter, valid_body, fin_orelse]
+                    [target, iter, *valid_body, fin_orelse]
                     if fin_orelse
-                    else [target, iter, valid_body]
+                    else [target, iter, *valid_body]
                 ),
             )
         else:
@@ -557,13 +551,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         if len(val_body) != len(body):
             raise self.ice("Length mismatch in for body")
 
-        valid_body = uni.SubNodeList[uni.CodeBlockStmt](
-            items=val_body,
-            delim=Tok.WS,
-            kid=val_body,
-            left_enc=self.operator(Tok.LBRACE, "{"),
-            right_enc=self.operator(Tok.RBRACE, "}"),
-        )
+        valid_body = val_body
         orelse = [self.convert(i) for i in node.orelse]
         val_orelse = [i for i in orelse if isinstance(i, uni.CodeBlockStmt)]
         if len(val_orelse) != len(orelse):
@@ -580,9 +568,9 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                 body=valid_body,
                 else_body=fin_orelse,
                 kid=(
-                    [target, iter, valid_body, fin_orelse]
+                    [target, iter, *valid_body, fin_orelse]
                     if fin_orelse
-                    else [target, iter, valid_body]
+                    else [target, iter, *valid_body]
                 ),
             )
         else:
@@ -2007,23 +1995,20 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             ]
             if len(finalbody) != len(valid_finalbody):
                 raise self.ice("Length mismatch in try finalbody")
-            finally_body = uni.SubNodeList[uni.CodeBlockStmt](
-                items=valid_finalbody,
-                delim=Tok.WS,
-                kid=valid_finalbody,
-                left_enc=self.operator(Tok.LBRACE, "{"),
-                right_enc=self.operator(Tok.RBRACE, "}"),
+            finally_stmt_obj: Optional[uni.FinallyStmt] = (
+                fin_append := uni.FinallyStmt(
+                    body=valid_finalbody,
+                    kid=valid_finalbody,
+                )
             )
-            finally_stmt = uni.FinallyStmt(body=finally_body, kid=[finally_body])
-
-            kid.append(finally_stmt)
+            kid.append(fin_append)
         else:
-            finally_body = None
+            finally_stmt_obj = None
         ret = uni.TryStmt(
             body=valid_body,
             excepts=excepts,
             else_body=elsestmt if else_body else None,
-            finally_body=finally_stmt if finally_body else None,
+            finally_body=finally_stmt_obj,
             kid=kid,
         )
         return ret
