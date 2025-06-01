@@ -165,22 +165,10 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         ):
             self.convert_to_doc(valid[0].expr)
             doc = valid[0].expr
-            valid_body = uni.SubNodeList[uni.CodeBlockStmt](
-                items=valid[1:],
-                delim=Tok.WS,
-                kid=valid[1:] + [doc],
-                left_enc=self.operator(Tok.LBRACE, "{"),
-                right_enc=self.operator(Tok.RBRACE, "}"),
-            )
+            valid_body = valid[1:]
         else:
             doc = None
-            valid_body = uni.SubNodeList[uni.CodeBlockStmt](
-                items=valid,
-                delim=Tok.WS,
-                kid=valid,
-                left_enc=self.operator(Tok.LBRACE, "{"),
-                right_enc=self.operator(Tok.RBRACE, "}"),
-            )
+            valid_body = valid
         decorators = [self.convert(i) for i in node.decorator_list]
         valid_dec = [i for i in decorators if isinstance(i, uni.Expr)]
         if len(valid_dec) != len(decorators):
@@ -198,7 +186,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                 sig.return_type = ret_sig
                 sig.add_kids_right([sig.return_type])
         kid = ([doc] if doc else []) + (
-            [name, sig, valid_body] if sig else [name, valid_body]
+            [name, sig, *valid_body] if sig else [name, *valid_body]
         )
         if not sig:
             raise self.ice("Function signature not found")

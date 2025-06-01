@@ -779,12 +779,18 @@ class JacParser(Transform[uni.Source, uni.Module]):
             signature = self.consume(uni.EventSignature)
 
             # Handle block_tail
-            body = self.match(uni.SubNodeList) or self.match(uni.FuncCall)
-            if body is None:
+            body_sn_or_call = self.match(uni.SubNodeList) or self.match(uni.FuncCall)
+            if body_sn_or_call is None:
                 is_abstract = self.match_token(Tok.KW_ABSTRACT) is not None
                 self.consume_token(Tok.SEMI)
+                body = None
             else:
                 is_abstract = False
+                body = (
+                    body_sn_or_call.items
+                    if isinstance(body_sn_or_call, uni.SubNodeList)
+                    else body_sn_or_call
+                )
 
             return uni.Ability(
                 name_ref=name,
@@ -813,12 +819,18 @@ class JacParser(Transform[uni.Source, uni.Module]):
             signature = self.match(uni.FuncSignature)
 
             # Handle block_tail
-            body = self.match(uni.SubNodeList) or self.match(uni.FuncCall)
-            if body is None:
+            body_sn_or_call = self.match(uni.SubNodeList) or self.match(uni.FuncCall)
+            if body_sn_or_call is None:
                 is_abstract = self.match_token(Tok.KW_ABSTRACT) is not None
                 self.consume_token(Tok.SEMI)
+                body = None
             else:
                 is_abstract = False
+                body = (
+                    body_sn_or_call.items
+                    if isinstance(body_sn_or_call, uni.SubNodeList)
+                    else body_sn_or_call
+                )
 
             return uni.Ability(
                 name_ref=name,
