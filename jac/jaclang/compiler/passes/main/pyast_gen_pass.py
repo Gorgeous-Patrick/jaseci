@@ -1887,7 +1887,7 @@ class PyastGenPass(UniPass):
 
     def exit_global_stmt(self, node: uni.GlobalStmt) -> None:
         py_nodes = []
-        for x in node.target.items:
+        for x in node.target:
             py_nodes.append(
                 self.sync(
                     ast3.Global(names=[x.sym_name]),
@@ -1898,7 +1898,7 @@ class PyastGenPass(UniPass):
 
     def exit_non_local_stmt(self, node: uni.NonLocalStmt) -> None:
         py_nodes = []
-        for x in node.target.items:
+        for x in node.target:
             py_nodes.append(
                 self.sync(
                     ast3.Nonlocal(names=[x.sym_name]),

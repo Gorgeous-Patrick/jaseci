@@ -1476,7 +1476,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             self.consume_token(Tok.GLOBAL_OP)
             target = self.consume(uni.SubNodeList)
             return uni.GlobalStmt(
-                target=target,
+                target=target.items,
                 kid=self.cur_nodes,
             )
 
@@ -1488,7 +1488,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             self.consume_token(Tok.NONLOCAL_OP)
             target = self.consume(uni.SubNodeList)
             return uni.NonLocalStmt(
-                target=target,
+                target=target.items,
                 kid=self.cur_nodes,
             )
 

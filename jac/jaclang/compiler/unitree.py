@@ -2866,22 +2866,24 @@ class GlobalStmt(CodeBlockStmt):
 
     def __init__(
         self,
-        target: SubNodeList[NameAtom],
+        target: Sequence[NameAtom],
         kid: Sequence[UniNode],
     ) -> None:
-        self.target = target
+        self.target: list[NameAtom] = list(target)
         UniNode.__init__(self, kid=kid)
         CodeBlockStmt.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
-            res = self.target.normalize(deep)
-        new_kid: list[UniNode] = [
-            self.gen_token(Tok.GLOBAL_OP),
-            self.target,
-            self.gen_token(Tok.SEMI),
-        ]
+            for item in self.target:
+                res = res and item.normalize(deep)
+        new_kid: list[UniNode] = [self.gen_token(Tok.GLOBAL_OP)]
+        for idx, item in enumerate(self.target):
+            new_kid.append(item)
+            if idx < len(self.target) - 1:
+                new_kid.append(self.gen_token(Tok.COMMA))
+        new_kid.append(self.gen_token(Tok.SEMI))
         self.set_kids(nodes=new_kid)
         return res
 
@@ -2892,12 +2894,14 @@ class NonLocalStmt(GlobalStmt):
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
-            res = self.target.normalize(deep)
-        new_kid: list[UniNode] = [
-            self.gen_token(Tok.NONLOCAL_OP),
-            self.target,
-            self.gen_token(Tok.SEMI),
-        ]
+            for item in self.target:
+                res = res and item.normalize(deep)
+        new_kid: list[UniNode] = [self.gen_token(Tok.NONLOCAL_OP)]
+        for idx, item in enumerate(self.target):
+            new_kid.append(item)
+            if idx < len(self.target) - 1:
+                new_kid.append(self.gen_token(Tok.COMMA))
+        new_kid.append(self.gen_token(Tok.SEMI))
         self.set_kids(nodes=new_kid)
         return res
 

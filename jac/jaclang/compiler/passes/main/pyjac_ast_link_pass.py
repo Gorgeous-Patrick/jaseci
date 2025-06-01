@@ -108,11 +108,11 @@ class PyJacAstLinkPass(UniPass):
             self.link_jac_py_nodes(jac_node=node.alias, py_nodes=node.gen.py_ast)
 
     def exit_global_stmt(self, node: uni.GlobalStmt) -> None:
-        for x, y in enumerate(node.target.items):
+        for x, y in enumerate(node.target):
             self.link_jac_py_nodes(jac_node=y, py_nodes=[node.gen.py_ast[x]])
 
     def exit_non_local_stmt(self, node: uni.NonLocalStmt) -> None:
-        for x, y in enumerate(node.target.items):
+        for x, y in enumerate(node.target):
             self.link_jac_py_nodes(jac_node=y, py_nodes=[node.gen.py_ast[x]])
 
     def exit_k_w_pair(self, node: uni.KWPair) -> None:
