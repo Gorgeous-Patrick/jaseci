@@ -1922,18 +1922,20 @@ class PyastGenPass(UniPass):
                 else None if node.type_tag else self.ice()
             )
         )
+        targets_ast = [cast(ast3.expr, t.gen.py_ast[0]) for t in node.target]
+
         if node.type_tag:
             node.gen.py_ast = [
                 self.sync(
                     ast3.AnnAssign(
-                        target=cast(ast3.Name, node.target.items[0].gen.py_ast[0]),
+                        target=cast(ast3.Name, targets_ast[0]),
                         annotation=cast(ast3.expr, node.type_tag.gen.py_ast[0]),
                         value=(
                             cast(ast3.expr, node.value.gen.py_ast[0])
                             if node.value
                             else None
                         ),
-                        simple=int(isinstance(node.target.gen.py_ast[0], ast3.Name)),
+                        simple=int(isinstance(targets_ast[0], ast3.Name)),
                     )
                 )
             ]
@@ -1941,7 +1943,7 @@ class PyastGenPass(UniPass):
             node.gen.py_ast = [
                 self.sync(
                     ast3.AugAssign(
-                        target=cast(ast3.Name, node.target.items[0].gen.py_ast[0]),
+                        target=cast(ast3.Name, targets_ast[0]),
                         op=cast(ast3.operator, node.aug_op.gen.py_ast[0]),
                         value=(
                             cast(ast3.expr, value)
@@ -1955,7 +1957,7 @@ class PyastGenPass(UniPass):
             node.gen.py_ast = [
                 self.sync(
                     ast3.Assign(
-                        targets=cast(list[ast3.expr], node.target.gen.py_ast),
+                        targets=cast(list[ast3.expr], targets_ast),
                         value=(
                             cast(ast3.expr, value)
                             if isinstance(value, ast3.expr)

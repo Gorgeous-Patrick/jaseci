@@ -2433,7 +2433,7 @@ class InForStmt(AstAsyncNode, AstElseBodyNode, CodeBlockStmt, UniScopeNode):
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
-            res = self.target.normalize(deep)
+            res = res and self.target.normalize(deep)
             res = res and self.collection.normalize(deep)
             for stmt in self.body:
                 res = res and stmt.normalize(deep)
@@ -2903,7 +2903,7 @@ class Assignment(AstTypedVarNode, EnumBlockStmt, CodeBlockStmt):
 
     def __init__(
         self,
-        target: SubNodeList[Expr],
+        target: Sequence[Expr],
         value: Optional[Expr | YieldExpr],
         type_tag: Optional[SubTag[Expr]],
         kid: Sequence[UniNode],
@@ -2911,7 +2911,7 @@ class Assignment(AstTypedVarNode, EnumBlockStmt, CodeBlockStmt):
         aug_op: Optional[Token] = None,
         is_enum_stmt: bool = False,
     ) -> None:
-        self.target = target
+        self.target: list[Expr] = list(target)
         self.value = value
         self.mutable = mutable
         self.aug_op = aug_op
@@ -2923,12 +2923,16 @@ class Assignment(AstTypedVarNode, EnumBlockStmt, CodeBlockStmt):
     def normalize(self, deep: bool = True) -> bool:
         res = True
         if deep:
-            res = self.target.normalize(deep)
+            for t in self.target:
+                res = res and t.normalize(deep)
             res = res and self.value.normalize(deep) if self.value else res
             res = res and self.type_tag.normalize(deep) if self.type_tag else res
             res = res and self.aug_op.normalize(deep) if self.aug_op else res
         new_kid: list[UniNode] = []
-        new_kid.append(self.target)
+        for idx, targ in enumerate(self.target):
+            new_kid.append(targ)
+            if idx < len(self.target) - 1:
+                new_kid.append(self.gen_token(Tok.EQ))
         if self.type_tag:
             new_kid.append(self.type_tag)
         if self.aug_op:

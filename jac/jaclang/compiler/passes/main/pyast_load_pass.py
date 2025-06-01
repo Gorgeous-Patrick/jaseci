@@ -411,7 +411,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             raise self.ice("Length mismatch in assignment targets")
         if isinstance(value, uni.Expr):
             return uni.Assignment(
-                target=valid_targets,
+                target=valid_targets.items,
                 value=value,
                 type_tag=None,
                 kid=[valid_targets, value],
@@ -444,7 +444,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                 items=[target], delim=Tok.COMMA, kid=[target]
             )
             return uni.Assignment(
-                target=targ,
+                target=targ.items,
                 type_tag=None,
                 mutable=True,
                 aug_op=op,
@@ -476,17 +476,17 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             and isinstance(annotation, uni.Expr)
             and isinstance(target, uni.Expr)
         ):
-            target = uni.SubNodeList[uni.Expr](
+            target_sn = uni.SubNodeList[uni.Expr](
                 items=[target], delim=Tok.EQ, kid=[target]
             )
             return uni.Assignment(
-                target=target,
+                target=target_sn.items,
                 value=value if isinstance(value, (uni.Expr, uni.YieldExpr)) else None,
                 type_tag=annotation_subtag,
                 kid=(
-                    [target, annotation_subtag, value]
+                    [target_sn, annotation_subtag, value]
                     if value
-                    else [target, annotation_subtag]
+                    else [target_sn, annotation_subtag]
                 ),
             )
         else:

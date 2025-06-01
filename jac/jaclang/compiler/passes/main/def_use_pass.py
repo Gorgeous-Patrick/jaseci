@@ -70,7 +70,7 @@ class DefUsePass(UniPass):
             self.ice("Inconsistency in AST, has var should be under arch has")
 
     def enter_assignment(self, node: uni.Assignment) -> None:
-        for i in node.target.items:
+        for i in node.target:
             if isinstance(i, uni.AtomTrailer):
                 i.sym_tab.chain_def_insert(i.as_attr_list)
             elif isinstance(i, uni.AstSymbolNode):

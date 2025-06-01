@@ -54,7 +54,7 @@ class SymTabBuildPass(UniPass):
 
     def exit_global_vars(self, node: uni.GlobalVars) -> None:
         for i in self.get_all_sub_nodes(node, uni.Assignment):
-            for j in i.target.items:
+            for j in i.target:
                 if isinstance(j, uni.AstSymbolNode):
                     j.sym_tab.def_insert(j, access_spec=node, single_decl="global var")
                 else:

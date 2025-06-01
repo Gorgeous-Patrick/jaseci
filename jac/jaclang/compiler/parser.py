@@ -1533,7 +1533,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             kid.insert(1, new_targ) if is_frozen else kid.insert(0, new_targ)
             if is_aug:
                 return uni.Assignment(
-                    target=new_targ,
+                    target=new_targ.items,
                     type_tag=type_tag,
                     value=value,
                     mutable=is_frozen,
@@ -1541,7 +1541,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     kid=kid,
                 )
             return uni.Assignment(
-                target=new_targ,
+                target=new_targ.items,
                 type_tag=type_tag,
                 value=value,
                 mutable=is_frozen,
@@ -2420,7 +2420,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     items=[name_consume], delim=Tok.EQ, kid=[name_consume]
                 )
                 return uni.Assignment(
-                    target=target, value=None, type_tag=None, kid=[target]
+                    target=target.items, value=None, type_tag=None, kid=[target]
                 )
 
             if consume := self.match(uni.SubNodeList):
