@@ -242,14 +242,30 @@ class DocIRGenPass(UniPass):
     def exit_func_signature(self, node: uni.FuncSignature) -> None:
         """Generate DocIR for function signatures."""
         parts: list[doc.DocType] = []
+        indent_parts: list[doc.DocType] = []
+        in_params = False
         for i in node.kid:
-            if isinstance(i, uni.Token) and i.name == Tok.LPAREN:
+            if isinstance(i, uni.Token) and i.name == Tok.LPAREN and node.params:
+                in_params = True
                 parts.append(i.gen.doc_ir)
-            elif i == node.params:
+            elif isinstance(i, uni.Token) and i.name == Tok.RPAREN and node.params:
+                in_params = False
                 parts.append(
-                    self.indent(self.concat([self.tight_line(), i.gen.doc_ir]))
+                    self.indent(self.concat([self.tight_line(), *indent_parts]))
                 )
                 parts.append(self.tight_line())
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif isinstance(i, uni.Token) and i.name == Tok.RPAREN:
+                parts.pop()
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif in_params:
+                if isinstance(i, uni.Token) and i.name == Tok.COMMA:
+                    indent_parts.append(i.gen.doc_ir)
+                    indent_parts.append(self.space())
+                else:
+                    indent_parts.append(i.gen.doc_ir)
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())

@@ -131,7 +131,7 @@ class SemRegistry:
             ret = "function("
             params = []
             if node.signature.params:
-                for param in node.signature.params.items:
+                for param in node.signature.params:
                     params.append(
                         param.name.value
                         + ":"

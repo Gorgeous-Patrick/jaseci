@@ -193,7 +193,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         ret_sig = self.convert(node.returns) if node.returns else None
         if isinstance(ret_sig, uni.Expr):
             if not sig:
-                sig = uni.FuncSignature(params=None, return_type=ret_sig, kid=[ret_sig])
+                sig = uni.FuncSignature(params=[], return_type=ret_sig, kid=[ret_sig])
             else:
                 sig.return_type = ret_sig
                 sig.add_kids_right([sig.return_type])
@@ -296,7 +296,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                 and isinstance(body_stmt.signature, uni.FuncSignature)
                 and body_stmt.signature.params
             ):
-                for param in body_stmt.signature.params.items:
+                for param in body_stmt.signature.params:
                     if param.name.value == "self":
                         param.type_tag = uni.SubTag[uni.Expr](name, kid=[name])
         doc = (
@@ -2206,21 +2206,17 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
 
         valid_params = [param for param in params if isinstance(param, uni.ParamVar)]
         if valid_params:
-            fs_params = uni.SubNodeList[uni.ParamVar](
-                items=valid_params, delim=Tok.COMMA, kid=valid_params
-            )
+            fs_params = valid_params
             return uni.FuncSignature(
                 params=fs_params,
                 return_type=None,
-                kid=[fs_params],
+                kid=fs_params,
             )
         else:
-            _lparen = self.operator(Tok.LPAREN, "(")
-            _rparen = self.operator(Tok.RPAREN, ")")
             return uni.FuncSignature(
-                params=None,
+                params=[],
                 return_type=None,
-                kid=[_lparen, _rparen],
+                kid=[self.operator(Tok.LPAREN, "("), self.operator(Tok.RPAREN, ")")],
             )
 
     def operator(self, tok: Tok, value: str) -> uni.Token:

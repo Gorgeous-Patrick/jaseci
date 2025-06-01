@@ -161,7 +161,7 @@ class DeclImplMatchPass(Transform[uni.Module, uni.Module]):
 
             if params_decl and params_defn:
                 # Check if the parameter count is matched.
-                if len(params_defn.items) != len(params_decl.items):
+                if len(params_defn) != len(params_decl):
                     self.log_error(
                         f"Parameter count mismatch for ability {sym.sym_name}.",
                         sym.decl.name_of.name_spec,
@@ -172,10 +172,12 @@ class DeclImplMatchPass(Transform[uni.Module, uni.Module]):
                     )
                 else:
                     # Copy the parameter names from the declaration to the definition.
-                    for idx in range(len(params_defn.items)):
-                        params_decl.items[idx] = params_defn.items[idx]
-                    for idx in range(len(params_defn.kid)):
-                        params_decl.kid[idx] = params_defn.kid[idx]
+                    for idx in range(len(params_defn)):
+                        # TODO: Refactor the below 2 lines when subnodelist goes away.
+                        loc_in_kid = params_decl[idx].parent.kid.index(params_decl[idx])  # type: ignore
+                        params_decl[idx].parent.kid[loc_in_kid] = params_defn[idx]  # type: ignore
+
+                        params_decl[idx] = params_defn[idx]
 
     def check_archetypes(self, ir_in: uni.Module) -> None:
         """Check all archetypes for issues with attributes and methods."""
