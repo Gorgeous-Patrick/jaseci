@@ -1172,8 +1172,8 @@ class JacParser(Transform[uni.Source, uni.Module]):
             else_stmt = self.match(uni.ElseStmt)
             finally_stmt = self.match(uni.FinallyStmt)
             return uni.TryStmt(
-                body=block,
-                excepts=except_list,
+                body=block.items,
+                excepts=except_list.items if except_list else [],
                 else_body=else_stmt,
                 finally_body=finally_stmt,
                 kid=self.cur_nodes,

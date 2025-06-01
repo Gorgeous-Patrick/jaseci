@@ -1349,11 +1349,9 @@ class PyastGenPass(UniPass):
             self.sync(
                 ast3.Try(
                     body=cast(list[ast3.stmt], self.resolve_stmt_block(node.body)),
-                    handlers=(
-                        [cast(ast3.ExceptHandler, i) for i in node.excepts.gen.py_ast]
-                        if node.excepts
-                        else []
-                    ),
+                    handlers=[
+                        cast(ast3.ExceptHandler, i.gen.py_ast[0]) for i in node.excepts
+                    ],
                     orelse=(
                         [cast(ast3.stmt, i) for i in node.else_body.gen.py_ast]
                         if node.else_body

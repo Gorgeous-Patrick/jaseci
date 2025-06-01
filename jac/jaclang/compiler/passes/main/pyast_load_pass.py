@@ -1976,26 +1976,18 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         valid = [i for i in body if isinstance(i, (uni.CodeBlockStmt))]
         if len(valid) != len(body):
             raise self.ice("Length mismatch in try body")
-        valid_body = uni.SubNodeList[uni.CodeBlockStmt](
-            items=valid,
-            delim=Tok.WS,
-            kid=valid,
-            left_enc=self.operator(Tok.LBRACE, "{"),
-            right_enc=self.operator(Tok.RBRACE, "}"),
-        )
-        kid: list[uni.UniNode] = [valid_body]
+        valid_body = valid
+        kid: list[uni.UniNode] = [*valid_body]
 
         if len(node.handlers) != 0:
             handlers = [self.convert(i) for i in node.handlers]
             valid_handlers = [i for i in handlers if isinstance(i, (uni.Except))]
             if len(handlers) != len(valid_handlers):
                 raise self.ice("Length mismatch in try handlers")
-            excepts = uni.SubNodeList[uni.Except](
-                items=valid_handlers, delim=Tok.WS, kid=valid_handlers
-            )
-            kid.append(excepts)
+            excepts = valid_handlers
+            kid.extend(valid_handlers)
         else:
-            excepts = None
+            excepts = []
 
         if len(node.orelse) != 0:
             orelse = [self.convert(i) for i in node.orelse]

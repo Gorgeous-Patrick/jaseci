@@ -2248,14 +2248,14 @@ class TryStmt(AstElseBodyNode, CodeBlockStmt, UniScopeNode):
 
     def __init__(
         self,
-        body: SubNodeList[CodeBlockStmt],
-        excepts: Optional[SubNodeList[Except]],
+        body: Sequence[CodeBlockStmt],
+        excepts: Sequence[Except],
         else_body: Optional[ElseStmt],
         finally_body: Optional[FinallyStmt],
         kid: Sequence[UniNode],
     ) -> None:
-        self.body = body
-        self.excepts = excepts
+        self.body: list[CodeBlockStmt] = list(body)
+        self.excepts: list[Except] = list(excepts)
         self.finally_body = finally_body
         UniNode.__init__(self, kid=kid)
         AstElseBodyNode.__init__(self, else_body=else_body)
@@ -2265,18 +2265,23 @@ class TryStmt(AstElseBodyNode, CodeBlockStmt, UniScopeNode):
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
-            res = self.body.normalize(deep)
-            res = res and self.excepts.normalize(deep) if self.excepts else res
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
+            for exc in self.excepts:
+                res = res and exc.normalize(deep)
             res = res and self.else_body.normalize(deep) if self.else_body else res
             res = (
                 res and self.finally_body.normalize(deep) if self.finally_body else res
             )
         new_kid: list[UniNode] = [
             self.gen_token(Tok.KW_TRY),
+            self.gen_token(Tok.LBRACE),
         ]
-        new_kid.append(self.body)
-        if self.excepts:
-            new_kid.append(self.excepts)
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
+        for exc in self.excepts:
+            new_kid.append(exc)
         if self.else_body:
             new_kid.append(self.else_body)
         if self.finally_body:
