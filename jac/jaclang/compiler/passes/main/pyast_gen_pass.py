@@ -229,7 +229,6 @@ class PyastGenPass(UniPass):
             | Sequence[uni.EnumBlockStmt]
             | uni.SubNodeList[uni.CodeBlockStmt]
             | uni.SubNodeList[uni.ArchBlockStmt]
-            | uni.SubNodeList[uni.EnumBlockStmt]
             | None
         ),
         doc: Optional[uni.String] = None,
@@ -830,7 +829,6 @@ class PyastGenPass(UniPass):
             if node.decorators
             else []
         )
-
         base_classes = [cast(ast3.expr, i.gen.py_ast[0]) for i in node.base_classes]
         if node.arch_type.name != Tok.KW_CLASS:
             base_classes.append(self.jaclib_obj(node.arch_type.value.capitalize()))
@@ -1139,27 +1137,14 @@ class PyastGenPass(UniPass):
         annotation = node.type_tag.gen.py_ast[0] if node.type_tag else None
 
         is_static_var = (
-            node.parent
-            and node.parent.parent
-            and isinstance(node.parent.parent, uni.ArchHas)
-            and node.parent.parent.is_static
+            (haspar := node.find_parent_of_type(uni.ArchHas))
+            and haspar
+            and haspar.is_static
         )
-
         is_in_class = (
-            node.parent
-            and node.parent.parent
-            and node.parent.parent.parent
-            and (
-                (
-                    isinstance(node.parent.parent.parent, uni.Archetype)
-                    and node.parent.parent.parent.arch_type.name == Tok.KW_CLASS
-                )
-                or (
-                    node.parent.parent.parent.parent
-                    and isinstance(node.parent.parent.parent.parent, uni.Archetype)
-                    and node.parent.parent.parent.parent.arch_type.name == Tok.KW_CLASS
-                )
-            )
+            (archpar := node.find_parent_of_type(uni.Archetype))
+            and archpar
+            and archpar.arch_type.name == Tok.KW_CLASS
         )
 
         value = None
@@ -2315,6 +2300,8 @@ class PyastGenPass(UniPass):
                     pieces.extend(get_pieces(i.parts)) if i.parts else None
                 elif isinstance(i, uni.ExprStmt):
                     pieces.append(i.gen.py_ast[0])
+                elif isinstance(i, uni.Token) and i.name in [Tok.LBRACE, Tok.RBRACE]:
+                    continue
                 else:
                     raise self.ice("Multi string made of something weird.")
             return pieces

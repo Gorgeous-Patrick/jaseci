@@ -58,13 +58,9 @@ class DefUsePass(UniPass):
         node.sym_tab.def_insert(node)
 
     def enter_has_var(self, node: uni.HasVar) -> None:
-        if isinstance(node.parent, uni.SubNodeList) and isinstance(
-            node.parent.parent, uni.ArchHas
-        ):
+        if isinstance(node.parent, uni.ArchHas):
             node.sym_tab.def_insert(
-                node,
-                single_decl="has var",
-                access_spec=node.parent.parent,
+                node, single_decl="has var", access_spec=node.parent
             )
         else:
             self.ice("Inconsistency in AST, has var should be under arch has")

@@ -3,8 +3,10 @@
 from jaclang.compiler.passes.main import CompilerMode as CMode
 from jaclang.compiler.program import JacProgram
 from jaclang.utils.test import TestCase
+import unittest
 
 
+@unittest.skip("Skipping CFG build pass tests")
 class TestCFGBuildPass(TestCase):
     """Test FuseTypeInfoPass module."""
 

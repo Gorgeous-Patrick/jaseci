@@ -1568,7 +1568,7 @@ class ImplDef(CodeBlockStmt, ElementStmt, ArchBlockStmt, AstSymbolNode, UniScope
         decorators: Optional[Sequence[Expr]],
         target: Sequence[NameAtom],
         spec: Sequence[Expr] | FuncSignature | EventSignature | None,
-        body: Sequence[CodeBlockStmt] | FuncCall,
+        body: Sequence[CodeBlockStmt] | Sequence[EnumBlockStmt] | FuncCall,
         kid: Sequence[UniNode],
         doc: Optional[String] = None,
         decl_link: Optional[UniNode] = None,
@@ -1802,17 +1802,14 @@ class Ability(
     @property
     def method_owner(self) -> Optional[Archetype | Enum]:
         found = (
-            self.parent.parent
-            if self.parent
-            and self.parent.parent
-            and isinstance(self.parent.parent, (Archetype, Enum))
+            self.parent
+            if self.parent and isinstance(self.parent, (Archetype, Enum))
             else None
         ) or (
-            self.parent.parent.decl_link
+            self.parent.decl_link
             if self.parent
-            and self.parent.parent
-            and isinstance(self.parent.parent, ImplDef)
-            and isinstance(self.parent.parent.decl_link, Archetype)
+            and isinstance(self.parent, ImplDef)
+            and isinstance(self.parent.decl_link, (Archetype, Enum))
             else None
         )
         return found
@@ -4629,11 +4626,7 @@ class String(Literal):
             ) and not self.find_parent_of_type(FString):
                 return repr_str[3:-3]
             if (not self.find_parent_of_type(FString)) or (
-                not (
-                    self.parent
-                    and self.parent.parent
-                    and isinstance(self.parent.parent, FString)
-                )
+                not (self.parent and isinstance(self.parent, FString))
             ):
                 return repr_str[1:-1]
             return repr_str
