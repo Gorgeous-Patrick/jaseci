@@ -379,24 +379,17 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     | KW_INCLUDE import_path SEMI
             """
             # TODO: kid will be removed so let's keep as it is for now.
-            kid = self.flat_cur_nodes
-
             items: (
                 uni.SubNodeList[uni.ModuleItem] | uni.SubNodeList[uni.ModulePath] | list
             )
             if self.match_token(Tok.KW_INCLUDE):
                 # Handle include statement
                 import_path_obj = self.consume(uni.ModulePath)
-                items = uni.SubNodeList[uni.ModulePath](
-                    items=[import_path_obj], delim=Tok.COMMA, kid=[import_path_obj]
-                )
-                kid = (kid[:1]) + [items] + kid[-1:]  # TODO: Will be removed.
-                self.consume_token(Tok.SEMI)
                 return uni.Import(
                     from_loc=None,
-                    items=items.items,
+                    items=[import_path_obj],
                     is_absorb=True,
-                    kid=kid,
+                    kid=self.cur_nodes,
                 )
 
             from_path: uni.ModulePath | None = None
@@ -408,27 +401,23 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 items_list = self.consume(list)
                 self.consume(uni.Token)
                 items = self.extract_from_list(items_list, uni.ModuleItem)
+                return uni.Import(
+                    from_loc=from_path,
+                    items=items,
+                    is_absorb=False,
+                    kid=self.flat_cur_nodes,
+                )
             else:
                 paths = [self.consume(uni.ModulePath)]
                 while self.match_token(Tok.COMMA):
                     paths.append(self.consume(uni.ModulePath))
                 self.consume_token(Tok.SEMI)
-                items = uni.SubNodeList[uni.ModulePath](
+                return uni.Import(
+                    from_loc=from_path,
                     items=paths,
-                    delim=Tok.COMMA,
-                    # TODO: kid will be removed so let's keep as it is for now.
-                    kid=self.cur_nodes[1:-1],
+                    is_absorb=False,
+                    kid=self.flat_cur_nodes,
                 )
-                kid = kid[:1] + [items] + kid[-1:]
-
-            is_absorb = False
-            final_items = items.items if isinstance(items, uni.SubNodeList) else items
-            return uni.Import(
-                from_loc=from_path,
-                items=final_items,
-                is_absorb=is_absorb,
-                kid=kid,
-            )
 
         def from_path(self, _: None) -> uni.ModulePath:
             """Grammar rule.
