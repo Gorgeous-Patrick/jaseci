@@ -378,10 +378,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     | KW_IMPORT import_path (COMMA import_path)* SEMI
                     | KW_INCLUDE import_path SEMI
             """
-            # TODO: kid will be removed so let's keep as it is for now.
-            items: (
-                uni.SubNodeList[uni.ModuleItem] | uni.SubNodeList[uni.ModulePath] | list
-            )
             if self.match_token(Tok.KW_INCLUDE):
                 # Handle include statement
                 import_path_obj = self.consume(uni.ModulePath)
@@ -398,9 +394,8 @@ class JacParser(Transform[uni.Source, uni.Module]):
             if self.match_token(Tok.KW_FROM):
                 from_path = self.consume(uni.ModulePath)
                 self.consume(uni.Token)  # LBRACE or COMMA
-                items_list = self.consume(list)
+                items = self.extract_from_list(self.consume(list), uni.ModuleItem)
                 self.consume(uni.Token)
-                items = self.extract_from_list(items_list, uni.ModuleItem)
                 return uni.Import(
                     from_loc=from_path,
                     items=items,
@@ -528,27 +523,17 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 or self.match(uni.FuncSignature)
                 or self.match(uni.EventSignature)
             )
-            tail = (
-                self.match(list)
-                or self.match(uni.SubNodeList)
-                or self.match(uni.FuncCall)
-            )
+            tail = self.match(list) or self.match(uni.FuncCall)
             valid_tail = spec if tail is None else tail
             valid_spec = None if tail is None else spec
-            assert isinstance(valid_tail, (list, uni.SubNodeList, uni.FuncCall))
-
             impl = uni.ImplDef(
                 body=(
-                    valid_tail.items
-                    if isinstance(valid_tail, uni.SubNodeList)
-                    else (
-                        self.extract_from_list(
-                            valid_tail,
-                            (uni.EnumBlockStmt, uni.CodeBlockStmt),  # type: ignore[arg-type]
-                        )
-                        if isinstance(valid_tail, list)
-                        else valid_tail
+                    self.extract_from_list(
+                        valid_tail,
+                        (uni.EnumBlockStmt, uni.CodeBlockStmt),  # type: ignore[arg-type]
                     )
+                    if isinstance(valid_tail, list)
+                    else valid_tail
                 ),
                 target=target,
                 decorators=(
@@ -1478,28 +1463,21 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 value = self.consume(uni.Expr) if self.match_token(Tok.EQ) else None
 
             valid_assignees = [i for i in assignees if isinstance(i, (uni.Expr))]
-            new_targ = uni.SubNodeList[uni.Expr](
-                items=valid_assignees,
-                delim=Tok.EQ,
-                kid=assignees,
-            )
-            kid = [x for x in self.cur_nodes if x not in assignees]
-            kid.insert(1, new_targ) if is_frozen else kid.insert(0, new_targ)
             if is_aug:
                 return uni.Assignment(
-                    target=new_targ.items,
+                    target=valid_assignees,
                     type_tag=type_tag,
                     value=value,
                     mutable=is_frozen,
                     aug_op=is_aug,
-                    kid=kid,
+                    kid=self.flat_cur_nodes,
                 )
             return uni.Assignment(
-                target=new_targ.items,
+                target=valid_assignees,
                 type_tag=type_tag,
                 value=value,
                 mutable=is_frozen,
-                kid=kid,
+                kid=self.flat_cur_nodes,
             )
 
         def expression(self, _: None) -> uni.Expr:
