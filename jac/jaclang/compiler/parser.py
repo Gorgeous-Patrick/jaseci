@@ -1893,16 +1893,11 @@ class JacParser(Transform[uni.Source, uni.Module]):
             """
             if len(self.cur_nodes) == 1:
                 index = self.consume(uni.ListVal)
-                if not index.values:
-                    raise self.ice()
                 if len(index.values) == 1:
                     expr = index.values[0]
                     kid = self.cur_nodes
                 else:
-                    sublist = uni.SubNodeList[uni.Expr | uni.KWPair](
-                        items=[*index.values], delim=Tok.COMMA, kid=index.kid
-                    )
-                    expr = uni.TupleVal(values=sublist.items, kid=[sublist])
+                    expr = uni.TupleVal(values=index.values, kid=index.kid)
                     kid = [expr]
                 return uni.IndexSlice(
                     slices=[uni.IndexSlice.Slice(start=expr, stop=None, step=None)],
