@@ -54,3 +54,9 @@ This is how we kill the docs if it dies for some reason
 * Version bump jac, jac-cloud, mtllm
   * Remember to version bump requirement of jaclang in jac-cloud and mtllm
 * Update release notes (unreleased becomes released)
+* Push to main
+* Go to GitHub, run `Release jaclang to PYPI` action manually
+* After success
+  * Run `Release jac-cloud to PYPI` action manually
+  * Run `Release jac-mtllm to PYPI` action manually
+* If All success, W for you!!
