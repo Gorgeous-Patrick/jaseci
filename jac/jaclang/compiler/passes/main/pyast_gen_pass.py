@@ -988,11 +988,7 @@ class PyastGenPass(UniPass):
                     ),
                     body=[cast(ast3.stmt, i) for i in body],
                     decorator_list=[cast(ast3.expr, i) for i in decorator_list],
-                    returns=(
-                        cast(ast3.expr, node.signature.return_type.gen.py_ast[0])
-                        if node.signature and node.signature.return_type
-                        else self.sync(ast3.Constant(value=None))
-                    ),
+                    returns=self.sync(ast3.Constant(value=None)),
                     type_params=[],
                 )
             )

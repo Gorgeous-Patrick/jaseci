@@ -466,8 +466,8 @@ class JacWalker:
                     if (
                         i.trigger
                         and (
-                            all_issubclass(i.trigger, NodeArchetype)
-                            or all_issubclass(i.trigger, EdgeArchetype)
+                            all_issubclass(i.trigger, JacMachine.Node)
+                            or all_issubclass(i.trigger, JacMachine.Edge)
                         )
                         and isinstance(current_loc, i.trigger)
                     ):
@@ -486,7 +486,7 @@ class JacWalker:
                 for i in current_loc._jac_entry_funcs_:
                     if (
                         i.trigger
-                        and all_issubclass(i.trigger, WalkerArchetype)
+                        and all_issubclass(i.trigger, JacMachine.Walker)
                         and isinstance(warch, i.trigger)
                     ):
                         i.func(current_loc, warch)
@@ -497,7 +497,7 @@ class JacWalker:
                 for i in current_loc._jac_exit_funcs_:
                     if (
                         i.trigger
-                        and all_issubclass(i.trigger, WalkerArchetype)
+                        and all_issubclass(i.trigger, JacMachine.Walker)
                         and isinstance(warch, i.trigger)
                     ):
                         i.func(current_loc, warch)
@@ -516,8 +516,8 @@ class JacWalker:
                     if (
                         i.trigger
                         and (
-                            all_issubclass(i.trigger, NodeArchetype)
-                            or all_issubclass(i.trigger, EdgeArchetype)
+                            all_issubclass(i.trigger, JacMachine.Node)
+                            or all_issubclass(i.trigger, JacMachine.Edge)
                         )
                         and isinstance(current_loc, i.trigger)
                     ):

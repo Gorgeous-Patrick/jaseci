@@ -1914,12 +1914,10 @@ class EventSignature(WalkerStmtOnlyNode):
         self,
         event: Token,
         arch_tag_info: Optional[Expr],
-        return_type: Optional[Expr],
         kid: Sequence[UniNode],
     ) -> None:
         self.event = event
         self.arch_tag_info = arch_tag_info
-        self.return_type = return_type
         UniNode.__init__(self, kid=kid)
         WalkerStmtOnlyNode.__init__(self)
 
@@ -1932,14 +1930,10 @@ class EventSignature(WalkerStmtOnlyNode):
                 if self.arch_tag_info
                 else res
             )
-            res = res and self.return_type.normalize(deep) if self.return_type else res
         new_kid: list[UniNode] = [self.gen_token(Tok.KW_WITH)]
         if self.arch_tag_info:
             new_kid.append(self.arch_tag_info)
         new_kid.append(self.event)
-        if self.return_type:
-            new_kid.append(self.gen_token(Tok.RETURN_HINT))
-            new_kid.append(self.return_type)
         self.set_kids(nodes=new_kid)
         return res
 

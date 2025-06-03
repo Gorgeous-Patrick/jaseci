@@ -2896,18 +2896,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def event_clause(self, _: None) -> uni.EventSignature:
             """Grammar rule.
 
-            event_clause: KW_WITH expression? (KW_EXIT | KW_ENTRY) (RETURN_HINT expression)?
+            event_clause: KW_WITH expression? (KW_EXIT | KW_ENTRY)
             """
-            return_spec: uni.Expr | None = None
             self.consume_token(Tok.KW_WITH)
             type_specs = self.match(uni.Expr)
             event = self.match_token(Tok.KW_EXIT) or self.consume_token(Tok.KW_ENTRY)
-            if self.match_token(Tok.RETURN_HINT):
-                return_spec = self.consume(uni.Expr)
             return uni.EventSignature(
                 event=event,
                 arch_tag_info=type_specs,
-                return_type=return_spec,
                 kid=self.cur_nodes,
             )
 
