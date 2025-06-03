@@ -33,11 +33,13 @@ class ModuleManager {
     ) -> None {
         file_path = file_path.removeprefix('file://');
         self.program.mod.hub[file_path] = build;
-        self.sem_managers[file_path] = SemTokManager(ir=build);
         if update_annexed {
-            for (p,mod) in self.program.mod.hub.items() { if p != file_path {
-                self.sem_managers[p] = SemTokManager(ir=mod);
-            } }
+            self.sem_managers[file_path] = SemTokManager(ir=build);
+            for (p, mod) in self.program.mod.hub.items() {
+                if p != file_path {
+                    self.sem_managers[p] = SemTokManager(ir=mod);
+                }
+            }
         }
     }
 
@@ -121,13 +123,15 @@ class JacLangServer ( JacProgram , LanguageServer ) {
             );
         } self.log_py(
             f"'PROFILE: Deep check took '{(time.time() - start_time)}' seconds.'"
-        ); return len(self.errors_had) == 0; } except Exception as e { self.log_error(f"'Error during deep check: '{e}"); return False; }
+        ); return len(self.errors_had) == 0; } except Exception as e { self.log_py(f"'Error during deep check: '{e}"); return False; }
     }
 
     """Analyze and publish diagnostics."""
-    async def launch_quick_check(self: JacLangServer, uri: str) -> None {
-        await asyncio.get_event_loop().run_in_executor(
-            self.executor, self.quick_check, uri
+    async def launch_quick_check(self: JacLangServer, uri: str) -> bool {
+        return await asyncio.get_event_loop().run_in_executor(
+            self.executor,
+            self.quick_check,
+            uri
         );
     }
 
@@ -154,87 +158,105 @@ class JacLangServer ( JacProgram , LanguageServer ) {
     def get_completion(
         self: JacLangServer, file_path: str, position: lspt.Position, completion_trigger: Optional[str]
     ) -> lspt.CompletionList {
-        document = self.workspace.get_text_document(file_path);
-        mod_ir = self.get_ir(file_path);
-        if not mod_ir {
+        try{
+            document = self.workspace.get_text_document(file_path);
+            mod_ir = self.get_ir(file_path);
+            if not mod_ir {
+                return lspt.CompletionList(is_incomplete=False, items=[]);
+            }
+            current_line = document.lines[position.line];
+            current_pos = position.character;
+            current_symbol_path = utils.parse_symbol_path(current_line, current_pos);
+            builtin_mod = next(
+                ( mod for (name, mod) in self.mod.hub.items() if 'builtins' in name )
+            );
+            builtin_tab = builtin_mod.sym_tab;
+            assert isinstance(builtin_tab, UniScopeNode) ;
+            completion_items = [];
+            node_selected = utils.find_deepest_symbol_node_at_pos(
+                mod_ir,
+                position.line,
+                (position.character - 2)
+            );
+            mod_tab = mod_ir.sym_tab if not node_selected else node_selected.sym_tab ;
+            current_symbol_table = mod_tab;
+            if completion_trigger == '.' {
+                if current_symbol_path {
+                    temp_tab = mod_tab;
+                    for symbol in current_symbol_path {
+                        if symbol == 'self' {
+                            is_ability_def = temp_tab
+                            if isinstance(temp_tab, uni.ImplDef)
+                            else temp_tab.find_parent_of_type(uni.ImplDef)
+                            ;
+                            if not is_ability_def {
+                                archi_owner = mod_tab.find_parent_of_type(uni.Archetype);
+                                temp_tab = archi_owner.sym_tab
+                                if archi_owner and archi_owner.sym_tab
+                                else mod_tab
+                                ;
+                                continue;
+                            } else {
+                                archi_owner = is_ability_def.decl_link.find_parent_of_type(uni.Archetype)
+                                if is_ability_def.decl_link
+                                else None
+                                ;
+                                temp_tab = archi_owner.sym_tab
+                                if archi_owner and archi_owner.sym_tab
+                                else temp_tab
+                                ;
+                                continue;
+                            }
+                        }
+                        symb = temp_tab.lookup(symbol);
+                        if symb {
+                            fetc_tab = symb.fetch_sym_tab;
+                            if fetc_tab {
+                                temp_tab = fetc_tab;
+                            } else {
+                                temp_tab = symb.defn[0].type_sym_tab
+                                if symb.defn[0].type_sym_tab
+                                else temp_tab
+                                ;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    completion_items += utils.collect_all_symbols_in_scope(
+                        temp_tab,
+                        up_tree=False
+                    );
+                    if isinstance(temp_tab, uni.Archetype) and temp_tab.base_classes  {
+                        base = [];
+                        for base_name in temp_tab.base_classes {
+                            if isinstance(base_name, uni.Name) and base_name.sym  {
+                                base.append(base_name.sym);
+                            }
+                        }
+                        for base_class_symbol in base {
+                            if base_class_symbol.fetch_sym_tab {
+                                completion_items += utils.collect_all_symbols_in_scope(
+                                    base_class_symbol.fetch_sym_tab,
+                                    up_tree=False
+                                );
+                            }
+                        }
+                    }
+                }
+            } elif node_selected and node_selected.find_parent_of_type(uni.Archetype)
+            or node_selected.find_parent_of_type(uni.ImplDef)
+            {
+                self_symbol = [lspt.CompletionItem(label='self', kind=lspt.CompletionItemKind.Variable)];
+            } else {
+                self_symbol = [];
+            }
+            return lspt.CompletionList(is_incomplete=False, items=completion_items);
+    }
+        except Exception as e {
+            self.log_py(f"'Error during completion: '{e}");
             return lspt.CompletionList(is_incomplete=False, items=[]);
         }
-        current_line = document.lines[position.line];
-        current_pos = position.character;
-        current_symbol_path = utils.parse_symbol_path(current_line, current_pos);
-        builtin_mod = next(
-            ( mod for (name,mod) in self.mod.hub.items() if 'builtins' in name )
-        );
-        builtin_tab = builtin_mod.sym_tab;
-        assert isinstance(builtin_tab, UniScopeNode) ;
-        completion_items = [];
-        node_selected = utils.find_deepest_symbol_node_at_pos(
-            mod_ir, position.line, (position.character - 2)
-        );
-        mod_tab = mod_ir.sym_tab if not node_selected else node_selected.sym_tab ;
-        current_symbol_table = mod_tab;
-        if completion_trigger == '.' {
-            if current_symbol_path {
-                temp_tab = mod_tab;
-                for symbol in current_symbol_path { if symbol == 'self' {
-                    is_ability_def = temp_tab
-                    if isinstance(temp_tab, uni.ImplDef)
-                    else temp_tab.find_parent_of_type(uni.ImplDef)
-                    ;
-                    if not is_ability_def {
-                        archi_owner = mod_tab.find_parent_of_type(uni.Archetype);
-                        temp_tab = archi_owner.sym_tab
-                        if archi_owner and archi_owner.sym_tab
-                        else mod_tab
-                        ;
-                        continue;
-                    } else {
-                        archi_owner = is_ability_def.decl_link.find_parent_of_type(uni.Archetype)
-                        if is_ability_def.decl_link
-                        else None
-                        ;
-                        temp_tab = archi_owner.sym_tab
-                        if archi_owner and archi_owner.sym_tab
-                        else temp_tab
-                        ;
-                        continue;
-                    }
-                } symb = temp_tab.lookup(symbol); if symb {
-                    fetc_tab = symb.fetch_sym_tab;
-                    if fetc_tab {
-                        temp_tab = fetc_tab;
-                    } else {
-                        temp_tab = symb.defn[0].type_sym_tab
-                        if symb.defn[0].type_sym_tab
-                        else temp_tab
-                        ;
-                    }
-                } else {
-                    break;
-                } }
-                completion_items += utils.collect_all_symbols_in_scope(
-                    temp_tab, up_tree=False
-                );
-                if isinstance(temp_tab, uni.Archetype) and temp_tab.base_classes  {
-                    base = [];
-                    for base_name in temp_tab.base_classes { if isinstance(base_name, uni.Name) and base_name.sym  {
-                        base.append(base_name.sym);
-                    } }
-                    for base_class_symbol in base { if base_class_symbol.fetch_sym_tab {
-                        completion_items += utils.collect_all_symbols_in_scope(
-                            base_class_symbol.fetch_sym_tab, up_tree=False
-                        );
-                    } }
-                }
-            }
-        } elif node_selected and node_selected.find_parent_of_type(uni.Archetype)
-        or node_selected.find_parent_of_type(uni.ImplDef)
-         {
-            self_symbol = [lspt.CompletionItem(label='self', kind=lspt.CompletionItemKind.Variable)];
-        } else {
-            self_symbol = [];
-        }
-        return lspt.CompletionList(is_incomplete=False, items=completion_items);
     }
 
     """Rename module."""
