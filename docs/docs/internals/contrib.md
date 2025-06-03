@@ -48,3 +48,9 @@ This is how we kill the docs if it dies for some reason
 --8<-- "scripts/build_vsce.sh"
 ```
 
+
+## Release Flow (for the empowered)
+
+* Version bump jac, jac-cloud, mtllm
+  * Remember to version bump requirement of jaclang in jac-cloud and mtllm
+* Update release notes (unreleased becomes released)
