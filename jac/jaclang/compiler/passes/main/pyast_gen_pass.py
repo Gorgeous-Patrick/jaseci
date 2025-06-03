@@ -546,7 +546,7 @@ class PyastGenPass(UniPass):
                         ),
                         value=self.sync(
                             ast3.Call(
-                                func=self.jaclib_obj("py_jac_import"),
+                                func=self.jaclib_obj("jac_import"),
                                 args=args,
                                 keywords=keywords,
                             )

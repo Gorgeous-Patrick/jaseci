@@ -3,10 +3,10 @@
 import io
 import sys
 
-from jaclang import JacMachineInterface as Jac
+from jaclang import JacMachine as Jac
 from jaclang.cli import cli
 from jaclang.compiler.program import JacProgram
-from jaclang.runtimelib.machine import JacMachineInterface, JacMachine
+from jaclang.runtimelib.machine import JacMachineInterface
 from jaclang.utils.test import TestCase
 
 
@@ -15,29 +15,27 @@ class TestLoader(TestCase):
 
     def test_import_basic_python(self) -> None:
         """Test basic self loading."""
-        mach = JacMachine(self.fixture_abs_path(__file__))
+        Jac.set_base_path(self.fixture_abs_path(__file__))
         JacMachineInterface.attach_program(
-            mach,
             JacProgram(),
         )
-        (h,) = Jac.jac_import(mach, "fixtures.hello_world", base_path=__file__)
+        (h,) = Jac.jac_import("fixtures.hello_world", base_path=__file__)
         self.assertEqual(h.hello(), "Hello World!")  # type: ignore
 
     def test_modules_correct(self) -> None:
         """Test basic self loading."""
-        mach = JacMachine(self.fixture_abs_path(__file__))
+        Jac.set_base_path(self.fixture_abs_path(__file__))
         JacMachineInterface.attach_program(
-            mach,
             JacProgram(),
         )
-        Jac.jac_import(mach, "fixtures.hello_world", base_path=__file__)
+        Jac.jac_import("fixtures.hello_world", base_path=__file__)
         self.assertIn(
             "module 'fixtures.hello_world'",
-            str(mach.loaded_modules),
+            str(Jac.loaded_modules),
         )
         self.assertIn(
             "/tests/fixtures/hello_world.jac",
-            str(mach.loaded_modules).replace("\\\\", "/"),
+            str(Jac.loaded_modules).replace("\\\\", "/"),
         )
 
     def test_jac_py_import(self) -> None:
@@ -92,12 +90,11 @@ class TestLoader(TestCase):
         sys.stdout = captured_output
 
         try:
-            mach = JacMachine(self.fixture_abs_path(__file__))
+            Jac.set_base_path(self.fixture_abs_path(__file__))
             JacMachineInterface.attach_program(
-                mach,
                 JacProgram(),
             )
-            Jac.jac_import(mach, module_name, base_path=__file__)
+            Jac.jac_import(module_name, base_path=__file__)
             cli.run(jac_file_path)
 
             # Reset stdout and get the output

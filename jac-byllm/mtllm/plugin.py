@@ -6,7 +6,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.constant import Constants as Con
 from jaclang.compiler.passes.main.pyast_gen_pass import PyastGenPass
-from jaclang.runtimelib.machine import JacMachineInterface, hookimpl
+from jaclang.runtimelib.machine import JacMachine as Jac, hookimpl
 
 # from jaclang.runtimelib.utils import extract_params, extract_type, get_sem_scope
 
@@ -154,8 +154,7 @@ class JacMachine:
         _locals: Mapping,
     ) -> Any:  # noqa: ANN401
         """Jac's with_llm feature."""
-        machine = JacMachineInterface.py_get_jac_machine()
-        program_head = machine.program.mod
+        program_head = Jac.program.mod
         _scope = SemScope.get_scope_from_str(scope)
         mod_registry = SemRegistry(program_head=program_head, by_scope=_scope)
 
