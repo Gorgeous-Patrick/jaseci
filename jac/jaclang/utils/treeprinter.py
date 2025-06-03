@@ -28,7 +28,6 @@ CLASS_COLOR_MAP: dict[str, str] = {
     "ArchSpec": "#a3d3f0",
     "MatchPattern": "#a0d8b3",
     "SubTag": "#cafafa",
-    "SubNodeList": "#dbbfe5",
     "Module": "#D1FFE2  ",
     "GlobalVars": "#e1d1ff",
     "Test": "#e1d1ff",

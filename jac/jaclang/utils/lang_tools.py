@@ -277,7 +277,6 @@ class AstTool:
                 arrow = "-.->" if "Optional" in kid.typ else "-->"
                 typ = (
                     kid.typ.replace("Optional[", "")
-                    .replace("SubNodeList[", "")
                     .replace("SubTag[", "")
                     .replace("Sequence[", "")
                     .replace("]", "")

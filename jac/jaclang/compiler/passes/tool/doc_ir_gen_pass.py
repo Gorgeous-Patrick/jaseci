@@ -1170,67 +1170,6 @@ class DocIRGenPass(UniPass):
             parts.append(self.space())
         node.gen.doc_ir = self.finalize(parts)
 
-    def exit_sub_node_list(self, node: uni.SubNodeList) -> None:
-        """Generate DocIR for a SubNodeList."""
-        parts: list[doc.DocType] = []
-        indent_parts: list[doc.DocType] = []
-        prev_item: Optional[uni.UniNode] = None
-        in_codeblock = node.delim and node.delim.name == Tok.WS
-        in_archetype = node.parent and isinstance(
-            node.parent, (uni.Archetype, uni.Enum)
-        )
-        is_assignment = node.delim and node.delim.name == Tok.EQ
-        for i in node.kid:
-            if i == node.left_enc:
-                parts.append(i.gen.doc_ir)
-                indent_parts.append(self.hard_line())
-            elif i == node.right_enc:
-                if in_codeblock:
-                    indent_parts.pop()
-                parts.append(self.indent(self.concat(indent_parts)))
-                if prev_item != node.left_enc:
-                    parts.append(self.line())
-                parts.append(i.gen.doc_ir)
-            elif (
-                isinstance(i, uni.Token)
-                and node.delim
-                and i.name == node.delim.name
-                and i.name not in [Tok.DOT, Tok.DECOR_OP]
-            ):
-                indent_parts.append(i.gen.doc_ir)
-                indent_parts.append(self.line())
-            else:
-                if (
-                    in_codeblock
-                    and prev_item
-                    and self.has_gap(prev_item, i)
-                    and isinstance(i, uni.CommentToken)
-                    and (
-                        not in_archetype
-                        or not prev_item
-                        or not (
-                            self.is_one_line(prev_item) and type(prev_item) is type(i)
-                        )
-                    )
-                ) or (
-                    in_archetype
-                    and prev_item not in [None, node.left_enc, node.right_enc]
-                    and (
-                        type(prev_item) is not type(i)
-                        or (prev_item and not self.is_one_line(prev_item))
-                    )
-                ):
-                    indent_parts.append(self.hard_line())
-                indent_parts.append(i.gen.doc_ir)
-                if in_codeblock:
-                    indent_parts.append(self.hard_line())
-                elif is_assignment:
-                    indent_parts.append(self.space())
-            prev_item = i
-        if is_assignment:
-            indent_parts.pop()
-        node.gen.doc_ir = self.concat(parts) if parts else self.concat(indent_parts)
-
     def exit_impl_def(self, node: uni.ImplDef) -> None:
         """Generate DocIR for implementation definitions."""
         parts: list[doc.DocType] = []

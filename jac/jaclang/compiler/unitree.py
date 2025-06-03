@@ -881,47 +881,6 @@ class SubTag(UniNode, Generic[T]):
         return res
 
 
-# SubNodeList were created to simplify the type safety of the
-# parser's implementation. We basically need to maintain tokens
-# of mixed type in the kid list of the subnodelist as well as
-# separating out typed items of interest in the ast node class body.
-class SubNodeList(UniNode, Generic[T]):
-    """SubNodeList node type for Jac Ast."""
-
-    def __init__(
-        self,
-        items: list[T],
-        delim: Optional[Tok],
-        kid: Sequence[UniNode],
-        left_enc: Optional[Token] = None,
-        right_enc: Optional[Token] = None,
-    ) -> None:
-        self.items: list[T] = items
-        self.delim = delim
-        self.left_enc = left_enc
-        self.right_enc = right_enc
-        UniNode.__init__(self, kid=kid)
-
-    def normalize(self, deep: bool = False) -> bool:
-        res = True
-        if deep:
-            for i in self.items:
-                res = res and i.normalize()
-        new_kid: list[UniNode] = []
-        if self.left_enc:
-            new_kid.append(self.left_enc)
-        for i in self.items:
-            new_kid.append(i)
-            if self.delim:
-                new_kid.append(self.gen_token(self.delim))
-        if self.delim and self.items:
-            new_kid.pop()
-        if self.right_enc:
-            new_kid.append(self.right_enc)
-        self.set_kids(nodes=new_kid if len(new_kid) else [EmptyToken()])
-        return res
-
-
 # AST Mid Level Node Types
 # --------------------------
 class Module(AstDocNode, UniScopeNode):

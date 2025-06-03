@@ -281,9 +281,6 @@ class PyastGenPass(UniPass):
     def exit_sub_tag(self, node: uni.SubTag[uni.T]) -> None:
         node.gen.py_ast = node.tag.gen.py_ast
 
-    def exit_sub_node_list(self, node: uni.SubNodeList[uni.T]) -> None:
-        node.gen.py_ast = self.flatten([i.gen.py_ast for i in node.items])
-
     def exit_module(self, node: uni.Module) -> None:
         clean_body = [i for i in node.body if not isinstance(i, uni.ImplDef)]
         pre_body: list[uni.UniNode] = []

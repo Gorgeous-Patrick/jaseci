@@ -68,7 +68,7 @@ class CFGBuildPass(UniPass):
     def enter_node(self, node: uni.UniNode) -> None:
         """Enter BasicBlockStmt nodes."""
         if isinstance(node, uni.UniCFGNode) and not isinstance(node, uni.Semi):
-            if isinstance(node.parent, uni.SubNodeList) and self.first_exit:
+            if node.parent and isinstance(node, uni.CodeBlockStmt) and self.first_exit:
                 bb_stmts = [
                     bbs for bbs in node.parent.kid if isinstance(bbs, uni.UniCFGNode)
                 ]
