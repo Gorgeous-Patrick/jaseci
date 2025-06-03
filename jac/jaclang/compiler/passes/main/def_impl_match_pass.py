@@ -173,10 +173,9 @@ class DeclImplMatchPass(Transform[uni.Module, uni.Module]):
                 else:
                     # Copy the parameter names from the declaration to the definition.
                     for idx in range(len(params_defn)):
-                        # TODO: Refactor the below 2 lines when subnodelist goes away.
-                        loc_in_kid = params_decl[idx].parent.kid.index(params_decl[idx])  # type: ignore
-                        params_decl[idx].parent.kid[loc_in_kid] = params_defn[idx]  # type: ignore
-
+                        if (par := params_decl[idx].parent) is not None:
+                            loc_in_kid = par.kid.index(params_decl[idx])
+                            par.kid[loc_in_kid] = params_defn[idx]
                         params_decl[idx] = params_defn[idx]
 
     def check_archetypes(self, ir_in: uni.Module) -> None:

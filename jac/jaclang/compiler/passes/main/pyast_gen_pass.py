@@ -224,29 +224,15 @@ class PyastGenPass(UniPass):
 
     def resolve_stmt_block(
         self,
-        node: (
-            Sequence[uni.CodeBlockStmt]
-            | Sequence[uni.EnumBlockStmt]
-            | uni.SubNodeList[uni.CodeBlockStmt]
-            | uni.SubNodeList[uni.ArchBlockStmt]
-            | None
-        ),
+        node: Sequence[uni.CodeBlockStmt] | Sequence[uni.EnumBlockStmt] | None,
         doc: Optional[uni.String] = None,
     ) -> list[ast3.AST]:
         """Unwind codeblock."""
-        items = (
-            list(node.items)
-            if isinstance(node, uni.SubNodeList)
-            else list(node) if node else []
-        )
+        items = list(node) if node else []
         valid_stmts = [i for i in items if not isinstance(i, uni.Semi)]
         ret: list[ast3.AST] = (
-            [
-                self.sync(
-                    ast3.Pass(), node if isinstance(node, uni.SubNodeList) else None
-                )
-            ]
-            if isinstance(node, (uni.SubNodeList, Sequence)) and not valid_stmts
+            [self.sync(ast3.Pass())]
+            if isinstance(node, Sequence) and not valid_stmts
             else (
                 self.flatten(
                     [
