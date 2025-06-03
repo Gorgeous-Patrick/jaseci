@@ -139,12 +139,7 @@ class DocIRGenPass(UniPass):
         """Exit import node."""
         parts: list[doc.DocType] = []
         for i in node.kid:
-            if isinstance(i, uni.SubNodeList) and i.items:
-                parts.append(
-                    self.indent(self.concat([self.tight_line(), i.gen.doc_ir]))
-                )
-                parts.append(self.line())
-            elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
+            if isinstance(i, uni.Token) and i.name == Tok.SEMI:
                 parts.pop()
                 parts.append(i.gen.doc_ir)
             else:
@@ -419,18 +414,8 @@ class DocIRGenPass(UniPass):
     def exit_expr_stmt(self, node: uni.ExprStmt) -> None:
         """Generate DocIR for expression statements."""
         parts: list[doc.DocType] = []
-        is_fstring = (
-            node.parent
-            and isinstance(node.parent, uni.SubNodeList)
-            and node.parent.parent
-            and isinstance(node.parent.parent, uni.FString)
-        )
         for i in node.kid:
-            if is_fstring:
-                parts.append(self.text("{"))
             parts.append(i.gen.doc_ir)
-            if is_fstring:
-                parts.append(self.text("}"))
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_concurrent_expr(self, node: uni.ConcurrentExpr) -> None:
@@ -539,12 +524,6 @@ class DocIRGenPass(UniPass):
                 parts.pop()
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
-            elif (
-                isinstance(i, uni.SubNodeList)
-                and isinstance(i.gen.doc_ir, doc.Concat)
-                and all(it in node.vars for it in getattr(i, "items", []))
-            ):
-                parts.append(self.align(i.gen.doc_ir))
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -895,7 +874,6 @@ class DocIRGenPass(UniPass):
 
     def exit_global_stmt(self, node: uni.GlobalStmt) -> None:
         """Generate DocIR for global statements."""
-        # node.kid is [GLOBAL_OP_token, name_list_SubNodeList, SEMI_token]
         parts: list[doc.DocType] = []
         for i in node.kid:
             parts.append(i.gen.doc_ir)
