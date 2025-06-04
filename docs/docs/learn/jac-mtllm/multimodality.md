@@ -7,8 +7,8 @@ For MTLLM to have actual neurosymbolic powers, it needs to be able to handle mul
 MTLLM can handle images as inputs. You can provide an image as input to the MTLLM Function or Method using the `Image` format of mtllm. Here is an example of how you can provide an image as input to the MTLLM Function or Method:
 
 ```jac
-import from mtllm.llms, OpenAI;
-import from mtllm, Image;
+import from mtllm.llms {OpenAI}
+import from mtllm {Image}
 
 glob llm = OpenAI(model_name="gpt-4o");
 
@@ -24,7 +24,7 @@ Person {
         personality: 'Personality of the Person': Personality;
 }
 
-can get_person_info(img: 'Image of Person': Image) -> Person
+def get_person_info(img: 'Image of Person': Image) -> Person
 by llm();
 
 with entry {
@@ -36,10 +36,8 @@ with entry {
 Input Image (person.png):
 ![person.png](https://preview.redd.it/g39au73fdir01.jpg?auto=webp&s=cef8394b639af82ba92d6ab084935f7adc8e841d)
 
-```jac
-# Output
-Person(full_name='Albert Einstein', yod=1955, personality=Personality.INTROVERT)
-```
+??? example "Output"
+    Person(full_name='Albert Einstein', yod=1955, personality=Personality.INTROVERT)
 
 In the above example, we have provided an image of a person ("Albert Einstein") as input to the `get_person_info` method. The method returns the information of the person in the image. The output of the method is a `Person` object with the name, year of death, and personality of the person in the image.
 
@@ -48,12 +46,12 @@ In the above example, we have provided an image of a person ("Albert Einstein") 
 Similarly, MTLLM can handle videos as inputs. You can provide a video as input to the MTLLM Function or Method using the `Video` format of mtllm. Here is an example of how you can provide a video as input to the MTLLM Function or Method:
 
 ```jac
-import from mtllm.llms, OpenAI;
-import from mtllm, Video;
+import from mtllm.llms {OpenAI}
+import from mtllm {Video}
 
 glob llm = OpenAI(model_name="gpt-4o");
 
-can is_aligned(video: Video, text: str) -> bool
+def is_aligned(video: Video, text: str) -> bool
 by llm(method="Chain-of-Thoughts", context="Mugen is the moving character");
 
 with entry {
@@ -63,12 +61,10 @@ with entry {
 }
 ```
 
-Input Video (mugen.mp4):
+Input Video:
 [mugen.mp4](https://github.com/Jaseci-Labs/jaseci/blob/main/jac-mtllm/examples/vision/mugen.mp4)
 
-```jac
-# Output
-True
-```
+??? example "Output"
+    True
 
 In the above example, we have provided a video of a character ("Mugen") as input to the `is_aligned` method. The method checks if the text is aligned with the video. The output of the method is a boolean value indicating whether the text is aligned with the video.

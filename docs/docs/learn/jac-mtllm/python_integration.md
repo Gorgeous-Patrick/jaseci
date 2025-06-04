@@ -59,7 +59,7 @@ Currently the Tasks in the Task Manager are just strings. Let's add a feature wh
 ### Creating the Jac Module
 
 ```jac
-import from mtllm.llms, OpenAI;
+import from mtllm.llms {OpenAI}
 
 glob llm = OpenAI();
 
@@ -69,7 +69,7 @@ obj Task {
         time: 'Estimated Time Required to Finish (min)': int;
 }
 
-can create_task(description: str, prev_tasks: list[Task]) -> Task
+def create_task(description: str, prev_tasks: list[Task]) -> Task
 by llm(method="Reason");
 ```
 

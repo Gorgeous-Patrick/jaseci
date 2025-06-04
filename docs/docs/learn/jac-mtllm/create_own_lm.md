@@ -11,7 +11,7 @@ This guide will help you to bring your own language model to be used with MTLLM.
 - Create a new class that inherits from `BaseLLM` class.
 
 In Python,
-```python
+```python linenums="1"
 from mtllm.llms.base import BaseLLM
 
 class MyLLM(BaseLLM):
@@ -28,17 +28,17 @@ class MyLLM(BaseLLM):
 ```
 
 In Jaclang,
-```jac
-import from mtlm.llms.base, BaseLLM;
+```jac linenums="1"
+import from mtlm.llms.base {BaseLLM}
 
 class MyLLM:BaseLLM: {
-    can init(verbose:bool=false, max_tries:int=10, **kwargs: dict) -> None {
+    def init(verbose:bool=false, max_tries:int=10, **kwargs: dict) -> None {
         self.verbose = verbose;
         self.max_tries = max_tries;
         # Your model initialization code here
     }
 
-    can __infer__(meaning_in:str|list[dict], **kwargs: dict) -> str {
+    def __infer__(meaning_in:str|list[dict], **kwargs: dict) -> str {
         # Your inference code here
         # If you are using a Multimodal (VLLM) model, use the list of dict -> openai format input with encoded images
         # kwargs are the model specific parameters
@@ -50,8 +50,7 @@ class MyLLM:BaseLLM: {
 - Initialize your model with the required parameters.
 
 ```jac
-import from my_llm, MyLLM; # For Jaclang
-import from my_llm, MyLLM; # For Python
+import from my_llm, {MyLLM}
 
 llm = MyLLM();
 ```
@@ -82,4 +81,4 @@ Thats it! You have successfully created your own Language Model to be used with 
 
 >  <span style="color: orange">**NOTICE**
 >
-> We are constantly adding new LMs to the library. If you want to add a new LM, please open an issue [here](https://github.com/Jaseci-Labs/mtllm/issues).
+> We are constantly adding new LMs to the library. If you want to add a new LM, please open an issue [here](https://github.com/Jaseci-Labs/Jaseci/issues).

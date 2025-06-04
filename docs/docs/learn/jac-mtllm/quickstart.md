@@ -10,30 +10,36 @@ pip install mtllm
 
 By default, MTLLM will not install any llm integrations, to install the available integrations, include the extra(s) below:
 
-=== "OpenAI"
-    ```bash
-    pip install mtllm[openai]
-    ```
 === "Anthropic"
     ```bash
     pip install mtllm[anthropic]
     ```
-=== "Together"
+=== "Google"
     ```bash
-    pip install mtllm[together]
-    ```
-=== "Ollama"
-    ```bash
-    pip install mtllm[ollama]
-    ```
-=== "Huggingface"
-    ```bash
-    pip install mtllm[huggingface]
+    pip install mtllm[google]
     ```
 === "Groq"
     ```bash
     pip install mtllm[groq]
     ```
+=== "Huggingface"
+    ```bash
+    pip install mtllm[huggingface]
+    ```
+=== "Ollama"
+    ```bash
+    pip install mtllm[ollama]
+    ```
+=== "OpenAI"
+    ```bash
+    pip install mtllm[openai]
+    ```
+=== "Together"
+    ```bash
+    pip install mtllm[together]
+    ```
+
+
 
 MTLLM Supports MultiModal LLMs. To Support Images and Videos, you need to install the following extra(s):
 
@@ -58,7 +64,7 @@ Before we start, make sure you have installed MTLLM & Jaclang.
 Following code snippet will be our starting point:
 
 ```jac
-can translate(eng_sentence: str, target_lang: str) -> str {
+def translate(eng_sentence: str, target_lang: str) -> str {
     """Normally this would include the translation logic such as calling an API.
     For the sake of this example, we will return a dummy translated sentence."""
 
@@ -79,7 +85,7 @@ Assuming we went with API based translation, `target_lang` would be the language
 For this example, we will use OpenAI's GPT-3.5-turbo (default).
 
 ```jac
-import from mtllm.llms, OpenAI;
+import from mtllm.llms {OpenAI}
 
 llm = OpenAI();
 
@@ -89,11 +95,10 @@ llm = OpenAI();
 #### Remove the Ability Body and Add `by LLM` keyword
 
 ```jac
-import from mtllm.llms, OpenAI;
-
+import from mtllm.llms {OpenAI}
 llm = OpenAI();
 
-can translate(eng_sentence: str, target_lang: str) -> str by llm;
+def translate(eng_sentence: str, target_lang: str) -> str by llm;
 
 with entry {
     print(translate("Hello World", "Language spoken in Somalia"));
@@ -111,20 +116,8 @@ jac run translator.jac
 
 ### Adding Additional Support to the LLMs
 
-In this example, we dont need to add any additional support to the LLMs. But if you want to add additional support, you can do so by adding `SemStrings` to variables, output type hint and abilities the following code snippet:
+In this example, we dont need to add any additional context to the LLMs. But if you want to, you can do so by adding docstrings to function and method definitions, explaining the required behaviour of the function/method:
 
-```jac
-import from mtllm.llms, OpenAI;
-
-llm = OpenAI();
-
-can 'Translate the given english sentence to the target language'
-translate(eng_sentence: str, target_lang: str) -> 'Translation': str by llm;
-
-with entry {
-    print(translate("Hello World", "Language spoken in Somalia"));
-}
-```
 
 You've successfully created a working example using the Jaclang and MTLLM.
 

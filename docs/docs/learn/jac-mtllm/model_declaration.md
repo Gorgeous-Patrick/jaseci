@@ -4,17 +4,13 @@
 - Local model APIs
 - Creating your own model interface -->
 
-To incorporate a Large Language Model (LLM) into code, initialize it by importing from the ```mtllm.llms``` module built into the langauge.
-
-To download jac-lang with all required python dependencies to use llms:
-    ```bash
-    pip install jaclang[llms]
-    ```
+To incorporate a Large Language Model (LLM) into code, initialize it by importing the relavent model interface from the ```mtllm.llms``` module.
 
 Here are the list of models/ model providers which are available to use out of the box with jac-lang.
 
 ## Cloud Hosted LLMs (API Clients)
 
+ - [Google (Gemini)](https://aistudio.google.com/welcome)
  - [OpenAI](https://openai.com/index/openai-api/)
  - [Anthropic (Claud models)](https://www.anthropic.com/)
  - [Groq](https://groq.com/)
@@ -26,28 +22,28 @@ Here are the list of models/ model providers which are available to use out of t
 
 === "OpenAI"
     ```bash
-    pip install openai
+    pip install mtllm[openai]
     ```
 === "Anthropic"
     ```bash
-    pip install anthropic
+    pip install mtllm[anthropic]
     ```
 === "Groq"
     ```bash
-    pip install groq
+    pip install mtllm[groq]
     ```
 === "Together AI"
     ```bash
-    pip install together
+    pip install mtllm[together]
     ```
 
 ## Running Local LLMs
 
  - [Ollama](https://ollama.com/library)
 
-    Downlad Ollama from their website, install and run the server by running ```ollama serve```. Pull and install your model of choice by bashing ```ollama run <model_name>``` on a new terminal.
+    Downlad [Ollama](https://ollama.com/download), install and run the server by running ```ollama serve```. Pull and install your model of choice by bashing ```ollama run <model_name>``` on a new terminal.
 
- - [Hugging Face](https://huggingface.co/)
+ - [HuggingFace](https://huggingface.co/)
 
     Download and run opensource LLMs from the plethora of models available on the Hugging Face website.
 
@@ -59,23 +55,31 @@ In the jac program that you require to inference an LLM, please code as followin
 
 === "OpenAI"
     ```jac linenums="1"
-    import from mtllm.llms, OpenAI;
+    import from mtllm.llms {OpenAI}
 
     glob llm = OpenAI(
-                model_name = "gpt-4"
+                model_name = "gpt-4o"
                 );
     ```
 === "Anthropic"
     ```jac linenums="1"
-    import from mtllm.llms, Anthropic;
+    import from mtllm.llms {Anthropic}
 
     glob llm = Anthropic(
                 model_name = "claude-3-sonnet-20240229"
                 );
     ```
+=== "Google"
+    ```jac linenums="1"
+    import from mtllm.llms { Gemini }
+
+    glob llm = Gemini(
+                model_name="gemini-2.0-flash"
+                );
+    ```
 === "Groq"
     ```jac linenums="1"
-    import from mtllm.llms, Groq;
+    import from mtllm.llms {Groq}
 
     glob llm = Groq(
                 model_name = "llama3-8b-8192", # Go through available models in website
@@ -83,7 +87,7 @@ In the jac program that you require to inference an LLM, please code as followin
     ```
 === "Together AI"
     ```jac linenums="1"
-    import from mtllm.llms, TogetherAI;
+    import from mtllm.llms {TogetherAI}
 
     glob llm = TogetherAI(
                 model_name = "meta-llama/Llama-2-70b-chat-hf" # Go through available models in website
@@ -91,7 +95,7 @@ In the jac program that you require to inference an LLM, please code as followin
     ```
 === "Ollama"
     ```jac linenums="1"
-    import from mtllm.llms, Ollama;
+    import from mtllm.llms {Ollama}
 
     glob llm = Ollama(
                 model_name = "llama3:8b" # Will pull model if does not exists
@@ -99,7 +103,7 @@ In the jac program that you require to inference an LLM, please code as followin
     ```
 === "Hugging Face"
     ```jac linenums="1"
-    import from mtllm.llms, Huggingface;
+    import from mtllm.llms {Huggingface}
 
     glob llm = Huggingface(
                 model_name = "mistralai/Mistral-7B-v0.3" # Will pull model if does not exists
@@ -111,5 +115,6 @@ The llm model is defined in these examples which can be intialized with specific
 > **Note:**
 >
 > - If the coder wants to visualize the prompts during inference, enable verbose by adding ```verbose = True``` as an argument when defining the LLM.
+> - Passing eny parameter such as a model hyperparameter such as "temperature" can be passed into the llm as keyword arguments.
 
 This approach allows for the initialization of the desired model as a model code construct with a specific name (in this case, `llm`), facilitating its integration into code. -->

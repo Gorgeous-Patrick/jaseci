@@ -1,8 +1,16 @@
-# <span style="color: orange">Creating a Level Generator for an RPG Game
+# <span style="color: orange">Creating an LLM driven Level Generator for an RPG Game
 
 Procedurally generated maps in video games has become a hot topic in the recent years among the gaming community. the algorithms for generating these maps are extremely complected, and requires months of development to build such algorithms. Instead of symbolically written programs, what if we can use generative models to generate these maps?
 
-In this Tutorial we will show you how you can generate game maps for a simple game where the map can be expressed using a list of strings.
+In this Tutorial we will show you how you can generate game maps for a simple game where the map can be expressed using a list of strings. The full implementation of the game is available in the [github repo](https://github.com/jaseci-labs/jaseci/tree/main/jac/examples/rpg_game).
+
+<div align="center">
+  <video width="480" height="300" autoplay loop muted playsinline>
+    <source src="/learn/examples/mtp_examples/assets/rpg_demo.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 
 ## <span style="color: orange">What is a level?
 
@@ -35,14 +43,13 @@ The straightforward approach to build a map generator is to ask from the LLM to 
 
 ```jac
 obj Level {
-    has name: str,
-        difficulty: int;
+    has name: int,
+        difficulty: int,
+        time: int;
     has width: int,
         height: int,
         num_wall: int,
         num_enemies: int;
-    has time_countdown: int,
-        n_retries_allowed: int;
 }
 ```
 
@@ -102,23 +109,23 @@ obj LevelManager {
         prev_levels: list[Level] = [],
         prev_level_maps: list[Map] = [];
 
-    '''Generates the Next level configuration based upon previous playthroughs'''
-    can create_next_level( last_levels: list[Level],
-                           difficulty: int,
-                           level_width: int,
-                           level_height: int) -> Level by llm(temperature=1.0);
+    def create_next_level(last_levels: list[Level], difficulty: int)
+    -> Level by llm(temperature=0.8);
+
+    def create_next_map(level: Level) -> Map by llm(temperature=0.8);
 
     '''Get the Next Level'''
-    can get_next_level -> tuple(Level, Map);
+    def get_next_level (current_level: int) -> tuple(Level, Map);
 
-    '''Generate the Map as a List of Strings'''
-    can get_map(map: Map) -> list[str];
+    '''Get the map of the level'''
+    def get_map(map: Map) -> str;
+
 }
 ```
 
-We have three methods defined under the level manager. Each will handle a separate set of tasks.
+We have four methods defined under the level manager. Each will handle a separate set of tasks.
 
-- ```create_next_level``` : Takes in previous level configuration data from previously played levels and generate the new level configuration parameters and output a ```Level``` object which describes the new map, using the LLM.
+- ```create_next_level``` : Takes in previous level configuration data from previously played levels and generate the new level configuration parameters and output a ```Level``` object which describes the new map, **using the LLM**.
 
 - ```get_next_level``` : Uses the ```create_next_level``` to generate the ```Level``` config. object which is then used to fill in the rest of a newly initiated ```Map``` object using an LLM. This is where the actual map generation happens. Still the generated map cannot be visualize.
 
@@ -127,31 +134,31 @@ We have three methods defined under the level manager. Each will handle a separa
 The implementation of the above methods are as follows.
 
 ```jac
-:obj:LevelManager:can:get_next_level {
-    self.current_level += 1;
-    # Keeping Only the Last 3 Levels
-    if len(self.prev_levels) > 3 {
-        self.prev_levels.pop(0);
-        self.prev_level_maps.pop(0);
-    }
+impl LevelManager.get_next_level {
 
-    # Generating the New Level
-    new_level = self.create_next_level(
-        self.prev_levels,
-        self.current_difficulty,
-        20, 20
-    );
+        # Keeping Only the Last 3 Levels
+        if len(self.prev_levels) > 3 {
+            self.prev_levels.pop(0);
+            self.prev_level_maps.pop(0);
+        }
+        # Generating the New Level
+        new_level = self.create_next_level(
+            self.prev_levels,
+            self.current_difficulty
+        );
+        self.prev_levels.append(new_level);
 
-    self.prev_levels.append(new_level);
-    # Generating the Map of the New Level
-    new_level_map = Map(level=new_level by llm());
-    self.prev_level_maps.append(new_level_map);
-    # Increasing the Difficulty for end of every 2 Levels
-    if self.current_level % 2 == 0 {
-        self.current_difficulty += 1;
-    }
+        # Using the llm to fill un the attributes of Map_tiles object instance
+        new_level_map = self.create_next_map(new_level);
+        self.prev_level_maps.append(new_level_map);
 
-    return (new_level, new_level_map);
+        # Increasing the Difficulty for end of every 2 Levels
+        if self.current_level % 2 == 0 {
+            self.current_difficulty += 1;
+        }
+
+        new_map = self.get_map(new_level_map);
+        return new_map;
 }
 ```
 
@@ -162,44 +169,30 @@ In the ```get_next_level``` method there are two llm calls which we will discuss
 - ```Line 14``` : Here the programmer is initiating a Map object while passing in only the level parameter with the newly generated ```level``` object and ask the LLM to fill in the rest of the fields by generating the relevant types. This nested type approach ensures the output is formatted according to how you expect them to be.
 
 ```jac
-:obj:LevelManager:can:get_map {
-    map_tiles = [['.' for _ in range(map.level.width)] for _ in range(map.level.height)];
-    for wall in map.walls {
-        for x in range(wall.start_pos.x, wall.end_pos.x + 1) {
-            for y in range(wall.start_pos.y, wall.end_pos.y + 1) {
-                map_tiles[y-1][x-1] = 'B';
+impl LevelManager.get_map{
+        map_tiles:list[list[str]] = [['.' for _ in range(map.level.width)] for _ in range(map.level.height)];
+
+        for wall in map.walls {
+            for x in range(wall.start_pos.x, wall.end_pos.x + 1) {
+                for y in range(wall.start_pos.y, wall.end_pos.y + 1) {
+                    map_tiles[y][x] = 'B';
+                }
             }
         }
-    }
 
-    for obs in map.small_obstacles {
-        map_tiles[obs.y-1][obs.x-1] = 'B';
-    }
+        for obs in map.small_obstacles {
+            map_tiles[obs.y][obs.x] = 'B';
+        }
 
-    for enemy in map.enemies {
-        map_tiles[enemy.y-1][enemy.x-1] = 'E';
-    }
-    map_tiles[map.player_pos.y-1][map.player_pos.x-1] = 'P';
-    map_tiles = [['B'] + row + ['B'] for row in map_tiles];
-    map_tiles = [['B' for _ in range(map.level.width + 2)]] + map_tiles + [['B' for _ in range(map.level.width + 2)]];
-    return [''.join(row) for row in map_tiles];
+        for enemy in map.enemies {
+            map_tiles[enemy.y][enemy.x] = 'E';
+        }
+        map_tiles[map.player_pos.y][map.player_pos.x] = 'P';
+        map_tiles:list[list[str]] = [['B'] + row + ['B'] for row in map_tiles];
+        map_tiles:list[list[str]] = [['B' for _ in range(map.level.width + 2)]] + map_tiles + [['B' for _ in range(map.level.width + 2)]];
+        return [''.join(row) for row in map_tiles];
 }
 ```
-
-### <span style="color: orange">Running the Program
-
-```jac
-with entry {
-    level_manager = LevelManager();
-    for _ in range(2) {
-        (new_level, new_level_map) = level_manager.get_next_level();
-        print(new_level);
-        print('\n'.join(LevelManager.get_map(new_level_map)));
-    }
-}
-```
-
-This program will now generate two consecutive maps and print them on the terminal. by running this jac file using ```jac run level_manager.jac``` you can simply test your program.
 
 ## <span style="color: orange">A full scale game demo
 
