@@ -1,6 +1,24 @@
-# Jac Cloud Scheduler
+# Task Scheduling: Automate Your Jac Applications
 
-## **Supported specs**
+## Overview
+
+Jac Cloud's scheduler allows you to run walkers automatically at specific times or intervals. This is useful for:
+
+- Running periodic background tasks
+- Processing data at scheduled intervals
+- Sending scheduled notifications
+- Executing maintenance operations
+- Any task that needs to happen on a recurring basis
+
+## Scheduler Configuration
+
+To configure a scheduled walker, add a `schedule` dictionary to the walker's `__specs__` configuration. The schedule supports three trigger types:
+
+1. **Cron** - Schedule using cron expressions
+2. **Interval** - Schedule at regular time intervals
+3. **Date** - Schedule at a specific date and time
+
+### Common Configuration Options
 
 | **NAME**      | **TYPE**               | **DESCRIPTION**                                                                                   | **DEFAULT** |
 | ------------- | ---------------------- | ------------------------------------------------------------------------------------------------- | ----------- |
@@ -13,9 +31,11 @@
 | propagate     | bool                   | if multiple jac-cloud service can trigger at the same time or first service only per trigger only | false       |
 | save          | bool                   | if walker instance will be save to the db including the results                                   | false       |
 
-## **cron** type trigger
+## Cron Trigger
 
-- You need to add additional specs for cron
+The cron trigger uses a cron-like expression to schedule tasks with high precision.
+
+### Additional Cron Configuration Options
 
 | **NAME**    | **TYPES**               | **DESCRIPTION**                                                | **DEFAULT** |
 | ----------- | ----------------------- | -------------------------------------------------------------- | ----------- |
@@ -30,7 +50,7 @@
 | start_date  | datetime or str or None | earliest possible date/time to trigger on (inclusive)          | None        |
 | end_date    | datetime or str or None | latest possible date/time to trigger on (inclusive)            | None        |
 
-### Example
+### Cron Example
 
 ```python
 walker walker_cron {
@@ -52,15 +72,20 @@ walker walker_cron {
                 "kwarg1": 30,
                 "kwarg2": "40"
             },
+            # Run every day at midnight
+            "hour": "0",
+            "minute": "0",
             "save": True
         };
     }
 }
 ```
 
-## **interval** type trigger
+## Interval Trigger
 
-- You need to add additional specs for interval
+The interval trigger runs a task at regular time intervals.
+
+### Additional Interval Configuration Options
 
 | **NAME**   | **TYPES**               | **DESCRIPTION**                             | **DEFAULT** |
 | ---------- | ----------------------- | ------------------------------------------- | ----------- |
@@ -72,7 +97,9 @@ walker walker_cron {
 | start_date | datetime or str or None | starting point for the interval calculation |             |
 | end_date   | datetime or str or None | latest possible date/time to trigger on     |             |
 
-```python
+### Interval Example
+
+```jac
 walker walker_interval {
     has arg1: int;
     has arg2: str;
@@ -80,7 +107,7 @@ walker walker_interval {
     has kwarg2: str = "4";
 
     can enter with `root entry {
-        print("I am a scheduled walker!")
+        print("I am a scheduled walker running every 5 seconds!");
     }
 
     class __specs__ {
@@ -99,15 +126,19 @@ walker walker_interval {
 }
 ```
 
-## **date** type trigger
+## Date Trigger
 
-- You need to add additional specs for interval
+The date trigger runs a task once at a specific date and time.
+
+### Additional Date Configuration Options
 
 | **NAME** | **TYPES**       | **DESCRIPTION**                 | **DEFAULT** |
 | -------- | --------------- | ------------------------------- | ----------- |
 | run_date | datetime or str | the date/time to run the job at |             |
 
-```python
+### Date Example
+
+```jac
 walker walker_date {
     has arg1: int;
     has arg2: str;
@@ -115,7 +146,7 @@ walker walker_date {
     has kwarg2: str = "4";
 
     can enter with `root entry {
-        print("I am a scheduled walker!")
+        print("I am a scheduled walker running once at a specific time!");
     }
 
     class __specs__ {
@@ -134,13 +165,13 @@ walker walker_date {
 }
 ```
 
-# Jac Cloud Optional Task
+## Jac Cloud Optional Task Queue
 
-- This will only be enabled if you have set `TASK_CONSUMER_CRON_SECOND`
+Jac Cloud also supports asynchronous task management that can be enabled by setting the `TASK_CONSUMER_CRON_SECOND` environment variable. This allows you to create tasks that will be processed by a background worker.
 
-## Example Use Case
+### Example Use Case
 
-```python
+```jac
 import from jac_cloud.plugin.implementation {create_task}
 
 node TaskCounter {
@@ -182,11 +213,36 @@ walker trigger_counter_task {
 }
 ```
 
-- `trigger_counter_task` walker will only create walker task and will be consumed by `Task Consumer`
-  - this will report walker id that can be used to retrieve it again
-- task will be saved to db and also in redis
-  - the polling mechanism will use redis to avoid traffic to db
-    - lowest polling trigger will be 1 second. Can be set to `TASK_CONSUMER_CRON_SECOND`
-  - the consume flow will be atomic and only one jac-cloud instance can process a task
-- if redis is cleaned up, upon running of jac-cloud service, it will repopulate pending task to redis again
-  - if ever multiple services tries to repopulate pending task to redis, since we are using atomic operations, if the task is already started it will be skipped by other services
+### How Tasks Work
+
+- `trigger_counter_task` creates a walker task that will be consumed by the Task Consumer
+- The task is saved to both the database and Redis
+- The polling mechanism uses Redis to avoid excessive database traffic
+  - The minimum polling interval is 1 second, configurable via `TASK_CONSUMER_CRON_SECOND`
+- Task consumption is atomic, ensuring only one Jac Cloud instance processes each task
+- If Redis is cleared, pending tasks will be repopulated from the database when Jac Cloud restarts
+
+## Best Practices
+
+1. **Set Appropriate Intervals**: Use intervals that match your application's needs (e.g., don't poll every second if hourly updates are sufficient)
+2. **Make Tasks Idempotent**: Design scheduled tasks to be safely run multiple times
+3. **Handle Failures Gracefully**: Add error handling in your scheduled walkers
+4. **Consider Time Zones**: Be aware of server time zones when scheduling date/time-specific tasks
+5. **Monitor Task Performance**: Log execution times and success rates for scheduled tasks
+
+## Debugging Scheduled Tasks
+
+If your scheduled task isn't running:
+
+1. Check that the `schedule` configuration is correctly formatted
+2. Ensure the `private` flag is set to `true` (recommended for scheduled tasks)
+3. Verify the environment variable `TASK_CONSUMER_CRON_SECOND` is set (for async tasks)
+4. Check the logs for any errors during task execution
+5. Test the walker manually to ensure it works properly
+
+## Next Steps
+
+- Learn about [WebSocket Communication](websocket.md) for real-time updates
+- Explore [Webhook Integration](webhook.md) for external service integration
+- Set up [Logging & Monitoring](logging.md) to track task execution
+- Deploy your application using [Kubernetes](deployment.md) for scalable task processing
