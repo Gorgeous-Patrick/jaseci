@@ -20,6 +20,7 @@ nav:
         - "learn/examples/rag_chatbot/3_rag-dialogue-routing-chatbot.md"
       - AI driven Applications:
         - "learn/examples/mtp_examples/rpg_game.md"
+        - "learn/examples/mtp_examples/fantasy_trading_game.md"
     - Learn Jac Language:
       - Coding Manual: "learn/jac_coding_manual.md"
       - Language Reference: "learn/jac_ref.md"
