@@ -1,6 +1,6 @@
 ### Chapter 9: Abilities - Event-Driven Computation
 
-Abilities represent a fundamental shift from traditional method invocation to event-driven computation. Instead of explicitly calling functions, abilities automatically execute when specific conditions are met during graph traversal. This chapter explores how abilities enable the bidirectional computation model that makes Data Spatial Programming so powerful.
+Abilities represent a fundamental shift from traditional method invocation to event-driven computation. Instead of explicitly calling functions, abilities automatically execute when specific conditions are met during graph traversal. This chapter explores how abilities enable the bidirectional computation model that makes Object-Spatial Programming so powerful.
 
 #### 9.1 Understanding Abilities
 
@@ -1074,7 +1074,7 @@ node DataProvider {
 
 ### Summary
 
-In this chapter, we've explored abilities—the event-driven computation model at the heart of Data Spatial Programming:
+In this chapter, we've explored abilities—the event-driven computation model at the heart of Object-Spatial Programming:
 
 - **Implicit Execution**: Abilities trigger automatically during traversal
 - **Multi-Actor System**: Walkers, nodes, and edges all participate

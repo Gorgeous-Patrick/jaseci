@@ -274,9 +274,9 @@ with entry:cli {
 }
 ```
 
-#### Your First Data Spatial Program
+#### Your First Object-Spatial Program
 
-Let's create a simple but complete data spatial program:
+Let's create a simple but complete object-spatial program:
 
 ```jac
 # social_hello.jac
@@ -535,7 +535,7 @@ with entry {
     # Example: Add some todos
     spawn AddTodo(title="Learn Jac basics", due_date="2024-12-31") on my_list;
     spawn AddTodo(title="Build first Jac app") on my_list;
-    spawn AddTodo(title="Master data spatial programming") on my_list;
+    spawn AddTodo(title="Master object-spatial programming") on my_list;
 
     # List all todos
     spawn ListTodos(show_completed=true) on my_list;

@@ -835,6 +835,6 @@ In this chapter, we've seen how Jac builds on Python's familiar syntax while add
 - **Implicit self** for cleaner method definitions
 - **Context-aware abilities** alongside traditional functions
 
-These enhancements make Jac code more explicit, safer, and better suited for the complex, distributed systems you'll build with data spatial programming.
+These enhancements make Jac code more explicit, safer, and better suited for the complex, distributed systems you'll build with object-spatial programming.
 
 In the next chapter, we'll explore Jac's data structures and unique features like keyword tuples and pipe operators that make data manipulation even more powerful and expressive.

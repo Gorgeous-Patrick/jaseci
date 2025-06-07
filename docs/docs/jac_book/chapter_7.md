@@ -1,6 +1,6 @@
 ### Chapter 7: Building Your First Graph
 
-Now that you understand the conceptual foundations of Data Spatial Programming, let's get hands-on and build real graph structures. In this chapter, you'll learn how to create nodes and edges, connect them into meaningful topologies, and perform basic graph operations that form the foundation of DSP applications.
+Now that you understand the conceptual foundations of Object-Spatial Programming, let's get hands-on and build real graph structures. In this chapter, you'll learn how to create nodes and edges, connect them into meaningful topologies, and perform basic graph operations that form the foundation of OSP applications.
 
 #### 7.1 Creating Nodes and Edges
 
@@ -238,7 +238,7 @@ with entry {
 
     // Alice creates a post
     let post1 = alice ++>:Authored(device="mobile"):++> Post(
-        content="Just discovered Jac's Data Spatial Programming! 🚀",
+        content="Just discovered Jac's Object-Spatial Programming! 🚀",
         created_at=datetime.now().isoformat(),
         views=150
     );

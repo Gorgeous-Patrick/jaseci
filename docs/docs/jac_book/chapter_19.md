@@ -2,7 +2,7 @@
 
 #### 19.1 Performance Characteristics
 
-Understanding Jac's performance characteristics is crucial for building efficient applications. The data spatial paradigm introduces unique performance considerations that differ significantly from traditional programming models.
+Understanding Jac's performance characteristics is crucial for building efficient applications. The object-spatial paradigm introduces unique performance considerations that differ significantly from traditional programming models.
 
 ### Traversal Optimization
 

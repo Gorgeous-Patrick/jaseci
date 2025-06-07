@@ -1,6 +1,6 @@
 ### Chapter 15: Design Patterns in Jac
 
-This chapter explores design patterns that leverage Jac's unique features—data spatial programming, scale-agnostic architecture, and topological computation. These patterns provide reusable solutions to common problems while taking full advantage of Jac's paradigm shift from moving data to computation to moving computation to data.
+This chapter explores design patterns that leverage Jac's unique features—object-spatial programming, scale-agnostic architecture, and topological computation. These patterns provide reusable solutions to common problems while taking full advantage of Jac's paradigm shift from moving data to computation to moving computation to data.
 
 #### 15.1 Graph Patterns
 

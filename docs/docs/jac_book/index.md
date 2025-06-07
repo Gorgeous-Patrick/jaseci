@@ -1,6 +1,6 @@
 # The Jac Book: A Guide for Python Developers
 
-Welcome to the comprehensive guide to the Jac programming language, designed specifically for developers with a background in Python. This book will take you on a journey from familiar Pythonic concepts to the revolutionary paradigm of Data Spatial Programming.
+Welcome to the comprehensive guide to the Jac programming language, designed specifically for developers with a background in Python. This book will take you on a journey from familiar Pythonic concepts to the revolutionary paradigm of Object-Spatial Programming.
 
 ## Table of Contents
 
@@ -13,8 +13,8 @@ Welcome to the comprehensive guide to the Jac programming language, designed spe
 *   [Chapter 4: Data Structures and Collections](./chapter_4.md)
 *   [Chapter 5: Object-Oriented Programming Enhanced](./chapter_5.md)
 
-### Part III: Data Spatial Programming Fundamentals
-*   [Chapter 6: Introduction to Data Spatial Concepts](./chapter_6.md)
+### Part III: Object-Spatial Programming Fundamentals
+*   [Chapter 6: Introduction to Object-Spatial Concepts](./chapter_6.md)
 *   [Chapter 7: Nodes and Edges - The Anatomy of a Graph](./chapter_7.md)
 *   [Chapter 8: Walkers - Mobile Computation](./chapter_8.md)
 *   [Chapter 9: Graph Traversal and Filtering](./chapter_9.md)

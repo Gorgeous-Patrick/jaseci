@@ -1,6 +1,6 @@
 ### Chapter 8: Walkers - Computation in Motion
 
-Walkers are the beating heart of Data Spatial Programming. They embody the paradigm shift from static functions to mobile computational entities that traverse your data graph, processing information where it lives. In this chapter, we'll master the art of creating and controlling walkers to build powerful, scalable algorithms.
+Walkers are the beating heart of Object-Spatial Programming. They embody the paradigm shift from static functions to mobile computational entities that traverse your data graph, processing information where it lives. In this chapter, we'll master the art of creating and controlling walkers to build powerful, scalable algorithms.
 
 #### 8.1 Walker Basics
 
@@ -513,7 +513,7 @@ walker HealthChecker {
 
 ### Bidirectional Computation Model
 
-The power of DSP comes from bidirectional interaction between walkers and nodes:
+The power of OSP comes from bidirectional interaction between walkers and nodes:
 
 ```jac
 node SmartDevice {
@@ -857,7 +857,7 @@ walker Orchestrator {
 
 ### Summary
 
-In this chapter, we've mastered walkers—the mobile computational entities that make Data Spatial Programming unique:
+In this chapter, we've mastered walkers—the mobile computational entities that make Object-Spatial Programming unique:
 
 - **Walker Basics**: Creating, spawning, and managing walker lifecycle
 - **Traversal Control**: Using `visit`, `disengage`, and `skip` effectively

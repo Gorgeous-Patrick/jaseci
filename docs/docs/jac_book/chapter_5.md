@@ -1,6 +1,6 @@
 ### Chapter 5: Object-Oriented Programming Enhanced
 
-Jac takes the familiar concepts of object-oriented programming and enhances them with modern features like automatic constructors, implementation separation, and data spatial archetypes. This chapter explores how Jac improves upon traditional OOP while maintaining compatibility with Python when needed.
+Jac takes the familiar concepts of object-oriented programming and enhances them with modern features like automatic constructors, implementation separation, and object-spatial archetypes. This chapter explores how Jac improves upon traditional OOP while maintaining compatibility with Python when needed.
 
 #### 5.1 From Classes to Archetypes
 
@@ -866,4 +866,4 @@ In this chapter, we've seen how Jac enhances object-oriented programming with:
 
 These features make Jac's OOP both more powerful and more convenient than traditional approaches. The automatic constructor generation alone can save hundreds of lines of boilerplate in larger projects, while implementation separation enables better team collaboration and code organization.
 
-Next, we'll dive into the revolutionary Data Spatial Programming features that make Jac truly unique—nodes, edges, and walkers that transform how we think about program structure and execution.
+Next, we'll dive into the revolutionary Object-Spatial Programming features that make Jac truly unique—nodes, edges, and walkers that transform how we think about program structure and execution.

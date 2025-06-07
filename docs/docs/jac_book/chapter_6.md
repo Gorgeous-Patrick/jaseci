@@ -1,6 +1,6 @@
-### Chapter 6: Introduction to Data Spatial Concepts
+### Chapter 6: Introduction to Object-Spatial Concepts
 
-Welcome to the heart of what makes Jac revolutionary. In this chapter, we'll explore Data Spatial Programming (DSP), a paradigm that fundamentally changes how we think about and structure computation. If you've ever felt that traditional programming models don't naturally express the interconnected, graph-like nature of modern applications, you're about to discover a better way.
+Welcome to the heart of what makes Jac revolutionary. In this chapter, we'll explore Object-Spatial Programming (OSP), a paradigm that fundamentally changes how we think about and structure computation. If you've ever felt that traditional programming models don't naturally express the interconnected, graph-like nature of modern applications, you're about to discover a better way.
 
 #### 6.1 The Paradigm Shift
 
@@ -57,9 +57,9 @@ graph LR
     style F3 fill:#e8f5e9
 ```
 
-### Data Spatial: Moving Computation to Data
+### Object-Spatial: Moving Computation to Data
 
-Data Spatial Programming inverts this relationship. Instead of bringing data to functions, we send computation to where data lives:
+Object-Spatial Programming inverts this relationship. Instead of bringing data to functions, we send computation to where data lives:
 
 ```jac
 // Jac - Computation moves to data
@@ -95,7 +95,7 @@ walker CalculateInfluence {
 
 ```mermaid
 graph TB
-    subgraph "Data Spatial Model: Computation → Data"
+    subgraph "Object-Spatial Model: Computation → Data"
         U[User Node<br/>≪data≫]
         P1[Post 1<br/>≪data≫]
         P2[Post 2<br/>≪data≫]
@@ -128,12 +128,12 @@ graph TB
 
 ### Real-World Analogies and Use Cases
 
-The Data Spatial paradigm mirrors how we naturally think about many real-world scenarios:
+The Object-Spatial paradigm mirrors how we naturally think about many real-world scenarios:
 
 ##### 1. **The Inspector Analogy**
 Imagine a quality inspector in a factory:
 - Traditional: Bring all products to the inspector's office
-- Data Spatial: Inspector walks through the factory, examining products where they are
+- Object-Spatial: Inspector walks through the factory, examining products where they are
 
 ```jac
 walker QualityInspector {
@@ -233,7 +233,7 @@ for user in all_users:  # Load millions of users
             if matches_interests(user, post):
                 recommendations.append(post)
 
-// Data Spatial: Process in place
+// Object-Spatial: Process in place
 walker RecommendationEngine {
     has user_interests: list;
     has recommendations: list = [];
@@ -293,7 +293,7 @@ graph TB
 
 ### Nodes: Data Locations with Computation
 
-Nodes are the fundamental data containers in DSP, but unlike traditional objects, they're aware of their position in the topology and can respond to visitors:
+Nodes are the fundamental data containers in OSP, but unlike traditional objects, they're aware of their position in the topology and can respond to visitors:
 
 ```jac
 node UserProfile {
@@ -374,7 +374,7 @@ Why edges as first-class objects matter:
 
 ### Walkers: Mobile Computational Entities
 
-Walkers are the "programs" of DSP—they move through the graph executing computation:
+Walkers are the "programs" of OSP—they move through the graph executing computation:
 
 ```jac
 walker DataAggregator {
@@ -422,7 +422,7 @@ Walker characteristics:
 
 ### How They Extend Traditional OOP
 
-Traditional OOP gives us encapsulation and inheritance. DSP adds:
+Traditional OOP gives us encapsulation and inheritance. OSP adds:
 
 1. **Topology**: Objects know their relationships
 2. **Mobility**: Computation can move between objects
@@ -444,7 +444,7 @@ graph TD
         O3 --> M3
     end
 
-    subgraph "Data Spatial"
+    subgraph "Object-Spatial"
         N1[Node]
         N2[Node]
         N3[Node]
@@ -613,7 +613,7 @@ with entry {
 
 ### Why This Matters
 
-The Data Spatial approach provides:
+The Object-Spatial approach provides:
 
 1. **Natural Modeling**: The code structure mirrors the problem domain
 2. **Separation of Concerns**: Data (nodes), relationships (edges), and algorithms (walkers) are clearly separated
@@ -621,11 +621,11 @@ The Data Spatial approach provides:
 4. **Scalability**: The same code works for 10 nodes or 10 million
 5. **Maintainability**: Changes to structure don't break algorithms
 
-In the next chapters, we'll dive deeper into building and traversing these graph structures, exploring the full power of Data Spatial Programming.
+In the next chapters, we'll dive deeper into building and traversing these graph structures, exploring the full power of Object-Spatial Programming.
 
 ### Summary
 
-In this chapter, we've introduced the revolutionary concepts of Data Spatial Programming:
+In this chapter, we've introduced the revolutionary concepts of Object-Spatial Programming:
 
 - **The Paradigm Shift**: From moving data to computation → moving computation to data
 - **Nodes**: Data locations that can react to visitors

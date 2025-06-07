@@ -23,7 +23,7 @@ nav:
     - Learn Jac Language:
       - Jac in 2 Minutes: "learn/jac_in_a_flash.md"
       - The Jac Book: "jac_book/index.md"
-      - Understanding Data Spatial:
+      - Understanding Object-Spatial:
         - "learn/data_spatial/nodes_and_edges.md" # Introduction to DS primitives
         - "learn/data_spatial/walkers.md" # Walker
         - "learn/data_spatial/filtering.md" # Filtering
@@ -54,7 +54,7 @@ nav:
     - Tooling:
       - "learn/tools/cli.md"
     - Specifications:
-      - Data Spatial Programming Specification: "learn/dspfoundation.md"
+      - Object-Spatial Programming Specification: "learn/dspfoundation.md"
       - Full Language Specification: "learn/jac_ref.md"
 
   - Jac Book (WIP):
@@ -64,7 +64,7 @@ nav:
     - Chapter 3 - Familiar Syntax with New Semantics: "jac_book/chapter_3.md"
     - Chapter 4 - Data Structures and Collections: "jac_book/chapter_4.md"
     - Chapter 5 - Object-Oriented Programming Enhanced: "jac_book/chapter_5.md"
-    - Chapter 6 - Introduction to Data Spatial Concepts: "jac_book/chapter_6.md"
+    - Chapter 6 - Introduction to Object-Spatial Concepts: "jac_book/chapter_6.md"
     - Chapter 7 - Nodes and Edges: "jac_book/chapter_7.md"
     - Chapter 8 - Walkers - Mobile Computation: "jac_book/chapter_8.md"
     - Chapter 9 - Graph Traversal and Filtering: "jac_book/chapter_9.md"

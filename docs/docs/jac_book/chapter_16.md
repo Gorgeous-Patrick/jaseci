@@ -1,6 +1,6 @@
 ### Chapter 16: Testing and Debugging
 
-Testing and debugging in Jac requires unique approaches due to its data spatial nature, graph-based architecture, and scale-agnostic features. This chapter explores comprehensive strategies for ensuring your Jac applications work correctly from development through production.
+Testing and debugging in Jac requires unique approaches due to its object-spatial nature, graph-based architecture, and scale-agnostic features. This chapter explores comprehensive strategies for ensuring your Jac applications work correctly from development through production.
 
 #### 16.1 Testing Framework
 

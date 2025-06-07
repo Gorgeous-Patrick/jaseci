@@ -541,7 +541,7 @@ let processed = words
     };
 ```
 
-### Pipes in Data Spatial Context
+### Pipes in Object-Spatial Context
 
 ```jac
 // Using pipes with graph operations

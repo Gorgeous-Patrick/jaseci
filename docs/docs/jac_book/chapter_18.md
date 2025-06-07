@@ -3,7 +3,7 @@
 
 #### 18.1 Porting Python Applications
 
-Migrating Python applications to Jac requires a shift in thinking from object-oriented to data spatial patterns. This section guides you through identifying opportunities for migration and transforming Python code to leverage Jac's unique capabilities.
+Migrating Python applications to Jac requires a shift in thinking from object-oriented to object-spatial patterns. This section guides you through identifying opportunities for migration and transforming Python code to leverage Jac's unique capabilities.
 
 ### Identifying Graph Structures
 
@@ -317,9 +317,9 @@ walker GetActiveSessions {
 }
 ```
 
-### Refactoring for Data Spatial Patterns
+### Refactoring for Object-Spatial Patterns
 
-Moving beyond direct translation, we can refactor to truly leverage data spatial patterns.
+Moving beyond direct translation, we can refactor to truly leverage object-spatial patterns.
 
 ##### Pattern 1: Replace Method Calls with Walker Traversal
 

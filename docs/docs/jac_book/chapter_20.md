@@ -151,7 +151,7 @@ This comprehensive comparison shows Python syntax alongside its Jac equivalent, 
 | `dict` | `dict(pairs)` | `dict([("a", 1)])` → `{"a": 1}` |
 | `set` | `set(iterable)` | `set([1, 2, 2])` → `{1, 2}` |
 
-### Data Spatial Built-ins
+### Object-Spatial Built-ins
 
 | Keyword/Function | Description | Example |
 |------------------|-------------|---------|
@@ -478,4 +478,4 @@ walker FindUsersByName {
 }
 ```
 
-This quick reference provides the essential syntax mappings and patterns you'll need for day-to-day Jac development. Keep it handy as you transition from Python to Jac's data spatial paradigm!
+This quick reference provides the essential syntax mappings and patterns you'll need for day-to-day Jac development. Keep it handy as you transition from Python to Jac's object-spatial paradigm!

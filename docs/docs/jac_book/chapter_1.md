@@ -2,9 +2,9 @@
 
 #### 1.1 What is Jac?
 
-Jac is a programming language that extends familiar Python-like syntax with revolutionary concepts from Data Spatial Programming (DSP). While maintaining the readability and expressiveness that Python developers love, Jac introduces a fundamental paradigm shift in how we think about and structure computation.
+Jac is a programming language that extends familiar Python-like syntax with revolutionary concepts from Object-Spatial Programming (OSP). While maintaining the readability and expressiveness that Python developers love, Jac introduces a fundamental paradigm shift in how we think about and structure computation.
 
-#### Evolution from Python-like Syntax to Data Spatial Programming
+#### Evolution from Python-like Syntax to Object-Spatial Programming
 
 Jac began as an effort to address the limitations of traditional programming paradigms when dealing with inherently graph-like, interconnected systems. While you'll recognize much of the syntax from Python, Jac adds powerful new constructs that make it natural to express complex relationships and computational flows.
 
@@ -50,7 +50,7 @@ print(fof_alice)
 
 <div class="code-block">
 ```jac
-# Jac's Data Spatial approach
+# Jac's Object-Spatial approach
  node User {
     has name: str;
 }
@@ -101,11 +101,11 @@ graph LR
     end
 ```
 
-Jac inverts this relationship. In Data Spatial Programming, computation moves to data through mobile computational entities called "walkers" that traverse a graph of interconnected data locations called "nodes."
+Jac inverts this relationship. In Object-Spatial Programming, computation moves to data through mobile computational entities called "walkers" that traverse a graph of interconnected data locations called "nodes."
 
 ```mermaid
 graph TB
-    subgraph "Data Spatial: Computation → Data"
+    subgraph "Object-Spatial: Computation → Data"
         U1["Node: Alice<br/>(User)"]
         U2["Node: Bob<br/>(User)"]
         U3["Node: Carol<br/>(User)"]
@@ -547,7 +547,7 @@ This guide follows a carefully designed progression:
 ```mermaid
 graph TD
     A[Python Foundations<br/>Ch 3-5] --> B[Enhanced OOP<br/>Ch 5-6]
-    B --> C[Data Spatial Basics<br/>Ch 6-9]
+    B --> C[Object-Spatial Basics<br/>Ch 6-9]
     C --> D[Scale-Agnostic Features<br/>Ch 10-13]
     D --> E[Advanced Patterns<br/>Ch 14-16]
     E --> F[Real Applications<br/>Ch 17-19]
@@ -561,7 +561,7 @@ graph TD
 ```
 
 1. **Start Familiar**: Begin with Python-like features to build confidence
-2. **Introduce Concepts**: Learn data spatial concepts with simple examples
+2. **Introduce Concepts**: Learn object-spatial concepts with simple examples
 3. **Build Understanding**: Create increasingly complex graph structures
 4. **Master Scale**: Understand persistence and distribution
 5. **Apply Knowledge**: Build real-world applications
@@ -592,4 +592,4 @@ with entry {
 }
 ```
 
-Ready to begin? In the next chapter, we'll set up your Jac development environment and write your first Data Spatial program. The future of programming awaits!
+Ready to begin? In the next chapter, we'll set up your Jac development environment and write your first Object-Spatial program. The future of programming awaits!

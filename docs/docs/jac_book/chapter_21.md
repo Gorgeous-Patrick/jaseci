@@ -2,7 +2,7 @@
 
 #### 21.1 Code Organization
 
-Organizing Jac code effectively is crucial for maintainability and team collaboration. Jac's unique features like implementation separation and data spatial constructs require thoughtful organization strategies.
+Organizing Jac code effectively is crucial for maintainability and team collaboration. Jac's unique features like implementation separation and object-spatial constructs require thoughtful organization strategies.
 
 ### Project Structure Best Practices
 
@@ -753,9 +753,9 @@ If you need to get productive with Jac quickly, this accelerated path covers the
 - Practice with pipe operators
 - **Exercise**: Convert a simple Python script to Jac
 
-##### Week 2: Data Spatial Basics
+##### Week 2: Object-Spatial Basics
 
-**Day 8-9: Data Spatial Concepts (Chapter 6)**
+**Day 8-9: Object-Spatial Concepts (Chapter 6)**
 - Understand nodes, edges, and walkers
 - Learn the difference between objects and nodes
 - Grasp the concept of computation moving to data
@@ -808,7 +808,7 @@ walker FindConnections {
 ### Success Criteria
 You should be able to:
 - ✓ Set up a Jac development environment
-- ✓ Understand the basic data spatial concepts
+- ✓ Understand the basic object-spatial concepts
 - ✓ Create simple graphs with nodes and edges
 - ✓ Write walkers that traverse graphs
 - ✓ Convert simple Python logic to Jac
@@ -833,7 +833,7 @@ This comprehensive path is designed for teams or individuals planning to fully m
 - Learn implementation separation
 - **Project**: Convert a small Python application to Jac
 
-**Week 3-4: Data Spatial Programming (Chapters 6-9)**
+**Week 3-4: Object-Spatial Programming (Chapters 6-9)**
 - Master all archetype types
 - Understand abilities vs methods
 - Learn advanced traversal patterns
