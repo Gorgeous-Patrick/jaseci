@@ -105,9 +105,7 @@ class JacFormatPassTests(TestCaseMicroSuite):
         """
         code_gen_pure = JacProgram().compile(self.fixture_abs_path(filename))
         code_gen_format = JacProgram.jac_file_formatter(self.fixture_abs_path(filename))
-        code_gen_jac = JacProgram().compile_from_str(
-            source_str=code_gen_format, file_path=filename
-        )
+        code_gen_jac = JacProgram().compile(use_str=code_gen_format, file_path=filename)
         if "circle_clean_tests.jac" in filename:
             tokens = code_gen_format.split()
             num_test = 0

@@ -69,17 +69,6 @@ class JacProgram:
         result = self.compile(file_path=full_target, mode=CompilerMode.COMPILE_SINGLE)
         return marshal.loads(result.gen.py_bytecode) if result.gen.py_bytecode else None
 
-    def compile(
-        self,
-        file_path: str,
-        mode: CompilerMode = CompilerMode.COMPILE,
-    ) -> uni.Module:
-        """Convert a Jac file to an AST."""
-        with open(file_path, "r", encoding="utf-8") as file:
-            return self.compile_from_str(
-                source_str=file.read(), file_path=file_path, mode=mode
-            )
-
     def parse_str(self, source_str: str, file_path: str) -> uni.Module:
         """Convert a Jac file to an AST."""
         had_error = False
@@ -108,14 +97,17 @@ class JacProgram:
         self.mod.hub[mod.loc.mod_path] = mod
         return mod
 
-    def compile_from_str(
+    def compile(
         self,
-        source_str: str,
         file_path: str,
+        use_str: str | None = None,
         mode: CompilerMode = CompilerMode.COMPILE,
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
-        mod = self.parse_str(source_str, file_path)
+        if not use_str:
+            with open(file_path, "r", encoding="utf-8") as file:
+                use_str = file.read()
+        mod = self.parse_str(use_str, file_path)
         return self.run_pass_schedule(mod_targ=mod, mode=mode)
 
     def run_pass_schedule(

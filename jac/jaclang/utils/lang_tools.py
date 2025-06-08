@@ -209,8 +209,8 @@ class AstTool:
                     ).ir_out
                     print(rep.unparse())
 
-                    ir = prog.compile_from_str(
-                        source_str=rep.unparse(),
+                    ir = prog.compile(
+                        use_str=rep.unparse(),
                         file_path=file_name[:-3] + ".jac",
                         mode=CMode.NO_CGEN,
                     )

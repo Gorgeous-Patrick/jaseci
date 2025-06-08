@@ -87,8 +87,8 @@ class JacTypeCheckTests(TestCase):
             except Exception as e:
                 return f"Error While Jac to Py AST conversion: {e}"
 
-        (prog := JacProgram()).compile_from_str(
-            source_str=py_ast_build_pass.unparse(),
+        (prog := JacProgram()).compile(
+            use_str=py_ast_build_pass.unparse(),
             file_path=file_name[:-3] + ".jac",
             mode=CMode.TYPECHECK,
         )
@@ -131,8 +131,8 @@ class JacTypeCheckTests(TestCase):
             except Exception as e:
                 return f"Error While Jac to Py AST conversion: {e}"
 
-            (prog := JacProgram()).compile_from_str(
-                source_str=py_ast_build_pass.unparse(),
+            (prog := JacProgram()).compile(
+                use_str=py_ast_build_pass.unparse(),
                 file_path=file_name[:-3] + ".jac",
                 mode=CMode.TYPECHECK,
             )
@@ -163,8 +163,8 @@ class JacTypeCheckTests(TestCase):
 
         with open(file_name, "r") as f:
             file_source = f.read()
-        (prog := JacProgram()).compile_from_str(
-            source_str=file_source, file_path=file_name, mode=CMode.TYPECHECK
+        (prog := JacProgram()).compile(
+            use_str=file_source, file_path=file_name, mode=CMode.TYPECHECK
         )
 
         archetype_count = sum(
@@ -226,8 +226,8 @@ class JacTypeCheckTests(TestCase):
             settings.print_py_raised_ast = True
             with open(file_path) as f:
                 file_source = f.read()
-            ir = JacProgram().compile_from_str(
-                source_str=file_source,
+            ir = JacProgram().compile(
+                use_str=file_source,
                 file_path=file_path,
                 mode=CMode.TYPECHECK,
             )
@@ -247,8 +247,8 @@ class JacTypeCheckTests(TestCase):
         settings.print_py_raised_ast = True
         with open(file_name, "r") as f:
             file_source = f.read()
-        ir = (prog := JacProgram()).compile_from_str(
-            source_str=file_source, file_path=file_name, mode=CMode.TYPECHECK
+        ir = (prog := JacProgram()).compile(
+            use_str=file_source, file_path=file_name, mode=CMode.TYPECHECK
         )
         jac_ast = ir.pp()
         self.assertIn(" |   +-- String - 'Loop completed normally{}'", jac_ast)

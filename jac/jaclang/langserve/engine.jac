@@ -96,8 +96,8 @@ class JacLangServer ( JacProgram , LanguageServer ) {
             file_path_fs = file_path.removeprefix('file://');
             document = self.workspace.get_text_document(file_path);
             self._clear_alerts_for_file(file_path_fs);
-            build = self.compile_from_str(
-                source_str=document.source,
+            build = self.compile(
+                use_str=document.source,
                 file_path=document.path,
                 mode=CMode.PARSE
             );
@@ -126,8 +126,8 @@ class JacLangServer ( JacProgram , LanguageServer ) {
             file_path_fs = file_path.removeprefix('file://');
             document = self.workspace.get_text_document(file_path);
             self._clear_alerts_for_file(file_path_fs);
-            build = self.compile_from_str(
-                        source_str=document.source,
+            build = self.compile(
+                        use_str=document.source,
                         file_path=document.path,
                         mode=CMode.TYPECHECK
                     );

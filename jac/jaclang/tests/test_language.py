@@ -188,7 +188,9 @@ class JacLanguageTests(TestCase):
 
     def test_arith_precedence(self) -> None:
         """Basic precedence test."""
-        prog = JacProgram().compile_from_str("with entry {print(4-5-4);}", "test.jac")
+        prog = JacProgram().compile(
+            use_str="with entry {print(4-5-4);}", file_path="test.jac"
+        )
         captured_output = io.StringIO()
         sys.stdout = captured_output
         exec(compile(prog.gen.py_ast[0], "test.py", "exec"))
@@ -589,14 +591,14 @@ class JacLanguageTests(TestCase):
 
     def test_py_kw_as_name_disallowed(self) -> None:
         """Basic precedence test."""
-        (prog := JacProgram()).compile_from_str(
-            "with entry {print.is.not.True(4-5-4);}", "test.jac"
+        (prog := JacProgram()).compile(
+            use_str="with entry {print.is.not.True(4-5-4);}", file_path="test.jac"
         )
         self.assertIn("Python keyword is used as name", str(prog.errors_had[0].msg))
 
     def test_double_format_issue(self) -> None:
         """Basic precedence test."""
-        prog = JacProgram().compile_from_str("with entry {print(hello);}", "test.jac")
+        prog = JacProgram().compile("with entry {print(hello);}", "test.jac")
         prog.unparse()
         before = prog.format()
         prog.format()
