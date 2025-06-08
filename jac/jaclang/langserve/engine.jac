@@ -96,7 +96,7 @@ class JacLangServer ( JacProgram , LanguageServer ) {
         try { file_path_fs = file_path.removeprefix('file://'); document =
             self.workspace.get_text_document(file_path); self._clear_alerts_for_file(file_path_fs); build =
             self.compile(
-                use_str=document.source, file_path=document.path, mode=CMode.PARSE
+                use_str=document.source, file_path=document.path
             ); self.update_modules(file_path_fs, build, need=False); self.publish_diagnostics(
             file_path, utils.gen_diagnostics(
                 file_path, self.errors_had, self.warnings_had

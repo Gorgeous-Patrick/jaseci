@@ -110,8 +110,6 @@ class JacProgram:
         mod_targ = self.parse_str(use_str, file_path)
         JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
-        if mode == CompilerMode.PARSE:
-            return mod_targ
         self.schedule_runner(mod_targ, mode=mode)
         return mod_targ
 
@@ -128,8 +126,6 @@ class JacProgram:
         mod_targ = self.parse_str(use_str, file_path)
         JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
-        if mode == CompilerMode.PARSE:
-            return mod_targ
         if mode in (CompilerMode.COMPILE_SINGLE, CompilerMode.NO_CGEN_SINGLE):
             self.schedule_runner(mod_targ, mode=mode)
             return mod_targ

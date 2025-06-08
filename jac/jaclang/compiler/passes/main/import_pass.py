@@ -63,8 +63,6 @@ class JacImportDepsPass(Transform[uni.Module, uni.Module]):
 
     def import_jac_module(self, node: uni.ModulePath) -> None:
         """Import a module."""
-        from jaclang.compiler.passes.main import CompilerMode as CMode
-
         target = node.resolve_relative_path()
         # If the module is a package (dir)
         if os.path.isdir(target):
@@ -83,15 +81,11 @@ class JacImportDepsPass(Transform[uni.Module, uni.Module]):
                         else:
                             if from_mod_target in self.prog.mod.hub:
                                 return
-                            self.load_mod(
-                                self.prog.compile(
-                                    file_path=from_mod_target, mode=CMode.PARSE
-                                )
-                            )
+                            self.load_mod(self.prog.compile(file_path=from_mod_target))
         else:
             if target in self.prog.mod.hub:
                 return
-            self.load_mod(self.prog.compile(file_path=target, mode=CMode.PARSE))
+            self.load_mod(self.prog.compile(file_path=target))
 
     def load_mod(self, mod: uni.Module) -> None:
         """Attach a module to a node."""
@@ -102,13 +96,11 @@ class JacImportDepsPass(Transform[uni.Module, uni.Module]):
 
     def import_jac_mod_from_dir(self, target: str) -> uni.Module:
         """Import a module from a directory."""
-        from jaclang.compiler.passes.main import CompilerMode as CMode
-
         jac_init_path = os.path.join(target, "__init__.jac")
         if os.path.exists(jac_init_path):
             if jac_init_path in self.prog.mod.hub:
                 return self.prog.mod.hub[jac_init_path]
-            return self.prog.compile(file_path=jac_init_path, mode=CMode.PARSE)
+            return self.prog.compile(file_path=jac_init_path)
         elif os.path.exists(py_init_path := os.path.join(target, "__init__.py")):
             with open(py_init_path, "r") as f:
                 file_source = f.read()

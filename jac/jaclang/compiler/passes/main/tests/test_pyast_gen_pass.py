@@ -122,9 +122,7 @@ class ValidateTreeParentTest(TestCaseMicroSuite):
 
     def micro_suite_test(self, filename: str) -> None:
         """Parse micro jac file."""
-        code_gen = JacProgram().compile(
-            self.fixture_abs_path(filename), mode=CMode.PARSE
-        )
+        code_gen = JacProgram().compile(self.fixture_abs_path(filename))
         self.assertTrue(self.parent_scrub(code_gen))
         code_gen = JacProgram().compile(self.fixture_abs_path(filename))
         self.assertTrue(self.parent_scrub(code_gen))

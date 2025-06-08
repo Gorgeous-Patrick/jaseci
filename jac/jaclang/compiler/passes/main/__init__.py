@@ -20,7 +20,6 @@ from .inheritance_pass import InheritancePass  # noqa: I100
 class CompilerMode(Enum):
     """Compiler modes."""
 
-    PARSE = "PARSE"
     NO_CGEN = "NO_CGEN"
     NO_CGEN_SINGLE = "NO_CGEN_SINGLE"
     COMPILE = "COMPILE"
