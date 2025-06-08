@@ -111,6 +111,10 @@ class JacProgram:
         if self.mod.main.stub_only:
             self.mod = uni.ProgramModule(mod)
         self.mod.hub[mod.loc.mod_path] = mod
+        JacAnnexPass(ir_in=mod, prog=self)
+        SymTabBuildPass(ir_in=mod, prog=self)
+        if mode == CompilerMode.PARSE:
+            return mod
         return self.run_pass_schedule(mod_targ=mod, mode=mode)
 
     def run_pass_schedule(
@@ -119,23 +123,21 @@ class JacProgram:
         mode: CompilerMode = CompilerMode.COMPILE,
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
-        JacAnnexPass(ir_in=mod_targ, prog=self)
-        SymTabBuildPass(ir_in=mod_targ, prog=self)
-        if mode == CompilerMode.PARSE:
-            return mod_targ
-        elif mode in (CompilerMode.COMPILE_SINGLE, CompilerMode.NO_CGEN_SINGLE):
+        if mode in (CompilerMode.COMPILE_SINGLE, CompilerMode.NO_CGEN_SINGLE):
             self.schedule_runner(mod_targ, mode=mode)
             return mod_targ
         JacImportDepsPass(ir_in=mod_targ, prog=self)
         if len(self.errors_had):
             return mod_targ
-        SymTabLinkPass(ir_in=mod_targ, prog=self)
+        for mod in self.mod.hub.values():
+            SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             self.schedule_runner(mod, mode=CompilerMode.COMPILE)
         if mode == CompilerMode.COMPILE:
             return mod_targ
         PyImportDepsPass(mod_targ, prog=self)
-        SymTabLinkPass(ir_in=mod_targ, prog=self)
+        for mod in self.mod.hub.values():
+            SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             DefUsePass(mod, prog=self)
         for mod in self.mod.hub.values():
