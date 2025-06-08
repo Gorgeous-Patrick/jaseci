@@ -12,7 +12,6 @@ dependencies = [
     "mkdocs-material",
     "mkdocs-video",
     "mkdocs-open-in-new-tab",
-    "mkdocs-simple-hooks",
     "starlette",
     "uvicorn"
 ]
