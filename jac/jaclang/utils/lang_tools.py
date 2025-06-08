@@ -245,6 +245,7 @@ class AstTool:
                 case "unparse":
                     return ir.unparse()
                 case "pyast":
+                    ir = prog.compile(file_name, mode=CMode.COMPILE_SINGLE)
                     return (
                         f"\n{py_ast.dump(ir.gen.py_ast[0], indent=2)}"
                         if isinstance(ir.gen.py_ast[0], py_ast.AST)
@@ -253,6 +254,7 @@ class AstTool:
                 case "docir":
                     return str(DocIRGenPass(ir, prog).ir_out.gen.doc_ir)
                 case "py":
+                    ir = prog.compile(file_name, mode=CMode.COMPILE_SINGLE)
                     return (
                         f"\n{ir.gen.py}"
                         if isinstance(ir.gen.py[0], str)

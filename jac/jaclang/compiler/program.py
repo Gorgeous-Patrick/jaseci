@@ -63,7 +63,7 @@ class JacProgram:
 
     def get_bytecode(self, full_target: str) -> Optional[types.CodeType]:
         """Get the bytecode for a specific module."""
-        if full_target in self.mod.hub:
+        if full_target in self.mod.hub and self.mod.hub[full_target].gen.py_bytecode:
             codeobj = self.mod.hub[full_target].gen.py_bytecode
             return marshal.loads(codeobj) if isinstance(codeobj, bytes) else None
         result = self.compile(file_path=full_target, mode=CompilerMode.COMPILE_SINGLE)
@@ -107,15 +107,25 @@ class JacProgram:
         if not use_str:
             with open(file_path, "r", encoding="utf-8") as file:
                 use_str = file.read()
-        mod = self.parse_str(use_str, file_path)
-        return self.run_pass_schedule(mod_targ=mod, mode=mode)
+        mod_targ = self.parse_str(use_str, file_path)
+        JacAnnexPass(ir_in=mod_targ, prog=self)
+        SymTabBuildPass(ir_in=mod_targ, prog=self)
+        if mode == CompilerMode.PARSE:
+            return mod_targ
+        self.schedule_runner(mod_targ, mode=mode)
+        return mod_targ
 
-    def run_pass_schedule(
+    def build(
         self,
-        mod_targ: uni.Module,
+        file_path: str,
+        use_str: str | None = None,
         mode: CompilerMode = CompilerMode.COMPILE,
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
+        if not use_str:
+            with open(file_path, "r", encoding="utf-8") as file:
+                use_str = file.read()
+        mod_targ = self.parse_str(use_str, file_path)
         JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
         if mode == CompilerMode.PARSE:

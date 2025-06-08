@@ -23,7 +23,7 @@ class SymTabLinkPassTests(TestCase):
             "symtab_link_tests",
             "no_dupls.jac",
         )
-        mod = JacProgram().compile(file_path, mode=CMode.TYPECHECK)
+        mod = JacProgram().build(file_path, mode=CMode.TYPECHECK)
         self.assertEqual(
             len(mod.sym_tab.names_in_scope.values()),
             3,

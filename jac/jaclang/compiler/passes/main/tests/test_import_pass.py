@@ -21,7 +21,7 @@ class ImportPassPassTests(TestCase):
 
     def test_pygen_jac_cli(self) -> None:
         """Basic test for pass."""
-        (out := JacProgram()).compile(self.fixture_abs_path("base.jac"))
+        (out := JacProgram()).build(self.fixture_abs_path("base.jac"))
         self.assertFalse(out.errors_had)
         mod = out.mod.hub[self.fixture_abs_path("impl/imps.jac")]
         self.assertIn("56", str(mod.to_dict()))
@@ -38,7 +38,7 @@ class ImportPassPassTests(TestCase):
 
     def test_import_include_auto_impl(self) -> None:
         """Basic test for pass."""
-        (prog := JacProgram()).compile(self.fixture_abs_path("incautoimpl.jac"))
+        (prog := JacProgram()).build(self.fixture_abs_path("incautoimpl.jac"))
         num_modules = len(list(prog.mod.hub.values())[1].impl_mod) + 1
         mod_names = [i.name for i in list(prog.mod.hub.values())[1].impl_mod]
         self.assertEqual(num_modules, 5)
@@ -50,7 +50,7 @@ class ImportPassPassTests(TestCase):
 
     def test_annexalbe_by_discovery(self) -> None:
         """Basic test for pass."""
-        (prog := JacProgram()).compile(self.fixture_abs_path("incautoimpl.jac"))
+        (prog := JacProgram()).build(self.fixture_abs_path("incautoimpl.jac"))
         count = 0
         all_mods = prog.mod.hub.values()
         self.assertEqual(len(all_mods), 6)
@@ -127,7 +127,7 @@ class ImportPassPassTests(TestCase):
 
     def test_raise_syntax_error(self) -> None:
         """Test raise error on the parser , dont go to the next pass."""
-        (state := JacProgram()).compile(self.fixture_abs_path("main_err.jac"))
+        (state := JacProgram()).build(self.fixture_abs_path("main_err.jac"))
         self.assertTrue(state.errors_had)
         self.assertEqual(len(state.errors_had), 1)
         self.assertIn("Syntax Error", state.errors_had[0].msg)

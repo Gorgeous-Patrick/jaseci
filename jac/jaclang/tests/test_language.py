@@ -290,7 +290,7 @@ class JacLanguageTests(TestCase):
         Jac.attach_program(
             (prog := JacProgram()),
         )
-        prog.compile(self.fixture_abs_path("./deep_import_interp.jac"))
+        prog.build(self.fixture_abs_path("./deep_import_interp.jac"))
         Jac.jac_import("deep_import_interp", base_path=self.fixture_abs_path("./"))
         self.assertEqual(len(Jac.program.mod.hub.keys()), 5)
 
