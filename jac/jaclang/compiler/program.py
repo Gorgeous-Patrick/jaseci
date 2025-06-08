@@ -80,12 +80,7 @@ class JacProgram:
                 source_str=file.read(), file_path=file_path, mode=mode
             )
 
-    def compile_from_str(
-        self,
-        source_str: str,
-        file_path: str,
-        mode: CompilerMode = CompilerMode.COMPILE,
-    ) -> uni.Module:
+    def parse_str(self, source_str: str, file_path: str) -> uni.Module:
         """Convert a Jac file to an AST."""
         had_error = False
         if file_path.endswith(".py"):
@@ -111,10 +106,16 @@ class JacProgram:
         if self.mod.main.stub_only:
             self.mod = uni.ProgramModule(mod)
         self.mod.hub[mod.loc.mod_path] = mod
-        JacAnnexPass(ir_in=mod, prog=self)
-        SymTabBuildPass(ir_in=mod, prog=self)
-        if mode == CompilerMode.PARSE:
-            return mod
+        return mod
+
+    def compile_from_str(
+        self,
+        source_str: str,
+        file_path: str,
+        mode: CompilerMode = CompilerMode.COMPILE,
+    ) -> uni.Module:
+        """Convert a Jac file to an AST."""
+        mod = self.parse_str(source_str, file_path)
         return self.run_pass_schedule(mod_targ=mod, mode=mode)
 
     def run_pass_schedule(
@@ -123,6 +124,10 @@ class JacProgram:
         mode: CompilerMode = CompilerMode.COMPILE,
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
+        JacAnnexPass(ir_in=mod_targ, prog=self)
+        SymTabBuildPass(ir_in=mod_targ, prog=self)
+        if mode == CompilerMode.PARSE:
+            return mod_targ
         if mode in (CompilerMode.COMPILE_SINGLE, CompilerMode.NO_CGEN_SINGLE):
             self.schedule_runner(mod_targ, mode=mode)
             return mod_targ
