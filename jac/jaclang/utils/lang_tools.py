@@ -7,7 +7,7 @@ import sys
 from typing import List, Optional, Type
 
 import jaclang.compiler.unitree as uni
-from jaclang.compiler.passes.main import CompilerMode as CMode, PyastBuildPass
+from jaclang.compiler.passes.main import PyastBuildPass
 from jaclang.compiler.passes.tool.doc_ir_gen_pass import DocIRGenPass
 from jaclang.compiler.program import JacProgram
 from jaclang.compiler.unitree import UniScopeNode
@@ -212,12 +212,12 @@ class AstTool:
                     ir = prog.compile(
                         use_str=rep.unparse(),
                         file_path=file_name[:-3] + ".jac",
-                        mode=CMode.NO_CGEN,
+                        no_cgen=True,
                     )
                 except Exception as e:
                     return f"Error While Jac to Py AST conversion: {e}"
             else:
-                ir = prog.compile(file_name, mode=CMode.NO_CGEN)
+                ir = prog.compile(file_name, no_cgen=True)
 
             match output:
                 case "sym":
@@ -245,7 +245,7 @@ class AstTool:
                 case "unparse":
                     return ir.unparse()
                 case "pyast":
-                    ir = prog.compile(file_name, mode=CMode.COMPILE_SINGLE)
+                    ir = prog.compile(file_name)
                     return (
                         f"\n{py_ast.dump(ir.gen.py_ast[0], indent=2)}"
                         if isinstance(ir.gen.py_ast[0], py_ast.AST)
@@ -254,7 +254,7 @@ class AstTool:
                 case "docir":
                     return str(DocIRGenPass(ir, prog).ir_out.gen.doc_ir)
                 case "py":
-                    ir = prog.compile(file_name, mode=CMode.COMPILE_SINGLE)
+                    ir = prog.compile(file_name)
                     return (
                         f"\n{ir.gen.py}"
                         if isinstance(ir.gen.py[0], str)

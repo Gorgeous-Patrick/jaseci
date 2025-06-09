@@ -23,9 +23,7 @@ class TestCFGBuildPass(TestCase):
         with open(file_name, "r") as f:
             file_source = f.read()
 
-        ir = (prog := JacProgram()).compile(
-            use_str=file_source, file_path=file_name, mode=CMode.COMPILE
-        )
+        ir = (prog := JacProgram()).compile(use_str=file_source, file_path=file_name)
 
         cfg_pass = CoalesceBBPass(
             ir_in=ir,
@@ -71,9 +69,7 @@ class TestCFGBuildPass(TestCase):
         with open(file_name, "r") as f:
             file_source = f.read()
 
-        ir = (prog := JacProgram()).compile(
-            use_str=file_source, file_path=file_name, mode=CMode.COMPILE
-        )
+        ir = (prog := JacProgram()).compile(use_str=file_source, file_path=file_name)
 
         cfg_pass = CoalesceBBPass(
             ir_in=ir,

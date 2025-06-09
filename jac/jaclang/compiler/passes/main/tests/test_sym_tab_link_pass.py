@@ -57,6 +57,6 @@ class SymTabLinkPassTests(TestCase):
             "main.jac",
         )
         prog = JacProgram()
-        prog.compile(file_path, mode=CMode.COMPILE)
+        prog.compile(file_path)
         self.assertEqual(prog.errors_had, [])
         self.assertEqual(prog.warnings_had, [])

@@ -66,7 +66,7 @@ class JacProgram:
         if full_target in self.mod.hub and self.mod.hub[full_target].gen.py_bytecode:
             codeobj = self.mod.hub[full_target].gen.py_bytecode
             return marshal.loads(codeobj) if isinstance(codeobj, bytes) else None
-        result = self.compile(file_path=full_target, mode=CompilerMode.COMPILE_SINGLE)
+        result = self.compile(file_path=full_target)
         return marshal.loads(result.gen.py_bytecode) if result.gen.py_bytecode else None
 
     def parse_str(self, source_str: str, file_path: str) -> uni.Module:
@@ -101,7 +101,7 @@ class JacProgram:
         self,
         file_path: str,
         use_str: str | None = None,
-        mode: CompilerMode = CompilerMode.COMPILE,
+        no_cgen: bool = False,
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
         if not use_str:
@@ -110,9 +110,9 @@ class JacProgram:
         mod_targ = self.parse_str(use_str, file_path)
         JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
-        self.schedule_runner(mod_targ, mode=mode)
-        # self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
-        # self.run_schedule(mod=mod_targ, passes=py_code_gen)
+        self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
+        if not no_cgen:
+            self.run_schedule(mod=mod_targ, passes=py_code_gen)
         return mod_targ
 
     def build(
