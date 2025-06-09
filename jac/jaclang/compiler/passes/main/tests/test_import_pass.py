@@ -53,7 +53,7 @@ class ImportPassPassTests(TestCase):
         (prog := JacProgram()).build(self.fixture_abs_path("incautoimpl.jac"))
         count = 0
         all_mods = prog.mod.hub.values()
-        self.assertEqual(len(all_mods), 6)
+        self.assertEqual(len(all_mods), 7)  # 6 + 1 for builtins from py
         for main_mod in all_mods:
             for i in main_mod.impl_mod:
                 if i.name not in ["autoimpl", "incautoimpl"]:

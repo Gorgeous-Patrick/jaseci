@@ -43,12 +43,13 @@ class DebouncedRebuildHandler(FileSystemEventHandler):
         self.root_dir = root_dir
         self.debounce_seconds = debounce_seconds
         self._timer: Optional[threading.Timer] = None
-        self._lock = threading.Lock()
+        self._debounce_lock = threading.Lock()
+        self._rebuild_lock = threading.Lock()
 
     def debounced_rebuild(self, event_type: str, path: str) -> None:
         """Schedule a debounced rebuild on file system events."""
         print(f"Change detected: {event_type} — {path}")
-        with self._lock:
+        with self._debounce_lock:
             if self._timer:
                 self._timer.cancel()
             self._timer = threading.Timer(self.debounce_seconds, self.rebuild)
@@ -71,8 +72,12 @@ class DebouncedRebuildHandler(FileSystemEventHandler):
 
     def rebuild(self) -> None:
         """Rebuild the MkDocs site."""
-        print("\nRebuilding MkDocs site...")
+        if not self._rebuild_lock.acquire(blocking=False):
+            print("Rebuild already in progress. Skipping.")
+            return
+
         try:
+            print("\nRebuilding MkDocs site...")
             subprocess.run(["mkdocs", "build"], check=True, cwd=self.root_dir)
             print("Rebuild complete.")
         except subprocess.CalledProcessError as e:
@@ -81,6 +86,20 @@ class DebouncedRebuildHandler(FileSystemEventHandler):
             print(
                 "Error: mkdocs not found. Please install it via `pip install mkdocs`."
             )
+        finally:
+            self._rebuild_lock.release()
+
+
+def run_periodic_rebuilds(
+    rebuild_handler: DebouncedRebuildHandler, interval_seconds: int
+) -> None:
+    """Run periodic rebuilds in a loop."""
+    import time
+
+    while True:
+        time.sleep(interval_seconds)
+        print("\nPerforming scheduled 24-hour rebuild...")
+        rebuild_handler.rebuild()
 
 
 def serve_with_watch() -> None:
@@ -97,6 +116,16 @@ def serve_with_watch() -> None:
     observer = Observer()
     observer.schedule(event_handler, root_dir, recursive=True)
     observer.start()
+
+    # Set up periodic 12-hour rebuild
+    rebuild_interval_seconds = 12 * 60 * 60
+    periodic_thread = threading.Thread(
+        target=run_periodic_rebuilds,
+        args=(event_handler, rebuild_interval_seconds),
+        daemon=True,
+    )
+    periodic_thread.start()
+    print("Scheduled rebuilds will run every 24 hours.")
 
     # Create Starlette app and add middleware + static files
     app = Starlette()

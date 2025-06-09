@@ -111,6 +111,8 @@ class JacProgram:
         JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
         self.schedule_runner(mod_targ, mode=mode)
+        # self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
+        # self.run_schedule(mod=mod_targ, passes=py_code_gen)
         return mod_targ
 
     def build(
@@ -126,9 +128,6 @@ class JacProgram:
         mod_targ = self.parse_str(use_str, file_path)
         JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
-        if mode in (CompilerMode.COMPILE_SINGLE, CompilerMode.NO_CGEN_SINGLE):
-            self.schedule_runner(mod_targ, mode=mode)
-            return mod_targ
         JacImportDepsPass(ir_in=mod_targ, prog=self)
         if len(self.errors_had):
             return mod_targ
@@ -136,8 +135,6 @@ class JacProgram:
             SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             self.schedule_runner(mod, mode=CompilerMode.COMPILE)
-        if mode == CompilerMode.COMPILE:
-            return mod_targ
         PyImportDepsPass(mod_targ, prog=self)
         for mod in self.mod.hub.values():
             SymTabLinkPass(ir_in=mod, prog=self)
