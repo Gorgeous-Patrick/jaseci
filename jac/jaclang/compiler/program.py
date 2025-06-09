@@ -134,32 +134,13 @@ class JacProgram:
         for mod in self.mod.hub.values():
             SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
-            self.schedule_runner(mod, mode=CompilerMode.COMPILE)
+            self.run_schedule(mod=mod, passes=[*ir_gen_sched, *py_code_gen])
         PyImportDepsPass(mod_targ, prog=self)
         for mod in self.mod.hub.values():
             SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             DefUsePass(mod, prog=self)
-        for mod in self.mod.hub.values():
-            self.schedule_runner(mod, mode=CompilerMode.TYPECHECK)
         return mod_targ
-
-    def schedule_runner(
-        self,
-        mod: uni.Module,
-        mode: CompilerMode = CompilerMode.COMPILE,
-    ) -> None:
-        """Run premade passes on the module."""
-        match mode:
-            case CompilerMode.NO_CGEN | CompilerMode.NO_CGEN_SINGLE:
-                passes = ir_gen_sched
-            case CompilerMode.COMPILE | CompilerMode.COMPILE_SINGLE:
-                passes = [*ir_gen_sched, *py_code_gen]
-            case CompilerMode.TYPECHECK:
-                passes = []
-            case _:
-                raise ValueError(f"Invalid mode: {mode}")
-        self.run_schedule(mod, passes)
 
     def run_schedule(
         self,
