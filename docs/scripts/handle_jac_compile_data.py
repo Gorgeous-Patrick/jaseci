@@ -13,7 +13,7 @@ from jaclang.utils.lang_tools import AstTool
 TARGET_FOLDER = "../jac/jaclang"
 EXTRACTED_FOLDER = "docs/playground"
 PLAYGROUND_ZIP_PATH = os.path.join(EXTRACTED_FOLDER, "jaclang.zip")
-ZIP_FOLDER_NAME = "docs/jaclang"
+ZIP_FOLDER_NAME = "jaclang"
 UNIIR_NODE_DOC = "docs/internals/uniir_node.md"
 LANG_REF_DOC = "docs/learn/jac_ref.md"
 TOP_CONTRIBUTORS_DOC = "docs/communityhub/top_contributors.md"
