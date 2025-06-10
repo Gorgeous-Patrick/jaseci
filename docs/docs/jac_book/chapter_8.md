@@ -10,12 +10,12 @@ Walkers are declared using the `walker` keyword and can contain state, abilities
 
 ```jac
 walker SimpleVisitor {
-    // Walker state - travels with the walker
+    # Walker state - travels with the walker
     has visits: int = 0;
     has path: list[str] = [];
 
-    // Regular method
-    can get_stats() -> dict {
+    # Regular method
+    def get_stats() -> dict {
         return {
             "total_visits": self.visits,
             "path_length": len(self.path),
@@ -23,18 +23,19 @@ walker SimpleVisitor {
         };
     }
 
-    // Walker ability - triggered on node entry
+    # Walker ability - triggered on node entry
     can visit_node with entry {
         self.visits += 1;
         self.path.append(here.name if hasattr(here, 'name') else str(here));
-        print(f"Visit #{self.visits}: {self.path[-1]}");
+        print(f"Visit {self.visits}: {self.path[-1]}");
     }
 }
 ```
 
 Key walker components:
+
 - **State Variables** (`has`): Data that travels with the walker
-- **Methods** (`can`): Regular functions for computation
+- **Methods** (`def`): Regular functions for computation
 - **Abilities** (`can ... with`): Event-triggered behaviors
 
 ### Spawning Walkers on Nodes
@@ -48,21 +49,21 @@ node Location {
 }
 
 with entry {
-    // Create a simple graph
-    let home = root ++> Location(name="Home", description="Starting point");
-    let park = home ++> Location(name="Park", description="Green space");
-    let store = home ++> Location(name="Store", description="Shopping center");
+    # Create a simple graph
+    home = root ++> Location(name="Home", description="Starting point");
+    park = home ++> Location(name="Park", description="Green space");
+    store = home ++> Location(name="Store", description="Shopping center");
 
-    // Create walker instance (inactive)
-    let visitor = SimpleVisitor();
-    print(f"Walker created. Stats: {visitor.get_stats()}");
+    # Create walker instance (inactive)
+    visitor1 = SimpleVisitor();
+    print(f"Walker created. Stats: {visitor1.get_stats()}");
 
-    // Spawn walker on a node (activates it)
-    home spawn visitor;
+    # Spawn walker on a node (activates it)
+    home spawn visitor1;
 
-    // Or use alternative syntax
-    let another_visitor = SimpleVisitor();
-    spawn another_visitor on home;
+    # Or use alternative syntax
+    visitor2 = SimpleVisitor();
+    visitor2 spawn home;
 }
 ```
 
@@ -96,35 +97,35 @@ walker LifecycleDemo {
     has state: str = "created";
     has nodes_visited: list = [];
 
-    // Called when walker is created (optional)
+    # Called when walker is created (optional)
     can init(mission: str = "explore") {
         print(f"Walker initialized with mission: {mission}");
         self.state = "initialized";
     }
 
-    // Entry ability - when arriving at a node
+    # Entry ability - when arriving at a node
     can on_entry with entry {
         self.state = "active";
         self.nodes_visited.append(here);
         print(f"Entered node. Total visits: {len(self.nodes_visited)}");
 
-        // Decide whether to continue
+        # Decide whether to continue
         if len(self.nodes_visited) < 5 {
-            visit [-->];  // Continue to connected nodes
+            visit [-->];  # Continue to connected nodes
         } else {
             print("Mission complete!");
             self.state = "completed";
-            disengage;  // End traversal
+            disengage;  # End traversal
         }
     }
 
-    // Exit ability - when leaving a node
+    # Exit ability - when leaving a node
     can on_exit with exit {
         print(f"Leaving node after processing");
     }
 
-    // Final cleanup (if needed)
-    can cleanup {
+    # Final cleanup (if needed)
+    def cleanup {
         print(f"Walker finished. State: {self.state}");
         print(f"Visited {len(self.nodes_visited)} nodes");
     }
@@ -146,17 +147,17 @@ walker Explorer {
         print(f"At depth {self.current_depth}: {here.name}");
 
         if self.current_depth < self.max_depth {
-            // Visit all connected nodes
+            # Visit all connected nodes
             visit [-->];
 
-            // Or visit specific nodes
-            let important_nodes = [-->].filter(
+            # Or visit specific nodes
+            important_nodes = [-->].filter(
                 lambda n: n.priority > 5 if hasattr(n, 'priority') else False
             );
             visit important_nodes;
 
-            // Or visit with type filtering
-            visit [-->:ImportantEdge:];
+            # Or visit with type filtering
+            visit [->:ImportantEdge:->];
         }
     }
 }
@@ -177,20 +178,20 @@ walker SearchWalker {
 
         if hasattr(here, 'name') and here.name == self.target_name {
             print(f"Found target: {here.name}!");
-            self.found = true;
+            self.found = True;
             self.result = here;
-            report here;  // Report finding
-            disengage;    // Stop searching
+            report here;  # Report finding
+            disengage;    # Stop searching
         }
 
-        // Continue search if not found
+        # Continue search if not found
         visit [-->];
     }
 }
 
 with entry {
-    let searcher = SearchWalker(target_name="Store");
-    let result = spawn searcher on root;
+    searcher = SearchWalker(target_name="Store");
+    result = spawn searcher on root;
 
     if searcher.found {
         print(f"Search successful! Found: {searcher.result.name}");
@@ -210,27 +211,27 @@ walker ConditionalProcessor {
     has skip_count: int = 0;
 
     can process with entry {
-        // Skip nodes that don't meet criteria
+        # Skip nodes that don't meet criteria
         if hasattr(here, 'active') and not here.active {
             self.skip_count += 1;
             print(f"Skipping inactive node");
-            skip;  // Move to next node without further processing
+            skip;  # Move to next node without further processing
         }
 
-        // Process active nodes
+        # Process active nodes
         print(f"Processing node {self.process_count + 1}");
         self.process_count += 1;
 
-        // Expensive operation only for active nodes
+        # Expensive operation only for active nodes
         self.perform_expensive_operation();
 
-        // Continue traversal
+        # Continue traversal
         visit [-->];
     }
 
     can perform_expensive_operation {
         import:py time;
-        time.sleep(0.1);  // Simulate work
+        time.sleep(0.1);  # Simulate work
         print("  - Expensive operation completed");
     }
 }
@@ -248,8 +249,8 @@ walker QueueDemo {
         self.visited_order.append(here.name);
         print(f"Current queue after visiting {here.name}:");
 
-        // The visit statement adds to queue
-        let neighbors = [-->];
+        # The visit statement adds to queue
+        neighbors = [-->];
         for i, neighbor in enumerate(neighbors) {
             print(f"  Adding to queue: {neighbor.name}");
             visit neighbor;
@@ -259,7 +260,7 @@ walker QueueDemo {
     }
 
     can summarize with exit {
-        if len([-->) == 0 {  // At a leaf node
+        if len([-->]) == 0 {  # At a leaf node
             print(f"Traversal order: {' -> '.join(self.visited_order)}");
         }
     }
@@ -277,7 +278,7 @@ walker BFSWalker {
     has current_level: int = 0;
 
     can bfs with entry {
-        // Mark as visited
+        # Mark as visited
         if here in self.visited {
             skip;
         }
@@ -287,11 +288,11 @@ walker BFSWalker {
 
         print(f"Level {self.current_level}: {here.name}");
 
-        // Queue all unvisited neighbors (BFS behavior)
-        let unvisited = [-->].filter(lambda n: n not in self.visited);
+        # Queue all unvisited neighbors (BFS behavior)
+        unvisited = [-->].filter(lambda n: n not in self.visited);
         visit unvisited;
 
-        // Increment level for next wave
+        # Increment level for next wave
         if all(n in self.visited for n in [-->]) {
             self.current_level += 1;
         }
@@ -319,16 +320,16 @@ walker DFSWalker {
         print(f"DFS visiting: {here.name}");
         print(f"  Stack: {self.stack}");
 
-        // Visit one unvisited neighbor at a time (DFS)
-        let unvisited = [-->].filter(lambda n: n not in self.visited);
+        # Visit one unvisited neighbor at a time (DFS)
+        unvisited = [-->].filter(lambda n: n not in self.visited);
         if unvisited {
-            visit unvisited[0];  // Visit first unvisited
+            visit unvisited[0];  # Visit first unvisited
         } else {
-            // Backtrack
+            # Backtrack
             self.stack.pop();
         }
 
-        // After exploring all children, visit siblings
+        # After exploring all children, visit siblings
         for neighbor in unvisited[1:] {
             visit neighbor;
         }
@@ -348,7 +349,7 @@ walker BidirectionalSearch {
 
     can search with entry {
         if self.search_forward {
-            // Forward search from source
+            # Forward search from source
             if here in self.backward_visited {
                 self.meeting_point = here;
                 print(f"Paths met at: {here.name}!");
@@ -359,7 +360,7 @@ walker BidirectionalSearch {
             visit [-->];
 
         } else {
-            // Backward search from target
+            # Backward search from target
             if here in self.forward_visited {
                 self.meeting_point = here;
                 print(f"Paths met at: {here.name}!");
@@ -367,22 +368,22 @@ walker BidirectionalSearch {
             }
 
             self.backward_visited.add(here);
-            visit [<--];  // Reverse direction
+            visit [<--];  # Reverse direction
         }
     }
 }
 
-// Usage: Spawn two walkers
+# Usage: Spawn two walkers
 with entry {
-    let source = get_node("A");
-    let target = get_node("Z");
+    source = get_node("A");
+    target = get_node("Z");
 
-    // Forward search
-    let forward = BidirectionalSearch(target=target, search_forward=true);
+    # Forward search
+    forward = BidirectionalSearch(target=target, search_forward=true);
     spawn forward on source;
 
-    // Backward search
-    let backward = BidirectionalSearch(target=source, search_forward=false);
+    # Backward search
+    backward = BidirectionalSearch(target=source, search_forward=false);
     spawn backward on target;
 }
 ```
@@ -405,15 +406,15 @@ walker InventoryChecker {
     has total_value: float = 0.0;
     has stores_checked: int = 0;
 
-    // Entry ability - main processing
+    # Entry ability - main processing
     can check_inventory with Store entry {
         print(f"\nChecking store: {here.name}");
         self.stores_checked += 1;
 
-        let store_value = 0.0;
+        store_value = 0.0;
         for item, details in here.inventory.items() {
-            let quantity = details["quantity"];
-            let price = details["price"];
+            quantity = details["quantity"];
+            price = details["price"];
 
             store_value += quantity * price;
 
@@ -430,9 +431,9 @@ walker InventoryChecker {
         print(f"  Store value: ${store_value:.2f}");
     }
 
-    // Exit ability - cleanup or summary
+    # Exit ability - cleanup or summary
     can summarize with Store exit {
-        if len([-->]) == 0 {  // Last store
+        if len([-->]) == 0 {  # Last store
             print(f"\n=== Inventory Check Complete ===");
             print(f"Stores checked: {self.stores_checked}");
             print(f"Total inventory value: ${self.total_value:.2f}");
@@ -457,7 +458,7 @@ node Server {
     has load: float = 0.0;
     has last_check: str = "";
 
-    // Node ability - 'visitor' refers to the walker
+    # Node ability - 'visitor' refers to the walker
     can log_visit with HealthChecker entry {
         print(f"Server {self.name} being checked by {visitor.checker_id}");
         self.last_check = visitor.check_time;
@@ -477,14 +478,14 @@ walker HealthChecker {
     has check_time: str;
     has unhealthy_servers: list = [];
 
-    // Walker ability - 'here' refers to current node, 'self' to walker
+    # Walker ability - 'here' refers to current node, 'self' to walker
     can check_health with Server entry {
         print(f"Checker {self.checker_id} at server {here.name}");
 
-        // Get metrics from the server (node calling its method)
-        let metrics = here.provide_metrics();
+        # Get metrics from the server (node calling its method)
+        metrics = here.provide_metrics();
 
-        // Check health criteria
+        # Check health criteria
         if here.status != "running" or here.load > 0.8 {
             self.unhealthy_servers.append({
                 "server": here.name,
@@ -493,20 +494,20 @@ walker HealthChecker {
                 "checked_at": self.check_time
             });
 
-            // Try to fix issues
+            # Try to fix issues
             if here.load > 0.8 {
                 self.rebalance_load(here);
             }
         }
 
-        // Continue to connected servers
-        visit [-->:NetworkLink:];
+        # Continue to connected servers
+        visit [->:NetworkLink:];
     }
 
     can rebalance_load(server: Server) {
         print(f"  Attempting to rebalance load on {server.name}");
-        // Rebalancing logic here
-        server.load *= 0.7;  // Simplified rebalancing
+        # Rebalancing logic here
+        server.load *= 0.7;  # Simplified rebalancing
     }
 }
 ```
@@ -522,32 +523,32 @@ node SmartDevice {
     has settings: dict = {};
     has metrics: dict = {};
 
-    // Node responds to configuration walker
+    # Node responds to configuration walker
     can apply_config with ConfigUpdater entry {
         print(f"Device {self.device_id} receiving config");
 
-        // Node can access walker data
-        let new_settings = visitor.get_settings_for(self.device_type);
+        # Node can access walker data
+        new_settings = visitor.get_settings_for(self.device_type);
 
-        // Node updates itself
+        # Node updates itself
         self.settings.update(new_settings);
 
-        // Node can modify walker state
+        # Node can modify walker state
         visitor.devices_updated += 1;
         visitor.log_update(self.device_id, new_settings);
     }
 
-    // Node provides data to analytics walker
+    # Node provides data to analytics walker
     can share_metrics with AnalyticsCollector entry {
-        // Complex computation at the node
-        let processed_metrics = self.process_raw_metrics();
+        # Complex computation at the node
+        processed_metrics = self.process_raw_metrics();
 
-        // Give data to walker
+        # Give data to walker
         visitor.collect_metrics(self.device_id, processed_metrics);
     }
 
     can process_raw_metrics() -> dict {
-        // Node's own complex logic
+        # Node's own complex logic
         return {
             "uptime": self.metrics.get("uptime", 0),
             "efficiency": self.calculate_efficiency(),
@@ -556,12 +557,12 @@ node SmartDevice {
     }
 
     can calculate_efficiency() -> float {
-        // Complex calculation
-        return 0.85;  // Simplified
+        # Complex calculation
+        return 0.85;  # Simplified
     }
 
     can calculate_health() -> float {
-        return 0.92;  // Simplified
+        return 0.92;  # Simplified
     }
 }
 
@@ -571,8 +572,8 @@ walker ConfigUpdater {
     has update_log: list = [];
 
     can get_settings_for(device_type: str) -> dict {
-        // Walker provides configuration based on device type
-        let configs = {
+        # Walker provides configuration based on device type
+        configs = {
             "thermostat": {"temp_unit": "celsius", "schedule": "auto"},
             "camera": {"resolution": "1080p", "night_mode": true},
             "sensor": {"sensitivity": "high", "interval": 60}
@@ -590,9 +591,9 @@ walker ConfigUpdater {
     }
 
     can update_devices with SmartDevice entry {
-        // Walker's main logic is in the node ability
-        // This is just navigation
-        visit [-->:ConnectedTo:];
+        # Walker's main logic is in the node ability
+        # This is just navigation
+        visit [->:ConnectedTo:];
     }
 
     can report with exit {
@@ -613,7 +614,7 @@ walker AnalyticsCollector {
 
     can analyze with SmartDevice entry {
         # Trigger node's ability
-        // Node will call walker's collect_metrics
+        # Node will call walker's collect_metrics
         visit [-->];
     }
 
@@ -622,7 +623,7 @@ walker AnalyticsCollector {
             print(f"\n=== Analytics Report ===");
             print(f"Devices analyzed: {self.device_count}");
 
-            // Calculate aggregates
+            # Calculate aggregates
             avg_uptime = sum(m["uptime"] for m in self.metrics_db.values()) / self.device_count;
             avg_health = sum(m["health_score"] for m in self.metrics_db.values()) / self.device_count;
 
@@ -643,7 +644,7 @@ walker DataAggregator {
     has visit_count: int = 0;
 
     can aggregate with DataNode entry {
-        let category = here.category;
+        category = here.category;
         if category not in self.aggregation {
             self.aggregation[category] = {
                 "count": 0,
@@ -685,7 +686,7 @@ walker GraphValidator {
     can validate with entry {
         self.nodes_validated += 1;
 
-        // Check node properties
+        # Check node properties
         if not hasattr(here, 'name') or not here.name {
             self.errors.append({
                 "node": here,
@@ -693,9 +694,9 @@ walker GraphValidator {
             });
         }
 
-        // Check connections
-        let outgoing = [-->];
-        let incoming = [<--];
+        # Check connections
+        outgoing = [-->];
+        incoming = [<--];
 
         if len(outgoing) == 0 and len(incoming) == 0 {
             self.warnings.append({
@@ -704,9 +705,9 @@ walker GraphValidator {
             });
         }
 
-        // Type-specific validation
+        # Type-specific validation
         if hasattr(here, 'validate') {
-            let validation_result = here.validate();
+            validation_result = here.validate();
             if not validation_result["valid"] {
                 self.errors.extend(validation_result["errors"]);
             }
@@ -751,11 +752,11 @@ walker DataTransformer {
     }
 
     can transform with entry {
-        // Backup original data
+        # Backup original data
         if hasattr(here, 'data') {
             self.backup[here] = here.data.copy();
 
-            // Apply transformations
+            # Apply transformations
             for field, rule in self.transformation_rules.items() {
                 if field in here.data {
                     here.data[field] = self.apply_rule(here.data[field], rule);
@@ -780,7 +781,7 @@ walker DataTransformer {
     }
 
     can rollback {
-        // Restore original data if needed
+        # Restore original data if needed
         for node, original_data in self.backup.items() {
             node.data = original_data;
         }
@@ -793,7 +794,7 @@ walker DataTransformer {
 Multiple walkers can work together:
 
 ```jac
-// First walker identifies targets
+# First walker identifies targets
 walker TargetIdentifier {
     has criteria: dict;
     has targets: list = [];
@@ -801,18 +802,18 @@ walker TargetIdentifier {
     can identify with entry {
         if self.matches_criteria(here) {
             self.targets.append(here);
-            here.mark_as_target();  // Mark for second walker
+            here.mark_as_target();  # Mark for second walker
         }
         visit [-->];
     }
 
     can matches_criteria(node: any) -> bool {
-        // Check criteria
-        return true;  // Simplified
+        # Check criteria
+        return true;  # Simplified
     }
 }
 
-// Second walker processes marked targets
+# Second walker processes marked targets
 walker TargetProcessor {
     has processed: int = 0;
 
@@ -826,27 +827,27 @@ walker TargetProcessor {
 
     can perform_processing(node: any) {
         print(f"Processing target: {node.name if hasattr(node, 'name') else node}");
-        // Processing logic
+        # Processing logic
     }
 }
 
-// Orchestrator walker coordinates others
+# Orchestrator walker coordinates others
 walker Orchestrator {
     has phase: str = "identify";
 
     can orchestrate with entry {
         if self.phase == "identify" {
-            // Spawn identifier
-            let identifier = TargetIdentifier(criteria={"type": "important"});
+            # Spawn identifier
+            identifier = TargetIdentifier(criteria={"type": "important"});
             spawn identifier on here;
 
-            // Move to next phase
+            # Move to next phase
             self.phase = "process";
-            visit here;  // Revisit this node
+            visit here;  # Revisit this node
 
         } elif self.phase == "process" {
-            // Spawn processor
-            let processor = TargetProcessor();
+            # Spawn processor
+            processor = TargetProcessor();
             spawn processor on here;
 
             self.phase = "complete";
