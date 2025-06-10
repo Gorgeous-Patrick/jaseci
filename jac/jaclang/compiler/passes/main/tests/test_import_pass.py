@@ -125,13 +125,6 @@ class ImportPassPassTests(TestCase):
         self.assertIn("bar", stdout_value)
         self.assertIn("baz", stdout_value)
 
-    def test_raise_syntax_error(self) -> None:
-        """Test raise error on the parser , dont go to the next pass."""
-        (state := JacProgram()).build(self.fixture_abs_path("main_err.jac"))
-        self.assertTrue(state.errors_had)
-        self.assertEqual(len(state.errors_had), 1)
-        self.assertIn("Syntax Error", state.errors_had[0].msg)
-
     def test_circular_import(self) -> None:
         """Test circular import."""
         (state := JacProgram()).compile(self.fixture_abs_path("circular_import.jac"))

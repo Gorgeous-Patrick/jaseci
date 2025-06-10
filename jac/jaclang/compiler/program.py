@@ -97,10 +97,7 @@ class JacProgram:
         return mod
 
     def compile(
-        self,
-        file_path: str,
-        use_str: str | None = None,
-        no_cgen: bool = False,
+        self, file_path: str, use_str: str | None = None, no_cgen: bool = False
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
         if not use_str:
@@ -121,8 +118,6 @@ class JacProgram:
         mod_targ = self.parse_str(use_str, file_path)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
         JacImportDepsPass(ir_in=mod_targ, prog=self)
-        if len(self.errors_had):
-            return mod_targ
         for mod in self.mod.hub.values():
             SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
