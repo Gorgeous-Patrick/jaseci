@@ -121,7 +121,7 @@ nav:
         - "communityhub/fun/p3.md"
 
   - Jac Playground:
-    - Playground: "playground/index.html"
+    - Playground: "/playground/"
 
 theme:
   logo: "assets/logo.png"
