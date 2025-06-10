@@ -36,6 +36,7 @@ from jaclang.utils.log import logging
 logger = logging.getLogger(__name__)
 
 ir_gen_sched = [
+    SymTabBuildPass,
     DeclImplMatchPass,
     DefUsePass,
     CFGBuildPass,
@@ -104,7 +105,6 @@ class JacProgram:
             with open(file_path, "r", encoding="utf-8") as file:
                 use_str = file.read()
         mod_targ = self.parse_str(use_str, file_path)
-        SymTabBuildPass(ir_in=mod_targ, prog=self)
         self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
         if not no_cgen:
             self.run_schedule(mod=mod_targ, passes=py_code_gen)
@@ -112,16 +112,10 @@ class JacProgram:
 
     def build(self, file_path: str, use_str: str | None = None) -> uni.Module:
         """Convert a Jac file to an AST."""
-        if not use_str:
-            with open(file_path, "r", encoding="utf-8") as file:
-                use_str = file.read()
-        mod_targ = self.parse_str(use_str, file_path)
-        SymTabBuildPass(ir_in=mod_targ, prog=self)
+        mod_targ = self.compile(file_path, use_str)
         JacImportDepsPass(ir_in=mod_targ, prog=self)
         for mod in self.mod.hub.values():
             SymTabLinkPass(ir_in=mod, prog=self)
-        for mod in self.mod.hub.values():
-            self.run_schedule(mod=mod, passes=[*ir_gen_sched, *py_code_gen])
         for mod in self.mod.hub.values():
             DefUsePass(mod, prog=self)
         return mod_targ
