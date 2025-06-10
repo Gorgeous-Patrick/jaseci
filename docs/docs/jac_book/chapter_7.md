@@ -9,36 +9,36 @@ Now that you understand the conceptual foundations of Object-Spatial Programming
 Let's start with the basics of creating nodes. Unlike traditional objects, nodes are designed to exist within a graph topology:
 
 ```jac
-// Simple node declaration
+# Simple node declaration
 node Person {
     has name: str;
     has email: str;
     has age: int;
 }
 
-// Creating node instances
+# Creating node instances
 with entry {
-    // Standalone node (not persistent)
-    let alice = Person(
+    # Standalone node (not persistent)
+    alice = Person(
         name="Alice Johnson",
         email="alice@example.com",
         age=28
     );
 
-    // Connected to root (persistent)
-    let bob = root ++> Person(
+    # Connected to root (persistent)
+    bob = root ++> Person(
         name="Bob Smith",
         email="bob@example.com",
         age=32
     );
 
-    // Alternative: create then connect
-    let charlie = Person(
+    # Alternative: create then connect
+    charlie = Person(
         name="Charlie Brown",
         email="charlie@example.com",
         age=25
     );
-    root ++> charlie;  // Now persistent
+    root ++> charlie;  # Now persistent
 }
 ```
 
@@ -63,20 +63,27 @@ graph TD
 Nodes connected to `root` (directly or indirectly) persist between program runs:
 
 ```jac
-// First run - create data
+# Simple node declaration
+node Person {
+    has name: str;
+    has email: str;
+    has age: int;
+}
+
+# First run - create data
 with entry {
     print("Creating user profiles...");
 
-    let user1 = root ++> Person(
+    user1 = root ++> Person(
         name="User One",
         email="user1@example.com",
         age=30
     );
 }
 
-// Second run - data still exists!
+# Second run - data still exists!
 with entry {
-    let users = root[-->:Person:];
+    users = [root ->:Person:->];
     print(f"Found {len(users)} existing users");
 
     for user in users {
@@ -90,7 +97,7 @@ with entry {
 Edges represent relationships between nodes. They can be simple connections or rich objects with properties:
 
 ```jac
-// Simple edge creation
+# Simple edge creation
 node City {
     has name: str;
     has population: int;
@@ -98,20 +105,20 @@ node City {
 }
 
 with entry {
-    let nyc = root ++> City(
+    nyc = root ++> City(
         name="New York",
         population=8_336_000,
         country="USA"
     );
 
-    let london = root ++> City(
+    london = root ++> City(
         name="London",
         population=9_002_000,
         country="UK"
     );
 
-    // Simple connection (unnamed edge)
-    nyc ++> london;  // NYC connects to London
+    # Simple connection (unnamed edge)
+    nyc ++> london;  # NYC connects to London
 }
 ```
 
@@ -120,7 +127,13 @@ with entry {
 Edges can have types and properties, making relationships first-class citizens:
 
 ```jac
-// Typed edge with properties
+node City {
+    has name: str;
+    has population: int;
+    has country: str;
+}
+
+# Typed edge with properties
 edge Flight {
     has airline: str;
     has flight_number: str;
@@ -128,33 +141,33 @@ edge Flight {
     has duration_hours: float;
     has price: float;
 
-    can is_red_eye() -> bool {
+    def is_red_eye() -> bool {
         hour = int(self.departure_time.split(":")[0]);
         return hour >= 22 or hour <= 5;
     }
 }
 
 with entry {
-    let lax = root ++> City(name="Los Angeles", population=4_000_000, country="USA");
-    let jfk = root ++> City(name="New York", population=8_336_000, country="USA");
+    lax = root ++> City(name="Los Angeles", population=4_000_000, country="USA");
+    jfk = root ++> City(name="New York", population=8_336_000, country="USA");
 
-    // Create typed edge with properties
-    lax ++>:Flight(
+    # Create typed edge with properties
+    lax +>:Flight(
         airline="United",
         flight_number="UA123",
         departure_time="23:45",
         duration_hours=5.5,
         price=450.00
-    ):++> jfk;
+    ):+> jfk;
 
-    // Another flight
-    jfk ++>:Flight(
+    # Another flight
+    jfk +>:Flight(
         airline="JetBlue",
         flight_number="B6456",
         departure_time="06:30",
         duration_hours=6.0,
         price=380.00
-    ):++> lax;
+    ):+> lax;
 }
 ```
 
@@ -163,13 +176,15 @@ with entry {
 Let's build a more complex example - a social network:
 
 ```jac
-// Node types for social network
+import from datetime { datetime }
+
+# Node types for social network
 node User {
     has username: str;
     has full_name: str;
-    has bio: str = "";
     has joined_date: str;
-    has verified: bool = false;
+    has bio: str = "";
+    has verified: bool = False;
 }
 
 node Post {
@@ -182,13 +197,13 @@ node Post {
 node Comment {
     has text: str;
     has created_at: str;
-    has edited: bool = false;
+    has edited: bool = False;
 }
 
-// Edge types
+# Edge types
 edge Follows {
     has since: str;
-    has notifications: bool = true;
+    has notifications: bool = True;
 }
 
 edge Authored {
@@ -203,59 +218,58 @@ edge CommentedOn {
     has timestamp: str;
 }
 
-// Build the social network
+# Build the social network
 with entry {
-    import:py from datetime import datetime;
 
-    // Create users
-    let alice = root ++> User(
+    # Create users
+    alice = root ++> User(
         username="alice_dev",
         full_name="Alice Johnson",
         bio="Software engineer and coffee enthusiast",
         joined_date="2024-01-15",
-        verified=true
+        verified=True
     );
 
-    let bob = root ++> User(
+    bob = root ++> User(
         username="bob_designer",
         full_name="Bob Smith",
         bio="UI/UX Designer | Digital Artist",
         joined_date="2024-02-20"
     );
 
-    let charlie = root ++> User(
+    charlie = root ++> User(
         username="charlie_data",
         full_name="Charlie Brown",
         bio="Data Scientist | ML Enthusiast",
         joined_date="2024-03-10"
     );
 
-    // Create follow relationships
-    alice ++>:Follows(since="2024-02-21"):++> bob;
-    bob ++>:Follows(since="2024-02-22", notifications=false):++> alice;
-    charlie ++>:Follows(since="2024-03-11"):++> alice;
-    charlie ++>:Follows(since="2024-03-12"):++> bob;
+    # Create follow relationships
+    alice +>:Follows(since="2024-02-21"):+> bob;
+    bob +>:Follows(since="2024-02-22", notifications=False):+> alice;
+    charlie +>:Follows(since="2024-03-11"):+> alice;
+    charlie +>:Follows(since="2024-03-12"):+> bob;
 
-    // Alice creates a post
-    let post1 = alice ++>:Authored(device="mobile"):++> Post(
+    # Alice creates a post
+    post1 = alice +>:Authored(device="mobile"):+> Post(
         content="Just discovered Jac's Object-Spatial Programming! 🚀",
         created_at=datetime.now().isoformat(),
         views=150
     );
 
-    // Bob likes and comments
-    bob ++>:Likes(timestamp=datetime.now().isoformat()):++> post1;
-    post1.likes += 1;
+    # Bob likes and comments
+    bob +>:Likes(timestamp=datetime.now().isoformat()):+> post1;
+    post1[0].likes += 1;
 
-    let comment1 = bob ++>:Authored:++> Comment(
+    comment1 = bob +>:Authored:+> Comment(
         text="This looks amazing! Can't wait to try it out.",
         created_at=datetime.now().isoformat()
     );
-    comment1 ++>:CommentedOn(timestamp=datetime.now().isoformat()):++> post1;
+    comment1 +>:CommentedOn(timestamp=datetime.now().isoformat()):+> post1;
 
-    // Charlie also interacts
-    charlie ++>:Likes(timestamp=datetime.now().isoformat()):++> post1;
-    post1.likes += 1;
+    # Charlie also interacts
+    charlie +>:Likes(timestamp=datetime.now().isoformat()):+> post1;
+    post1[0].likes += 1;
 
     print("Social network created successfully!");
 }
@@ -303,23 +317,23 @@ Jac provides intuitive syntax for graph navigation:
 ```jac
 walker SocialAnalyzer {
     can analyze with User entry {
-        // Get all outgoing edges (who this user follows)
-        let following = [-->];
+        # Get all outgoing edges (who this user follows)
+        following = [-->];
         print(f"{here.username} follows {len(following)} users");
 
-        // Get all incoming edges (who follows this user)
-        let followers = [<--];
+        # Get all incoming edges (who follows this user)
+        followers = [<--];
         print(f"{here.username} has {len(followers)} followers");
 
-        // Get specific edge types
-        let follow_edges = [-->:Follows:];
-        let authored_content = [-->:Authored:];
+        # Get specific edge types
+        follow_edges = [->:Follows:->];
+        authored_content = [->:Authored:->];
 
         print(f"  - Following: {len(follow_edges)}");
         print(f"  - Posts/Comments: {len(authored_content)}");
 
-        // Navigate to connected nodes
-        let followed_users = [-->:Follows:-->];
+        # Navigate to connected nodes
+        followed_users = [->:Follows:->];
         for user in followed_users {
             print(f"  → {user.username}");
         }
@@ -327,9 +341,9 @@ walker SocialAnalyzer {
 }
 
 with entry {
-    // Spawn analyzer on each user
-    for user in root[-->:User:] {
-        spawn SocialAnalyzer() on user;
+    # Spawn analyzer on each user
+    for user in [root->:User:->] {
+        user spawn SocialAnalyzer();
         print("---");
     }
 }
@@ -338,27 +352,27 @@ with entry {
 ### Edge Reference Syntax Patterns
 
 ```jac
-// Basic navigation patterns
-let outgoing = [-->];           // All outgoing edges
-let incoming = [<--];           // All incoming edges
-let bidirectional = [<-->];     // All edges (in or out)
+# Basic navigation patterns
+outgoing = [-->];           // All outgoing edges
+incoming = [<--];           // All incoming edges
+bidirectional = [<-->];     // All edges (in or out)
 
-// Typed navigation
-let follows_out = [-->:Follows:];              // Outgoing Follows edges
-let follows_in = [<--:Follows:];               // Incoming Follows edges
-let all_follows = [<-->:Follows:];             // All Follows edges
+# Typed navigation
+follows_out = [->:Follows:->];              // Outgoing Follows edges
+follows_in = [<-:Follows:<-];               // Incoming Follows edges
+all_follows = [<-:Follows:->];             // All Follows edges
 
-// Navigate to nodes through edges
-let following = [-->:Follows:-->];             // Nodes I follow
-let followers = [<--:Follows:-->];             // Nodes following me
-let friends = [<-->:Follows:-->];              // All connected via Follows
+# Navigate to nodes through edges
+following = [->:Follows:->];             // Nodes I follow
+followers = [<-:Follows:->];             // Nodes following me
+friends = [<-:Follows:->];              // All connected via Follows
 
-// Multi-hop navigation
-let friends_of_friends = [-->:Follows:-->:Follows:-->];
+# Multi-hop navigation
+friends_of_friends = [->:Follows:->->:Follows:->];
 
-// Navigate to specific node types
-let my_posts = [-->:Authored:-->:Post:];       // Only Post nodes
-let my_comments = [-->:Authored:-->:Comment:]; // Only Comment nodes
+# Navigate to specific node types
+my_posts = [->:Authored:->:Post:->];       // Only Post nodes
+my_comments = [->:Authored:->:Comment:->]; // Only Comment nodes
 ```
 
 ### Filtering Edges and Nodes
@@ -368,17 +382,17 @@ Jac provides powerful filtering capabilities:
 ```jac
 walker ContentFilter {
     can find_popular with User entry {
-        // Filter by edge properties
-        let recent_follows = [-->:Follows:(?.since > "2024-01-01"):];
+        # Filter by edge properties
+        recent_follows = [->:Follows:(?since > "2024-01-01"):->];
 
-        // Filter by node properties
-        let popular_posts = [-->:Authored:-->:Post:(?.likes > 10):];
+        # Filter by node properties
+        popular_posts = [->:Authored:->->:Post:(?likes > 10):->];
 
-        // Complex filters
-        let verified_followers = [<--:Follows:-->:User:(?.verified == true):];
+        # Complex filters
+        verified_followers = [<-:Follows:->->:User:(?verified == True):->];
 
-        // Filter with null safety (?)
-        let active_users = [-->:Follows:-->:User:(?len(.bio) > 0):];
+        # Filter with null safety (?)
+        active_users = [->:Follows:->->:User:(?len(bio) > 0):->];
 
         print(f"User {here.username}:");
         print(f"  Recent follows: {len(recent_follows)}");
@@ -402,19 +416,19 @@ node RegularUser(User) {
 
 walker TypedNavigator {
     can navigate with entry {
-        // Get only Admin nodes
-        let admins = [-->`Admin];
+        # Get only Admin nodes
+        admins = [-->`?Admin];
 
-        // Get only RegularUser nodes
-        let regular_users = [-->`RegularUser];
+        # Get only RegularUser nodes
+        regular_users = [-->`?RegularUser];
 
-        // Type-specific operations
+        # Type-specific operations
         for admin in admins {
             print(f"Admin {admin.username} has permissions: {admin.permissions}");
         }
 
-        // Combined type and property filtering
-        let premium_users = [-->`RegularUser:(?.subscription == "premium"):];
+        # Combined type and property filtering
+        premium_users = [->:`?RegularUser:(?subscription == "premium"):->];
     }
 }
 ```
@@ -427,18 +441,18 @@ walker GraphModifier {
     has removed_connections: int = 0;
 
     can modify with User entry {
-        // Add new connections
-        let potential_friends = self.find_potential_friends(here);
+        # Add new connections
+        potential_friends = self.find_potential_friends(here);
 
         for friend in potential_friends {
             if not self.already_connected(here, friend) {
-                here ++>:Follows(since=now()):++> friend;
+                here +>:Follows(since=now()):+> friend;
                 self.new_connections += 1;
             }
         }
 
-        // Remove old connections
-        let old_follows = [-->:Follows:(?.since < "2023-01-01"):];
+        # Remove old connections
+        old_follows = [->:Follows:(?.since < "2023-01-01"):->];
         for edge in old_follows {
             del edge;  // Remove the edge
             self.removed_connections += 1;
@@ -446,17 +460,17 @@ walker GraphModifier {
     }
 
     can already_connected(user1: User, user2: User) -> bool {
-        let connections = user1[-->:Follows:-->];
+        connections = user1[->:Follows:->];
         return user2 in connections;
     }
 
     can find_potential_friends(user: User) -> list[User] {
-        // Friends of friends who aren't already connected
-        let friends = user[-->:Follows:-->];
-        let potential = [];
+        # Friends of friends who aren't already connected
+        friends = user[->:Follows:->];
+        potential = [];
 
         for friend in friends {
-            let fof = friend[-->:Follows:-->];
+            fof = friend[->:Follows:->];
             for candidate in fof {
                 if candidate != user and not self.already_connected(user, candidate) {
                     potential.append(candidate);
@@ -464,7 +478,7 @@ walker GraphModifier {
             }
         }
 
-        return potential[0:5];  // Limit to 5 suggestions
+        return potential[0:5];  # Limit to 5 suggestions
     }
 }
 ```
@@ -472,7 +486,7 @@ walker GraphModifier {
 ### Advanced Navigation Patterns
 
 ```jac
-// Breadth-first search pattern
+# Breadth-first search pattern
 walker BreadthFirstSearch {
     has target_username: str;
     has visited: set = {};
@@ -488,16 +502,16 @@ walker BreadthFirstSearch {
         }
 
         if here in self.visited {
-            skip;  // Already visited this node
+            skip;  # Already visited this node
         }
 
         self.visited.add(here);
         self.path.append(here.username);
 
-        // Visit all connected users
+        # Visit all connected users
         visit [-->:Follows:-->];
 
-        // Backtrack if not found
+        # Backtrack if not found
         self.path.pop();
     }
 }
@@ -510,7 +524,7 @@ walker DepthLimitedExplorer {
 
     can explore with User entry {
         if self.current_depth >= self.max_depth {
-            return;  // Don't go deeper
+            return;  # Don't go deeper
         }
 
         self.discovered.append({
@@ -520,7 +534,7 @@ walker DepthLimitedExplorer {
 
         // Go deeper
         self.current_depth += 1;
-        visit [-->:Follows:-->];
+        visit [->:Follows:->];
         self.current_depth -= 1;
     }
 }
@@ -536,11 +550,11 @@ walker GraphMetrics {
     has edge_types: dict = {};
 
     can analyze with entry {
-        // Count all nodes
-        let all_nodes = [-->*];  // * means all reachable
+        # Count all nodes
+        all_nodes = [-->*];  // * means all reachable
         self.node_count = len(all_nodes);
 
-        // Count by type
+        # Count by type
         for node in all_nodes {
             node_type = type(node).__name__;
             if node_type not in self.node_types {
@@ -548,7 +562,7 @@ walker GraphMetrics {
             }
             self.node_types[node_type] += 1;
 
-            // Count edges from this node
+            # Count edges from this node
             for edge in node[-->] {
                 edge_type = type(edge).__name__;
                 if edge_type not in self.edge_types {
@@ -582,7 +596,7 @@ node Movie {
 }
 
 edge Watched {
-    has rating: int;  // User's rating (1-5)
+    has rating: int;  # User's rating (1-5)
     has date: str;
 }
 
@@ -598,44 +612,44 @@ walker MovieRecommender {
     can analyze with User entry {
         print(f"Building recommendations for {here.username}...");
 
-        // Analyze user's watching history
-        let watched_movies = [-->:Watched:-->:Movie:];
+        # Analyze user's watching history
+        watched_movies = [-->:Watched:-->:Movie:];
 
         for movie in watched_movies {
             if movie.genre not in self.user_profile {
                 self.user_profile[movie.genre] = {"count": 0, "avg_rating": 0.0};
             }
 
-            let edge = here[-->:Watched:][0];  // Get the edge
+            edge = here[-->:Watched:][0];  # Get the edge
             self.user_profile[movie.genre]["count"] += 1;
             self.user_profile[movie.genre]["avg_rating"] += edge.rating;
 
             self.visited_movies.add(movie);
         }
 
-        // Calculate average ratings per genre
+        # Calculate average ratings per genre
         for genre, data in self.user_profile.items() {
             data["avg_rating"] /= data["count"];
         }
 
-        // Find movies to recommend
+        # Find movies to recommend
         visit watched_movies;
     }
 
     can explore with Movie entry {
-        // Find similar movies
-        let similar_movies = [-->:Similar:-->:Movie:];
+        # Find similar movies
+        similar_movies = [-->:Similar:-->:Movie:];
 
         for movie in similar_movies {
             if movie not in self.visited_movies {
-                // Score based on user preferences
+                # Score based on user preferences
                 score = 0.0;
                 if movie.genre in self.user_profile {
                     score = self.user_profile[movie.genre]["avg_rating"];
-                    score *= movie.rating / 5.0;  // Weight by movie rating
+                    score *= movie.rating / 5.0;  # Weight by movie rating
                 }
 
-                if score > 3.0 {  // Threshold
+                if score > 3.0 {  # Threshold
                     self.recommendations.append({
                         "movie": movie.title,
                         "genre": movie.genre,
@@ -647,7 +661,7 @@ walker MovieRecommender {
     }
 
     can finalize with User exit {
-        // Sort and limit recommendations
+        # Sort and limit recommendations
         self.recommendations.sort(key=lambda x: x["score"], reverse=true);
 
         print(f"\nTop recommendations for {here.username}:");
@@ -657,46 +671,46 @@ walker MovieRecommender {
     }
 }
 
-// Build movie database
+# Build movie database
 with entry {
-    // Create movies
-    let inception = root ++> Movie(
+    # Create movies
+    inception = root ++> Movie(
         title="Inception",
         genre="Sci-Fi",
         year=2010,
         rating=4.8
     );
 
-    let interstellar = root ++> Movie(
+    interstellar = root ++> Movie(
         title="Interstellar",
         genre="Sci-Fi",
         year=2014,
         rating=4.6
     );
 
-    let dark_knight = root ++> Movie(
+    dark_knight = root ++> Movie(
         title="The Dark Knight",
         genre="Action",
         year=2008,
         rating=4.9
     );
 
-    // Create similarities
-    inception ++>:Similar(similarity_score=0.85):++> interstellar;
-    inception ++>:Similar(similarity_score=0.60):++> dark_knight;
+    # Create similarities
+    inception +>:Similar(similarity_score=0.85):+> interstellar;
+    inception +>:Similar(similarity_score=0.60):+> dark_knight;
 
-    // Create user and watch history
-    let user = root ++> User(
+    # Create user and watch history
+    user = root ++> User(
         username="movie_buff",
         full_name="John Doe",
         joined_date="2024-01-01"
     );
 
-    user ++>:Watched(rating=5, date="2024-03-01"):++> inception;
-    user ++>:Watched(rating=4, date="2024-03-05"):++> dark_knight;
+    user +>:Watched(rating=5, date="2024-03-01"):+> inception;
+    user +>:Watched(rating=4, date="2024-03-05"):+> dark_knight;
 
-    // Get recommendations
-    spawn MovieRecommender() on user;
+    # Get recommendations
+    user spawn MovieRecommender();
 }
 ```
 
