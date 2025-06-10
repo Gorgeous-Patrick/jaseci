@@ -292,9 +292,7 @@ class JacLanguageTests(TestCase):
         )
         prog.build(self.fixture_abs_path("./deep_import_interp.jac"))
         Jac.jac_import("deep_import_interp", base_path=self.fixture_abs_path("./"))
-        self.assertEqual(
-            len(Jac.program.mod.hub.keys()), 6
-        )  # 5 + 1 for builtins from py
+        self.assertEqual(len(Jac.program.mod.hub.keys()), 5)
 
     def test_deep_imports_mods(self) -> None:
         """Parse micro jac file."""

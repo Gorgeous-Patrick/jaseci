@@ -12,14 +12,12 @@ from jaclang.compiler.parser import JacParser
 from jaclang.compiler.passes.main import (
     Alert,
     CFGBuildPass,
-    CompilerMode,
     DeclImplMatchPass,
     DefUsePass,
     InheritancePass,
     JacAnnexPass,
     JacImportDepsPass,
     PyBytecodeGenPass,
-    PyImportDepsPass,
     PyJacAstLinkPass,
     PyastBuildPass,
     PyastGenPass,
@@ -95,6 +93,7 @@ class JacProgram:
         if self.mod.main.stub_only:
             self.mod = uni.ProgramModule(mod)
         self.mod.hub[mod.loc.mod_path] = mod
+        JacAnnexPass(ir_in=mod, prog=self)
         return mod
 
     def compile(
@@ -108,25 +107,18 @@ class JacProgram:
             with open(file_path, "r", encoding="utf-8") as file:
                 use_str = file.read()
         mod_targ = self.parse_str(use_str, file_path)
-        JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
         self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
         if not no_cgen:
             self.run_schedule(mod=mod_targ, passes=py_code_gen)
         return mod_targ
 
-    def build(
-        self,
-        file_path: str,
-        use_str: str | None = None,
-        mode: CompilerMode = CompilerMode.COMPILE,
-    ) -> uni.Module:
+    def build(self, file_path: str, use_str: str | None = None) -> uni.Module:
         """Convert a Jac file to an AST."""
         if not use_str:
             with open(file_path, "r", encoding="utf-8") as file:
                 use_str = file.read()
         mod_targ = self.parse_str(use_str, file_path)
-        JacAnnexPass(ir_in=mod_targ, prog=self)
         SymTabBuildPass(ir_in=mod_targ, prog=self)
         JacImportDepsPass(ir_in=mod_targ, prog=self)
         if len(self.errors_had):
@@ -135,9 +127,6 @@ class JacProgram:
             SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             self.run_schedule(mod=mod, passes=[*ir_gen_sched, *py_code_gen])
-        PyImportDepsPass(mod_targ, prog=self)
-        for mod in self.mod.hub.values():
-            SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             DefUsePass(mod, prog=self)
         return mod_targ
