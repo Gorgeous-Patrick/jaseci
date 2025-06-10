@@ -9,9 +9,8 @@ nav:
     - Tour of Jac/Jaseci: "learn/introduction.md"
     - Learn By Example:
       - LittleX (your own twitter):
-        - "learn/examples/littleX/overview.md"
         - "learn/examples/littleX/tutorial.md"
-        - "learn/examples/littleX/quickstart.md"
+        - "learn/examples/littleX/full_guide.md"
       - RAG-based Conversational Chatbot:
         - "learn/examples/rag_chatbot/readme.md"
         - "learn/examples/rag_chatbot/1_setting-up-jac-cloud.md"
