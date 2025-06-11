@@ -5,11 +5,8 @@ from jaclang.vendor.pygls.workspace import Workspace
 import lsprotocol.types as lspt
 import pytest
 from jaclang import JacMachineInterface as _
-
-JacLangServer = _.jac_import(
-    "...langserve.engine", __file__, items={"JacLangServer": None}
-)[0]
-LspSession = _.jac_import("session", __file__, items={"LspSession": None})[0]
+from jaclang.langserve.engine import JacLangServer
+from .session import LspSession
 
 
 class TestJacLangServer(TestCase):

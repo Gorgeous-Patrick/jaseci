@@ -272,13 +272,9 @@ def lsp() -> None:
     Examples:
         jac lsp
     """
-    from jaclang import JacMachineInterface as _
+    from jaclang.langserve.server import run_lang_server
 
-    run_lang_server_tuple = _.jac_import(
-        "...jaclang.langserve.server", __file__, items={"run_lang_server": None}
-    )
-    run_lang_server = run_lang_server_tuple[0]
-    run_lang_server()  # type: ignore
+    run_lang_server()
 
 
 @cmd_registry.register
