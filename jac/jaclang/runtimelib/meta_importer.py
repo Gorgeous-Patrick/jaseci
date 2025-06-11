@@ -4,11 +4,10 @@ import importlib.abc
 import importlib.machinery
 import importlib.util
 import os
-import site
-import sys
 from types import ModuleType
 from typing import Optional, Sequence
 
+from jaclang.runtimelib.importer import get_jac_search_paths
 from jaclang.runtimelib.machine import JacMachine as Jac
 from jaclang.runtimelib.machine import JacMachineInterface
 
@@ -25,27 +24,7 @@ class JacMetaImporter(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         """Find the spec for the module."""
         if path is None:
             # Top-level import
-            paths_to_search = sys.path[:]
-            if os.getcwd() not in paths_to_search:
-                paths_to_search.insert(0, os.getcwd())
-
-            # Add site-packages paths
-            for site_dir in site.getsitepackages():
-                if site_dir and site_dir not in paths_to_search:
-                    paths_to_search.append(site_dir)
-            user_site = getattr(site, "getusersitepackages", None)
-            if user_site:
-                user_dir = user_site()
-                if user_dir and user_dir not in paths_to_search:
-                    paths_to_search.append(user_dir)
-
-            # Add JACPATH paths
-            jacpaths = os.environ.get("JACPATH", "")
-            if jacpaths:
-                for p in jacpaths.split(":"):
-                    p = p.strip()
-                    if p and p not in paths_to_search:
-                        paths_to_search.append(p)
+            paths_to_search = get_jac_search_paths()
             module_path_parts = fullname.split(".")
         else:
             # Submodule import

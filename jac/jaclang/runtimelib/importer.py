@@ -19,6 +19,28 @@ from jaclang.utils.log import logging
 logger = logging.getLogger(__name__)
 
 
+def get_jac_search_paths(base_path: Optional[str] = None) -> list[str]:
+    """Construct a list of paths to search for Jac modules."""
+    paths = []
+    if base_path:
+        paths.append(base_path)
+    paths.append(os.getcwd())
+    if "JACPATH" in os.environ:
+        paths.extend(
+            p.strip() for p in os.environ["JACPATH"].split(os.pathsep) if p.strip()
+        )
+    paths.extend(sys.path)
+    site_pkgs = site.getsitepackages()
+    if site_pkgs:
+        paths.extend(site_pkgs)
+    user_site = getattr(site, "getusersitepackages", None)
+    if user_site:
+        user_dir = user_site()
+        if user_dir:
+            paths.append(user_dir)
+    return list(dict.fromkeys(filter(None, paths)))
+
+
 class ImportPathSpec:
     """Import Specification."""
 
@@ -321,26 +343,12 @@ class JacImporter(Importer):
         unique_loaded_items: list[types.ModuleType] = []
         module = None
         # Gather all possible search paths
-        jacpaths = os.environ.get("JACPATH", "")
-        search_paths = [spec.caller_dir]
-        for site_dir in site.getsitepackages():
-            if site_dir and site_dir not in search_paths:
-                search_paths.append(site_dir)
-        user_site = getattr(site, "getusersitepackages", None)
-        if user_site:
-            user_dir = site.getusersitepackages()
-            if user_dir and user_dir not in search_paths:
-                search_paths.append(user_dir)
-        if jacpaths:
-            for p in jacpaths.split(":"):
-                p = p.strip()
-                if p and p not in search_paths:
-                    search_paths.append(p)
+        search_paths = get_jac_search_paths(spec.caller_dir)
 
         found_path = None
         target_path_components = spec.target.split(".")
         for search_path in search_paths:
-            candidate = os.path.join(search_path, "/".join(target_path_components))
+            candidate = os.path.join(search_path, *target_path_components)
             # Check if the candidate is a directory or a .jac file
             if (os.path.isdir(candidate)) or (os.path.isfile(candidate + ".jac")):
                 found_path = candidate
