@@ -114,69 +114,55 @@ class PyastGenPass(UniPass):
             )
         )
 
-    def needs_typing(self) -> None:
-        """Check if enum is needed."""
-        if self.needs_typing.__name__ in self.already_added:
+    def _add_preamble_once(self, key: str, node: ast3.AST) -> None:
+        """Append an import statement to the preamble once."""
+        if key in self.already_added:
             return
-        self.preamble.append(
-            self.sync(
-                ast3.Import(
-                    names=[
-                        self.sync(
-                            ast3.alias(name="typing"),
-                            jac_node=self.ir_out,
-                        ),
-                    ]
-                ),
-                jac_node=self.ir_out,
-            )
+        self.preamble.append(self.sync(node, jac_node=self.ir_out))
+        self.already_added.append(key)
+
+    def needs_typing(self) -> None:
+        """Ensure typing is imported only once."""
+        self._add_preamble_once(
+            self.needs_typing.__name__,
+            ast3.Import(
+                names=[self.sync(ast3.alias(name="typing"), jac_node=self.ir_out)]
+            ),
         )
-        self.already_added.append(self.needs_typing.__name__)
 
     def needs_enum(self) -> None:
-        """Check if enum is needed."""
-        if self.needs_enum.__name__ in self.already_added:
-            return
-        self.preamble.append(
-            self.sync(
-                ast3.ImportFrom(
-                    module="enum",
-                    names=[
-                        self.sync(ast3.alias(name="Enum", asname=None)),
-                        self.sync(ast3.alias(name="auto", asname=None)),
-                    ],
-                    level=0,
-                ),
-                jac_node=self.ir_out,
-            )
+        """Ensure Enum utilities are imported only once."""
+        self._add_preamble_once(
+            self.needs_enum.__name__,
+            ast3.ImportFrom(
+                module="enum",
+                names=[
+                    self.sync(ast3.alias(name="Enum", asname=None)),
+                    self.sync(ast3.alias(name="auto", asname=None)),
+                ],
+                level=0,
+            ),
         )
-        self.already_added.append(self.needs_enum.__name__)
 
     def needs_future(self) -> None:
-        """Check if enum is needed."""
-        if self.needs_future.__name__ in self.already_added:
-            return
-        self.preamble.append(
-            self.sync(
-                ast3.ImportFrom(
-                    module="concurrent.futures",
-                    names=[
-                        self.sync(ast3.alias(name="Future", asname=None)),
-                    ],
-                    level=0,
-                ),
-                jac_node=self.ir_out,
-            )
+        """Ensure concurrent Future is imported only once."""
+        self._add_preamble_once(
+            self.needs_future.__name__,
+            ast3.ImportFrom(
+                module="concurrent.futures",
+                names=[self.sync(ast3.alias(name="Future", asname=None))],
+                level=0,
+            ),
         )
-        self.already_added.append(self.needs_future.__name__)
 
     def flatten(self, body: list[T | list[T] | None]) -> list[T]:
-        new_body = []
-        for i in body:
-            if isinstance(i, list):
-                new_body += i
-            elif i is not None:
-                new_body.append(i) if i else None
+        """Flatten a list of items or lists into a single list."""
+        new_body: list[T] = []
+        for item in body:
+            if isinstance(item, list):
+                new_body.extend(item)
+            elif item is not None:
+                new_body.append(item)
         return new_body
 
     def sync(
@@ -267,14 +253,10 @@ class PyastGenPass(UniPass):
         attr_node: ast3.Name | ast3.Attribute = self.sync(
             ast3.Name(id=attribute_list[0], ctx=ast3.Load()), sync_node_list[0]
         )
-        for i in range(len(attribute_list)):
-            if i == 0:
-                continue
+        for attr, sync_node in zip(attribute_list[1:], sync_node_list[1:]):
             attr_node = self.sync(
-                ast3.Attribute(
-                    value=attr_node, attr=attribute_list[i], ctx=ast3.Load()
-                ),
-                sync_node_list[i],
+                ast3.Attribute(value=attr_node, attr=attr, ctx=ast3.Load()),
+                sync_node,
             )
         return attr_node
 
