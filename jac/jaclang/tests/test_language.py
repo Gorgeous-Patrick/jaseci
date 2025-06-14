@@ -11,7 +11,6 @@ from unittest.mock import patch
 
 from jaclang import JacMachine as Jac
 from jaclang.cli import cli
-from jaclang.compiler.passes.main import CompilerMode as CMode
 from jaclang.compiler.program import JacProgram
 from jaclang.utils.test import TestCase
 
@@ -1328,9 +1327,7 @@ class JacLanguageTests(TestCase):
     def test_sitecustomize_meta_importer(self) -> None:
         """Verify Jac modules importable without importing jaclang."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "mymod.jac").write_text(
-                'with entry {print("via meta");}'
-            )
+            Path(tmpdir, "mymod.jac").write_text('with entry {print("via meta");}')
             env = os.environ.copy()
             project_root = Path(__file__).resolve().parents[2]
             env["PYTHONPATH"] = os.pathsep.join([str(project_root), tmpdir])
