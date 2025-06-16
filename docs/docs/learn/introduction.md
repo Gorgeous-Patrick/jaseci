@@ -77,7 +77,7 @@ with entry {
     # Spawn walker to begin traversal
     RenderWalk() spawn input_stage;
 }
-````
+```
 
 </div>
 
