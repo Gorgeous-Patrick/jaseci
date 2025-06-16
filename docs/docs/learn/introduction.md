@@ -24,7 +24,7 @@ with entry { # Generate random points
 
 }
 
-````
+```
 </div>
 
 This snippet natively imports Python packages `math` and `random` and runs identically to its Python counterpart. Jac targets Python bytecode, so all Python libraries work with Jac.
