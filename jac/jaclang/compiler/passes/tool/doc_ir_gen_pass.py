@@ -530,6 +530,8 @@ class DocIRGenPass(UniPass):
             if isinstance(i, uni.Token) and i.name == Tok.LBRACE:
                 parts.append(self.tight_line())
                 parts.append(i.gen.doc_ir)
+            elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
+                parts.append(i.gen.doc_ir)
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -557,6 +559,7 @@ class DocIRGenPass(UniPass):
                 parts.append(i.gen.doc_ir)
             else:
                 parts.append(i.gen.doc_ir)
+        # parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_arch_has(self, node: uni.ArchHas) -> None:
@@ -569,7 +572,10 @@ class DocIRGenPass(UniPass):
             elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
                 parts.pop()
                 parts.append(i.gen.doc_ir)
-                parts.append(self.space())
+            elif isinstance(i, uni.Token) and i.name == Tok.COMMA:
+                parts.pop()
+                parts.append(i.gen.doc_ir)
+                parts.append(self.indent(self.hard_line()))
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())

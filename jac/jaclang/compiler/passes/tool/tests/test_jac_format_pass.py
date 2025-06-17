@@ -57,6 +57,12 @@ class JacFormatPassTests(TestCaseMicroSuite):
             os.path.join(self.fixture_abs_path(""), "tagbreak.jac"),
         )
 
+    def test_has_fmt(self) -> None:
+        """Tests if the file matches a particular format."""
+        self.compare_files(
+            os.path.join(self.fixture_abs_path(""), "has_frmt.jac"),
+        )
+
     def test_import_fmt(self) -> None:
         """Tests if the file matches a particular format."""
         self.compare_files(
@@ -68,6 +74,7 @@ class JacFormatPassTests(TestCaseMicroSuite):
         self.compare_files(
             os.path.join(self.fixture_abs_path(""), "archetype_frmt.jac"),
         )
+
     # def test_corelib_fmt(self) -> None:
     #     """Tests if the file matches a particular format."""
     #     self.compare_files(
