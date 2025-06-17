@@ -546,6 +546,22 @@ class JacParser(Transform[uni.Source, uni.Module]):
             )
             return impl
 
+        def sem_def(self, _: None) -> uni.SemDef:
+            """Grammar rule.
+
+            sem_def: KW_SEM dotted_name EQ multistring SEMI
+            """
+            self.consume_token(Tok.KW_SEM)
+            target = self.extract_from_list(self.consume(list), uni.NameAtom)
+            self.consume_token(Tok.EQ)
+            value = self.consume(uni.String)
+            self.consume_token(Tok.SEMI)
+            return uni.SemDef(
+                target=target,
+                value=value,
+                kid=self.flat_cur_nodes,
+            )
+
         def impl_spec(
             self, _: None
         ) -> Sequence[uni.Expr] | uni.FuncSignature | uni.EventSignature:

@@ -1316,6 +1316,21 @@ class DocIRGenPass(UniPass):
                 parts.append(self.space())
         node.gen.doc_ir = self.group(self.concat(parts))
 
+    def exit_sem_def(self, node: uni.SemDef) -> None:
+        """Generate DocIR for semantic definitions."""
+        parts: list[doc.DocType] = []
+        for i in node.kid:
+            if i in node.target:
+                parts.append(i.gen.doc_ir)
+            elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
+                parts.pop()
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        node.gen.doc_ir = self.group(self.concat(parts))
+
     def exit_event_signature(self, node: uni.EventSignature) -> None:
         """Generate DocIR for event signatures."""
         parts: list[doc.DocType] = []

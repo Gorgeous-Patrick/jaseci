@@ -548,6 +548,7 @@ class AstSymbolNode(UniNode):
         self.name_spec.name_of = self
         self.name_spec._sym_name = sym_name
         self.name_spec._sym_category = sym_category
+        self.semstr = ""
 
     @property
     def sym(self) -> Optional[Symbol]:
@@ -1617,6 +1618,61 @@ class ImplDef(CodeBlockStmt, ElementStmt, ArchBlockStmt, AstSymbolNode, UniScope
                 new_kid.append(stmt)
                 prev_stmt = stmt
             new_kid.append(self.gen_token(Tok.RBRACE))
+        self.set_kids(nodes=new_kid)
+        return res
+
+
+class SemDef(ElementStmt, AstSymbolNode, UniScopeNode):
+    """SemDef node type for Jac Ast."""
+
+    def __init__(
+        self,
+        target: Sequence[NameAtom],
+        value: String,
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.target = target
+        self.value = value
+        UniNode.__init__(self, kid=kid)
+        AstSymbolNode.__init__(
+            self,
+            sym_name="sem." + ".".join([x.sym_name for x in self.target]),
+            name_spec=self.create_sem_name_node(),
+            sym_category=SymbolType.SEM,
+        )
+        UniScopeNode.__init__(self, name=self.sym_name)
+
+    def create_sem_name_node(self) -> Name:
+        ret = Name(
+            orig_src=self.target[-1].loc.orig_src,
+            name=Tok.NAME.value,
+            value="sem." + ".".join([x.sym_name for x in self.target]),
+            col_start=self.target[0].loc.col_start,
+            col_end=self.target[-1].loc.col_end,
+            line=self.target[0].loc.first_line,
+            end_line=self.target[-1].loc.last_line,
+            pos_start=self.target[0].loc.pos_start,
+            pos_end=self.target[-1].loc.pos_end,
+        )
+        ret.parent = self
+        return ret
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            for item in self.target:
+                res = res and item.normalize(deep)
+            res = res and self.value.normalize(deep)
+        new_kid: list[UniNode] = [
+            self.gen_token(Tok.KW_SEM),
+        ]
+        for idx, item in enumerate(self.target):
+            new_kid.append(item)
+            if idx < len(self.target) - 1:
+                new_kid.append(self.gen_token(Tok.DOT))
+        new_kid.append(self.gen_token(Tok.EQ))
+        new_kid.append(self.value)
+        new_kid.append(self.gen_token(Tok.SEMI))
         self.set_kids(nodes=new_kid)
         return res
 

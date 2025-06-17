@@ -234,7 +234,7 @@ class SemRegistry:
                             node_of_sym,
                             sym.sym_name,
                             node_type,
-                            "",
+                            node_of_sym.semstr,
                         )
                     )
             return sem_scope, sem_info_list
@@ -255,7 +255,7 @@ class SemRegistry:
             else:
                 # If the node has no parent, use the node itself (likely a module)
                 sem_scope = get_sem_scope(node)
-            sem_info = SemInfo(node, name, node_type, "")
+            sem_info = SemInfo(node, name, node_type, node.semstr)
             if _type and sem_info.type != _type:
                 return None, None
             return sem_scope, sem_info
@@ -291,7 +291,9 @@ class SemRegistry:
                             else:
                                 sem_scope = get_sem_scope(decl_node)
                     sem_info_list.append(
-                        SemInfo(node_of_sym, sym.sym_name, node_type, "")
+                        SemInfo(
+                            node_of_sym, sym.sym_name, node_type, node_of_sym.semstr
+                        )
                     )
 
             if sem_info_list:

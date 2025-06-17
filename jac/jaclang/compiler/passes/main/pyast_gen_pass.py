@@ -781,6 +781,9 @@ class PyastGenPass(UniPass):
     def exit_impl_def(self, node: uni.ImplDef) -> None:
         pass
 
+    def exit_sem_def(self, node: uni.SemDef) -> None:
+        pass
+
     def exit_func_signature(self, node: uni.FuncSignature) -> None:
         params = (
             [self.sync(ast3.arg(arg="self", annotation=None))]

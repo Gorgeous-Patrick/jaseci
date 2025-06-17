@@ -435,13 +435,9 @@ class JacMachine:
                 else []
             )
             # Use the ability name as action, and if docstring exists, append it
-            docstr = (
-                ((node.doc and node.doc.lit_value) or "")
-                if isinstance(node, uni.AstDocNode)
-                else ""
-            )
+            semstr = node.semstr or ((node.doc and node.doc.lit_value) or "").strip()
             action = _pass.sync(
-                ast3.Constant(value=f"{docstr.strip()} ({node.name_ref.sym_name})\n")
+                ast3.Constant(value=f"{semstr} ({node.name_ref.sym_name})\n")
             )
             return [
                 _pass.sync(
