@@ -116,11 +116,15 @@ with entry {
 }
 ```
 
-!!! info "How To Run" 1. Install the MTLLM plugin by `pip install mtllm[google]` 2. Get a free Gemini API key: Visit [Google AI Studio](https://aistudio.google.com/app/apikey) 3. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`). > **Note:** > > You can use OpenAI, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface. 4. Copy this code into `example.jac` file and run with `jac run example.jac`
+!!! info "How To Run"
+    1. Install the MTLLM plugin by `pip install mtllm[google]`
+    2. Get a free Gemini API key: Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+    3. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`). > **Note:** > > You can use OpenAI, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
+    4. Copy this code into `example.jac` file and run with `jac run example.jac`
 
 ??? example "Output"
-`   Introvert personality detected for Albert Einstein
-   `
+    `   Introvert personality detected for Albert Einstein
+    `
 
 `by llm()` delegates execution to an LLM without any extra library code.
 
@@ -151,16 +155,18 @@ walker create_post {
 }
 ```
 
-!!! info "How To Run" 1. Install the Jac Cloud by `pip install jac-cloud` 2. Copy this code into `example.jac` file and run with `jac serve example.jac`
+!!! info "How To Run"
+    1. Install the Jac Cloud by `pip install jac-cloud`
+    2. Copy this code into `example.jac` file and run with `jac serve example.jac`
 
 ??? example "Output"
-`    INFO:     Started server process [26286]
-    INFO:     Waiting for application startup.
-    INFO - DATABASE_HOST is not available! Using LocalDB...
-    INFO - Scheduler started
-    INFO:     Application startup complete.
-    INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-   `
+    `   INFO:     Started server process [26286]
+        INFO:     Waiting for application startup.
+        INFO - DATABASE_HOST is not available! Using LocalDB...
+        INFO - Scheduler started
+        INFO:     Application startup complete.
+        INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+    `
 
 ![Fast API Server](../assets/jac_cloud_example.jpg)
 
@@ -178,7 +184,6 @@ walker create_post {
 
 #### 💾 Integrated Persistence and User Management
 
-- **Built-in Data Persistence**: Data storage is handled automatically, whether you're running locally or in the cloud. There's no need for manual database setup or migrations.
 - **User Authentication and Authorization**: Jac Cloud includes token-based authentication and role-based access control, making it easy to build secure, multi-user applications.
 
 #### ☁️ Cloud-Native Abstractions

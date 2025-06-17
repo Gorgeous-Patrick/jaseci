@@ -288,3 +288,15 @@ body,
 .footer-links a:hover {
     color: #ff6b35;
 }
+
+/* Move left sidebar (navigation) further left */
+.md-sidebar--primary {
+    left: 0 !important;           /* Stick to the edge */
+    margin-left: -150px;           /* Adjust this value as needed */
+}
+
+/* Move right sidebar (TOC) further right */
+.md-sidebar--secondary {
+    right: 0 !important;          /* Stick to the edge */
+    margin-right: -150px;          /* Adjust this value as needed */
+}
