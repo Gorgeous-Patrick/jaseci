@@ -26,7 +26,6 @@ def filter_neighbors(
     for neighbor_idx in network.neighbors(node_idx):
         # Get edge data between current node and neighbor
         edge_data = network.get_edge_data(node_idx, neighbor_idx)
-        print(node_idx, neighbor_idx, edge_data)
         if edge_data is None:
             continue
         edge_type = edge_data.get("edge_type")
@@ -52,7 +51,6 @@ def get_access_pattern_single_walker(
         top = container.pop(0)
         path.append(top)
         filtered_neighbors = filter_neighbors(top, network, visit_info, walker_type)
-        print(visit_info)
         for neighbor in filtered_neighbors:
             if neighbor not in visited and neighbor not in container:
                 container.append(neighbor)

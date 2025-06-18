@@ -17,9 +17,8 @@ with entry {
   a ++> c;
   root ++> b;
   c ++> b;
-  # JacMachine.networkx_gen_png(JacMachine.get_networkx());
-  wlk = a spawn BasciWalker();
-  wlk = b spawn BasciWalker();
-  JacMachine.mapping();
-
+  wlk1 = a spawn BasciWalker();
+  wlk2 = b spawn BasciWalker();
+  JacMachine.mapping([wlk1, wlk2]);
+  # Run on DPU
 }

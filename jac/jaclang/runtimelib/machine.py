@@ -504,11 +504,10 @@ class JacWalker:
         while len(walker.next):
             if current_loc := walker.next.pop(0).archetype:
                 # Push the node into walker trace
-                if isinstance(current_loc, EdgeAnchor):
-                    walker.trace.append(current_loc.target)
-                else:
-                    walker.trace.append(current_loc)
-                print(walker.trace)
+                if isinstance(current_loc, EdgeArchetype):
+                    walker.trace.append(current_loc.__jac__.target)
+                elif isinstance(current_loc, NodeArchetype):
+                    walker.trace.append(current_loc.__jac__)
                 # walker ability with loc entry
                 for i in warch._jac_entry_funcs_:
                     if (
@@ -1865,12 +1864,13 @@ class JacPIM:
         return res
 
     @staticmethod
-    def mapping() -> None:
+    def mapping(walkers: list[WalkerArchetype]) -> None:
         """Generate mapping."""
         from .data_mapper import (
             get_access_pattern_single_walker,
             get_access_pattern,
             metis_partition,
+            get_num_dpu_jumps,
         )
 
         all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
@@ -1893,7 +1893,15 @@ class JacPIM:
                     )
                 )
         access_pattern = get_access_pattern(network=graph, paths=traversal_paths)
-        print(metis_partition(access_pattern, 10))
+        num_dpus = 10
+        mapping = metis_partition(
+            access_pattern, min(num_dpus, access_pattern.number_of_nodes())
+        )
+        traces = [
+            [all_nodes.index(node) for node in walker.__jac__.trace]
+            for walker in walkers
+        ]
+        print("Num DPU Cross DPU Jumps", get_num_dpu_jumps(mapping, traces))
 
 
 class JacMachineInterface(
