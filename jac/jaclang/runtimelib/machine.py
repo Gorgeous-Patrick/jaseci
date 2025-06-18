@@ -59,6 +59,7 @@ from jaclang.runtimelib.constructs import (
     WalkerAnchor,
     WalkerArchetype,
 )
+from jaclang.runtimelib.data_mapper import VisitInfo
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -66,6 +67,9 @@ from jaclang.runtimelib.utils import (
     traverse_graph,
 )
 from jaclang.utils import infer_language
+
+import networkx as nx
+
 
 import pluggy
 
@@ -706,6 +710,7 @@ class JacWalker:
                 raise TypeError("Invalid target object")
         else:
             raise TypeError("Invalid walker object")
+        node.spawned_walker_archetypes.append(walker.archetype)
 
         if edge is not None:
             loc: EdgeAnchor | NodeAnchor = edge
@@ -1734,6 +1739,157 @@ class JacUtils:
         return future.result()
 
 
+class JacPIM:
+    """Jac PIM implementation."""
+
+    @staticmethod
+    def networkx_gen_png(network: nx.DiGraph) -> str:
+        """Generate the networkx png."""
+        import matplotlib.pyplot as plt
+        import os
+
+        # Create a directory for the output if it doesn't exist
+        output_dir = "output"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        filename = os.path.join(output_dir, "graph.png")
+
+        # Draw the graph with enhanced annotations
+        plt.figure(figsize=(15, 15))
+        pos = nx.spring_layout(network, k=3, iterations=50)
+
+        nx.draw(
+            network,
+            pos,
+        )
+
+        # Add a legend
+        plt.title("Jac Graph Visualization", fontsize=16, fontweight="bold")
+
+        # Save the figure
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
+        plt.close()
+
+        return filename
+
+    @staticmethod
+    def _get_graph_nodes_and_edges() -> tuple[list[NodeAnchor], list[EdgeAnchor]]:
+        jctx = JacMachine.get_context()
+        all_nodes = [
+            node for node in jctx.mem.__mem__.values() if isinstance(node, NodeAnchor)
+        ]
+        all_edges = [
+            edge for edge in jctx.mem.__mem__.values() if isinstance(edge, EdgeAnchor)
+        ]
+        return all_nodes, all_edges
+
+    @staticmethod
+    def _extract_name(input: Archetype) -> str:
+        return str(input).split("(")[0]
+
+    @staticmethod
+    def get_networkx(
+        all_nodes: list[NodeAnchor], all_edges: list[EdgeAnchor]
+    ) -> nx.DiGraph:
+        """Get the networkx graph for the Jac Input data Graph."""
+        graph = nx.DiGraph()
+
+        for idx, node_anchor in enumerate(all_nodes):
+            # Add node with detailed annotations
+            graph.add_node(idx, node_type=JacPIM._extract_name(node_anchor.archetype))
+
+        for _idx, edge_anchor in enumerate(all_edges):
+            graph.add_edge(
+                all_nodes.index(edge_anchor.source),
+                all_nodes.index(edge_anchor.target),
+                edge_type=JacPIM._extract_name(edge_anchor.archetype),
+            )
+
+        return graph
+
+    @staticmethod
+    def _get_from_node_type_of_visit(visit_stmt: ast.VisitStmt) -> str:
+        """Get the node type that the visit is from.
+
+        For example, if a visit is in an ability:
+            can xxx with XXX entry {...}, it will return XXX
+        """
+        ability = visit_stmt.parent_of_type(ast.Ability)
+        return (
+            ability.get_all_sub_nodes(ast.EventSignature)[0]
+            .get_all_sub_nodes(ast.Name)[0]
+            .value
+        )
+
+    @staticmethod
+    def _get_to_edge_type_of_visit(visit_stmt: ast.VisitStmt) -> str:
+        filters = visit_stmt.get_all_sub_nodes(ast.FilterCompr)
+        if len(filters) == 0:
+            return "GenericEdge"
+        return filters[0].get_all_sub_nodes(ast.Name)[0].value
+
+    @staticmethod
+    def _get_walker_type_from_visit(visit_stmt: ast.VisitStmt) -> str:
+        return (
+            visit_stmt.find_parent_of_type(ast.Archetype)
+            .get_all_sub_nodes(ast.Name)[0]
+            .value
+        )
+
+    @staticmethod
+    def _get_visit_info(visit_stmts: list[ast.VisitStmt]) -> list[VisitInfo]:
+        """Get the visit statement information."""
+        # res: dict[tuple[str, str, str | None], bool] = {}
+        res: list[VisitInfo] = []
+        # Get all visit statements from the AST
+        for visit_stmt in visit_stmts:
+            from_node = JacPIM._get_from_node_type_of_visit(visit_stmt)
+            edge_type = JacPIM._get_to_edge_type_of_visit(visit_stmt)
+            walker_type = JacPIM._get_walker_type_from_visit(visit_stmt)
+            res.append(
+                VisitInfo(
+                    from_node_type=from_node,
+                    edge_type=edge_type,
+                    walker_type=walker_type,
+                    async_edge=False,  # TODO: Add Async Visit Support
+                )
+            )
+            # res[walker_type, from_node, edge_type] = async_visit
+        return res
+
+    @staticmethod
+    def mapping() -> None:
+        """Generate mapping."""
+        from .data_mapper import (
+            get_access_pattern_single_walker,
+            get_access_pattern,
+            metis_partition,
+        )
+
+        all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
+        graph = JacPIM.get_networkx(all_nodes, all_edges)
+        JacPIM.networkx_gen_png(graph)
+        visit_info = JacPIM._get_visit_info(
+            JacMachine.program.mod.get_all_sub_nodes(ast.VisitStmt)
+        )
+        traversal_paths = []
+        for node_idx, node in enumerate(all_nodes):
+            for walker_type in node.spawned_walker_archetypes:
+                # walker_type = str(walker_type).split('(')[0]
+                walker_type = JacPIM._extract_name(walker_type)
+                traversal_paths.append(
+                    get_access_pattern_single_walker(
+                        start_idx=node_idx,
+                        network=graph,
+                        visit_info=visit_info,
+                        walker_type=walker_type,
+                    )
+                )
+        access_pattern = get_access_pattern(network=graph, paths=traversal_paths)
+        print(metis_partition(access_pattern, 10))
+
+
 class JacMachineInterface(
     JacClassReferences,
     JacAccessValidation,
@@ -1744,6 +1900,7 @@ class JacMachineInterface(
     JacCmd,
     JacBasics,
     JacUtils,
+    JacPIM,
 ):
     """Jac Feature."""
 

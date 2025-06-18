@@ -303,6 +303,7 @@ class NodeAnchor(Anchor):
 
     archetype: NodeArchetype
     edges: list[EdgeAnchor]
+    spawned_walker_archetypes: list[WalkerArchetype]
 
     def __getstate__(self) -> dict[str, object]:
         """Serialize Node Anchor."""
@@ -389,7 +390,7 @@ class NodeArchetype(Archetype):
     @cached_property
     def __jac__(self) -> NodeAnchor:
         """Create default anchor."""
-        return NodeAnchor(archetype=self, edges=[])
+        return NodeAnchor(archetype=self, edges=[], spawned_walker_archetypes=[])
 
 
 class EdgeArchetype(Archetype):
@@ -442,7 +443,9 @@ class Root(NodeArchetype):
     @cached_property
     def __jac__(self) -> NodeAnchor:
         """Create default anchor."""
-        return NodeAnchor(archetype=self, persistent=True, edges=[])
+        return NodeAnchor(
+            archetype=self, persistent=True, edges=[], spawned_walker_archetypes=[]
+        )
 
     def __repr__(self) -> str:
         """Override repr for archetype."""
