@@ -503,6 +503,12 @@ class JacWalker:
 
         while len(walker.next):
             if current_loc := walker.next.pop(0).archetype:
+                # Push the node into walker trace
+                if isinstance(current_loc, EdgeAnchor):
+                    walker.trace.append(current_loc.target)
+                else:
+                    walker.trace.append(current_loc)
+                print(walker.trace)
                 # walker ability with loc entry
                 for i in warch._jac_entry_funcs_:
                     if (
