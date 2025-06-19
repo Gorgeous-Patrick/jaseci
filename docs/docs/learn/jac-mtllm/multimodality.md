@@ -2,6 +2,19 @@
 
 For MTLLM to have actual neurosymbolic powers, it needs to be able to handle multimodal inputs and outputs. This means that it should be able to understand text, images, and videos. In this section, we will discuss how MTLLM can handle multimodal inputs.
 
+To Support Images and Videos, you need to install the following extra(s):
+
+=== "Image Support"
+    ```bash
+    pip install mtllm[image]
+    ```
+=== "Video Support"
+    ```bash
+    pip install mtllm[video]
+    ```
+
+Currently, only multimodal LLMs from OpenAI and Anthropic are supported. In the future, we plan to support multimodal LLMs from other providers as well.
+
 ## Image
 
 MTLLM can handle images as inputs. You can provide an image as input to the MTLLM Function or Method using the `Image` format of mtllm. Here is an example of how you can provide an image as input to the MTLLM Function or Method:

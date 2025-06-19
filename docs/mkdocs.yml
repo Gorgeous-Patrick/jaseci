@@ -11,14 +11,13 @@ nav:
       - LittleX (your own twitter):
         - "learn/examples/littleX/tutorial.md"
         - "learn/examples/littleX/full_guide.md"
-      # - RAG-based Conversational Chatbot:
-      #   - "learn/examples/rag_chatbot/readme.md"
-      #   - "learn/examples/rag_chatbot/1_setting-up-jac-cloud.md"
-      #   - "learn/examples/rag_chatbot/2_building-a-rag-chatbot.md"
-      #   - "learn/examples/rag_chatbot/3_rag-dialogue-routing-chatbot.md"
-      - Building Software with AI:
-        - "learn/examples/mtp_examples/rpg_game.md"
-        - "learn/examples/mtp_examples/fantasy_trading_game.md"
+      - RAG-based Conversational Chatbot:
+        - "learn/examples/rag_chatbot/readme.md"
+        - "learn/examples/rag_chatbot/1_setting-up-jac-cloud.md"
+        - "learn/examples/rag_chatbot/2_building-a-rag-chatbot.md"
+        - "learn/examples/rag_chatbot/3_rag-dialogue-routing-chatbot.md"
+      - RPG game with AI Genarated Maps: "learn/examples/mtp_examples/rpg_game.md"
+      - Agentic Fantasy Trading Game: "learn/examples/mtp_examples/fantasy_trading_game.md"
     - Learn Jac Language:
       - Jac in 2 Minutes: "learn/jac_in_a_flash.md"
       - The Jac Book: "jac_book/index.md"
@@ -42,11 +41,11 @@ nav:
         - "learn/jac-cloud/webhook.md"
       - Operations:
         - "learn/jac-cloud/deployment.md"
-    - Jac AI Programming Guides:
+    - Programming With AI:
         - "learn/jac-mtllm/with_llm.md"
-        - Quick Start Guide: "learn/jac-mtllm/quickstart.md"
-        - Models: "learn/jac-mtllm/model_declaration.md"
-        - Usage of MTP: "learn/jac-mtllm/usage.md"
+        - Quick-start: "learn/jac-mtllm/quickstart.md"
+        - How to use MTP: "learn/jac-mtllm/usage.md"
+        - Available Models: "learn/jac-mtllm/model_declaration.md"
         - Using Multimodal models: "learn/jac-mtllm/multimodality.md"
         - Bring your own LM: "learn/jac-mtllm/create_own_lm.md"
         - Python MTLLM Interface: "learn/jac-mtllm/python_integration.md"

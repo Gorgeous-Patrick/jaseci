@@ -2,14 +2,18 @@
 
 ## Installation
 
-To install MTLLM run,
+To get started with MTLLM, install the base package:
 
 ```bash
 pip install mtllm
 ```
 
-By default, MTLLM will not install any llm integrations, to install the available integrations, include the extra(s) below:
+MTLLM supports multiple LLM providers. Choose and install the integration you need:
 
+=== "OpenAI"
+    ```bash
+    pip install mtllm[openai]
+    ```
 === "Anthropic"
     ```bash
     pip install mtllm[anthropic]
@@ -30,45 +34,25 @@ By default, MTLLM will not install any llm integrations, to install the availabl
     ```bash
     pip install mtllm[ollama]
     ```
-=== "OpenAI"
-    ```bash
-    pip install mtllm[openai]
-    ```
 === "Together"
     ```bash
     pip install mtllm[together]
     ```
 
+## Your First AI Integrated Function
 
+Let's build a simple translation function that demonstrates how MTLLM transforms ordinary functions into intelligent, reasoning components.
 
-MTLLM Supports MultiModal LLMs. To Support Images and Videos, you need to install the following extra(s):
+### The Traditional Approach
 
-=== "Image Support"
-    ```bash
-    pip install mtllm[image]
-    ```
-=== "Video Support"
-    ```bash
-    pip install mtllm[video]
-    ```
-
-Currently, only multimodal LLMs from OpenAI and Anthropic are supported. In the future, we plan to support multimodal LLMs from other providers as well.
-
-## Minimal Working Example
-
-Here we will walk you through a minimal working example of using MTLLM to generate translate a sentence from English to a target language.
-
-### Setup
-
-Before we start, make sure you have installed MTLLM & Jaclang.
-Following code snippet will be our starting point:
+Here's how you'd typically handle translation with manual API integration:
 
 ```jac
 def translate(eng_sentence: str, target_lang: str) -> str {
-    #* Normally this would include the translation logic such as calling an API.
-    For the sake of this example, we will return a dummy translated sentence. *#
+    # Traditional approach: manual API calls, prompt engineering, response parsing
+    # Lots of boilerplate code would go here...
 
-    return "Hola Mundo";
+    return "Hola Mundo";  # Hardcoded for demo
 }
 
 with entry {
@@ -76,49 +60,47 @@ with entry {
 }
 ```
 
-Assuming we went with API based translation, `target_lang` would be the language code of the target language. For example, `es` for Spanish, `fr` for French, etc. But Assume that you don't know the language code for the target language, or you would like to provide a context to `target_lang` instead of a language code. for example `Spanish` instead of `es` or `Language spoken in Somalia`. This is where you need the help of LLMs.
+**The Problem**: You're limited to language codes (`es`, `fr`, etc.) and need extensive prompt engineering to handle natural language inputs like "Language spoken in Somalia" or "The language of Shakespeare."
 
-### Using MTLLM
+### The MTP Way: `by` keyword
 
-#### Import the LLM You Want to Use
+With the `by` keyword abstraction in MTLLM, your functions become intelligent agents that can reason about their inputs and produce contextually appropriate outputs:
 
-For this example, we will use OpenAI's GPT-3.5-turbo (default).
+#### Step 1: Import Your LLM
 
 ```jac
 import from mtllm.llms {OpenAI}
 
-glob llm = OpenAI();
-
-# Rest of the code
+glob llm = OpenAI(model_name="gpt-4o");
 ```
 
-#### Remove the Ability Body and Add `by LLM` keyword
+#### Step 2: Transform Your Function into an Agent
+
+Simply add `by llm` to make your function AI-integrated:
 
 ```jac
 import from mtllm.llms {OpenAI}
+
 glob llm = OpenAI();
 
-def translate(eng_sentence: str, target_lang: str) -> str by llm();
+def translate(eng_sentence: str, target_lang: str) -> str by llm;
 
 with entry {
     print(translate("Hello World", "Language spoken in Somalia"));
+    print(translate("Good morning", "The language of Cervantes"));
+    print(translate("Thank you", "What people speak in Tokyo"));
 }
 ```
 
-Thats it! 🎊
+**That's it!** 🎉 Your function now intelligently understands natural language descriptions and performs contextual translation.
 
-Now you can run the code and see the translated sentence by running the following command:
-Makesure to export your OpenAI API key as an environment variable `OPENAI_API_KEY` before running the code.
+#### Step 3: Run Your AI Integrated Application
+
+Set your API key and run:
 
 ```bash
+export OPENAI_API_KEY="your-api-key-here"
 jac run translator.jac
 ```
 
-### Adding Additional Support to the LLMs
-
-In this example, we dont need to add any additional context to the LLMs. But if you want to, you can do so by adding docstrings to function and method definitions, explaining the required behaviour of the function/method:
-
-
-You've successfully created a working example using the Jaclang and MTLLM.
-
-Feel free to adapt and expand upon this example to suit your specific use case while exploring the extensive capabilities of MTLLM.
+Ready to explore more advanced ways of using the `by` abstraction? Continue with the [Usage Guide](./usage.md) to learn about all the ways you can build AI-integrated software with MTLLM, including object methods, function overriding, and complex multi-agent workflows.

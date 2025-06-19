@@ -9,7 +9,7 @@ Let's start by creating a simple Task Manager application using Python. The appl
 2. View all tasks
 3. Delete a task
 
-```python
+```python linenums="1"
 tasks: list[str] = []
 
 def add_task(task: str) - > None:
@@ -58,7 +58,7 @@ Currently the Tasks in the Task Manager are just strings. Let's add a feature wh
 
 ### Creating the Jac Module
 
-```jac
+```jac linenums="1"
 import from mtllm.llms {OpenAI}
 
 glob llm = OpenAI();
@@ -77,10 +77,9 @@ Just like that with a few lines of code, you have a AI powered Task Manager. The
 
 ### Integrating the Jac Module
 
-```python
-from jaclang import JacMachineInterface as _
-create_task = _.jac_import('taskman', __file__)[0].create_task
-
+```python linenums="1"
+import jaclang
+from taskman import create_task
 
 tasks: list = []
 

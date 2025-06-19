@@ -1,6 +1,13 @@
-# <span style="color: orange"> Generative AI in Jaclang - MTP
+# GenAI in Jaclang - MTP
+### Revolutionizing AI-Integrated & Agentic Application Development
 
-Integration of AI models as core software components is becoming mainstraeam. Jac-lang facilitates the integration of such models, specifically Large Language Models (LLMs) into programming in an ultra seamless manner. We name this functionality as <span style="color:orange;">MTP</span>, meaning "Meaning-typed Programming". There is an extensive research journey which you can dive into, available on arxiv.org. (Link available at the bottom of this page)
+<div class="hero-section" markdown>
+**Transform how you integrate Large Language Models into your applications, and build truly agentic software, with a single keyword.**
+</div>
+
+## What is MTP?
+
+Meaning-Typed Programming (MTP) is a groundbreaking paradigm that automates LLM integration through intuitive language-level constructs. Instead of manually crafting prompts and handling outputs, MTP extracts semantic meaning from your existing code to automatically generate prompts and convert responses. This enables you to focus on building agentic software applications that can reason, plan, and act autonomously, by leveraging LLMs as intelligent agents within your workflows. There is an extensive research journey which you can dive into, available on arxiv.org.
 
 The MTP concept is realized in Jac-lang as the **MTLLM** plugin which can be installed as a PyPi package.
 
@@ -11,10 +18,8 @@ The MTP concept is realized in Jac-lang as the **MTLLM** plugin which can be ins
 
     ---
 
-    *You can check out the reserach Journey of MTP*
+    *You can check out the research journey of MTP*
 
-
-    <!-- [REPO](https://github.com/Jaseci-Labs/jaseci/tree/main/jac-mtllm){ .md-button} -->
     [arXiv PAPER](https://arxiv.org/abs/2405.08965){ .md-button}
 
 -   __Get Started with MTP__
