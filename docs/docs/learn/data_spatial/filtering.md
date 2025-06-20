@@ -15,17 +15,11 @@ Node-based filtering restricts traversal to specific nodes that satisfy predefin
 
 We can filter specific types of nodes from a list of visitable nodes based on their type, and further apply conditions on node attributes to refine the results.
 === "Jac"
-    ```jac linenums="1"
+    <div class="code-block">
+    ```jac
     --8<-- "jac/examples/data_spatial/filtering.jac"
     ```
-??? tip "Output"
-    ```txt
-    [A(val=20)]
-    [C(val=25)]
-    [C(val=15), C(val=25)]
-    [C(val=25)]
-    [C(val=15)]
-    ```
+    </div>
 ??? example "Graph"
     ![Image](assets/filtering.png)
 
@@ -38,15 +32,11 @@ Edge filtering in JacLang allows developers to control traversal by selecting ed
 ### Example:
 We can filter nodes based on specific edge attributes, such as filtering by edge values to retrieve a subset of connected nodes.
 === "Jac"
-    ```jac linenums="1"
+    <div class="code-block">
+    ```jac
     --8<-- "jac/examples/data_spatial/edge_filtering.jac"
     ```
-??? tip "Output"
-    ```txt
-    [A(val=10), A(val=20), A(val=30)]
-    [A(val=10), A(val=20)]
-    [A(val=10)]
-    [A(val=20)]
-    ```
+    </div>
+
 ??? example "Graph"
     ![Image](assets/edge_filtering.png)
