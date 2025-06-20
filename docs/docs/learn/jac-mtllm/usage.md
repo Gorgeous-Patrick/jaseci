@@ -44,9 +44,9 @@ import from mtllm.llms {OpenAI}
 
 glob llm = OpenAI(model_name="gpt-4o");
 
-def translate(text: str, target_language: str) -> str by llm;
-def analyze_sentiment(text: str) -> str by llm;
-def summarize(content: str, max_words: int) -> str by llm;
+def translate(text: str, target_language: str) -> str by llm();
+def analyze_sentiment(text: str) -> str by llm();
+def summarize(content: str, max_words: int) -> str by llm();
 ```
 
 These functions become intelligent agents that can understand natural language inputs and produce contextually appropriate outputs.
@@ -86,7 +86,7 @@ import from mtllm.llms {OpenAI}
 
 glob llm = OpenAI(model_name="gpt-4o");
 
-def get_joke_with_punchline() -> tuple[str, str] by llm;
+def get_joke_with_punchline() -> tuple[str, str] by llm();
 
 with entry {
     (joke, punchline) = get_joke_with_punchline();
@@ -177,13 +177,13 @@ import from mtllm.llms {OpenAI}
 glob llm = OpenAI(model_name="gpt-4o");
 
 """Translate text to the target language."""
-def translate(text: str, target_language: str) -> str by llm;
+def translate(text: str, target_language: str) -> str by llm();
 
 """Analyze sentiment returning (sentiment, confidence, themes)."""
-def analyze_sentiment(review: str) -> tuple[str, float, list[str]] by llm;
+def analyze_sentiment(review: str) -> tuple[str, float, list[str]] by llm();
 
 """Generate a professional email response based on the input message tone."""
-def generate_email_response(message: str, recipient_type: str) -> str by llm;
+def generate_email_response(message: str, recipient_type: str) -> str by llm();
 ```
 
 **Key principles for effective docstrings:**
@@ -213,7 +213,7 @@ sem Person.dob = "Date of Birth";
 sem Person.ssn = "Last four digits of the Social Security Number of a person";
 
 """Calculate eligibility for various services based on person's data."""
-def check_eligibility(person: Person, service_type: str) -> bool by llm;
+def check_eligibility(person: Person, service_type: str) -> bool by llm();
 ```
 
 ### Object Context in Methods

@@ -83,7 +83,7 @@ import from mtllm.llms {OpenAI}
 
 glob llm = OpenAI();
 
-def translate(eng_sentence: str, target_lang: str) -> str by llm;
+def translate(eng_sentence: str, target_lang: str) -> str by llm();
 
 with entry {
     print(translate("Hello World", "Language spoken in Somalia"));
