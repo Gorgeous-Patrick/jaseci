@@ -2,7 +2,9 @@
 
 This document provides a summary of new features, improvements, and bug fixes in each version of Jac and Jaseci. For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](./breaking_changes.md) page.
 
-## jaclang 0.8.2 / jac-cloud 0.2.2 / mtllm 0.3.7 (Unreleased)
+## jaclang 0.8.4 / jac-cloud 0.2.4 / mtllm 0.3.9 (Unreleased)
+
+## jaclang 0.8.3 / jac-cloud 0.2.3 / mtllm 0.3.8
 
 *   **Semantic Strings**: Introduced `sem` strings to attach natural language descriptions to code elements like functions, classes, and parameters. These semantic annotations can be used by Large Language Models (LLMs) to enable intelligent, AI-powered code generation and execution. (mtllm)
 *   **LLM Function Overriding**: Introduced the ability to override any regular function with an LLM-powered implementation at runtime using the `function_call() by llm()` syntax. This allows for dynamic, on-the-fly replacement of function behavior with generative models. (mtllm)
