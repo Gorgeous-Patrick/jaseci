@@ -13,7 +13,20 @@ A walker can be spawned at any point on the graph with the ```spawn``` keyword.
     ```
     </div>
 ??? example "Graph"
-    ![Image](assets/define_walker.png)
+    ```mermaid
+    flowchart LR
+    0 -->|"a()"| 1
+    1 -->|"a()"| 2
+    2 -->|"a()"| 3
+    1 -->|"a()"| 4
+    4 -->|"a()"| 5
+    0["Root()"]
+    1["A(val=5)"]
+    2["A(val=10)"]
+    3["A(val=15)"]
+    4["A(val=20)"]
+    5["A(val=25)"]
+    ```
 
 ## Graph Traversal Using Visit
 Walkers navigate the graph using the ```visit``` keyword.

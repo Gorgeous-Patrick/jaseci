@@ -21,7 +21,21 @@ We can filter specific types of nodes from a list of visitable nodes based on th
     ```
     </div>
 ??? example "Graph"
-    ![Image](assets/filtering.png)
+    ```mermaid
+    flowchart LR
+    0 -->|"a()"| 1
+    1 -->|"b()"| 2
+    2 -->|"c()"| 3
+    2 -->|"c()"| 4
+    5 -->|"a()"| 4
+    1 -->|"b()"| 5
+    0["Root()"]
+    1["A(val=5)"]
+    2["B(val=10)"]
+    3["C(val=15)"]
+    4["C(val=25)"]
+    5["A(val=20)"]
+    ```
 
 ## Edge-Based Filtering
 
@@ -39,4 +53,13 @@ We can filter nodes based on specific edge attributes, such as filtering by edge
     </div>
 
 ??? example "Graph"
-    ![Image](assets/edge_filtering.png)
+    ```mermaid
+    flowchart LR
+    0 -->|"a(val=10)"| 1
+    0 -->|"a(val=20)"| 2
+    0 -->|"b(val=30)"| 3
+    0["Root()"]
+    1["A(val=10)"]
+    2["A(val=20)"]
+    3["A(val=30)"]
+    ```

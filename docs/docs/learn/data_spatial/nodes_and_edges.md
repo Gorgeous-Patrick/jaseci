@@ -67,8 +67,15 @@ This versatility allows for creating intricate and highly interconnected graph s
 
     }
     ```
-    <!-- ??? example "Graph"
-        ![Image](assets/onetoone.png) -->
+    ??? example "Graph"
+        ```mermaid
+        flowchart LR
+        0 --> 1
+        1 --> 2
+        0["Root()"]
+        1["MyNode()"]
+        2["MyNode()"]
+        ```
 === "one2many.jac"
     ```jac linenums="1"
     node MyNode{}
@@ -82,8 +89,17 @@ This versatility allows for creating intricate and highly interconnected graph s
 
     }
     ```
-    <!-- ??? example "Graph"
-        ![Image](assets/onetomany.png) -->
+    ??? example "Graph"
+        ```mermaid
+        flowchart LR
+        0 --> 1
+        1 --> 2
+        1 --> 3
+        0["Root()"]
+        1["MyNode()"]
+        2["MyNode()"]
+        3["MyNode()"]
+        ```
 === "many2one.jac"
     ```jac linenums="1"
     node MyNode{}
@@ -96,8 +112,18 @@ This versatility allows for creating intricate and highly interconnected graph s
 
     }
     ```
-    <!-- ??? example "Graph"
-        ![Image](assets/manytoone.png) -->
+    ??? example "Graph"
+        ```mermaid
+        flowchart LR
+        0 --> 1
+        1 --> 2
+        3 --> 2
+        0 --> 3
+        0["Root()"]
+        1["MyNode()"]
+        2["MyNode()"]
+        3["MyNode()"]
+        ```
 === "many2many.jac"
     ```jac linenums="1"
     node MyNode{}
@@ -113,8 +139,24 @@ This versatility allows for creating intricate and highly interconnected graph s
         second_tier ++> end_tier;
     }
     ```
-    <!-- ??? example "Graph"
-        ![Image](assets/create_node.png) -->
+    ??? example "Graph"
+        ```mermaid
+        flowchart LR
+        0 --> 1
+        1 --> 2
+        3 --> 2
+        0 --> 3
+        3 --> 4
+        1 --> 4
+        4 --> 5
+        2 --> 5
+        0["Root()"]
+        1["MyNode()"]
+        2["MyNode()"]
+        3["MyNode()"]
+        4["MyNode()"]
+        5["MyNode()"]
+        ```
 
 ## Edges
 Nodes can be linked using either *default edges* (generic connections) or *custom edges*, which have specific properties as shown in the following examples.

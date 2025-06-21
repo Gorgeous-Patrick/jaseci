@@ -820,10 +820,16 @@ class JacBuiltin:
                 f"{visited_nodes.index(source)} -> {visited_nodes.index(target)} "
                 f' [label="{edge_label if "GenericEdge" not in edge_label else ""}"];\n'
             )
-            mermaid_content += (
-                f"{visited_nodes.index(source)} -->"
-                f"|{edge_label if 'GenericEdge' not in edge_label else ''}| {visited_nodes.index(target)}\n"
-            )
+            if "GenericEdge" in edge_label or not edge_label.strip():
+                mermaid_content += (
+                    f"{visited_nodes.index(source)} -->"
+                    f"{visited_nodes.index(target)}\n"
+                )
+            else:
+                mermaid_content += (
+                    f"{visited_nodes.index(source)} -->"
+                    f'|"{edge_label}"| {visited_nodes.index(target)}\n'
+                )
         for node_ in visited_nodes:
             color = (
                 colors[node_depths[node_]] if node_depths[node_] < 25 else colors[24]
