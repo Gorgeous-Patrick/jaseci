@@ -118,6 +118,7 @@ nav:
         - "communityhub/fun/p1.md"
         - "communityhub/fun/p2.md"
         - "communityhub/fun/p3.md"
+      - Content Pieces: "communityhub/content_pieces.md"
 
   - Jac Playground:
     - Playground: "/playground/"

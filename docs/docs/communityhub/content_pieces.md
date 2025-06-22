@@ -1,0 +1,1 @@
+--8<-- "jac/examples/shopping_cart/shopping_cart.md"

@@ -89,9 +89,14 @@ def create_playground_zip() -> None:
 
 def get_top_contributors() -> str:
     """Get the top contributors for the jaclang repository."""
-    return subprocess.check_output(["python", "../scripts/top_contributors.py"]).decode(
-        "utf-8"
-    )
+    # Get the current directory (docs/scripts)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go to the root directory (two levels up from docs/scripts)
+    root_dir = os.path.dirname(os.path.dirname(current_dir))
+
+    return subprocess.check_output(
+        ["python3", "scripts/top_contributors.py"], cwd=root_dir
+    ).decode("utf-8")
 
 
 pre_build_hook()
