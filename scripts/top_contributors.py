@@ -131,7 +131,13 @@ def generate_markdown_table(contributors: List[Dict[str, Any]], days: int) -> No
         print(f"No contributions found in the last {days} days.")
         return
 
-    print(f"## Top contributors in the last {days} days\n")
+    end_date = datetime.now(timezone.utc).date()
+    start_date = end_date - timedelta(days=days)
+
+    print(
+        f"## Top contributors in the last {days} days "
+        f"({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+    )
     print("| Contributor | Commits | Active Days |")
     print("|---|---|---|")
     for contributor in contributors:
