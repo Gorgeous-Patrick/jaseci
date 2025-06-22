@@ -28,7 +28,10 @@ class ModuleManager {
 
     """Update modules in JacProgram's hub and semantic managers."""
     def update(
-        self: ModuleManager, file_path: str, build: uni.Module, update_annexed: bool = True
+        self: ModuleManager,
+        file_path: str,
+        build: uni.Module,
+        update_annexed: bool = True
     ) -> None {
         file_path = file_path.removeprefix('file://');
         self.program.mod.hub[file_path] = build;
@@ -89,7 +92,10 @@ class JacLangServer(JacProgram , LanguageServer) {
 
     """Update modules in JacProgram's hub and semantic managers."""
     def update_modules(
-        self: JacLangServer, file_path: str, build: uni.Module, need: bool = True
+        self: JacLangServer,
+        file_path: str,
+        build: uni.Module,
+        need: bool = True
     ) -> None {
         self.log_py(f"'Updating modules for '{file_path}");
         self.module_manager.update(file_path, build, update_annexed=need);
@@ -104,9 +110,8 @@ class JacLangServer(JacProgram , LanguageServer) {
             build = self.compile(use_str=document.source, file_path=document.path);
             self.update_modules(file_path_fs, build, need=False);
             self.publish_diagnostics(
-                file_path, utils.gen_diagnostics(
-                    file_path, self.errors_had, self.warnings_had
-                )
+                file_path,
+                utils.gen_diagnostics(file_path, self.errors_had, self.warnings_had)
             );
             build_errors =
                 [ e for e in self.errors_had if e.loc.mod_path == file_path_fs ];
@@ -119,7 +124,9 @@ class JacLangServer(JacProgram , LanguageServer) {
 
     """Rebuild a file and its dependencies (typecheck)."""
     def deep_check(
-        self: JacLangServer, file_path: str, annex_view: Optional[str] = None
+        self: JacLangServer,
+        file_path: str,
+        annex_view: Optional[str] = None
     ) -> bool {
         try {
             start_time = time.time();
@@ -130,19 +137,22 @@ class JacLangServer(JacProgram , LanguageServer) {
             self.update_modules(file_path_fs, build);
             if build.annexable_by {
                 return self.deep_check(
-                    uris.from_fs_path(build.annexable_by), annex_view=file_path
+                    uris.from_fs_path(build.annexable_by),
+                    annex_view=file_path
                 );
             }
             self.publish_diagnostics(
-                annex_view if annex_view else file_path, utils.gen_diagnostics(
-                    annex_view if annex_view else file_path, self.errors_had, self.warnings_had
+                annex_view if annex_view else file_path,
+                utils.gen_diagnostics(
+                    annex_view if annex_view else file_path,
+                    self.errors_had,
+                    self.warnings_had
                 )
             );
             if annex_view {
                 self.publish_diagnostics(
-                    file_path, utils.gen_diagnostics(
-                        file_path, self.errors_had, self.warnings_had
-                    )
+                    file_path,
+                    utils.gen_diagnostics(file_path, self.errors_had, self.warnings_had)
                 );
             }
             self.log_py(
@@ -158,14 +168,18 @@ class JacLangServer(JacProgram , LanguageServer) {
     """Analyze and publish diagnostics."""
     async def launch_quick_check(self: JacLangServer, uri: str) -> bool {
         return await asyncio.get_event_loop().run_in_executor(
-            self.executor, self.quick_check, uri
+            self.executor,
+            self.quick_check,
+            uri
         );
     }
 
     """Analyze and publish diagnostics."""
     async def launch_deep_check(self: JacLangServer, uri: str) -> None {
         async def run_in_executor(
-            func: Callable[([str, Optional[str]], bool)], file_path: str, annex_view: Optional[str] = None
+            func: Callable[([str, Optional[str]], bool)],
+            file_path: str,
+            annex_view: Optional[str] = None
         ) -> None {
             loop = asyncio.get_event_loop();
             await loop.run_in_executor(self.executor, func, file_path, annex_view);
@@ -183,7 +197,10 @@ class JacLangServer(JacProgram , LanguageServer) {
 
     """Return completion for a file."""
     def get_completion(
-        self: JacLangServer, file_path: str, position: lspt.Position, completion_trigger: Optional[str]
+        self: JacLangServer,
+        file_path: str,
+        position: lspt.Position,
+        completion_trigger: Optional[str]
     ) -> lspt.CompletionList {
         try {
             document = self.workspace.get_text_document(file_path);
@@ -203,7 +220,9 @@ class JacLangServer(JacProgram , LanguageServer) {
             completion_items = [];
             node_selected =
                 utils.find_deepest_symbol_node_at_pos(
-                    mod_ir, position.line, (position.character - 2)
+                    mod_ir,
+                    position.line,
+                    (position.character - 2)
                 );
             mod_tab = mod_ir.sym_tab if not node_selected else node_selected.sym_tab;
             current_symbol_table = mod_tab;
@@ -254,7 +273,8 @@ class JacLangServer(JacProgram , LanguageServer) {
                         }
                     }
                     completion_items += utils.collect_all_symbols_in_scope(
-                        temp_tab, up_tree=False
+                        temp_tab,
+                        up_tree=False
                     );
                     if isinstance(temp_tab, uni.Archetype) and temp_tab.base_classes  {
                         base = [];
@@ -266,7 +286,8 @@ class JacLangServer(JacProgram , LanguageServer) {
                         for base_class_symbol in base {
                             if base_class_symbol.fetch_sym_tab {
                                 completion_items += utils.collect_all_symbols_in_scope(
-                                    base_class_symbol.fetch_sym_tab, up_tree=False
+                                    base_class_symbol.fetch_sym_tab,
+                                    up_tree=False
                                 );
                             }
                         }
@@ -278,7 +299,8 @@ class JacLangServer(JacProgram , LanguageServer) {
                 self_symbol =
 
                     [lspt.CompletionItem(
-                        label='self', kind=lspt.CompletionItemKind.Variable
+                        label='self',
+                        kind=lspt.CompletionItemKind.Variable
                     )];
             } else {
                 self_symbol = [];
@@ -316,7 +338,8 @@ class JacLangServer(JacProgram , LanguageServer) {
             document = self.workspace.get_text_document(file_path);
             formatted_text =
                 JacProgram.jac_str_formatter(
-                    source_str=document.source, file_path=document.path
+                    source_str=document.source,
+                    file_path=document.path
                 );
         } except Exception as e {
             self.log_error(f"'Error during formatting: '{e}");
@@ -325,16 +348,21 @@ class JacLangServer(JacProgram , LanguageServer) {
         return
         [lspt.TextEdit(
             range=lspt.Range(
-                start=lspt.Position(line=0, character=0), end=lspt.Position(
-                    line=(len(document.source.splitlines()) + 1), character=0
+                start=lspt.Position(line=0, character=0),
+                end=lspt.Position(
+                    line=(len(document.source.splitlines()) + 1),
+                    character=0
                 )
-            ), new_text=formatted_text
+            ),
+            new_text=formatted_text
         )];
     }
 
     """Return hover information for a file."""
     def get_hover_info(
-        self: JacLangServer, file_path: str, position: lspt.Position
+        self: JacLangServer,
+        file_path: str,
+        position: lspt.Position
     ) -> Optional[lspt.Hover] {
         file_path_fs = file_path.removeprefix('file://');
         if file_path_fs not in self.mod.hub {
@@ -354,7 +382,8 @@ class JacLangServer(JacProgram , LanguageServer) {
         if value {
             return lspt.Hover(
                 contents=lspt.MarkupContent(
-                    kind=lspt.MarkupKind.PlainText, value=f"{value}"
+                    kind=lspt.MarkupKind.PlainText,
+                    value=f"{value}"
                 )
             );
         }
@@ -398,7 +427,9 @@ class JacLangServer(JacProgram , LanguageServer) {
 
     """Return definition location for a file."""
     def get_definition(
-        self: JacLangServer, file_path: str, position: lspt.Position
+        self: JacLangServer,
+        file_path: str,
+        position: lspt.Position
     ) -> Optional[lspt.Location] {
         file_path_fs = file_path.removeprefix('file://');
         if file_path_fs not in self.mod.hub {
@@ -423,8 +454,10 @@ class JacLangServer(JacProgram , LanguageServer) {
                 if spec {
                     spec = spec[ 5 : ] if spec.startswith('File:') else spec;
                     return lspt.Location(
-                        uri=uris.from_fs_path(spec), range=lspt.Range(
-                            start=lspt.Position(line=0, character=0), end=lspt.Position(line=0, character=0)
+                        uri=uris.from_fs_path(spec),
+                        range=lspt.Range(
+                            start=lspt.Position(line=0, character=0),
+                            end=lspt.Position(line=0, character=0)
                         )
                     );
                 } else {
@@ -441,10 +474,13 @@ class JacLangServer(JacProgram , LanguageServer) {
                 if path and loc_range  {
                     path = path[ 5 : ] if path.startswith('File:') else path;
                     return lspt.Location(
-                        uri=uris.from_fs_path(path), range=lspt.Range(
+                        uri=uris.from_fs_path(path),
+                        range=lspt.Range(
                             start=lspt.Position(
-                                line=loc_range[0], character=loc_range[1]
-                            ), end=lspt.Position(line=loc_range[2], character=loc_range[3])
+                                line=loc_range[0],
+                                character=loc_range[1]
+                            ),
+                            end=lspt.Position(line=loc_range[2], character=loc_range[3])
                         )
                     );
                 }
@@ -485,7 +521,9 @@ class JacLangServer(JacProgram , LanguageServer) {
 
     """Return references for a file."""
     def get_references(
-        self: JacLangServer, file_path: str, position: lspt.Position
+        self: JacLangServer,
+        file_path: str,
+        position: lspt.Position
     ) -> <>list[lspt.Location] {
         file_path_fs = file_path.removeprefix('file://');
         if file_path_fs not in self.mod.hub {
@@ -504,7 +542,8 @@ class JacLangServer(JacProgram , LanguageServer) {
         if node_selected and node_selected.sym  {
             list_of_references: <>list[lspt.Location] =
                 [ lspt.Location(
-                    uri=uris.from_fs_path(<>node.loc.mod_path), range=utils.create_range(<>node.loc)
+                    uri=uris.from_fs_path(<>node.loc.mod_path),
+                    range=utils.create_range(<>node.loc)
                 ) for <>node in node_selected.sym.uses ];
             return list_of_references;
         }
@@ -513,7 +552,10 @@ class JacLangServer(JacProgram , LanguageServer) {
 
     """Rename a symbol in a file."""
     def rename_symbol(
-        self: JacLangServer, file_path: str, position: lspt.Position, new_name: str
+        self: JacLangServer,
+        file_path: str,
+        position: lspt.Position,
+        new_name: str
     ) -> Optional[lspt.WorkspaceEdit] {
         file_path_fs = file_path.removeprefix('file://');
         if file_path_fs not in self.mod.hub {
@@ -535,7 +577,8 @@ class JacLangServer(JacProgram , LanguageServer) {
                 key = uris.from_fs_path(<>node.loc.mod_path);
                 new_edit =
                     lspt.TextEdit(
-                        range=utils.create_range(<>node.loc), new_text=new_name
+                        range=utils.create_range(<>node.loc),
+                        new_text=new_name
                     );
                 utils.add_unique_text_edit(changes, key, new_edit);
             }
