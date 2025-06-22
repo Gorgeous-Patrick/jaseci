@@ -288,7 +288,7 @@ class DocIRGenPass(UniPass):
             elif in_params:
                 if isinstance(i, uni.Token) and i.name == Tok.COMMA:
                     indent_parts.append(i.gen.doc_ir)
-                    indent_parts.append(self.space())
+                    indent_parts.append(self.line())
                 else:
                     indent_parts.append(i.gen.doc_ir)
             else:
