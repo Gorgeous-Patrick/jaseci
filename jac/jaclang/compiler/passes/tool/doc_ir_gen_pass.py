@@ -577,49 +577,109 @@ class DocIRGenPass(UniPass):
     def exit_while_stmt(self, node: uni.WhileStmt) -> None:
         """Generate DocIR for while statements."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = [self.hard_line()]
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
+            if isinstance(node.body, Sequence) and self.is_within(i, node.body):
+                if i == node.body[0]:
+                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        parts.pop()
+        body_parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_in_for_stmt(self, node: uni.InForStmt) -> None:
         """Generate DocIR for for-in statements."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = [self.hard_line()]
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
+            if isinstance(node.body, Sequence) and self.is_within(i, node.body):
+                if i == node.body[0]:
+                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        parts.pop()
+        body_parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_iter_for_stmt(self, node: uni.IterForStmt) -> None:
         """Generate DocIR for iterative for statements."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = [self.hard_line()]
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
+            if isinstance(node.body, Sequence) and self.is_within(i, node.body):
+                if i == node.body[0]:
+                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        parts.pop()
+        body_parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_try_stmt(self, node: uni.TryStmt) -> None:
         """Generate DocIR for try statements."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = [self.hard_line()]
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
+            if isinstance(node.body, Sequence) and self.is_within(i, node.body):
+                if i == node.body[0]:
+                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        parts.pop()
+        body_parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_except(self, node: uni.Except) -> None:
         """Generate DocIR for except clauses."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = [self.hard_line()]
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
-        node.gen.doc_ir = self.concat(parts)
+            if isinstance(node.body, Sequence) and self.is_within(i, node.body):
+                if i == node.body[0]:
+                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        parts.pop()
+        body_parts.pop()
+        node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_finally_stmt(self, node: uni.FinallyStmt) -> None:
         """Generate DocIR for finally statements."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = [self.hard_line()]
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
+            if isinstance(node.body, Sequence) and self.is_within(i, node.body):
+                if i == node.body[0]:
+                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        parts.pop()
+        body_parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_tuple_val(self, node: uni.TupleVal) -> None:
@@ -663,10 +723,23 @@ class DocIRGenPass(UniPass):
     def exit_with_stmt(self, node: uni.WithStmt) -> None:
         """Generate DocIR for with statements."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = [self.hard_line()]
         for i in node.kid:
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
+            if isinstance(node.body, Sequence) and self.is_within(i, node.body):
+                if i == node.body[0]:
+                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.hard_line())
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+            elif isinstance(i, uni.Token) and i.name == Tok.COMMA:
+                parts.pop()
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
         parts.pop()
+        body_parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_list_compr(self, node: uni.ListCompr) -> None:
