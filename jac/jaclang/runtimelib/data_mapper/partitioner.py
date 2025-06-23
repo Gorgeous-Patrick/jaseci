@@ -56,9 +56,9 @@ def metis_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
     (edgecuts, parts) = metis.part_graph(
         metis.networkx_to_metis(graph),
         nparts=num_partitions,
-        recursive=True,
-        tpwgts=[1 / num_partitions] * num_partitions,
-        ufactor=30,
+        # recursive=True,
+        # tpwgts=[1 / num_partitions] * num_partitions,
+        # ufactor=30,
     )
     res = {}
     for i, name in enumerate(graph.nodes()):

@@ -1871,6 +1871,7 @@ class JacPIM:
             get_access_pattern,
             metis_partition,
             get_num_dpu_jumps,
+            random_partition,
         )
 
         all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
@@ -1893,15 +1894,17 @@ class JacPIM:
                     )
                 )
         access_pattern = get_access_pattern(network=graph, paths=traversal_paths)
-        num_dpus = 10
-        mapping = metis_partition(
+        num_dpus = 20
+        metis_mapping = metis_partition(
             access_pattern, min(num_dpus, access_pattern.number_of_nodes())
         )
         traces = [
             [all_nodes.index(node) for node in walker.__jac__.trace]
             for walker in walkers
         ]
-        print("Num DPU Cross DPU Jumps", get_num_dpu_jumps(mapping, traces))
+        print("Num DPU Cross DPU Jumps (Metis)", get_num_dpu_jumps(metis_mapping, traces))
+        random_mapping = [get_num_dpu_jumps(random_partition(access_pattern, min(num_dpus, access_pattern.number_of_nodes())), traces)for _ in range(10)]
+        print("Num DPU Cross DPU Jumps (Random)", sum(random_mapping) / len(random_mapping))
 
 
 class JacMachineInterface(
