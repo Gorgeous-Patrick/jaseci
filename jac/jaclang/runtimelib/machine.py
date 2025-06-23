@@ -490,9 +490,11 @@ class JacWalker:
         node: NodeAnchor | EdgeAnchor,
     ) -> WalkerArchetype:
         """Jac's spawn operator feature."""
+        from .data_mapper import calculate_size
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
+        print(calculate_size(walker.archetype))
 
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
@@ -1873,6 +1875,8 @@ class JacPIM:
             get_num_dpu_jumps,
             random_partition,
         )
+        import time
+        start = time.time()
 
         all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
         graph = JacPIM.get_networkx(all_nodes, all_edges)
@@ -1898,6 +1902,9 @@ class JacPIM:
         metis_mapping = metis_partition(
             access_pattern, min(num_dpus, access_pattern.number_of_nodes())
         )
+        
+        end = time.time()
+        print("Mapping took (seconds):", end - start)
         traces = [
             [all_nodes.index(node) for node in walker.__jac__.trace]
             for walker in walkers
