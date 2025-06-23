@@ -1340,3 +1340,16 @@ class JacLanguageTests(TestCase):
             )
             self.assertEqual(proc.returncode, 0, proc.stderr)
             self.assertEqual(proc.stdout.strip(), "via meta")
+
+    def test_spawn_loc_list(self) -> None:
+        """Test spawning a walker on list of nodes."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("spawn_loc_list", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertIn("I am here MyNode(val=5)", stdout_value[0])
+        self.assertIn("I am here MyNode(val=15)", stdout_value[2])
+        self.assertIn("I am here MyNode(val=20)", stdout_value[3])
+        self.assertIn("I am here MyEdge(val=100)", stdout_value[5])
+        self.assertIn("I am here MyNode(val=30)", stdout_value[6])
