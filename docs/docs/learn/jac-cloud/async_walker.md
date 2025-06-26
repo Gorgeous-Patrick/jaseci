@@ -20,6 +20,7 @@ async walker sample {
 ```
 
 Key characteristics:
+
 - Executes in a separate thread without blocking the main application
 - Returns immediately with a reference ID while continuing execution in the background
 - Similar to task scheduling but with a simpler syntax
@@ -38,8 +39,8 @@ When you call an async walker, you receive a response containing the walker's un
 
 ```json
 {
-    "status": 200,
-    "walker_id": "w:sample:550e8400-e29b-41d4-a716-446655440000"
+  "status": 200,
+  "walker_id": "w:sample:550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -77,17 +78,19 @@ walker view_sample_result {
 
 The `__jac__.schedule` object contains all execution metadata:
 
-| **Field** | **Description** |
-|-----------|-----------------|
-| `status` | Current execution status (pending, running, completed, failed) |
-| `node_id` | ID of the node where the walker was executed |
-| `root_id` | ID of the root node of the user who triggered the walker |
-| `execute_date` | When the walker was scheduled to execute |
-| `executed_date` | When the walker actually executed |
-| `http_status` | HTTP status code for the execution result |
-| `reports` | Any values reported during walker execution |
-| `custom` | Custom metadata associated with the walker |
-| `error` | Error message if execution failed |
+| **Field**       | **Description**                                                |
+| --------------- | -------------------------------------------------------------- |
+| `status`        | Current execution status (pending, running, completed, failed) |
+| `node_id`       | ID of the node where the walker was executed                   |
+| `root_id`       | ID of the root node of the user who triggered the walker       |
+| `execute_date`  | When the walker was scheduled to execute                       |
+| `executed_date` | When the walker actually executed                              |
+| `http_status`   | HTTP status code for the execution result                      |
+| `reports`       | Any values reported during walker execution                    |
+| `custom`        | Custom metadata associated with the walker                     |
+| `error`         | Error message if execution failed                              |
+
+### Even though those fields are available, we still recommend using a walker's attribute as your status checker for more customizable and direct status updates.
 
 ## Example: Long-Running Process
 
