@@ -210,7 +210,7 @@ def execute_react(
             model_params["media"] = None
         meaning_out = model(meaning_typed_input, **model_params)  # type: ignore
         react_output: ReActOutput = model.resolve_react_output(
-            meaning_out, _globals, _locals, tool_prompt, type_explanations_str
+            meaning_out, _globals, _locals
         )
         if model.verbose:
             logger.info(f"React Output\n{react_output}")

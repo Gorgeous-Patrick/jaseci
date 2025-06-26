@@ -1,7 +1,17 @@
 """Plugin for Jac's with_llm feature."""
 
 import ast as ast3
-from typing import Any, Callable, Mapping, Optional, Sequence, cast
+import inspect
+from typing import (
+    Any,
+    Callable,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeAlias,
+    cast,
+    get_type_hints,
+)
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.passes.main.pyast_gen_pass import PyastGenPass
@@ -13,7 +23,15 @@ from mtllm.aott import (
     aott_raise,
     get_all_type_explanations,
 )
-from mtllm.llms.base import BaseLLM
+from mtllm.llms.base import (
+    BaseLLM,
+    CompletionRequest,
+    INSTRUCTION_TOOL,
+    Message,
+    MessageRole,
+    SYSTEM_PERSONA,
+    Tool as newTool,
+)
 from mtllm.semtable import SemInfo, SemRegistry, SemScope
 from mtllm.types import Information, InputInformation, OutputHint, Tool
 
@@ -131,6 +149,38 @@ def callable_to_tool(tool: Callable, mod_registry: SemRegistry) -> Tool:
     return Tool(tool, tool_info, tool_info.get_children(mod_registry, uni.ParamVar))
 
 
+FuncSemStr: TypeAlias = tuple[str, dict[str, str]]  # (func_semstr, param_semstr)
+
+
+def semstr_of_func(func: Callable, scope: str) -> FuncSemStr:
+    """Get the semstr of a function as a Tool."""
+    if hasattr(func, "__semstrs__"):
+        return func.__semstrs__  # type: ignore
+    # -------------------------------------------------------------------------
+    # FIXME: This entire SemScope, SemRegistry is here to get the function
+    # Get them from the Jac Machine itself and remove the SemRegistry completely.
+    program_head = Jac.program.mod
+    _scope = SemScope.get_scope_from_str(scope) or SemScope(
+        program_head.main.name, "Module", None
+    )
+    mod_registry = SemRegistry(program_head=program_head, by_scope=_scope)
+    _, tool_info = mod_registry.lookup(name=func.__name__)
+    assert isinstance(tool_info, SemInfo)
+    params_info = tool_info.get_children(mod_registry, uni.ParamVar)
+    # -------------------------------------------------------------------------
+    func_semstr = tool_info.semstr or func.__doc__ or ""
+    param_semstr = {info.name: info.semstr for info in params_info}
+    # Cache the output.
+    func.__semstrs__ = (func_semstr, param_semstr)  # type: ignore
+    return func_semstr, param_semstr
+
+
+def tool_from_function(func: Callable, scope: str) -> newTool:
+    """Create a new Tool from a function."""
+    desc, param_desc = semstr_of_func(func, scope)
+    return newTool(func, desc, param_desc)
+
+
 class JacMachine:
     """Jac's with_llm feature."""
 
@@ -152,6 +202,60 @@ class JacMachine:
         _locals: Mapping,
     ) -> Any:  # noqa: ANN401
         """Jac's with_llm feature."""
+        # FIXME: This is incremental change only did for the ollama models.
+        # Everything else will remain the older way.
+        if getattr(model, "model_name", None) in ("llama3.2:1b", "llama3.2:3b"):
+            # ['with_llm', '_multicall', '_hookexec', '__call__', 'proxy', 'caller', ... ]
+            #  0            1            2             3           4        5
+            caller_frame = inspect.stack()[5]
+            function_name = caller_frame.function
+            frame = caller_frame.frame
+            function: Callable = frame.f_locals.get(function_name) or frame.f_globals[function_name]  # type: ignore
+            output_type = get_type_hints(function).get("return")
+
+            tools = [
+                tool_from_function(func, scope)
+                for func in model_params.pop("tools", [])
+            ]
+
+            semstr, _ = semstr_of_func(function, scope)
+            messages = [
+                Message(
+                    role=MessageRole.SYSTEM,
+                    content=SYSTEM_PERSONA + (INSTRUCTION_TOOL if tools else ""),
+                ),
+                Message(
+                    role=MessageRole.USER,
+                    content=(
+                        semstr
+                        + "\n\n"
+                        + "\n".join(
+                            [f"{name} = {value}" for _, _, name, value in inputs]
+                        )
+                    ),
+                ),
+            ]
+
+            req = CompletionRequest(
+                messages=messages,
+                tools=tools,
+                resp_type=output_type,
+                params={},
+            )
+
+            while True:
+                resp = model.completion(req)
+                if resp.tool_calls:
+                    for tool_call in resp.tool_calls:
+                        if tool_call.is_finish_tool():
+                            return tool_call.get_output()
+                        else:
+                            req.add_message(tool_call())
+                else:
+                    break
+
+            return resp.output
+
         program_head = Jac.program.mod
         _scope = SemScope.get_scope_from_str(scope) or SemScope(
             program_head.main.name, "Module", None
@@ -163,7 +267,7 @@ class JacMachine:
 
         assert _scope is not None, f"Invalid scope: {scope}"
 
-        method = model_params.pop("method") if "method" in model_params else "Normal"
+        method = model_params.pop("method") if "method" in model_params else "Normal"  # type: ignore
         is_custom = (
             model_params.pop("is_custom") if "is_custom" in model_params else False
         )
@@ -192,12 +296,9 @@ class JacMachine:
         output = outputs[0] if isinstance(outputs, list) else outputs
         output_hint = OutputHint(output[0], output[1])
         type_collector.extend(output_hint.get_types())
-        output_type_explanations = get_all_type_explanations(
-            output_hint.get_types(), mod_registry
-        )
         type_explanations = get_all_type_explanations(type_collector, mod_registry)
 
-        tools = model_params.pop("tools") if "tools" in model_params else None
+        tools = model_params.pop("tools") if "tools" in model_params else None  # type: ignore
         if method == "ReAct":
             assert tools, "Tools must be provided for the ReAct method."
             _tools = [
@@ -222,14 +323,10 @@ class JacMachine:
             _globals,
             _locals,
         )
-        _output = (
-            model.resolve_output(
-                meaning_out, output_hint, output_type_explanations, _globals, _locals
-            )
-            if not raw_output
-            else meaning_out
-        )
-        return _output
+        if raw_output:
+            return meaning_out
+        _eval_output = output_hint.type != "str"
+        return model.resolve_output(meaning_out, _eval_output, _globals, _locals)
 
     # -------------------------------------------------------------------------
     # Python code generation
