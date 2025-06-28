@@ -1,726 +1,630 @@
-### Chapter 13: Distributed Jac Applications
+# Chapter 13: Persistence and the Root Node
 
-The true power of Jac's scale-agnostic programming model shines when applications need to scale beyond a single machine. This chapter explores how Jac applications naturally distribute across multiple machines without requiring code changes, maintaining the same topological programming model at planetary scale.
+In this chapter, we'll explore Jac's automatic persistence system and the fundamental concept of the root node. We'll build a simple counter application that demonstrates how Jac automatically maintains state when running as a service with a database backend.
 
-#### 13.1 Distribution Concepts
+!!! info "What You'll Learn"
+    - Understanding Jac's automatic persistence mechanism with jac serve
+    - The root node as the entry point for all persistent data
+    - State consistency across API requests and service restarts
+    - Building stateful applications with jac-cloud
 
-### Topology-Aware Distribution
+---
 
-In traditional distributed systems, developers must explicitly handle network communication, data partitioning, and fault tolerance. Jac's topological model treats distribution as a natural extension of the graph structure:
+## What is Automatic Persistence?
 
-```mermaid
-graph TB
-    subgraph "Logical View (What You Write)"
-        LU1[User A Root]
-        LU2[User B Root]
-        LU3[User C Root]
-        LP1[Profile]
-        LP2[Profile]
-        LP3[Profile]
-        LPosts1[Posts...]
-        LPosts2[Posts...]
-        LPosts3[Posts...]
+Traditional programming requires explicit database setup, connection management, and data serialization. Jac eliminates this complexity by making persistence a core language feature when running as a service. When you use `jac serve` with a database backend, nodes and their connections automatically persist across requests and service restarts.
 
-        LU1 --> LP1 --> LPosts1
-        LU2 --> LP2 --> LPosts2
-        LU3 --> LP3 --> LPosts3
+!!! warning "Persistence Requirements"
+    - **Database Backend**: Persistence requires `jac serve` with a configured database
+    - **Service Mode**: `jac run` executions are stateless and don't persist data
+    - **Root Connection**: Nodes must be connected to root to persist
+    - **API Context**: Persistence works within the context of API endpoints
 
-        LP1 -.->|Follows| LP2
-        LP2 -.->|Follows| LP3
-        LP3 -.->|Follows| LP1
-    end
+!!! success "Persistence Benefits"
+    - **Zero Configuration**: No manual database schema or ORM setup
+    - **Automatic State**: Data persists without explicit save/load operations
+    - **Graph Integrity**: Relationships between nodes are maintained
+    - **Type Safety**: Persistent data maintains type information
+    - **Instant Recovery**: Services resume exactly where they left off
 
-    subgraph "Physical View (How It Runs)"
-        subgraph "Machine A"
-            U1[User A Root]
-            P1[Profile]
-            Posts1[Posts...]
-            U1 --> P1 --> Posts1
-        end
+### Traditional vs Jac Persistence
 
-        subgraph "Machine B"
-            U2[User B Root]
-            P2[Profile]
-            Posts2[Posts...]
-            U2 --> P2 --> Posts2
-        end
+!!! example "Persistence Comparison"
+    === "Traditional Approach"
+        ```python
+        # counter_api.py - Manual database setup required
+        from flask import Flask, jsonify, request
+        import sqlite3
+        import os
 
-        subgraph "Machine C"
-            U3[User C Root]
-            P3[Profile]
-            Posts3[Posts...]
-            U3 --> P3 --> Posts3
-        end
+        app = Flask(__name__)
 
-        P1 -.->|Cross-Machine<br/>Edge| P2
-        P2 -.->|Cross-Machine<br/>Edge| P3
-        P3 -.->|Cross-Machine<br/>Edge| P1
-    end
+        class Counter:
+            def __init__(self):
+                self.db_path = "counter.db"
+                self.init_db()
 
-    style LU1 fill:#e8f5e9
-    style LU2 fill:#e3f2fd
-    style LU3 fill:#fce4ec
-    style U1 fill:#e8f5e9
-    style U2 fill:#e3f2fd
-    style U3 fill:#fce4ec
-```
+            def init_db(self):
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS counter (
+                        id INTEGER PRIMARY KEY,
+                        value INTEGER
+                    )
+                ''')
+                cursor.execute('SELECT value FROM counter WHERE id = 1')
+                if not cursor.fetchone():
+                    cursor.execute('INSERT INTO counter (id, value) VALUES (1, 0)')
+                conn.commit()
+                conn.close()
 
-### Key Distribution Principles
+            def get_value(self):
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute('SELECT value FROM counter WHERE id = 1')
+                value = cursor.fetchone()[0]
+                conn.close()
+                return value
 
-1. **Location Transparency**: Code doesn't know or care where nodes physically reside
-2. **Automatic Partitioning**: Jac runtime handles data distribution based on access patterns
-3. **Seamless Walker Migration**: Walkers traverse cross-machine edges naturally
-4. **Consistent Semantics**: Same behavior whether local or distributed
+            def increment(self):
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute('UPDATE counter SET value = value + 1 WHERE id = 1')
+                conn.commit()
+                conn.close()
+                return self.get_value()
 
-### Automatic Node Partitioning
+        counter = Counter()
 
-Jac automatically partitions nodes across machines based on several strategies:
+        @app.route('/counter')
+        def get_counter():
+            return jsonify({"value": counter.get_value()})
 
-```jac
-// This configuration goes in jac.toml
-[distribution]
-strategy = "user_affinity"  // or "load_balanced", "geo_distributed"
-replication_factor = 3
-consistency_level = "eventual"  // or "strong", "bounded"
+        @app.route('/counter/increment', methods=['POST'])
+        def increment_counter():
+            new_value = counter.increment()
+            return jsonify({"value": new_value})
 
-[distribution.rules]
-# Keeps user data together
-affinity_paths = [
-    "root -> Profile",
-    "Profile -> Post",
-    "Post -> Comment"
-]
+        if __name__ == "__main__":
+            app.run(debug=True)
+        ```
 
-# Distributes shared data
-distributed_types = [
-    "SharedResource",
-    "GlobalConfig"
-]
-```
+    === "Jac Automatic Persistence"
+        ```jac
+        # main.jac - No database setup needed
+        node Counter {
+            has value: int = 0;
 
-### Cross-Machine Edges
+            can increment() -> int {
+                self.value += 1;
+                return self.value;
+            }
 
-Edges that span machines are handled transparently:
-
-```jac
-// This code works identically for local and cross-machine edges!
-walker MessageSender {
-    has message: str;
-    has recipient: User;
-
-    can send with entry {
-        // Even if recipient is on another machine, this just works
-        here ++> Message(
-            content=self.message,
-            from_user=here,
-            to_user=self.recipient,
-            timestamp=now()
-        );
-
-        // Visit recipient's node (automatic cross-machine travel)
-        visit self.recipient;
-    }
-
-    can notify with User entry {
-        // Now executing on recipient's machine!
-        here ++> Notification(
-            type="new_message",
-            message=self.message
-        );
-    }
-}
-```
-
-### Distribution Metadata
-
-Jac provides built-in functions to inspect distribution:
-
-```jac
-// Check node location
-can get_node_info(n: node) -> dict {
-    return {
-        "machine_id": n.__machine_id__,
-        "partition": n.__partition__,
-        "replicas": n.__replicas__,
-        "is_local": n.__is_local__
-    };
-}
-
-// Monitor cross-machine edges
-walker DistributionAnalyzer {
-    has cross_machine_count: int = 0;
-    has local_count: int = 0;
-
-    can analyze with entry {
-        for edge in [<-->] {
-            if edge.__is_cross_machine__ {
-                self.cross_machine_count += 1;
-            } else {
-                self.local_count += 1;
+            can get_value() -> int {
+                return self.value;
             }
         }
 
-        report {
-            "node": here,
-            "local_edges": self.local_count,
-            "remote_edges": self.cross_machine_count,
-            "distribution_score": self.local_count / (self.local_count + self.cross_machine_count)
-        };
-    }
-}
-```
-
-#### 13.2 Scaling Patterns
-
-### From Single-Machine to Distributed
-
-The beauty of Jac is that the same code scales naturally. Here's a social media application that works identically from one to thousands of machines:
-
-```jac
-// User profile and social graph
-node UserProfile {
-    has username: str;
-    has bio: str;
-    has joined_date: str;
-    has post_count: int = 0;
-}
-
-node Post {
-    has content: str;
-    has timestamp: str;
-    has likes: int = 0;
-    has view_count: int = 0;
-}
-
-edge Follows {
-    has since: str;
-    has notifications_enabled: bool = true;
-}
-
-edge Likes {
-    has timestamp: str;
-}
-
-// This walker works across any number of machines!
-walker CreatePost {
-    has content: str;
-
-    can create with UserProfile entry {
-        // Create post (stays on same machine as user)
-        new_post = here ++> Post(
-            content=self.content,
-            timestamp=now()
-        );
-
-        here.post_count += 1;
-
-        // Notify followers (may span many machines)
-        spawn NotifyFollowers(post=new_post) on here;
-    }
-}
-
-walker NotifyFollowers {
-    has post: Post;
-    has notified_count: int = 0;
-
-    can notify with UserProfile entry {
-        // Get all followers (some local, some remote)
-        followers = [<--:Follows:];
-
-        // Spawn notification walkers (distributed automatically)
-        for follower in followers {
-            if follower.notifications_enabled {
-                spawn CreateNotification(
-                    post=self.post,
-                    user=follower.source  // The following user
-                ) on follower.source;
-
-                self.notified_count += 1;
+        walker get_counter {
+            can get_counter_endpoint with `root entry {
+                counter_nodes = [root --> Counter];
+                if not counter_nodes {
+                    counter = Counter();
+                    root ++> counter;
+                } else {
+                    counter = counter_nodes[0];
+                }
+                report {"value": counter.get_value()};
             }
         }
 
-        report {
-            "post": self.post,
-            "notified": self.notified_count
-        };
-    }
-}
+        walker increment_counter {
+            can increment_counter_endpoint with `root entry {
+                counter_nodes = [root --> Counter];
+                if not counter_nodes {
+                    counter = Counter();
+                    root ++> counter;
+                } else {
+                    counter = counter_nodes[0];
+                }
+                new_value = counter.increment();
+                report {"value": new_value};
+            }
+        }
+        ```
 
-walker CreateNotification {
-    has post: Post;
-    has user: UserProfile;
+---
 
-    can create with UserProfile entry {
-        // This executes on the follower's machine
-        here ++> Notification(
-            type="new_post",
-            post=self.post,
-            timestamp=now(),
-            read=false
-        );
-    }
-}
-```
+## Setting Up a Jac Cloud Project
 
-### Load Balancing Through Topology
+To demonstrate persistence, we need to create a proper jac-cloud project structure:
 
-Jac can automatically balance load by redistributing nodes:
+!!! example "Project Structure"
+    ```
+    counter-app/
+    ├── .env                 # Environment configuration
+    ├── main.jac            # Main application logic
+    ├── server.py           # Optional custom server setup
+    └── requirements.txt    # Python dependencies
+    ```
 
-```jac
-// Configuration for automatic load balancing
-[distribution.load_balancing]
-enabled = true
-check_interval = 60  // seconds
-threshold_cpu = 0.8
-threshold_memory = 0.85
-threshold_edge_latency = 100  // ms
+Let's create our counter application:
 
-// Nodes can provide hints for distribution
-node ComputeIntensiveTask {
-    has priority: int;
-    has estimated_cpu_hours: float;
-    has data_size_gb: float;
+!!! example "Complete Counter Project"
+    === ".env"
+        ```bash
+        # .env - Database configuration
+        DATABASE_URL=sqlite:///./app.db
+        SECRET_KEY=your-secret-key-here
+        ```
 
-    // Distribution hints
-    :distribution: {
-        "prefer_high_cpu": true,
-        "collocate_with": ["TaskData", "TaskResult"],
-        "avoid_machines": ["low_memory_tier"]
-    }
-}
+    === "main.jac"
+        ```jac
+        # main.jac
+        node Counter {
+            has value: int = 0;
+            has created_at: str;
 
-// Monitor and rebalance
-walker LoadBalancer {
-    can check_balance with entry {
-        let machine_stats = get_cluster_stats();
+            can increment() -> int {
+                self.value += 1;
+                return self.value;
+            }
 
-        for machine in machine_stats {
-            if machine.cpu_usage > 0.8 {
-                // Find nodes to migrate
-                candidates = get_migration_candidates(machine);
-                target_machine = find_least_loaded_machine();
+            can reset() -> int {
+                self.value = 0;
+                return self.value;
+            }
+        }
 
-                for node in candidates[:5] {  // Migrate up to 5 nodes
-                    migrate_node(node, target_machine);
+        walker get_counter {
+            can get_counter_endpoint with `root entry {
+                counter_nodes = [root --> Counter];
+                if not counter_nodes {
+                    counter = Counter(created_at="2024-01-15");
+                    root ++> counter;
+                    report {"value": 0, "status": "created"};
+                } else {
+                    counter = counter_nodes[0];
+                    report {"value": counter.value, "status": "existing"};
                 }
             }
         }
-    }
-}
-```
 
-### Fault Tolerance and Recovery
-
-Jac provides built-in fault tolerance through replication and automatic recovery:
-
-```jac
-// Configure replication
-node CriticalData {
-    has data: dict;
-    has version: int = 0;
-
-    :replication: {
-        "factor": 3,
-        "sync_mode": "async",  // or "sync" for strong consistency
-        "preferred_regions": ["us-east", "eu-west", "ap-south"]
-    }
-}
-
-// Automatic failover handling
-walker ResilientOperation {
-    has max_retries: int = 3;
-    has retry_count: int = 0;
-
-    can operate with entry {
-        try {
-            // Normal operation
-            result = process_critical_data(here);
-            report {"success": true, "result": result};
-
-        } except NodeUnavailableError as e {
-            // Automatic failover to replica
-            self.retry_count += 1;
-
-            if self.retry_count < self.max_retries {
-                // Jac automatically redirects to healthy replica
-                visit here.__replica__;  // Transparent failover
-            } else {
-                report {"success": false, "error": "All replicas failed"};
+        walker increment_counter {
+            can increment_counter_endpoint with `root entry {
+                counter_nodes = [root --> Counter];
+                if not counter_nodes {
+                    counter = Counter(created_at="2024-01-15");
+                    root ++> counter;
+                } else {
+                    counter = counter_nodes[0];
+                }
+                new_value = counter.increment();
+                report {"value": new_value, "previous": new_value - 1};
             }
         }
-    }
-}
 
-// Health monitoring
-walker HealthChecker {
-    can check with entry {
-        let health = {
-            "node": here,
-            "status": "healthy",
-            "checks": {}
-        };
-
-        // Check node health
-        try {
-            health["checks"]["data_integrity"] = verify_data_integrity(here);
-            health["checks"]["connection_count"] = len([<-->]);
-            health["checks"]["response_time"] = measure_response_time();
-
-        } except Exception as e {
-            health["status"] = "unhealthy";
-            health["error"] = str(e);
-
-            // Trigger automatic recovery
-            initiate_recovery(here);
-        }
-
-        report health;
-    }
-}
-```
-
-### Geo-Distribution Patterns
-
-Deploy Jac applications globally with location-aware distribution:
-
-```jac
-// Geo-distributed configuration
-[distribution.geo]
-enabled = true
-regions = ["us-east-1", "eu-west-1", "ap-southeast-1"]
-default_region = "us-east-1"
-
-// Location-aware nodes
-node GeoUser {
-    has username: str;
-    has preferred_region: str;
-    has data_residency: str;  // Legal requirement
-
-    :geo: {
-        "pin_to_region": self.data_residency,
-        "cache_in_regions": [self.preferred_region],
-        "exclude_regions": []  // For compliance
-    }
-}
-
-// Cross-region walker with latency awareness
-walker GlobalSearch {
-    has query: str;
-    has max_latency_ms: int = 200;
-    has results: list = [];
-
-    can search with entry {
-        let regions = get_all_regions();
-        let local_region = here.__region__;
-
-        // Search local region first
-        local_results = search_region(local_region, self.query);
-        self.results.extend(local_results);
-
-        // Search remote regions in parallel
-        for region in regions {
-            if region != local_region {
-                expected_latency = estimate_latency(local_region, region);
-
-                if expected_latency < self.max_latency_ms {
-                    spawn RegionalSearch(
-                        query=self.query,
-                        region=region
-                    ) on get_region_root(region);
+        walker reset_counter {
+            can reset_counter_endpoint with `root entry {
+                counter_nodes = [root --> Counter];
+                if counter_nodes {
+                    counter = counter_nodes[0];
+                    counter.reset();
+                    report {"value": 0, "status": "reset"};
+                } else {
+                    report {"value": 0, "status": "no_counter_found"};
                 }
             }
         }
-    }
-}
+        ```
 
-// Regional caching for performance
-node CachedContent {
-    has content: str;
-    has cache_regions: list[str] = [];
+    === "requirements.txt"
+        ```
+        jaclang
+        fastapi
+        uvicorn
+        python-dotenv
+        ```
 
-    can ensure_cached_in(region: str) {
-        if region not in self.cache_regions {
-            replicate_to_region(self, region);
-            self.cache_regions.append(region);
-        }
-    }
-}
+---
+
+## The Root Node Concept
+
+The root node is Jac's fundamental concept for persistent data organization. When running with `jac serve`, every request has access to a special `root` node that serves as the entry point for all persistent graph structures.
+
+### Understanding Root Node
+
+!!! info "Root Node Properties"
+    - **Request Context**: Available in every API request when using jac serve
+    - **Persistence Gateway**: Starting point for all persistent data
+    - **Graph Anchor**: All persistent nodes must be reachable from root
+    - **Automatic Creation**: Exists automatically with database backend
+    - **Transaction Boundary**: Changes persist at the end of each request
+
+### Running the Service
+
+```bash
+# Navigate to project directory
+cd counter-app
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the service with database persistence
+jac serve main.jac
+
+# Service starts on http://localhost:8000
+# API documentation available at http://localhost:8000/docs
 ```
 
-### Distributed Transactions
+### Testing Persistence
 
-Jac handles distributed transactions transparently:
+```bash
+# First request - Create counter
+curl -X POST http://localhost:8000/walker/get_counter \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# Response: {"returns": [{"value": 0, "status": "created"}]}
 
-```jac
-// Distributed transaction example
-walker TransferCredits {
-    has from_user: User;
-    has to_user: User;
-    has amount: int;
+# Increment the counter
+curl -X POST http://localhost:8000/walker/increment_counter \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# Response: {"returns": [{"value": 1, "previous": 0}]}
 
-    can transfer with entry {
-        // Start distributed transaction
-        :transaction: {
-            "isolation": "serializable",
-            "timeout": 5000,  // ms
-            "retry_on_conflict": true
-        }
+# Increment again
+curl -X POST http://localhost:8000/walker/increment_counter \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# Response: {"returns": [{"value": 2, "previous": 1}]}
 
-        // These operations are atomic across machines!
-        try {
-            // Debit from source (might be on machine A)
-            visit self.from_user {
-                if here.credits < self.amount {
-                    raise InsufficientCreditsError();
-                }
-                here.credits -= self.amount;
-            };
+# Check counter value
+curl -X POST http://localhost:8000/walker/get_counter \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# Response: {"returns": [{"value": 2, "status": "existing"}]}
 
-            // Credit to destination (might be on machine B)
-            visit self.to_user {
-                here.credits += self.amount;
-            };
+# Restart the service (Ctrl+C, then jac serve main.jac again)
 
-            // Log transaction (might be on machine C)
-            spawn LogTransaction(
-                from_user=self.from_user,
-                to_user=self.to_user,
-                amount=self.amount,
-                status="completed"
-            ) on get_transaction_log_node();
-
-            :commit:;  // Commit distributed transaction
-
-        } except Exception as e {
-            :rollback:;  // Automatic rollback across all machines
-            report {"success": false, "error": str(e)};
-        }
-    }
-}
+# Counter value persists after restart
+curl -X POST http://localhost:8000/walker/get_counter \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# Response: {"returns": [{"value": 2, "status": "existing"}]}
 ```
 
-### Scaling Patterns in Practice
+!!! tip "Persistence in Action"
+    Notice how the counter value persists between requests and even service restarts when using `jac serve` with a database!
 
-Here's a complete example of a distributed task processing system:
+---
 
-```jac
-// Distributed task queue implementation
-node TaskQueue {
-    has name: str;
-    has priority: int;
+## State Consistency
 
-    :distribution: {
-        "partition_by": "priority",
-        "replicas": 2
-    }
-}
+Jac maintains state consistency through its graph-based persistence model when running as a service. All connected nodes and their relationships are automatically maintained across requests and service restarts.
 
-node Task {
-    has id: str;
-    has payload: dict;
-    has status: str = "pending";
-    has assigned_worker: str = "";
-    has created_at: str;
-    has completed_at: str = "";
+### Enhanced Counter with History
 
-    :distribution: {
-        "collocate_with_parent": true  // Stay with queue
-    }
-}
+Let's enhance our counter to track increment history:
 
-edge InQueue {
-    has position: int;
-    has enqueued_at: str;
-}
+!!! example "Counter with History Tracking"
+    ```jac
+    # main.jac - Enhanced with history
+    import from datetime { datetime };
 
-// Distributed worker pool
-walker TaskWorker {
-    has worker_id: str;
-    has capabilities: list[str];
-    has max_concurrent: int = 5;
-    has current_tasks: list[Task] = [];
+    node Counter {
+        has value: int = 0;
+        has created_at: str;
 
-    can find_work with entry {
-        // Find available task queues across cluster
-        queues = find_all_nodes(TaskQueue);
+        can increment() -> int {
+            old_value = self.value;
+            self.value += 1;
 
-        // Sort by priority and machine locality
-        queues.sort(key=lambda q: (-q.priority, q.__is_local__));
-
-        for queue in queues {
-            if len(self.current_tasks) >= self.max_concurrent {
-                break;
-            }
-
-            visit queue;
-        }
-
-        // Process tasks in parallel
-        for task in self.current_tasks {
-            spawn ProcessTask(
-                task=task,
-                worker=self
-            ) on task;
-        }
-    }
-
-    can claim_task with TaskQueue entry {
-        // Atomic task claiming across distributed queue
-        :transaction: {
-            available_tasks = [-->:InQueue:-->:Task:]
-                .filter(lambda t: t.status == "pending")
-                .sort(key=lambda t: t.position);
-
-            if available_tasks {
-                task = available_tasks[0];
-                task.status = "processing";
-                task.assigned_worker = self.worker_id;
-                self.current_tasks.append(task);
-
-                // Remove from queue
-                del here --> task;
-            }
-        :commit:;
-        }
-    }
-}
-
-walker ProcessTask {
-    has task: Task;
-    has worker: TaskWorker;
-
-    can process with Task entry {
-        try {
-            // Process the task
-            result = execute_task_payload(here.payload);
-
-            here.status = "completed";
-            here.completed_at = now();
-
-            // Store result (might be on different machine)
-            here ++> TaskResult(
-                result=result,
-                worker_id=self.worker.worker_id,
-                completed_at=now()
+            # Create history entry
+            history = HistoryEntry(
+                timestamp=str(datetime.now()),
+                old_value=old_value,
+                new_value=self.value
             );
+            self ++> history;
+            return self.value;
+        }
 
-            // Update worker
-            self.worker.current_tasks.remove(here);
-
-        } except Exception as e {
-            here.status = "failed";
-            here ++> TaskError(
-                error=str(e),
-                traceback=get_traceback()
-            );
-
-            // Requeue for retry
-            find_queue(here.priority) ++>:InQueue:++> here;
+        can get_history() -> list[dict] {
+            history_nodes = [self --> HistoryEntry];
+            return [
+                {
+                    "timestamp": h.timestamp,
+                    "old_value": h.old_value,
+                    "new_value": h.new_value
+                }
+                for h in history_nodes
+            ];
         }
     }
-}
 
-// Monitoring across distributed system
-walker SystemMonitor {
-    can monitor with entry {
-        let stats = {
-            "total_tasks": 0,
-            "pending": 0,
-            "processing": 0,
-            "completed": 0,
-            "failed": 0,
-            "machines": {},
-            "queue_depths": {}
-        };
+    node HistoryEntry {
+        has timestamp: str;
+        has old_value: int;
+        has new_value: int;
+    }
 
-        // Gather stats from all machines
-        all_tasks = find_all_nodes(Task);
-
-        for task in all_tasks {
-            stats["total_tasks"] += 1;
-            stats[task.status] += 1;
-
-            machine = task.__machine_id__;
-            if machine not in stats["machines"] {
-                stats["machines"][machine] = {"count": 0, "processing": 0};
-            }
-            stats["machines"][machine]["count"] += 1;
-            if task.status == "processing" {
-                stats["machines"][machine]["processing"] += 1;
+    walker get_counter_with_history {
+        can get_counter_with_history_endpoint with `root entry {
+            counter_nodes = [root --> Counter];
+            if not counter_nodes {
+                counter = Counter(created_at=str(datetime.now()));
+                root ++> counter;
+                report {
+                    "value": 0,
+                    "status": "created",
+                    "history": []
+                };
+            } else {
+                counter = counter_nodes[0];
+                report {
+                    "value": counter.value,
+                    "status": "existing",
+                    "history": counter.get_history()
+                };
             }
         }
-
-        // Check queue depths
-        for queue in find_all_nodes(TaskQueue) {
-            depth = len([queue -->:InQueue:]);
-            stats["queue_depths"][queue.name] = depth;
-        }
-
-        report stats;
     }
-}
 
-// Auto-scaling based on load
-walker AutoScaler {
-    has min_workers: int = 5;
-    has max_workers: int = 50;
-    has scale_up_threshold: float = 0.8;
-    has scale_down_threshold: float = 0.3;
-
-    can check_scaling with entry {
-        let metrics = spawn SystemMonitor() on root;
-
-        let total_capacity = count_workers() * 5;  // max_concurrent per worker
-        let utilization = metrics["processing"] / total_capacity;
-
-        if utilization > self.scale_up_threshold {
-            let new_workers = min(5, self.max_workers - count_workers());
-            for i in range(new_workers) {
-                spawn_worker_on_best_machine();
+    walker increment_with_history {
+        can increment_with_history_endpoint with `root entry {
+            counter_nodes = [root --> Counter];
+            if not counter_nodes {
+                counter = Counter(created_at=str(datetime.now()));
+                root ++> counter;
+            } else {
+                counter = counter_nodes[0];
             }
-            print(f"Scaled up by {new_workers} workers");
 
-        } elif utilization < self.scale_down_threshold {
-            let remove_workers = min(5, count_workers() - self.min_workers);
-            gracefully_shutdown_workers(remove_workers);
-            print(f"Scaled down by {remove_workers} workers");
+            new_value = counter.increment();
+            report {
+                "value": new_value,
+                "history": counter.get_history()
+            };
         }
     }
-}
+    ```
 
-// Entry point that works at any scale
-with entry {
-    // Initialize task queues (distributed automatically)
-    high_priority = root ++> TaskQueue(name="high", priority=10);
-    medium_priority = root ++> TaskQueue(name="medium", priority=5);
-    low_priority = root ++> TaskQueue(name="low", priority=1);
+### Testing History Persistence
 
-    // Start workers (distributed across available machines)
-    for i in range(10) {
-        spawn TaskWorker(
-            worker_id=f"worker_{i}",
-            capabilities=["general"]
-        ) on root;
-    }
+```bash
+# Start fresh service
+jac serve main.jac
 
-    // Start monitoring and auto-scaling
-    spawn SystemMonitor() on root;
-    spawn AutoScaler() on root;
+# Multiple increments to build history
+curl -X POST http://localhost:8000/walker/increment_with_history \
+  -H "Content-Type: application/json" \
+  -d '{}'
 
-    print("Distributed task processing system initialized!");
-}
+curl -X POST http://localhost:8000/walker/increment_with_history \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+curl -X POST http://localhost:8000/walker/increment_with_history \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Check counter with complete history
+curl -X POST http://localhost:8000/walker/get_counter_with_history \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# Response includes value and complete history array
+
+# Restart service - history persists
+# jac serve main.jac (after restart)
+curl -X POST http://localhost:8000/walker/get_counter_with_history \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# All history entries remain intact
 ```
 
-### Summary
+---
 
-This chapter demonstrated how Jac's scale-agnostic programming model extends naturally to distributed systems:
+## Building Stateful Applications
 
-- **Transparent Distribution**: The same code works across machines without modification
-- **Automatic Partitioning**: Jac handles data distribution based on access patterns
-- **Cross-Machine Traversal**: Walkers seamlessly move between machines
-- **Built-in Fault Tolerance**: Replication and failover happen automatically
-- **Geo-Distribution**: Deploy globally with location-aware optimizations
+The automatic persistence enables building sophisticated stateful applications. Let's create a multi-counter management system:
 
-The key insight is that distribution becomes a deployment concern rather than a development concern. You write your application logic once, focusing on the relationships and computations, and Jac handles the complexities of distributed execution.
+!!! example "Multi-Counter Management System"
+    ```jac
+    # main.jac - Multi-counter system
+    import from datetime { datetime }
 
-In the next chapter, we'll explore advanced language features including concurrent programming, type system deep dives, and sophisticated error handling patterns that make Jac suitable for production systems at any scale.
+    node CounterManager {
+        has created_at: str;
+
+        can create_counter(name: str) -> dict {
+            # Check if counter already exists
+            existing = [self --> Counter](?name == name);
+            if existing {
+                return {"status": "exists", "counter": existing[0].name};
+            }
+
+            new_counter = Counter(name=name, value=0);
+            self ++> new_counter;
+            return {"status": "created", "counter": name};
+        }
+
+        can list_counters() -> list[dict] {
+            counters = [self --> Counter];
+            return [
+                {"name": c.name, "value": c.value}
+                for c in counters
+            ];
+        }
+
+        can get_total() -> int {
+            counters = [self --> Counter];
+            return sum([c.value for c in counters]);
+        }
+    }
+
+    node Counter {
+        has name: str;
+        has value: int = 0;
+
+        can increment(amount: int = 1) -> int {
+            self.value += amount;
+            return self.value;
+        }
+    }
+
+    walker create_counter {
+        has name: str;
+
+        can create_counter_endpoint with `root entry {
+            manager_nodes = [root --> CounterManager];
+            if not manager_nodes {
+                manager = CounterManager(created_at=str(datetime.now()));
+                root ++> manager;
+            } else {
+                manager = manager_nodes[0];
+            }
+
+            result = manager.create_counter(self.name);
+            report result;
+        }
+    }
+
+    walker increment_named_counter {
+        has name: str;
+        has amount: int = 1;
+
+        can increment_named_counter_endpoint with `root entry {
+            manager_nodes = [root --> CounterManager];
+            if not manager_nodes {
+                report {"error": "No counter manager found"};
+                return;
+            }
+
+            manager = manager_nodes[0];
+            counters = [manager --> Counter](?name == self.name);
+
+            if not counters {
+                report {"error": f"Counter {self.name} not found"};
+                return;
+            }
+
+            counter = counters[0];
+            new_value = counter.increment(self.amount);
+            report {"name": self.name, "value": new_value};
+        }
+    }
+
+    walker get_all_counters {
+        can get_all_counters_endpoint with `root entry {
+            manager_nodes = [root --> CounterManager];
+            if not manager_nodes {
+                report {"counters": [], "total": 0};
+                return;
+            }
+
+            manager = manager_nodes[0];
+            report {
+                "counters": manager.list_counters(),
+                "total": manager.get_total()
+            };
+        }
+    }
+    ```
+
+### API Usage Examples
+
+```bash
+# Create multiple counters
+curl -X POST "http://localhost:8000/walker/create_counter" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "page_views"}'
+
+curl -X POST "http://localhost:8000/walker/create_counter" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "user_signups"}'
+
+# Increment specific counters
+curl -X POST "http://localhost:8000/walker/increment_named_counter" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "page_views", "amount": 5}'
+
+curl -X POST "http://localhost:8000/walker/increment_named_counter" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "user_signups", "amount": 2}'
+
+# View all counters
+curl -X POST http://localhost:8000/walker/get_all_counters \
+  -H "Content-Type: application/json" \
+  -d '{}'
+# Response: {"returns": [{"counters": [{"name": "page_views", "value": 5}, {"name": "user_signups", "value": 2}], "total": 7}]}
+```
+
+---
+
+## Persistence Best Practices
+
+!!! tip "Effective Persistence Patterns"
+    - **Service Mode**: Always use `jac serve` for persistent applications
+    - **Database Backend**: Configure appropriate database in .env file
+    - **Root Connection**: Connect all persistent nodes to root or root-connected nodes
+    - **Initialization Checks**: Use filtering to check for existing data
+    - **Transaction Awareness**: Changes persist automatically at request completion
+
+### Production Deployment
+
+!!! example "Production Configuration"
+    === ".env"
+        ```bash
+        # Production .env
+        DATABASE_URL=postgresql://user:password@host:5432/dbname
+        SECRET_KEY=your-production-secret-key
+        DEBUG=false
+        ```
+
+    === "Docker Setup"
+        ```dockerfile
+        # Dockerfile
+        FROM python:3.11
+
+        WORKDIR /app
+        COPY requirements.txt .
+        RUN pip install -r requirements.txt
+
+        COPY . .
+        EXPOSE 8000
+
+        CMD ["jac", "serve", "main.jac", "--host", "0.0.0.0"]
+        ```
+
+---
+
+## Key Takeaways
+
+!!! summary "What We've Learned"
+    - **Service Requirement**: Persistence only works with `jac serve`, not `jac run`
+    - **Database Backend**: Requires proper database configuration
+    - **Root Node**: Central entry point for all persistent graph structures
+    - **Request Lifecycle**: State persists automatically between API requests
+    - **Service Restarts**: Data survives service restarts with proper database setup
+    - **Graph Integrity**: Relationships between nodes persist automatically
+
+### Next Steps
+
+In the upcoming chapters, we'll explore:
+
+- **Chapter 14**: Advanced Jac Cloud features and deployment
+- **Chapter 15**: Multi-user systems with shared persistent state
+- **Chapter 16**: Scaling persistent applications in production
+
+!!! tip "Try It Yourself"
+    Create your own persistent application by:
+    - Building a todo list API that persists tasks
+    - Adding user authentication with persistent user data
+    - Creating a simple blog with persistent posts and comments
+
+    Remember: Only nodes connected to root (directly or indirectly) will persist when using `jac serve` with a database!
+
+---
+
+*Ready to explore advanced cloud features? Continue to [Chapter 14: Advanced Jac Cloud](chapter_14.md)!*

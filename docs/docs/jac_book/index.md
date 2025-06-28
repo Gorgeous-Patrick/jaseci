@@ -130,60 +130,61 @@ Welcome to the comprehensive guide to the Jac programming language. This book wi
 ---
 
 ### Part IV: Scale-Agnostic Features
-*Coming Soon - Learn how Jac automatically scales from single-user to distributed systems*
-
-!!! warning "Under Development"
-    The following chapters are currently being written and will be available soon.
+*Build applications that automatically scale from single-user to distributed systems*
 
 #### Chapter 12: Walkers as API Endpoints
-- Automatic API generation
-- Request/response handling
-- Parameter validation
-- REST patterns with walkers
+- Automatic API generation from walkers
+- Request/response handling patterns
+- Parameter validation and type safety
+- REST patterns using walker semantics
+- Building multi-user applications
 
-!!! example "Planned Code Focus"
-    Simple shared notebook with user permissions
+!!! example "Code Focus"
+    Simple shared notebook with user permissions and API endpoints
 
 #### Chapter 13: Persistence and the Root Node
-- Automatic persistence
-- Root node concept
-- State consistency
+- Automatic persistence with jac serve
+- Root node as persistence gateway
+- State consistency across requests
+- Database-backed applications
 
-!!! example "Planned Code Focus"
-    Simple counter that remembers its value between runs
+!!! example "Code Focus"
+    Simple counter that persists state between service restarts
 
 #### Chapter 14: Jac Cloud Introduction
-- What is Jac Cloud and benefits
-- Quick setup and deployment
-- Walker endpoints as APIs
-- Local to Cloud
+- Scale-agnostic programming benefits
+- Local to cloud deployment
+- Walker endpoints as cloud APIs
+- Zero-configuration scaling
 
-!!! example "Planned Code Focus"
-    Simple weather API endpoint
+!!! example "Code Focus"
+    Simple weather API that works locally and in the cloud
 
 #### Chapter 15: Multi-User Architecture and Permissions
 - User isolation and permission systems
-- Shared data patterns
-- Security considerations
+- Shared data patterns and security
 - Access control strategies
+- Role-based permissions
 
-!!! example "Planned Code Focus"
-    Simple shared notebook with user permissions
+!!! example "Code Focus"
+    Multi-user notebook with sharing and role-based access
+
+#### Chapter 16: Advanced Jac Cloud Features
+- Environment variables and configuration
+- Logging and monitoring capabilities
+- Webhook integration patterns
+- Background tasks and maintenance
+
+!!! example "Code Focus"
+    Chat room system with configuration, logging, and webhooks
 
 ---
 
 ### Part V: Advanced Scale-Agnostic Features
 *Coming Soon - Master advanced distributed programming patterns*
 
-#### Chapter 16: Advanced Jac Cloud Features
-- Environment variables and configuration
-- Webhook integration
-- WebSocket communication
-- Logging and monitoring
-- Task scheduling and cron jobs
-
-!!! example "Planned Code Focus"
-    Simple chat room with WebSocket connections
+!!! warning "Under Development"
+    The following chapters are currently being written and will be available soon.
 
 ---
 
@@ -305,7 +306,7 @@ Welcome to the comprehensive guide to the Jac programming language. This book wi
 !!! tip "Choose Your Learning Journey"
     **Quick Start (Chapters 1-3, 7-11)**: Get productive with Jac quickly for OSP development
 
-    **Full Foundation**: Complete journey through all core concepts and language features
+    **Full Foundation (Chapters 1-16)**: Complete journey through core concepts and scale-agnostic features
 
     **AI-Focused**: Emphasize Chapters 4-5 for AI-enhanced programming
 
