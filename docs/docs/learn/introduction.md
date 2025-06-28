@@ -34,7 +34,7 @@ This snippet natively imports Python packages `math` and `random` and runs ident
 
 Object-Spatial Programming (OSP) inverts the traditional relationship between data and computation. Rather than moving data to computation, OSP moves computation to data through topologically aware constructs. This paradigm introduces specialized archetypes—objects, nodes, edges and walkers—that model spatial relationships directly in the language and enable optimizations around data locality and distributed execution.    |
 
-### 🎮 Spatial Game Example
+### Spatial Game Example
 
 **"Think of your data as an enemy spy network. In OOP, you'd sit at a desk phoning known contacts. In Jac, you deploy a Secret Agent (a walker) who infiltrates the network, moving from one safehouse to the next to uncover the entire plot on their own."**
 
@@ -83,7 +83,7 @@ with entry {
 
 A walker travels through game stages using edges, demonstrating Object-Spatial Programming.
 
-### 🔄 Traditional OOP vs 🚀 Object-Spatial Programming
+### Traditional OOP vs Object-Spatial Programming
 
 | **Traditional OOP**                                       | **Object-Spatial Programming**                                |
 | --------------------------------------------------------- | ------------------------------------------------------------- |
@@ -172,21 +172,21 @@ walker create_post {
 
 ### Key Features of Jac Cloud
 
-#### 🚀 Scale-Agnostic Programming
+#### Scale-Agnostic Programming
 
 - **Write Once, Run Anywhere**: Jac Cloud enables you to write your application code once and run it seamlessly on your local machine or scale it to millions of users in the cloud—without any code changes.
 - **Automatic Scaling**: You can increase the number of Jac Cloud service replicas to handle higher loads. The platform manages all the complexities of scaling, so you don't have to.
 
-#### ⚡ Instant API Generation
+#### Instant API Generation
 
 - **No Manual Endpoint Definition**: Jac Cloud automatically transforms your Jac walkers into RESTful API endpoints. You don't need to manually define API routes or handlers—your business logic is instantly accessible as web services.
 - **Supports REST and WebSockets**: Applications can expose RESTful APIs, WebSocket services, and scheduled tasks with minimal configuration.
 
-#### 💾 Integrated Persistence and User Management
+#### Integrated Persistence and User Management
 
 - **User Authentication and Authorization**: Jac Cloud includes token-based authentication and role-based access control, making it easy to build secure, multi-user applications.
 
-#### ☁️ Cloud-Native Abstractions
+#### Cloud-Native Abstractions
 
 - **First-Class Support for Modern Patterns**: Concepts like nodes, walkers, and graphs are deeply integrated, making it straightforward to model complex data and workflows that scale
 
