@@ -32,7 +32,7 @@ This snippet natively imports Python packages `math` and `random` and runs ident
 
 ## Beyond OOP with Object-Spatial Programming
 
-Object-Spatial Programming (OSP) inverts the traditional relationship between data and computation. Rather than moving data to computation, OSP moves computation to data through topologically aware constructs. This paradigm introduces specialized archetypes—objects, nodes, edges and walkers—that model spatial relationships directly in the language and enable optimizations around data locality and distributed execution.    |
+Object-Spatial Programming (OSP) inverts the traditional relationship between data and computation. Rather than moving data to computation, OSP moves computation to data through topologically aware constructs. This paradigm introduces specialized archetypes—objects, nodes, edges and walkers—that model spatial relationships directly in the language and enable optimizations around data locality and distributed execution.
 
 ### Spatial Game Example
 
@@ -119,7 +119,8 @@ with entry {
 !!! info "How To Run"
     1. Install the MTLLM plugin by `pip install mtllm[google]`
     2. Get a free Gemini API key: Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
-    3. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`). > **Note:** > > You can use OpenAI, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
+    3. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`).
+    > **Note:** > > You can use OpenAI, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
     4. Copy this code into `example.jac` file and run with `jac run example.jac`
 
 ??? example "Output"
@@ -231,24 +232,26 @@ Jac focuses on type safety and readability. Type hints are required and the buil
     }
     ```
 
-This shows how declarations and implementations can live in separate files for maintainable, typed codebases.
+    This shows how declarations and implementations can live in separate files for maintainable, typed codebases.
+
+## Next Steps
 
 <div class="grid cards" markdown>
 
-- **In The Works**
+-   __In The Works__
 
-  ***
+    ---
 
-  _Roadmap Items_
+    *Roadmap Items*
 
-  [In The Roadmap](bigfeatures.md){ .md-button .md-button--primary }
+    [In The Roadmap](bigfeatures.md){ .md-button .md-button--primary }
 
-- **In The Future**
+-   __In The Future__
 
-  ***
+    ---
 
-  _Research in Jac/Jaseci_
+    *Research in Jac/Jaseci*
 
-  [In Research](research.md){ .md-button }
+    [In Research](research.md){ .md-button }
 
 </div>

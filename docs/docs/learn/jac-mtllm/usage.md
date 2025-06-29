@@ -187,6 +187,7 @@ def generate_email_response(message: str, recipient_type: str) -> str by llm();
 ```
 
 **Key principles for effective docstrings:**
+
 - Be specific about the function's purpose
 - Mention return format for complex outputs
 - Avoid detailed instructions - let the LLM reason
@@ -284,6 +285,7 @@ with entry {
 ```
 
 In this example:
+
 - `greet("Alice")` executes the normal function and returns `"Hello Alice"`
 - `greet("Alice") by llm()` overrides the function with LLM behavior, potentially returning a more natural or contextual greeting
 - `format_data(user_data) by llm()` transforms simple data formatting into intelligent, human-readable presentation

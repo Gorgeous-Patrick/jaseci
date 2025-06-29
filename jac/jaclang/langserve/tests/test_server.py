@@ -134,12 +134,12 @@ class TestJacLangServer(TestCase):
         workspace = Workspace(workspace_path, lsp)
         lsp.lsp._workspace = workspace
         guess_game_file = uris.from_fs_path(
-            self.examples_abs_path("guess_game/guess_game4.impl.jac")
+            self.examples_abs_path("guess_game/guess_game3.impl.jac")
         )
         lsp.deep_check(guess_game_file)
         self.assertIn(
-            "guess_game4.jac:16:8-16:21",
-            str(lsp.get_definition(guess_game_file, lspt.Position(15, 45))),
+            "guess_game3.jac:16:8-16:21",
+            str(lsp.get_definition(guess_game_file, lspt.Position(15, 17))),
         )
 
     def test_go_to_definition_method_manual_impl(self) -> None:

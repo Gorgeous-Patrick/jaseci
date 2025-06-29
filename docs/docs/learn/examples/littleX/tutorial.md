@@ -309,7 +309,7 @@ impl Profile.follow {
 
 ---
 
-## Adding AI Features
+<!-- ## Adding AI Features
 
 Jaseci makes integrating AI into your application incredibly simple. Here's an example that summarizes tweets using AI:
 
@@ -323,7 +323,7 @@ can 'Summarize latest trends, major events, and notable interactions from the re
 
 > This code leverages a Llama language model to automatically summarize tweet collections.
 
----
+--- -->
 
 ## Try These Exercises
 

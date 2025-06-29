@@ -708,7 +708,7 @@ class JacLanguageTests(TestCase):
     def test_inherit_baseclass_sym(self) -> None:
         """Basic test for symtable support for inheritance."""
         mypass = JacProgram().compile(
-            self.examples_abs_path("guess_game/guess_game4.jac")
+            self.examples_abs_path("guess_game/guess_game3.jac")
         )
         table = None
         for i in mypass.sym_tab.kid_scope:

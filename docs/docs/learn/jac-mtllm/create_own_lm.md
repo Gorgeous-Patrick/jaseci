@@ -31,7 +31,7 @@ In Jaclang,
 ```jac linenums="1"
 import from mtlm.llms.base {BaseLLM}
 
-class MyLLM:BaseLLM: {
+class MyLLM(BaseLLM) {
     def init(verbose:bool=false, max_tries:int=10, **kwargs: dict) -> None {
         self.verbose = verbose;
         self.max_tries = max_tries;
@@ -50,9 +50,15 @@ class MyLLM:BaseLLM: {
 - Initialize your model with the required parameters.
 
 ```jac
-import from my_llm, {MyLLM}
+import from my_llm {MyLLM}
 
-llm = MyLLM();
+# Initialize as global variable
+glob llm = MyLLM();
+
+# Initialize as local variable
+with entry {
+    llm = MyLLM();
+}
 ```
 
 ## Changing the Prompting Techniques
