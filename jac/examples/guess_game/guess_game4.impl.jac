@@ -1,6 +1,6 @@
 impl turn.check{
     guess = input("Guess a number between 1 and 10: ");
-    if |> guess.isdigit {
+    if guess.isdigit() {
         visitor.process_guess(int(guess));
     } else {
         print("That's not a valid number! Try again.");
