@@ -1285,7 +1285,7 @@ A caching decorator stores results for expensive calls, improving performance on
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Function System:**
 
     - **Mandatory types**: All function parameters and return types must be explicitly declared
@@ -1315,10 +1315,16 @@ A caching decorator stores results for expensive calls, improving performance on
     - **Function composition**: Combining simple functions to create complex behavior
     - **Async support**: Built-in support for asynchronous programming patterns
 
-!!! topic "Coming Up"
-    In the next chapter, we'll explore advanced AI operations, including MTLLM variations, model configuration, semantic strings, and multimodal capabilities that unlock the full potential of AI-driven programming.
+!!! tip "Try It Yourself"
+    Experiment with functions by building:
+    - A text analysis system using AI functions
+    - A data processing pipeline with decorators
+    - An async web scraper
+    - A caching system for expensive computations
+
+    Remember: Combine regular functions with AI functions to create powerful, intelligent applications!
 
 ---
 
-*You now have the tools to build sophisticated, AI-enhanced functions. Let's dive deeper into Jac's advanced AI capabilities!*
+*Ready to explore advanced AI operations? Continue to [Chapter 5: Advanced AI Operations](chapter_5.md)!*
 

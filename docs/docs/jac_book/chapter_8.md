@@ -716,7 +716,7 @@ OSP allows you to model problems the way they naturally exist in the real world:
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Paradigm Fundamentals:**
 
     - **Computation to data**: Move processing to where data naturally lives
@@ -745,8 +745,14 @@ OSP allows you to model problems the way they naturally exist in the real world:
     - **From procedural to reactive**: Data locations respond to visiting computation
     - **From manual to automatic**: Relationships are maintained by the system
 
-!!! topic "Coming Up"
-    In the next chapter, we'll dive deeper into the building blocks of OSP: nodes and edges, and learn how to create rich, connected data structures that form the foundation of your spatial programs.
+!!! tip "Try It Yourself"
+    Start thinking spatially by modeling:
+    - Family trees with person nodes and relationship edges
+    - Social networks with user connections
+    - Organization charts with employee and department relationships
+    - Knowledge graphs with concept connections
+
+    Remember: OSP shines when your problem naturally involves connected data!
 
 ---
 

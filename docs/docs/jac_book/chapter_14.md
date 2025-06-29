@@ -412,30 +412,55 @@ curl -X POST http://localhost:8000/walker/get_weather \
 
 ---
 
+## Best Practices
+
+!!! summary "Cloud Development Guidelines"
+    - **Design for scale**: Write code that works equally well locally and in production
+    - **Use environment variables**: Configure applications without code changes
+    - **Test locally first**: Use `jac run` for development, `jac serve` for deployment
+    - **Monitor endpoints**: Check the automatic API documentation at `/docs`
+    - **Validate inputs**: Always validate walker parameters for robust APIs
+    - **Handle errors gracefully**: Provide meaningful error messages to API consumers
+
 ## Key Takeaways
 
 !!! summary "What We've Learned"
-    - **Scale-Agnostic Development**: Same code works locally and in production
-    - **Automatic API Generation**: Walkers become REST endpoints without configuration
-    - **Built-in Persistence**: Graph data persists automatically across requests
-    - **Zero Infrastructure**: No database setup, server configuration, or API framework needed
-    - **Instant Deployment**: From local testing to production with one command
+    **Scale-Agnostic Development:**
 
-### Next Steps
+    - **Same code everywhere**: Write once, run locally or in the cloud without changes
+    - **Automatic APIs**: Walkers become REST endpoints instantly
+    - **Built-in persistence**: Graph data persists automatically across requests
+    - **Zero infrastructure**: No server setup, database configuration, or API framework needed
 
-In the upcoming chapters, we'll explore:
+    **Deployment Benefits:**
 
-- **Chapter 15**: Multi-user architecture and permissions
-- **Chapter 16**: Advanced Jac Cloud features like configuration and monitoring
-- **Chapter 17**: Type system deep dive for robust cloud applications
+    - **Instant deployment**: From development to production with one command
+    - **Automatic scaling**: Add more service instances to handle increased load
+    - **Built-in documentation**: API docs generated automatically from walker signatures
+    - **Type safety**: Request validation handled by the type system
+
+    **Development Workflow:**
+
+    - **Local testing**: Use `jac run` for development and debugging
+    - **Service deployment**: Use `jac serve` to create REST APIs
+    - **Cloud deployment**: Same code scales infinitely in Jac Cloud
+    - **Configuration management**: Environment variables for flexible deployment
+
+    **API Features:**
+
+    - **RESTful endpoints**: All walkers become POST endpoints automatically
+    - **JSON request/response**: Structured data exchange with type validation
+    - **Error handling**: Automatic HTTP status codes and error responses
+    - **Documentation**: Interactive API docs available at `/docs` endpoint
 
 !!! tip "Try It Yourself"
-    Experiment with the weather service by adding features like:
-    - Weather forecasts with date ranges
-    - User preferences and favorites
-    - Real weather API integration
+    Experiment with cloud deployment by building:
+    - A weather service with external API integration
+    - A simple e-commerce catalog with products and categories
+    - A content management system with posts and tags
+    - A social media backend with users and posts
 
-    Remember: Any walker you create automatically becomes an API endpoint when deployed with `jac serve`!
+    Remember: Any walker you create automatically becomes a scalable API endpoint!
 
 ---
 

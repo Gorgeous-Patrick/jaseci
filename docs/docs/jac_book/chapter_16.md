@@ -780,29 +780,53 @@ curl -X POST http://localhost:8000/walker/generate_daily_stats \
 
 ---
 
+## Best Practices
+
+!!! summary "Cloud Development Guidelines"
+    - **Use environment variables**: Keep configuration flexible and secure
+    - **Structure your logs**: Use consistent logging patterns for debugging
+    - **Validate webhooks**: Always verify webhook sources and data
+    - **Monitor performance**: Track application metrics and health
+    - **Handle failures gracefully**: Implement retry logic and fallback patterns
+    - **Secure sensitive data**: Never commit secrets or API keys to code
+
 ## Key Takeaways
 
 !!! summary "What We've Learned"
-    - **Environment Configuration**: Flexible settings management across environments
-    - **RESTful Architecture**: Building scalable APIs with walker endpoints
-    - **Webhook Integration**: Seamless external service integration
-    - **Structured Logging**: Built-in observability and monitoring
-    - **Background Tasks**: Automated maintenance and data management
+    **Configuration Management:**
 
-### Next Steps
+    - **Environment variables**: Flexible application configuration without code changes
+    - **Security patterns**: Keep sensitive data in environment variables, not code
+    - **Multi-environment support**: Different settings for development, staging, production
+    - **Runtime configuration**: Adjust application behavior without redeployment
 
-In the upcoming chapters, we'll explore:
+    **Integration Capabilities:**
 
-- **Chapter 17**: Advanced type system for robust distributed applications
-- **Chapter 18**: Testing and debugging complex cloud applications
-- **Chapter 19**: Production deployment and scaling strategies
+    - **Webhook support**: Receive real-time notifications from external services
+    - **RESTful architecture**: All walkers become scalable API endpoints
+    - **External service integration**: Connect with third-party APIs and services
+    - **Event-driven patterns**: Build reactive applications that respond to external events
+
+    **Monitoring and Observability:**
+
+    - **Structured logging**: Built-in logging patterns for debugging and monitoring
+    - **Performance tracking**: Monitor application health and performance metrics
+    - **Error handling**: Graceful error recovery and reporting
+    - **Audit trails**: Track important application events and user actions
+
+    **Production Features:**
+
+    - **Background tasks**: Automated maintenance and cleanup operations
+    - **Data management**: Efficient patterns for data lifecycle management
+    - **Scalability**: Built-in support for horizontal scaling
+    - **Reliability**: Robust patterns for production deployment
 
 !!! tip "Try It Yourself"
-    Experiment with the chat room by adding:
-    - User authentication and profiles
-    - Message reactions and threading
-    - File sharing capabilities
-    - Integration with external chat services
+    Enhance your cloud applications by adding:
+    - Real-time chat with webhook integrations
+    - Automated data backup and cleanup tasks
+    - External service integrations (email, SMS, payments)
+    - Comprehensive monitoring and alerting systems
 
     Remember: All these advanced features work seamlessly with Jac's scale-agnostic architecture!
 

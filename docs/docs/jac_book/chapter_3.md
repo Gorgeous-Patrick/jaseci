@@ -890,7 +890,7 @@ Jac supports traditional `while` loops with clear curly brace syntax for iterati
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Type System:**
 
     - **Mandatory typing**: All variables and functions must have explicit type annotations
@@ -917,8 +917,14 @@ Jac supports traditional `while` loops with clear curly brace syntax for iterati
     - **Comments**: Single-line `#` and multi-line `#* *#` comment support
     - **Global variables**: Use `glob` declaration for global scope
 
-!!! topic "Coming Up"
-    Next, we'll explore Jac's enhanced function system with mandatory type annotations, built-in AI capabilities, powerful decorators, and functional programming patterns that make your code more modular and reusable.
+!!! tip "Try It Yourself"
+    Master the type system by building:
+    - A student record management system
+    - A library catalog with book tracking
+    - A simple inventory system with categories
+    - A grade calculator with different assignment types
+
+    Remember: Type safety catches errors early and makes your code self-documenting!
 
 ---
 

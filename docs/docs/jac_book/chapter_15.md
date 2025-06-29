@@ -720,29 +720,53 @@ curl -X POST http://localhost:8000/walker/get_role_filtered_notes \
 
 ---
 
+## Best Practices
+
+!!! summary "Multi-User Development Guidelines"
+    - **Always validate access**: Check user permissions before any data operation
+    - **Use consistent user identification**: Establish clear patterns for user IDs
+    - **Implement graceful sharing**: Make sharing intuitive and secure
+    - **Audit sensitive operations**: Log important user actions for security
+    - **Design for privacy**: Default to private data with explicit sharing
+    - **Test permission scenarios**: Verify access control works as expected
+
 ## Key Takeaways
 
 !!! summary "What We've Learned"
-    - **User Context Patterns**: Implement user identification in walkers
-    - **Data Isolation**: Filter data based on ownership and permissions
-    - **Permission Patterns**: Multiple access control strategies for different needs
-    - **Security-First Design**: Always verify permissions before data operations
-    - **Flexible Sharing**: Fine-grained control over data access between users
+    **Multi-User Patterns:**
 
-### Next Steps
+    - **User identification**: Implement user context in walker parameters
+    - **Data isolation**: Filter data based on ownership and permissions
+    - **Permission systems**: Multiple access control strategies for different needs
+    - **Shared data management**: Controlled sharing between users with fine-grained permissions
 
-In the upcoming chapters, we'll explore:
+    **Security Considerations:**
 
-- **Chapter 16**: Advanced Jac Cloud features like real-time updates and configuration
-- **Chapter 17**: Type system deep dive for robust multi-user applications
-- **Chapter 18**: Testing and debugging multi-user scenarios
+    - **Access validation**: Always verify user permissions before data operations
+    - **Default privacy**: Make restrictive permissions the default setting
+    - **Input validation**: Sanitize all user input to prevent security issues
+    - **Audit trails**: Log sensitive operations for security monitoring
+
+    **Application Architecture:**
+
+    - **Role-based access**: Implement hierarchical permission systems
+    - **Flexible sharing**: Support various sharing patterns for different use cases
+    - **User profiles**: Manage user information and preferences
+    - **Data ownership**: Clear patterns for who can access and modify data
+
+    **Development Benefits:**
+
+    - **Built-in isolation**: Graph filtering provides natural data separation
+    - **Flexible permissions**: Implement custom access control with business logic
+    - **Scalable patterns**: Multi-user code scales automatically with Jac Cloud
+    - **Type safety**: User permissions validated through the type system
 
 !!! tip "Try It Yourself"
-    Experiment with the multi-user notebook by adding:
-    - User groups and team-based permissions
-    - Note categories with different access levels
-    - Activity logging and audit trails
-    - Real-time collaboration features
+    Build multi-user systems by adding:
+    - Team-based collaboration features
+    - Real-time notifications for shared data changes
+    - Advanced permission hierarchies with groups and roles
+    - Activity feeds showing user actions
 
     Remember: Always validate user permissions before any data operation!
 

@@ -1,481 +1,801 @@
-### Chapter 20: Quick Reference
+# Chapter 20: Performance Optimization
 
-#### 20.1 Syntax Comparison Table
+In this chapter, we'll explore techniques for optimizing Jac applications to achieve better performance in both local and distributed environments. We'll build and progressively optimize a friend-finding algorithm that demonstrates graph structure optimization, traversal efficiency, and memory management strategies.
 
-This comprehensive comparison shows Python syntax alongside its Jac equivalent, helping you quickly translate between the two languages.
+!!! info "What You'll Learn"
+    - Graph structure optimization techniques
+    - Efficient traversal patterns and algorithms
+    - Memory management strategies in Jac
+    - Performance monitoring and profiling
+    - Distributed performance considerations
 
-### Basic Syntax Elements
+---
 
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `# Comment` | `# Comment` | Single-line comments identical |
-| `"""Docstring"""` | `"""Docstring"""` | Multi-line strings identical |
-| `pass` | `{}` or `;` | Empty statement/block |
-| `:` (colon) | `{` ... `}` | Block delimiters |
-| Indentation | Curly braces | Structural delimiter |
-| No semicolons | `;` required | Statement terminator |
+## Graph Structure Optimization
 
-### Variable Declaration
+The foundation of Jac performance lies in how you structure your graph data. Efficient graph design can dramatically improve traversal performance and reduce memory usage.
 
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `x = 42` | `x = 42;` | Implicit declaration |
-| `x: int = 42` | `let x: int = 42;` | Explicit typed declaration |
-| `global x` | `:g: x;` or `glob x = 42;` | Global variable |
-| `nonlocal x` | `:nl: x;` | Nonlocal variable |
+!!! success "Optimization Benefits"
+    - **Faster Traversals**: Well-structured graphs enable efficient pathfinding
+    - **Reduced Memory**: Optimized node relationships minimize storage overhead
+    - **Better Scaling**: Efficient structures handle larger datasets gracefully
+    - **Improved Caching**: Predictable access patterns enhance cache performance
 
-### Functions
+### Traditional vs Optimized Graph Design
 
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `def func():` | `can func {` | Function declaration |
-| `def func(x: int) -> str:` | `can func(x: int) -> str {` | Typed function |
-| `return value` | `return value;` | Return statement |
-| `lambda x: x * 2` | `lambda x: int : x * 2` | Lambda (types required) |
-| `@decorator` | `@decorator` | Decorators work similarly |
-| `def __init__(self):` | `can init {` | Constructor |
-| N/A | `can postinit {` | Post-initialization hook |
+!!! example "Graph Design Comparison"
+    === "Traditional Approach"
+        ```python
+        # inefficient_friends.py - Nested loops and redundant data
+        class Person:
+            def __init__(self, name, age):
+                self.name = name
+                self.age = age
+                self.friends = []  # Direct list storage
+                self.friend_data = {}  # Redundant friend information
 
-### Classes and Objects
+            def add_friend(self, friend):
+                self.friends.append(friend)
+                friend.friends.append(self)  # Bidirectional
+                # Store redundant data
+                self.friend_data[friend.name] = {
+                    'age': friend.age,
+                    'mutual_friends': []
+                }
 
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `class MyClass:` | `obj MyClass {` | Standard class |
-| `class MyClass:` | `class MyClass {` | Python-compatible class |
-| `self.attr = value` | `has attr: type = value;` | Instance variables |
-| `@staticmethod` | `static can method {` | Static methods |
-| `super()` | `super` | Parent class access |
-| N/A | `node MyNode {` | Graph node class |
-| N/A | `edge MyEdge {` | Graph edge class |
-| N/A | `walker MyWalker {` | Walker class |
+            def find_mutual_friends(self, other_person):
+                mutual = []
+                # Inefficient nested loop
+                for my_friend in self.friends:
+                    for their_friend in other_person.friends:
+                        if my_friend.name == their_friend.name:
+                            mutual.append(my_friend)
+                return mutual
 
-### Control Flow
+            def friends_of_friends(self, max_depth=2):
+                found = set()
+                # Inefficient recursive traversal
+                def traverse(person, depth):
+                    if depth <= 0:
+                        return
+                    for friend in person.friends:
+                        if friend.name != self.name:
+                            found.add(friend.name)
+                            traverse(friend, depth - 1)
 
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `if x:` | `if x {` | Conditional |
-| `elif y:` | `elif y {` | Else-if |
-| `else:` | `else {` | Else clause |
-| `while condition:` | `while condition {` | While loop |
-| `for x in items:` | `for x in items {` | For-in loop |
-| `for i in range(n):` | `for i=0 to i<n by i+=1 {` | Explicit counter loop |
-| `break` | `break;` | Exit loop |
-| `continue` | `continue;` | Skip iteration |
-| `match value:` | `match value {` | Pattern matching |
+                traverse(self, max_depth)
+                return list(found)
+        ```
 
-#### Exception Handling
+    === "Jac Optimized Structure"
+        <div class="code-block">
+        ```jac
+        # optimized_friends.jac - Efficient graph-native design
+        node Person {
+            has name: str;
+            has age: int;
+            has friend_count: int = 0;  # Cached for quick access
 
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `try:` | `try {` | Try block |
-| `except Exception as e:` | `except Exception as e {` | Catch exception |
-| `finally:` | `finally {` | Finally block |
-| `raise Exception()` | `raise Exception();` | Raise exception |
-| `assert condition` | `assert condition;` | Assertion |
+            can add_friend(friend: Person) -> bool {
+                # Check if already connected to avoid duplicates
+                existing = [self --> Friend --> Person](?name == friend.name);
+                if existing {
+                    return false;
+                }
 
-### Data Types
+                # Create bidirectional connection efficiently
+                friendship = Friend(since="2024-01-15");
+                self ++> friendship ++> friend;
 
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `list` | `list` | Lists identical |
-| `dict` | `dict` | Dictionaries identical |
-| `set` | `set` | Sets identical |
-| `tuple` | `tuple` | Positional tuples |
-| N/A | `(x=1, y=2)` | Keyword tuples |
-| `None` | `None` | Null value |
-| `True/False` | `True/False` | Booleans identical |
-
-### Operators
-
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `and` | `and` or `&&` | Logical AND |
-| `or` | `or` or `||` | Logical OR |
-| `not` | `not` | Logical NOT |
-| `is` | `is` | Identity comparison |
-| `in` | `in` | Membership test |
-| `:=` | `:=` | Walrus operator |
-| N/A | `|>` | Pipe forward |
-| N/A | `<|` | Pipe backward |
-| N/A | `:>` | Atomic pipe forward |
-| N/A | `<:` | Atomic pipe backward |
-
-### Imports
-
-| Python | Jac | Notes |
-|--------|-----|-------|
-| `import module` | `import:py module;` | Python module import |
-| `from module import item` | `import:py from module { item };` | Selective import |
-| `import module as alias` | `import:py module as alias;` | Import with alias |
-| N/A | `import:jac module;` | Jac module import |
-| N/A | `include module;` | Include all exports |
-
-#### 20.2 Built-in Functions and Types
-
-### Core Built-in Functions
-
-| Function | Description | Example |
-|----------|-------------|---------|
-| `print(...)` | Output to console | `print("Hello", name);` |
-| `len(obj)` | Get length/size | `len([1, 2, 3])` → `3` |
-| `type(obj)` | Get object type | `type(42)` → `int` |
-| `isinstance(obj, type)` | Type checking | `isinstance(x, str)` |
-| `hasattr(obj, attr)` | Check attribute exists | `hasattr(node, "value")` |
-| `getattr(obj, attr)` | Get attribute value | `getattr(node, "value")` |
-| `setattr(obj, attr, val)` | Set attribute value | `setattr(node, "value", 42)` |
-| `range(start, stop, step)` | Generate number sequence | `range(0, 10, 2)` |
-| `enumerate(iterable)` | Get index with items | `enumerate(["a", "b"])` |
-| `zip(iter1, iter2, ...)` | Combine iterables | `zip([1, 2], ["a", "b"])` |
-| `map(func, iterable)` | Apply function to items | `map(str.upper, ["a", "b"])` |
-| `filter(func, iterable)` | Filter items by predicate | `filter(is_even, [1, 2, 3])` |
-| `sum(iterable)` | Sum numeric values | `sum([1, 2, 3])` → `6` |
-| `min(iterable)` | Find minimum value | `min([3, 1, 4])` → `1` |
-| `max(iterable)` | Find maximum value | `max([3, 1, 4])` → `4` |
-| `abs(number)` | Absolute value | `abs(-42)` → `42` |
-| `round(number, digits)` | Round to digits | `round(3.14159, 2)` → `3.14` |
-| `sorted(iterable)` | Sort items | `sorted([3, 1, 4])` → `[1, 3, 4]` |
-| `reversed(iterable)` | Reverse items | `reversed([1, 2, 3])` |
-| `all(iterable)` | All items truthy | `all([True, True])` → `True` |
-| `any(iterable)` | Any item truthy | `any([False, True])` → `True` |
-
-### Type Constructors
-
-| Type | Constructor | Example |
-|------|-------------|---------|
-| `int` | `int(value)` | `int("42")` → `42` |
-| `float` | `float(value)` | `float("3.14")` → `3.14` |
-| `str` | `str(value)` | `str(42)` → `"42"` |
-| `bool` | `bool(value)` | `bool(1)` → `True` |
-| `list` | `list(iterable)` | `list((1, 2, 3))` → `[1, 2, 3]` |
-| `tuple` | `tuple(iterable)` | `tuple([1, 2, 3])` → `(1, 2, 3)` |
-| `dict` | `dict(pairs)` | `dict([("a", 1)])` → `{"a": 1}` |
-| `set` | `set(iterable)` | `set([1, 2, 2])` → `{1, 2}` |
-
-### Object-Spatial Built-ins
-
-| Keyword/Function | Description | Example |
-|------------------|-------------|---------|
-| `root` | Current user's root node | `root ++> MyNode();` |
-| `here` | Walker's current location | `here.process_data();` |
-| `visitor` | Current visiting walker | `visitor.report_result();` |
-| `spawn` | Activate walker | `spawn MyWalker() on node;` |
-| `visit` | Queue traversal destination | `visit [-->];` |
-| `disengage` | Terminate walker | `disengage;` |
-| `skip` | Skip to next location | `skip;` |
-| `report` | Report walker result | `report {"result": 42};` |
-
-### Edge Reference Operators
-
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `[-->]` | Outgoing edges/nodes | `for n in [-->] { ... }` |
-| `[<--]` | Incoming edges/nodes | `for n in [<--] { ... }` |
-| `[<-->]` | Bidirectional edges/nodes | `neighbors = [<-->];` |
-| `[-->:EdgeType:]` | Typed outgoing edges | `[-->:Follows:]` |
-| `[-->(condition)]` | Filtered edges | `[-->(?.weight > 0.5)]` |
-| `++>` | Create directed edge | `node1 ++> node2;` |
-| `<++` | Create reverse edge | `node1 <++ node2;` |
-| `<++>` | Create bidirectional edge | `node1 <++> node2;` |
-
-#### 20.3 Standard Library Overview
-
-### Core Modules
-
-#### `math` - Mathematical Functions
-```jac
-import:py math;
-
-# Constants
-math.pi      # 3.14159...
-math.e       # 2.71828...
-
-# Functions
-math.sqrt(16)     # 4.0
-math.pow(2, 3)    # 8.0
-math.sin(math.pi/2)  # 1.0
-math.log(10)      # Natural log
-```
-
-#### `datetime` - Date and Time
-```jac
-import:py from datetime { datetime, timedelta };
-
-# Current time
-now = datetime.now();
-timestamp = now.isoformat();
-
-# Date arithmetic
-tomorrow = now + timedelta(days=1);
-diff = tomorrow - now;  # timedelta object
-```
-
-#### `json` - JSON Handling
-```jac
-import:py json;
-
-# Serialize
-data = {"name": "Jac", "version": 1.0};
-json_str = json.dumps(data);
-
-# Deserialize
-parsed = json.loads(json_str);
-```
-
-#### `random` - Random Numbers
-```jac
-import:py random;
-
-# Random values
-random.random()          # 0.0 to 1.0
-random.randint(1, 10)    # 1 to 10 inclusive
-random.choice([1, 2, 3]) # Pick from list
-random.shuffle(my_list)  # Shuffle in place
-```
-
-#### `re` - Regular Expressions
-```jac
-import:py re;
-
-# Pattern matching
-pattern = r"\d+";
-matches = re.findall(pattern, "abc123def456");  # ["123", "456"]
-
-# Substitution
-result = re.sub(r"\d+", "X", "abc123def");  # "abcXdef"
-```
-
-### File Operations
-
-```jac
-# Reading files
-with open("file.txt", "r") as f {
-    content = f.read();
-    # or line by line
-    for line in f {
-        process_line(line.strip());
-    }
-}
-
-# Writing files
-with open("output.txt", "w") as f {
-    f.write("Hello, Jac!\n");
-    f.write(f"Timestamp: {timestamp_now()}\n");
-}
-
-# JSON files
-import:py json;
-with open("data.json", "r") as f {
-    data = json.load(f);
-}
-```
-
-### Common Patterns Reference
-
-#### Graph Creation Patterns
-```jac
-# Linear chain
-prev = root;
-for i in range(5) {
-    node = Node(id=i);
-    prev ++> node;
-    prev = node;
-}
-
-# Star topology
-hub = root ++> Hub();
-for i in range(10) {
-    hub ++> Node(id=i);
-}
-
-# Fully connected
-nodes = [Node(id=i) for i in range(5)];
-for i, n1 in enumerate(nodes) {
-    for n2 in nodes[i+1:] {
-        n1 <++> n2;
-    }
-}
-```
-
-#### Walker Patterns
-```jac
-# Visitor pattern
-walker Visitor {
-    can process with Node entry {
-        here.visit_count += 1;
-        visit [-->];
-    }
-}
-
-# Collector pattern
-walker Collector {
-    has items: list = [];
-
-    can collect with entry {
-        if matches_criteria(here) {
-            self.items.append(here);
-        }
-        visit [-->];
-    }
-}
-
-# Transformer pattern
-walker Transformer {
-    can transform with entry {
-        here.value = transform_function(here.value);
-        visit [-->];
-    }
-}
-```
-
-#### Error Handling Patterns
-```jac
-# Safe traversal
-walker SafeTraverser {
-    can traverse with entry {
-        try {
-            process_node(here);
-            visit [-->];
-        } except ProcessingError as e {
-            report {"error": str(e), "node": here.id};
-            skip;  # Continue to next node
-        } except CriticalError as e {
-            report {"critical": str(e)};
-            disengage;  # Stop traversal
-        }
-    }
-}
-
-# Retry pattern
-can retry_operation(func: callable, max_attempts: int = 3) -> any {
-    for attempt in range(max_attempts) {
-        try {
-            return func();
-        } except TemporaryError as e {
-            if attempt == max_attempts - 1 {
-                raise e;
+                # Update cached counters
+                self.friend_count += 1;
+                friend.friend_count += 1;
+                return true;
             }
-            sleep(2 ** attempt);  # Exponential backoff
+        }
+
+        edge Friend {
+            has since: str;
+            has strength: int = 1;  # Relationship strength for weighted algorithms
+        }
+
+        walker find_mutual_friends {
+            has person1_name: str;
+            has person2_name: str;
+
+            can find_efficiently with `root entry {
+                # Direct graph traversal - no nested loops
+                person1 = [-->](`?Person)(?name == self.person1_name);
+                person2 = [-->](`?Person)(?name == self.person2_name);
+
+                if not person1 or not person2 {
+                    report {"error": "Person not found"};
+                    return;
+                }
+
+                # Get friends using graph navigation
+                person1_friends = [person1[0] --> Friend --> Person];
+                person2_friends = [person2[0] --> Friend --> Person];
+
+                # Efficient set intersection
+                mutual_names = {f.name for f in person1_friends} & {f.name for f in person2_friends};
+
+                report {
+                    "mutual_friends": list(mutual_names),
+                    "count": len(mutual_names)
+                };
+            }
+        }
+        ```
+        </div>
+
+---
+
+## Traversal Efficiency
+
+Efficient graph traversal is crucial for performance in Object-Spatial Programming. Let's examine different approaches to finding friends-of-friends and optimize them progressively.
+
+### Basic Friend-Finding Algorithm
+
+!!! example "Simple Friend Discovery"
+    === "Jac"
+        <div class="code-block">
+        ```jac
+        # basic_friend_finder.jac
+        walker find_friends_of_friends {
+            has person_name: str;
+            has max_depth: int = 2;
+            has visited: set[str] = set();
+            has results: set[str] = set();
+
+            can traverse_network with `root entry {
+                start_person = [-->](`?Person)(?name == self.person_name);
+
+                if not start_person {
+                    report {"error": "Person not found"};
+                    return;
+                }
+
+                # Start traversal from the person
+                self.traverse_from_person(start_person[0], self.max_depth);
+
+                # Remove the starting person from results
+                self.results.discard(self.person_name);
+
+                report {
+                    "person": self.person_name,
+                    "friends_of_friends": list(self.results),
+                    "total_found": len(self.results)
+                };
+            }
+
+            can traverse_from_person(person: Person, remaining_depth: int) {
+                if remaining_depth <= 0 or person.name in self.visited {
+                    return;
+                }
+
+                self.visited.add(person.name);
+                self.results.add(person.name);
+
+                # Navigate to friends and continue traversal
+                friends = [person --> Friend --> Person];
+                for friend in friends {
+                    self.traverse_from_person(friend, remaining_depth - 1);
+                }
+            }
+        }
+        ```
+        </div>
+
+    === "Python Equivalent"
+        ```python
+        # basic_friend_finder.py - Less efficient traversal
+        def find_friends_of_friends(person_name, people_data, max_depth=2):
+            visited = set()
+            results = set()
+
+            def traverse(current_name, depth):
+                if depth <= 0 or current_name in visited:
+                    return
+
+                visited.add(current_name)
+                results.add(current_name)
+
+                # Manual lookup in data structure
+                if current_name in people_data:
+                    friends = people_data[current_name].get('friends', [])
+                    for friend_name in friends:
+                        traverse(friend_name, depth - 1)
+
+            traverse(person_name, max_depth)
+            results.discard(person_name)  # Remove starting person
+
+            return {
+                "person": person_name,
+                "friends_of_friends": list(results),
+                "total_found": len(results)
+            }
+        ```
+
+### Optimized Breadth-First Traversal
+
+!!! example "Performance-Optimized Friend Finding"
+    <div class="code-block">
+    ```jac
+    # optimized_friend_finder.jac
+    import from collections { deque }
+
+    walker find_friends_optimized {
+        has person_name: str;
+        has max_depth: int = 2;
+
+        can breadth_first_search with `root entry {
+            start_person = [-->](`?Person)(?name == self.person_name);
+
+            if not start_person {
+                report {"error": "Person not found"};
+                return;
+            }
+
+            # Use BFS for more predictable performance
+            queue = deque([(start_person[0], 0)]);  # (person, depth)
+            visited = {self.person_name};
+            results = set();
+
+            while queue {
+                current_person, depth = queue.popleft();
+
+                if depth >= self.max_depth {
+                    continue;
+                }
+
+                # Get friends efficiently
+                friends = [current_person --> Friend --> Person];
+
+                for friend in friends {
+                    if friend.name not in visited {
+                        visited.add(friend.name);
+                        results.add(friend.name);
+                        queue.append((friend, depth + 1));
+                    }
+                }
+            }
+
+            report {
+                "person": self.person_name,
+                "friends_of_friends": list(results),
+                "total_found": len(results),
+                "algorithm": "breadth_first"
+            };
         }
     }
-}
-```
 
-#### Type Checking Patterns
-```jac
-# Runtime type checking
-can process_value(value: any) -> str {
-    match type(value) {
-        case int: return f"Integer: {value}";
-        case str: return f"String: {value}";
-        case list: return f"List with {len(value)} items";
-        case dict: return f"Dict with keys: {list(value.keys())}";
-        case _: return f"Unknown type: {type(value).__name__}";
-    }
-}
+    # Cached version for repeated queries
+    walker find_friends_cached {
+        has person_name: str;
+        has max_depth: int = 2;
 
-# Node type discrimination
-walker TypedProcessor {
-    can process with entry {
-        match here {
-            case UserNode: process_user(here);
-            case DataNode: process_data(here);
-            case _: visit [-->];  # Skip unknown types
+        can cached_search with `root entry {
+            start_person = [-->](`?Person)(?name == self.person_name);
+
+            if not start_person {
+                report {"error": "Person not found"};
+                return;
+            }
+
+            person = start_person[0];
+
+            # Check if we have cached results
+            cache_nodes = [person --> CacheEntry](?depth == self.max_depth);
+
+            if cache_nodes {
+                cache = cache_nodes[0];
+                report {
+                    "person": self.person_name,
+                    "friends_of_friends": cache.friend_names,
+                    "total_found": len(cache.friend_names),
+                    "cached": true
+                };
+                return;
+            }
+
+            # Compute and cache results
+            queue = deque([(person, 0)]);
+            visited = {self.person_name};
+            results = set();
+
+            while queue {
+                current_person, depth = queue.popleft();
+
+                if depth >= self.max_depth {
+                    continue;
+                }
+
+                friends = [current_person --> Friend --> Person];
+                for friend in friends {
+                    if friend.name not in visited {
+                        visited.add(friend.name);
+                        results.add(friend.name);
+                        queue.append((friend, depth + 1));
+                    }
+                }
+            }
+
+            # Cache the results
+            cache = CacheEntry(
+                depth=self.max_depth,
+                friend_names=list(results),
+                computed_at="2024-01-15"
+            );
+            person ++> cache;
+
+            report {
+                "person": self.person_name,
+                "friends_of_friends": list(results),
+                "total_found": len(results),
+                "cached": false
+            };
         }
     }
-}
-```
 
-#### Performance Patterns
-```jac
-# Lazy evaluation
-can lazy_range(start: int, stop: int) {
-    current = start;
-    while current < stop {
-        yield current;
-        current += 1;
+    node CacheEntry {
+        has depth: int;
+        has friend_names: list[str];
+        has computed_at: str;
     }
-}
+    ```
+    </div>
 
-# Memoization
-glob memo_cache: dict = {};
+---
 
-can memoized_fibonacci(n: int) -> int {
-    if n in memo_cache {
-        return memo_cache[n];
-    }
+## Memory Management
 
-    if n <= 1 {
-        result = n;
-    } else {
-        result = memoized_fibonacci(n-1) + memoized_fibonacci(n-2);
-    }
+Efficient memory usage is critical for large-scale graph applications. Let's explore techniques to minimize memory footprint while maintaining performance.
 
-    memo_cache[n] = result;
-    return result;
-}
-```
+### Memory-Efficient Data Structures
 
-### Quick Conversion Guide
+!!! example "Optimized Memory Usage"
+    <div class="code-block">
+    ```jac
+    # memory_optimized.jac
+    # Use lightweight nodes for large-scale networks
+    node LightPerson {
+        has name: str;
+        has age: int;
+        # Remove unnecessary cached data to save memory
 
-#### Python Class to Jac Node
-```python
-# Python
-class User:
-    def __init__(self, name, email):
-        self.name = name
-        self.email = email
-        self.friends = []
-
-    def add_friend(self, other):
-        self.friends.append(other)
-```
-
-```jac
-# Jac
-node User {
-    has name: str;
-    has email: str;
-}
-
-edge Friend;
-
-walker AddFriend {
-    has other_user: User;
-
-    can add with User entry {
-        here ++>:Friend:++> self.other_user;
-    }
-}
-```
-
-#### Python Function to Jac Walker
-```python
-# Python
-def find_users_by_name(graph, name_pattern):
-    results = []
-    for user in graph.get_all_users():
-        if name_pattern in user.name:
-            results.append(user)
-    return results
-```
-
-```jac
-# Jac
-walker FindUsersByName {
-    has name_pattern: str;
-    has results: list = [];
-
-    can search with User entry {
-        if self.name_pattern in here.name {
-            self.results.append(here);
+        can get_friend_count() -> int {
+            # Calculate on-demand instead of caching
+            return len([self --> Friend --> LightPerson]);
         }
-        visit [-->];
+
+        can get_connections_summary() -> dict {
+            friends = [self --> Friend --> LightPerson];
+
+            return {
+                "friend_count": len(friends),
+                "avg_age": sum(f.age for f in friends) / len(friends) if friends else 0,
+                "friend_names": [f.name for f in friends[:5]]  # Limit for memory
+            };
+        }
     }
 
-    can return_results with `root exit {
-        report self.results;
+    # Memory-conscious walker with cleanup
+    walker find_friends_memory_efficient {
+        has person_name: str;
+        has max_depth: int = 2;
+        has batch_size: int = 100;  # Process in batches
+
+        can memory_conscious_search with `root entry {
+            start_person = [-->](`?LightPerson)(?name == self.person_name);
+
+            if not start_person {
+                report {"error": "Person not found"};
+                return;
+            }
+
+            results = [];
+            processed = 0;
+            queue = deque([(start_person[0], 0)]);
+            visited = {self.person_name};
+
+            while queue and processed < self.batch_size {
+                current_person, depth = queue.popleft();
+                processed += 1;
+
+                if depth >= self.max_depth {
+                    continue;
+                }
+
+                # Get only essential friend data
+                friends = [current_person --> Friend --> LightPerson];
+
+                for friend in friends[:10] {  # Limit friends per iteration
+                    if friend.name not in visited {
+                        visited.add(friend.name);
+                        results.append({
+                            "name": friend.name,
+                            "age": friend.age,
+                            "depth": depth + 1
+                        });
+
+                        if depth + 1 < self.max_depth {
+                            queue.append((friend, depth + 1));
+                        }
+                }
+
+                # Periodic cleanup of references
+                if processed % 50 == 0 {
+                    # Force cleanup of temporary variables
+                    friends = None;
+                }
+            }
+
+            report {
+                "person": self.person_name,
+                "friends_found": results,
+                "total_processed": processed,
+                "memory_optimized": true
+            };
+        }
     }
-}
+    ```
+    </div>
+
+### Performance Monitoring
+
+!!! example "Performance Tracking Walker"
+    <div class="code-block">
+    ```jac
+    # performance_monitor.jac
+    import from time { time }
+    import from psutil { Process }
+
+    walker benchmark_friend_finding {
+        has person_name: str;
+        has algorithm: str = "optimized";  # "basic", "optimized", "cached"
+
+        can run_benchmark with `root entry {
+            start_time = time();
+            process = Process();
+            start_memory = process.memory_info().rss / 1024 / 1024;  # MB
+
+            # Run the specified algorithm
+            if self.algorithm == "basic" {
+                result = find_friends_of_friends(person_name=self.person_name) spawn here;
+            } elif self.algorithm == "optimized" {
+                result = find_friends_optimized(person_name=self.person_name) spawn here;
+            } elif self.algorithm == "cached" {
+                result = find_friends_cached(person_name=self.person_name) spawn here;
+            } else {
+                report {"error": "Unknown algorithm"};
+                return;
+            }
+
+            end_time = time();
+            end_memory = process.memory_info().rss / 1024 / 1024;  # MB
+
+            # Performance metrics
+            execution_time = end_time - start_time;
+            memory_used = end_memory - start_memory;
+
+            report {
+                "algorithm": self.algorithm,
+                "execution_time_ms": round(execution_time * 1000, 2),
+                "memory_used_mb": round(memory_used, 2),
+                "friends_found": len(result[0].get("friends_of_friends", [])),
+                "performance_ratio": round(len(result[0].get("friends_of_friends", [])) / execution_time, 2)
+            };
+        }
+    }
+
+    # Batch benchmarking for statistical analysis
+    walker run_performance_suite {
+        has test_count: int = 10;
+        has test_persons: list[str] = ["Alice", "Bob", "Charlie"];
+
+        can comprehensive_benchmark with `root entry {
+            algorithms = ["basic", "optimized", "cached"];
+            results = [];
+
+            for algorithm in algorithms {
+                algorithm_results = [];
+
+                for person in self.test_persons {
+                    for i in range(self.test_count) {
+                        benchmark = benchmark_friend_finding(
+                            person_name=person,
+                            algorithm=algorithm
+                        );
+                        result = benchmark spawn here;
+                        algorithm_results.append(result[0]);
+                    }
+                }
+
+                # Calculate averages
+                avg_time = sum(r["execution_time_ms"] for r in algorithm_results) / len(algorithm_results);
+                avg_memory = sum(r["memory_used_mb"] for r in algorithm_results) / len(algorithm_results);
+                avg_friends = sum(r["friends_found"] for r in algorithm_results) / len(algorithm_results);
+
+                results.append({
+                    "algorithm": algorithm,
+                    "avg_execution_time_ms": round(avg_time, 2),
+                    "avg_memory_used_mb": round(avg_memory, 2),
+                    "avg_friends_found": round(avg_friends, 2),
+                    "total_tests": len(algorithm_results)
+                });
+            }
+
+            report {
+                "benchmark_suite": results,
+                "test_configuration": {
+                    "test_count": self.test_count,
+                    "test_persons": self.test_persons
+                }
+            };
+        }
+    }
+    ```
+    </div>
+
+---
+
+## Distributed Performance
+
+When deploying to Jac Cloud, consider performance implications of distributed execution and data locality.
+
+### Cloud-Optimized Friend Finding
+
+!!! example "Distributed Performance Patterns"
+    <div class="code-block">
+    ```jac
+    # distributed_friends.jac
+    walker find_friends_distributed {
+        has person_name: str;
+        has max_depth: int = 2;
+        has partition_size: int = 50;  # Optimize for cloud chunks
+
+        can cloud_optimized_search with `root entry {
+            start_person = [-->](`?LightPerson)(?name == self.person_name);
+
+            if not start_person {
+                report {"error": "Person not found"};
+                return;
+            }
+
+            # Partition the search for distributed processing
+            person = start_person[0];
+            immediate_friends = [person --> Friend --> LightPerson];
+
+            # Process in chunks optimized for cloud deployment
+            friend_chunks = [
+                immediate_friends[i:i + self.partition_size]
+                for i in range(0, len(immediate_friends), self.partition_size)
+            ];
+
+            all_results = [];
+            chunk_count = 0;
+
+            for chunk in friend_chunks {
+                chunk_results = [];
+                chunk_count += 1;
+
+                for friend in chunk {
+                    # Second-degree friends
+                    if self.max_depth > 1 {
+                        second_degree = [friend --> Friend --> LightPerson];
+                        for second_friend in second_degree {
+                            if second_friend.name != self.person_name {
+                                chunk_results.append({
+                                    "name": second_friend.name,
+                                    "age": second_friend.age,
+                                    "via": friend.name,
+                                    "depth": 2
+                                });
+                            }
+                        }
+                    }
+
+                    chunk_results.append({
+                        "name": friend.name,
+                        "age": friend.age,
+                        "via": "direct",
+                        "depth": 1
+                    });
+                }
+
+                all_results.extend(chunk_results);
+            }
+
+            # Remove duplicates efficiently
+            unique_results = {};
+            for result in all_results {
+                unique_results[result["name"]] = result;
+            }
+
+            report {
+                "person": self.person_name,
+                "friends_network": list(unique_results.values()),
+                "total_found": len(unique_results),
+                "chunks_processed": chunk_count,
+                "distributed": true
+            };
+        }
+    }
+
+    # Health check for performance monitoring
+    walker performance_health_check {
+        can check_system_health with `root entry {
+            # Count total nodes and relationships
+            all_persons = [-->](`?LightPerson);
+            total_friendships = [-->](`?Friend);
+
+            # Calculate network density
+            max_possible_connections = len(all_persons) * (len(all_persons) - 1) / 2;
+            density = len(total_friendships) / max_possible_connections if max_possible_connections > 0 else 0;
+
+            # Sample performance with a quick test
+            start_time = time();
+            if all_persons {
+                sample_person = all_persons[0];
+                sample_friends = [sample_person --> Friend --> LightPerson];
+            }
+            sample_time = time() - start_time;
+
+            report {
+                "total_persons": len(all_persons),
+                "total_friendships": len(total_friendships),
+                "network_density": round(density, 4),
+                "sample_query_time_ms": round(sample_time * 1000, 2),
+                "health_status": "good" if sample_time < 0.1 else "degraded"
+            };
+        }
+    }
+    ```
+    </div>
+
+---
+
+## Performance Testing and Deployment
+
+### Creating Test Data
+
+!!! example "Performance Test Setup"
+    <div class="code-block">
+    ```jac
+    # test_data_generator.jac
+    import from random { randint, choice }
+
+    walker generate_test_network {
+        has person_count: int = 100;
+        has avg_friends: int = 5;
+
+        can create_test_network with `root entry {
+            # Clear existing test data
+            existing_persons = [-->](`?LightPerson);
+            existing_friends = [-->](`?Friend);
+
+            for person in existing_persons {
+                del person;
+            }
+            for friendship in existing_friends {
+                del friendship;
+            }
+
+            # Create people
+            people = [];
+            for i in range(self.person_count) {
+                person = LightPerson(
+                    name=f"Person{i}",
+                    age=randint(18, 65)
+                );
+                here ++> person;
+                people.append(person);
+            }
+
+            # Create friendships
+            total_friendships = 0;
+            for person in people {
+                friends_to_add = randint(1, self.avg_friends * 2);
+
+                for _ in range(friends_to_add) {
+                    potential_friend = choice(people);
+                    if potential_friend != person {
+                        # Check if friendship already exists
+                        existing = [person --> Friend --> LightPerson](?name == potential_friend.name);
+                        if not existing {
+                            friendship = Friend(since="2024-01-15");
+                            person ++> friendship ++> potential_friend;
+                            total_friendships += 1;
+                        }
+                    }
+                }
+            }
+
+            report {
+                "people_created": len(people),
+                "friendships_created": total_friendships,
+                "avg_friends_per_person": round(total_friendships * 2 / len(people), 2)
+            };
+        }
+    }
+    ```
+    </div>
+
+### Testing Performance
+
+```bash
+# Deploy the optimized version
+jac serve distributed_friends.jac
+
+# Generate test data
+curl -X POST http://localhost:8000/walker/generate_test_network \
+  -H "Content-Type: application/json" \
+  -d '{"person_count": 1000, "avg_friends": 10}'
+
+# Run performance benchmarks
+curl -X POST http://localhost:8000/walker/run_performance_suite \
+  -H "Content-Type: application/json" \
+  -d '{"test_count": 5, "test_persons": ["Person1", "Person50", "Person100"]}'
+
+# Check system health
+curl -X POST http://localhost:8000/walker/performance_health_check \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
 
-This quick reference provides the essential syntax mappings and patterns you'll need for day-to-day Jac development. Keep it handy as you transition from Python to Jac's object-spatial paradigm!
+---
+
+## Best Practices
+
+!!! summary "Performance Optimization Guidelines"
+    - **Measure before optimizing**: Always profile before making performance changes
+    - **Optimize hot paths**: Focus on frequently executed code sections
+    - **Use appropriate data structures**: Choose the right graph patterns for your use case
+    - **Cache intelligently**: Cache expensive computations but avoid memory leaks
+    - **Batch operations**: Process multiple items together when possible
+    - **Monitor continuously**: Track performance metrics in production
+
+## Key Takeaways
+
+!!! summary "What We've Learned"
+    **Graph Structure Optimization:**
+
+    - **Efficient relationships**: Well-designed edges and nodes improve traversal speed
+    - **Index strategy**: Cache frequently accessed data for faster retrieval
+    - **Memory management**: Batch processing and cleanup reduce memory footprint
+    - **Connection patterns**: Optimize graph topology for common access patterns
+
+    **Algorithm Optimization:**
+
+    - **Traversal strategies**: Choose BFS vs DFS based on your specific requirements
+    - **Caching patterns**: Strategic caching reduces redundant computations
+    - **Batch processing**: Handle large datasets efficiently with chunking
+    - **Early termination**: Stop processing when results are sufficient
+
+    **Performance Monitoring:**
+
+    - **Built-in metrics**: Track execution time, memory usage, and throughput
+    - **Benchmarking**: Compare different implementation strategies objectively
+    - **Real-world testing**: Test with production-scale data and load patterns
+    - **Continuous profiling**: Monitor performance trends over time
+
+    **Distributed Performance:**
+
+    - **Cloud optimization**: Design for distributed execution and data locality
+    - **Scaling patterns**: Horizontal scaling through partitioning and parallelization
+    - **Resource efficiency**: Optimize for cloud computing cost and performance
+    - **Load balancing**: Distribute work evenly across available resources
+
+!!! tip "Try It Yourself"
+    Apply performance optimization by:
+    - Profiling your graph applications to identify bottlenecks
+    - Implementing different caching strategies and measuring their impact
+    - Testing with larger datasets to understand scaling characteristics
+    - Optimizing walker traversal patterns for your specific use cases
+
+    Remember: Performance optimization is an iterative process - measure, optimize, and verify!
+
+---
+
+*Ready to learn about migration strategies? Continue to [Chapter 21: Python to Jac Migration](chapter_21.md)!*

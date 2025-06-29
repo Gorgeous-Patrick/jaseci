@@ -477,9 +477,9 @@ Visit patterns control how walkers traverse your graph. The most powerful featur
         walker.visit_by_priority(center)
         ```
 
-## Best Practices for Advanced Operations
+## Best Practices
 
-!!! summary "Design Guidelines"
+!!! summary "Advanced Operation Guidelines"
     - **Plan traversal depth**: Use depth limits to prevent infinite loops
     - **Cache expensive calculations**: Store results in walker state
     - **Use early returns**: Skip unnecessary processing with guards
@@ -489,7 +489,7 @@ Visit patterns control how walkers traverse your graph. The most powerful featur
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Advanced Filtering:**
 
     - **Multi-criteria queries**: Combine node properties, edge attributes, and relationships
@@ -518,9 +518,15 @@ Visit patterns control how walkers traverse your graph. The most powerful featur
     - **Path finding**: Navigate through complex relationship networks
     - **Data analysis**: Extract insights from connected information
 
-!!! topic "Coming Up"
-    In the next chapter, we'll explore persistence and the root node - features that make your spatial programs automatically persist state and scale from single-user scripts to multi-user applications.
+!!! tip "Try It Yourself"
+    Master advanced operations by building:
+    - A recommendation engine using friend-of-friend patterns
+    - A family tree analyzer with complex relationship queries
+    - A social network explorer with priority-based traversal
+    - A pathfinding system using breadth-first search
+
+    Remember: Advanced operations enable sophisticated graph algorithms with simple, readable code!
 
 ---
 
-*You've mastered advanced graph operations! Next, let's discover how Jac automatically handles persistence and scaling.*
+*You've mastered advanced graph operations! Next, let's discover how walkers automatically become API endpoints.*

@@ -692,7 +692,7 @@ Walkers are the heart of Object-Spatial Programming - they are mobile computatio
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Walker System:**
 
     - **Mobile computation**: Walkers bring processing directly to data locations
@@ -721,8 +721,14 @@ Walkers are the heart of Object-Spatial Programming - they are mobile computatio
     - **Message delivery**: Distribute information through networks
     - **State propagation**: Update related nodes based on changes
 
-!!! topic "Coming Up"
-    In the next chapter, we'll explore advanced object-spatial operations including complex traversal patterns and sophisticated filtering techniques that unlock the full potential of graph-based programming.
+!!! tip "Try It Yourself"
+    Master walkers and abilities by building:
+    - A message delivery system that traverses social networks
+    - An attendance checker that visits classrooms
+    - A family tree explorer that analyzes relationships
+    - A network analyzer that processes organizational structures
+
+    Remember: Walkers bring computation to data - think about how your processing can move through your graph!
 
 ---
 

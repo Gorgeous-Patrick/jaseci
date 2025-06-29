@@ -695,7 +695,7 @@ class BankAccount:
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Enhanced Object System:**
 
     - **Automatic constructors**: Generated from `has` declarations, eliminating boilerplate
@@ -724,8 +724,14 @@ class BankAccount:
     - **Maintainable code**: Clear separation of concerns and automatic generation
     - **Python familiarity**: Familiar concepts with modern enhancements
 
-!!! topic "Coming Up"
-    In the next chapter, we'll explore the revolutionary Object-Spatial Programming paradigm that transforms how we think about data and computation, moving from traditional object-oriented thinking to spatial relationships.
+!!! tip "Try It Yourself"
+    Practice enhanced OOP by building:
+    - A class hierarchy with automatic constructors
+    - Access control examples showing public/private/protected usage
+    - Implementation separation with `.impl.jac` files
+    - Inheritance chains with method overriding
+
+    Remember: Jac's enhanced OOP eliminates boilerplate while providing better safety!
 
 ---
 

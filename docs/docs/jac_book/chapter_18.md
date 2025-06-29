@@ -1,1093 +1,1190 @@
+# Chapter 18: Testing and Debugging
 
-### Chapter 18: Migration Guide
+In this chapter, we'll explore Jac's built-in testing framework and debugging strategies for spatial applications. We'll build a comprehensive test suite for a social media system that demonstrates testing nodes, edges, walkers, and complex graph operations.
 
-#### 18.1 Porting Python Applications
+!!! info "What You'll Learn"
+    - Jac's built-in testing framework with `.test.jac` files
+    - Testing spatial applications with nodes, edges, and walkers
+    - Debugging techniques for graph traversal and walker behavior
+    - Performance testing and optimization strategies
+    - Test-driven development patterns for OSP
 
-Migrating Python applications to Jac requires a shift in thinking from object-oriented to object-spatial patterns. This section guides you through identifying opportunities for migration and transforming Python code to leverage Jac's unique capabilities.
+---
 
-### Identifying Graph Structures
+## Jac's Built-in Testing Framework
 
-Most Python applications contain implicit graph structures that become explicit in Jac. Learning to recognize these patterns is the first step in successful migration.
+Jac provides a powerful testing framework that automatically discovers and runs tests. When you run `jac test myfile.jac`, it automatically looks for `myfile.test.jac` and executes all test blocks within it.
 
-#### Common Graph Patterns in Python Applications
+!!! success "Testing Framework Benefits"
+    - **Automatic Discovery**: `.test.jac` files are automatically found and executed
+    - **Graph-Aware Testing**: Native support for testing spatial relationships
+    - **Walker Testing**: Test mobile computation patterns naturally
+    - **Type-Safe Assertions**: Leverage Jac's type system in test validation
+    - **Zero Configuration**: No external testing frameworks required
 
-```python
-# Python: Hidden graph structure in user relationships
-class User:
-    def __init__(self, username):
-        self.username = username
-        self.followers = []
-        self.following = []
-        self.posts = []
-        self.liked_posts = []
-        self.blocked_users = []
+### Traditional vs Jac Testing
 
-    def follow(self, other_user):
-        if other_user not in self.following:
-            self.following.append(other_user)
-            other_user.followers.append(self)
+!!! example "Testing Comparison"
+    === "Traditional Approach"
+        ```python
+        # test_social_media.py - External framework required
+        import unittest
+        from social_media import Profile, Tweet, Comment
 
-    def create_post(self, content):
-        post = Post(content, self)
-        self.posts.append(post)
-        return post
-```
+        class TestSocialMedia(unittest.TestCase):
+            def setUp(self):
+                self.profile = Profile("test_user")
+                self.tweet = Tweet("Hello world!")
 
-This Python code hides several graph relationships:
-- User → User (following/followers)
-- User → Post (authored)
-- User → Post (liked)
-- User → User (blocked)
+            def test_create_profile(self):
+                self.assertEqual(self.profile.username, "test_user")
+                self.assertIsInstance(self.profile, Profile)
 
-```mermaid
-graph TD
-    U1[User 1]
-    U2[User 2]
-    U3[User 3]
-    P1[Post 1]
-    P2[Post 2]
-    P3[Post 3]
+            def test_create_tweet(self):
+                self.profile.add_tweet(self.tweet)
+                self.assertEqual(len(self.profile.tweets), 1)
+                self.assertEqual(self.profile.tweets[0].content, "Hello world!")
 
-    U1 -->|follows| U2
-    U2 -->|follows| U1
-    U2 -->|follows| U3
-    U1 -->|authored| P1
-    U2 -->|authored| P2
-    U2 -->|authored| P3
-    U1 -->|likes| P2
-    U3 -->|likes| P2
-    U1 -.->|blocked| U3
+            def test_follow_user(self):
+                other_user = Profile("other_user")
+                self.profile.follow(other_user)
+                self.assertIn(other_user, self.profile.following)
 
-    style U1 fill:#e3f2fd
-    style U2 fill:#e3f2fd
-    style U3 fill:#e3f2fd
-    style P1 fill:#fff3e0
-    style P2 fill:#fff3e0
-    style P3 fill:#fff3e0
-```
+        if __name__ == '__main__':
+            unittest.main()
+        ```
 
-#### Recognizing Graph Structures
+    === "Jac Testing"
+        ```jac
+        # social_media.test.jac - Built-in testing
 
-Look for these indicators in your Python code:
-
-1. **Collections of References**
-   ```python
-   # Python: Collection indicates relationship
-   self.friends = []  # → Friend edge
-   self.items = []    # → Contains edge
-   self.tags = []     # → TaggedWith edge
-   ```
-
-2. **Many-to-Many Relationships**
-   ```python
-   # Python: Join tables or intermediate objects
-   class UserGroup:
-       def __init__(self):
-           self.members = []
-
-   class GroupMembership:
-       def __init__(self, user, group, role):
-           self.user = user
-           self.group = group
-           self.role = role
-   ```
-
-3. **Hierarchical Structures**
-   ```python
-   # Python: Parent-child relationships
-   class Category:
-       def __init__(self, name, parent=None):
-           self.name = name
-           self.parent = parent
-           self.children = []
-   ```
-
-4. **State Machines**
-   ```python
-   # Python: State transitions
-   class Order:
-       STATES = ['pending', 'paid', 'shipped', 'delivered']
-
-       def transition_to(self, new_state):
-           if self.can_transition(new_state):
-               self.state = new_state
-   ```
-
-5. **Event Systems**
-   ```python
-   # Python: Observer patterns
-   class EventEmitter:
-       def __init__(self):
-           self.listeners = defaultdict(list)
-
-       def on(self, event, callback):
-           self.listeners[event].append(callback)
-   ```
-
-### Converting Classes to Archetypes
-
-The transformation from Python classes to Jac archetypes involves identifying which archetype best represents each class's role.
-
-#### Decision Tree for Archetype Selection
-
-```mermaid
-graph TD
-    A[Python Class] --> B{Represents a<br/>data entity?}
-    B -->|Yes| C{Has connections<br/>to others?}
-    B -->|No| D{Represents a<br/>relationship?}
-    C -->|Yes| E[node]
-    C -->|No| F[obj]
-    D -->|Yes| G[edge]
-    D -->|No| H{Represents a<br/>process/algorithm?}
-    H -->|Yes| I[walker]
-    H -->|No| J[obj or can]
-
-    style E fill:#4caf50
-    style G fill:#ff9800
-    style I fill:#2196f3
-    style F fill:#9c27b0
-    style J fill:#9c27b0
-```
-
-#### Example: User Management System
-
-**Python Original:**
-```python
-# models.py
-from datetime import datetime
-from typing import List, Optional
-
-class User:
-    def __init__(self, email: str, username: str):
-        self.id = generate_id()
-        self.email = email
-        self.username = username
-        self.created_at = datetime.now()
-        self.profile = None
-        self.sessions = []
-
-    def create_profile(self, bio: str, avatar_url: str):
-        self.profile = UserProfile(bio, avatar_url)
-        return self.profile
-
-    def get_active_sessions(self) -> List['Session']:
-        return [s for s in self.sessions if s.is_active()]
-
-class UserProfile:
-    def __init__(self, bio: str, avatar_url: str):
-        self.bio = bio
-        self.avatar_url = avatar_url
-        self.updated_at = datetime.now()
-
-class Session:
-    def __init__(self, user: User, ip_address: str):
-        self.id = generate_id()
-        self.user = user
-        self.ip_address = ip_address
-        self.created_at = datetime.now()
-        self.last_activity = datetime.now()
-        self.active = True
-
-    def is_active(self) -> bool:
-        timeout = datetime.now() - self.last_activity
-        return self.active and timeout.seconds < 3600
-
-    def terminate(self):
-        self.active = False
-
-class Friendship:
-    def __init__(self, user1: User, user2: User):
-        self.user1 = user1
-        self.user2 = user2
-        self.created_at = datetime.now()
-        self.status = 'pending'
-
-    def accept(self):
-        self.status = 'accepted'
-
-    def reject(self):
-        self.status = 'rejected'
-```
-
-**Jac Migration:**
-```jac
-# models.jac
-
-# User becomes a node (has connections)
-node User {
-    has email: str;
-    has username: str;
-    has created_at: str;
-
-    # Automatic ID generation via postinit
-    has id: str by postinit;
-
-    can postinit {
-        self.id = generate_id();
-    }
-}
-
-# Profile becomes obj (1-1 with User, no independent connections)
-obj UserProfile {
-    has bio: str;
-    has avatar_url: str;
-    has updated_at: str;
-}
-
-# Session becomes an edge (connects User to temporal context)
-edge Session(User, TimeContext) {
-    has id: str by postinit;
-    has ip_address: str;
-    has created_at: str;
-    has last_activity: str;
-    has active: bool = true;
-
-    can postinit {
-        self.id = generate_id();
-    }
-
-    can is_active -> bool {
-        import:py from datetime { datetime };
-        if not self.active { return false; }
-
-        last = datetime.fromisoformat(self.last_activity);
-        timeout = datetime.now() - last;
-        return timeout.seconds < 3600;
-    }
-
-    can terminate {
-        self.active = false;
-    }
-}
-
-# Friendship becomes an edge with status
-edge Friendship(User, User) {
-    has created_at: str;
-    has status: str = 'pending';
-
-    can accept {
-        self.status = 'accepted';
-    }
-
-    can reject {
-        self.status = 'rejected';
-    }
-}
-
-# Profile creation becomes a walker
-walker CreateProfile {
-    has bio: str;
-    has avatar_url: str;
-
-    can create with User entry {
-        # Check if profile already exists
-        existing = here[-->:HasProfile:];
-        if existing {
-            report {"error": "Profile already exists"};
-            disengage;
+        test create_profile {
+            root spawn visit_profile();
+            profile = [root --> Profile][0];
+            check isinstance(profile, Profile);
+            check profile.username == "";  # Default value
         }
 
-        # Create profile and connect
-        profile = UserProfile(
-            bio=self.bio,
-            avatar_url=self.avatar_url,
-            updated_at=timestamp_now()
-        );
-
-        here ++>:HasProfile:++> profile;
-        report {"success": true, "profile": profile};
-    }
-}
-
-# Active sessions becomes a walker query
-walker GetActiveSessions {
-    has sessions: list = [];
-
-    can collect with User entry {
-        for session in [-->:Session:] {
-            if session.is_active() {
-                self.sessions.append({
-                    "id": session.id,
-                    "ip": session.ip_address,
-                    "last_activity": session.last_activity
-                });
-            }
+        test update_profile {
+            root spawn update_profile(new_username="test_user");
+            profile = [root --> Profile][0];
+            check profile.username == "test_user";
         }
-    }
-}
-```
 
-### Refactoring for Object-Spatial Patterns
-
-Moving beyond direct translation, we can refactor to truly leverage object-spatial patterns.
-
-##### Pattern 1: Replace Method Calls with Walker Traversal
-
-**Python:**
-```python
-class NotificationService:
-    def notify_followers(self, user, message):
-        for follower in user.followers:
-            if self.should_notify(follower, user):
-                self.send_notification(follower, message)
-
-    def should_notify(self, recipient, sender):
-        # Check blocks, preferences, etc.
-        return sender not in recipient.blocked_users
-```
-
-**Jac Refactored:**
-```jac
-walker NotifyFollowers {
-    has message: str;
-    has notifications_sent: int = 0;
-
-    can notify with User entry {
-        # Natural traversal with filtering
-        for follower in [<--:Follows:] {
-            # Blocked relationships prevent traversal
-            if not follower[-->:Blocks:-->](?.target == here) {
-                visit follower;
-            }
+        test create_tweet {
+            root spawn create_tweet(content="Hello world!");
+            tweet = [root --> Profile --> Tweet][0];
+            check tweet.content == "Hello world!";
+            check isinstance(tweet, Tweet);
         }
-    }
 
-    can deliver with User entry {
-        # Create notification node
-        notif = here ++> Notification(
-            message=self.message,
-            from_user=here,
-            timestamp=timestamp_now(),
-            read=false
-        );
-        self.notifications_sent += 1;
-    }
+        test follow_user {
+            # Create another profile to follow
+            other_profile = Profile(username="other_user");
+            other_profile spawn follow_request();
 
-    can summarize with `root exit {
-        report {
-            "sent": self.notifications_sent,
-            "message": self.message
-        };
-    }
-}
-```
-
-##### Pattern 2: Replace Queries with Graph Traversal
-
-**Python:**
-```python
-# Finding mutual friends
-def find_mutual_friends(user1, user2):
-    friends1 = set(user1.friends)
-    friends2 = set(user2.friends)
-    return friends1.intersection(friends2)
-
-# Finding friend recommendations
-def recommend_friends(user, limit=10):
-    recommendations = {}
-
-    # Friends of friends
-    for friend in user.friends:
-        for fof in friend.friends:
-            if fof != user and fof not in user.friends:
-                recommendations[fof] = recommendations.get(fof, 0) + 1
-
-    # Sort by mutual friend count
-    sorted_recs = sorted(recommendations.items(),
-                        key=lambda x: x[1], reverse=True)
-    return [user for user, _ in sorted_recs[:limit]]
-```
-
-**Jac Refactored:**
-```jac
-walker FindMutualFriends {
-    has other_user: User;
-    has mutuals: set = {};
-
-    can find with User entry {
-        # Collect my friends
-        my_friends = set([-->:Follows:-->]);
-
-        # Visit other user and find intersection
-        visit self.other_user else {
-            report {"error": "User not found"};
-        };
-    }
-
-    can compare with User entry {
-        their_friends = set([-->:Follows:-->]);
-        self.mutuals = my_friends.intersection(their_friends);
-        report list(self.mutuals);
-    }
-}
-
-walker RecommendFriends {
-    has limit: int = 10;
-    has recommendations: dict = {};
-    has visited: set = {};
-    has original_user: User by postinit;
-
-    can postinit {
-        self.original_user = here;
-    }
-
-    can explore with User entry {
-        if here in self.visited { return; }
-        self.visited.add(here);
-
-        # First level: my friends
-        if here == self.original_user {
-            visit [-->:Follows:-->];
+            # Check follow relationship exists
+            followed = [root --> Profile ->:Follow:-> Profile][0];
+            check followed.username == "other_user";
         }
-        # Second level: friends of friends
-        else {
-            for fof in [-->:Follows:-->] {
-                if fof != self.original_user and
-                   not self.original_user[-->:Follows:-->](? == fof) {
-                    self.recommendations[fof] = \
-                        self.recommendations.get(fof, 0) + 1;
+        ```
+
+---
+
+## Testing Graph Structures
+
+Testing spatial applications requires verifying both node properties and relationship integrity. Let's build a comprehensive social media system and test it thoroughly.
+
+### Basic Social Media System
+
+!!! example "Social Media Implementation"
+    === "social_media.jac"
+        ```jac
+        # social_media.jac
+        import from datetime { datetime }
+
+        node Profile {
+            has username: str = "";
+            has bio: str = "";
+            has follower_count: int = 0;
+
+            can update with update_profile entry;
+            can follow with follow_request entry;
+            can unfollow with unfollow_request entry;
+        }
+
+        node Tweet {
+            has content: str;
+            has created_at: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S");
+            has like_count: int = 0;
+
+            can update with update_tweet exit;
+            can delete with remove_tweet exit;
+            can like with like_tweet entry;
+            can unlike with unlike_tweet entry;
+        }
+
+        node Comment {
+            has content: str;
+            has created_at: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S");
+
+            can update with update_comment entry;
+            can delete with remove_comment entry;
+        }
+
+        edge Follow {
+            has followed_at: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S");
+        }
+
+        edge Post {
+            has posted_at: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S");
+        }
+
+        edge Like {
+            has liked_at: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S");
+        }
+
+        edge CommentOn {}
+
+        walker visit_profile {
+            can visit_profile with `root entry {
+                visit [-->Profile] else {
+                    new_profile = here ++> Profile();
+                    visit new_profile;
                 }
             }
         }
+
+        walker update_profile(visit_profile) {
+            has new_username: str;
+            has new_bio: str = "";
+        }
+
+        walker follow_request {
+            can follow_user with Profile entry {
+                current_profile = [root --> Profile][0];
+                if current_profile != here {
+                    current_profile +>:Follow:+> here;
+                    here.follower_count += 1;
+                    report {"message": f"Now following {here.username}"};
+                } else {
+                    report {"error": "Cannot follow yourself"};
+                }
+            }
+        }
+
+        walker unfollow_request {
+            can unfollow_user with Profile entry {
+                current_profile = [root --> Profile][0];
+                follow_edges = [edge current_profile ->:Follow:-> here];
+                if follow_edges {
+                    del follow_edges[0];
+                    here.follower_count -= 1;
+                    report {"message": f"Unfollowed {here.username}"};
+                } else {
+                    report {"error": "Not following this user"};
+                }
+            }
+        }
+
+        walker create_tweet(visit_profile) {
+            has content: str;
+
+            can post_tweet with Profile entry {
+                tweet = here +>:Post:+> Tweet(content=self.content);
+                report {"message": "Tweet created", "tweet_id": tweet[0].id};
+            }
+        }
+
+        walker update_tweet {
+            has updated_content: str;
+        }
+
+        walker remove_tweet {}
+
+        walker like_tweet {
+            can like_post with Tweet entry {
+                current_profile = [root --> Profile][0];
+                existing_likes = [edge current_profile ->:Like:-> here];
+
+                if not existing_likes {
+                    current_profile +>:Like:+> here;
+                    here.like_count += 1;
+                    report {"message": "Tweet liked"};
+                } else {
+                    report {"error": "Already liked this tweet"};
+                }
+            }
+        }
+
+        walker unlike_tweet {
+            can unlike_post with Tweet entry {
+                current_profile = [root --> Profile][0];
+                like_edges = [edge current_profile ->:Like:-> here];
+
+                if like_edges {
+                    del like_edges[0];
+                    here.like_count -= 1;
+                    report {"message": "Tweet unliked"};
+                } else {
+                    report {"error": "Haven't liked this tweet"};
+                }
+            }
+        }
+
+        walker comment_on_tweet {
+            has content: str;
+
+            can add_comment with Tweet entry {
+                current_profile = [root --> Profile][0];
+                comment = current_profile ++> Comment(content=self.content);
+                here +>:CommentOn:+> comment[0];
+                report {"message": "Comment added", "comment_id": comment[0].id};
+            }
+        }
+        ```
+
+    === "Python Equivalent"
+        ```python
+        # social_media.py - Manual implementation
+        from datetime import datetime
+        from typing import List, Optional
+
+        class Profile:
+            def __init__(self, username: str = "", bio: str = ""):
+                self.username = username
+                self.bio = bio
+                self.follower_count = 0
+                self.following = []
+                self.followers = []
+                self.tweets = []
+
+            def follow(self, other_profile):
+                if other_profile not in self.following and other_profile != self:
+                    self.following.append(other_profile)
+                    other_profile.followers.append(self)
+                    other_profile.follower_count += 1
+                    return True
+                return False
+
+            def unfollow(self, other_profile):
+                if other_profile in self.following:
+                    self.following.remove(other_profile)
+                    other_profile.followers.remove(self)
+                    other_profile.follower_count -= 1
+                    return True
+                return False
+
+        class Tweet:
+            def __init__(self, content: str, author: Profile):
+                self.content = content
+                self.author = author
+                self.created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.like_count = 0
+                self.liked_by = []
+                self.comments = []
+
+            def like(self, user: Profile):
+                if user not in self.liked_by:
+                    self.liked_by.append(user)
+                    self.like_count += 1
+                    return True
+                return False
+
+            def unlike(self, user: Profile):
+                if user in self.liked_by:
+                    self.liked_by.remove(user)
+                    self.like_count -= 1
+                    return True
+                return False
+
+        class Comment:
+            def __init__(self, content: str, author: Profile, tweet: Tweet):
+                self.content = content
+                self.author = author
+                self.tweet = tweet
+                self.created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ```
+
+### Comprehensive Test Suite
+
+!!! example "Complete Test Coverage"
+    === "social_media.test.jac"
+        ```jac
+        # social_media.test.jac
+
+        # Test basic profile creation and updates
+        test create_and_update_profile {
+            # Test profile creation
+            root spawn visit_profile();
+            profile = [root --> Profile][0];
+            check isinstance(profile, Profile);
+            check profile.username == "";
+            check profile.follower_count == 0;
+
+            # Test profile update
+            root spawn update_profile(
+                new_username="alice",
+                new_bio="Software developer"
+            );
+            updated_profile = [root --> Profile][0];
+            check updated_profile.username == "alice";
+            check updated_profile.bio == "Software developer";
+        }
+
+        # Test following functionality
+        test follow_and_unfollow_users {
+            # Create main user profile
+            root spawn visit_profile();
+            root spawn update_profile(new_username="alice");
+
+            # Create another user to follow
+            bob_profile = Profile(username="bob");
+
+            # Test following
+            bob_profile spawn follow_request();
+            follow_edge = [root --> Profile ->:Follow:-> Profile][0];
+            check follow_edge.username == "bob";
+            check bob_profile.follower_count == 1;
+
+            # Test follow edge properties
+            follow_edges = [edge [root --> Profile] ->:Follow:-> bob_profile];
+            check len(follow_edges) == 1;
+            check hasattr(follow_edges[0], "followed_at");
+
+            # Test unfollowing
+            bob_profile spawn unfollow_request();
+            remaining_follows = [root --> Profile ->:Follow:-> Profile];
+            check len(remaining_follows) == 0;
+            check bob_profile.follower_count == 0;
+        }
+
+        # Test tweet creation and management
+        test tweet_lifecycle {
+            # Ensure we have a profile
+            root spawn visit_profile();
+            root spawn update_profile(new_username="alice");
+
+            # Test tweet creation
+            root spawn create_tweet(content="Hello world!");
+            tweet = [root --> Profile ->:Post:-> Tweet][0];
+            check tweet.content == "Hello world!";
+            check isinstance(tweet, Tweet);
+            check hasattr(tweet, "created_at");
+
+            # Test tweet update
+            tweet spawn update_tweet(updated_content="Hello updated world!");
+            check tweet.content == "Hello updated world!";
+
+            # Test multiple tweets
+            root spawn create_tweet(content="Second tweet");
+            all_tweets = [root --> Profile ->:Post:-> Tweet];
+            check len(all_tweets) == 2;
+
+            # Test tweet deletion
+            tweet spawn remove_tweet();
+            remaining_tweets = [root --> Profile ->:Post:-> Tweet];
+            check len(remaining_tweets) == 1;
+            check remaining_tweets[0].content == "Second tweet";
+        }
+
+        # Test liking functionality
+        test like_and_unlike_tweets {
+            # Setup: Create profile and tweet
+            root spawn visit_profile();
+            root spawn update_profile(new_username="alice");
+            root spawn create_tweet(content="Likeable tweet");
+
+            tweet = [root --> Profile ->:Post:-> Tweet][0];
+            check tweet.like_count == 0;
+
+            # Test liking
+            tweet spawn like_tweet();
+            check tweet.like_count == 1;
+
+            # Verify like relationship exists
+            like_edges = [edge [root --> Profile] ->:Like:-> tweet];
+            check len(like_edges) == 1;
+
+            # Test double-liking (should fail)
+            result = tweet spawn like_tweet();
+            check tweet.like_count == 1;  # Should remain 1
+
+            # Test unliking
+            tweet spawn unlike_tweet();
+            check tweet.like_count == 0;
+
+            # Verify like relationship removed
+            remaining_likes = [edge [root --> Profile] ->:Like:-> tweet];
+            check len(remaining_likes) == 0;
+        }
+
+        # Test commenting functionality
+        test comment_system {
+            # Setup: Create profile and tweet
+            root spawn visit_profile();
+            root spawn update_profile(new_username="alice");
+            root spawn create_tweet(content="Tweet for comments");
+
+            tweet = [root --> Profile ->:Post:-> Tweet][0];
+
+            # Test commenting
+            tweet spawn comment_on_tweet(content="Great tweet!");
+            comments = [tweet ->:CommentOn:-> Comment];
+            check len(comments) == 1;
+            check comments[0].content == "Great tweet!";
+
+            # Test multiple comments
+            tweet spawn comment_on_tweet(content="I agree!");
+            all_comments = [tweet ->:CommentOn:-> Comment];
+            check len(all_comments) == 2;
+
+            # Test comment update
+            first_comment = all_comments[0];
+            first_comment spawn update_comment(updated_content="Updated comment");
+            check first_comment.content == "Updated comment";
+
+            # Test comment deletion
+            first_comment spawn remove_comment();
+            remaining_comments = [tweet ->:CommentOn:-> Comment];
+            check len(remaining_comments) == 1;
+        }
+
+        # Test complex graph relationships
+        test complex_social_graph {
+            # Create multiple users
+            root spawn visit_profile();
+            root spawn update_profile(new_username="alice");
+
+            bob = Profile(username="bob");
+            charlie = Profile(username="charlie");
+
+            # Create follow relationships: alice -> bob -> charlie
+            bob spawn follow_request();
+            charlie spawn follow_request();  # alice follows charlie too
+
+            # Alice creates a tweet
+            root spawn create_tweet(content="Alice's tweet");
+            alice_tweet = [root --> Profile ->:Post:-> Tweet][0];
+
+            # Bob likes Alice's tweet
+            # (Note: In a real system, you'd switch user context)
+            alice_tweet spawn like_tweet();
+
+            # Verify complex relationships
+            alice_profile = [root --> Profile][0];
+            alice_following = [alice_profile ->:Follow:-> Profile];
+            check len(alice_following) == 2;  # follows bob and charlie
+
+            alice_tweets = [alice_profile ->:Post:-> Tweet];
+            check len(alice_tweets) == 1;
+
+            tweet_likes = [alice_tweets[0] <-:Like:<- Profile];
+            check len(tweet_likes) == 1;  # liked by alice (herself)
+        }
+
+        # Test error conditions and edge cases
+        test error_conditions {
+            # Test operations without profile
+            try {
+                root spawn create_tweet(content="No profile tweet");
+                check False;  # Should not reach here
+            } except Exception {
+                check True;  # Expected behavior
+            }
+
+            # Create profile for other tests
+            root spawn visit_profile();
+            root spawn update_profile(new_username="test_user");
+
+            # Test self-follow prevention
+            alice_profile = [root --> Profile][0];
+            result = alice_profile spawn follow_request();
+
+            # Should not create self-follow
+            self_follows = [alice_profile ->:Follow:-> alice_profile];
+            check len(self_follows) == 0;
+        }
+
+        # Performance and stress testing
+        test performance_operations {
+            # Setup
+            root spawn visit_profile();
+            root spawn update_profile(new_username="performance_user");
+
+            # Create multiple tweets quickly
+            for i in range(10) {
+                root spawn create_tweet(content=f"Tweet number {i}");
+            }
+
+            all_tweets = [root --> Profile ->:Post:-> Tweet];
+            check len(all_tweets) == 10;
+
+            # Like all tweets
+            for tweet in all_tweets {
+                tweet spawn like_tweet();
+            }
+
+            # Verify all likes
+            for tweet in all_tweets {
+                check tweet.like_count == 1;
+            }
+
+            # Test batch operations work correctly
+            total_likes = sum([tweet.like_count for tweet in all_tweets]);
+            check total_likes == 10;
+        }
+        ```
+
+    === "Python Test Equivalent"
+        ```python
+        # test_social_media.py
+        import unittest
+        from social_media import Profile, Tweet, Comment
+
+        class TestSocialMedia(unittest.TestCase):
+            def setUp(self):
+                self.alice = Profile("alice", "Software developer")
+                self.bob = Profile("bob", "Designer")
+
+            def test_create_and_update_profile(self):
+                profile = Profile()
+                self.assertEqual(profile.username, "")
+                self.assertEqual(profile.follower_count, 0)
+
+                profile.username = "alice"
+                profile.bio = "Software developer"
+                self.assertEqual(profile.username, "alice")
+
+            def test_follow_and_unfollow_users(self):
+                # Test following
+                success = self.alice.follow(self.bob)
+                self.assertTrue(success)
+                self.assertIn(self.bob, self.alice.following)
+                self.assertEqual(self.bob.follower_count, 1)
+
+                # Test unfollowing
+                success = self.alice.unfollow(self.bob)
+                self.assertTrue(success)
+                self.assertNotIn(self.bob, self.alice.following)
+                self.assertEqual(self.bob.follower_count, 0)
+
+            def test_tweet_lifecycle(self):
+                tweet = Tweet("Hello world!", self.alice)
+                self.alice.tweets.append(tweet)
+
+                self.assertEqual(tweet.content, "Hello world!")
+                self.assertEqual(len(self.alice.tweets), 1)
+
+                # Update tweet
+                tweet.content = "Hello updated world!"
+                self.assertEqual(tweet.content, "Hello updated world!")
+
+            def test_like_and_unlike_tweets(self):
+                tweet = Tweet("Likeable tweet", self.alice)
+
+                # Test liking
+                success = tweet.like(self.bob)
+                self.assertTrue(success)
+                self.assertEqual(tweet.like_count, 1)
+
+                # Test double-liking
+                success = tweet.like(self.bob)
+                self.assertFalse(success)
+                self.assertEqual(tweet.like_count, 1)
+
+                # Test unliking
+                success = tweet.unlike(self.bob)
+                self.assertTrue(success)
+                self.assertEqual(tweet.like_count, 0)
+
+        if __name__ == '__main__':
+            unittest.main()
+        ```
+
+---
+
+## Debugging Spatial Applications
+
+Debugging spatial applications requires understanding graph state and walker movement patterns.
+
+### Debug Output and Tracing
+
+!!! example "Debug Walker for Graph Inspection"
+    ```jac
+    # debug_walker.jac
+    walker debug_graph {
+        has visited_nodes: list[str] = [];
+        has visited_edges: list[str] = [];
+        has max_depth: int = 3;
+        has current_depth: int = 0;
+
+        can debug_node with Profile entry {
+            if self.current_depth >= self.max_depth {
+                print(f"Max depth {self.max_depth} reached at {here.username}");
+                return;
+            }
+
+            node_info = f"Profile: {here.username} (followers: {here.follower_count})";
+            self.visited_nodes.append(node_info);
+            print(f"Depth {self.current_depth}: {node_info}");
+
+            # Debug outgoing relationships
+            following = [->:Follow:->];
+            tweets = [->:Post:->];
+
+            print(f"  Following: {len(following)} users");
+            print(f"  Posted: {len(tweets)} tweets");
+
+            # Visit connected nodes
+            self.current_depth += 1;
+            visit following;
+            visit tweets;
+            self.current_depth -= 1;
+        }
+
+        can debug_tweet with Tweet entry {
+            tweet_info = f"Tweet: '{here.content[:30]}...' (likes: {here.like_count})";
+            self.visited_nodes.append(tweet_info);
+            print(f"Depth {self.current_depth}: {tweet_info}");
+
+            # Debug tweet relationships
+            likes = [<-:Like:<-];
+            comments = [->:CommentOn:->];
+
+            print(f"  Liked by: {len(likes)} users");
+            print(f"  Comments: {len(comments)}");
+        }
+
+        can debug_comment with Comment entry {
+            comment_info = f"Comment: '{here.content[:20]}...'";
+            self.visited_nodes.append(comment_info);
+            print(f"Depth {self.current_depth}: {comment_info}");
+        }
     }
 
-    can report_results with `root exit {
-        # Sort and limit recommendations
-        sorted_recs = sorted(
-            self.recommendations.items(),
-            key=lambda x: x[1],
-            reverse=true
+    # Usage in tests
+    test debug_graph_structure {
+        # Setup complex graph
+        root spawn visit_profile();
+        root spawn update_profile(new_username="alice");
+        root spawn create_tweet(content="Alice's first tweet");
+
+        bob = Profile(username="bob");
+        bob spawn follow_request();
+
+        # Debug the graph
+        debugger = debug_graph(max_depth=2);
+        root spawn debugger;
+
+        print("=== Debug Summary ===");
+        print(f"Visited {len(debugger.visited_nodes)} nodes");
+        for node in debugger.visited_nodes {
+            print(f"  {node}");
+        }
+    }
+    ```
+
+### Walker State Inspection
+
+!!! example "Walker State Testing"
+    ```jac
+    # walker_testing.jac
+    walker feed_loader {
+        has user_id: str;
+        has loaded_tweets: list[dict] = [];
+        has users_visited: set[str] = set();
+        has errors: list[str] = [];
+
+        can load_user_feed with Profile entry {
+            if here.username in self.users_visited {
+                self.errors.append(f"Duplicate visit to {here.username}");
+                return;
+            }
+
+            self.users_visited.add(here.username);
+
+            # Load user's tweets
+            user_tweets = [->:Post:-> Tweet];
+            for tweet in user_tweets {
+                tweet_data = {
+                    "author": here.username,
+                    "content": tweet.content,
+                    "likes": tweet.like_count,
+                    "created_at": tweet.created_at
+                };
+                self.loaded_tweets.append(tweet_data);
+            }
+
+            # Visit followed users
+            following = [->:Follow:-> Profile];
+            visit following;
+        }
+    }
+
+    test walker_state_management {
+        # Setup test data
+        root spawn visit_profile();
+        root spawn update_profile(new_username="alice");
+        root spawn create_tweet(content="Alice tweet 1");
+        root spawn create_tweet(content="Alice tweet 2");
+
+        bob = Profile(username="bob");
+        bob spawn follow_request();
+        bob spawn create_tweet(content="Bob's tweet");
+
+        # Test walker state
+        loader = feed_loader(user_id="alice");
+        root spawn loader;
+
+        # Verify walker state
+        check len(loader.loaded_tweets) >= 2;  # At least Alice's tweets
+        check "alice" in loader.users_visited;
+        check "bob" in loader.users_visited;
+        check len(loader.errors) == 0;
+
+        # Verify tweet data structure
+        alice_tweets = [t for t in loader.loaded_tweets if t["author"] == "alice"];
+        check len(alice_tweets) == 2;
+
+        for tweet in alice_tweets {
+            check "content" in tweet;
+            check "likes" in tweet;
+            check "created_at" in tweet;
+        }
+    }
+    ```
+
+---
+
+## Performance Testing and Optimization
+
+Performance testing ensures your spatial applications scale effectively.
+
+### Benchmark Testing
+
+!!! example "Performance Benchmarks"
+    ```jac
+    # performance_tests.jac
+    import time;
+
+    test large_graph_performance {
+        start_time = time.time();
+
+        # Create large social network
+        root spawn visit_profile();
+        root spawn update_profile(new_username="central_user");
+
+        # Create many users and connections
+        num_users = 100;
+        users = [];
+
+        for i in range(num_users) {
+            user = Profile(username=f"user_{i}");
+            users.append(user);
+
+            # Every 10th user follows central user
+            if i % 10 == 0 {
+                user spawn follow_request();
+            }
+        }
+
+        creation_time = time.time() - start_time;
+        print(f"Created {num_users} users in {creation_time:.2f} seconds");
+
+        # Test graph traversal performance
+        start_time = time.time();
+
+        # Count all followers
+        central_user = [root --> Profile][0];
+        followers = [central_user <-:Follow:<- Profile];
+
+        traversal_time = time.time() - start_time;
+        print(f"Traversed {len(followers)} followers in {traversal_time:.4f} seconds");
+
+        # Performance assertions
+        check creation_time < 5.0;  # Should create 100 users in under 5 seconds
+        check traversal_time < 0.1;  # Should traverse quickly
+        check len(followers) == 10;  # Every 10th user = 10 followers
+    }
+
+    test memory_efficiency {
+        # Test memory usage with large datasets
+        initial_profiles = len([root --> Profile]);
+
+        # Create and delete many objects
+        for batch in range(5) {
+            # Create batch of tweets
+            for i in range(20) {
+                root spawn create_tweet(content=f"Batch {batch} tweet {i}");
+            }
+
+            # Delete half of them
+            tweets = [root --> Profile ->:Post:-> Tweet];
+            for i in range(10) {
+                if len(tweets) > i {
+                    tweets[i] spawn remove_tweet();
+                }
+            }
+        }
+
+        # Check memory cleanup
+        final_tweets = [root --> Profile ->:Post:-> Tweet];
+        check len(final_tweets) <= 50;  # Should not accumulate indefinitely
+
+        final_profiles = len([root --> Profile]);
+        check final_profiles == initial_profiles + 1;  # Only the test profile added
+    }
+
+    test concurrent_operations {
+        # Simulate concurrent-like operations
+        root spawn visit_profile();
+        root spawn update_profile(new_username="concurrent_user");
+
+        # Create multiple walkers that operate simultaneously
+        walkers = [];
+        for i in range(10) {
+            walker = create_tweet(content=f"Concurrent tweet {i}");
+            walkers.append(walker);
+        }
+
+        # Execute all walkers
+        start_time = time.time();
+        for walker in walkers {
+            root spawn walker;
+        }
+        execution_time = time.time() - start_time;
+
+        # Verify all operations completed
+        all_tweets = [root --> Profile ->:Post:-> Tweet];
+        check len(all_tweets) == 10;
+
+        # Performance check
+        check execution_time < 1.0;  # Should complete quickly
+
+        print(f"Executed {len(walkers)} operations in {execution_time:.4f} seconds");
+    }
+    ```
+
+### Memory and Resource Testing
+
+!!! example "Resource Usage Tests"
+    ```jac
+    # resource_tests.jac
+    import gc;
+    import psutil;
+    import os;
+
+    test memory_usage_monitoring {
+        # Get initial memory usage
+        process = psutil.Process(os.getpid());
+        initial_memory = process.memory_info().rss;
+
+        # Create large graph structure
+        root spawn visit_profile();
+        root spawn update_profile(new_username="memory_test_user");
+
+        # Create many interconnected objects
+        for i in range(1000) {
+            root spawn create_tweet(content=f"Memory test tweet {i}");
+        }
+
+        # Force garbage collection
+        gc.collect();
+
+        # Check memory after creation
+        after_creation_memory = process.memory_info().rss;
+        memory_increase = after_creation_memory - initial_memory;
+
+        print(f"Memory increase: {memory_increase / 1024 / 1024:.2f} MB");
+
+        # Clean up
+        tweets = [root --> Profile ->:Post:-> Tweet];
+        for tweet in tweets {
+            tweet spawn remove_tweet();
+        }
+
+        # Force garbage collection again
+        gc.collect();
+
+        # Check memory after cleanup
+        final_memory = process.memory_info().rss;
+        memory_recovered = after_creation_memory - final_memory;
+
+        print(f"Memory recovered: {memory_recovered / 1024 / 1024:.2f} MB");
+
+        # Memory should not grow indefinitely
+        check memory_increase < 100 * 1024 * 1024;  # Less than 100MB increase
+        check memory_recovered > memory_increase * 0.5;  # At least 50% recovered
+    }
+    ```
+
+---
+
+## Test-Driven Development with OSP
+
+TDD works naturally with Jac's spatial programming model.
+
+### TDD Example: Building a Recommendation System
+
+!!! example "TDD Recommendation System"
+    ```jac
+    # recommendation_system.test.jac
+
+    # Test 1: Basic recommendation structure
+    test recommendation_system_structure {
+        # Red: This will fail initially
+        root spawn visit_profile();
+        root spawn update_profile(new_username="test_user");
+
+        # Should be able to get recommendations
+        recommendations = root spawn get_recommendations(limit=5);
+        check isinstance(recommendations, list);
+        check len(recommendations) <= 5;
+    }
+
+    # Test 2: Friend-based recommendations
+    test friend_based_recommendations {
+        # Setup: Create network
+        root spawn visit_profile();
+        root spawn update_profile(new_username="alice");
+
+        bob = Profile(username="bob");
+        charlie = Profile(username="charlie");
+
+        # Alice follows Bob, Bob follows Charlie
+        bob spawn follow_request();
+        # Switch context to Bob and follow Charlie
+        # (In real system, would handle user context switching)
+
+        # Alice should get Charlie recommended (friend of friend)
+        recommendations = root spawn get_recommendations(limit=5);
+        recommended_usernames = [rec["username"] for rec in recommendations];
+
+        # Charlie should be recommended as friend of friend
+        check "charlie" in recommended_usernames;
+    }
+
+    # Test 3: Interest-based recommendations
+    test interest_based_recommendations {
+        # Setup users with similar interests (tweets)
+        root spawn visit_profile();
+        root spawn update_profile(new_username="alice");
+        root spawn create_tweet(content="I love programming");
+
+        bob = Profile(username="bob");
+        bob spawn create_tweet(content="Programming is awesome");
+
+        charlie = Profile(username="charlie");
+        charlie spawn create_tweet(content="I hate programming");
+
+        # Get recommendations
+        recommendations = root spawn get_recommendations(
+            limit=5,
+            algorithm="interest_based"
         );
 
-        report [user for user, _ in sorted_recs[:self.limit]];
-    }
-}
-```
+        # Bob should rank higher than Charlie due to similar interests
+        bob_score = 0;
+        charlie_score = 0;
 
-##### Pattern 3: Replace State Machines with Graph Topology
+        for rec in recommendations {
+            if rec["username"] == "bob" {
+                bob_score = rec["score"];
+            }
+            if rec["username"] == "charlie" {
+                charlie_score = rec["score"];
+            }
+        }
 
-**Python:**
-```python
-class Order:
-    STATES = {
-        'pending': ['cancelled', 'paid'],
-        'paid': ['cancelled', 'processing'],
-        'processing': ['shipped'],
-        'shipped': ['delivered', 'returned'],
-        'delivered': ['returned'],
-        'cancelled': [],
-        'returned': []
+        check bob_score > charlie_score;
     }
 
-    def __init__(self):
-        self.state = 'pending'
-        self.history = []
+    # Test 4: Recommendation filtering
+    test recommendation_filtering {
+        # Setup
+        root spawn visit_profile();
+        root spawn update_profile(new_username="alice");
 
-    def transition_to(self, new_state):
-        if new_state in self.STATES[self.state]:
-            self.history.append({
-                'from': self.state,
-                'to': new_state,
-                'timestamp': datetime.now()
-            })
-            self.state = new_state
-            self.trigger_state_actions(new_state)
-        else:
-            raise ValueError(f"Invalid transition: {self.state} -> {new_state}")
-```
+        # Create users alice already follows
+        bob = Profile(username="bob");
+        bob spawn follow_request();
 
-**Jac Refactored:**
-```jac
-# States as nodes
-node OrderState {
-    has name: str;
-    has entry_actions: list = [];
-    has exit_actions: list = [];
-}
+        # Create users alice doesn't follow
+        charlie = Profile(username="charlie");
+        diana = Profile(username="diana");
 
-# Transitions as edges
-edge Transition(OrderState, OrderState) {
-    has name: str;
-    has condition: str = "";
-    has timestamp: str by postinit;
+        # Get recommendations
+        recommendations = root spawn get_recommendations(limit=10);
+        recommended_usernames = [rec["username"] for rec in recommendations];
 
-    can postinit {
-        self.timestamp = timestamp_now();
+        # Should not recommend users already followed
+        check "bob" not in recommended_usernames;
+
+        # Should recommend unfollowed users
+        check "charlie" in recommended_usernames or "diana" in recommended_usernames;
     }
-}
+    ```
 
-# Order exists in a state
-edge InState(Order, OrderState);
+    Now implement the actual recommendation system to make tests pass:
 
-# Walker to transition states
-walker TransitionOrder {
-    has target_state: str;
-    has transition_history: list = [];
+    ```jac
+    # recommendation_system.jac
+    walker get_recommendations(visit_profile) {
+        has limit: int = 5;
+        has algorithm: str = "hybrid";
+        has recommendations: list[dict] = [];
 
-    can transition with Order entry {
-        # Find current state
-        current_state = here[-->:InState:-->][0];
+        can generate_recommendations with Profile entry {
+            current_user = here;
+            followed_users = [->:Follow:-> Profile];
+            followed_usernames = set([user.username for user in followed_users]);
 
-        # Find valid transition
-        for trans in current_state[-->:Transition:] {
-            if trans.target.name == self.target_state {
-                # Execute exit actions
-                for action in current_state.exit_actions {
-                    execute_action(action, here);
+            # Get all users except current and already followed
+            all_users = [root --> Profile](?username != current_user.username);
+            candidate_users = [user for user in all_users
+                             if user.username not in followed_usernames];
+
+            # Score each candidate
+            for candidate in candidate_users {
+                score = self.calculate_recommendation_score(
+                    current_user, candidate, followed_users
+                );
+
+                if score > 0 {
+                    self.recommendations.append({
+                        "username": candidate.username,
+                        "score": score,
+                        "reason": self.get_recommendation_reason(
+                            current_user, candidate, followed_users
+                        )
+                    });
+                }
+            }
+
+            # Sort by score and limit results
+            self.recommendations.sort(key=lambda x: x["score"], reverse=True);
+            self.recommendations = self.recommendations[:self.limit];
+
+            report self.recommendations;
+        }
+
+        def calculate_recommendation_score(
+            current_user: Profile,
+            candidate: Profile,
+            followed_users: list[Profile]
+        ) -> float {
+            score = 0.0;
+
+            if self.algorithm in ["friend_based", "hybrid"] {
+                # Friend of friend scoring
+                candidate_followers = [candidate <-:Follow:<- Profile];
+                mutual_connections = set([u.username for u in followed_users]) &
+                                   set([u.username for u in candidate_followers]);
+                score += len(mutual_connections) * 2.0;
+            }
+
+            if self.algorithm in ["interest_based", "hybrid"] {
+                # Interest-based scoring using tweet content
+                current_tweets = [current_user ->:Post:-> Tweet];
+                candidate_tweets = [candidate ->:Post:-> Tweet];
+
+                # Simple keyword matching (in real system, use embeddings)
+                current_words = set();
+                for tweet in current_tweets {
+                    current_words.update(tweet.content.lower().split());
                 }
 
-                # Move to new state
-                del here -->:InState:--> current_state;
-                here ++>:InState:++> trans.target;
-
-                # Record transition
-                self.transition_history.append({
-                    "from": current_state.name,
-                    "to": trans.target.name,
-                    "timestamp": trans.timestamp
-                });
-
-                # Execute entry actions
-                for action in trans.target.entry_actions {
-                    execute_action(action, here);
+                candidate_words = set();
+                for tweet in candidate_tweets {
+                    candidate_words.update(tweet.content.lower().split());
                 }
 
-                report {"success": true, "new_state": trans.target.name};
-                disengage;
+                common_words = current_words & candidate_words;
+                score += len(common_words) * 0.5;
             }
+
+            return score;
         }
 
-        report {"error": f"Invalid transition to {self.target_state}"};
-    }
-}
+        def get_recommendation_reason(
+            current_user: Profile,
+            candidate: Profile,
+            followed_users: list[Profile]
+        ) -> str {
+            # Determine primary reason for recommendation
+            candidate_followers = [candidate <-:Follow:<- Profile];
+            mutual_connections = set([u.username for u in followed_users]) &
+                               set([u.username for u in candidate_followers]);
 
-# Initialize state machine
-with entry {
-    # Create states
-    pending = OrderState(name="pending");
-    paid = OrderState(name="paid");
-    processing = OrderState(name="processing");
-    shipped = OrderState(name="shipped");
-    delivered = OrderState(name="delivered");
-    cancelled = OrderState(name="cancelled");
-    returned = OrderState(name="returned");
-
-    # Create transitions
-    pending ++>:Transition(name="pay"):++> paid;
-    pending ++>:Transition(name="cancel"):++> cancelled;
-    paid ++>:Transition(name="process"):++> processing;
-    paid ++>:Transition(name="cancel"):++> cancelled;
-    processing ++>:Transition(name="ship"):++> shipped;
-    shipped ++>:Transition(name="deliver"):++> delivered;
-    shipped ++>:Transition(name="return"):++> returned;
-    delivered ++>:Transition(name="return"):++> returned;
-}
-```
-
-#### 18.2 Incremental Adoption
-
-Jac is designed to work alongside Python, enabling gradual migration strategies that minimize risk and disruption.
-
-### Using Python from Jac
-
-Jac provides seamless Python interoperability through multiple mechanisms:
-
-#### Direct Python Imports
-
-```jac
-# Import Python modules directly
-import:py numpy as np;
-import:py from pandas { DataFrame, Series };
-import:py from sklearn.cluster { KMeans };
-
-# Use Python libraries naturally
-walker DataAnalyzer {
-    has data: list;
-    has clusters: int = 3;
-
-    can analyze with entry {
-        # Use pandas for data manipulation
-        df = DataFrame(self.data);
-
-        # Statistical analysis
-        summary = df.describe();
-
-        # Machine learning with sklearn
-        features = df[['feature1', 'feature2']].values;
-        kmeans = KMeans(n_clusters=self.clusters);
-        labels = kmeans.fit_predict(features);
-
-        # Store results in graph
-        here ++> AnalysisResult(
-            summary=summary.to_dict(),
-            cluster_labels=labels.tolist(),
-            centroids=kmeans.cluster_centers_.tolist()
-        );
-    }
-}
-```
-
-#### Inline Python Code
-
-```jac
-# Complex Python logic inline
-walker PythonIntegration {
-    can process with entry {
-        ::py::
-        # Any Python code here
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-
-        # Create visualization
-        data = here.get_metric_data()
-        plt.figure(figsize=(10, 6))
-        sns.lineplot(data=data, x='timestamp', y='value')
-        plt.title(f'Metrics for {here.name}')
-        plt.savefig(f'metrics_{here.id}.png')
-        plt.close()
-
-        # Complex computation
-        result = perform_complex_calculation(data)
-        ::py::
-
-        # Back to Jac
-        here.visualization_path = f'metrics_{here.id}.png';
-        here.computed_result = result;
-    }
-}
-```
-
-#### Python Function Wrapping
-
-```jac
-# Wrap Python functions for Jac use
-import:py from legacy_system {
-    process_payment,
-    validate_credit_card,
-    send_email
-};
-
-# Create Jac-friendly wrappers
-can process_payment_safe(amount: float, card: dict) -> dict {
-    try {
-        # Call Python function
-        result = process_payment(amount, card);
-        return {"success": true, "transaction_id": result.id};
-    } except Exception as e {
-        return {"success": false, "error": str(e)};
-    }
-}
-
-# Use in walkers
-walker ProcessOrder {
-    has order_total: float;
-    has payment_info: dict;
-
-    can process with Order entry {
-        # Validate card using Python
-        if not validate_credit_card(self.payment_info) {
-            report {"error": "Invalid card"};
-            disengage;
-        }
-
-        # Process payment
-        result = process_payment_safe(self.order_total, self.payment_info);
-
-        if result["success"] {
-            here ++> Payment(
-                transaction_id=result["transaction_id"],
-                amount=self.order_total,
-                timestamp=timestamp_now()
-            );
-
-            # Send confirmation email
-            send_email(
-                to=here.customer_email,
-                subject="Order Confirmed",
-                body=f"Your order {here.id} has been confirmed."
-            );
-        }
-
-        report result;
-    }
-}
-```
-
-### Hybrid Applications
-
-Building applications that leverage both Python and Jac strengths:
-
-#### Architecture Pattern: Python Backend, Jac Graph Layer
-
-```python
-# python_api.py
-from flask import Flask, request, jsonify
-from jac_runtime import JacRuntime
-
-app = Flask(__name__)
-jrt = JacRuntime('graph_layer.jac')
-
-@app.route('/api/users/<user_id>/friends', methods=['GET'])
-def get_friends(user_id):
-    # Use Jac for graph operations
-    result = jrt.run_walker('GetFriends', {
-        'user_id': user_id,
-        'include_pending': request.args.get('pending', False)
-    })
-    return jsonify(result)
-
-@app.route('/api/recommendations/<user_id>', methods=['GET'])
-def get_recommendations(user_id):
-    # Complex graph algorithm in Jac
-    result = jrt.run_walker('RecommendContent', {
-        'user_id': user_id,
-        'limit': int(request.args.get('limit', 10))
-    })
-    return jsonify(result)
-
-# Traditional Python for non-graph operations
-@app.route('/api/upload', methods=['POST'])
-def upload_file():
-    # Handle file upload with Python
-    file = request.files['file']
-    # Process with Python libraries
-    processed = process_file(file)
-
-    # Store metadata in Jac graph
-    jrt.run_walker('StoreFileMetadata', {
-        'filename': file.filename,
-        'size': file.size,
-        'processed_data': processed
-    })
-
-    return jsonify({'status': 'success'})
-```
-
-```jac
-# graph_layer.jac
-
-walker GetFriends {
-    has user_id: str;
-    has include_pending: bool = false;
-    has friends: list = [];
-
-    can find with entry {
-        user = find_user_by_id(self.user_id);
-        if not user {
-            report {"error": "User not found"};
-            disengage;
-        }
-        visit user;
-    }
-
-    can collect with User entry {
-        for friend_edge in [-->:Friendship:] {
-            if friend_edge.status == "accepted" or
-               (self.include_pending and friend_edge.status == "pending") {
-                self.friends.append({
-                    "user": friend_edge.target.to_dict(),
-                    "friendship_status": friend_edge.status,
-                    "since": friend_edge.created_at
-                });
+            if mutual_connections {
+                return f"Friends with {list(mutual_connections)[0]}";
             }
-        }
-        report {"friends": self.friends};
-    }
-}
-```
 
-#### Pattern: Jac for Business Logic, Python for Infrastructure
-
-```jac
-# business_logic.jac
-
-# Define business rules in Jac
-walker ApplyDiscounts {
-    has order: dict;
-    has discounts_applied: list = [];
-
-    can apply with Customer entry {
-        # Customer loyalty discount
-        if here.loyalty_points > 1000 {
-            self.add_discount("LOYALTY10", 0.10);
-        }
-
-        # Visit purchase history
-        visit [-->:PurchaseHistory:];
-    }
-
-    can check_history with PurchaseHistory entry {
-        # Frequent buyer discount
-        recent_purchases = here.get_recent_purchases(days=30);
-        if len(recent_purchases) >= 5 {
-            self.add_discount("FREQUENT5", 0.05);
+            return "Similar interests";
         }
     }
+    ```
 
-    can add_discount(code: str, percentage: float) {
-        self.discounts_applied.append({
-            "code": code,
-            "percentage": percentage
-        });
-    }
-}
+---
 
-# Wrapper for Python integration
-can calculate_order_total(order: dict) -> dict {
-    # Create temporary graph structure
-    customer = Customer(id=order["customer_id"]);
+## Best Practices
 
-    # Run business logic
-    walker = ApplyDiscounts(order=order);
-    spawn walker on customer;
+!!! summary "Testing Best Practices"
+    - **Write tests first**: Use test-driven development for complex walker logic
+    - **Test graph structures**: Verify node and edge relationships are correct
+    - **Use descriptive names**: Make test intentions clear from the test name
+    - **Test edge cases**: Include boundary conditions and error scenarios
+    - **Isolate test data**: Ensure tests don't interfere with each other
+    - **Mock external dependencies**: Test walker logic independently of external services
 
-    # Apply discounts using Python for calculation
-    ::py::
-    total = order["subtotal"]
-    for discount in walker.discounts_applied:
-        total *= (1 - discount["percentage"])
+## Key Takeaways
 
-    # Add tax calculation (complex Python logic)
-    tax = calculate_tax(total, order["shipping_address"])
-    final_total = total + tax
-    ::py::
+!!! summary "What We've Learned"
+    **Testing Framework:**
 
-    return {
-        "subtotal": order["subtotal"],
-        "discounts": walker.discounts_applied,
-        "tax": tax,
-        "total": final_total
-    };
-}
-```
+    - **Built-in testing**: Native test blocks eliminate external framework dependencies
+    - **Graph testing**: Specialized patterns for testing spatial relationships
+    - **Walker testing**: Comprehensive testing of mobile computation patterns
+    - **Type-safe assertions**: Leverage Jac's type system in test validation
 
-### Migration Strategies
+    **Debugging Techniques:**
 
-##### Strategy 1: Strangler Fig Pattern
+    - **Debug output**: Strategic print statements and debug flags
+    - **Walker tracing**: Track walker movement through graph structures
+    - **State inspection**: Examine node and edge states during execution
+    - **Error handling**: Graceful handling of edge cases and failures
 
-Gradually replace Python components with Jac equivalents:
+    **Test Organization:**
 
-```mermaid
-graph LR
-    subgraph "Phase 1: Python Monolith"
-        P1[Python App]
-    end
+    - **Modular testing**: Organize tests by functionality and complexity
+    - **Helper functions**: Reusable setup code for consistent test environments
+    - **Performance testing**: Monitor execution time and resource usage
+    - **Integration testing**: Test interactions between multiple walkers
 
-    subgraph "Phase 2: Extract Graph Layer"
-        P2A[Python App]
-        P2B[Jac Graph Layer]
-        P2A <--> P2B
-    end
+    **Quality Assurance:**
 
-    subgraph "Phase 3: Migrate Business Logic"
-        P3A[Python API]
-        P3B[Jac Business Logic]
-        P3C[Jac Graph Layer]
-        P3A --> P3B
-        P3B <--> P3C
-    end
+    - **Comprehensive coverage**: Test all code paths and error conditions
+    - **Regression prevention**: Automated tests prevent breaking changes
+    - **Documentation value**: Tests serve as executable specifications
+    - **Continuous validation**: Automated testing in CI/CD pipelines
 
-    subgraph "Phase 4: Full Jac"
-        P4[Jac Application]
-    end
+### Next Steps
 
-    P1 ==> P2A
-    P2A ==> P3A
-    P3A ==> P4
-```
+In the upcoming chapters, we'll explore:
+- **Chapter 19**: Deployment strategies for tested applications
+- **Chapter 20**: Performance optimization based on test insights
+- **Chapter 21**: Building complete applications with comprehensive test coverage
 
-**Phase 1 to 2 Example:**
-```python
-# Original Python
-class UserService:
-    def get_user_network(self, user_id):
-        user = User.query.get(user_id)
-        friends = [f.to_dict() for f in user.friends]
-        followers = [f.to_dict() for f in user.followers]
-        return {
-            'friends': friends,
-            'followers': followers
-        }
-```
+!!! tip "Try It Yourself"
+    Enhance your testing skills by:
+    - Writing comprehensive test suites for existing walker logic
+    - Implementing performance benchmarks for graph operations
+    - Creating integration tests for multi-walker scenarios
+    - Adding debug instrumentation to complex graph traversals
 
-```jac
-# Extract to Jac
-walker GetUserNetwork {
-    has user_id: str;
+    Remember: Good tests make development faster and more reliable!
 
-    can get with entry {
-        # Still use Python for data access initially
-        ::py::
-        from models import User
-        user = User.query.get(self.user_id)
-        ::py::
+---
 
-        # Build graph structure
-        user_node = User(
-            id=user.id,
-            username=user.username
-        );
-
-        # Migrate relationships to graph
-        visit user_node;
-    }
-
-    can collect with User entry {
-        report {
-            "friends": [-->:Friend:-->].to_dict(),
-            "followers": [<--:Follows:].to_dict()
-        };
-    }
-}
-```
-
-##### Strategy 2: Feature Branch Migration
-
-Implement new features in Jac while maintaining existing Python:
-
-```python
-# config.py
-FEATURE_FLAGS = {
-    'use_jac_recommendations': True,
-    'use_jac_notifications': False,
-    'use_jac_auth': False
-}
-
-# app.py
-def get_recommendations(user_id):
-    if FEATURE_FLAGS['use_jac_recommendations']:
-        # New Jac implementation
-        return jac_runtime.get_recommendations(user_id)
-    else:
-        # Legacy Python implementation
-        return python_recommendation_engine.get_recommendations(user_id)
-```
-
-##### Strategy 3: Microservice Extraction
-
-Build new microservices in Jac:
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  legacy-api:
-    build: ./python-api
-    ports:
-      - "5000:5000"
-
-  recommendation-service:
-    build: ./jac-recommendations
-    environment:
-      - JAC_PERSIST_PATH=/data/recommendations
-    volumes:
-      - jac-data:/data
-
-  notification-service:
-    build: ./jac-notifications
-    environment:
-      - JAC_PERSIST_PATH=/data/notifications
-    volumes:
-      - jac-data:/data
-
-volumes:
-  jac-data:
-```
-
-##### Strategy 4: Database Migration Pattern
-
-```jac
-# Migrate data from Python ORM to Jac graph
-walker MigrateUsers {
-    has batch_size: int = 100;
-    has offset: int = 0;
-
-    can migrate with entry {
-        ::py::
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-        from legacy_models import User, Friendship
-
-        engine = create_engine('postgresql://...')
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
-        # Fetch batch of users
-        users = session.query(User)\
-            .offset(self.offset)\
-            .limit(self.batch_size)\
-            .all()
-        ::py::
-
-        # Convert to Jac nodes
-        for py_user in users {
-            jac_user = root ++> User(
-                id=py_user.id,
-                username=py_user.username,
-                email=py_user.email,
-                created_at=py_user.created_at.isoformat()
-            );
-
-            # Migrate relationships
-            ::py::
-            friendships = session.query(Friendship)\
-                .filter_by(user_id=py_user.id)\
-                .all()
-            ::py::
-
-            for friendship in friendships {
-                target = find_or_create_user(friendship.friend_id);
-                jac_user ++>:Friend(
-                    since=friendship.created_at.isoformat(),
-                    status=friendship.status
-                ):++> target;
-            }
-        }
-
-        # Continue with next batch
-        if len(users) == self.batch_size {
-            self.offset += self.batch_size;
-            visit root;  # Process next batch
-        } else {
-            report {"migrated": self.offset + len(users)};
-        }
-    }
-}
-```
-
-### Best Practices for Migration
-
-1. **Start with the Graph**
-   - Identify core entities and relationships
-   - Model in Jac first, implement incrementally
-
-2. **Maintain Compatibility**
-   - Keep APIs stable during migration
-   - Use adapter patterns for gradual transition
-
-3. **Test Extensively**
-   - Maintain parallel test suites
-   - Verify behavior equivalence
-
-4. **Monitor Performance**
-   - Compare Python vs Jac implementations
-   - Optimize graph traversal patterns
-
-5. **Document Differences**
-   - Note semantic changes
-   - Create migration guides for team
-
-### Migration Checklist
-
-- [ ] Identify graph structures in Python code
-- [ ] Map Python classes to Jac archetypes
-- [ ] Create Jac equivalents for core models
-- [ ] Implement Python-Jac interop layer
-- [ ] Migrate business logic incrementally
-- [ ] Convert data access patterns
-- [ ] Update deployment infrastructure
-- [ ] Train team on Jac concepts
-- [ ] Monitor and optimize performance
-- [ ] Deprecate Python components gradually
-
-The key to successful migration is recognizing that Jac isn't just Python with different syntax—it's a fundamentally different way of thinking about program structure. Embrace the graph, let computation flow to data, and watch your applications become more intuitive, scalable, and maintainable.
+*Ready to learn about deployment strategies? Continue to [Chapter 19: Deployment Strategies](chapter_19.md)!*

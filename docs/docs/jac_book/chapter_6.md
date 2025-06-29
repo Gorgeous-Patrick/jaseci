@@ -711,7 +711,7 @@ Jac provides a powerful module system for organizing code across multiple files 
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Import System:**
 
     - **Python integration**: Seamless access to Python modules and libraries
@@ -740,8 +740,14 @@ Jac provides a powerful module system for organizing code across multiple files 
     - **Documentation**: Clear structure for maintaining project documentation
     - **Scalability**: Structure that grows with project complexity
 
-!!! topic "Coming Up"
-    In the next chapter, we'll explore Jac's enhanced object-oriented programming features, including automatic constructors, implementation separation, and improved access control that builds on traditional OOP concepts.
+!!! tip "Try It Yourself"
+    Build a modular application by:
+    - Creating a multi-file configuration system
+    - Implementing interface/implementation separation
+    - Setting up a proper project structure
+    - Adding error handling for file operations
+
+    Remember: Well-organized modules make your code maintainable and scalable!
 
 ---
 

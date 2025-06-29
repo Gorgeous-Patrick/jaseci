@@ -700,7 +700,7 @@ Let's build a complete friend network example that demonstrates Jac's core conce
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Core Concepts:**
 
     - **Object-Spatial Programming (OSP)** moves computation to data through nodes, edges, and walkers
@@ -716,8 +716,14 @@ Let's build a complete friend network example that demonstrates Jac's core conce
     - **Multi-user isolation**: Built-in user separation without complex session management
     - **Python familiarity**: Familiar syntax with powerful new capabilities
 
-!!! topic "Coming Up"
-    In the next chapter, we'll set up your Jac development environment and write your first programs, building on these foundational concepts to create working applications.
+!!! tip "Try It Yourself"
+    Start thinking about problems in your domain that involve relationships:
+    - Social networks and user connections
+    - Knowledge graphs and information relationships
+    - Workflow systems and process connections
+    - Data pipelines and transformation chains
+
+    Remember: Jac shines when your problem naturally involves connected data!
 
 ---
 

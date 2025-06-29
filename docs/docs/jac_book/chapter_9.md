@@ -577,7 +577,7 @@ Let's see how to create and connect nodes using Jac's syntax. You can create nod
             analyzer.analyze_all_students()
         ```
 
-## Best Practices for Nodes and Edges
+## Best Practices
 
 !!! summary "Design Guidelines"
     - **Nodes for Entities**: Use nodes for things that exist independently (students, teachers, classrooms)
@@ -588,7 +588,7 @@ Let's see how to create and connect nodes using Jac's syntax. You can create nod
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Node Fundamentals:**
 
     - **Spatial objects**: Nodes can be connected and automatically persist when linked to root
@@ -617,8 +617,14 @@ Let's see how to create and connect nodes using Jac's syntax. You can create nod
     - **Persistence automation**: No manual database management required
     - **Scalable architecture**: Graph structure supports distributed processing
 
-!!! topic "Coming Up"
-    In the next chapter, we'll explore walkers and abilities - the mobile computational entities that bring your graphs to life by moving through and processing your spatial data structures.
+!!! tip "Try It Yourself"
+    Practice with nodes and edges by building:
+    - A classroom management system with students, teachers, and courses
+    - A family tree with person nodes and relationship edges
+    - A social network with users and friendship connections
+    - An inventory system with items and location relationships
+
+    Remember: Nodes represent entities, edges represent relationships - think spatially!
 
 ---
 

@@ -619,30 +619,53 @@ curl -X POST http://localhost:8000/walker/share_note \
 
 ---
 
+## Best Practices
+
+!!! summary "API Development Guidelines"
+    - **Use descriptive walker names**: Names become part of your API surface
+    - **Validate input early**: Check parameters before processing
+    - **Provide clear error messages**: Help API consumers understand failures
+    - **Keep walkers focused**: Each walker should have a single responsibility
+    - **Use consistent response formats**: Standardize success and error responses
+    - **Document with types**: Type annotations serve as API documentation
+
 ## Key Takeaways
 
 !!! summary "What We've Learned"
-    - **Automatic API Generation**: Walkers become REST endpoints without configuration
-    - **Type-Safe Parameters**: Request validation handled automatically by type system
-    - **Natural REST Patterns**: CRUD operations map intuitively to walker semantics
-    - **Shared Data Models**: Persistent nodes enable multi-user applications
-    - **Business Logic Focus**: No HTTP handling code needed, focus on application logic
+    **Automatic API Generation:**
 
-### Next Steps
+    - **Zero configuration**: Walkers become REST endpoints without setup
+    - **Type-safe parameters**: Request validation handled automatically
+    - **Natural REST patterns**: CRUD operations map intuitively to walker semantics
+    - **Instant deployment**: Deploy APIs with a single command
 
-In the upcoming chapters, we'll explore:
+    **Request/Response Handling:**
 
-- **Chapter 13**: Automatic persistence for stateful applications
-- **Chapter 14**: Deploying to Jac Cloud for infinite scale
-- **Chapter 15**: Advanced user management and authentication
+    - **JSON mapping**: Request bodies automatically map to walker attributes
+    - **Response formatting**: Walker reports become structured JSON responses
+    - **Parameter validation**: Type system validates requests before execution
+    - **Error handling**: Built-in patterns for graceful error responses
+
+    **Shared Data Applications:**
+
+    - **Persistent nodes**: Data survives between API requests
+    - **Graph operations**: Complex data relationships handled naturally
+    - **User permissions**: Implement access control with business logic
+    - **Multi-user patterns**: Support shared and private data seamlessly
+
+    **Development Benefits:**
+
+    - **Focus on logic**: No HTTP handling, routing, or serialization code
+    - **Type safety**: Compile-time validation for API contracts
+    - **Rapid iteration**: Changes take effect immediately
+    - **Scale-ready**: Same code works from development to production
 
 !!! tip "Try It Yourself"
-    Experiment with the notebook system by adding:
-
-    - Note categories or folders
-    - Full-text search across notes
-    - Note revision history
-    - Collaborative editing features
+    Build sophisticated APIs by adding:
+    - Authentication and user sessions
+    - File upload and processing capabilities
+    - Real-time notifications and webhooks
+    - Integration with external services
 
     Remember: Every walker you create automatically becomes an API endpoint when deployed!
 

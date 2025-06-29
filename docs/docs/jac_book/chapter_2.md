@@ -507,7 +507,7 @@ Let's build a simple calculator to demonstrate Jac's syntax:
 
 ## Key Takeaways
 
-!!! summary "Chapter Summary"
+!!! summary "What We've Learned"
     **Environment Setup:**
 
     - **Installation**: Simple pip install with Python 3.12+ requirement
@@ -528,8 +528,14 @@ Let's build a simple calculator to demonstrate Jac's syntax:
     - Mandatory type annotations for all variables and functions
     - `glob` for global variables instead of `global` keyword
 
-!!! topic "Coming Up"
-    Next, we'll dive into Jac's core language features, including variables, types, control flow, and collection operations that make your code both safer and more expressive than traditional Python.
+!!! tip "Try It Yourself"
+    Practice the basics by creating:
+    - A simple temperature converter
+    - A basic inventory management system
+    - A calculator with different operations
+    - A text processing utility
+
+    Remember: Focus on proper typing and project structure from the beginning!
 
 ---
 

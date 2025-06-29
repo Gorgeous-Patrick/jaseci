@@ -1,1248 +1,684 @@
-### Chapter 21: Best Practices
-
-#### 21.1 Code Organization
-
-Organizing Jac code effectively is crucial for maintainability and team collaboration. Jac's unique features like implementation separation and object-spatial constructs require thoughtful organization strategies.
-
-### Project Structure Best Practices
-
-#### Standard Project Layout
-```
-my-jac-project/
-│
-├── src/
-│   ├── main.jac                    # Entry point and root configuration
-│   │
-│   ├── models/                     # Data models (nodes and objects)
-│   │   ├── __init__.jac           # Module exports
-│   │   ├── user.jac               # User node definition
-│   │   ├── user.impl.jac          # User implementation
-│   │   ├── user.test.jac          # User tests
-│   │   ├── content.jac            # Content nodes
-│   │   └── analytics.jac          # Analytics nodes
-│   │
-│   ├── edges/                      # Edge definitions
-│   │   ├── __init__.jac
-│   │   ├── social.jac             # Social relationship edges
-│   │   ├── ownership.jac          # Ownership edges
-│   │   └── workflow.jac           # Workflow transition edges
-│   │
-│   ├── walkers/                    # Walker definitions
-│   │   ├── __init__.jac
-│   │   ├── auth/                  # Authentication walkers
-│   │   │   ├── login.jac
-│   │   │   ├── register.jac
-│   │   │   └── permissions.jac
-│   │   ├── analytics/             # Analytics walkers
-│   │   │   ├── metrics.jac
-│   │   │   └── reports.jac
-│   │   └── workflows/             # Business process walkers
-│   │       ├── order.jac
-│   │       └── approval.jac
-│   │
-│   ├── abilities/                  # Shared abilities
-│   │   ├── validation.jac         # Validation abilities
-│   │   ├── transformation.jac     # Data transformation
-│   │   └── notification.jac       # Notification handling
-│   │
-│   ├── lib/                       # Utility libraries
-│   │   ├── helpers.jac            # Helper functions
-│   │   ├── constants.jac          # Global constants
-│   │   └── types.jac              # Custom type definitions
-│   │
-│   └── api/                       # API entry points
-│       ├── rest.jac               # REST API walkers
-│       ├── graphql.jac            # GraphQL resolvers
-│       └── websocket.jac          # WebSocket handlers
-│
-├── tests/
-│   ├── unit/                      # Unit tests
-│   ├── integration/               # Integration tests
-│   └── fixtures/                  # Test data and fixtures
-│
-├── scripts/                       # Utility scripts
-│   ├── migrate.jac               # Data migration
-│   ├── seed.jac                  # Database seeding
-│   └── analyze.jac               # Performance analysis
-│
-├── docs/                         # Documentation
-│   ├── api.md                    # API documentation
-│   ├── architecture.md           # Architecture decisions
-│   └── deployment.md             # Deployment guide
-│
-├── config/                       # Configuration files
-│   ├── development.toml          # Dev environment config
-│   ├── production.toml           # Production config
-│   └── test.toml                 # Test environment config
-│
-├── .jac_db/                      # Local persistence (git-ignored)
-├── .gitignore
-├── jac.toml                      # Project configuration
-└── README.md
-```
-
-### Module Organization
-
-#### Clear Module Boundaries
-```jac
-# models/__init__.jac
-# Export public interfaces clearly
-
-# Public exports
-export { User, UserProfile } from .user;
-export { Post, Comment } from .content;
-export { Analytics } from .analytics;
-
-# Internal implementations stay private
-# Don't export implementation details
-```
-
-#### Cohesive Module Design
-```jac
-# Good: Cohesive module with related functionality
-# walkers/order/processing.jac
-
-node OrderState;
-edge OrderTransition;
-
-walker ProcessOrder {
-    has order_id: str;
-    # Order processing logic
-}
-
-walker ValidateOrder {
-    has validation_rules: list;
-    # Order validation logic
-}
-
-walker NotifyOrderStatus {
-    has notification_channels: list;
-    # Order notification logic
-}
-```
-
-#### Avoid Circular Dependencies
-```jac
-# Bad: Circular dependency
-# user.jac
-import from .post { Post };  # Post imports User!
-
-# Good: Use interfaces or separate common types
-# types.jac
-obj IUser {
-    has id: str;
-    has name: str;
-}
-
-obj IPost {
-    has id: str;
-    has author_id: str;
-}
-
-# user.jac
-import from .types { IUser, IPost };
-```
-
-### Implementation Separation Strategy
-
-#### When to Separate Implementations
-```jac
-# api/user.jac - Interface definitions
-walker GetUser {
-    has user_id: str;
-    has include_posts: bool = false;
-
-    can retrieve with entry;
-    can format_response -> dict;
-}
-
-walker UpdateUser {
-    has user_id: str;
-    has updates: dict;
-
-    can validate -> bool;
-    can update with entry;
-}
-
-# api/user.impl.jac - Implementations
-impl GetUser {
-    can retrieve with entry {
-        user = find_user_by_id(self.user_id);
-        if not user {
-            report {"error": "User not found"};
-            disengage;
-        }
-
-        visit user;
-    }
-
-    can format_response -> dict {
-        # Complex formatting logic
-        return {
-            "id": self.user_data.id,
-            "name": self.user_data.name,
-            # ... more formatting
-        };
-    }
-}
-```
-
-#### Implementation File Organization
-```
-walkers/
-├── analytics.jac              # Interfaces
-├── analytics.impl/            # Implementation directory
-│   ├── metrics.impl.jac      # Metrics implementations
-│   ├── reports.impl.jac      # Report implementations
-│   └── visualization.impl.jac # Visualization implementations
-└── analytics.test/            # Test directory
-    ├── metrics.test.jac
-    └── reports.test.jac
-```
-
-### Graph Structure Organization
-
-#### Logical Node Grouping
-```jac
-# models/social_graph.jac
-# Group related node types together
-
-# User-related nodes
-node User {
-    has username: str;
-    has email: str;
-}
-
-node UserProfile {
-    has bio: str;
-    has avatar_url: str;
-}
-
-node UserSettings {
-    has notifications_enabled: bool;
-    has privacy_level: str;
-}
-
-# Relationship edges
-edge Follows(User, User);
-edge ProfileOf(UserProfile, User);
-edge SettingsOf(UserSettings, User);
-```
-
-#### Hierarchical Graph Organization
-```jac
-# Create a clear graph hierarchy
-with entry {
-    # Root level - major categories
-    root ++> users_root = UsersRoot();
-    root ++> content_root = ContentRoot();
-    root ++> analytics_root = AnalyticsRoot();
-
-    # Users subtree
-    users_root ++> active_users = ActiveUsers();
-    users_root ++> inactive_users = InactiveUsers();
-
-    # Content subtree
-    content_root ++> posts = Posts();
-    content_root ++> comments = Comments();
-    content_root ++> media = Media();
-}
-```
-
-#### 21.2 Naming Conventions
-
-Consistent naming conventions make Jac code more readable and maintainable. Follow these guidelines adapted from Python's PEP 8 with Jac-specific additions.
-
-### General Naming Rules
-
-| Element | Convention | Example |
-|---------|------------|---------|
-| Files | `snake_case.jac` | `user_management.jac` |
-| Modules | `snake_case` | `import from auth_helpers` |
-| Objects/Nodes/Edges | `PascalCase` | `UserProfile`, `FriendshipEdge` |
-| Walkers | `PascalCase` + verb | `ProcessOrder`, `ValidateUser` |
-| Functions/Abilities | `snake_case` | `calculate_total`, `validate_input` |
-| Variables | `snake_case` | `user_count`, `is_active` |
-| Constants | `UPPER_SNAKE_CASE` | `MAX_RETRIES`, `DEFAULT_TIMEOUT` |
-| Type aliases | `PascalCase` | `UserId`, `Timestamp` |
-
-### Archetype-Specific Conventions
-
-#### Node Naming
-```jac
-# Nodes represent entities - use nouns
-node User { }              # Good
-node ProcessUser { }       # Bad - sounds like an action
-
-node OrderItem { }         # Good
-node ItemInOrder { }       # Awkward - avoid
-
-# For state nodes, include "State" suffix
-node PendingState { }      # Clear it's a state
-node Pending { }           # Ambiguous
-```
-
-#### Edge Naming
-```jac
-# Edges represent relationships - use descriptive names
-edge Follows(User, User);        # Good - clear relationship
-edge UserUser(User, User);       # Bad - unclear relationship
-
-edge AuthoredBy(Post, User);     # Good - directional clarity
-edge PostUser(Post, User);       # Bad - ambiguous
-
-# For typed relationships, be specific
-edge Manages(Employee, Employee);     # Good if clear
-edge DirectlyManages(Employee, Employee);  # Better - more specific
-```
-
-#### Walker Naming
-```jac
-# Walkers perform actions - use verb phrases
-walker ValidateOrder { }      # Good - clear action
-walker OrderValidator { }     # Acceptable alternative
-walker Order { }             # Bad - sounds like a node
-
-# Be specific about the action
-walker CalculateMonthlyRevenue { }  # Good - specific
-walker Calculate { }                # Bad - too vague
-
-# For multi-step processes, use descriptive names
-walker ProcessAndShipOrder { }      # Clear workflow
-walker OrderWorkflow { }            # Acceptable but less clear
-```
-
-#### Ability Naming
-```jac
-# Entry/exit abilities describe triggers
-can validate_data with entry { }     # Good - what happens
-can on_entry with entry { }         # Bad - redundant
-
-can cleanup with exit { }           # Good - clear purpose
-can exit_handler with exit { }     # Redundant
-
-# Action abilities use verb phrases
-can calculate_total -> float { }    # Good
-can get_total -> float { }         # Good - getter pattern
-can total -> float { }             # Ambiguous
-```
-
-### Variable Naming Patterns
-
-#### Boolean Variables
-```jac
-# Use is_, has_, can_, should_ prefixes
-has is_active: bool = true;
-has has_permission: bool = false;
-has can_edit: bool = true;
-has should_notify: bool = false;
-
-# Avoid negative names
-has is_enabled: bool = true;     # Good
-has is_not_disabled: bool = true; # Bad - double negative
-```
-
-#### Collection Variables
-```jac
-# Use plural forms
-has users: list[User] = [];
-has active_user_ids: set[str] = {};
-has user_by_email: dict[str, User] = {};
-
-# For single items, use singular
-has current_user: User;
-has selected_item: Item;
-```
-
-#### Counter and Index Variables
-```jac
-# Use descriptive names for loop variables
-for user in users { }           # Good
-for u in users { }             # Avoid single letters
-
-# Exceptions: i, j, k for numeric indices
-for i = 0 to i < len(items) by i += 1 { }  # Acceptable
-
-# Use descriptive counters
-has retry_count: int = 0;      # Good
-has count: int = 0;           # Too vague
-```
-
-### Special Naming Cases
-
-#### Private Members
-```jac
-# Use leading underscore for internal use
-obj DatabaseConnection {
-    has :priv _connection: any;
-    has :priv _is_connected: bool = false;
-
-    can connect {
-        self._connection = establish_connection();
-        self._is_connected = true;
-    }
-}
-```
-
-#### Test Naming
-```jac
-# Test names should describe what they test
-test "user can follow another user" { }          # Good
-test "test_follow" { }                          # Less descriptive
-
-test "order total calculates correctly with tax" { }  # Good
-test "test_calculation" { }                          # Vague
-```
-
-#### Entry Point Naming
-```jac
-# Use descriptive entry point names
-with entry:web_server { }     # Clear purpose
-with entry:cli { }           # Clear purpose
-with entry:main { }          # Generic but acceptable
-with entry:entry1 { }        # Bad - meaningless
-```
-
-#### 21.3 Documentation Standards
-
-Well-documented Jac code is essential for maintainability and team collaboration. Follow these standards for comprehensive documentation.
-
-### Module-Level Documentation
-
-```jac
-"""
-User Management Module
-
-This module provides core functionality for user creation, authentication,
-and profile management in the application.
-
-Key Components:
-- User node: Represents a user account
-- UserProfile node: Extended user information
-- Authentication walkers: Handle login/logout flows
-- Profile management walkers: Update user information
-
-Usage Example:
-    spawn CreateUser(
-        email="user@example.com",
-        username="johndoe"
-    ) on root;
-
-Dependencies:
-- auth_lib: For password hashing
-- email_service: For sending notifications
-"""
-
-import from auth_lib { hash_password, verify_password };
-import from email_service { send_email };
-```
-
-### Archetype Documentation
-
-#### Node Documentation
-```jac
-"""
-Represents a user in the system.
-
-The User node is the central entity for authentication and identification.
-It connects to UserProfile for extended information and to various content
-nodes for user-generated content.
-
-Attributes:
-    id (str): Unique identifier (auto-generated)
-    username (str): Unique username for login
-    email (str): User's email address
-    created_at (str): ISO timestamp of account creation
-    is_active (bool): Whether the account is active
-    last_login (str): ISO timestamp of last successful login
-
-Relationships:
-    - ProfileOf: One-to-one with UserProfile
-    - Authored: One-to-many with Post nodes
-    - Follows: Many-to-many with other User nodes
-
-Example:
-    user = User(
-        username="johndoe",
-        email="john@example.com"
-    );
-    root ++> user;
-"""
-node User {
-    has id: str by postinit;
-    has username: str;
-    has email: str;
-    has created_at: str by postinit;
-    has is_active: bool = true;
-    has last_login: str = "";
-
-    can postinit {
-        import:py uuid;
-        import:py from datetime { datetime };
-        self.id = str(uuid.uuid4());
-        self.created_at = datetime.now().isoformat();
-    }
-}
-```
-
-#### Walker Documentation
-```jac
-"""
-Authenticates a user with email and password.
-
-This walker handles the complete authentication flow including:
-- Input validation
-- Password verification
-- Session creation
-- Login tracking
-
-The walker reports authentication results and creates a session
-edge if successful.
-
-Attributes:
-    email (str): User's email address
-    password (str): Plain text password to verify
-    create_session (bool): Whether to create a session (default: true)
-
-Reports:
-    On success:
-        {
-            "success": true,
-            "user_id": str,
-            "session_id": str,
-            "message": "Login successful"
-        }
-
-    On failure:
-        {
-            "success": false,
-            "error": str,
-            "message": str
-        }
-
-Example:
-    result = spawn LoginUser(
-        email="user@example.com",
-        password="secure123"
-    ) on root;
-"""
-walker LoginUser {
-    has email: str;
-    has password: str;
-    has create_session: bool = true;
-
-    can validate_input -> bool {
-        """Validates email format and password presence."""
-        # Implementation
-    }
-
-    can authenticate with entry {
-        """Main authentication logic."""
-        # Implementation
-    }
-}
-```
-
-### Ability Documentation
-
-```jac
-can calculate_compound_interest(
-    principal: float,
-    rate: float,
-    time: float,
-    compounds_per_year: int = 12
-) -> float {
-    """
-    Calculate compound interest.
-
-    Uses the formula: A = P(1 + r/n)^(nt)
-
-    Args:
-        principal: Initial amount
-        rate: Annual interest rate (as decimal, e.g., 0.05 for 5%)
-        time: Time period in years
-        compounds_per_year: Number of times interest compounds per year
-
-    Returns:
-        float: Final amount after compound interest
-
-    Example:
-        >>> calculate_compound_interest(1000, 0.05, 2)
-        1104.94
-    """
-    return principal * (1 + rate/compounds_per_year) ** (compounds_per_year * time);
-}
-```
-
-### Inline Documentation
-
-```jac
-walker ComplexProcessor {
-    has threshold: float = 0.8;
-    has max_iterations: int = 100;
-
-    can process with entry {
-        # Initialize processing metrics
-        metrics = {
-            "processed": 0,
-            "skipped": 0,
-            "errors": 0
-        };
-
-        # Phase 1: Validate all nodes
-        # This ensures data integrity before processing
-        validation_results = self.validate_all_nodes();
-
-        if not validation_results["valid"] {
-            # Early exit if validation fails
-            # Log details for debugging
-            log_validation_errors(validation_results["errors"]);
-            report {"error": "Validation failed", "details": validation_results};
-            disengage;
-        }
-
-        # Phase 2: Process nodes in priority order
-        # High-priority nodes are processed first to ensure
-        # critical data is handled even if we hit limits
-        priority_queue = self.build_priority_queue();
-
-        # ... more processing
-    }
-}
-```
-
-### API Documentation
-
-```jac
-"""
-REST API Endpoints for User Management
-
-All endpoints require authentication unless otherwise noted.
-Authentication is done via Bearer token in the Authorization header.
-
-Endpoints:
-    POST   /users           - Create new user (no auth required)
-    GET    /users/:id       - Get user details
-    PUT    /users/:id       - Update user
-    DELETE /users/:id       - Delete user
-    GET    /users/:id/posts - Get user's posts
-
-Error Responses:
-    All endpoints may return these error codes:
-    - 400: Bad Request - Invalid input data
-    - 401: Unauthorized - Missing or invalid auth token
-    - 403: Forbidden - Insufficient permissions
-    - 404: Not Found - Resource doesn't exist
-    - 500: Internal Server Error
-"""
-
-walker CreateUserAPI {
-    """
-    POST /users
-
-    Create a new user account.
-
-    Request Body:
-        {
-            "email": "user@example.com",    // required, valid email
-            "username": "johndoe",          // required, 3-20 chars
-            "password": "secure123",        // required, min 8 chars
-            "full_name": "John Doe"         // optional
-        }
-
-    Response:
-        201 Created
-        {
-            "id": "uuid",
-            "email": "user@example.com",
-            "username": "johndoe",
-            "created_at": "2024-01-01T00:00:00Z"
-        }
-
-    Errors:
-        400: Invalid input data
-        409: Email or username already exists
-    """
-    has email: str;
-    has username: str;
-    has password: str;
-    has full_name: str = "";
-}
-```
-
-### Documentation Generation
-
-```jac
-# Use docstring extraction tools
-walker DocumentationGenerator {
-    has output_format: str = "markdown";
-
-    can generate with entry {
-        # Extract all docstrings from nodes
-        for node_type in get_all_node_types() {
-            doc = extract_docstring(node_type);
-            if doc {
-                self.format_and_save(node_type.__name__, doc);
-            }
-        }
-
-        # Extract walker documentation
-        for walker_type in get_all_walker_types() {
-            doc = extract_docstring(walker_type);
-            if doc {
-                self.format_and_save(walker_type.__name__, doc);
-            }
-        }
-    }
-}
-```
-
-### Best Practices Summary
-
-1. **Consistency is Key**
-   - Stick to chosen conventions throughout the project
-   - Document conventions in a CONTRIBUTING.md file
-   - Use linters and formatters to enforce standards
-
-2. **Clear Module Boundaries**
-   - Each module should have a single, clear purpose
-   - Minimize inter-module dependencies
-   - Use explicit exports to control module interfaces
-
-3. **Meaningful Names**
-   - Names should convey purpose without needing comments
-   - Avoid abbreviations except well-known ones
-   - Update names when functionality changes
-
-4. **Comprehensive Documentation**
-   - Document "why" not just "what"
-   - Include examples in docstrings
-   - Keep documentation up-to-date with code changes
-
-5. **Thoughtful Organization**
-   - Group related functionality together
-   - Separate concerns clearly
-   - Make the codebase navigable for newcomers
-
-Following these best practices will make your Jac code more maintainable, understandable, and enjoyable to work with for your entire team.
-
-# Learning Path Recommendations
-
-### For Quick Start (Chapters 1-3, 6-8)
-
-If you need to get productive with Jac quickly, this accelerated path covers the essentials in about 1-2 weeks of focused learning.
-
-##### Week 1: Foundations and Setup
-
-**Day 1-2: Understanding Jac (Chapter 1)**
-- Read about the paradigm shift from "data to computation" to "computation to data"
-- Understand why graph structures matter
-- Learn about scale-agnostic programming benefits
-- **Exercise**: Write a comparison of how you'd model a social network in Python vs Jac
-
-**Day 3-4: Environment Setup (Chapter 2)**
-- Install Jac and set up your development environment
-- Create your first "Hello World" program
-- Build the todo list application
-- **Exercise**: Modify the todo app to add priority levels to tasks
-
-**Day 5-7: Core Syntax (Chapter 3)**
-- Master the syntax differences from Python
-- Learn about mandatory type annotations
-- Understand entry blocks and control flow
-- Practice with pipe operators
-- **Exercise**: Convert a simple Python script to Jac
-
-##### Week 2: Object-Spatial Basics
-
-**Day 8-9: Object-Spatial Concepts (Chapter 6)**
-- Understand nodes, edges, and walkers
-- Learn the difference between objects and nodes
-- Grasp the concept of computation moving to data
-- **Exercise**: Design a graph structure for a problem you're familiar with
-
-**Day 10-11: Building Graphs (Chapter 7)**
-- Create nodes and connect them with edges
-- Learn edge reference syntax
-- Master graph navigation patterns
-- **Exercise**: Build a simple family tree graph
-
-**Day 12-14: Walkers in Action (Chapter 8)**
-- Create your first walker
-- Understand spawn and visit operations
-- Learn about walker abilities
-- Master traversal patterns
-- **Exercise**: Build a walker that finds all descendants in your family tree
-
-### Quick Start Project
-
-Build a simple contact management system:
-```jac
-node Contact {
-    has name: str;
-    has email: str;
-    has phone: str;
-}
-
-edge Knows {
-    has context: str;  # "work", "family", "friend"
-}
-
-walker FindConnections {
-    has context_filter: str;
-    has max_depth: int = 2;
-    has connections: list = [];
-
-    can search with Contact entry {
-        # Find all connections of a specific type
-        for edge in [-->:Knows:] {
-            if edge.context == self.context_filter {
-                self.connections.append(edge.target);
-            }
-        }
-        report self.connections;
-    }
-}
-```
-
-### Success Criteria
-You should be able to:
-- ✓ Set up a Jac development environment
-- ✓ Understand the basic object-spatial concepts
-- ✓ Create simple graphs with nodes and edges
-- ✓ Write walkers that traverse graphs
-- ✓ Convert simple Python logic to Jac
-
-#### Next Steps
-- Continue to Chapter 4-5 for advanced language features
-- Jump to Chapter 10 if you need persistence immediately
-- Explore Chapter 17 for real-world examples
+# Chapter 21: Python to Jac Migration
+
+In this chapter, we'll explore practical strategies for migrating Python applications to Jac. We'll progressively convert a simple library management system from Python to Jac, demonstrating migration patterns, integration strategies, and common pitfalls to avoid.
+
+!!! info "What You'll Learn"
+    - Strategic approaches to Python-to-Jac migration
+    - Converting Python classes to Jac objects and nodes
+    - Incremental adoption patterns for existing codebases
+    - Python integration patterns within Jac applications
+    - Common migration pitfalls and how to avoid them
 
 ---
 
-### For Full Migration (All chapters)
+## Migration Strategies
 
-This comprehensive path is designed for teams or individuals planning to fully migrate from Python to Jac. Expect 2-3 months for complete mastery.
+Migrating from Python to Jac doesn't require rewriting everything from scratch. Jac's Python compatibility enables gradual migration, allowing you to adopt Object-Spatial Programming incrementally while maintaining existing functionality.
 
-##### Month 1: Language Mastery
+!!! success "Migration Benefits"
+    - **Gradual Transition**: Migrate components incrementally
+    - **Python Compatibility**: Existing Python libraries work seamlessly
+    - **Improved Performance**: Benefit from Jac's optimizations
+    - **Modern Patterns**: Adopt Object-Spatial Programming gradually
+    - **Risk Mitigation**: Test new features alongside existing code
 
-**Week 1-2: Foundations (Chapters 1-5)**
-- Complete the Quick Start path
-- Deep dive into Jac's type system
-- Master object-oriented features
-- Learn implementation separation
-- **Project**: Convert a small Python application to Jac
+### Migration Approaches
 
-**Week 3-4: Object-Spatial Programming (Chapters 6-9)**
-- Master all archetype types
-- Understand abilities vs methods
-- Learn advanced traversal patterns
-- Study bidirectional computation
-- **Project**: Build a workflow engine using state machines
-
-##### Month 2: Scale and Distribution
-
-**Week 5-6: Scale-Agnostic Features (Chapters 10-13)**
-- Understand the root node and persistence
-- Master multi-user patterns
-- Learn walker-as-API patterns
-- Study distribution concepts
-- **Project**: Convert single-user app to multi-user
-
-**Week 7-8: Advanced Patterns (Chapters 14-16)**
-- Master concurrent programming with walkers
-- Learn advanced type system features
-- Study design patterns in Jac
-- Understand testing strategies
-- **Project**: Build a distributed task processing system
-
-##### Month 3: Real-World Application
-
-**Week 9-10: Case Studies (Chapter 17)**
-- Study the social network implementation
-- Understand the workflow engine patterns
-- Learn microservices in Jac
-- **Project**: Design your own case study
-
-**Week 11-12: Migration and Optimization (Chapters 18-19)**
-- Plan migration strategy for existing Python codebase
-- Learn incremental adoption techniques
-- Master performance optimization
-- Study monitoring and profiling
-- **Project**: Create migration plan for your Python application
-
-### Comprehensive Learning Project
-
-Build a complete e-commerce platform:
-
-1. **User Management** (Week 2)
-   ```jac
-   node Customer {
-       has email: str;
-       has verified: bool = false;
-   }
-
-   node Merchant {
-       has business_name: str;
-       has rating: float = 0.0;
-   }
-   ```
-
-2. **Product Catalog** (Week 3)
-   ```jac
-   node Product {
-       has name: str;
-       has price: float;
-       has inventory: int;
-   }
-
-   edge Sells(Merchant, Product) {
-       has since: str;
-       has commission_rate: float;
-   }
-   ```
-
-3. **Order Processing** (Week 4)
-   ```jac
-   walker ProcessOrder {
-       has items: list[dict];
-
-       can validate with entry {
-           # Check inventory
-           # Verify payment
-           # Create order
-       }
-   }
-   ```
-
-4. **Multi-User Scaling** (Week 6)
-   ```jac
-   walker CustomerDashboard {
-       # Automatically scoped to current user's root
-       can get_orders with entry {
-           orders = root[-->:Order:];
-           report orders;
-       }
-   }
-   ```
-
-5. **API Layer** (Week 7)
-   ```jac
-   walker:api CreateProduct {
-       has name: str;
-       has price: float;
-       has description: str;
-
-       can create with entry {
-           # REST API endpoint
-           # Automatic parameter validation
-           # Returns JSON response
-       }
-   }
-   ```
-
-### Success Criteria
-You should be able to:
-- ✓ Architect complete applications in Jac
-- ✓ Migrate Python applications incrementally
-- ✓ Build scalable, multi-user systems
-- ✓ Optimize performance for large graphs
-- ✓ Deploy distributed Jac applications
-
-### Certification Path
-Consider building and open-sourcing:
-1. A Jac library/framework
-2. A migration tool for Python→Jac
-3. A complete application case study
+!!! tip "Recommended Migration Strategies"
+    1. **Top-Down**: Start with high-level architecture, then migrate details
+    2. **Bottom-Up**: Begin with utility functions and data structures
+    3. **Feature-by-Feature**: Migrate complete features one at a time
+    4. **Hybrid Integration**: Run Python and Jac code side-by-side
 
 ---
 
-### For Specific Use Cases
+## Starting Point: Python Library System
 
-### Web Services Focus (Chapters 10-12)
+Let's begin with a traditional Python library management system that we'll progressively migrate to Jac.
 
-**2-Week Intensive Path**
+### Original Python Implementation
 
-**Week 1: Multi-User Foundations**
-- Day 1-2: Understanding root nodes and persistence (Ch 10)
-- Day 3-4: Multi-user patterns and isolation (Ch 11)
-- Day 5-7: Walkers as API endpoints (Ch 12)
+!!! example "Python Library System"
+    === "Python Original"
+        ```python
+        # library.py - Traditional Python implementation
+        from datetime import datetime
+        from typing import List, Optional
 
-**Week 2: Building Services**
-- Day 8-9: REST API patterns
-- Day 10-11: WebSocket integration
-- Day 12-14: Complete service project
+        class Book:
+            def __init__(self, title: str, author: str, isbn: str):
+                self.title = title
+                self.author = author
+                self.isbn = isbn
+                self.is_borrowed = False
+                self.borrowed_by = None
+                self.borrowed_date = None
 
-**Sample Web Service Project**
-```jac
-# Real-time chat service
-node ChatRoom {
-    has name: str;
-    has created_at: str;
-}
+            def borrow(self, member_id: str) -> bool:
+                if not self.is_borrowed:
+                    self.is_borrowed = True
+                    self.borrowed_by = member_id
+                    self.borrowed_date = datetime.now()
+                    return True
+                return False
 
-node Message {
-    has content: str;
-    has timestamp: str;
-}
+            def return_book(self) -> bool:
+                if self.is_borrowed:
+                    self.is_borrowed = False
+                    self.borrowed_by = None
+                    self.borrowed_date = None
+                    return True
+                return False
 
-edge InRoom(User, ChatRoom);
-edge Posted(User, Message);
-edge Contains(ChatRoom, Message);
+        class Member:
+            def __init__(self, name: str, member_id: str):
+                self.name = name
+                self.member_id = member_id
+                self.borrowed_books: List[str] = []
 
-walker:api SendMessage {
-    has room_id: str;
-    has content: str;
+            def add_borrowed_book(self, isbn: str):
+                if isbn not in self.borrowed_books:
+                    self.borrowed_books.append(isbn)
 
-    can send with entry {
-        # Find room and user
-        room = find_room(self.room_id);
+            def remove_borrowed_book(self, isbn: str):
+                if isbn in self.borrowed_books:
+                    self.borrowed_books.remove(isbn)
 
-        # Create message
-        msg = Message(
-            content=self.content,
-            timestamp=timestamp_now()
-        );
+        class Library:
+            def __init__(self, name: str):
+                self.name = name
+                self.books: List[Book] = []
+                self.members: List[Member] = []
 
-        # Connect relationships
-        root ++>:Posted:++> msg;
-        room ++>:Contains:++> msg;
+            def add_book(self, book: Book):
+                self.books.append(book)
 
-        # Notify room members
-        spawn NotifyRoomMembers(message=msg) on room;
+            def add_member(self, member: Member):
+                self.members.append(member)
 
-        report {"success": true, "message_id": msg.id};
-    }
-}
+            def find_book(self, isbn: str) -> Optional[Book]:
+                for book in self.books:
+                    if book.isbn == isbn:
+                        return book
+                return None
 
-walker:websocket MessageStream {
-    has room_id: str;
+            def borrow_book(self, isbn: str, member_id: str) -> bool:
+                book = self.find_book(isbn)
+                member = self.find_member(member_id)
 
-    can stream with ChatRoom entry {
-        # Send existing messages
-        for msg in [-->:Contains:-->][-20:] {
-            yield msg.to_json();
-        }
+                if book and member and book.borrow(member_id):
+                    member.add_borrowed_book(isbn)
+                    return True
+                return False
 
-        # Wait for new messages
-        while true {
-            new_msg = wait_for_new_message(here);
-            yield new_msg.to_json();
-        }
-    }
-}
-```
+            def find_member(self, member_id: str) -> Optional[Member]:
+                for member in self.members:
+                    if member.member_id == member_id:
+                        return member
+                return None
+        ```
 
-### Distributed Systems Focus (Chapters 13, 19)
+    === "Jac Modern Equivalent"
+        <div class="code-block">
+        ```jac
+        # library.jac - Modern Jac implementation preview
+        import from datetime { datetime }
 
-**3-Week Advanced Path**
+        node Book {
+            has title: str;
+            has author: str;
+            has isbn: str;
+            has is_borrowed: bool = False;
+            has borrowed_date: str = "";
 
-**Week 1: Distribution Concepts**
-- Understanding topology-aware distribution
-- Cross-machine edge traversal
-- Distributed walker patterns
-
-**Week 2: Implementation**
-- Partitioning strategies
-- Consistency patterns
-- Fault tolerance
-
-**Week 3: Optimization**
-- Minimizing network traversals
-- Caching strategies
-- Monitoring distributed performance
-
-**Distributed System Project**
-```jac
-# Distributed task processing
-node TaskQueue {
-    has name: str;
-    has priority: int;
-}
-
-node Task {
-    has id: str;
-    has payload: dict;
-    has status: str = "pending";
-    has assigned_worker: str = "";
-}
-
-edge Queued(TaskQueue, Task) {
-    has queued_at: str;
-}
-
-walker:distributed TaskWorker {
-    has worker_id: str;
-    has capabilities: list[str];
-
-    can claim_task with TaskQueue entry {
-        # Find unclaimed task matching capabilities
-        for task in [-->:Queued:-->] {
-            if task.status == "pending" and
-               task.matches_capabilities(self.capabilities) {
-                # Atomic claim operation
-                if atomic_claim(task, self.worker_id) {
-                    spawn ProcessTask(task=task) on task;
-                    return;
+            can borrow(member_id: str) -> bool {
+                if not self.is_borrowed {
+                    self.is_borrowed = True;
+                    self.borrowed_date = datetime.now().isoformat();
+                    return True;
                 }
+                return False;
+            }
+
+            can return_book() -> bool {
+                if self.is_borrowed {
+                    self.is_borrowed = False;
+                    self.borrowed_date = "";
+                    return True;
+                }
+                return False;
             }
         }
-    }
-}
 
-walker ProcessTask {
-    has task: Task;
-
-    can process with Task entry {
-        try {
-            # Process task
-            result = execute_task(here.payload);
-            here.status = "completed";
-            here.result = result;
-
-            # Notify completion
-            spawn TaskCompleted(task_id=here.id) on root;
-        } except as e {
-            here.status = "failed";
-            here.error = str(e);
-
-            # Retry logic
-            spawn RetryTask(task=here) on root;
-        }
-    }
-}
-```
-
-### Data Processing Focus (Chapters 8-9, 15)
-
-**2-Week Specialized Path**
-
-**Week 1: Graph Algorithms**
-- Graph traversal patterns
-- Data aggregation with walkers
-- Stream processing patterns
-
-**Week 2: Advanced Processing**
-- Map-reduce with walkers
-- Pipeline architectures
-- Real-time analytics
-
-**Data Processing Project**
-```jac
-# Real-time analytics pipeline
-node DataSource {
-    has source_type: str;
-    has config: dict;
-}
-
-node DataPoint {
-    has timestamp: str;
-    has metrics: dict;
-    has processed: bool = false;
-}
-
-walker StreamProcessor {
-    has buffer: list = [];
-    has buffer_size: int = 100;
-
-    can process with DataPoint entry {
-        if here.processed {
-            return;
+        node Member {
+            has name: str;
+            has member_id: str;
         }
 
-        # Add to buffer
-        self.buffer.append(here);
-        here.processed = true;
-
-        # Process when buffer full
-        if len(self.buffer) >= self.buffer_size {
-            self.flush_buffer();
+        edge BorrowedBy {
+            has borrowed_date: str;
         }
 
-        # Continue to next data point
-        visit [-->];
-    }
+        node Library {
+            has name: str;
 
-    can flush_buffer {
-        # Aggregate metrics
-        aggregated = aggregate_metrics(self.buffer);
+            can add_book(book: Book) -> None {
+                self ++> book;
+            }
 
-        # Store results
-        result_node = root ++> AggregatedMetrics(
-            timestamp=timestamp_now(),
-            data=aggregated,
-            point_count=len(self.buffer)
-        );
+            can add_member(member: Member) -> None {
+                self ++> member;
+            }
 
-        # Clear buffer
-        self.buffer = [];
+            can borrow_book(isbn: str, member_id: str) -> bool {
+                book = [self --> Book](?isbn == isbn);
+                member = [self --> Member](?member_id == member_id);
 
-        # Trigger downstream processing
-        spawn DownstreamAnalytics() on result_node;
-    }
-}
-
-walker RealTimeAlerting {
-    has alert_rules: list[dict];
-
-    can check with AggregatedMetrics entry {
-        for rule in self.alert_rules {
-            if evaluate_rule(rule, here.data) {
-                spawn SendAlert(
-                    rule=rule,
-                    metrics=here.data
-                ) on root;
+                if book and member and book[0].borrow(member_id) {
+                    member[0] +:BorrowedBy:borrowed_date=datetime.now().isoformat():+> book[0];
+                    return True;
+                }
+                return False;
             }
         }
-    }
-}
-```
+        ```
+        </div>
 
-### Learning Resources by Path
+---
 
-**Quick Start Resources**
-- Official Jac tutorials
-- Interactive playground
-- Quick reference card
-- Community Discord
+## Step 1: Converting Classes to Objects
 
-**Full Migration Resources**
-- Migration guide and tools
-- Architecture patterns book
-- Performance tuning guide
-- Case study repository
+The first migration step involves converting Python classes to Jac objects while maintaining similar functionality.
 
-**Web Services Resources**
-- REST API templates
-- GraphQL integration guide
-- WebSocket examples
-- Authentication patterns
+### Basic Class to Object Migration
 
-**Distributed Systems Resources**
-- Distribution patterns guide
-- Consistency models in Jac
-- Monitoring and observability
-- Fault tolerance patterns
+!!! example "Class to Object Conversion"
+    === "Python Class"
+        ```python
+        # book.py - Python class
+        class Book:
+            def __init__(self, title: str, author: str, isbn: str):
+                self.title = title
+                self.author = author
+                self.isbn = isbn
+                self.is_borrowed = False
 
-**Data Processing Resources**
-- Graph algorithms library
-- Streaming patterns guide
-- Analytics templates
-- Visualization integration
+            def get_info(self) -> str:
+                status = "Available" if not self.is_borrowed else "Borrowed"
+                return f"{self.title} by {self.author} - {status}"
 
-### Assessment Checkpoints
+            def borrow(self) -> bool:
+                if not self.is_borrowed:
+                    self.is_borrowed = True
+                    return True
+                return False
+        ```
 
-**Week 2 Check**: Can you build a basic graph application?
-**Week 4 Check**: Can you implement complex traversal patterns?
-**Week 8 Check**: Can you build a multi-user application?
-**Week 12 Check**: Can you optimize and scale your application?
+    === "Jac Object"
+        <div class="code-block">
+        ```jac
+        # book.jac - Jac object
+        obj Book {
+            has title: str;
+            has author: str;
+            has isbn: str;
+            has is_borrowed: bool = False;
 
-### Community Learning
+            can get_info() -> str {
+                status = "Available" if not self.is_borrowed else "Borrowed";
+                return f"{self.title} by {self.author} - {status}";
+            }
 
-Join the Jac community for accelerated learning:
-- **Discord**: Real-time help and discussions
-- **GitHub**: Contribute to open source projects
-- **Forums**: Share your learning journey
-- **Meetups**: Local and virtual events
+            can borrow() -> bool {
+                if not self.is_borrowed {
+                    self.is_borrowed = True;
+                    return True;
+                }
+                return False;
+            }
+        }
+        ```
+        </div>
 
-Remember: The best learning path is the one that matches your goals and timeline. Start with Quick Start if you need immediate productivity, or commit to Full Migration if you're planning a significant transition. Either way, the Jac community is here to support your journey from Python to the future of programming!
+!!! tip "Key Migration Changes"
+    - `class` → `obj`
+    - `__init__` → automatic constructor with `has`
+    - `def` → `can` for methods
+    - `:` → `;` for statement termination
+    - `{}` for code blocks instead of indentation
+
+### Testing the Migration
+
+!!! example "Migration Testing"
+    === "Python Usage"
+        ```python
+        # test_book.py
+        book = Book("The Great Gatsby", "F. Scott Fitzgerald", "123456789")
+        print(book.get_info())  # The Great Gatsby by F. Scott Fitzgerald - Available
+
+        success = book.borrow()
+        print(f"Borrowed: {success}")  # Borrowed: True
+        print(book.get_info())  # The Great Gatsby by F. Scott Fitzgerald - Borrowed
+        ```
+
+    === "Jac Usage"
+        <div class="code-block">
+        ```jac
+        # test_book.jac
+        with entry {
+            book = Book(title="The Great Gatsby", author="F. Scott Fitzgerald", isbn="123456789");
+            print(book.get_info());  # The Great Gatsby by F. Scott Fitzgerald - Available
+
+            success = book.borrow();
+            print(f"Borrowed: {success}");  # Borrowed: True
+            print(book.get_info());  # The Great Gatsby by F. Scott Fitzgerald - Borrowed
+        }
+        ```
+        </div>
+
+---
+
+## Step 2: Introducing Spatial Relationships
+
+The next step leverages Jac's Object-Spatial Programming by converting relationships into nodes and edges.
+
+### From Collections to Graph Structures
+
+!!! example "Spatial Relationship Migration"
+    === "Python Relationships"
+        ```python
+        # library_python.py - List-based relationships
+        class Library:
+            def __init__(self, name: str):
+                self.name = name
+                self.books = []  # List of books
+                self.members = []  # List of members
+                self.borrowed_books = {}  # Dict mapping book_isbn -> member_id
+
+            def add_book(self, book):
+                self.books.append(book)
+
+            def add_member(self, member):
+                self.members.append(member)
+
+            def find_available_books(self):
+                return [book for book in self.books if not book.is_borrowed]
+
+            def find_member_books(self, member_id: str):
+                member_isbns = [isbn for isbn, mid in self.borrowed_books.items() if mid == member_id]
+                return [book for book in self.books if book.isbn in member_isbns]
+        ```
+
+    === "Jac Spatial Relationships"
+        <div class="code-block">
+        ```jac
+        # library_spatial.jac - Graph-based relationships
+        node Book {
+            has title: str;
+            has author: str;
+            has isbn: str;
+        }
+
+        node Member {
+            has name: str;
+            has member_id: str;
+        }
+
+        edge Contains;  # Library contains books/members
+        edge BorrowedBy {
+            has borrowed_date: str;
+        }
+
+        node Library {
+            has name: str;
+
+            can add_book(book: Book) -> None {
+                self +:Contains:+> book;
+            }
+
+            can add_member(member: Member) -> None {
+                self +:Contains:+> member;
+            }
+
+            can find_available_books() -> list[Book] {
+                all_books = [self --Contains--> Book];
+                borrowed_books = [self --Contains--> Book --BorrowedBy--> Member];
+                # Return books not in borrowed list
+                return [book for book in all_books if book not in borrowed_books];
+            }
+
+            can find_member_books(member_id: str) -> list[Book] {
+                target_member = [self --Contains--> Member](?member_id == member_id);
+                if target_member {
+                    return [target_member[0] <--BorrowedBy-- Book];
+                }
+                return [];
+            }
+        }
+        ```
+        </div>
+
+---
+
+## Incremental Adoption Patterns
+
+Real-world migration often requires running Python and Jac code together. Let's explore hybrid approaches.
+
+### Python-Jac Integration
+
+!!! example "Hybrid Integration Approach"
+    === "Python Wrapper"
+        ```python
+        # hybrid_library.py - Python wrapper for Jac code
+        import subprocess
+        import json
+
+        class JacLibraryWrapper:
+            def __init__(self, library_name: str):
+                self.library_name = library_name
+                # Initialize Jac library through subprocess or API
+
+            def call_jac_walker(self, walker_name: str, params: dict):
+                """Call Jac walker from Python"""
+                # In practice, this would use jac-cloud API or subprocess
+                cmd = f"jac run library.jac --walker {walker_name} --ctx '{json.dumps(params)}'"
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                return json.loads(result.stdout) if result.stdout else None
+
+            def add_book_via_jac(self, title: str, author: str, isbn: str):
+                """Add book using Jac walker"""
+                params = {"title": title, "author": author, "isbn": isbn}
+                return self.call_jac_walker("add_book", params)
+
+            def get_available_books(self):
+                """Get available books using Jac walker"""
+                return self.call_jac_walker("get_available_books", {})
+
+        # Traditional Python usage
+        class PythonBook:
+            def __init__(self, title: str, author: str):
+                self.title = title
+                self.author = author
+
+        # Hybrid usage
+        if __name__ == "__main__":
+            # Use existing Python classes
+            python_book = PythonBook("Old Book", "Old Author")
+
+            # Use new Jac functionality
+            jac_library = JacLibraryWrapper("My Library")
+            jac_library.add_book_via_jac("New Book", "New Author", "123456")
+        ```
+
+    === "Jac Side"
+        <div class="code-block">
+        ```jac
+        # library.jac - Jac implementation
+        node Book {
+            has title: str;
+            has author: str;
+            has isbn: str;
+        }
+
+        node Library {
+            has name: str;
+        }
+
+        walker add_book {
+            has title: str;
+            has author: str;
+            has isbn: str;
+
+            can add_book_to_library with `root entry {
+                # Find or create library
+                libraries = [-->](`?Library);
+                if not libraries {
+                    library = Library(name="Default Library");
+                    here ++> library;
+                } else {
+                    library = libraries[0];
+                }
+
+                # Create and add book
+                new_book = Book(title=self.title, author=self.author, isbn=self.isbn);
+                library ++> new_book;
+
+                report {"message": f"Added book: {self.title}", "isbn": self.isbn};
+            }
+        }
+
+        walker get_available_books {
+            can fetch_available_books with `root entry {
+                all_books = [-->](`?Book);
+                books_data = [
+                    {"title": book.title, "author": book.author, "isbn": book.isbn}
+                    for book in all_books
+                ];
+                report {"books": books_data, "count": len(books_data)};
+            }
+        }
+        ```
+        </div>
+
+---
+
+## Common Migration Pitfalls
+
+Understanding common pitfalls helps ensure smooth migration from Python to Jac.
+
+### Pitfall 1: Direct Syntax Translation
+
+!!! warning "Avoid Direct Translation"
+    Don't directly translate Python syntax without considering Jac's spatial capabilities.
+
+!!! example "Poor vs Good Migration"
+    === "Poor Migration (Direct Translation)"
+        ```jac
+        # poor_migration.jac - Direct syntax translation
+        obj LibraryManager {
+            has books: list[dict] = [];  # Still thinking in lists
+            has members: list[dict] = [];
+
+            can add_book(book_data: dict) -> None {
+                self.books.append(book_data);  # Missing spatial benefits
+            }
+
+            can find_book(isbn: str) -> dict | None {
+                for book in self.books {  # Manual iteration
+                    if book["isbn"] == isbn {
+                        return book;
+                    }
+                }
+                return None;
+            }
+        }
+        ```
+
+    === "Good Migration (Spatial Thinking)"
+        <div class="code-block">
+        ```jac
+        # good_migration.jac - Embracing spatial programming
+        node Book {
+            has title: str;
+            has author: str;
+            has isbn: str;
+        }
+
+        node Library {
+            has name: str;
+
+            can add_book(title: str, author: str, isbn: str) -> Book {
+                new_book = Book(title=title, author=author, isbn=isbn);
+                self ++> new_book;  # Spatial relationship
+                return new_book;
+            }
+
+            can find_book(isbn: str) -> Book | None {
+                # Spatial filtering - much cleaner
+                found_books = [self --> Book](?isbn == isbn);
+                return found_books[0] if found_books else None;
+            }
+        }
+        ```
+        </div>
+
+### Pitfall 2: Ignoring Type Safety
+
+!!! example "Type Safety Migration"
+    === "Weak Typing (Python Style)"
+        ```jac
+        # weak_typing.jac - Avoiding Jac's type benefits
+        walker process_data {
+            has data: dict;  # Too generic
+
+            can process with `root entry {
+                # Uncertain about data structure
+                if "title" in self.data {
+                    title = self.data["title"];
+                } else {
+                    title = "Unknown";
+                }
+                report {"processed": title};
+            }
+        }
+        ```
+
+    === "Strong Typing (Jac Style)"
+        <div class="code-block">
+        ```jac
+        # strong_typing.jac - Leveraging Jac's type system
+        obj BookData {
+            has title: str;
+            has author: str;
+            has isbn: str;
+        }
+
+        walker process_book_data {
+            has book_data: BookData;  # Clear, type-safe structure
+
+            can process with `root entry {
+                # Type safety guarantees
+                new_book = Book(
+                    title=self.book_data.title,
+                    author=self.book_data.author,
+                    isbn=self.book_data.isbn
+                );
+                here ++> new_book;
+                report {"processed": self.book_data.title};
+            }
+        }
+        ```
+        </div>
+
+---
+
+## Migration Checklist
+
+!!! tip "Successful Migration Steps"
+    1. **Start Small**: Begin with utility functions and simple classes
+    2. **Embrace Types**: Use Jac's type system for better code quality
+    3. **Think Spatially**: Convert relationships to nodes and edges
+    4. **Test Incrementally**: Validate each migration step
+    5. **Leverage Python**: Keep using Python libraries where beneficial
+    6. **Document Changes**: Track migration decisions and patterns
+
+### Final Migration Example
+
+!!! example "Complete Library Migration"
+    === "Before (Python)"
+        ```python
+        # Original complex Python code
+        library = Library("City Library")
+
+        book1 = Book("1984", "George Orwell", "111")
+        book2 = Book("Brave New World", "Aldous Huxley", "222")
+        member = Member("Alice", "M001")
+
+        library.add_book(book1)
+        library.add_book(book2)
+        library.add_member(member)
+
+        # Manual relationship management
+        success = library.borrow_book("111", "M001")
+        available = library.find_available_books()
+        ```
+
+    === "After (Jac)"
+        <div class="code-block">
+        ```jac
+        # Modern Jac implementation
+        with entry {
+            library = Library(name="City Library");
+
+            book1 = Book(title="1984", author="George Orwell", isbn="111");
+            book2 = Book(title="Brave New World", author="Aldous Huxley", isbn="222");
+            member = Member(name="Alice", member_id="M001");
+
+            library.add_book(book1);
+            library.add_book(book2);
+            library.add_member(member);
+
+            # Spatial relationship management
+            success = library.borrow_book("111", "M001");
+            available = library.find_available_books();
+
+            print(f"Borrowed: {success}, Available: {len(available)}");
+        }
+        ```
+        </div>
+
+---
+
+## Best Practices
+
+!!! summary "Migration Best Practices"
+    - **Start small**: Begin with isolated components rather than entire applications
+    - **Maintain compatibility**: Keep existing Python code running during migration
+    - **Test thoroughly**: Validate each migration step with comprehensive tests
+    - **Document changes**: Track migration decisions and patterns for team consistency
+    - **Train the team**: Ensure all developers understand Object-Spatial Programming concepts
+    - **Plan rollback**: Have strategies for reverting changes if issues arise
+
+## Key Takeaways
+
+!!! summary "What We've Learned"
+    **Migration Strategies:**
+
+    - **Incremental approach**: Gradual migration reduces risk and allows learning
+    - **Syntax translation**: Converting Python classes to Jac objects with automatic constructors
+    - **Spatial transformation**: Moving from collections to graph-based relationships
+    - **Hybrid integration**: Running Python and Jac code together during transition
+
+    **Technical Benefits:**
+
+    - **Automatic constructors**: Eliminate boilerplate code with `has` declarations
+    - **Type safety**: Mandatory typing catches errors earlier in development
+    - **Graph relationships**: Natural representation of connected data
+    - **Performance gains**: Optimized execution for both local and distributed environments
+
+    **Common Challenges:**
+
+    - **Paradigm shift**: Moving from object-oriented to spatial thinking
+    - **Team adoption**: Training developers on new concepts and patterns
+    - **Integration complexity**: Managing hybrid Python-Jac applications
+    - **Testing changes**: Ensuring equivalent behavior after migration
+
+    **Success Factors:**
+
+    - **Clear planning**: Structured approach to migration with defined milestones
+    - **Comprehensive testing**: Validation at every step of the migration process
+    - **Team alignment**: Consistent understanding of goals and benefits
+    - **Iterative improvement**: Continuous refinement of migration patterns
+
+!!! tip "Try It Yourself"
+    Practice migration by:
+    - Converting a simple Python class to a Jac object
+    - Transforming list-based relationships into graph structures
+    - Creating hybrid applications that use both Python libraries and Jac features
+    - Building comprehensive test suites to validate migration correctness
+
+    Remember: Successful migration is about embracing spatial thinking, not just syntax conversion!
+
+---
+
+*Ready to master Jac best practices? Continue to [Chapter 25: Best Practices and Patterns](chapter_25.md)!*
