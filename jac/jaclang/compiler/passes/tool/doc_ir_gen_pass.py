@@ -1350,7 +1350,7 @@ class DocIRGenPass(UniPass):
             if i == node.doc or (node.decorators and i in node.decorators):
                 parts.append(i.gen.doc_ir)
                 parts.append(self.hard_line())
-            elif i in node.target:
+            elif self.is_within(i, node.target):
                 parts.append(i.gen.doc_ir)
             elif (
                 in_body
