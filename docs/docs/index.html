@@ -1347,17 +1347,17 @@
                 </div>
 
                 <div class="demo-tabs">
-                    <button class="demo-tab active" data-demo="hello">
-                        👋 Hello World
+                    <button class="demo-tab active" data-demo="mtllm">
+                        🤖 MTLLM AI
                     </button>
-                    <button class="demo-tab" data-demo="graph">
-                        🌐 Graph Magic
-                    </button>
-                    <button class="demo-tab" data-demo="ai">
-                        🤖 AI Power
+                    <button class="demo-tab" data-demo="rpg">
+                        🎮 RPG Game
                     </button>
                     <button class="demo-tab" data-demo="cloud">
-                        ☁️ Cloud Deploy
+                        ☁️ Jac Cloud
+                    </button>
+                    <button class="demo-tab" data-demo="littlex">
+                        🐦 LittleX
                     </button>
                 </div>
 
@@ -1794,173 +1794,227 @@
 
             animateFollower();
 
-            // Enhanced Interactive code demos with clean syntax
+            // Enhanced Interactive Code Demo
             const demoData = {
-                hello: {
-                    title: "Hello World - Your First Jac Program",
-                    code: `<span class="jac-comment"># Welcome to Jac! 🎉</span>
-<span class="jac-comment"># Let's create your first spatial program</span>
+                mtllm: {
+                    title: "AI-Integrated Programming with MTLLM",
+                    code: `<span class="jac-comment"># AI Integration with MTLLM - No Prompt Engineering Required! 🤖</span>
 
-<span class="jac-keyword">with</span> <span class="jac-keyword">entry</span> {
-    <span class="jac-function">print</span>(<span class="jac-string">"🚀 Hello from Jac!"</span>);
-    <span class="jac-function">print</span>(<span class="jac-string">"Python-compatible, AI-powered! ✨"</span>);
-
-    <span class="jac-comment"># Create your first persistent node</span>
-    <span class="jac-variable">greeting</span> = <span class="jac-variable">root</span> <span class="jac-operator">++></span> <span class="jac-node">Welcome</span>(
-        <span class="jac-variable">message</span>=<span class="jac-string">"Ready to explore?"</span>,
-        <span class="jac-variable">timestamp</span>=<span class="jac-function">datetime.now</span>()
-    );
-
-    <span class="jac-function">print</span>(<span class="jac-string">f"✅ Node created: {greeting.message}"</span>);
-}
-
-<span class="jac-comment"># Define your first node structure</span>
-<span class="jac-keyword">node</span> <span class="jac-node">Welcome</span> {
-    <span class="jac-keyword">has</span> <span class="jac-variable">message</span>: <span class="jac-keyword">str</span>;
-    <span class="jac-keyword">has</span> <span class="jac-variable">timestamp</span>: <span class="jac-keyword">str</span>;
-}`,
-                    output: [
-                        { type: 'success', text: '🚀 Hello from Jac!' },
-                        { type: 'success', text: 'Python-compatible, AI-powered! ✨' },
-                        { type: 'info', text: '📦 Creating Welcome node...' },
-                        { type: 'success', text: '✅ Node created: Ready to explore?' },
-                        { type: 'info', text: '💾 Node persisted to graph database' },
-                        { type: 'success', text: '🎉 Program completed successfully!' }
-                    ]
-                },
-                graph: {
-                    title: "Object-Spatial Programming - Social Network",
-                    code: `<span class="jac-comment"># Build a social network with spatial programming! 🌐</span>
-
-<span class="jac-keyword">node</span> <span class="jac-node">Person</span> {
-    <span class="jac-keyword">has</span> <span class="jac-variable">name</span>: <span class="jac-keyword">str</span>;
-    <span class="jac-keyword">has</span> <span class="jac-variable">age</span>: <span class="jac-keyword">int</span>;
-    <span class="jac-keyword">has</span> <span class="jac-variable">interests</span>: <span class="jac-keyword">list</span>[<span class="jac-keyword">str</span>] = [];
-}
-
-<span class="jac-keyword">edge</span> <span class="jac-edge">Follows</span> {
-    <span class="jac-keyword">has</span> <span class="jac-variable">since</span>: <span class="jac-keyword">str</span>;
-}
-
-<span class="jac-keyword">walker</span> <span class="jac-walker">NetworkExplorer</span> {
-    <span class="jac-keyword">has</span> <span class="jac-variable">discovered</span>: <span class="jac-keyword">list</span> = [];
-
-    <span class="jac-keyword">can</span> <span class="jac-function">explore</span> <span class="jac-keyword">with</span> <span class="jac-node">Person</span> <span class="jac-keyword">entry</span> {
-        <span class="jac-function">print</span>(<span class="jac-string">f"👋 Met {here.name}, age {here.age}"</span>);
-        <span class="jac-variable">self</span>.<span class="jac-variable">discovered</span>.<span class="jac-function">append</span>(<span class="jac-variable">here</span>.<span class="jac-variable">name</span>);
-
-        <span class="jac.comment"># Traverse the social graph</span>
-        <span class="jac-keyword">visit</span> [<span class="jac-operator">--></span>:<span class="jac-edge">Follows</span>:<span class="jac-operator">--></span>];
-    }
-}
-
-<span class="jac-keyword">with</span> <span class="jac-keyword">entry</span> {
-    <span class="jac.comment"># Create our social network</span>
-    <span class="jac-variable">alice</span> = <span class="jac-node">Person</span>(<span class="jac-variable">name</span>=<span class="jac-string">"Alice"</span>, <span class="jac-variable">age</span>=<span class="jac-number">28</span>);
-    <span class="jac-variable">bob</span> = <span class="jac-node">Person</span>(<span class="jac-variable">name</span>=<span class="jac-string">"Bob"</span>, <span class="jac-variable">age</span>=<span class="jac-number">32</span>);
-
-    <span class="jac.comment"># Connect them in the graph</span>
-    <span class="jac-variable">alice</span> <span class="jac-operator">+></span>:<span class="jac-edge">Follows</span>(<span class="jac-variable">since</span>=<span class="jac.string">"2024-01-15"</span>):<span class="jac-operator">+></span> <span class="jac-variable">bob</span>;
-
-    <span class="jac.comment"># Explore the network</span>
-    <span class="jac-variable">explorer</span> = <span class="jac-walker">NetworkExplorer</span>();
-    <span class="jac-keyword">spawn</span> <span class="jac-variable">explorer</span> <span class="jac-keyword">on</span> <span class="jac-variable">alice</span>;
-
-    <span class="jac-function">print</span>(<span class="jac-string">f"🔍 Discovered: {explorer.discovered}"</span>);
-}`,
-                    output: [
-                        { type: 'info', text: '🌐 Building social network...' },
-                        { type: 'success', text: '👋 Met Alice, age 28' },
-                        { type: 'info', text: '🔗 Following connection to Bob...' },
-                        { type: 'success', text: '👋 Met Bob, age 32' },
-                        { type: 'success', text: "🔍 Discovered: ['Alice', 'Bob']" },
-                        { type: 'info', text: '✨ Graph traversal completed!' }
-                    ]
-                },
-                ai: {
-                    title: "AI Integration - Natural Language to Code",
-                    code: `<span class="jac-comment"># AI-First Programming with MTLLM 🤖</span>
-
-<span class="jac-keyword">import</span> <span class="jac-keyword">from</span> <span class="jac-variable">mtllm</span>.<span class="jac-variable">llms</span> { <span class="jac-node">Ollama</span> }
+<span class="jac-keyword">import</span> <span class="jac-keyword">from</span> <span class="jac-variable">mtllm</span>.<span class="jac-variable">llms</span> { <span class="jac-node">OpenAI</span> }
 
 <span class="jac-comment"># Initialize AI model</span>
-<span class="jac-keyword">glob</span> <span class="jac-variable">llm</span> = <span class="jac-node">Ollama</span>(<span class="jac-variable">model_name</span>=<span class="jac-string">"llama3.2"</span>);
+<span class="jac-keyword">glob</span> <span class="jac-variable">llm</span> = <span class="jac-node">OpenAI</span>(<span class="jac-variable">model_name</span>=<span class="jac-string">"gpt-4o"</span>);
 
-<span class="jac-comment"># AI-powered function - just describe what you want!</span>
-<span class="jac-keyword">can</span> <span class="jac-string">'Generate a creative name for a social media app
-that focuses on meaningful connections. Return just the name.'</span>
-    <span class="jac-function">generate_app_name</span>() <span class="jac-operator">-></span> <span class="jac-string">'App Name'</span>: <span class="jac-keyword">str</span> <span class="jac-keyword">by</span> <span class="jac-variable">llm</span>();
+<span class="jac-comment"># Define AI-powered functions with just signatures!</span>
+<span class="jac-keyword">def</span> <span class="jac-function">translate</span>(<span class="jac-variable">text</span>: <span class="jac-keyword">str</span>, <span class="jac-variable">target_language</span>: <span class="jac-keyword">str</span>) <span class="jac-operator">-></span> <span class="jac-keyword">str</span> <span class="jac-keyword">by</span> <span class="jac-variable">llm</span>();
 
-<span class="jac-keyword">can</span> <span class="jac.string">'Analyze user interests: {interests} and suggest
-3 people they might connect with. Return as simple list.'</span>
-    <span class="jac-function">suggest_connections</span>(<span class="jac-variable">interests</span>: <span class="jac-keyword">str</span>) <span class="jac-operator">-></span> <span class="jac-string">'Suggestions'</span>: <span class="jac-keyword">str</span> <span class="jac-keyword">by</span> <span class="jac-variable">llm</span>();
+<span class="jac-keyword">def</span> <span class="jac-function">analyze_sentiment</span>(<span class="jac-variable">text</span>: <span class="jac-keyword">str</span>) <span class="jac-operator">-></span> <span class="jac-keyword">str</span> <span class="jac-keyword">by</span> <span class="jac-variable">llm</span>(<span class="jac-variable">method</span>=<span class="jac-string">'Reason'</span>);
 
 <span class="jac-keyword">with</span> <span class="jac-keyword">entry</span> {
-    <span class="jac_function">print</span>(<span class="jac_string">"🤖 AI-Powered Social App Demo"</span>);
+    <span class="jac-variable">customer_feedback</span> = <span class="jac-string">"I'm really disappointed with the product quality."</span>;
 
-    <span class="jac.comment"># Get AI-generated app name</span>
-    <span class="jac-variable">app_name</span> = <span class="jac_function">generate_app_name</span>();
-    <span class="jac_function">print</span>(<span class="jac_string">f"✨ App Name: {app_name}"</span>);
+    <span class="jac-comment"># AI reasons through sentiment analysis step-by-step</span>
+    <span class="jac-variable">sentiment</span> = <span class="jac-function">analyze_sentiment</span>(<span class="jac-variable">customer_feedback</span>);
+    <span class="jac-function">print</span>(<span class="jac-string">f"Customer sentiment: {sentiment}"</span>);
 
-    <span class="jac.comment"># Get AI-powered connection suggestions</span>
-    <span class="jac-variable">user_interests</span> = <span class="jac_string">"AI, Photography, Travel"</span>;
-    <span class="jac-variable">suggestions</span> = <span class="jac_function">suggest_connections</span>(<span class="jac-variable">user_interests</span>);
-    <span class="jac_function">print</span>(<span class="jac_string">f"🔍 Suggestions: {suggestions}"</span>);
+    <span class="jac-comment"># Translate the sentiment analysis to Spanish</span>
+    <span class="jac-variable">translated</span> = <span class="jac-function">translate</span>(<span class="jac-variable">sentiment</span>, <span class="jac-string">"Spanish"</span>);
+    <span class="jac-function">print</span>(<span class="jac-string">f"Translated result: {translated}"</span>);
 }`,
                     output: [
-                        { type: 'info', text: '🤖 AI-Powered Social App Demo' },
-                        { type: 'info', text: '🧠 Generating app name with AI...' },
-                        { type: 'success', text: '✨ App Name: ConnectSphere' },
-                        { type: 'info', text: '🔍 Analyzing user interests with AI...' },
-                        { type: 'success', text: '🔍 Suggestions: Maya (AI researcher), Chris (Photographer), Sam (Travel blogger)' },
-                        { type: 'info', text: '✨ AI analysis completed!' }
+                        { type: 'info', text: '🧠 Analyzing sentiment with step-by-step reasoning...' },
+                        { type: 'success', text: 'Customer sentiment: Negative. The customer expresses disappointment with product quality, which clearly indicates dissatisfaction.' },
+                        { type: 'info', text: '🌍 Translating sentiment analysis to Spanish...' },
+                        { type: 'success', text: 'Translated result: Negativo. El cliente expresa decepción con la calidad del producto, lo que indica claramente insatisfacción.' },
+                        { type: 'info', text: '✨ AI analysis completed successfully!' }
+                    ]
+                },
+                rpg: {
+                    title: "AI-Generated Game Levels",
+                    code: `<span class="jac-comment"># RPG Game with AI-Generated Maps 🎮</span>
+
+<span class="jac-keyword">import</span> <span class="jac-keyword">from</span> <span class="jac-variable">mtllm</span>.<span class="jac-variable">llms</span> { <span class="jac-node">OpenAI</span> }
+
+<span class="jac-keyword">glob</span> <span class="jac-variable">llm</span> = <span class="jac-node">OpenAI</span>(<span class="jac-variable">model_name</span>=<span class="jac-string">"gpt-4o"</span>);
+
+<span class="jac-comment"># Game data structures</span>
+<span class="jac-keyword">obj</span> <span class="jac-node">Position</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">x</span>: <span class="jac-keyword">int</span>, <span class="jac-variable">y</span>: <span class="jac-keyword">int</span>;
+}
+
+<span class="jac-keyword">obj</span> <span class="jac-node">Wall</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">start_pos</span>: <span class="jac-node">Position</span>, <span class="jac-variable">end_pos</span>: <span class="jac-node">Position</span>;
+}
+
+<span class="jac-keyword">obj</span> <span class="jac-node">Level</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">name</span>: <span class="jac-keyword">str</span>, <span class="jac-variable">difficulty</span>: <span class="jac-keyword">int</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">width</span>: <span class="jac-keyword">int</span>, <span class="jac-variable">height</span>: <span class="jac-keyword">int</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">num_wall</span>: <span class="jac-keyword">int</span>, <span class="jac-variable">num_enemies</span>: <span class="jac-keyword">int</span>;
+}
+
+<span class="jac-keyword">obj</span> <span class="jac-node">Map</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">level</span>: <span class="jac-node">Level</span>, <span class="jac-variable">walls</span>: <span class="jac-keyword">list</span>[<span class="jac-node">Wall</span>];
+    <span class="jac-keyword">has</span> <span class="jac-variable">enemies</span>: <span class="jac-keyword">list</span>[<span class="jac-node">Position</span>];
+    <span class="jac-keyword">has</span> <span class="jac-variable">player_pos</span>: <span class="jac-node">Position</span>;
+}
+
+<span class="jac-comment"># AI-powered level generation!</span>
+<span class="jac-keyword">def</span> <span class="jac-function">create_next_level</span>(<span class="jac-variable">last_levels</span>: <span class="jac-keyword">list</span>[<span class="jac-node">Level</span>], <span class="jac-variable">difficulty</span>: <span class="jac-keyword">int</span>,
+    <span class="jac-variable">level_width</span>: <span class="jac-keyword">int</span>, <span class="jac-variable">level_height</span>: <span class="jac-keyword">int</span>) <span class="jac-operator">-></span> <span class="jac-node">Level</span> <span class="jac-keyword">by</span> <span class="jac-variable">llm</span>();
+
+<span class="jac-keyword">def</span> <span class="jac-function">create_next_map</span>(<span class="jac-variable">level</span>: <span class="jac-node">Level</span>) <span class="jac-operator">-></span> <span class="jac-node">Map</span> <span class="jac-keyword">by</span> <span class="jac-variable">llm</span>();
+
+<span class="jac-keyword">with</span> <span class="jac-keyword">entry</span> {
+    <span class="jac-variable">prev_levels</span> = [];
+    <span class="jac-variable">difficulty</span> = 2;
+
+    <span class="jac-comment"># Generate level with AI</span>
+    <span class="jac-variable">new_level</span> = <span class="jac-function">create_next_level</span>(<span class="jac-variable">prev_levels</span>, <span class="jac-variable">difficulty</span>, 10, 10);
+    <span class="jac-function">print</span>(<span class="jac-string">f"Generated level: {new_level.name}, Difficulty: {new_level.difficulty}"</span>);
+
+    <span class="jac-comment"># Generate map layout with AI</span>
+    <span class="jac-variable">game_map</span> = <span class="jac-function">create_next_map</span>(<span class="jac-variable">new_level</span>);
+    <span class="jac-function">print</span>(<span class="jac_string">f"Map created with {len(game_map.walls)} walls and {len(game_map.enemies)} enemies"</span>);
+    <span class="jac-function">print</span>(<span class="jac_string">f"Player starting position: ({game_map.player_pos.x}, {game_map.player_pos.y})"</span>);
+}`,
+                    output: [
+                        { type: 'info', text: '🎮 Initializing game engine...' },
+                        { type: 'info', text: '🧠 AI is generating level design...' },
+                        { type: 'success', text: 'Generated level: The Dark Cavern, Difficulty: 2' },
+                        { type: 'info', text: '🧠 AI is creating map layout...' },
+                        { type: 'success', text: 'Map created with 5 walls and 3 enemies' },
+                        { type: 'success', text: 'Player starting position: (2, 2)' },
+                        { type: 'info', text: '🎲 Game level ready for play!' }
                     ]
                 },
                 cloud: {
-                    title: "Cloud Deployment - Scale Instantly",
-                    code: `<span class="jac-comment"># Deploy to Cloud with Zero DevOps! ☁️</span>
+                    title: "Cloud-Native Apps with Jac",
+                    code: `<span class="jac-comment"># Zero-Config Cloud Deployment ☁️</span>
 
+<span class="jac-comment"># Define data models for a simple task manager</span>
 <span class="jac-keyword">node</span> <span class="jac-node">User</span> {
-    <span class="jac-keyword">has</span> <span class="jac-variable">id</span>: <span class="jac-keyword">str</span>;
-    <span class="jac-keyword">has</span> <span class="jac-variable">username</span>: <span class="jac-keyword">str</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">name</span>: <span class="jac-keyword">str</span>;
     <span class="jac-keyword">has</span> <span class="jac-variable">email</span>: <span class="jac-keyword">str</span>;
 }
 
-<span class="jac-comment"># Auto-generated REST API endpoints! 🚀</span>
-<span class="jac-keyword">walker</span> <span class="jac-walker">CreateUser</span> {
-    <span class="jac-keyword">has</span> <span class="jac-variable">username</span>: <span class="jac-keyword">str</span>;
-    <span class="jac-keyword">has</span> <span class="jac-variable">email</span>: <span class="jac-keyword">str</span>;
+<span class="jac-keyword">node</span> <span class="jac-node">Task</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">title</span>: <span class="jac-keyword">str</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">description</span>: <span class="jac-keyword">str</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">completed</span>: <span class="jac-keyword">bool</span> = <span class="jac-keyword">false</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">created_at</span>: <span class="jac-keyword">str</span> = <span class="jac-function">datetime.now</span>().<span class="jac-function">strftime</span>(<span class="jac-string">"%Y-%m-%d %H:%M:%S"</span>);
+}
 
-    <span class="jac-keyword">can</span> <span class="jac-function">create</span> <span class="jac-keyword">with</span> <span class="jac-keyword">entry</span> {
-        <span class="jac-comment"># Automatic validation & persistence</span>
-        <span class="jac-variable">user</span> = <span class="jac-variable">root</span> <span class="jac-operator">++></span> <span class="jac-node">User</span>(
-            <span class="jac-variable">id</span>=<span class="jac-function">uuid4</span>(),
-            <span class="jac-variable">username</span>=<span class="jac-variable">self</span>.<span class="jac-variable">username</span>,
-            <span class="jac-variable">email</span>=<span class="jac-variable">self</span>.<span class="jac-variable">email</span>
-        );
+<span class="jac-keyword">edge</span> <span class="jac-edge">HasTask</span> {}
 
-        <span class="jac-keyword">report</span> {
-            <span class="jac-string">"success"</span>: <span class="jac-keyword">true</span>,
-            <span class="jac.string">"user_id"</span>: <span class="jac-variable">user</span>.<span class="jac-variable">id</span>,
-            <span class="jac.string">"message"</span>: <span class="jac.string">"User created! 🎉"</span>
-        };
+<span class="jac-comment"># API endpoints - auto-generated REST</span>
+<span class="jac-keyword">walker</span> <span class="jac-walker">create_task</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">title</span>: <span class="jac-keyword">str</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">description</span>: <span class="jac-keyword">str</span>;
+
+    <span class="jac-keyword">can</span> <span class="jac-function">create</span> <span class="jac-keyword">with</span> <span class="jac-node">User</span> <span class="jac-keyword">entry</span> {
+        <span class="jac-variable">task</span> = <span class="jac-node">Task</span>(<span class="jac-variable">title</span>=<span class="jac-variable">self</span>.<span class="jac-variable">title</span>, <span class="jac-variable">description</span>=<span class="jac-variable">self</span>.<span class="jac-variable">description</span>);
+        <span class="jac-variable">here</span> <span class="jac-operator">+>:</span><span class="jac-edge">HasTask</span><span class="jac-operator">:+></span> <span class="jac-variable">task</span>;
+        <span class="jac-keyword">report</span> { <span class="jac_string">"success"</span>: <span class="jac-keyword">true</span>, <span class="jac_string">"task_id"</span>: <span class="jac-variable">task</span>.<span class="jac-variable">jid</span> };
     }
 }
 
-<span class="jac-comment"># 🎯 Command to deploy: jac serve myapp.jac</span>
-<span class="jac-comment"># ✨ Instant features: REST API, Swagger docs, Auto-scaling</span>
+<span class="jac-keyword">walker</span> <span class="jac-walker">get_tasks</span> {
+    <span class="jac-keyword">can</span> <span class="jac-function">list</span> <span class="jac-keyword">with</span> <span class="jac-node">User</span> <span class="jac-keyword">entry</span> {
+        <span class="jac-variable">tasks</span> = [];
+        <span class="jac-keyword">for</span> <span class="jac-variable">task</span> <span class="jac-keyword">in</span> [<span class="jac-variable">here</span> <span class="jac-operator">-></span>:<span class="jac-edge">HasTask</span><span class="jac-operator">-></span>] {
+            <span class="jac-variable">tasks</span>.<span class="jac-function">append</span>({
+                <span class="jac_string">"id"</span>: <span class="jac-variable">task</span>.<span class="jac-variable">jid</span>,
+                <span class="jac_string">"title"</span>: <span class="jac-variable">task</span>.<span class="jac-variable">title</span>,
+                <span class="jac_string">"completed"</span>: <span class="jac-variable">task</span>.<span class="jac-variable">completed</span>
+            });
+        }
+        <span class="jac-keyword">report</span> <span class="jac-variable">tasks</span>;
+    }
+}
+
+<span class="jac-comment"># Deploy with: jac serve taskapp.jac</span>
+<span class="jac-comment"># Instantly get: REST API, auth, auto-scaling</span>
 
 <span class="jac-keyword">with</span> <span class="jac-keyword">entry</span> {
-    <span class="jac_function">print</span>(<span class="jac_string">"🌐 Cloud API Server Ready!"</span>);
-    <span class="jac_function">print</span>(<span class="jac_string">"📍 POST /CreateUser - Create new user"</span>);
+    <span class="jac-function">print</span>(<span class="jac-string">"🌐 Task Manager API Ready!"</span>);
+    <span class="jac-function">print</span>(<span class="jac-string">"✅ POST /create_task - Create a new task"</span>);
+    <span class="jac-function">print</span>(<span class="jac_string">"✅ GET /get_tasks - List all tasks"</span>);
 }`,
                     output: [
-                        { type: 'success', text: '🌐 Cloud API Server Ready!' },
-                        { type: 'success', text: '🚀 Server running at http://localhost:8000' },
-                        { type: 'info', text: '📍 POST /CreateUser - Create new user' },
+                        { type: 'success', text: '🌐 Task Manager API Ready!' },
+                        { type: 'success', text: '✅ POST /create_task - Create a new task' },
+                        { type: 'success', text: '✅ GET /get_tasks - List all tasks' },
+                        { type: 'info', text: '🚀 Server running at http://localhost:8000' },
                         { type: 'info', text: '📚 API docs available at /docs' },
-                        { type: 'success', text: '✨ Auto-scaling enabled' },
-                        { type: 'success', text: '💾 Persistent storage ready' }
+                        { type: 'success', text: '⚡ Auto-scaling enabled - 0 to 1000 instances' },
+                        { type: 'success', text: '💾 Persistent storage configured and ready' }
+                    ]
+                },
+                littlex: {
+                    title: "LittleX - A Twitter-like Platform",
+                    code: `<span class="jac-comment"># LittleX - Build a Twitter clone in 50 lines! 🐦</span>
+
+<span class="jac-comment"># Define User and Tweet data models</span>
+<span class="jac-keyword">node</span> <span class="jac-node">Profile</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">username</span>: <span class="jac-keyword">str</span> = <span class="jac-string">""</span>;
+
+    <span class="jac-keyword">can</span> <span class="jac-function">update</span> <span class="jac-keyword">with</span> <span class="jac-variable">update_profile</span> <span class="jac-keyword">entry</span>;
+    <span class="jac-keyword">can</span> <span class="jac-function">follow</span> <span class="jac-keyword">with</span> <span class="jac-variable">follow_request</span> <span class="jac-keyword">entry</span>;
+}
+
+<span class="jac-keyword">node</span> <span class="jac-node">Tweet</span> {
+    <span class="jac-keyword">has</span> <span class="jac-variable">content</span>: <span class="jac-keyword">str</span>;
+    <span class="jac-keyword">has</span> <span class="jac-variable">created_at</span>: <span class="jac-keyword">str</span> = <span class="jac-function">datetime.datetime.now</span>().<span class="jac-function">strftime</span>(<span class="jac-string">"%Y-%m-%d %H:%M:%S"</span>);
+
+    <span class="jac-keyword">can</span> <span class="jac-function">like_tweet</span> <span class="jac-keyword">with</span> <span class="jac-variable">like_tweet</span> <span class="jac-keyword">entry</span>;
+    <span class="jac-keyword">can</span> <span class="jac-function">comment</span> <span class="jac-keyword">with</span> <span class="jac-variable">comment_tweet</span> <span class="jac-keyword">entry</span>;
+}
+
+<span class="jac-keyword">edge</span> <span class="jac-edge">Follow</span> {}
+<span class="jac-keyword">edge</span> <span class="jac-edge">Post</span> {}
+
+<span class="jac-comment"># User profile walker</span>
+<span class="jac-keyword">walker</span> <span class="jac-walker">visit_profile</span> {
+    <span class="jac-keyword">can</span> <span class="jac-function">visit_profile</span> <span class="jac-keyword">with</span> <span class="jac-keyword">root</span> <span class="jac-keyword">entry</span>;
+}
+
+<span class="jac-comment"># Tweet creation</span>
+<span class="jac-keyword">walker</span> <span class="jac-walker">create_tweet</span>(<span class="jac-walker">visit_profile</span>) {
+    <span class="jac-keyword">has</span> <span class="jac-variable">content</span>: <span class="jac-keyword">str</span>;
+    <span class="jac-keyword">can</span> <span class="jac-function">tweet</span> <span class="jac-keyword">with</span> <span class="jac-node">Profile</span> <span class="jac-keyword">entry</span>;
+}
+
+<span class="jac-comment"># Feed generator</span>
+<span class="jac-keyword">walker</span> <span class="jac-walker">load_feed</span>(<span class="jac-walker">visit_profile</span>) {
+    <span class="jac-keyword">has</span> <span class="jac-variable">results</span>: <span class="jac-keyword">list</span> = [];
+    <span class="jac-keyword">can</span> <span class="jac-function">load</span> <span class="jac-keyword">with</span> <span class="jac-node">Profile</span> <span class="jac-keyword">entry</span>;
+}
+
+<span class="jac-keyword">with</span> <span class="jac-keyword">entry</span> {
+    <span class="jac-comment"># Simulate users and tweets</span>
+    <span class="jac-variable">alice</span> = <span class="jac-node">Profile</span>(<span class="jac-variable">username</span>=<span class="jac-string">"alice"</span>);
+    <span class="jac-variable">bob</span> = <span class="jac-node">Profile</span>(<span class="jac-variable">username</span>=<span class="jac-string">"bob"</span>);
+
+    <span class="jac-comment"># Alice follows Bob</span>
+    <span class="jac-variable">alice</span> <span class="jac-operator">+>:</span><span class="jac-edge">Follow</span><span class="jac-operator">:+></span> <span class="jac-variable">bob</span>;
+
+    <span class="jac-comment"># Bob posts a tweet</span>
+    <span class="jac-variable">tweet</span> = <span class="jac-node">Tweet</span>(<span class="jac-variable">content</span>=<span class="jac-string">"Hello from LittleX!"</span>);
+    <span class="jac-variable">bob</span> <span class="jac-operator">+>:</span><span class="jac-edge">Post</span><span class="jac-operator">:+></span> <span class="jac-variable">tweet</span>;
+
+    <span class="jac-function">print</span>(<span class="jac-string">"✅ LittleX platform initialized!"</span>);
+    <span class="jac-function">print</span>(<span class="jac_string">f"👤 Users: {alice.username}, {bob.username}"</span>);
+    <span class="jac-function">print</span>(<span class="jac_string">f"🐦 Latest tweet: {tweet.content}"</span>);
+}`,
+                    output: [
+                        { type: 'info', text: '🚀 Initializing LittleX social platform...' },
+                        { type: 'info', text: '👤 Creating user profiles...' },
+                        { type: 'info', text: '🔗 Establishing follow relationship...' },
+                        { type: 'info', text: '📝 Creating tweet...' },
+                        { type: 'success', text: '✅ LittleX platform initialized!' },
+                        { type: 'success', text: '👤 Users: alice, bob' },
+                        { type: 'success', text: '🐦 Latest tweet: Hello from LittleX!' },
+                        { type: 'info', text: '💾 Graph database ready for more social connections!' }
                     ]
                 }
             };
@@ -1969,7 +2023,7 @@ that focuses on meaningful connections. Return just the name.'</span>
             const demoTabs = document.querySelectorAll('.demo-tab');
             const demoCode = document.getElementById('demo-code');
             const demoOutput = document.getElementById('demo-output');
-            let currentDemo = 'hello';
+            let currentDemo = 'mtllm';
 
             function showDemo(demoKey) {
                 currentDemo = demoKey;
@@ -2054,7 +2108,7 @@ that focuses on meaningful connections. Return just the name.'</span>
             });
 
             // Initialize first demo
-            showDemo('hello');
+            showDemo('mtllm');
 
             // FIXED: Carousel functionality
             function initCarousel(carouselId, prevBtnId, nextBtnId, indicatorsId) {
