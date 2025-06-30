@@ -13,6 +13,89 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+tabel_css = """
+<style>
+#tabs {
+    display: flex;
+    justify-content: space-between;
+    padding: 0;
+    margin: 0 0 1em 0;
+    border-bottom: 2px solid #222;
+    background: #23272e;
+    list-style: none;
+    width: 100%;
+}
+#tabs li {
+    flex: 1 1 0;
+    padding: 0.7em 1.5em;
+    margin: 0;
+    cursor: pointer;
+    border: 1px solid #222;
+    border-bottom: none;
+    background: #23272e;
+    color: #bfc7d5;
+    border-radius: 8px 8px 0 0;
+    transition: background 0.2s, color 0.2s;
+    font-weight: 500;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#tabs li.active, #tabs li:hover {
+    background: #181b20;
+    color: #fff;
+    font-weight: bold;
+    border-bottom: 2px solid #181b20;
+    box-shadow: 0 -2px 8px #181b20;
+    z-index: 2;
+}
+.tabcontent {
+    border: 1px solid #222;
+    border-radius: 0 0 8px 8px;
+    padding: 1.5em;
+    margin-bottom: 2em;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    color: #e0e6ed;
+}
+.tabcontent table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 1em;
+    background: #23272e;
+    color: #e0e6ed;
+}
+.tabcontent th, .tabcontent td {
+    border: 1px solid #222;
+    padding: 0.7em 1em;
+    text-align: left;
+}
+.tabcontent th {
+    background: #181b20;
+    color: #7ecfff;
+    font-weight: 600;
+}
+.tabcontent tr:nth-child(even) {
+    background: #23272e;
+}
+.tabcontent tr:hover {
+    background: #2a313a;
+}
+</style>
+"""
+
+
+def format_repo_name(repo: str) -> str:
+    """Convert a GitHub repo string to a title-cased display name.
+
+    Examples:
+        'jaclang/jac_playground' -> 'Jac Playground'
+    """
+    name = repo.split("/")[-1]
+    name = name.replace("_", " ").replace("-", " ")
+    return name.title()
+
 
 def get_repo_from_remote() -> Tuple[Optional[str], Optional[str]]:
     """Get repository owner and name from git remote URL."""
@@ -125,27 +208,138 @@ def process_contributors(
     )
 
 
-def generate_markdown_table(contributors: List[Dict[str, Any]], days: int) -> None:
-    """Generate a markdown table from contributor data."""
+# not using now since HTML tables have been used
+def generate_markdown_table(
+    contributors: List[Dict[str, Any]], days: int, repo: str
+) -> str:
+    """Generate a markdown table from contributor data and return as string."""
     if not contributors:
-        print(f"No contributions found in the last {days} days.")
-        return
+        return f"No contributions found in the last {days} days for {repo}.\n"
 
     end_date = datetime.now(timezone.utc).date()
     start_date = end_date - timedelta(days=days)
 
-    print(
-        f"## Top contributors in the last {days} days "
+    lines = []
+    lines.append(
+        f"### Top contributors in the last {days} days "
         f"({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
     )
-    print("| Contributor | Commits | Active Days |")
-    print("|---|---|---|")
+    lines.append("| Contributor | Commits | Active Days |")
+    lines.append("|---|---|---|")
     for contributor in contributors:
         login = contributor["login"]
         commits = contributor["commits"]
         active_days = contributor["active_days"]
-        print(f"| [@{login}](https://github.com/{login}) | {commits} | {active_days} |")
-    print("\n\n")
+        lines.append(
+            f"| [@{login}](https://github.com/{login}) | {commits} | {active_days} |"
+        )
+    lines.append("\n")
+    return "\n".join(lines)
+
+
+def generate_html_table(
+    contributors: List[Dict[str, Any]], days: int, repo: str
+) -> str:
+    """Generate an HTML table from contributor data and return as string."""
+    if not contributors:
+        return f"<p>No contributions found in the last {days} days for {format_repo_name(repo)}.</p>"
+
+    end_date = datetime.now(timezone.utc).date()
+    start_date = end_date - timedelta(days=days)
+
+    lines = []
+    lines.append(
+        f"<h3>Top contributors in the last {days} days "
+        f'({start_date.strftime("%Y-%m-%d")} to {end_date.strftime("%Y-%m-%d")})</h3>'
+    )
+    lines.append("<table>")
+    lines.append(
+        "<thead><tr><th>Contributor</th><th>Commits</th><th>Active Days</th></tr></thead>"
+    )
+    lines.append("<tbody>")
+    for contributor in contributors:
+        login = contributor["login"]
+        commits = contributor["commits"]
+        active_days = contributor["active_days"]
+        lines.append(
+            f'<tr><td><a href="https://github.com/{login}">@{login}</a></td>'
+            f"<td>{commits}</td><td>{active_days}</td></tr>"
+        )
+    lines.append("</tbody></table>")
+    return "\n".join(lines)
+
+
+def get_tabs_css() -> str:
+    """Return CSS for the tab and table design (dark tab bar, clear selection, aligned tabs, responsive)."""
+    return tabel_css
+
+
+def get_tabs_js(num_tabs: int) -> str:
+    """Return JS for tab switching."""
+    return f"""
+<script>
+function showTab(idx) {{
+    var n = {num_tabs};
+    for (var i = 0; i < n; i++) {{
+        document.getElementById('tabcontent'+i).style.display = (i === idx) ? 'block' : 'none';
+        var tab = document.getElementById('tab'+i);
+        if (i === idx) {{
+            tab.classList.add('active');
+        }} else {{
+            tab.classList.remove('active');
+        }}
+    }}
+}}
+</script>
+"""
+
+
+def get_tabs_html(repo_tables: list) -> str:
+    """Return HTML for the tab headers, aligned across the page."""
+    tabs = []
+    for idx, (repo, _) in enumerate(repo_tables):
+        active = "active" if idx == 0 else ""
+        tabs.append(
+            f'<li class="{active}" onclick="showTab({idx})" id="tab{idx}">{format_repo_name(repo)}</li>'
+        )
+    return '<ul id="tabs">\n' + "\n".join(tabs) + "\n</ul>"
+
+
+def get_tab_contents_html(
+    repo_tables: List[Tuple[str, List[List[Dict[str, Any]]]]], periods: List[int]
+) -> str:
+    """Return HTML for the tab contents, using HTML tables."""
+    contents = []
+    for idx, (repo, contributors_by_period) in enumerate(repo_tables):
+        display = "block" if idx == 0 else "none"
+        tab_html = []
+        for period_idx, contributors in enumerate(contributors_by_period):
+            days = periods[period_idx]
+            tab_html.append(generate_html_table(contributors, days, repo))
+        contents.append(
+            f'<div id="tabcontent{idx}" class="tabcontent" style="display:{display};">\n'
+            + "\n".join(tab_html)
+            + "\n</div>"
+        )
+    return "\n".join(contents)
+
+
+def print_tabbed_tables(
+    repo_tables: List[Tuple[str, List[List[Dict[str, Any]]]]], periods: List[int]
+) -> None:
+    """Print HTML tabbed view for multiple repo tables with separated HTML/CSS/JS and HTML tables."""
+    html = []
+    html.append(get_tabs_css())
+    html.append('<div style="margin-bottom: 1em;">')
+    html.append(get_tabs_html(repo_tables))
+    html.append("</div>")
+    html.append(get_tab_contents_html(repo_tables, periods))
+    html.append(get_tabs_js(len(repo_tables)))
+    print("\n".join(html))
+
+
+DEFAULT_MAIN_REPO = "jaclang/jaclang"
+DEFAULT_EXTRA_REPOS = ["TrueSelph/jivas", "jaseci-labs/jac_playground"]
 
 
 def main() -> None:
@@ -164,8 +358,15 @@ def main() -> None:
     parser.add_argument(
         "--repo",
         type=str,
-        default=f"{owner}/{repo}" if owner and repo else None,
+        default=f"{owner}/{repo}" if owner and repo else DEFAULT_MAIN_REPO,
         help="GitHub repository in 'owner/repo' format.",
+    )
+    parser.add_argument(
+        "--extra-repos",
+        type=str,
+        nargs="*",
+        default=DEFAULT_EXTRA_REPOS,
+        help="Additional public repos in 'owner/repo' format (space separated).",
     )
 
     args = parser.parse_args()
@@ -174,31 +375,35 @@ def main() -> None:
         parser.print_help()
         return
 
-    owner, repo = args.repo.split("/")
+    repos = [args.repo] + args.extra_repos
 
     periods = []
     if args.days is not None:
         periods.append(args.days)
-
     for p in [7, 30, 180, 365]:
         if p not in periods:
             periods.append(p)
-
     if not periods:
         return
 
     token = os.getenv("GITHUB_TOKEN")
 
-    max_days = max(periods)
-    all_commits = fetch_commits(owner or "", repo or "", max_days, token)
+    repo_tables = []
+    for repo_full in repos:
+        owner, repo = repo_full.split("/")
+        max_days = max(periods)
+        all_commits = fetch_commits(owner or "", repo or "", max_days, token)
+        if all_commits is None:
+            contributors_by_period: list = [[] for _ in periods]
+            repo_tables.append((repo_full, contributors_by_period))
+            continue
+        contributors_by_period = []
+        for days in periods:
+            contributors = process_contributors(all_commits, days)
+            contributors_by_period.append(contributors)
+        repo_tables.append((repo_full, contributors_by_period))
 
-    if all_commits is None:
-        return
-
-    for days in periods:
-        contributors = process_contributors(all_commits, days)
-        if contributors:
-            generate_markdown_table(contributors, days)
+    print_tabbed_tables(repo_tables, periods)
 
 
 if __name__ == "__main__":
