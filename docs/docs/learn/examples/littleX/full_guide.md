@@ -102,6 +102,67 @@ LittleX’s graph-based architecture uses nodes for entities like users and post
 pip install jac-cloud mtllm
 ```
 
+### **Understanding LittleX File Structure**
+
+LittleX follows Jaseci's modular architecture pattern using three distinct file types that work together seamlessly:
+
+#### **littleX.jac - The Declaration File**
+This is the main file containing all **declarations** - the blueprint of your application:
+
+- **Node definitions** (Profile, Tweet, Comment)
+- **Edge definitions** (Follow, Like, Post)
+- **Walker signatures** (what walkers exist and their parameters)
+- **Ability signatures** (what abilities nodes can have)
+
+Think of this as your application's **interface** - it defines what exists but not how it works.
+
+#### **littleX.impl.jac - The Implementation File**
+This file contains all the **implementations** - the actual logic and behavior:
+
+- **Ability implementations** (how nodes respond to walker visits)
+- **Walker logic** (what walkers actually do when they run)
+- **Business logic** (the core functionality of your application)
+
+This is where the **"how"** lives - all the actual code that makes your application work.
+
+#### **littleX.test.jac - The Test File**
+This file contains **test cases** to verify your application works correctly:
+
+- **Unit tests** for individual walkers and abilities
+- **Integration tests** for complex workflows
+- **Validation tests** to ensure data integrity
+
+#### **How They Work Together**
+
+When you run Jaseci commands, the framework automatically combines these files:
+
+```bash
+# Run the application - automatically loads impl file
+jac run littleX.jac
+
+# Run tests - automatically loads both impl and test files
+jac test littleX.jac
+
+# Serve as API - loads impl file and creates REST endpoints
+jac serve littleX.jac
+```
+
+**The Magic**:
+
+Jaseci's compiler automatically:
+
+1. **Links declarations** from `.jac` with **implementations** from `.impl.jac`
+2. **Loads test cases** from `.test.jac` when testing
+3. **Validates** that all declared abilities have implementations
+4. **Creates RESTful APIs** from walker declarations
+
+This separation provides:
+
+- **Clean architecture** - clear separation of concerns
+- **Maintainability** - easy to find and modify specific functionality
+- **Testability** - comprehensive testing without cluttering main code
+- **Reusability** - declarations can have multiple implementations
+
 ### <span style="color: orange">**Lesson 1: Creating Nodes**
 
 **Jaclang**, language used in Jaseci stack, organizes data as interconnected nodes within a spatial or graph-like structure. It focuses on the **relationships** between data points, rather than processing them **step-by-step**.

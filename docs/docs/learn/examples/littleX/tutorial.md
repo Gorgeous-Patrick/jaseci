@@ -86,6 +86,66 @@ cd ..
 
 Jaclang has **three main components** that form the foundation of our LittleX application:
 
+### Project File Structure
+
+Before diving into the components, let's understand how LittleX organizes its code using Jaseci's **three-file pattern**:
+
+#### **littleX.jac** - The Blueprint
+Contains all **declarations** (what your application has):
+
+```jac
+# Defines what exists
+node Profile {
+    has username: str;
+    can update with update_profile entry;
+}
+
+walker create_tweet(visit_profile) {
+    has content: str;
+}
+```
+
+#### **littleX.impl.jac** - The Implementation
+Contains all **implementations** (how your application works):
+
+```jac
+# Defines how things work
+impl Profile.update {
+    self.username = here.new_username;
+    report self;
+}
+
+impl create_tweet.tweet {
+    # Actual tweet creation logic
+}
+```
+
+#### **littleX.test.jac** - The Tests
+Contains **test cases** (proving your application works):
+
+```jac
+# Verifies functionality
+test create_tweet {
+    root spawn create_tweet(content = "Hello World");
+    tweet = [root --> (?Profile) --> (?Tweet)][0];
+    check tweet.content == "Hello World";
+}
+```
+
+#### **How to Run**
+```bash
+# Run the application (auto-loads impl)
+jac run littleX.jac
+
+# Run tests (auto-loads impl + tests)
+jac test littleX.jac
+
+# Start API server (auto-loads impl)
+jac serve littleX.jac
+```
+
+> **Key Insight**: Jaseci automatically links these files together - you define the structure once, implement separately, and test comprehensively!
+
 ### 1. Nodes (The "Things")
 
 **Nodes** are objects that store data and represent entities in your application. In LittleX, we have:
