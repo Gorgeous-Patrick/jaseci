@@ -45,7 +45,7 @@ def get_access_pattern_single_walker(
 ) -> list[int]:
     """Get the access pattern for a single walker spawn."""
     container: list[int] = [start_idx]
-    visited: set[int] = set()
+    visited: set[int] = {start_idx}
     path: list[int] = []
     while len(container) > 0:
         top = container.pop(0)

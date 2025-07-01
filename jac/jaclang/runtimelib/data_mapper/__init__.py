@@ -15,5 +15,6 @@ from .partitioner import metis_partition, random_partition  # noqa: F401
 from .perf_measure import get_num_dpu_jumps  # noqa: F401
 from .static_phase import VisitInfo  # noqa: F401
 from .size_calc import calculate_size # noqa: F401
+from .plot import plot_and_save
 
 # from .mapping_phase import get_visit_info, png_gen_networkx   # noqa: F401

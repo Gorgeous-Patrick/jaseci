@@ -1874,6 +1874,7 @@ class JacPIM:
             metis_partition,
             get_num_dpu_jumps,
             random_partition,
+            plot_and_save,
         )
         import time
         start = time.time()
@@ -1898,6 +1899,7 @@ class JacPIM:
                     )
                 )
         access_pattern = get_access_pattern(network=graph, paths=traversal_paths)
+        plot_and_save(graph, access_pattern)
         num_dpus = 20
         metis_mapping = metis_partition(
             access_pattern, min(num_dpus, access_pattern.number_of_nodes())
