@@ -1,44 +1,157 @@
 # Chapter 12: Walkers as API Endpoints
 
-In this chapter, we'll explore how Jac automatically transforms walkers into RESTful API endpoints without any manual configuration. We'll build a simple shared notebook system that demonstrates automatic API generation, request handling, and parameter validation through a practical example.
+In this chapter, we'll explore how Jac automatically transforms walkers into RESTful API endpoints with our **Jac Cloud** Plugin. Jac Cloud, is a revolutionary cloud platform that transforms your Jac programs into scalable web services without code changes. This means you can focus on building your application logic while Jac handles the HTTP details for you.
+
+
+We'll build a simple shared notebook system that demonstrates automatic API generation, request handling, and parameter validation through a practical example.
 
 !!! info "What You'll Learn"
-    - How walkers automatically become API endpoints
-    - Request/response handling in Jac
-    - Parameter validation and type safety
-    - REST patterns using walker semantics
-    - Building multi-user applications with shared data
+    - Understanding Jac Cloud's scale-agnostic architecture
+    - Converting walkers into API endpoints automatically
+    - Deploying applications with zero configuration
+    - Managing persistence and state in the cloud
 
 ---
 
-## Automatic API Generation
+## What is Jac Cloud?
 
-Traditional web development requires explicit route definitions, request parsing, and response formatting. Jac eliminates this complexity by automatically converting any walker into a REST API endpoint when deployed with `jac serve`.
+Jac Cloud is a cloud-native execution environment designed specifically for Jac programs. It enables developers to write code once and run it anywhere - from local development to production-scale deployments - without any modifications.
 
-!!! success "API Generation Benefits"
-    - **Zero Configuration**: No route definitions or HTTP handlers needed
-    - **Type Safety**: Parameters automatically validated from walker attributes
-    - **Instant REST**: Every walker becomes an endpoint immediately
-    - **Request Parsing**: JSON request bodies mapped to walker attributes
-    - **Response Formatting**: Walker reports become JSON responses
+!!! success "Key Benefits"
+    - **Zero Code Changes**: Same code runs locally and in the cloud
+    - **Automatic APIs**: Walkers become REST endpoints automatically
+    - **Built-in Persistence**: Data storage handled transparently
+    - **Instant Scaling**: Scale by increasing service replicas
+    - **Developer Focus**: No infrastructure management needed
 
-### Traditional vs Jac API Development
+
+## Quick Setup and Deployment
+Let's start with a minimal weather API example and gradually enhance it throughout this chapter.
+
+First, ensure you have the Jac Cloud plugin installed:
+
+```bash
+pip install jac-cloud
+```
+
+Next, crate a simple Jac program that contains a single walker that produces weather information based on a city name. This program creates a REST API endpoint that accepts a city name and returns the weather information. The walker has a property `city` which is automatically mapped to an expected request parameter in the request body.
+
+
+!!! example "Basic Weather API"
+    === "Jac Cloud"
+        ```jac
+        # weather.jac - No manual API setup needed
+        walker get_weather {
+            has city: str;
+
+            obj __specs__ {
+                static has auth: bool = False;
+            }
+
+            can get_weather_data with `root entry {
+                # Your weather logic here
+                weather_info = f"Weather in {self.city}: Sunny, 25°C";
+                report {"city": self.city, "weather": weather_info};
+            }
+        }
+        ```
+
+    === "Traditional Approach"
+        ```python
+        # app.py - Manual API setup required
+        from flask import Flask, jsonify
+
+        app = Flask(__name__)
+
+        @app.route('/weather/<city>', methods=['GET'])
+        def get_weather(city):
+            weather_info = f"Weather in {city}: Sunny, 25°C"
+            return jsonify({"city": city, "weather": weather_info})
+
+        if __name__ == '__main__':
+            app.run(debug=True)
+        ```
+
+
+### Deploying to Cloud
+To deploy your Jac program as a cloud service, use the `jac serve` command:
+
+```bash
+jac serve weather_service.jac
+```
+
+!!! success "Instant Deployment"
+    ```
+    INFO:     Started server process [26286]
+    INFO:     Waiting for application startup.
+    INFO:     Application startup complete.
+    INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+    ```
+
+Your walker is now automatically available as a REST API endpoint!
+
+To test the API, you can use `curl` or any HTTP client:
+
+```bash
+curl -X POST http://localhost:8000/walker/get_weather \
+  -H "Content-Type: application/json" \
+  -d '{"city": "New York"}'
+```
+
+In this example the endpoint is defined as `/walker/get_weather`, however, the endpoint also expects a JSON request body with a `city` field.
+
+The response will be a JSON object containing the weather information.
+
+!!! success "API Response"
+    ```json
+    {
+        "returns": [
+            {
+                "city": "New York",
+                "weather": "Weather in New York: Sunny, 25°C"
+            }
+        ]
+    }
+    ```
+
+
+!!! note "Authentication"
+    - Jac Cloud provides built-in support for authentication and authorization.
+    - You can define authentication requirements using the `auth` property in the `__specs__` object.
+    - By default, all walkers are private, but you can make them public by setting `auth: False`.
+    - To learn more about authentication, see the [Jac Cloud Section of the Documentation](../learn/jac-cloud/introduction.md).
+
+---
+
+## Going Beyond: Building a Shared Notebook API
+Now that we have a basic understanding of Jac Cloud and how it automatically generates APIs from walkers, let's build a more complex application: a shared notebook system.
+
+First lets develop a walker that allows users to create and retrieve notes in a notebook. This will demonstrate how Jac handles request/response mapping, parameter validation, and persistence automatically.
 
 !!! example "API Development Comparison"
     === "Jac Automatic APIs"
         ```jac
+        import uuid;
+
         # notebook.jac - No manual API setup needed
         node Note {
             has title: str;
             has content: str;
             has author: str;
             has created_at: str = "2024-01-15";
+            has id: str = "note_" + str(uuid.uuid4());
         }
+
+
 
         walker create_note {
             has title: str;
             has content: str;
             has author: str;
+
+            obj __specs__ {
+                static has auth: bool = False;
+            }
 
             can create_new_note with `root entry {
                 new_note = Note(
@@ -46,12 +159,17 @@ Traditional web development requires explicit route definitions, request parsing
                     content=self.content,
                     author=self.author
                 );
+
                 here ++> new_note;
                 report {"message": "Note created", "id": new_note.id};
             }
         }
 
         walker get_notes {
+            obj __specs__ {
+                static has auth: bool = False;
+            }
+
             can fetch_all_notes with `root entry {
                 all_notes = [-->(`?Note)];
                 notes_data = [
@@ -105,96 +223,6 @@ Traditional web development requires explicit route definitions, request parsing
             app.run(debug=True)
         ```
 
----
-
-## Request/Response Handling
-
-Jac automatically handles request parsing and response formatting. When a walker is called via HTTP, request JSON is mapped to walker attributes, and walker reports become JSON responses.
-
-### Basic Notebook System
-
-Let's start with a simple notebook where users can create and view notes:
-
-!!! example "Simple Note Creation"
-    === "Jac"
-
-        ```jac
-        # simple_notebook.jac
-        node Note {
-            has title: str;
-            has content: str;
-            has author: str;
-        }
-
-        walker create_note {
-            has title: str;
-            has content: str;
-            has author: str;
-
-            can process_creation with `root entry {
-                # Create and connect note to root
-                new_note = Note(
-                    title=self.title,
-                    content=self.content,
-                    author=self.author
-                );
-                here ++> new_note;
-
-                # Report success with note details
-                report {
-                    "status": "created",
-                    "note": {
-                        "title": new_note.title,
-                        "author": new_note.author
-                    }
-                };
-            }
-        }
-        ```
-
-    === "Python Equivalent"
-        ```python
-        # simple_notebook.py - Requires manual setup
-        from flask import Flask, request, jsonify
-        from dataclasses import dataclass
-        from typing import List
-
-        app = Flask(__name__)
-
-        @dataclass
-        class Note:
-            title: str
-            content: str
-            author: str
-
-        # In-memory storage
-        notes: List[Note] = []
-
-        @app.route('/create_note', methods=['POST'])
-        def create_note():
-            data = request.get_json()
-
-            # Manual validation and error handling
-            if not all(k in data for k in ['title', 'content', 'author']):
-                return jsonify({"error": "Missing fields"}), 400
-
-            note = Note(
-                title=data['title'],
-                content=data['content'],
-                author=data['author']
-            )
-            notes.append(note)
-
-            return jsonify({
-                "status": "created",
-                "note": {"title": note.title, "author": note.author}
-            })
-
-        if __name__ == '__main__':
-            app.run()
-        ```
-
-### Deployment and Testing
 
 Deploy your notebook API:
 
@@ -202,7 +230,7 @@ Deploy your notebook API:
 jac serve simple_notebook.jac
 ```
 
-Test the API endpoint (all walker endpoints are POST):
+We can now test the API using `curl` or any HTTP client via the POST method. The `create_note` walker will accept a JSON request body with `title`, `content`, and `author` fields, and return a response indicating the note was created.
 
 ```bash
 curl -X POST http://localhost:8000/walker/create_note \
@@ -228,6 +256,43 @@ curl -X POST http://localhost:8000/walker/create_note \
         ]
     }
     ```
+
+To retrieve all notes, we can use the `get_notes` walker:
+
+```bash
+curl -X POST http://localhost:8000/walker/get_notes \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### Convert to GET request
+To convert the `get_notes` walker to a GET request, we can simply change the walker `___specs__` to indicate that it can be accessed via a GET request. This is done by setting the `methods` attribute in the `__specs__` object.
+
+```jac
+walker get_notes {
+    obj __specs__ {
+        static has auth: bool = False;
+        static has methods: list = ["get"];
+    }
+
+    can fetch_all_notes with `root entry {
+        all_notes = [-->(`?Note)];
+        notes_data = [
+            {"id": n.id, "title": n.title, "author": n.author}
+            for n in all_notes
+        ];
+        report {"notes": notes_data, "total": len(notes_data)};
+    }
+}
+```
+
+The `get_notes` walker can now be accessed via a GET request at the endpoint `/walker/get_notes`.
+
+```bash
+curl -X GET http://localhost:8000/walker/get_notes \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
 
 ---
 
@@ -255,6 +320,10 @@ Jac automatically validates request parameters based on walker attribute types. 
         has author: str;
         has priority: int = 1;
         has tags: list[str] = [];
+
+        obj __specs__ {
+            static has auth: bool = False;
+        }
 
         can validate_and_create with `root entry {
             # Jac automatically validates types before this runs
@@ -487,7 +556,7 @@ curl -X POST http://localhost:8000/walker/delete_note \
 Let's add basic permission checking to demonstrate multi-user patterns:
 
 !!! example "Notebook with User Permissions"
-    ```jac  linenums="1"
+    ```jac
     import from uuid { uuid4 }
 
     # shared_notebook.jac

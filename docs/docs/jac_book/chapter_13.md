@@ -96,30 +96,41 @@ Traditional programming requires explicit database setup, connection management,
         node Counter {
             has value: int = 0;
 
-            can increment() -> int {
+            def increment() -> int {
                 self.value += 1;
                 return self.value;
             }
 
-            can get_value() -> int {
+            def get_value() -> int {
                 return self.value;
             }
         }
 
         walker get_counter {
+            obj __specs__ {
+                static has auth: bool = False;
+            }
+
             can get_counter_endpoint with `root entry {
                 counter_nodes = [root --> Counter];
+
+
                 if not counter_nodes {
                     counter = Counter();
                     root ++> counter;
                 } else {
                     counter = counter_nodes[0];
                 }
+
                 report {"value": counter.get_value()};
             }
         }
 
         walker increment_counter {
+            obj __specs__ {
+                static has auth: bool = False;
+            }
+
             can increment_counter_endpoint with `root entry {
                 counter_nodes = [root --> Counter];
                 if not counter_nodes {
@@ -310,13 +321,13 @@ Let's enhance our counter to track increment history:
 !!! example "Counter with History Tracking"
     ```jac
     # main.jac - Enhanced with history
-    import from datetime { datetime };
+    import from datetime { datetime }
 
     node Counter {
-        has value: int = 0;
         has created_at: str;
+        has value: int = 0;
 
-        can increment() -> int {
+        def increment() -> int {
             old_value = self.value;
             self.value += 1;
 
@@ -330,7 +341,7 @@ Let's enhance our counter to track increment history:
             return self.value;
         }
 
-        can get_history() -> list[dict] {
+        def get_history() -> list[dict] {
             history_nodes = [self --> HistoryEntry];
             return [
                 {
@@ -345,11 +356,15 @@ Let's enhance our counter to track increment history:
 
     node HistoryEntry {
         has timestamp: str;
-        has old_value: int;
-        has new_value: int;
+        has old_value: int = 0;
+        has new_value: int = 0;
     }
 
     walker get_counter_with_history {
+        obj __specs__ {
+            static has auth: bool = False;
+        }
+
         can get_counter_with_history_endpoint with `root entry {
             counter_nodes = [root --> Counter];
             if not counter_nodes {
@@ -372,6 +387,10 @@ Let's enhance our counter to track increment history:
     }
 
     walker increment_with_history {
+        obj __specs__ {
+            static has auth: bool = False;
+        }
+
         can increment_with_history_endpoint with `root entry {
             counter_nodes = [root --> Counter];
             if not counter_nodes {
@@ -437,7 +456,7 @@ The automatic persistence enables building sophisticated stateful applications. 
     node CounterManager {
         has created_at: str;
 
-        can create_counter(name: str) -> dict {
+        def create_counter(name: str) -> dict {
             # Check if counter already exists
             existing = [self --> Counter](?name == name);
             if existing {
@@ -449,7 +468,7 @@ The automatic persistence enables building sophisticated stateful applications. 
             return {"status": "created", "counter": name};
         }
 
-        can list_counters() -> list[dict] {
+        def list_counters() -> list[dict] {
             counters = [self --> Counter];
             return [
                 {"name": c.name, "value": c.value}
@@ -457,7 +476,7 @@ The automatic persistence enables building sophisticated stateful applications. 
             ];
         }
 
-        can get_total() -> int {
+        def get_total() -> int {
             counters = [self --> Counter];
             return sum([c.value for c in counters]);
         }
@@ -467,7 +486,7 @@ The automatic persistence enables building sophisticated stateful applications. 
         has name: str;
         has value: int = 0;
 
-        can increment(amount: int = 1) -> int {
+        def increment(amount: int = 1) -> int {
             self.value += amount;
             return self.value;
         }
@@ -475,6 +494,10 @@ The automatic persistence enables building sophisticated stateful applications. 
 
     walker create_counter {
         has name: str;
+
+        obj __specs__ {
+            static has auth: bool = False;
+        }
 
         can create_counter_endpoint with `root entry {
             manager_nodes = [root --> CounterManager];
@@ -493,6 +516,10 @@ The automatic persistence enables building sophisticated stateful applications. 
     walker increment_named_counter {
         has name: str;
         has amount: int = 1;
+
+        obj __specs__ {
+            static has auth: bool = False;
+        }
 
         can increment_named_counter_endpoint with `root entry {
             manager_nodes = [root --> CounterManager];
@@ -516,6 +543,10 @@ The automatic persistence enables building sophisticated stateful applications. 
     }
 
     walker get_all_counters {
+        obj __specs__ {
+            static has auth: bool = False;
+        }
+
         can get_all_counters_endpoint with `root entry {
             manager_nodes = [root --> CounterManager];
             if not manager_nodes {

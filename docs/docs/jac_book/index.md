@@ -167,17 +167,7 @@ This book is organized into four progressive parts that build your expertise sys
 !!! example "Code Focus"
     Counter application demonstrating automatic state persistence
 
-#### Chapter 14: Jac Cloud Introduction
-- Scale-agnostic programming benefits
-- Local to cloud deployment with zero changes
-- Walker endpoints as scalable APIs
-- Built-in persistence and automatic scaling
-- Development workflow optimization
-
-!!! example "Code Focus"
-    Weather API that works identically locally and in production
-
-#### Chapter 15: Multi-User Architecture and Permissions
+#### Chapter 14: Multi-User Architecture and Permissions
 - User isolation and data privacy patterns
 - Permission-based access control systems
 - Role-based and attribute-based security
@@ -187,7 +177,7 @@ This book is organized into four progressive parts that build your expertise sys
 !!! example "Code Focus"
     Multi-user notebook with comprehensive permission system
 
-#### Chapter 16: Advanced Jac Cloud Features
+#### Chapter 15: Advanced Jac Cloud Features
 - Environment variables and configuration management
 - Logging and monitoring capabilities
 - Webhook integration for external services
@@ -202,7 +192,7 @@ This book is organized into four progressive parts that build your expertise sys
 ### Part V: Advanced Topics and Best Practices
 *Master sophisticated features and production deployment*
 
-#### Chapter 17: Type System Deep Dive
+#### Chapter 16: Type System Deep Dive
 - Advanced generics and type parameterization
 - Type constraints and bounded generics
 - Graph-aware type checking for OSP
@@ -212,7 +202,7 @@ This book is organized into four progressive parts that build your expertise sys
 !!! example "Code Focus"
     Generic data processing system with type constraints
 
-#### Chapter 18: Testing and Debugging
+#### Chapter 17: Testing and Debugging
 - Built-in testing framework and patterns
 - Testing walkers, nodes, and graph structures
 - Debugging spatial applications effectively
@@ -222,7 +212,7 @@ This book is organized into four progressive parts that build your expertise sys
 !!! example "Code Focus"
     Comprehensive test suite for spatial applications
 
-#### Chapter 19: Deployment Strategies
+#### Chapter 18: Deployment Strategies
 - Local vs cloud deployment comparison
 - Docker containerization for Jac applications
 - Kubernetes orchestration and scaling
@@ -232,7 +222,7 @@ This book is organized into four progressive parts that build your expertise sys
 !!! example "Code Focus"
     Complete deployment pipeline from development to production
 
-#### Chapter 20: Performance Optimization
+#### Chapter 19: Performance Optimization
 - Graph structure optimization strategies
 - Algorithm optimization for spatial operations
 - Caching patterns and memory management
@@ -242,7 +232,7 @@ This book is organized into four progressive parts that build your expertise sys
 !!! example "Code Focus"
     Performance optimization of large-scale graph applications
 
-#### Chapter 21: Python to Jac Migration
+#### Chapter 20: Python to Jac Migration
 - Migration strategies and planning
 - Converting Python classes to Jac objects
 - Transforming traditional data structures to spatial graphs
