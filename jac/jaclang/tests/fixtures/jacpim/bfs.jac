@@ -20,17 +20,18 @@ walker BFS {
 
 with entry {
   nodes = [];
-  for i in range(100) {
+  NODE_NUM = 10;
+  for i in range(NODE_NUM) {
     nodes.append(BFSNode(id = i));
     root ++> nodes[i];
   }
 
-  for i in range(100) {
-    for j in range(100) {
+  for i in range(NODE_NUM) {
+    for j in range(NODE_NUM) {
       if (i == j) {
         continue;
       }
-      if ((random.randint(0, 1)) == 0){
+      if ((random.uniform(0, 1)) <= 0.5){
         nodes[i] ++> nodes[j];
       }
     }
