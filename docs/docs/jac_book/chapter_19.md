@@ -784,4 +784,4 @@ curl -X POST http://localhost:8000/walker/performance_health_check \
 
 ---
 
-*Ready to learn about migration strategies? Continue to [Chapter 21: Python to Jac Migration](chapter_21.md)!*
+*Ready to learn about migration strategies? Continue to [Chapter 21: Python to Jac Migration](chapter_20.md)!*

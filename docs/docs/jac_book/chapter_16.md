@@ -730,4 +730,4 @@ Using Jac's flexible type system, we can build reusable components that are both
 
 ---
 
-*Ready to learn about testing and debugging? Continue to [Chapter 18: Testing and Debugging](chapter_18.md)!*
+*Ready to learn about testing and debugging? Continue to [Chapter 18: Testing and Debugging](chapter_17.md)!*

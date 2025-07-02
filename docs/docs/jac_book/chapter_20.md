@@ -665,5 +665,3 @@ Understanding common pitfalls helps ensure smooth migration from Python to Jac.
     Remember: Successful migration is about embracing spatial thinking, not just syntax conversion!
 
 ---
-
-*Ready to master Jac best practices? Continue to [Chapter 25: Best Practices and Patterns](chapter_25.md)!*

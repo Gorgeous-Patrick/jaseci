@@ -1001,4 +1001,4 @@ kubectl top pods -n littlex
 
 ---
 
-*Ready to optimize performance? Continue to [Chapter 20: Performance Optimization](chapter_20.md)!*
+*Ready to optimize performance? Continue to [Chapter 20: Performance Optimization](chapter_19.md)!*

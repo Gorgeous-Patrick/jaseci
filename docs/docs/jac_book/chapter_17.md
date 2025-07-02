@@ -1180,4 +1180,4 @@ TDD works naturally with Jac's spatial programming model.
 
 ---
 
-*Ready to learn about deployment strategies? Continue to [Chapter 19: Deployment Strategies](chapter_19.md)!*
+*Ready to learn about deployment strategies? Continue to [Chapter 19: Deployment Strategies](chapter_18.md)!*

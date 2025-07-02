@@ -1,4 +1,4 @@
-# Chapter 16: Advanced Jac Cloud Features
+# Chapter 15: Advanced Jac Cloud Features
 
 In this chapter, we'll explore advanced Jac Cloud capabilities that enable configuration management, monitoring, and external integrations. We'll build a comprehensive chat room system that demonstrates environment configuration, logging, and webhook integration through practical examples.
 
@@ -254,95 +254,154 @@ Instead of WebSockets, let's focus on RESTful message management that works with
 
 !!! example "RESTful Chat Implementation"
     ```jac
-    # message_chat.jac
-    import from datetime { datetime }
+        # message_chat.jac
+        import from datetime { datetime }
+        import from os { getenv}
+        import from uuid { uuid4 }
 
-    node ChatMessage {
-        has content: str;
-        has sender: str;
-        has timestamp: str;
-        has room_name: str;
-    }
-
-    node ChatRoom {
-        has name: str;
-        has users: set[str] = set();
-        has message_count: int = 0;
-
-        can add_message(sender: str, content: str) -> ChatMessage {
-            new_message = ChatMessage(
-                content=content,
-                sender=sender,
-                timestamp=datetime.now().isoformat(),
-                room_name=self.name
-            );
-            self ++> new_message;
-            self.message_count += 1;
-            return new_message;
+        node ChatMessage {
+            has content: str;
+            has sender: str;
+            has timestamp: str;
+            has room_name: str;
+            has id: str = "msg_" + str(uuid4());
         }
 
-        can get_recent_messages(limit: int = 20) -> list[dict] {
-            messages = [self --> ChatMessage];
-            recent = messages[-limit:] if len(messages) > limit else messages;
-            return [
-                {
-                    "content": msg.content,
-                    "sender": msg.sender,
-                    "timestamp": msg.timestamp
+        node ChatRoom {
+            has name: str;
+            has users: list[str] = [];
+            has message_count: int = 0;
+
+            def add_message(sender: str, content: str) -> ChatMessage {
+                new_message = ChatMessage(
+                    content=content,
+                    sender=sender,
+                    timestamp=datetime.now().isoformat(),
+                    room_name=self.name
+                );
+                self ++> new_message;
+                self.message_count += 1;
+                return new_message;
+            }
+
+            def get_recent_messages(limit: int = 20) -> list[dict] {
+                messages = [self --> (`?ChatMessage)];
+                recent = messages[-limit:] if len(messages) > limit else messages;
+                return [
+                    {
+                        "content": msg.content,
+                        "sender": msg.sender,
+                        "timestamp": msg.timestamp
+                    }
+                    for msg in recent
+                ];
+
+            }
+        }
+
+        walker join_room {
+            has room_name: str;
+            has username: str;
+
+            obj __specs__ {
+                static has auth: bool = False;
+            }
+
+            can join_chat with `root entry {
+                # Find or create room
+                room = [-->(`?ChatRoom)](?name == self.room_name);
+
+                if not room {
+                    # Check room limit
+                    total_rooms = len([-->(`?ChatRoom)]);
+                    if total_rooms >= int(getenv("MAX_ROOMS", "100")) {
+                        report {"error": "Maximum rooms reached"};
+                        return;
+                    }
+
+                    room = ChatRoom(name=self.room_name);
+                    here ++> room;
+                } else {
+                    room = room[0];
                 }
-                for msg in recent
-            ];
-        }
-    }
 
-    walker send_message {
-        has room_name: str;
-        has username: str;
-        has message: str;
+                # Check user limit
+                if len(room.users) >= int(getenv("MAX_USERS_PER_ROOM", "100")) {
+                    report {"error": "Room is full"};
+                    return;
+                }
 
-        can process_message with `root entry {
-            # Find the room
-            room = [-->(`?ChatRoom)](?name == self.room_name);
+                # Add user if not already in room
+                if self.username not in room.users {
+                    room.users.append(self.username);
+                }
 
-            if not room {
-                report {"error": "Room not found"};
-                return;
-            }
-
-            room = room[0];
-
-            # Check if user is in room
-            if self.username not in room.users {
-                report {"error": "User not in room"};
-                return;
-            }
-
-            # Add message
-            new_message = room.add_message(self.username, self.message);
-
-            report {
-                "status": "message_sent",
-                "message_id": new_message.id,
-                "timestamp": new_message.timestamp
-            };
-        }
-    }
-
-    walker get_chat_history {
-        has room_name: str;
-        has limit: int = 20;
-
-        can fetch_history with `root entry {
-            room = [-->(`?ChatRoom)](?name == self.room_name);
-
-            if room {
-                messages = room[0].get_recent_messages(self.limit);
-                report {"room": self.room_name, "messages": messages};
-            } else {
-                report {"error": "Room not found"};
+                report {
+                    "room": room.name,
+                    "users": room.users,
+                    "user_count": len(room.users)
+                };
+                # return room;
             }
         }
-    }
+
+
+        walker send_message {
+            has room_name: str;
+            has username: str;
+            has message: str;
+
+            obj __specs__ {
+                static has auth: bool = False;
+            }
+
+            can process_message with `root entry {
+                # Find the room
+                room = [-->(`?ChatRoom)](?name == self.room_name);
+
+                if not room {
+                    report {"error": "Room not found"};
+                    return;
+                }
+
+                room = room[0];
+
+                # Check if user is in room
+                if self.username not in room.users {
+                    report {"error": "User not in room"};
+                    return;
+                }
+
+                # Add message
+                new_message = room.add_message(self.username, self.message);
+
+                report {
+                    "status": "message_sent",
+                    "message_id": new_message.id,
+                    "timestamp": new_message.timestamp
+                };
+            }
+        }
+
+        walker get_chat_history {
+            has room_name: str;
+            has limit: int = 20;
+
+            obj __specs__ {
+                static has auth: bool = False;
+            }
+
+            can fetch_history with `root entry {
+                room = [-->(`?ChatRoom)](?name == self.room_name);
+
+                if room {
+                    messages = room[0].get_recent_messages(self.limit);
+                    report {"room": self.room_name, "messages": messages};
+                } else {
+                    report {"error": "Room not found"};
+                }
+            }
+        }
     ```
 
 ### Testing Message API
@@ -832,4 +891,4 @@ curl -X POST http://localhost:8000/walker/generate_daily_stats \
 
 ---
 
-*Ready to master Jac's type system? Continue to [Chapter 17: Type System Deep Dive](chapter_17.md)!*
+*Ready to master Jac's type system? Continue to [Chapter 17: Type System Deep Dive](chapter_16.md)!*
