@@ -2,8 +2,7 @@ import from mtllm { Model, Image }
 import os;
 
 glob llm = Model(
-    model_name="mockllm",
-    outputs=["Something"],
+    model_name="gpt-4o",
 );
 
 

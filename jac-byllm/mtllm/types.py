@@ -5,9 +5,15 @@ tools, and tool calls. It provides a structured way to represent messages,
 tool calls, and tools that can be used in LLM requests and responses.
 """
 
+import base64
+import mimetypes
+import os
 from dataclasses import dataclass
 from enum import StrEnum
+from io import BytesIO
 from typing import Callable, TypeAlias, get_type_hints
+
+from PIL.Image import open as open_image
 
 from litellm.types.utils import Message as LiteLLMMessage
 
@@ -34,14 +40,22 @@ class Message:
     """Message class for LLM interactions."""
 
     role: MessageRole
-    content: str
+    content: "str | list[Media]"
 
-    # Note: asdict() won't work with enum, so we need to define this method.
     def to_dict(self) -> dict[str, object]:
         """Convert the message to a dictionary."""
+        if isinstance(self.content, str):
+            return {
+                "role": self.role.value,
+                "content": self.content,
+            }
+
+        media_contents = []
+        for media in self.content:
+            media_contents.extend(media.to_dict())
         return {
             "role": self.role.value,
-            "content": self.content,
+            "content": media_contents,
         }
 
 
@@ -267,3 +281,125 @@ class CompletionResult:
 
     output: object
     tool_calls: list[ToolCall]
+
+
+# -----------------------------------------------------------------------------
+# Media content types
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class Media:
+    """Base class for message content."""
+
+    def to_dict(self) -> list[dict]:
+        """Convert the content to a dictionary."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+
+@dataclass
+class Text(Media):
+    """Class representing text content in a message."""
+
+    text: str
+
+    def to_dict(self) -> list[dict]:
+        """Convert the text content to a dictionary."""
+        return [{"type": "text", "text": self.text}]
+
+
+@dataclass
+class Image(Media):
+    """Class representing an image."""
+
+    url: str
+    mime_type: str | None = None
+
+    def __post_init__(self) -> None:
+        """Post-initialization to ensure the URL is a string."""
+        if self.url.startswith(("http://", "https://", "gs://")):
+            self.url = self.url.strip()
+        else:
+            if not os.path.exists(self.url):
+                raise ValueError(f"Image file does not exist: {self.url}")
+            image = open_image(self.url)
+            self.mime_type = mimetypes.types_map.get(
+                "." + (image.format or "png").lower()
+            )
+            with BytesIO() as buffer:
+                image.save(buffer, format=image.format, quality=100)
+                base64_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                self.url = f"data:{self.mime_type};base64,{base64_image}"
+
+    def to_dict(self) -> list[dict]:
+        """Convert the image to a dictionary."""
+        image_url = {"url": self.url}
+        if self.mime_type:
+            image_url["format"] = self.mime_type
+        return [
+            {
+                "type": "image_url",
+                "image_url": image_url,
+            }
+        ]
+
+
+# Ref: https://cookbook.openai.com/examples/gpt_with_vision_for_video_understanding
+@dataclass
+class Video(Media):
+    """Class representing a video."""
+
+    path: str
+    fps: int = 1
+    _base64frames: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        """Post-initialization to ensure the path is a string."""
+        if not os.path.exists(self.path):
+            raise ValueError(f"Video file does not exist: {self.path}")
+
+    def load_frames(self) -> None:
+        """Load video frames as base64-encoded images."""
+        try:
+            import cv2
+        except ImportError:
+            raise ImportError(
+                "OpenCV is required to process video files."
+                "Install `pip install mtllm[video]` for video capabilities."
+            )
+
+        self._base64frames = []
+        video = cv2.VideoCapture(self.path)
+        total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        target_fps = self.fps
+        source_fps = video.get(cv2.CAP_PROP_FPS)
+        frames_to_skip = (
+            int(source_fps / target_fps) - 1 if target_fps < source_fps else 1
+        )
+
+        curr_frame = 0
+        while curr_frame < total_frames - 1:
+            video.set(cv2.CAP_PROP_POS_FRAMES, curr_frame)
+            success, frame = video.read()
+            if not success:
+                raise ValueError("Failed to read video frame.")
+            _, buffer = cv2.imencode(".jpg", frame)
+            self._base64frames.append(base64.b64encode(buffer).decode("utf-8"))
+            curr_frame += frames_to_skip
+
+    def to_dict(self) -> list[dict]:
+        """Convert the video to a dictionary."""
+        if self._base64frames is None:
+            self.load_frames()
+        assert (
+            self._base64frames is not None
+        ), "Frames must be loaded before conversion."
+
+        return [
+            {
+                "type": "image_url",
+                "image_url": f"data:image/jpeg;base64,{frame}",
+            }
+            for frame in self._base64frames
+        ]

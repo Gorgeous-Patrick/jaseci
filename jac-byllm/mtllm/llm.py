@@ -26,11 +26,14 @@ from .schema import wrap_to_schema_type
 from .types import (
     CompletionRequest,
     CompletionResult,
+    Image,
     LiteLLMMessage,
+    Media,
     Message,
     MessageRole,
     MessageType,
     MockToolCall,
+    Text,
     Tool,
     ToolCall,
 )
@@ -103,7 +106,13 @@ class Model:
         # Construct the input information from the arguments.
         param_names = list(inspect.signature(caller).parameters.keys())
         inputs_detail: list[str] = []
+        media_inputs: list[Media] = []
+
         for key, value in args.items():
+            if isinstance(value, Media):
+                media_inputs.append(value)
+                continue
+
             if isinstance(key, str):
                 inputs_detail.append(f"{key} = {value}")
             else:
@@ -116,7 +125,10 @@ class Model:
         if incl_info := self.call_params.get("incl_info"):
             if isinstance(incl_info, dict):
                 for key, value in incl_info.items():
-                    inputs_detail.append(f"{key} = {value}")
+                    if isinstance(value, Media):
+                        media_inputs.append(value)
+                    else:
+                        inputs_detail.append(f"{key} = {value}")
 
         # Prepare the messages for the LLM call.
         messages: list[MessageType] = [
@@ -126,11 +138,14 @@ class Model:
             ),
             Message(
                 role=MessageRole.USER,
-                content=(
-                    Tool.get_func_description(caller)
-                    + "\n\n"
-                    + "\n".join(inputs_detail)
-                ),
+                content=[
+                    Text(
+                        Tool.get_func_description(caller)
+                        + "\n\n"
+                        + "\n".join(inputs_detail)
+                    ),
+                    *media_inputs,
+                ],
             ),
         ]
 

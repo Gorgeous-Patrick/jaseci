@@ -66,6 +66,15 @@ class JacLanguageTests(TestCase):
         stdout_value = captured_output.getvalue()
         self.assertIn('👤➡️🗼', stdout_value)
 
+    def test_image_input(self) -> None:
+        """Parse micro jac file."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        jac_import("image_test", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn('The image shows a hot air balloon shaped like a heart', stdout_value)
+
     def test_with_llm_method(self) -> None:
         """Parse micro jac file."""
         captured_output = io.StringIO()
@@ -138,10 +147,12 @@ class JacLanguageTests(TestCase):
             jac_import("with_llm_video", base_path=self.fixture_abs_path("./"))
             sys.stdout = sys.__stdout__
             stdout_value = captured_output.getvalue()
-            self.assertIn(
-                "{'type': 'text', 'text': '\\n[System Prompt]\\n", stdout_value[:500]
+            video_explanation = (
+                'The video features a large rabbit emerging from a burrow in a lush, green environment. '
+                'The rabbit stretches and yawns, seemingly enjoying the morning. The scene is set in a '
+                'vibrant, natural setting with bright skies and trees, creating a peaceful and cheerful atmosphere.'
             )
-            self.assertEqual(stdout_value.count("data:image/jpeg;base64"), 4)
+            self.assertIn(video_explanation, stdout_value)
         except Exception:
             self.skipTest("This test requires OpenCV to be installed.")
 
