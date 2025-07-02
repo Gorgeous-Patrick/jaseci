@@ -1289,8 +1289,9 @@ class JacBasics:
 
         jctx = JacMachineInterface.get_context()
 
-        anchor.persistent = True
-        anchor.root = jctx.root_state.id
+        if not anchor.persistent and not anchor.root:
+            anchor.persistent = True
+            anchor.root = jctx.root_state.id
 
         jctx.mem.set(anchor.id, anchor)
 
