@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -156,12 +157,13 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        .hero-title img{
-            vertical-align:middle;
-            margin-right:14px;
-            width:64px;
-            height:64px;
-            border-radius:10px;
+
+        .hero-title img {
+            vertical-align: middle;
+            margin-right: 14px;
+            width: 64px;
+            height: 64px;
+            border-radius: 10px;
         }
 
         .hero-subtitle {
@@ -281,6 +283,7 @@
             margin-bottom: 25px;
             font-size: 14px;
         }
+
         .fancy-link {
             color: #ff6b35;
             text-decoration: none;
@@ -1215,7 +1218,7 @@
         /* Additional adjustments for very small screens */
         @media (max-width: 480px) {
             .top-bar-content{
-                gap:14px;
+                gap: 14px;
             }
             .hero-title {
                 font-size: 42px;
@@ -1293,14 +1296,17 @@
         <div class="top-bar">
             <div class="top-bar-content">
                 <div class="logo">
-                    <img src="/assets/logo.png" alt="Jaseci Logo" class="logo-img" style="width:32px;height:32px;border-radius:6px;">
+                    <img src="/assets/logo.png" alt="Jaseci Logo" class="logo-img"
+                        style="width:32px; height:32px;border-radius:6px;">
                     <span>The Jac Programming Language and Jaseci Stack</span>
                 </div>
                 <div class="header-right">
                     <!-- <input type="text" class="search-input" placeholder="Search documentation..."> -->
                     <a href="https://github.com/jaseci-labs/jaseci" class="github-link" target="_blank">
                         <span>GitHub</span>
-                        <span>⭐ 171 🍴 220</span>
+                        <span>
+                            ⭐ <span id="github-stars">--</span> 🍴 <span id="github-forks">--</span>
+                        </span>
                     </a>
                 </div>
             </div>
@@ -1324,12 +1330,14 @@
         <!-- Hero Section -->
         <section class="hero">
             <h1 class="hero-title animate-on-scroll">
-                <img src="/assets/logo.png" alt="Jaseci Logo" class="" >
+                <img src="/assets/logo.png" alt="Jaseci Logo" class="">
                 Jac and Jaseci
             </h1>
             <p class="hero-subtitle animate-on-scroll">
-                The programming language and runtime library that extends Python with <a href="https://arxiv.org/abs/2405.08965" target="_blank" class="fancy-link">AI-first constructs</a>, <a href="https://arxiv.org/abs/2503.15812" target="_blank" class="fancy-link">object spatial programming</a>, and <a href="https://arxiv.org/abs/2504.03109" target="_blank" class="fancy-link">scale-native constructs</a>.
-
+                The programming language and runtime library that extends Python with
+                <a href="https://arxiv.org/abs/2405.08965" target="_blank" class="fancy-link">AI-first constructs</a>,
+                <a href="https://arxiv.org/abs/2503.15812" target="_blank" class="fancy-link">object spatial programming</a>, and
+                <a href="https://arxiv.org/abs/2504.03109" target="_blank" class="fancy-link">scale-native constructs</a>.
             </p>
             <div class="typing-container animate-on-scroll">
                 <span class="typing-text" id="typing-text"></span>
@@ -1589,14 +1597,19 @@
 
                 <div class="about-content animate-on-scroll">
                     <div class="about-logo">
-                        <img src="/assets/logo.png" alt="Jaseci Logo" class="about-logo-img" style="width:80px;height:80px;border-radius:20px;box-shadow:0 10px 30px rgba(255,107,53,0.3);">
+                        <img src="/assets/logo.png" alt="Jaseci Logo" class="about-logo-img"
+                            style="width:80px;height:80px;border-radius:20px;box-shadow:0 10px 30px rgba(255,107,53,0.3);">
                     </div>
                     <div class="about-text">
                         <p class="about-description">
                             Jac is an innovative programming language that extends Python's semantics while maintaining
-                            full interoperability with the Python ecosystem. Created by <strong><a href="https://github.com/marsninja" target="_blank" class="fancy-link">@marsninja</a></strong>
-                            with contributors of <strong><a href="/communityhub/top_contributors/" target="_blank" class="fancy-link">Jac Hackers Everywhere</a></strong>,
-                            it introduces cutting-edge programming models and abstractions specifically designed to minimize
+                            full interoperability with the Python ecosystem. Created by <strong><a
+                                    href="https://github.com/marsninja" target="_blank"
+                                    class="fancy-link">@marsninja</a></strong>
+                            with contributors of <strong><a href="/communityhub/top_contributors/" target="_blank"
+                                    class="fancy-link">Jac Hackers Everywhere</a></strong>,
+                            it introduces cutting-edge programming models and abstractions specifically designed to
+                            minimize
                             complexity and embrace AI-forward development.
                         </p>
                         <p class="about-mission">
@@ -1608,15 +1621,15 @@
 
                 <div class="about-stats animate-on-scroll">
                     <div class="stat-item animated-stat">
-                        <span class="stat-number" data-count="171">0</span>
+                        <span class="stat-number" id="github-stars">--</span>
                         <span class="stat-label">GitHub Stars</span>
                     </div>
                     <div class="stat-item animated-stat">
-                        <span class="stat-number" data-count="220">0</span>
+                        <span class="stat-number" id="github-forks">--</span>
                         <span class="stat-label">Forks</span>
                     </div>
                     <div class="stat-item animated-stat">
-                        <span class="stat-number" data-count="2025">0</span>
+                        <span class="stat-number" data-count="2025">2025</span>
                         <span class="stat-label">Launch</span>
                     </div>
                 </div>
@@ -1693,7 +1706,7 @@
     </footer>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Hide loading overlay
             setTimeout(() => {
                 document.getElementById('loading-overlay').style.opacity = '0';
@@ -2068,7 +2081,7 @@
             }
 
             // Enhanced fake execution
-            window.runCurrentDemo = function() {
+            window.runCurrentDemo = function () {
                 const demo = demoData[currentDemo];
                 const codePanel = demoCode.parentElement;
                 const indicator = document.createElement('div');
@@ -2232,25 +2245,25 @@
                 rootMargin: '0px 0px -50px 0px'
             };
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
+            // const observer = new IntersectionObserver((entries) => {
+            //     entries.forEach(entry => {
+            //         if (entry.isIntersecting) {
+            //             entry.target.classList.add('visible');
 
-                        // Animate stats
-                        if (entry.target.classList.contains('animated-stat')) {
-                            const statNumber = entry.target.querySelector('.stat-number');
-                            const targetValue = parseInt(statNumber.dataset.count);
-                            animateCount(statNumber, targetValue);
-                        }
-                    }
-                });
-            }, observerOptions);
+            //             // Animate stats
+            //             if (entry.target.classList.contains('animated-stat')) {
+            //                 const statNumber = entry.target.querySelector('.stat-number');
+            //                 const targetValue = parseInt(statNumber.dataset.count);
+            //                 animateCount(statNumber, targetValue);
+            //             }
+            //         }
+            //     });
+            // }, observerOptions);
 
             // Observe all animate-on-scroll elements
-            document.querySelectorAll('.animate-on-scroll, .animated-stat').forEach(el => {
-                observer.observe(el);
-            });
+            // document.querySelectorAll('.animate-on-scroll, .animated-stat').forEach(el => {
+            //     observer.observe(el);
+            // });
 
             // Animated counting
             function animateCount(element, target) {
@@ -2290,7 +2303,28 @@
                 }
             `;
             document.head.appendChild(style);
+
+            // Fetch GitHub stars and forks from local JSON file
+            fetch('/assets/github_stats.json')
+                .then(response => response.json())
+                .then(data => {
+                    // Check for the "jaseci-labs/jaseci" key and get stars/forks
+                    let stats = data["jaseci-labs/jaseci"];
+                    console.log('GitHub stats:', stats);
+                    if (stats) {
+                        document.querySelectorAll('#github-stars').forEach(el => el.textContent = stats.stars);
+                        document.querySelectorAll('#github-forks').forEach(el => el.textContent = stats.forks);
+                    } else {
+                        document.querySelectorAll('#github-stars').forEach(el => el.textContent = 'N/A');
+                        document.querySelectorAll('#github-forks').forEach(el => el.textContent = 'N/A');
+                    }
+                })
+                .catch(() => {
+                    document.querySelectorAll('#github-stars').forEach(el => el.textContent = 'N/A');
+                    document.querySelectorAll('#github-forks').forEach(el => el.textContent = 'N/A');
+                });
         });
     </script>
 </body>
+
 </html>
