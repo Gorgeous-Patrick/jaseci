@@ -261,3 +261,57 @@ walker check_access {
 - Learn about [WebSocket Communication](websocket.md) for real-time features
 - Explore [Webhook Integration](webhook.md) for third-party service integration
 - Set up [Logging & Monitoring](logging.md) to track access patterns
+
+# Custom Access Validation
+
+> This will only get triggered if the target node is not owned by current root
+
+```jac
+node A {
+    # suggested to be `with access {}`
+    def __jac_access__ {
+
+        ###############################################
+        #              YOUR PROCESS HERE              #
+        ###############################################
+
+        # Allowed string return "NO_ACCESS", "READ", "CONNECT", "WRITE"
+        return "NO_ACCESS";
+
+        # Allowed enum return AccessLevel.NO_ACCESS, AccessLevel.READ, AccessLevel.CONNECT, AccessLevel.WRITE
+        # return AccessLevel.NO_ACCESS;
+
+        # Not recommended as it may change in the future
+        # Allowed int return -1 (NO_ACCESS), 0 (READ), 1 (CONNECT), 2 (WRITE)
+        # return -1;
+
+    }
+}
+```
+
+> if you wish to prioritize current access validation and process it afterwards, you may follow this code
+
+```jac
+node A {
+    # suggested to be `with access {}`
+    def __jac_access__ {
+
+        level = _Jac.check_access_level(here, True); # True means skip custom access validation trigger to avoid infinite loop
+
+        ###############################################
+        #              YOUR PROCESS HERE              #
+        ###############################################
+
+        # Allowed string return "NO_ACCESS", "READ", "CONNECT", "WRITE"
+        return "NO_ACCESS";
+
+        # Allowed enum return AccessLevel.NO_ACCESS, AccessLevel.READ, AccessLevel.CONNECT, AccessLevel.WRITE
+        # return AccessLevel.NO_ACCESS;
+
+        # Not recommended as it may change in the future
+        # Allowed int return -1 (NO_ACCESS), 0 (READ), 1 (CONNECT), 2 (WRITE)
+        # return -1;
+
+    }
+}
+```
