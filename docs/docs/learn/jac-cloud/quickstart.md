@@ -52,6 +52,7 @@ walker my_walker {
         static has methods: list = ["get", "post"];   # Supports both GET and POST
         static has auth: bool = False;                # No authentication required
         static has as_query: list = ["data"];         # "data" will be a query parameter
+        static has private: bool = True;              # Skip auto endpoint generation from walker
     }
 }
 ```
