@@ -8,6 +8,7 @@ nav:
     - Getting Started: "learn/getting_started.md"
     - Tour of Jac/Jaseci: "learn/introduction.md"
     - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"
+    - Jac Playground: "learn/jac_playground.md"
     - Learn By Example:
       - LittleX (your own twitter):
         - "learn/examples/littleX/tutorial.md"
@@ -15,7 +16,6 @@ nav:
       - RAG-based Conversational Chatbot:
         - "learn/examples/rag_chatbot/Overview.md"
         - "learn/examples/rag_chatbot/Tutorial.md"
-
       - RPG game with AI Genarated Maps: "learn/examples/mtp_examples/rpg_game.md"
       - Agentic Fantasy Trading Game: "learn/examples/mtp_examples/fantasy_trading_game.md"
     - Learn Jac Language:
@@ -62,8 +62,6 @@ nav:
         - "learn/jac-cloud/webhook.md"
       - Operations:
         - "learn/jac-cloud/deployment.md"
-    - Play with Jac:
-        - Jac Playground: "learn/jac_playground.md"
     - Tooling:
       - "learn/tools/cli.md"
     - Specifications:

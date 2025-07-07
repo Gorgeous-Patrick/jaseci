@@ -56,7 +56,7 @@ In addition to setting up JacLang itself, you may also want to take advantage of
 
     <!-- [:octicons-arrow-right-24: Getting started](#) -->
 
-    [A Robust Example](examples/littleX/overview.md){ .md-button }
+    [A Robust Example](examples/littleX/tutorial.md){ .md-button }
 
 -   __Experience Jac in Browser__
 
