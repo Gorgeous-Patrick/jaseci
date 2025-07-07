@@ -33,5 +33,6 @@
 > [Using MTLLM in your existing Application](/docs/tips-n-tricks/existing_application)
 > [When to use Semstrings](/docs/tips-n-tricks/when_to_use_semstrings)
 > [Create your own Language Model](/docs/tips-n-tricks/create_own_lm)
+> [Creating MTLLM Plugins](/docs/tips-n-tricks/creating-mtllm-plugins)
 
 [FAQs](/docs/faqs)

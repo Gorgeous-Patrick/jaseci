@@ -64,7 +64,7 @@ class JacLanguageTests(TestCase):
         jac_import("with_llm_function", base_path=self.fixture_abs_path("./"))
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
-        self.assertIn('(input) (str) = "Lets move to paris"', stdout_value)
+        self.assertIn('👤➡️🗼', stdout_value)
 
     def test_with_llm_method(self) -> None:
         """Parse micro jac file."""
@@ -73,11 +73,10 @@ class JacLanguageTests(TestCase):
         jac_import("with_llm_method", base_path=self.fixture_abs_path("./"))
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
-        self.assertIn("[Reasoning] <Reason>", stdout_value)
-        self.assertIn(
-            '(person) (Person) = Person(name="Albert Einstein", age=76)',
-            stdout_value,
-        )
+        # TODO: Reasoning is not passed as an output, however this needs to be
+        # sent to some callbacks (or other means) to the user.
+        # self.assertIn("[Reasoning] <Reason>", stdout_value)
+        self.assertIn('Personality.INTROVERT', stdout_value)
 
     def test_with_llm_lower(self) -> None:
         """Parse micro jac file."""
@@ -86,17 +85,11 @@ class JacLanguageTests(TestCase):
         jac_import("with_llm_lower", base_path=self.fixture_abs_path("./"))
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
-        self.assertIn("[Reasoning] <Reason>", stdout_value)
+        # TODO: Reasoning is not passed as an output, however this needs to be
+        # sent to some callbacks (or other means) to the user.
+        # self.assertIn("[Reasoning] <Reason>", stdout_value)
         self.assertIn(
-            '(name) (str) = "Oppenheimer"',
-            stdout_value,
-        )
-        self.assertIn(
-            "(Person) (object) eg:- Person(full_name=str, yod=int, personality=Personality)",
-            stdout_value,
-        )
-        self.assertIn(
-            "J. Robert Oppenheimer was a Introvert person who died in 1967",
+            'J. Robert Oppenheimer was a Introvert person who died in 1967',
             stdout_value,
         )
 

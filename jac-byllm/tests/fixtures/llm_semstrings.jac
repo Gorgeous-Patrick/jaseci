@@ -1,13 +1,7 @@
-import from mtllm.llms { FakeLLM }
-glob llm = FakeLLM(
-    print_prompt=True,
-    responses={
-        "\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Output_Information]\n(int)\n\n[Action]\nGenerates a specific number that is 120597 and returns it. (generate_specific_number)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n":
-        "[Output] 120597",
-
-        "\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Output_Information]\n(str)\n\n[Action]\nGenerates and returns password that:\n    - contain at least 8 characters\n    - contain at least one uppercase letter\n    - contain at least one lowercase letter\n    - contain at least one digit\n    - contain at least one special character\n (generate_password)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n":
-        "[Output] R8@jL3pQ",
-    },
+import from mtllm { Model }
+glob llm = Model(
+    model_name="mockllm",
+    outputs=["120597", "R8@jL3pQ"],
 );
 
 

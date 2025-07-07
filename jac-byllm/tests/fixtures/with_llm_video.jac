@@ -1,20 +1,11 @@
-import from mtllm.llms { BaseLLM }
-import from mtllm { Video }
+import from mtllm { Model, Video }
 import os;
 
-obj model(BaseLLM) {
-    def init {
-        super.__init__();
-    }
 
-    def __infer__(meaning_in: str, **kwargs: dict) {
-        print(kwargs);
-        print(meaning_in);
-        return "[Output] Something";
-    }
-}
-
-glob llm = model();
+glob llm = Model(
+    model_name="mockllm",
+    outputs=["Something"],
+);
 
 def is_aligned(video: Video, text: str) -> bool by llm(
     method="Chain-of-Thoughts",
