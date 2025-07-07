@@ -212,6 +212,93 @@ class PyastGenPass(UniPass):
             ),
         )
 
+    def _get_sem_decorator(self, node: uni.UniNode) -> ast3.Call | None:
+        """Create a semstring decorator for the given semantic strings.
+
+        Example:
+            @_.sem(
+                "Returns the weather for a given city.", {
+                    "city" : "Name of the city to get the weather for.",
+                }
+            )
+            def get_weather(city: str) {}
+
+        This the second parameter (dict) will also used in the class `has` variables
+        enum values etc.
+        """
+        semstr: str = ""
+        inner_semstr: dict[str, str] = {}
+
+        if isinstance(node, uni.Archetype):
+            semstr = node.semstr
+            arch_ast_body: list[uni.UniNode] = []
+            if isinstance(node.body, list):
+                arch_ast_body = node.body
+            elif isinstance(node.body, uni.ImplDef) and isinstance(
+                node.body.body, list
+            ):
+                # Type check will fail because of the invariant between codeblock and enum block
+                # but since we're only reading the list (and python doesn't have const) the type
+                # error is irrelevent here.
+                arch_ast_body = node.body.body  # type: ignore
+            for stmt in arch_ast_body:
+                if isinstance(stmt, uni.ArchHas):
+                    for has_var in stmt.vars:
+                        if has_var.semstr:
+                            inner_semstr[has_var.sym_name] = has_var.semstr
+        elif isinstance(node, uni.Enum):
+            semstr = node.semstr
+            enum_ast_body: list[uni.UniNode] = []
+            if isinstance(node.body, list):
+                enum_ast_body = node.body
+            elif isinstance(node.body, uni.ImplDef) and isinstance(
+                node.body.body, list
+            ):
+                enum_ast_body = node.body.body  # type: ignore
+            for stmt in enum_ast_body:
+                if isinstance(stmt, uni.Assignment) and isinstance(
+                    stmt.target[0], uni.AstSymbolNode
+                ):
+                    name = stmt.target[0].sym_name
+                    val_semstr = stmt.target[0].semstr
+                    inner_semstr[name] = val_semstr
+        elif isinstance(node, uni.Ability):
+            semstr = node.semstr
+            inner_semstr = (
+                {
+                    param.sym_name: param.semstr
+                    for param in node.signature.params
+                    if param.semstr
+                }
+                if isinstance(node.signature, uni.FuncSignature)
+                else {}
+            )
+
+        if not semstr and not inner_semstr:
+            return None
+
+        return self.sync(
+            ast3.Call(
+                func=self.jaclib_obj("sem"),
+                args=[
+                    self.sync(ast3.Constant(value=semstr)),
+                    self.sync(
+                        ast3.Dict(
+                            keys=[
+                                self.sync(ast3.Constant(value=k))
+                                for k in inner_semstr.keys()
+                            ],
+                            values=[
+                                self.sync(ast3.Constant(value=v))
+                                for v in inner_semstr.values()
+                            ],
+                        )
+                    ),
+                ],
+                keywords=[],
+            )
+        )
+
     def flatten(self, body: list[T | list[T] | None]) -> list[T]:
         """Flatten a list of items or lists into a single list."""
         new_body: list[T] = []
@@ -585,6 +672,10 @@ class PyastGenPass(UniPass):
             if node.decorators
             else []
         )
+
+        if sem_decorator := self._get_sem_decorator(node):
+            decorators.append(sem_decorator)
+
         base_classes = [cast(ast3.expr, i.gen.py_ast[0]) for i in node.base_classes]
         if node.arch_type.name != Tok.KW_CLASS:
             base_classes.append(self.jaclib_obj(node.arch_type.value.capitalize()))
@@ -621,6 +712,10 @@ class PyastGenPass(UniPass):
             if node.decorators
             else []
         )
+
+        if sem_decorator := self._get_sem_decorator(node):
+            decorators.append(sem_decorator)
+
         base_classes = [cast(ast3.expr, i.gen.py_ast[0]) for i in node.base_classes]
         base_classes.append(self.sync(ast3.Name(id="Enum", ctx=ast3.Load())))
         node.gen.py_ast = [
@@ -714,6 +809,10 @@ class PyastGenPass(UniPass):
             if node.decorators
             else []
         )
+
+        if sem_decorator := self._get_sem_decorator(node):
+            decorator_list.append(sem_decorator)
+
         if isinstance(node.signature, uni.EventSignature):
             decorator_list.append(
                 self.jaclib_obj(

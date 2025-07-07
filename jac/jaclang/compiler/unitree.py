@@ -242,6 +242,7 @@ class Symbol:
         defn.sym = self
         self.access: SymbolAccess = access
         self.parent_tab = parent_tab
+        self.semstr: str = ""
 
     @property
     def decl(self) -> NameAtom:
