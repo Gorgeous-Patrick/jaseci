@@ -1,47 +1,40 @@
-import from mtllm.llms {OpenAI}
-import from rag {RagEngine}
+import sys;
+import from mtllm.llm {Model}
+import from rag {RagEngine, WebSearch}
 import os;
 import base64;
 import requests;
+import anyio;
+import mcp_client;
 
 glob rag_engine:RagEngine = RagEngine();
+glob llm = Model(model_name='gpt-4o');
+glob MCP_SERVER_URL: str = os.getenv('MCP_SERVER_URL', 'http://localhost:8899/mcp');
 
-glob llm = OpenAI(model_name='gpt-4o');
 
-glob SERPER_API_KEY: str = os.getenv('SERPER_API_KEY', '');
+"""Available tools: 'search_docs' or 'search_web' with {"query": "your query"}.
 
-obj WebSearch {
-    has api_key: str = SERPER_API_KEY;
-    has base_url: str = "https://google.serper.dev/search";
-
-    def search(query: str) {
-        headers = {"X-API-KEY": self.api_key, "Content-Type": "application/json"};
-        payload = {"q": query};
-        resp = requests.post(self.base_url, headers=headers, json=payload);
-        if resp.status_code == 200 {
-            data = resp.json();
-            summary = "";
-            results = data.get("organic", []) if isinstance(data, dict) else [];
-            for r in results[:3] {
-                summary += f"{r.get('title', '')}: {r.get('link', '')}\n";
-                if r.get('snippet') {
-                    summary += f"{r['snippet']}\n";
-                }
-            }
-            return summary;
-        }
-        return f"Serper request failed: {resp.status_code}";
-    }
+Example:
+{"name": "search_docs", "arguments": {"query": "example"}}
+"""
+def use_mcp_tool(name: str, arguments: dict[str, str]) -> str {
+    return mcp_client.call_mcp_tool(name=name, arguments=arguments);
 }
 
-glob web_search: WebSearch = WebSearch();
 
 node Session {
     has id: str;
     has chat_history: list[dict];
     has status: int = 1;
 
-    def respond(message:str, chat_history:str, agent_role:str,  context:str) -> str by llm();
+    "Generate a helpful response to the user's message. Use available mcp tool when needed."
+    def respond(message:str, chat_history:list[dict]) -> str
+        by llm(
+            method="ReAct",
+            tools=([use_mcp_tool]),
+            messages=chat_history,
+            max_react_iterations=6
+        );
 }
 
 
@@ -53,21 +46,15 @@ walker interact {
          visit [-->](`?Session)(?id == self.session_id) else {
             session_node = here ++> Session(id=self.session_id, chat_history=[], status=1);
             print("Session Node Created");
-
             visit session_node;
         }
     }
 
     can chat with Session entry {
         here.chat_history.append({"role": "user", "content": self.message});
-        docs = rag_engine.get_from_chroma(query=self.message);
-        web = web_search.search(query=self.message);
-        context = {"docs": docs, "web": web};
         response = here.respond(
             message=self.message,
             chat_history=here.chat_history,
-            agent_role="You are a conversation agent designed to help users with their queries based on the documents provided and web search results",
-            context=context
         );
 
         here.chat_history.append({"role": "assistant", "content": response});
