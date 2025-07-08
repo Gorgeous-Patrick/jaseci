@@ -6,6 +6,7 @@ tool calls, and tools that can be used in LLM requests and responses.
 """
 
 import base64
+import json
 import mimetypes
 import os
 from dataclasses import dataclass
@@ -19,7 +20,7 @@ from litellm.types.utils import Message as LiteLLMMessage
 
 from pydantic import TypeAdapter
 
-from .schema import resp_type_schema, tool_type_schema, unwrap_from_schema_type
+from .schema import json_to_instance, tool_to_schema, type_to_schema
 
 # The message can be a jaclang defined message or what ever the llm
 # returned object that was feed back to the llm as it was given (dict).
@@ -147,7 +148,7 @@ class Tool:
 
     def get_json_schema(self) -> dict[str, object]:
         """Return the JSON schema for the tool function."""
-        return tool_type_schema(self.func, self.description, self.params_desc)
+        return tool_to_schema(self.func, self.description, self.params_desc)
 
     def parse_arguments(self, args_json: dict) -> dict:
         """Parse the arguments from JSON to the function's expected format."""
@@ -245,7 +246,7 @@ class CompletionRequest:
         if len(self.tools) == 0 and self.resp_type:
             if self.resp_type is str:
                 return None  # Strings are default and not using a schema.
-            return resp_type_schema(self.resp_type)
+            return type_to_schema(self.resp_type)
         # If the are tools, the final output will be sent to the finish_tool
         # thus there is no output schema.
         return None
@@ -259,8 +260,8 @@ class CompletionRequest:
         if self.resp_type is None or self.resp_type is str or response.strip() == "":
             return response
         if self.resp_type:
-            parsed_inst = TypeAdapter(self.resp_type).validate_json(response)  # type: ignore
-            return unwrap_from_schema_type(parsed_inst)
+            json_dict = json.loads(response)
+            return json_to_instance(json_dict, self.resp_type)
         return response
 
     def add_message(self, message: MessageType) -> None:

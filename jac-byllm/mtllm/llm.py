@@ -22,8 +22,6 @@ os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 import litellm
 from litellm._logging import _disable_debugging
 
-from .schema import wrap_to_schema_type
-
 from .types import (
     CompletionRequest,
     CompletionResult,
@@ -155,7 +153,6 @@ class Model:
 
         # Prepare return type.
         return_type = get_type_hints(caller).get("return")
-        return_type = wrap_to_schema_type(return_type)
 
         # Prepare the llm call request.
         req = CompletionRequest(
