@@ -34,6 +34,17 @@ class JacLanguageTests(TestCase):
         for summary in summaries:
             self.assertIn(summary, stdout_value)
 
+    def test_method_include_context(self) -> None:
+        """Test the method include context functionality."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        jac_import("method_incl_ctx", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+
+        # Check if the output contains the expected context information
+        self.assertIn("Average marks for Alice : 86.75", stdout_value)
+
     def test_llm_call_override(self) -> None:
         """Test the foo() by llm(); functionality."""
         captured_output = io.StringIO()
