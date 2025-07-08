@@ -10,6 +10,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 - **`jac create_system_admin` cli now support local db**: `DATABASE_HOST` are now not required when creating system admin.
 
+- **Bug fix on supporting while loop with else part**: Now we are supporting while loop with else part.
+
 ## jaclang 0.8.3 / jac-cloud 0.2.3 / mtllm 0.3.8
 
 - **Semantic Strings**: Introduced `sem` strings to attach natural language descriptions to code elements like functions, classes, and parameters. These semantic annotations can be used by Large Language Models (LLMs) to enable intelligent, AI-powered code generation and execution. (mtllm)

@@ -559,10 +559,20 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         valid_body = [stmt for stmt in body if isinstance(stmt, uni.CodeBlockStmt)]
         if len(valid_body) != len(body):
             raise self.ice("Length mismatch in while body")
+        orelse = [self.convert(i) for i in node.orelse]
+        val_orelse = [i for i in orelse if isinstance(i, uni.CodeBlockStmt)]
+        if len(val_orelse) != len(orelse):
+            raise self.ice("Length mismatch in for orelse")
+        if orelse:
+            fin_orelse = uni.ElseStmt(body=val_orelse, kid=val_orelse)
+        else:
+            fin_orelse = None
+
         if isinstance(test, uni.Expr):
             return uni.WhileStmt(
                 condition=test,
                 body=valid_body,
+                else_body=fin_orelse,
                 kid=[test, *valid_body],
             )
         else:

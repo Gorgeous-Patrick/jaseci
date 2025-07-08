@@ -130,7 +130,7 @@ elif_stmt: KW_ELIF expression code_block (elif_stmt | else_stmt)?
 else_stmt: KW_ELSE code_block
 
 // [Heading]: While statements.
-while_stmt: KW_WHILE expression code_block
+while_stmt: KW_WHILE expression code_block else_stmt?
 
 // [Heading]: For statements.
 for_stmt: KW_ASYNC? KW_FOR assignment KW_TO expression KW_BY assignment code_block else_stmt?

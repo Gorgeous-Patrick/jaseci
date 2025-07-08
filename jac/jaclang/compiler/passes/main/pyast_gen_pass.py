@@ -1393,7 +1393,11 @@ class PyastGenPass(UniPass):
                         cast(ast3.stmt, stmt)
                         for stmt in self.resolve_stmt_block(node.body)
                     ],
-                    orelse=[],
+                    orelse=(
+                        [cast(ast3.stmt, stmt) for stmt in node.else_body.gen.py_ast]
+                        if node.else_body
+                        else []
+                    ),
                 )
             )
         ]
