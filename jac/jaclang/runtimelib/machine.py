@@ -445,6 +445,7 @@ class JacWalker:
                         next.append(anchor)
                     else:
                         raise ValueError("Anchor should be NodeAnchor or EdgeAnchor.")
+            wanch.set_trace.append(set(next))
             if insert_loc < -len(wanch.next):  # for out of index selection
                 insert_loc = 0
             elif insert_loc < 0:
@@ -490,12 +491,13 @@ class JacWalker:
         node: NodeAnchor | EdgeAnchor,
     ) -> WalkerArchetype:
         """Jac's spawn operator feature."""
-        from .data_mapper import calculate_size
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
-        print(calculate_size(walker.archetype))
-
+        if isinstance(current_loc, EdgeArchetype):
+            walker.set_trace.append(set([current_loc.__jac__.target]))
+        elif isinstance(current_loc, NodeArchetype):
+            walker.set_trace.append(set([current_loc.__jac__]))
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -1875,6 +1877,7 @@ class JacPIM:
             get_num_dpu_jumps,
             random_partition,
             plot_and_save,
+            get_num_dpu_jumps_adaptive,
         )
         import time
         start = time.time()
@@ -1904,6 +1907,7 @@ class JacPIM:
         metis_mapping = metis_partition(
             access_pattern, min(num_dpus, access_pattern.number_of_nodes())
         )
+        print("METIS MAPPING", metis_mapping)
         
         end = time.time()
         print("Mapping took (seconds):", end - start)
@@ -1911,8 +1915,12 @@ class JacPIM:
             [all_nodes.index(node) for node in walker.__jac__.trace]
             for walker in walkers
         ]
-        print("Num DPU Cross DPU Jumps (Metis)", get_num_dpu_jumps(metis_mapping, traces))
-        random_mapping = [get_num_dpu_jumps(random_partition(access_pattern, min(num_dpus, access_pattern.number_of_nodes())), traces)for _ in range(10)]
+        set_traces = [
+            [set(all_nodes.index(node) for node in set_trace) for set_trace in walker.__jac__.set_trace]
+            for walker in walkers
+        ]
+        print("Num DPU Cross DPU Jumps (Metis)", get_num_dpu_jumps_adaptive(metis_mapping, set_traces))
+        random_mapping = [get_num_dpu_jumps_adaptive(random_partition(access_pattern, min(num_dpus, access_pattern.number_of_nodes())), set_traces)for _ in range(10)]
         print("Num DPU Cross DPU Jumps (Random)", sum(random_mapping) / len(random_mapping))
 
 

@@ -12,7 +12,7 @@ from .access_pattern import (  # noqa: F401
     get_access_pattern_single_walker,
 )
 from .partitioner import metis_partition, random_partition  # noqa: F401
-from .perf_measure import get_num_dpu_jumps  # noqa: F401
+from .perf_measure import get_num_dpu_jumps, get_num_dpu_jumps_adaptive  # noqa: F401
 from .static_phase import VisitInfo  # noqa: F401
 from .size_calc import calculate_size # noqa: F401
 from .plot import plot_and_save

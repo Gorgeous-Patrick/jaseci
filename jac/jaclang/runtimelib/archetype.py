@@ -348,6 +348,7 @@ class WalkerAnchor(Anchor):
     path: list[NodeAnchor] = field(default_factory=list)
     next: list[NodeAnchor | EdgeAnchor] = field(default_factory=list)
     trace: list[NodeAnchor] = field(default_factory=list)
+    set_trace: list[set[NodeAnchor]] = field(default_factory=list)
     ignores: list[NodeAnchor] = field(default_factory=list)
     disengaged: bool = False
 

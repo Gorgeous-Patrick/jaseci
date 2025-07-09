@@ -1,6 +1,7 @@
 """Generate Access pattern graph."""
 
 import networkx as nx
+import random
 
 from .static_phase import VisitInfo
 
@@ -51,6 +52,7 @@ def get_access_pattern_single_walker(
         top = container.pop(0)
         path.append(top)
         filtered_neighbors = filter_neighbors(top, network, visit_info, walker_type)
+        # random.shuffle(filtered_neighbors)
         for neighbor in filtered_neighbors:
             if neighbor not in visited and neighbor not in container:
                 container.append(neighbor)
