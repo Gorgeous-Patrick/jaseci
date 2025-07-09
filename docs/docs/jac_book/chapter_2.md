@@ -1,38 +1,55 @@
-# Chapter 2: Environment Setup and First Program
-
+# 1. Starting Jac, Variables and Types
+---
 Getting started with Jac is straightforward - you'll have your development environment ready and your first program running in just a few minutes. This chapter covers installation, IDE setup, and writing your first Jac programs.
 
-!!! topic "Development Environment"
-    Jac builds on Python's ecosystem while adding powerful new features. You'll need Python 3.12+ and can use any text editor, though VS Code provides the best experience with syntax highlighting and debugging tools.
+
+> Jac builds on Python's ecosystem while adding powerful new features. You'll need Python 3.12+ and can use any text editor, though VS Code provides the best experience with syntax highlighting and debugging tools.
 
 ## Installation and IDE Setup
+---
+### System Requirements
+- Python 3.12 or higher
+- pip package manager
+- 4GB RAM minimum (8GB recommended)
+- 500MB storage for Jac and dependencies
+
 
 ### Installing Jac
-
-!!! topic "System Requirements"
-    - Python 3.12 or higher
-    - pip package manager
-    - 4GB RAM minimum (8GB recommended)
-    - 500MB storage for Jac and dependencies
-
 Installing Jac is as simple as installing any Python package:
+
+#### Quick Install via pip
 
 ```bash
 # Install Jac from PyPI
-pip install jaclang
+$ pip install jaclang
 
 # Verify installation
-jac --version
+$ jac --version
 ```
+<br />
+
+#### Via Virtual Environment (Recommended)
 
 For project isolation, consider using a virtual environment:
 
+**Linux/MacOS**
+
 ```bash
 # Create virtual environment
-python -m venv jac-env
+$ python -m venv jac-env
 
 # Activate it (Linux/Mac)
-source jac-env/bin/activate
+$ source jac-env/bin/activate
+
+# Install Jac
+$ pip install jaclang
+```
+<br />
+
+**Windows**
+```powershell
+# Create virtual environment
+python -m venv jac-env
 
 # Activate it (Windows)
 jac-env\Scripts\activate
@@ -40,9 +57,9 @@ jac-env\Scripts\activate
 # Install Jac
 pip install jaclang
 ```
+<br />
 
 ### VS Code Extension
-
 For the best development experience, install the Jac VS Code extension:
 
 1. Open VS Code
@@ -60,473 +77,174 @@ The extension provides:
 - Graph visualization for nodes and edges
 
 ### Basic CLI Commands
-
+Jac provides a simple command-line interface (CLI) for running scripts and managing projects. This cli provides developers the ability to either run scripts locally for testing or [even serve them as web applications](../chapter_12). Here are the most common commands:
 ```bash
 # Run a Jac file
-jac run filename.jac
+$ jac run filename.jac
 
 # Get help
-jac --help
+$ jac --help
 
 # Serve as web application (advanced)
-jac serve filename.jac
+$ jac serve filename.jac
 ```
+<br />
 
 ## Hello World in Jac
-
+---
 Let's start with the traditional first program:
 
-!!! example "Hello World"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # hello.jac
-        with entry {
-            print("Hello, Jac World!");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # hello.py
-        print("Hello, Python World!")
-        ```
+```jac
+# hello.jac
+with entry {
+    print("Hello, Jac World!");
+}
+```
+<br />
 
 Run your first Jac program:
-
 ```bash
-jac run hello.jac
+$ jac run hello.jac
+Hello, Jac World!
 ```
-
-## Project Structure Conventions
-
-!!! topic "Clean Organization"
-    Jac encourages separating interface declarations from implementations, making code more maintainable as projects grow.
-
-As your projects grow, following these conventions will help:
-
-```
-my_project/
-├── main.jac              # Main program
-├── models/
-│   ├── user.jac          # User interface
-│   ├── user.impl.jac     # User implementation
-│   └── user.test.jac     # User tests
-└── utils/
-    ├── helpers.jac       # Helper functions
-    └── constants.jac     # Application constants
-```
-
-### Interface and Implementation Separation
-
-!!! example "Separation Pattern"
-    === "Jac"
-        <!-- <div class="code-block"> -->
-        ```jac
-        # user.jac - Interface declaration
-        obj User {
-            has name: str;
-            has email: str;
-
-            def validate() -> bool;
-            def get_display_name() -> str;
-        }
-
-        # user.impl.jac - Implementation
-        impl User.validate {
-            return "@" in self.email and len(self.name) > 0;
-        }
-
-        impl User.get_display_name {
-            return f"{self.name} <{self.email}>";
-        }
-        ```
-        <!-- </div> -->
-    === "Python"
-        ```python
-        # Python equivalent - everything in one file
-        class User:
-            def __init__(self, name: str, email: str):
-                self.name = name
-                self.email = email
-
-            def validate(self) -> bool:
-                return "@" in self.email and len(self.name) > 0
-
-            def get_display_name(self) -> str:
-                return f"{self.name} <{self.email}>"
-        ```
+<br />
 
 ## Entry Blocks and Basic Execution
+---
+The `with entry` block is Jac's equivalent to Python's `if __name__ == "__main__":` - it defines where program execution begins.
 
-!!! topic "Entry Points"
-    The `with entry` block is Jac's equivalent to Python's `if __name__ == "__main__":` - it defines where program execution begins.
-
-### Understanding Entry Blocks
-
-!!! example "Entry Block Usage"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # Variables and functions can be defined outside entry
-        glob app_name: str = "My Jac App";
-        glob version: str = "1.0.0";
-
-        def greet(name: str) -> str {
-            return f"Hello, {name}!";
-        }
-
-        # Entry block - program starts here
-        with entry {
-            print(f"Starting {app_name} v{version}");
-
-            user_name: str = "Alice";
-            greeting: str = greet(user_name);
-            print(greeting);
-
-            print("Program finished!");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # Python equivalent
-        app_name = "My Python App"
-        version = "1.0.0"
-
-        def greet(name: str) -> str:
-            return f"Hello, {name}!"
-
-        if __name__ == "__main__":
-            print(f"Starting {app_name} v{version}")
-
-            user_name = "Alice"
-            greeting = greet(user_name)
-            print(greeting)
-
-            print("Program finished!")
-        ```
+### Single Entry Blocks
+```jac
+# Entry block - program starts here
+with entry {
+    print("Hello single entry block!");
+}
+```
+<br />
 
 ### Multiple Entry Blocks
 
 Jac allows multiple entry blocks that execute in order:
 
-!!! example "Multiple Entries"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # setup.jac - Multiple entry blocks execute in sequence
-        glob counter: int = 0;
+```jac
+# First entry block
+with entry {
+    print("Hello first entry block!");
+}
 
-        # First entry block
-        with entry {
-            print("Initialization phase");
-            counter = 1;
-        }
+# Second entry block
+with entry {
+    print("Hello second entry block!");
+}
 
-        # Second entry block
-        with entry {
-            print("Processing phase");
-            counter += 1;
-            print(f"Counter is now: {counter}");
-        }
+# Third entry block
+with entry {
+    print("Hello third entry block!");
+}
+```
+<br />
 
-        # Third entry block
-        with entry {
-            print("Cleanup phase");
-            print(f"Final counter value: {counter}");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # Python - need to structure manually
-        counter = 0
 
-        def initialization():
-            global counter
-            print("Initialization phase")
-            counter = 1
+## Variables, Types, and Basic Syntax
+---
+**Variables** are the building blocks of any programming language, and Jac is no exception. A variable is a named storage location that holds a value. The **type** of a variable determines what kind of values it can hold, such as numbers, words, or more complex structures.
 
-        def processing():
-            global counter
-            print("Processing phase")
-            counter += 1
-            print(f"Counter is now: {counter}")
 
-        def cleanup():
-            print("Cleanup phase")
-            print(f"Final counter value: {counter}")
+**Jac enforces strong typing and explicit variable declarations**, ensuring that the types of all variables and function parameters are known at compile time. For example, if a function expects a `number`, it cannot be accidentally passed a `string`. Unlike Python, where type annotations are optional and often ignored at runtime, Jac requires type annotations across the board. This design choice eliminates a class of runtime type errors and improves both code clarity and maintainability, especially in large or complex projects.
 
-        if __name__ == "__main__":
-            initialization()
-            processing()
-            cleanup()
-        ```
 
-## Basic Calculator Program
+### Variable Declarations
+Variable declarations in Jac are similar to that of Python, but with mandatory type annotations.
+```jac
+with entry {
+    # Basic type annotations (mandatory)
+    student_name: str = "Alice";
+    grade: int = 95;
+    gpa: float = 3.8;
+    is_honor_student: bool = True;
+}
+```
+<br />
 
-Let's build a simple calculator to demonstrate Jac's syntax:
+A **literal** is a fixed value that can be assigned to a variable. Like Python, Jac's literals can either be a *string*, *integer*, *float*, or *boolean*. However, Jac introduces an additional literal of the type called **architype**. We briefly touched on architypes in the previous chapter (e.g. node, edges, walkers) and will explore them further in chapter 9, however, it is from these architypes that Jac derives a lof of its power and flexibility.
 
-!!! example "Simple Calculator"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # calculator.jac
-        def add(a: float, b: float) -> float {
-            return a + b;
-        }
 
-        def subtract(a: float, b: float) -> float {
-            return a - b;
-        }
+### Integers
+An integer is a whole number, positive or negative, without decimals. In Jac, integers are declared with the `int` type.
 
-        def multiply(a: float, b: float) -> float {
-            return a * b;
-        }
+```jac
+with entry {
+    student_id: int = 12345;
+    print(student_id);
+}
+```
+<br />
 
-        def divide(a: float, b: float) -> float | str {
-            if b == 0.0 {
-                return "Error: Cannot divide by zero!";
-            }
-            return a / b;
-        }
+### Floats
+A float is a number that has a decimal point. In Jac, floats are declared with the `float` type.
+```jac
+with entry {
+    gpa: float = 3.85;
+    print(gpa);
+}
+```
+<br />
 
-        def calculate(operation: str, x: float, y: float) -> float | str {
-            match operation {
-                case "add": return add(x, y);
-                case "sub": return subtract(x, y);
-                case "mul": return multiply(x, y);
-                case "div": return divide(x, y);
-                case _:
-                    return f"Unknown operation: {operation}";
-            }
-        }
+### Strings
+Strings are sequences of characters enclosed in quotes. In Jac, strings are declared with the `str` type.
 
-        with entry {
-            print("=== Simple Calculator ===");
+```jac
+with entry {
+    student_name: str = "Alice Johnson";
+    print(f"Student Name: {student_name}");
+}
+```
+<br />
 
-            # Test calculations
-            num1: float = 10.0;
-            num2: float = 3.0;
+The following line `print(f"Student Name: {student_name}");` uses an f-string to format the output, similar to Python's f-strings.
 
-            print(f"{num1} + {num2} = {calculate('add', num1, num2)}");
-            print(f"{num1} - {num2} = {calculate('sub', num1, num2)}");
-            print(f"{num1} * {num2} = {calculate('mul', num1, num2)}");
-            print(f"{num1} / {num2} = {calculate('div', num1, num2)}");
+### Booleans
+Booleans represent truth values: `True` or `False`. In Jac, booleans are declared with the `bool` type.
+```jac
+with entry {
+    is_enrolled: bool = True;
+    print(f"Is enrolled: {is_enrolled}");
+}
+```
+<br />
 
-            # Test division by zero
-            print(f"{num1} / 0 = {calculate('div', num1, 0.0)}");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # calculator.py
-        def add(a: float, b: float) -> float:
-            return a + b
 
-        def subtract(a: float, b: float) -> float:
-            return a - b
 
-        def multiply(a: float, b: float) -> float:
-            return a * b
 
-        def divide(a: float, b: float) -> float:
-            if b == 0.0:
-                print("Error: Cannot divide by zero!")
-                return 0.0
-            return a / b
+### Any Type for Flexibility
+---
+For those that require flexibility in their variable types, Jac provides the `any` type. This allows you to store any data type in a single variable, similar to Python's dynamic typing.
 
-        def calculate(operation: str, x: float, y: float) -> float:
-            match operation:
-                case "add": return add(x, y)
-                case "sub": return subtract(x, y)
-                case "mul": return multiply(x, y)
-                case "div": return divide(x, y)
-                case _:
-                    print(f"Unknown operation: {operation}")
-                    return 0.0
+```jac
+with entry {
+    # Flexible grade storage
+    grade_data: any = 95;
+    print(f"Grade as number: {grade_data}");
 
-        if __name__ == "__main__":
-            print("=== Simple Calculator ===")
+    grade_data = "A";  # Now a letter grade
+    print(f"Grade as letter: {grade_data}");
+}
+```
+<br />
 
-            # Test calculations
-            num1 = 10.0
-            num2 = 3.0
 
-            print(f"{num1} + {num2} = {calculate('add', num1, num2)}")
-            print(f"{num1} - {num2} = {calculate('sub', num1, num2)}")
-            print(f"{num1} * {num2} = {calculate('mul', num1, num2)}")
-            print(f"{num1} / {num2} = {calculate('div', num1, num2)}")
 
-            # Test division by zero
-            print(f"{num1} / 0 = {calculate('div', num1, 0.0)}")
-        ```
 
-### Enhanced Calculator with Object-Oriented Design
-
-!!! example "OOP Calculator"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # oop_calculator.jac
-        obj Calculator {
-            has history: list[str] = [];
-
-            def add(a: float, b: float) -> float {
-                result: float = a + b;
-                self.history.append(f"{a} + {b} = {result}");
-                return result;
-            }
-
-            def subtract(a: float, b: float) -> float {
-                result: float = a - b;
-                self.history.append(f"{a} - {b} = {result}");
-                return result;
-            }
-
-            def get_history() -> list[str] {
-                return self.history;
-            }
-
-            def clear_history() {
-                self.history = [];
-            }
-        }
-
-        with entry {
-            calc = Calculator();
-
-            # Perform calculations
-            result1: float = calc.add(5.0, 3.0);
-            result2: float = calc.subtract(10.0, 4.0);
-
-            print(f"Results: {result1}, {result2}");
-
-            # Show history
-            print("Calculation History:");
-            for entry in calc.get_history() {
-                print(f"  {entry}");
-            }
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # oop_calculator.py
-        class Calculator:
-            def __init__(self):
-                self.history = []
-
-            def add(self, a: float, b: float) -> float:
-                result = a + b
-                self.history.append(f"{a} + {b} = {result}")
-                return result
-
-            def subtract(self, a: float, b: float) -> float:
-                result = a - b
-                self.history.append(f"{a} - {b} = {result}")
-                return result
-
-            def get_history(self):
-                return self.history
-
-            def clear_history(self):
-                self.history = []
-
-        if __name__ == "__main__":
-            calc = Calculator()
-
-            # Perform calculations
-            result1 = calc.add(5.0, 3.0)
-            result2 = calc.subtract(10.0, 4.0)
-
-            print(f"Results: {result1}, {result2}")
-
-            # Show history
-            print("Calculation History:")
-            for entry in calc.get_history():
-                print(f"  {entry}")
-        ```
-
-## Common Beginner Mistakes and Solutions
-
-!!! topic "Troubleshooting"
-    Most beginner issues stem from Jac's stricter type requirements compared to Python. Here are the most common mistakes and their solutions.
-
-| **Issue** | **Solution** |
-|-----------|--------------|
-| Missing semicolons | Add `;` at the end of statements |
-| Missing type annotations | Add types to all variables: `x: int = 5;` |
-| No entry block | Add `with entry { ... }` for executable scripts |
-| Python-style indentation | Use `{ }` braces instead of indentation |
-
-### Example of Common Fixes
-
-!!! example "Common Fixes"
-    === "Jac (Incorrect)"
-        <div class="code-block">
-        ```jac
-        # This won't work - missing types and semicolons
-        def greet(name) {
-            return f"Hello, {name}"
-        }
-
-        # Missing entry block
-        print(greet("World"))
-        ```
-        </div>
-    === "Jac (Correct)"
-        <div class="code-block">
-        ```jac
-        # This works - proper types and syntax
-        def greet(name: str) -> str {
-            return f"Hello, {name}";
-        }
-
-        with entry {
-            print(greet("World"));
-        }
-        ```
-        </div>
-
-##### Jac REPL
-
+## Jac REPL
+---
 !!! warning "Warning"
-    Note: Currently, the Jac REPL feature is not available. Please use standard Jac script execution for testing and running your code.
+    Currently, the Jac REPL feature is not available. Please use standard Jac script execution for testing and running your code.
 
-## Best Practices
+## Wrapping Up
+---
+We've covered the basics of Jac, including installation, IDE setup, and writing your first program. You've learned about variables, types, and how to structure your code with entry blocks.
+This foundation will help you as we explore Jac's enhanced syntax and type system.
 
-!!! summary "Development Best Practices"
-    - **Use virtual environments**: Keep your Jac projects isolated
-    - **Start with entry blocks**: Always begin executable code with `with entry`
-    - **Type everything**: Take advantage of mandatory type annotations
-    - **Organize your code**: Use proper project structure from the beginning
-    - **Test early and often**: Run your code frequently to catch errors quickly
-
-## Key Takeaways
-
-!!! summary "What We've Learned"
-    **Environment Setup:**
-
-    - **Installation**: Simple pip install with Python 3.12+ requirement
-    - **VS Code Extension**: Provides syntax highlighting and error detection
-    - **Virtual Environments**: Recommended for project isolation
-
-    **Jac Fundamentals:**
-
-    - **Entry blocks**: `with entry { }` defines program execution start
-    - **Type safety**: Mandatory type annotations prevent runtime errors
-    - **Project structure**: Clean organization with interface/implementation separation
-    - **CLI commands**: `jac run` for execution, `jac serve` for web applications
-
-    **Key Differences from Python:**
-
-    - Curly braces `{ }` instead of indentation for code blocks
-    - Semicolons `;` required for statement termination
-    - Mandatory type annotations for all variables and functions
-    - `glob` for global variables instead of `global` keyword
 
 !!! tip "Try It Yourself"
     Practice the basics by creating:
@@ -538,6 +256,4 @@ Let's build a simple calculator to demonstrate Jac's syntax:
     Remember: Focus on proper typing and project structure from the beginning!
 
 ---
-
-*Your development environment is ready! Now let's explore Jac's enhanced syntax and type system.*
 

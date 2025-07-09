@@ -3,6 +3,18 @@
     --md-code-hl-operator-color: #b68500;
 }
 
+/* Admonition styles */
+.md-typeset .admonition{
+    border-radius: 10px;
+}
+
+.md-typeset .admonition.warning,
+.md-typeset details.warning {
+    border-color: #ff9800;
+    color: #ff9800;
+    background-color: #ff91001a;
+    font-size: larger;
+}
 
 .md-typeset .admonition.question,
 .md-typeset details.question {
@@ -205,7 +217,12 @@ body,
 .md-typeset h4,
 .md-typeset h5,
 .md-typeset h6 {
-    color: #ffffff;
+font-family: 'Segoe UI', 'Montserrat', 'Roboto', 'Arial', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.2em !important;
+    color: #e5e7eb;
+    text-shadow: 0 2px 16px rgba(255, 171, 64, 0.08);
 }
 
 .md-typeset a {
@@ -236,8 +253,35 @@ body,
 }
 
 /* ---------- Code blocks ---------- */
+.md-typeset pre,
+.md-typeset pre > code,
+.md-typeset code,
+.md-typeset .code-block,
+.md-typeset .code-output {
+    font-family: 'Fira Mono', 'JetBrains Mono', 'Menlo', 'Consolas', 'Liberation Mono', 'monospace' !important;
+    font-size: 15px;
+    border-radius: 6px !important;
+    --md-code-hl-name-color: #fafafa;
+    --md-code-hl-keyword-color: #8BE9FD;
+    --md-code-hl-function-color: #FF79C6;
+    --md-code-hl-constant-color: #BD93F9;
+    --md-code-hl-string-color: #50FA7B;
+    --md-code-hl-number-color: #FFB86C;
+    --md-code-hl-operator-color: #FFB86C;
+    --md-code-hl-punctuation-color: #F8F8F2;
+    --md-code-hl-comment-color: #6272A4;
+    border: 1px solid #555555;
+}
+
+.md-typeset code{
+    color: #f8f8f2;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&display=swap');
+
 .md-typeset pre>code {
-    background-color: #2d2d2d;
+    background-color: #282a36;
+    --md-code-fg-color: #f8f8f2;
 }
 
 /* ---------- Footer ---------- */
@@ -287,4 +331,97 @@ body,
 
 .md-main__inner.md-grid {
     max-width: 100vw;
+}
+
+/* ---------- Custom Quote Styling ---------- */
+.md-typeset blockquote,
+blockquote {
+    background: linear-gradient(90deg, #23272e 0%, #1a1a1a 100%);
+    border-left: 4px solid #ffab40;
+    color: #ffe0b2;
+    padding: 1em 1.5em;
+    margin: 1.5em 0;
+    border-radius: 6px;
+    font-style: italic;
+    box-shadow: 0 2px 8px rgba(255, 171, 64, 0.05);
+    transition: background 0.2s, color 0.2s;
+}
+
+.md-typeset blockquote p,
+blockquote p {
+    color: #ffe0b2;
+    margin: 0;
+}
+
+.md-typeset blockquote::before,
+blockquote::before {
+    content: "“";
+    color: #ffab40;
+    font-size: 2.5em;
+    line-height: 0.1em;
+    vertical-align: -0.4em;
+    margin-right: 0.2em;
+    font-family: serif;
+    opacity: 0.7;
+}
+
+.md-typeset blockquote::after,
+blockquote::after {
+    content: "”";
+    color: #ffab40;
+    font-size: 2.5em;
+    line-height: 0.1em;
+    vertical-align: -0.4em;
+    margin-left: 0.2em;
+    font-family: serif;
+    opacity: 0.7;
+}
+
+/* ---------- Themed List Items ---------- */
+.md-typeset ul,
+.md-typeset ol {
+    /* padding-left: 1.5em; */
+    margin-bottom: 1.2em;
+}
+
+.md-typeset ul li,
+.md-typeset ol li {
+    margin-bottom: 0.5em;
+    color: inherit;
+    font-size: 1em;
+    line-height: 1.7;
+    position: relative;
+    padding-left: 0.5em;
+}
+
+/* Use small squares for unordered list markers */
+.md-typeset ul li::marker {
+    color: #ffab40;
+    font-size: 1em;
+    content: "▪ ";
+}
+
+/* Ordered lists: revert to default decimal */
+.md-typeset ol li::marker {
+    color: inherit;
+    font-weight: normal;
+    font-size: 1em;
+    content: counter(list-item) ". ";
+}
+
+/* Remove custom task list checkmark styling */
+.md-typeset ul li.task-list-item input[type="checkbox"]:checked + label::before {
+    content: "";
+    color: inherit;
+    font-size: 1em;
+    margin-right: 0;
+}
+
+/* Reduce the padding/margin for horizontal rules */
+.md-typeset hr,
+hr {
+    margin-top: 0.0em !important;
+    margin-bottom: 0.7em !important;
+    border-top-width: 2px;
+    border-color: #404040;
 }
