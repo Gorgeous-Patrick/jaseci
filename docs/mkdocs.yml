@@ -46,7 +46,7 @@ nav:
         - How to use MTP: "learn/jac-mtllm/usage.md"
         - Available Models: "learn/jac-mtllm/model_declaration.md"
         - Using Multimodal models: "learn/jac-mtllm/multimodality.md"
-        - Bring your own LM: "learn/jac-mtllm/create_own_lm.md"
+        - Build your own MTLLM plugin: "learn/jac-mtllm/creating_mtllm_plugins.md"
         - Python MTLLM Interface: "learn/jac-mtllm/python_integration.md"
     - Scale-Native Programming:
       - "learn/jac-cloud/introduction.md"
