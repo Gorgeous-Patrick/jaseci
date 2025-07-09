@@ -29,70 +29,6 @@ with entry { # Generate random points
 
 This snippet natively imports Python packages `math` and `random` and runs identically to its Python counterpart. Jac targets Python bytecode, so all Python libraries work with Jac.
 
-
-## Beyond OOP with Object-Spatial Programming
-
-Object-Spatial Programming (OSP) inverts the traditional relationship between data and computation. Rather than moving data to computation, OSP moves computation to data through topologically aware constructs. This paradigm introduces specialized archetypes—objects, nodes, edges and walkers—that model spatial relationships directly in the language and enable optimizations around data locality and distributed execution.
-
-### Spatial Game Example
-
-**"Think of your data as an enemy spy network. In OOP, you'd sit at a desk phoning known contacts. In Jac, you deploy a Secret Agent (a walker) who infiltrates the network, moving from one safehouse to the next to uncover the entire plot on their own."**
-
-This example shows how computation flows spatially rather than centrally:
-
-<div class="code-block">
-```jac
-# Define game stage nodes with properties
-node GameStage {
-    has name: str,
-    frame_time: float = 0.0;
-}
-
-# Walker that travels between game stages
-walker RenderWalk {
-    has fps: int = 60;  # Target frames per second
-
-    # Process each GameStage when walker arrives
-    can process with GameStage entry {
-        print(f"Processing {here.name} stage");
-
-        # Calculate frame time based on FPS
-        here.frame_time = 1000.0 / self.fps;  # ms per frame
-
-        # Move to next connected stage
-        visit [-->];  # Follow outgoing edges
-    }
-}
-
-# Entry point - construct the game stage flow
-with entry {
-    # Create the first stage
-    input_stage = GameStage(name="Input");
-
-    # Connect Stages using spatial connections
-    input_stage ++> GameStage(name="Update") ++>
-                    GameStage(name="Render") ++>
-                    GameStage(name="Present");
-
-    # Spawn walker to begin traversal
-    RenderWalk() spawn input_stage;
-}
-```
-
-</div>
-
-A walker travels through game stages using edges, demonstrating Object-Spatial Programming.
-
-### Traditional OOP vs Object-Spatial Programming
-
-| **Traditional OOP**                                       | **Object-Spatial Programming**                                |
-| --------------------------------------------------------- | ------------------------------------------------------------- |
-| • **Centralized Control**: Logic pulls data to itself     | • **Distributed Execution**: Logic travels to data            |
-| • **Global Loops**: `for stage in stages: compute(stage)` | • **Spatial Awareness**: Walker visits GameStage nodes        |
-| • **Data Movement**: Objects moved to processing units    | • **Data Locality**: Computation happens where data lives     |
-| • **Rigid Structure**: Hard-coded execution patterns      | • **Composable Flows**: Stages as nodes, transitions as edges |
-| • **Single Machine**: Difficult to distribute             | • **Scale-Ready**: Walkers can traverse across devices        |
-
 ## Programming Abstractions for AI
 
 Jac provides novel constructs for integrating LLMs into code. A function body can simply be replaced with a call to an LLM, removing the need for prompt engineering or extensive use of new libraries.
@@ -192,6 +128,74 @@ walker create_post {
 - **First-Class Support for Modern Patterns**: Concepts like nodes, walkers, and graphs are deeply integrated, making it straightforward to model complex data and workflows that scale
 
 This simple social media post system runs locally or scales infinitely in the cloud with no code changes.
+
+## Four Types of Classes to Go Beyond OOP
+
+In addtion to traditional python classes (`class` or the dataclass-like `obj`), Jac programmers can also use node classes (`node`), edge classes (`edge`), and walker classes (`walker`) for a new type of problem solving and agentic programming.
+
+Instances of node and edge classes allow for assembling objects in a graph structure to express semantic relationships between objects. This goes beyond only modeling objects in memory as a disconnected soup of instances.
+
+Walker classes inverts the traditional relationship between data and computation. Rather than moving data to computation with parameter passing, walkers enable moving computation to data as they represent computational units that moves through the topology of node and edge objects.
+
+These new constructs gives rise to a new paradigm for problem solving and implementation we call Object-Spatial Programming (OSP).
+
+### Spatial Game Example
+
+This example shows how computation flows spatially rather than centrally:
+
+<div class="code-block">
+```jac
+# Define game stage nodes with properties
+node GameStage {
+    has name: str,
+    frame_time: float = 0.0;
+}
+
+# Walker that travels between game stages
+walker RenderWalk {
+    has fps: int = 60;  # Target frames per second
+
+    # Process each GameStage when walker arrives
+    can process with GameStage entry {
+        print(f"Processing {here.name} stage");
+
+        # Calculate frame time based on FPS
+        here.frame_time = 1000.0 / self.fps;  # ms per frame
+
+        # Move to next connected stage
+        visit [-->];  # Follow outgoing edges
+    }
+}
+
+# Entry point - construct the game stage flow
+with entry {
+    # Create the first stage
+    input_stage = GameStage(name="Input");
+
+    # Connect Stages using spatial connections
+    input_stage ++> GameStage(name="Update") ++>
+                    GameStage(name="Render") ++>
+                    GameStage(name="Present");
+
+    # Spawn walker to begin traversal
+    RenderWalk() spawn input_stage;
+}
+```
+
+</div>
+
+A walker travels through game stages using edges, demonstrating Object-Spatial Programming.
+
+### Traditional OOP vs Object-Spatial Programming
+
+| **Traditional OOP**                                       | **Object-Spatial Programming**                                |
+| --------------------------------------------------------- | ------------------------------------------------------------- |
+| • **Centralized Control**: Logic pulls data to itself     | • **Distributed Execution**: Logic travels to data            |
+| • **Global Loops**: `for stage in stages: compute(stage)` | • **Spatial Awareness**: Walker visits GameStage nodes        |
+| • **Data Movement**: Objects moved to processing units    | • **Data Locality**: Computation happens where data lives     |
+| • **Rigid Structure**: Hard-coded execution patterns      | • **Composable Flows**: Stages as nodes, transitions as edges |
+| • **Single Machine**: Difficult to distribute             | • **Scale-Ready**: Walkers can traverse across devices        |
+
 
 ## Better Organized and Well Typed Codebases
 
