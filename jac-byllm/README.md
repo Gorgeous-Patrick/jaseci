@@ -30,7 +30,7 @@ with entry {
 ```python
 import from mtllm {Model}
 
-glob llm = Model(model_name="openai\gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 obj Task {
     has description: str,
@@ -38,7 +38,7 @@ obj Task {
         estimated_time: int;
 }
 
-sem Task.priority = "priority between 0 (highest priority) and 10(lowest priority)"
+sem Task.priority = "priority between 0 (highest priority) and 10(lowest priority)";
 
 def create_task(description: str, previous_tasks: list[Task]) -> Task by llm();
 
