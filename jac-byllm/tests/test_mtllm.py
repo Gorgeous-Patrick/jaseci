@@ -88,6 +88,15 @@ class JacLanguageTests(TestCase):
         stdout_value = captured_output.getvalue()
         self.assertIn('The image shows a hot air balloon shaped like a heart', stdout_value)
 
+    def test_streaming_output(self) -> None:
+        """Parse micro jac file."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        jac_import("streaming_output", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn('The orca whale, or killer whale, is one of the most intelligent and adaptable marine predators', stdout_value)
+
     def test_with_llm_method(self) -> None:
         """Parse micro jac file."""
         captured_output = io.StringIO()

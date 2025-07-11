@@ -220,6 +220,7 @@ class CompletionRequest:
     messages: list[MessageType]
     tools: list[Tool]
     params: dict  # Additional parameters for the LLM request.
+    stream: bool = False  # Whether to stream the response.
     resp_type: type | None = None  # Type from which the json schema is generated.
 
     def __post_init__(self) -> None:
