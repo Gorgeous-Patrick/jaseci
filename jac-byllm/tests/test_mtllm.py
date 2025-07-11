@@ -6,6 +6,8 @@ import sys
 from jaclang import JacMachineInterface as Jac
 from jaclang.utils.test import TestCase
 
+from fixtures import python_lib_mode
+
 # Import the jac_import function from JacMachineInterface
 jac_import = Jac.jac_import
 
@@ -200,3 +202,13 @@ class JacLanguageTests(TestCase):
             any(c.islower() for c in password),
             "Password should contain at least one lowercase letter.",
         )
+
+    def test_python_lib_mode(self) -> None:
+        """Test the Python library mode."""
+        person = python_lib_mode.test_get_person_info()
+
+        # Check if the output contains the expected person information
+        self.assertIn("Alan Turing", person.name)
+        self.assertIn("1912", str(person.birth_year))
+        self.assertIn("A pioneering mathematician and computer scientist", person.description)
+        self.assertIn("breaking the Enigma code", person.description)
