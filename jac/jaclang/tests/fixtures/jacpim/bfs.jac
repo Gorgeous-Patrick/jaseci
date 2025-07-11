@@ -1,18 +1,18 @@
 import random;
 import from jaclang.runtimelib.machine {JacMachine}
 node BFSNode {
-  has id:int;
+  has name:int;
 }
 
 
 walker BFS {
   has visited: list[int] = [];
   can run with BFSNode entry {
-    if (here.id in self.visited) {
+    if (here.name in self.visited) {
       return;
     }
-    print(here.id);
-    self.visited.append(here.id);
+    print(here.name);
+    self.visited.append(here.name);
     visit [-->];
   }
 }
@@ -20,9 +20,9 @@ walker BFS {
 
 with entry {
   nodes = [];
-  NODE_NUM = 200;
+  NODE_NUM = 5;
   for i in range(NODE_NUM) {
-    nodes.append(BFSNode(id = i));
+    nodes.append(BFSNode(name = i));
     root ++> nodes[i];
   }
 

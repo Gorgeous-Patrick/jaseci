@@ -1801,12 +1801,14 @@ class JacPIM:
     def get_networkx(
         all_nodes: list[NodeAnchor], all_edges: list[EdgeAnchor]
     ) -> nx.DiGraph:
+        import matplotlib.pyplot as plt
+        from dataclasses import asdict
         """Get the networkx graph for the Jac Input data Graph."""
         graph = nx.DiGraph()
 
         for idx, node_anchor in enumerate(all_nodes):
             # Add node with detailed annotations
-            graph.add_node(idx, node_type=JacPIM._extract_name(node_anchor.archetype))
+            graph.add_node(idx, node_type=JacPIM._extract_name(node_anchor.archetype), node_name=asdict(node_anchor.archetype).get("name"))
 
         for _idx, edge_anchor in enumerate(all_edges):
             graph.add_edge(
@@ -1814,6 +1816,17 @@ class JacPIM:
                 all_nodes.index(edge_anchor.target),
                 edge_type=JacPIM._extract_name(edge_anchor.archetype),
             )
+
+        # Get node types
+        node_types = nx.get_node_attributes(graph, "node_type")
+        unique_types = sorted(set(node_types.values()))
+
+        # Assign a color to each node_type
+        color_map = {t: plt.cm.get_cmap("tab10")(i) for i, t in enumerate(unique_types)}
+        node_colors = [color_map[node_types[n]] for n in graph.nodes()]
+        # Store color in node attribute
+        for node in graph.nodes():
+            graph.nodes[node]["color"] = color_map[graph.nodes[node]["node_type"]]
 
         return graph
 

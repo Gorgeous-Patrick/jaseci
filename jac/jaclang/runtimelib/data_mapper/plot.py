@@ -13,11 +13,14 @@ def plot_and_save(G1: nx.Graph, G2: nx.Graph, filename1="G1.png", filename2="G2.
 
     # --- Plot G1: Solid edges ---
     plt.figure(figsize=(8, 6))
-    nx.draw_networkx_nodes(G1, pos, nodelist=G1.nodes(), node_size=10)
+    node_colors = [G1.nodes[n]["color"] for n in G1.nodes()]
+
+    # This will place node IDs (or custom labels) on the nodes
+    labels = {n: G1.nodes[n]["node_name"] for n in G1.nodes() if G1.nodes[n]["node_name"] is not None}  # You can customize this
+
+    nx.draw_networkx_nodes(G1, pos, nodelist=G1.nodes(), node_size=500, node_color=node_colors)
+    nx.draw_networkx_labels(G1, pos, labels)
     nx.draw_networkx_edges(G1, pos, edge_color='black', style='solid', width=1, arrows=G1.is_directed())
-    labels1 = nx.get_edge_attributes(G1, 'weight')
-    if labels1:
-        nx.draw_networkx_edge_labels(G1, pos, edge_labels=labels1, font_size=10, font_color='black')
     plt.axis('off')
     plt.tight_layout()
     plt.savefig(filename1, dpi=300)
@@ -25,11 +28,9 @@ def plot_and_save(G1: nx.Graph, G2: nx.Graph, filename1="G1.png", filename2="G2.
 
     # --- Plot G2: Dashed edges with weight labels ---
     plt.figure(figsize=(8, 6))
-    nx.draw_networkx_nodes(G2, pos, nodelist=G2.nodes(), node_size=10)
+    nx.draw_networkx_nodes(G2, pos, nodelist=G2.nodes(), node_size=500, node_color=node_colors, label=labels)
     nx.draw_networkx_edges(G2, pos, edge_color='blue', style='dashed', width=1, arrows=G2.is_directed())
-    labels2 = nx.get_edge_attributes(G2, 'weight')
-    if labels2:
-        nx.draw_networkx_edge_labels(G2, pos, edge_labels=labels2, font_size=10, font_color='blue')
+    nx.draw_networkx_labels(G2, pos, labels)
     plt.axis('off')
     plt.tight_layout()
     plt.savefig(filename2, dpi=300)
