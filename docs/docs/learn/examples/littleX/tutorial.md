@@ -192,7 +192,7 @@ walker create_tweet(visit_profile) {
 impl create_tweet.tweet {
     embedding = sentence_transformer.encode(self.content).tolist();
     tweet_node = here +>:Post:+> Tweet(content=self.content, embedding=embedding);
-    _.perm_grant(tweet_node[0], level="CONNECT");
+    grant(tweet_node[0], level=ConnectPerm);
     report tweet_node;
 }
 ```
@@ -220,7 +220,7 @@ walker visit_profile {
 impl visit_profile.visit_profile {
     visit [-->(`?Profile)] else {
         new_profile = here ++> Profile();
-        _.perm_grant(new_profile[0], level="CONNECT");
+        grant(new_profile[0], level=ConnectPerm);
         visit new_profile;
     }
 }
@@ -239,7 +239,7 @@ walker create_tweet(visit_profile) {
 impl create_tweet.tweet {
     embedding = sentence_transformer.encode(self.content).tolist();
     tweet_node = here +>:Post:+> Tweet(content=self.content, embedding=embedding);
-    _.perm_grant(tweet_node[0], level="CONNECT");
+    grant(tweet_node[0], level=ConnectPerm);
     report tweet_node;
 }
 ```

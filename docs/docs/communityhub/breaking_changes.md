@@ -4,6 +4,62 @@ This page documents significant breaking changes in Jac and Jaseci that may affe
 
 ## Latest Breaking Changes
 
+### Version 0.8.4
+
+#### 1. Global, Nonlocal Operators Updated to `global`, `nonlocal`
+
+This renaming aims to make the operator's purpose align with python, as `global`, `nonlocal` more aligned with python.
+
+**Before**
+
+```jac
+glob x = "Jaclang ";
+
+def outer_func -> None {
+    :global: x; # :g: also correct
+
+    x = 'Jaclang is ';
+    y = 'Awesome';
+    def inner_func -> tuple[str, str] {
+        :nonlocal: y; #:nl: also correct
+
+        y = "Fantastic";
+        return (x, y);
+    }
+    print(x, y);
+    print(inner_func());
+}
+
+with entry {
+    outer_func();
+}
+```
+
+**After**
+
+```jac
+glob x = "Jaclang ";
+
+def outer_func -> None {
+    global x;
+
+    x = 'Jaclang is ';
+    y = 'Awesome';
+    def inner_func -> tuple[str, str] {
+        nonlocal y;
+
+        y = "Fantastic";
+        return (x, y);
+    }
+    print(x, y);
+    print(inner_func());
+}
+
+with entry {
+    outer_func();
+}
+```
+
 ### Version 0.8.1
 
 #### 1. `dotgen` builtin function is now name `printgraph`

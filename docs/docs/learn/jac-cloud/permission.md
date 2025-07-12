@@ -45,10 +45,10 @@ Jac Cloud has four permission levels that control what users can do:
 
 | Level       | Description                          | Example Use Case           |
 | ----------- | ------------------------------------ | -------------------------- |
-| `NO_ACCESS` | Cannot see or interact with the item | Private user data          |
-| `READ`      | Can view but not modify the item     | Public profile information |
-| `CONNECT`   | Can link nodes to this node          | Friend requests, comments  |
-| `WRITE`     | Full access to modify the item       | User's own content         |
+| `NoPerm` | Cannot see or interact with the item | Private user data          |
+| `ReadPerm`      | Can view but not modify the item     | Public profile information |
+| `ConnectPerm`   | Can link nodes to this node          | Friend requests, comments  |
+| `WritePerm`     | Full access to modify the item       | User's own content         |
 
 ## How Permissions Work (Simple Example)
 
@@ -74,7 +74,7 @@ By default, User2 cannot see Post1 (created by User1). To allow this:
 # Allow User2 to read a post
 walker grant_access {
     has target_root_id: str;  # ID of User2's root
-    has access_level: str;    # "READ", "CONNECT", or "WRITE"
+    has access_level: str;    # ReadPerm, ConnectPerm, or WritePerm
 
     can grant_access with post entry {
         # Grant access to the current post
@@ -134,20 +134,20 @@ In essence, this line of code instructs the post node to remove the previously g
 walker make_public {
     can make_public with post entry {
         # Grant READ access to all users
-        _.perm_grant(here, "READ");
+        grant(here, ReadPerm);
         report "Post is now public!";
     }
 }
 ```
 
-The code snippet `_.perm_grant(here, "READ")` provides a mechanism to grant read access to all other root nodes concerning the data within the current node.
+The code snippet `grant(here, ReadPerm)` provides a mechanism to grant read access to all other root nodes concerning the data within the current node.
 
 Here's a breakdown of the elements:
 
 - `here`
   - This represents the current node, which in this case is the post node. This is the node whose data will be accessible.
-- `"READ"`
-  - This literal string specifies the type of permission being granted. In this instance, it grants "READ" access, allowing other root nodes to view the data on the post node. They can choose one from permission levels.
+- `ReadPerm`
+  - This literal string specifies the type of permission being granted. In this instance, it grants read access, allowing other root nodes to view the data on the post node. They can choose one from permission levels.
 
 ### Make Content Private
 
@@ -156,13 +156,13 @@ Here's a breakdown of the elements:
 walker make_private {
     can make_private with post entry {
         # Remove all access
-        _.perm_revoke(here);
+        revoke(here);
         report "Post is now private!";
     }
 }
 ```
 
-The code snippet `_.perm_revoke(here)` is used to remove all previously granted access permissions from all other root nodes to the current node's data. It's the inverse operation of `_.perm_grant`.
+The code snippet `revoke(here)` is used to remove all previously granted access permissions from all other root nodes to the current node's data. It's the inverse operation of `grant`.
 
 Here's a breakdown:
 
@@ -188,7 +188,7 @@ walker create_public_post {
         here ++> post;
 
         # Make it readable by everyone, but only writable by owner
-        _.perm_grant(post, "READ");
+        grant(post, ReadPerm);
 
         report "Public post created!";
     }
@@ -203,7 +203,7 @@ Ideal for team collaboration:
 # Grant access to a team
 walker grant_team_access {
     has team_members: list[str];  # List of root IDs
-    has access_level: str;        # "READ", "CONNECT", or "WRITE"
+    has access_level: str;        # ReadPerm, ConnectPerm, or WritePerm
 
     can grant_access with document entry {
         # Grant access to each team member
@@ -275,14 +275,14 @@ node A {
         #              YOUR PROCESS HERE              #
         ###############################################
 
-        # Allowed string return "NO_ACCESS", "READ", "CONNECT", "WRITE"
-        return "NO_ACCESS";
+        # Allowed string return NoPerm, ReadPerm, ConnectPerm, or WritePerm
+        return NoPerm;
 
-        # Allowed enum return AccessLevel.NO_ACCESS, AccessLevel.READ, AccessLevel.CONNECT, AccessLevel.WRITE
+        # Allowed enum return AccessLevel.NO_ACCESS, AccessLevel.READ, AccessLevel.ConnectPerm, AccessLevel.WRITE
         # return AccessLevel.NO_ACCESS;
 
         # Not recommended as it may change in the future
-        # Allowed int return -1 (NO_ACCESS), 0 (READ), 1 (CONNECT), 2 (WRITE)
+        # Allowed int return -1 (NoPerm), 0 (ReadPerm), 1 (ConnectPerm), 2 (WritePerm)
         # return -1;
 
     }
@@ -302,14 +302,14 @@ node A {
         #              YOUR PROCESS HERE              #
         ###############################################
 
-        # Allowed string return "NO_ACCESS", "READ", "CONNECT", "WRITE"
+        # Allowed string return NoPerm, ReadPerm, ConnectPerm, or WritePerm
         return "NO_ACCESS";
 
-        # Allowed enum return AccessLevel.NO_ACCESS, AccessLevel.READ, AccessLevel.CONNECT, AccessLevel.WRITE
+        # Allowed enum return AccessLevel.NO_ACCESS, AccessLevel.READ, AccessLevel.ConnectPerm, AccessLevel.WRITE
         # return AccessLevel.NO_ACCESS;
 
         # Not recommended as it may change in the future
-        # Allowed int return -1 (NO_ACCESS), 0 (READ), 1 (CONNECT), 2 (WRITE)
+        # Allowed int return -1 (NoPerm), 0 (ReadPerm), 1 (ConnectPerm), 2 (WritePerm)
         # return -1;
 
     }
