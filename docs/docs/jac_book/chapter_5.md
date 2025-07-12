@@ -1,18 +1,18 @@
 # Chapter 5: Advanced AI Operations
-
+---
 In this chapter, we'll explore Jac's advanced AI capabilities through MTLLM (Meaning Typed LLM). We'll build a simple image captioning tool that demonstrates model configuration, semantic strings, and multimodal AI integration in Jac applications.
 
-!!! info "What You'll Learn"
-    - MTLLM variations and model selection
-    - Model declaration and configuration patterns
-    - Semantic strings for enhanced AI context
-    - Multimodality support for vision and audio
-    - Building AI-powered applications with type safety
 
----
+- MTLLM variations and model selection
+- Model declaration and configuration patterns
+- Semantic strings for enhanced AI context
+- Multimodality support for vision and audio
+- Building AI-powered applications with type safety
+
+
 
 ## MTLLM Overview
-
+---
 MTLLM (Meaning Typed LLM) is Jac's AI integration framework that makes working with Large Language Models as simple as calling a function. Unlike traditional AI programming that requires complex prompt engineering and API management, MTLLM enables natural AI integration through Jac's type system.
 
 !!! success "MTLLM Benefits"
@@ -22,521 +22,425 @@ MTLLM (Meaning Typed LLM) is Jac's AI integration framework that makes working w
     - **Multimodal Support**: Handle text, images, and audio seamlessly
     - **Built-in Optimization**: Automatic prompt optimization and caching
 
-### Traditional vs MTLLM AI Programming
-
-!!! example "AI Integration Comparison"
-    === "Traditional Approach"
-        ```python
-        # image_caption.py - Complex API management required
-        import openai
-        import base64
-        from PIL import Image
-
-        class ImageCaptioner:
-            def __init__(self, api_key):
-                self.client = openai.OpenAI(api_key=api_key)
-
-            def encode_image(self, image_path):
-                with open(image_path, "rb") as image_file:
-                    return base64.b64encode(image_file.read()).decode('utf-8')
-
-            def caption_image(self, image_path):
-                base64_image = self.encode_image(image_path)
-
-                response = self.client.chat.completions.create(
-                    model="gpt-4-vision-preview",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": "Describe this image in detail."
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}"
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    max_tokens=300
-                )
-
-                return response.choices[0].message.content
-
-        # Usage
-        captioner = ImageCaptioner("your-api-key")
-        caption = captioner.caption_image("photo.jpg")
-        print(caption)
-        ```
-
-    === "Jac MTLLM"
-        <div class="code-block">
-        ```jac
-        # image_caption.jac - Simple AI integration
-        import from mtllm.llms { OpenAI }
-
-        glob llm = OpenAI(model_name="gpt-4-vision-preview");
-
-        """Generate a detailed caption for the given image."""
-        def caption_image(image_path: str) -> str by llm();
-
-        with entry {
-            caption = caption_image("photo.jpg");
-            print(caption);
-        }
-        ```
-        </div>
-
+## Functions as Prompts
 ---
+Up until this point, we've used Jac's functions to define behavior. However, what if we wanted to incorperate AI capabilities directly into our Jac applications? For example, lets say we're writing a poetry application that can generate poems based on a user supplied topic. Since Jac is a super set of Python, we can create a function `write_poetry` that takes a topic as input and then make a call to an OpenAI model using its python or langchain library to generate the poem.
+
+First, install the OpenAI Python package:
+```bash
+pip install openai
+```
+<br />
+then set your OpenAI API key as an environment variable:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+```
+<br />
+Now we can write our Jac code to integrate with OpenAI's API:
+
+```jac
+import from openai { OpenAI }
+
+glob client = OpenAI();
+
+""" Write a poem about topic """
+def write_poetry(topic: str) -> str {
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=f"Write a poem about {topic}."
+    );
+    return response.output_text;
+}
+
+with entry {
+    poem = write_poetry("A serene landscape with mountains.");
+    print(poem);
+}
+```
+<br />
+
+Finally, lets generate our poetic masterpiece by running the Jac code:
+```console
+$ jac run poetry.jac
+Amidst the quiet, mountains rise,
+Their peaks adorned with endless skies.
+A tranquil breeze, a gentle stream,
+Within this landscape, like a dream.
+
+Soft whispers of the morning light,
+Embrace the earth in pure delight.
+A serene world, where hearts find peace,
+In nature's hold, all worries cease.
+```
+<br />
+
+Very nice! However, this approach requires manual API management (what if we want to switch to a different AI provider?), and we still have to write the prompt ourselves. Wouldn't it be great if we could just define the function signature and let the AI handle the rest? *Imagine a world where the function was the prompt?* Where we could simply declare a function and the AI would understand what to do? That's the power of MTLLM.
+
+Let's see how this works.
+
+First we'll need to install the MTLLM package:
+```bash
+pip install mtllm
+```
+<br />
+Next we replace the OpenAI import with that of the MTLLM package
+
+```jac
+import from mtllm { Model }
+glob llm = Model(model_name="gpt-4.1-mini");
+```
+<br />
+Instead of writing the function ourselves, we simply declare the function signature and use the `by` keyword to indicate that this function should be handled by the AI model referenced by `llm()`. The MTLLM framework will automatically generate the appropriate prompt based on the function signature.
+```jac
+def write_poetry(topic: str) -> str by llm();
+```
+
+Finally, lets put it all together and run the Jac code:
+```jac
+# mt_poem.jac - Simple AI integration
+import from mtllm { Model }
+
+glob llm = Model(model_name="gpt-4.1-mini");
+
+""" Write a poem about topic """
+def write_poetry(topic: str) -> str by llm();
+
+with entry {
+    poem = write_poetry("A serene landscape with mountains.");
+    print(poem);
+}
+```
+<br />
+
+
+```console
+$ jac run mt_poem.jac
+Beneath the sky so vast and grand,
+Mountains rise like ancient bands,
+Whispers soft in tranquil air,
+A serene landscape, calm and fair.
+
+Colors blend in gentle hues,
+Nature's brush with peaceful views,
+Rivers sing and breezes dance,
+In this quiet, soul’s expanse.
+```
+<br />
+
+### Simple Image Captioning Tool
+To further illustrate MTLLM's capabilities, let's build a simple image captioning tool. This tool will analyze an image and generate a descriptive caption using an AI model.
+
+First lets grab an image from upsplash to work with. You can use any image you like, but for this example, we'll use a photo of a french bulldog. Download the image and save it as `photo.jpg` in the same directory as your Jac code.
+
+![Image Captioning Example](../assets/photo.jpg){ width=300px }
+/// caption
+Photo by <a href="https://unsplash.com/@karsten116?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Karsten Winegeart</a> on <a href="https://unsplash.com/photos/a-french-bulldog-in-a-hoodie-and-gold-chain-GkpLfCRooCA?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
+///
+
+Next we'll make use of MLTLLM's `Image` function to handle image inputs. This function allows us to pass images directly to the AI model for analysis. We'll use OpenAI's `gpt-4o-mini` model for this task.
+
+```jac
+# image_captioning.jac - Simple Image Captioning Tool
+import from mtllm { Model, Image }
+
+glob llm = Model(model_name="gpt-4o-mini");
+
+"""Generate a detailed caption for the given image."""
+def caption_image(image: Image) -> str by llm();
+
+with entry {
+    caption = caption_image(Image("photo.jpg"));
+    print(caption);
+}
+```
+<br />
+Now we can run our Jac code to generate a caption for the image:
+```console
+$ jac run image_captioning.jac
+
+A stylish French Bulldog poses confidently against a vibrant yellow backdrop,
+showcasing its trendy black and yellow hoodie emblazoned with "WOOF." The pup's
+playful demeanor is accentuated by a shiny gold chain draped around its neck,
+adding a touch of flair to its outfit. With its adorable large ears perked up
+and tongue playfully sticking out, this fashion-forward canine is ready to steal
+the spotlight and capture hearts with its charm and personality.
+```
+<br />
 
 ## Model Declaration and Configuration
+---
+MTLLM supports various AI models through the unified `Model` interface. For example, you can load multiple models like OpenAI's GPT-4, Google's Gemini, or any other compatible model in the same way. This allows you to switch between models easily without changing your code structure.
 
-MTLLM supports various AI models through a unified interface. Let's start with basic model configuration and gradually build our image captioning tool.
+```jac
+# basic_setup.jac
+import from mtllm { Model, Image }
 
-### Basic Model Setup
-
-!!! example "Model Configuration"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # basic_setup.jac
-        import from mtllm.llms { OpenAI, Gemini }
-
-        # Configure different models
-        glob text_model = OpenAI(model_name="gpt-4o");
-        glob vision_model = OpenAI(model_name="gpt-4-vision-preview");
-        glob gemini_model = Gemini(model_name="gemini-2.0-flash");
-
-        """Analyze text sentiment."""
-        def analyze_sentiment(text: str) -> str by text_model();
-
-        """Generate image description."""
-        def describe_image(image_path: str) -> str by vision_model();
-
-        with entry {
-            # Test text analysis
-            sentiment = analyze_sentiment("I love learning Jac programming!");
-            print(f"Sentiment: {sentiment}");
-
-            # Test image description
-            description = describe_image("sample.jpg");
-            print(f"Image: {description}");
-        }
-        ```
-        </div>
-
-    === "Python Equivalent"
-        ```python
-        # basic_setup.py - Manual model management
-        import openai
-        from google import generativeai as genai
-
-        class ModelManager:
-            def __init__(self):
-                self.openai_client = openai.OpenAI(api_key="your-key")
-                genai.configure(api_key="your-gemini-key")
-                self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
-
-            def analyze_sentiment(self, text):
-                response = self.openai_client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": "Analyze the sentiment of the text."},
-                        {"role": "user", "content": text}
-                    ]
-                )
-                return response.choices[0].message.content
-
-            def describe_image(self, image_path):
-                # Complex image encoding and API calls required
-                pass
-
-        # Usage requires manual instantiation and management
-        manager = ModelManager()
-        sentiment = manager.analyze_sentiment("I love learning!")
-        ```
+# Configure different models
+glob text_model = Model(model_name="gpt-4o");
+glob vision_model = Model(model_name="gpt-4-vision-preview");
+glob gemini_model = Model(model_name="gemini-2.0-flash");
+```
+<br />
 
 ### Model Configuration Options
+The `Model` class allows you to configure various parameters for your AI model, such as temperature, max tokens, and more. Here's an example of how to set up a model with custom parameters:
 
-!!! example "Advanced Model Configuration"
-    <div class="code-block">
-    ```jac
-    # model_config.jac
-    import from mtllm.llms { OpenAI }
+```jac
+import from mtllm { Model, Image }
 
-    # Configure model with custom parameters
-    glob creative_model = OpenAI(
-        model_name="gpt-4o",
-        temperature=0.9,  # More creative
-        max_tokens=500,
-        verbose=True      # Show prompts for debugging
-    );
+# Configure model with custom parameters
+glob creative_model = Model(
+    model_name="gpt-4.1-mini",
+    temperature=0.9,  # More creative
+    max_tokens=500,
+    verbose=True      # Show prompts for debugging
+);
+```
+<br />
+Below is a breakdown of the parameters you can configure when creating a `Model` instance:
 
-    glob precise_model = OpenAI(
-        model_name="gpt-4o",
-        temperature=0.1,  # More deterministic
-        max_tokens=200
-    );
+| Parameter         | Purpose / Description                                                                                      | Default Value / Example                     |
+|-------------------|-----------------------------------------------------------------------------------------------------------|---------------------------------------------|
+| `model`           | Specifies the name of the language model to use (e.g., "gpt-3.5-turbo", "claude-3-sonnet-20240229").      | Required (set during initialization)        |
+| `api_base`        | Sets the base URL for the API endpoint. Used to override the default endpoint for the model provider.      | Optional                                   |
+| `messages`        | List of formatted message objects (system/user/assistant) for the LLM prompt.                             | Required (built from function call context) |
+| `tools`           | List of tool definitions for function/tool calls the LLM can invoke.                                       | Optional                                   |
+| `response_format` | Specifies the output schema or format expected from the model (e.g., JSON schema, plain text).             | Optional                                   |
+| `temperature`     | Controls randomness/creativity of the model output (higher = more random).                                 | 0.7 (if not explicitly set)                 |
+| `max_tokens`      | Maximum number of tokens in the generated response. (Commented out; can be enabled)                        | 100 (if enabled and not set)                |
+| `top_k`           | Limits sampling to the top K probable tokens. (Commented out; can be enabled)                              | 50 (if enabled and not set)                 |
+| `top_p`           | Controls token selection by probability sum (nucleus sampling). (Commented out; can be enabled)            | 0.9 (if enabled and not set)                |
 
-    """Generate creative story from image."""
-    def create_story(image_path: str) -> str by creative_model();
+Here we have a simple example of how to use the `Model` class to create a model instance with custom parameters:
+```jac
+# model_config.jac
+import from mtllm { Model, Image }
 
-    """Extract factual information from image."""
-    def extract_facts(image_path: str) -> str by precise_model();
-    ```
-    </div>
+# Configure model with custom parameters
+glob creative_model = Model(
+    model_name="gpt-4.1-mini",
+    temperature=0.9,  # More creative
+    max_tokens=500,
+    verbose=True      # Show prompts for debugging
+);
 
+glob precise_model = Model(
+    model_name="gpt-4.1-mini",
+    temperature=0.1,  # More deterministic
+    max_tokens=200
+);
+
+"""Generate creative story from image."""
+def create_story(image: Image) -> str by creative_model();
+
+"""Extract factual information from image."""
+def extract_facts(image: Image) -> str by precise_model();
+
+
+with entry {
+    # Example usage
+    story = create_story(Image("photo.jpg"));
+    print("Creative Story:", story);
+
+    facts = extract_facts(Image("photo.jpg"));
+    print("Extracted Facts:", facts);
+}
+```
+<br />
+
+
+
+## Updating the Image Captioning Tool
 ---
-
-## Building the Image Captioning Tool
-
 Let's progressively build an image captioning tool that demonstrates MTLLM's capabilities.
 
-### Simple Image Caption Generator
+```jac
+# image_captioner.jac
+import from mtllm { Model, Image }
 
-!!! example "Basic Image Captioning"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # image_captioner.jac
-        import from mtllm.llms { OpenAI }
+glob vision_llm = Model(model_name="gpt-4o-mini");
 
-        glob vision_llm = OpenAI(model_name="gpt-4-vision-preview");
+obj ImageCaptioner {
+    has name: str;
 
-        obj ImageCaptioner {
-            has name: str;
+    """Generate a brief, descriptive caption for the image."""
+    def generate_caption(image: Image) -> str by vision_llm();
 
-            """Generate a brief, descriptive caption for the image."""
-            def generate_caption(image_path: str) -> str by vision_llm();
+    """Extract specific objects visible in the image."""
+    def identify_objects(image: Image) -> list[str] by vision_llm();
 
-            """Extract specific objects visible in the image."""
-            def identify_objects(image_path: str) -> list[str] by vision_llm();
+    """Determine the mood or atmosphere of the image."""
+    def analyze_mood(image: Image) -> str by vision_llm();
+}
 
-            """Determine the mood or atmosphere of the image."""
-            def analyze_mood(image_path: str) -> str by vision_llm();
-        }
+with entry {
+    captioner = ImageCaptioner(name="AI Photo Assistant");
+    image = Image("photo.jpg");
 
-        with entry {
-            captioner = ImageCaptioner(name="AI Photo Assistant");
+    # Generate basic caption
+    caption = captioner.generate_caption(image);
+    print(f"Caption: {caption}");
 
-            # Generate basic caption
-            caption = captioner.generate_caption("nature_photo.jpg");
-            print(f"Caption: {caption}");
+    # Identify objects
+    objects = captioner.identify_objects(image);
+    print(f"Objects found: {objects}");
 
-            # Identify objects
-            objects = captioner.identify_objects("nature_photo.jpg");
-            print(f"Objects found: {objects}");
+    # Analyze mood
+    mood = captioner.analyze_mood(image);
+    print(f"Mood: {mood}");
+}
+```
+<br />
 
-            # Analyze mood
-            mood = captioner.analyze_mood("nature_photo.jpg");
-            print(f"Mood: {mood}");
-        }
-        ```
-        </div>
+```console
+$ jac run image_captioner.jac
 
-    === "Python Equivalent"
-        ```python
-        # image_captioner.py - Complex implementation required
-        import openai
-        import base64
+Caption: A stylish French Bulldog poses confidently in a black and yellow "WOOF" sweatshirt,
+accessorized with a chunky gold chain against a vibrant yellow backdrop.
 
-        class ImageCaptioner:
-            def __init__(self, name, api_key):
-                self.name = name
-                self.client = openai.OpenAI(api_key=api_key)
+Objects found: ['dog', 'sweater', 'chain', 'yellow background']
 
-            def _encode_image(self, image_path):
-                with open(image_path, "rb") as image_file:
-                    return base64.b64encode(image_file.read()).decode('utf-8')
-
-            def generate_caption(self, image_path):
-                base64_image = self._encode_image(image_path)
-                response = self.client.chat.completions.create(
-                    model="gpt-4-vision-preview",
-                    messages=[{
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "Generate a brief, descriptive caption for the image."},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                        ]
-                    }]
-                )
-                return response.choices[0].message.content
-
-            def identify_objects(self, image_path):
-                # Similar complex implementation
-                pass
-
-            def analyze_mood(self, image_path):
-                # Similar complex implementation
-                pass
-
-        # Usage
-        captioner = ImageCaptioner("AI Assistant", "your-api-key")
-        caption = captioner.generate_caption("photo.jpg")
-        ```
-
----
+Mood: The mood of the image is playful and cheerful. The bright yellow background and
+the stylish outfit of the dog contribute to a fun and lighthearted atmosphere.
+```
+<br />
 
 ## Semantic Strings and Context Enhancement
-
-Semantic strings (`sem`) provide additional context to AI functions without cluttering your code. They're particularly useful for domain-specific applications.
-
-### Enhanced Captioning with Context
-
-!!! example "Context-Enhanced Captioning"
-    <div class="code-block">
-    ```jac
-    # enhanced_captioner.jac
-    import from mtllm.llms { OpenAI }
-
-    glob vision_llm = OpenAI(model_name="gpt-4-vision-preview");
-
-    obj PhotoAnalyzer {
-        has photographer_name: str;
-        has style_preference: str;
-    }
-
-    # Add semantic context for better AI understanding
-    sem PhotoAnalyzer = "Professional photo analysis tool for photographers";
-    sem PhotoAnalyzer.photographer_name = "Name of the photographer for personalized analysis";
-    sem PhotoAnalyzer.style_preference = "Preferred photography style (artistic, documentary, commercial)";
-
-    obj PhotoAnalyzer {
-        """Generate caption considering photographer's style preference."""
-        def generate_styled_caption(image_path: str) -> str by vision_llm(incl_info=(self.style_preference));
-
-        """Provide technical photography feedback."""
-        def analyze_composition(image_path: str) -> dict by vision_llm();
-
-        """Suggest improvements for the photo."""
-        def suggest_improvements(image_path: str) -> list[str] by vision_llm(incl_info=(self.photographer_name, self.style_preference));
-    }
-
-    with entry {
-        analyzer = PhotoAnalyzer(
-            photographer_name="Alice",
-            style_preference="artistic"
-        );
-
-        # Generate styled caption
-        caption = analyzer.generate_styled_caption("portrait.jpg");
-        print(f"Styled caption: {caption}");
-
-        # Analyze composition
-        composition = analyzer.analyze_composition("portrait.jpg");
-        print(f"Composition analysis: {composition}");
-
-        # Get improvement suggestions
-        suggestions = analyzer.suggest_improvements("portrait.jpg");
-        print(f"Suggestions: {suggestions}");
-    }
-    ```
-    </div>
-
 ---
+**Semantic strings** provide additional context to AI functions via the `sem` keyword, allowing for more nuanced understanding without cluttering your code. They're particularly useful for domain-specific applications.
 
-## Multimodal AI Integration
+```jac
+# enhanced_captioner.jac
+import from mtllm { Model, Image }
 
-MTLLM excels at handling multiple types of media. Let's extend our tool to handle both images and audio.
+glob vision_llm = Model(model_name="gpt-4.1-mini");
 
-### Multi-Modal Caption Tool
+obj PhotoAnalyzer {
+    has photographer_name: str;
+    has style_preference: str;
+    has image: Image;
+}
 
-!!! example "Image and Audio Processing"
-    <div class="code-block">
-    ```jac
-    # multimodal_tool.jac
-    import from mtllm.llms { OpenAI }
+# Add semantic context for better AI understanding
+sem PhotoAnalyzer = "Professional photo analysis tool for photographers";
+sem PhotoAnalyzer.photographer_name = "Name of the photographer for personalized analysis";
+sem PhotoAnalyzer.style_preference = "Preferred photography style (artistic, documentary, commercial)";
 
-    glob multimodal_llm = OpenAI(model_name="gpt-4o");
 
-    obj MediaAnalyzer {
-        has analysis_mode: str = "detailed";
+"""Generate caption considering photographer's style preference."""
+def generate_styled_caption(pa: PhotoAnalyzer) -> str by vision_llm(incl_info=(pa.style_preference));
 
-        """Generate caption for image with contextual understanding."""
-        def caption_image(image_path: str, context: str = "") -> str by multimodal_llm();
+"""Provide technical photography feedback."""
+def analyze_composition(pa: PhotoAnalyzer) -> list[str] by vision_llm();
 
-        """Transcribe and summarize audio content."""
-        def process_audio(audio_path: str) -> dict by multimodal_llm();
+"""Suggest improvements for the photo."""
+def suggest_improvements(pa: PhotoAnalyzer) -> list[str] by vision_llm(incl_info=(pa.photographer_name, pa.style_preference));
 
-        """Generate alt text for accessibility."""
-        def generate_alt_text(image_path: str) -> str by multimodal_llm();
 
-        """Create social media description."""
-        def create_social_post(image_path: str, platform: str) -> str by multimodal_llm(incl_info=(self.analysis_mode));
-    }
+with entry {
+    analyzer = PhotoAnalyzer(
+        photographer_name="Alice",
+        style_preference="artistic",
+        image=Image("photo.jpg")
+    );
 
-    with entry {
-        analyzer = MediaAnalyzer(analysis_mode="social_media");
+    # Generate styled caption
+    caption = generate_styled_caption(analyzer);
+    print(f"Styled caption: {caption}");
 
-        # Process different media types
-        image_caption = analyzer.caption_image(
-            "vacation_photo.jpg",
-            "Family vacation at the beach"
-        );
-        print(f"Image caption: {image_caption}");
+    # Analyze composition
+    composition = analyze_composition(analyzer);
+    print(f"Composition analysis: {composition}");
 
-        # Generate accessible alt text
-        alt_text = analyzer.generate_alt_text("vacation_photo.jpg");
-        print(f"Alt text: {alt_text}");
-
-        # Create platform-specific content
-        instagram_post = analyzer.create_social_post("vacation_photo.jpg", "Instagram");
-        print(f"Instagram post: {instagram_post}");
-
-        # Process audio if available
-        try {
-            audio_summary = analyzer.process_audio("interview.mp3");
-            print(f"Audio summary: {audio_summary}");
-        } except Exception as e {
-            print(f"Audio processing not available: {e}");
-        }
-    }
-    ```
-    </div>
-
-### Advanced Multimodal Features
-
-!!! example "Content Generation Pipeline"
-    <div class="code-block">
-    ```jac
-    # content_pipeline.jac
-    import from mtllm.llms { OpenAI }
-
-    glob content_llm = OpenAI(model_name="gpt-4o", temperature=0.7);
-
-    obj ContentCreator {
-        has brand_voice: str;
-        has target_audience: str;
-
-        """Analyze image and generate marketing copy."""
-        def create_marketing_copy(image_path: str, product_name: str) -> dict by content_llm(
-            incl_info=(self.brand_voice, self.target_audience)
-        );
-
-        """Generate multiple caption variations."""
-        def generate_variations(image_path: str, count: int = 3) -> list[str] by content_llm();
-
-        """Create SEO-optimized description."""
-        def optimize_for_seo(image_path: str, keywords: list[str]) -> str by content_llm();
-    }
-
-    with entry {
-        creator = ContentCreator(
-            brand_voice="friendly and professional",
-            target_audience="young professionals"
-        );
-
-        # Generate marketing content
-        marketing_content = creator.create_marketing_copy(
-            "product_photo.jpg",
-            "EcoWater Bottle"
-        );
-        print(f"Marketing copy: {marketing_content}");
-
-        # Generate multiple variations
-        variations = creator.generate_variations("product_photo.jpg", count=5);
-        for (i, variation) in enumerate(variations) {
-            print(f"Variation {i+1}: {variation}");
-        }
-
-        # SEO optimization
-        seo_description = creator.optimize_for_seo(
-            "product_photo.jpg",
-            ["eco-friendly", "water bottle", "sustainable"]
-        );
-        print(f"SEO description: {seo_description}");
-    }
-    ```
-    </div>
-
----
+    # Get improvement suggestions
+    suggestions = suggest_improvements(analyzer);
+    print(f"Suggestions: {suggestions}");
+}
+```
+<br />
 
 ## Testing and Error Handling
-
+---
 AI applications require robust error handling and testing strategies.
 
 ### Robust AI Integration
 
-!!! example "Error-Resilient AI Functions"
-    <div class="code-block">
-    ```jac
-    # robust_ai.jac
-    import from mtllm.llms { OpenAI }
+```jac
+# robust_ai.jac
+import from mtllm { Model, Image }
 
-    glob reliable_llm = OpenAI(model_name="gpt-4o", max_tries=3);
+glob reliable_llm = Model(model_name="gpt-4o", max_tries=3);
 
-    obj RobustCaptioner {
-        has fallback_enabled: bool = True;
+obj RobustCaptioner {
+    has fallback_enabled: bool = True;
 
-        """Generate caption with error handling."""
-        def safe_caption(image_path: str) -> dict {
-            try {
-                caption = self.generate_caption_ai(image_path);
+    """Generate caption with error handling."""
+    def safe_caption(image_path: str) -> dict {
+        try {
+            caption = self.generate_caption_ai(image_path);
+            return {
+                "success": True,
+                "caption": caption,
+                "source": "ai"
+            };
+        } except Exception as e {
+            if self.fallback_enabled {
+                fallback_caption = f"Image analysis unavailable for {image_path}";
                 return {
-                    "success": True,
-                    "caption": caption,
-                    "source": "ai"
+                    "success": False,
+                    "caption": fallback_caption,
+                    "source": "fallback",
+                    "error": str(e)
                 };
-            } except Exception as e {
-                if self.fallback_enabled {
-                    fallback_caption = f"Image analysis unavailable for {image_path}";
-                    return {
-                        "success": False,
-                        "caption": fallback_caption,
-                        "source": "fallback",
-                        "error": str(e)
-                    };
-                } else {
-                    raise e;
-                }
-            }
-        }
-
-        """AI-powered caption generation."""
-        def generate_caption_ai(image_path: str) -> str by reliable_llm();
-
-        """Validate generated content."""
-        def validate_caption(caption: str) -> bool {
-            # Basic validation rules
-            if len(caption) < 10 {
-                return False;
-            }
-            if "error" in caption.lower() {
-                return False;
-            }
-            return True;
-        }
-    }
-
-    with entry {
-        captioner = RobustCaptioner(fallback_enabled=True);
-
-        # Test with different scenarios
-        test_images = ["valid_photo.jpg", "corrupted.jpg", "missing.jpg"];
-
-        for image in test_images {
-            result = captioner.safe_caption(image);
-
-            if result["success"] {
-                is_valid = captioner.validate_caption(result["caption"]);
-                print(f"{image}: {result['caption']} (Valid: {is_valid})");
             } else {
-                print(f"{image}: Failed - {result['error']}");
+                raise e;
             }
         }
     }
-    ```
-    </div>
 
----
+    """AI-powered caption generation."""
+    def generate_caption_ai(image_path: str) -> str by reliable_llm();
+
+    """Validate generated content."""
+    def validate_caption(caption: str) -> bool {
+        # Basic validation rules
+        if len(caption) < 10 {
+            return False;
+        }
+        if "error" in caption.lower() {
+            return False;
+        }
+        return True;
+    }
+}
+
+with entry {
+    captioner = RobustCaptioner(fallback_enabled=True);
+
+    # Test with different scenarios
+    test_images = [
+        Image("valid_photo.jpg"),
+        Image("corrupted.jpg"),
+        Image("missing.jpg")
+    ];
+
+    for image in test_images {
+        result = captioner.safe_caption(image);
+
+        if result["success"] {
+            is_valid = captioner.validate_caption(result["caption"]);
+            print(f"{image}: {result['caption']} (Valid: {is_valid})");
+        } else {
+            print(f"{image}: Failed - {result['error']}");
+        }
+    }
+}
+```
+<br />
 
 ## Best Practices
-
+---
 !!! tip "AI Development Guidelines"
     - **Start Simple**: Begin with basic AI functions, add complexity gradually
     - **Use Semantic Strings**: Provide context without cluttering function signatures
