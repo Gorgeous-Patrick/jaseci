@@ -325,9 +325,15 @@ class Image(Media):
             if not os.path.exists(self.url):
                 raise ValueError(f"Image file does not exist: {self.url}")
             image = open_image(self.url)
-            self.mime_type = mimetypes.types_map.get(
-                "." + (image.format or "png").lower()
-            )
+
+            # python<3.13 mimetypes doesn't support `webp` format as it wasn't an IANA standard
+            # until November 2024 (RFC-9649:  https://www.rfc-editor.org/rfc/rfc9649.html).
+            if (image.format and image.format.lower()) == "webp":
+                self.mime_type = "image/webp"
+            else:
+                self.mime_type = mimetypes.types_map.get(
+                    "." + (image.format or "png").lower()
+                )
             with BytesIO() as buffer:
                 image.save(buffer, format=image.format, quality=100)
                 base64_image = base64.b64encode(buffer.getvalue()).decode("utf-8")

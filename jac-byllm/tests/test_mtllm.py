@@ -161,6 +161,18 @@ class JacLanguageTests(TestCase):
         except Exception:
             self.skipTest("This test requires Pillow to be installed.")
 
+    def test_webp_image_support(self):
+        """Test MTLLLM image support for webp format."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        jac_import("webp_support_test", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn( "full_name='Albert Einstein'", stdout_value)
+        self.assertIn( "year_of_death='1955'", stdout_value)
+
+
+
     def test_with_llm_video(self) -> None:
         """Test MTLLLM Video Implementation."""
         try:
