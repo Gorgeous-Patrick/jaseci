@@ -1629,8 +1629,8 @@
                         <span class="stat-label">Forks</span>
                     </div>
                     <div class="stat-item animated-stat">
-                        <span class="stat-number" data-count="2025">2025</span>
-                        <span class="stat-label">Launch</span>
+                        <span class="stat-number" id="github-contributors">--</span>
+                        <span class="stat-label">Contributors</span>
                     </div>
                 </div>
 
@@ -2322,14 +2322,17 @@
                     if (stats) {
                         document.querySelectorAll('#github-stars').forEach(el => el.textContent = stats.stars);
                         document.querySelectorAll('#github-forks').forEach(el => el.textContent = stats.forks);
+                        document.querySelectorAll('#github-contributors').forEach(el => el.textContent = stats.total_contributors);
                     } else {
                         document.querySelectorAll('#github-stars').forEach(el => el.textContent = 'N/A');
                         document.querySelectorAll('#github-forks').forEach(el => el.textContent = 'N/A');
+                        document.querySelectorAll('#github-contributors').forEach(el => el.textContent = 'N/A');
                     }
                 })
                 .catch(() => {
                     document.querySelectorAll('#github-stars').forEach(el => el.textContent = 'N/A');
                     document.querySelectorAll('#github-forks').forEach(el => el.textContent = 'N/A');
+                    document.querySelectorAll('#github-contributors').forEach(el => el.textContent = 'N/A');
                 });
         });
     </script>
