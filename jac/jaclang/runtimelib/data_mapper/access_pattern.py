@@ -51,9 +51,9 @@ def get_access_pattern_single_walker_one_run(
     bb_tail = start_node.get_tail()
     node = start_node
     while True:
-        print(
-            f"{node.unparse()} --> len: {len(node.bb_out)}: {[code.unparse() for code in node.bb_out]}"
-        )
+        # print(
+        #     f"{node.unparse()} --> len: {len(node.bb_out)}: {[code.unparse() for code in node.bb_out]}"
+        # )
         if isinstance(node, uni.VisitStmt):
             visit_restriction = get_visit_restriction_of_single_visit(node)
             # print(f"Visit Restriction: {visit_restriction}")
@@ -66,7 +66,7 @@ def get_access_pattern_single_walker_one_run(
         else:
             node = node.bb_out[0]
 
-    print("End of BB")
+    # print("End of BB")
     if len(node.bb_out) == 0:
         return res
     accumulated: SymbolicVisitPossibilities = []
@@ -140,13 +140,13 @@ def get_access_pattern_single_walker(
         .value: ability
         for ability in abilities
     }
-    for i in range(100):
-        print(f"Iteration: {i}")
+    for _ in range(100):
+        # print(f"Iteration: {i}")
         new_possible_states: list[SymbolicWalkerState] = []
         # print(len(possible_states))
         for possible_state in possible_states:
             possible_visits = get_next_possible_visits(possible_state, flows, network)
-            print(f"Possibilities: {possible_visits}")
+            # print(f"Possibilities: {possible_visits}")
             new_possible_states = (
                 new_possible_states
                 + possible_state.new_possible_states(possible_visits)
