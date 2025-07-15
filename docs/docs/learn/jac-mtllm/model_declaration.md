@@ -117,4 +117,4 @@ The llm model is defined in these examples which can be intialized with specific
 > - If the coder wants to visualize the prompts during inference, enable verbose by adding ```verbose = True``` as an argument when defining the LLM.
 > - Passing eny parameter such as a model hyperparameter such as "temperature" can be passed into the llm as keyword arguments.
 
-This approach allows for the initialization of the desired model as a model code construct with a specific name (in this case, `llm`), facilitating its integration into code. -->
+This approach allows for the initialization of the desired model as a model code construct with a specific name (in this case, `llm`), facilitating its integration into code.

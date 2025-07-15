@@ -1,520 +1,259 @@
-# Chapter 2: Setting Up Your Jac Environment
+# 1. Starting Jac, Variables and Types
+---
+Getting started with Jac is straightforward - you'll have your development environment ready and your first program running in just a few minutes. This chapter covers installation, IDE setup, and writing your first Jac programs.
 
-## 2.1 Installation and Setup
 
-Getting started with Jac is straightforward, especially for Python developers and integrates well with familiar development tools.
+> Jac builds on Python's ecosystem while adding powerful new features. You'll need Python 3.12+ and can use any text editor, though VS Code provides the best experience with syntax highlighting and debugging tools.
 
-### Installing Jac Compiler and Runtime
+## Installation and IDE Setup
+---
+### System Requirements
+- Python 3.12 or higher
+- pip package manager
+- 4GB RAM minimum (8GB recommended)
+- 500MB storage for Jac and dependencies
 
-#### Method 1: Using pip (Recommended)
+
+### Installing Jac
+Installing Jac is as simple as installing any Python package:
+
+#### Quick Install via pip
 
 ```bash
-# Install the latest stable version
-pip install jaclang
+# Install Jac from PyPI
+$ pip install jaclang
 
 # Verify installation
-jac --version
-# Output: Jac 0.7.19 (or current version)
+$ jac --version
 ```
+<br />
 
-#### Method 2: From Source
+#### Via Virtual Environment (Recommended)
 
-```bash
-# Clone the repository
-git clone https://github.com/jaseci-labs/jaseci.git
-cd jaseci/jac
+For project isolation, consider using a virtual environment:
 
-# Install in development mode
-pip install -e .
-
-# Run tests to verify
-python -m pytest
-```
-
-### System Requirements
-
-- **Python**: 3.10 or higher (Jac compiles to Python)
-- **Memory**: 4GB RAM minimum, 8GB recommended
-- **OS**: Linux, macOS, Windows (WSL recommended)
-- **Storage**: 500MB for Jac + dependencies
-
-### IDE Support and Extensions
-
-#### Visual Studio Code (Recommended)
-
-Install the official Jac extension for syntax highlighting, auto-completion, and debugging:
-
-```bash
-# Install via VS Code marketplace
-code --install-extension jaseci.jac-lang
-```
-
-**Features:**
-- Syntax highlighting for `.jac` files
-- IntelliSense for Jac keywords and types
-- Integrated debugging support
-- Graph visualization for nodes and edges
-- Automatic formatting
-
-#### JetBrains IDEs (PyCharm, IntelliJ)
-
-```xml
-<!-- Add to your .idea/fileTypes.xml -->
-<component name="FileTypeManager">
-  <extensionMap>
-    <mapping pattern="*.jac" type="Python" />
-    <mapping pattern="*.impl.jac" type="Python" />
-    <mapping pattern="*.test.jac" type="Python" />
-  </extensionMap>
-</component>
-```
-
-#### Vim/Neovim
-
-```vim
-" Add to your .vimrc or init.vim
-autocmd BufRead,BufNewFile *.jac set filetype=python
-autocmd BufRead,BufNewFile *.jac set syntax=python
-
-" Better: Install jac.vim plugin
-Plug 'jaseci-labs/jac.vim'
-```
-
-#### Project Structure Conventions
-
-Jac projects follow a structured organization that supports its unique features like implementation separation:
-
-```
-my-jac-project/
-│
-├── src/
-│   ├── main.jac                 # Main entry point
-│   ├── models/
-│   │   ├── user.jac            # User node definition
-│   │   ├── user.impl.jac       # User implementation
-│   │   └── user.test.jac       # User tests
-│   │
-│   ├── walkers/
-│   │   ├── auth.jac            # Authentication walkers
-│   │   └── auth.impl/          # Implementation folder
-│   │       ├── login.impl.jac
-│   │       └── register.impl.jac
-│   │
-│   └── edges/
-│       └── relationships.jac    # Edge definitions
-│
-├── tests/
-│   ├── integration/
-│   └── unit/
-│
-├── data/                        # Persistent data (auto-generated)
-│   └── .jac_db/                # Jac's persistence layer
-│
-├── jac.toml                     # Project configuration
-└── README.md
-```
-
-#### jac.toml Configuration
-
-```toml
-[project]
-name = "my-jac-project"
-version = "0.1.0"
-description = "A Jac application"
-
-[runtime]
-persist_path = "./data/.jac_db"
-log_level = "INFO"
-enable_distributed = false
-
-[build]
-target = "optimized"  # or "debug"
-include_tests = false
-
-[dependencies]
-# External Jac modules
-```
-
-#### Environment Setup
-
-##### Development Environment Variables
-
-```bash
-# .env file
-JAC_PERSIST_PATH=./data/.jac_db
-JAC_LOG_LEVEL=DEBUG
-JAC_USER_CONTEXT=development
-JAC_ENABLE_METRICS=true
-```
-
-##### Python Virtual Environment (Recommended)
+**Linux/MacOS**
 
 ```bash
 # Create virtual environment
+$ python -m venv jac-env
+
+# Activate it (Linux/Mac)
+$ source jac-env/bin/activate
+
+# Install Jac
+$ pip install jaclang
+```
+<br />
+
+**Windows**
+```powershell
+# Create virtual environment
 python -m venv jac-env
 
-# Activate it
-source jac-env/bin/activate
+# Activate it (Windows)
+jac-env\Scripts\activate
 
-
-# Install Jac in the virtual environment
+# Install Jac
 pip install jaclang
 ```
+<br />
 
-## 2.2 Your First Jac Program
+### VS Code Extension
+For the best development experience, install the Jac VS Code extension:
 
-Let's create your first Jac program and understand the key differences from Python.
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "Jac"
+4. Install the official Jac extension
 
-### Hello World Comparison: Python vs Jac
+Alternatively, visit the [VS Code marketplace](https://marketplace.visualstudio.com/items?itemName=jaseci-labs.jaclang-extension) directly.
 
-#### Python Version
+The extension provides:
 
-```python
-# hello.py
-def greet(name):
-    return f"Hello, {name}!"
+- Syntax highlighting for Jac-specific constructs
+- Error detection and type checking
+- Code formatting and snippets
+- Graph visualization for nodes and edges
 
-if __name__ == "__main__":
-    message = greet("World")
-    print(message)
+### Basic CLI Commands
+Jac provides a simple command-line interface (CLI) for running scripts and managing projects. This cli provides developers the ability to either run scripts locally for testing or [even serve them as web applications](../chapter_12). Here are the most common commands:
+```bash
+# Run a Jac file
+$ jac run filename.jac
+
+# Get help
+$ jac --help
+
+# Serve as web application (advanced)
+$ jac serve filename.jac
 ```
+<br />
 
-#### Jac Version
-
-<div class="code-block">
+## Hello World in Jac
+---
+Let's start with the traditional first program:
 
 ```jac
 # hello.jac
-def greet(name:str) {
-    return f"Hello, {name}!";
-}
-
 with entry {
-    message = greet("World");
-    print(message);
+    print("Hello, Jac World!");
 }
 ```
-</div>
+<br />
 
-
-##### Key differences:
-1. **Type annotations**: Required in Jac (`name: str`)
-2. **Semicolons**: Required for statements
-3. **Entry point**: `with entry` instead of `if __name__ == "__main__"`
-4. **Curly braces**: Instead of indentation
-
-### Understanding Entry Blocks
-
-Entry blocks are Jac's way of organizing executable code at the module level:
-
-<div class="code-block">
-
-```jac
-# Imports (similar to Python)
-import from datetime { datetime }
-import random;
-
-# Global variables must be declared
-glob start_time: str = datetime.now().isoformat();
-
-# Function definitions
-def setup_application() -> bool {
-    print(f"Application started at {start_time}");
-    return True;
-}
-
-# Classes (called objects in Jac)
-obj Application {
-    has name: str;
-    has version: str = "1.0.0";
-
-    def display_info {
-        print(f"{self.name} v{self.version}");
-    }
-}
-
-# Entry block - code that runs when module executes
-with entry {
-    print("=== Jac Module Demo ===");
-
-    if setup_application() {
-        app = Application(name="MyApp");
-        app.display_info();
-    }
-}
-```
-</div>
-
-
-### Your First Object-Spatial Program
-Let's create a simple but complete object-spatial program:
-
-<div class="code-block">
-
-```jac
-# social_hello.jac
-# Define a Person node
-node Person {
-    has name: str;
-    has joined: str;
-}
-
-# Define a Knows edge
-edge Knows {
-    has since: str;
-}
-
-# Define a Greeter walker
-walker Greeter {
-    has greeting_count: int = 0;
-
-    # Ability triggered when entering a Person node
-    can greet with Person entry {
-        print(f"Hello, {here.name}! You joined on {here.joined}");
-        self.greeting_count += 1;
-
-        # Visit all people this person knows
-        visit [->:Knows:->];
-    }
-
-    # Ability triggered when walker finishes
-    can summarize with `root exit {
-        print(f"Greeted {self.greeting_count} people total!");
-    }
-}
-
-# Main program
-with entry {
-    # Create a small social network
-    person1 = Person(name="Alice", joined="2024-01-15");
-    person2 = Person(name="Bob", joined="2024-02-20");
-    person3 = Person(name="Charlie", joined="2024-03-10");
-
-    # Create relationships
-    person1 +>:Knows(since="2024-02-01"):+> person2;
-    person2 +>:Knows(since="2024-03-01"):+> person3;
-
-    # Spawn walker to greet everyone
-    greeter = Greeter();
-    greeter spawn person1;
-}
-```
-</div>
-
-#### Running Jac Programs
-
-##### Basic Execution
-
+Run your first Jac program:
 ```bash
-# Run a Jac file
-jac run social_hello.jac
+$ jac run hello.jac
+Hello, Jac World!
 ```
+<br />
 
-##### Interactive Mode (REPL)
+## Entry Blocks and Basic Execution
+---
+The `with entry` block is Jac's equivalent to Python's `if __name__ == "__main__":` - it defines where program execution begins.
 
-```bash
-# Start Jac REPL
-jac
-
-# In the REPL:
-> x = 42;
-> print(x * 2);
-84
-> node TestNode { has value: int; }
-> n = TestNode(value=100);
-> print(n.value);
-100
-```
-
-#### Testing Your Programs
-
+### Single Entry Blocks
 ```jac
-# social_hello.test.jac
-
-test greet_function_works_correctly {
-    assert greet("Jac") == "Hello, Jac!";
-    assert greet("") == "Hello, !";
-}
-
-test greet_with_special_characters {
-    assert greet("世界") == "Hello, 世界!";
-    assert greet("O'Brien") == "Hello, O'Brien!";
-}
-
-# Run tests
-# Command: jac test social_hello.jac
-```
-
-### Building a Complete Example
-
-Let's build a simple todo list application that showcases basic Jac features:
-
-<div class="code-block">
-
-```jac
-# todo_app.jac
-import from datetime { datetime }
-import json;
-
-# Define our data structures
-node TodoList {
-    has name: str;
-    has created_at: str;
-}
-
-node TodoItem {
-    has title: str;
-    has created_at: str;
-    has completed: bool = False;
-    has due_date: str = "";
-
-}
-
-edge Contains{}
-edge NextItem{}
-
-# Walker to add new todos
-walker AddTodo {
-    has title: str;
-    has due_date: str = "";
-
-    can add with TodoList entry {
-        new_item = here +>:Contains:+> TodoItem(
-            title=self.title,
-            created_at=datetime.now().isoformat(),
-            due_date=self.due_date
-        );
-
-        # Link to previous items
-        last_item = [->:Contains:->(`?TodoItem)][-2:];
-        if last_item {
-            last_item[0] +>:NextItem:+> new_item;
-        }
-
-        report f"Added: {self.title}";
-    }
-}
-
-# Walker to list todos
-walker ListTodos {
-    has show_completed: bool = False;
-    has items: list = [];
-
-    can collect with TodoList entry {
-        temp = [->:Contains:->(`?TodoItem)];
-        for item in [->:Contains:->(`?TodoItem)] {
-            if not item.completed or self.show_completed {
-                self.items.append({
-                    "title": item.title,
-                    "completed": item.completed,
-                    "created": item.created_at,
-                    "due": item.due_date
-                });
-            }
-        }
-    }
-
-    can display with TodoList exit {
-        print("=== Todo List ===");
-        for (i, item) in enumerate(self.items) {
-            status = f"✓" if item["completed"] else f"○";
-            due = f" (due: {item['due']})" if item["due"] else "";
-            print(f"{i+1}. {status} {item['title']}{due}");
-        }
-        print(f"Total: {len(self.items)} items");
-    }
-}
-
-# Walker to complete todos
-walker CompleteTodo {
-    has item_index: int;
-
-    can complete with TodoList entry {
-        items = [->:Contains:->(`?TodoItem)];
-        if 0 <= self.item_index < len(items) {
-            items[self.item_index].completed = True;
-            report f"Completed: {items[self.item_index].title}";
-        } else {
-            report "Invalid item index!";
-        }
-    }
-}
-
-# Main program
+# Entry block - program starts here
 with entry {
-    # Create or get existing todo list
-    my_list = TodoList(
-        name="My Tasks",
-        created_at=datetime.now().isoformat()
-    );
-
-    # Example: Add some todos
-    AddTodo(title="Learn Jac basics", due_date="2024-12-31") spawn my_list;
-    AddTodo(title="Build first Jac app") spawn my_list;
-    AddTodo(title="Master object-spatial programming") spawn my_list;
-
-    # List all todos
-    ListTodos(show_completed=True) spawn my_list;
+    print("Hello single entry block!");
 }
 ```
-</div>
+<br />
 
-#### Running the Todo App
+### Multiple Entry Blocks
 
-```bash
-# First run - creates the list
-jac run todo_app.jac
+Jac allows multiple entry blocks that execute in order:
+
+```jac
+# First entry block
+with entry {
+    print("Hello first entry block!");
+}
+
+# Second entry block
+with entry {
+    print("Hello second entry block!");
+}
+
+# Third entry block
+with entry {
+    print("Hello third entry block!");
+}
 ```
+<br />
 
 
+## Variables, Types, and Basic Syntax
+---
+**Variables** are the building blocks of any programming language, and Jac is no exception. A variable is a named storage location that holds a value. The **type** of a variable determines what kind of values it can hold, such as numbers, words, or more complex structures.
 
-### Development Workflow
 
-```mermaid
-graph TD
-    A[Write Jac Code] --> B{Syntax Valid?}
-    B -->|No| C[Fix Syntax Errors]
-    C --> A
-    B -->|Yes| D[Run Tests]
-    D --> E{Tests Pass?}
-    E -->|No| F[Debug & Fix]
-    F --> A
-    E -->|Yes| G[Run Program]
-    G --> H{Works as Expected?}
-    H -->|No| I[Debug with Logging]
-    I --> A
-    H -->|Yes| J[Deploy/Share]
+**Jac enforces strong typing and explicit variable declarations**, ensuring that the types of all variables and function parameters are known at compile time. For example, if a function expects a `number`, it cannot be accidentally passed a `string`. Unlike Python, where type annotations are optional and often ignored at runtime, Jac requires type annotations across the board. This design choice eliminates a class of runtime type errors and improves both code clarity and maintainability, especially in large or complex projects.
 
-    style A fill:#1565C0,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style B fill:#37474F,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style C fill:#D32F2F,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style D fill:#388E3C,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style E fill:#be6400,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style F fill:#D32F2F,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style G fill:#00796B,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style H fill:#37474F,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style I fill:#F57C00,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
-    style J fill:#4CAF50,stroke:#FFFFFF,stroke-width:2px,color:#FFFFFF
+
+### Variable Declarations
+Variable declarations in Jac are similar to that of Python, but with mandatory type annotations.
+```jac
+with entry {
+    # Basic type annotations (mandatory)
+    student_name: str = "Alice";
+    grade: int = 95;
+    gpa: float = 3.8;
+    is_honor_student: bool = True;
+}
 ```
+<br />
 
-### Common Issues and Solutions
+A **literal** is a fixed value that can be assigned to a variable. Like Python, Jac's literals can either be a *string*, *integer*, *float*, or *boolean*. However, Jac introduces an additional literal of the type called **architype**. We briefly touched on architypes in the previous chapter (e.g. node, edges, walkers) and will explore them further in chapter 9, however, it is from these architypes that Jac derives a lof of its power and flexibility.
 
-| Issue | Solution |
-|-------|----------|
-| `ModuleNotFoundError` | Ensure Jac is installed: `pip install jaclang` |
-| `SyntaxError: Missing semicolon` | Add `;` at end of statements |
-| `TypeError: Missing type annotation` | Add type hints to all function parameters |
-| `RuntimeError: No entry point` | Add `with entry { ... }` block |
-| `PersistenceError` | Check write permissions for `JAC_PERSIST_PATH` |
 
-### Next Steps
+### Integers
+An integer is a whole number, positive or negative, without decimals. In Jac, integers are declared with the `int` type.
 
-Now that you have Jac installed and have written your first programs, you're ready to dive deeper into the language. In the next chapter, we'll explore how Jac's syntax relates to Python and learn about the enhanced features that make Jac powerful for modern application development.
+```jac
+with entry {
+    student_id: int = 12345;
+    print(student_id);
+}
+```
+<br />
 
-Try modifying the todo app to add new features:
-- Add priority levels to todos
-- Implement due date notifications
-- Create categories for todos
-- Add a search walker to find specific items
+### Floats
+A float is a number that has a decimal point. In Jac, floats are declared with the `float` type.
+```jac
+with entry {
+    gpa: float = 3.85;
+    print(gpa);
+}
+```
+<br />
 
-Remember: every Jac program you write is automatically persistent and ready for multi-user scenarios. The same todo app could serve thousands of users without any code changes - that's the power of scale-agnostic programming!
+### Strings
+Strings are sequences of characters enclosed in quotes. In Jac, strings are declared with the `str` type.
+
+```jac
+with entry {
+    student_name: str = "Alice Johnson";
+    print(f"Student Name: {student_name}");
+}
+```
+<br />
+
+The following line `print(f"Student Name: {student_name}");` uses an f-string to format the output, similar to Python's f-strings.
+
+### Booleans
+Booleans represent truth values: `True` or `False`. In Jac, booleans are declared with the `bool` type.
+```jac
+with entry {
+    is_enrolled: bool = True;
+    print(f"Is enrolled: {is_enrolled}");
+}
+```
+<br />
+
+
+
+
+### Any Type for Flexibility
+---
+For those that require flexibility in their variable types, Jac provides the `any` type. This allows you to store any data type in a single variable, similar to Python's dynamic typing.
+
+```jac
+with entry {
+    # Flexible grade storage
+    grade_data: any = 95;
+    print(f"Grade as number: {grade_data}");
+
+    grade_data = "A";  # Now a letter grade
+    print(f"Grade as letter: {grade_data}");
+}
+```
+<br />
+
+
+
+
+## Jac REPL
+---
+!!! warning "Warning"
+    Currently, the Jac REPL feature is not available. Please use standard Jac script execution for testing and running your code.
+
+## Wrapping Up
+---
+We've covered the basics of Jac, including installation, IDE setup, and writing your first program. You've learned about variables, types, and how to structure your code with entry blocks.
+This foundation will help you as we explore Jac's enhanced syntax and type system.
+
+
+!!! tip "Try It Yourself"
+    Practice the basics by creating:
+    - A simple temperature converter
+    - A basic inventory management system
+    - A calculator with different operations
+    - A text processing utility
+
+    Remember: Focus on proper typing and project structure from the beginning!
+
+---
+

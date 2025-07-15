@@ -23,8 +23,8 @@ from pydantic import ValidationError
 
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
-from ...core.archetype import NodeAnchor, NodeArchetype, WalkerAnchor
-from ...core.context import JaseciContext, PUBLIC_ROOT
+from ...core.archetype import AccessLevel, NodeAnchor, NodeArchetype, Root, WalkerAnchor
+from ...core.context import JaseciContext, PUBLIC_ROOT, PUBLIC_ROOT_ID
 from ...jaseci.dtos import (
     ChangeUserEvent,
     ChannelEvent,
@@ -306,15 +306,18 @@ async def connection_execution(websocket: WebSocket) -> None:
 
 @websocket_router.websocket("")
 async def websocket_endpoint(
-    websocket: WebSocket, channel_id: str | None = None
+    websocket: WebSocket, channel_id: str | None = None, auth: str | None = None
 ) -> None:
     """Websocket Endpoint."""
-    if not websocket_events:
-        await websocket.close()
-        return
-
-    if not authenticate_websocket(websocket):
-        websocket._root = PUBLIC_ROOT  # type: ignore[attr-defined]
+    if not authenticate_websocket(websocket, auth):
+        if not isinstance(
+            public_root := NodeAnchor.Collection.find_by_id(PUBLIC_ROOT_ID), NodeAnchor
+        ):
+            public_root = Root().__jac__
+            public_root.id = PUBLIC_ROOT_ID
+            public_root.access.all = AccessLevel.WRITE
+            public_root.persistent = True
+        websocket._root = public_root  # type: ignore[attr-defined]
 
     await WEBSOCKET_MANAGER.connect(websocket, channel_id)
     while True:

@@ -183,9 +183,11 @@ def authenticate_websocket(
 ) -> bool:
     """Authenticate websocket connection."""
     if (
-        authorization or (authorization := websocket.headers.get("Authorization"))
-    ) and authorization.lower().startswith("bearer"):
-        token = authorization[7:]
+        authorization
+        or ((authorization := websocket.headers.get("Authorization")))
+        and authorization.lower().startswith("bearer")
+    ):
+        token = authorization.split(" ", 1)[-1]
         decrypted = decrypt(token)
         if (
             decrypted

@@ -1,27 +1,15 @@
-import from mtllm.llms { FakeLLM }
+import from mtllm { Model }
 
-glob llm = FakeLLM(
-    print_prompt=True,
-    responses={
-      '\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Inputs_Information]\n(name) (str) = "Alex"\n\n[Output_Information]\n(str)\n\n[Action]\nGreet the user with the given name. (greet)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n':
-      '[Output] Hello there, Alex!',
-
-      '\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Inputs_Information]\n(text) (str) = "I love this product!"\n\n[Output_Information]\n(str)\n\n[Action]\nAnalyze the sentiment of the given text. (analyze_sentiment)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n':
-      '[Output] Strongly Positive',
-
-      '\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Inputs_Information]\n(text) (str) = "Hello world"\n(target_lang) (str) = "French"\n\n[Output_Information]\n(str)\n\n[Action]\nTranslate text to another language. (translate_text)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n':
-       '[Output] Bonjour le monde!',
-
-      '\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Inputs_Information]\n(arg) (int) = 42\n(arg) (str) = "foo"\n(arg) (float) = 3.14\n(arg) (list[int]) = [1]\n\n[Output_Information]\n(str)\n\n[Action]\nJust prints all the arguments passed to this function. (fn_with_more_args)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n':
-      '[Output] \n42\nfoo\n3.14\n[1]',
-
-      '\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Inputs_Information]\n(delimeter) (str) = \";\"\n(arg) (int) = 1\n(arg) (int) = 2\n(arg) (int) = 3\n(arg) (int) = 4\n(arg) (int) = 5\n\n[Output_Information]\n(str)\n\n[Action]\nJoin the given numbers with a specified delimiter. (delimeter_join)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n':
-      '[Output] 1;2;3;4;5',
-
-      '\n[System Prompt]\nThis is an operation you must perform and return the output values. Neither, the methodology, extra sentences nor the code are not needed.\nInput/Type formatting: Explanation of the Input (variable_name) (type) = value\n\n[Inputs_Information]\n(key) (str) = "foo"\n(value) (str) = "42"\n\n[Output_Information]\n(str)\n\n[Action]\nReturns the key value pair as a string like ex: {"key": "value"} (str_key_value_pair)\nGenerate and return the output result(s) only, adhering to the provided Type in the following format\n\n[Output] <result>\n':
-      '[Output] {"foo": "42"}',
-
-    }
+glob llm = Model(
+    model_name="mockllm",
+    outputs=[
+      'Hello there, Alex!',
+      'Strongly Positive',
+       'Bonjour le monde!',
+      '\n42\nfoo\n3.14\n[1]',
+      '1;2;3;4;5',
+      '{"foo": "42"}',
+    ]
 );
 
 

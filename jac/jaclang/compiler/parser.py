@@ -1226,14 +1226,16 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def while_stmt(self, _: None) -> uni.WhileStmt:
             """Grammar rule.
 
-            while_stmt: KW_WHILE expression code_block
+            while_stmt: KW_WHILE expression code_block else_stmt?
             """
             self.consume_token(Tok.KW_WHILE)
             condition = self.consume(uni.Expr)
             body = self.consume(list)
+            else_body = self.match(uni.ElseStmt)
             return uni.WhileStmt(
                 condition=condition,
                 body=self.extract_from_list(body, uni.CodeBlockStmt),
+                else_body=else_body,
                 kid=self.flat_cur_nodes,
             )
 
@@ -1376,19 +1378,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
             spatial_stmt: visit_stmt | ignore_stmt
             """
             return self.consume(uni.CodeBlockStmt)
-
-        def ignore_stmt(self, _: None) -> uni.IgnoreStmt:
-            """Grammar rule.
-
-            ignore_stmt: KW_IGNORE expression SEMI
-            """
-            self.consume_token(Tok.KW_IGNORE)
-            target = self.consume(uni.Expr)
-            self.consume_token(Tok.SEMI)
-            return uni.IgnoreStmt(
-                target=target,
-                kid=self.cur_nodes,
-            )
 
         def disenage_stmt(self, _: None) -> uni.DisengageStmt:
             """Grammar rule.

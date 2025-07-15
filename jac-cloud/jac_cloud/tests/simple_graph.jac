@@ -73,7 +73,11 @@ obj Parent(Child) {
 }
 
 node Nested {
-    has val: int, arr: list[int], data: dict[str, int], parent: Parent, enum_field: Enum;
+    has val: int, arr: list[int], data: dict[str, int], parent: Parent, enum_field: Enum, access: str | None = None;
+
+    def __jac_access__ {
+        return self.access;
+    }
 }
 
 obj Kid {
@@ -214,9 +218,37 @@ walker update_nested_node {
     }
 }
 
+walker update_nested_node_access {
+    has access: str | None = None;
+
+    can enter_nested with Nested entry {
+        here.access = self.access;
+        report here;
+    }
+}
+
 walker detach_nested_node {
     can enter_root with `root entry {
         report here del--> [-->(`?Nested)];
+    }
+}
+
+walker update_nested_node_trigger_save {
+    can enter_nested with Nested entry {
+        here.parent.child.data["c"] = 3;
+        here.parent.child.arr.append(3);
+        here.parent.child.val = 3;
+        here.parent.child.enum_field = Enum.A;
+        here.parent.data["b"] = 2;
+        here.parent.arr.append(2);
+        here.parent.val = 2;
+        here.parent.enum_field = Enum.C;
+        here.data["a"] = 1;
+        here.arr.append(1);
+        here.val = 1;
+        here.enum_field = Enum.B;
+        
+        _.save(here);
     }
 }
 
@@ -1018,11 +1050,16 @@ walker increment_counter {
 }
 
 walker trigger_counter_task {
+    has id: int;
+
     can enter with `root entry {
         tcs = [-->(`?TaskCounter)];
         if tcs {
             report create_task(increment_counter(val=1), tcs[0]);
         }
+
+        # Trigger walker save
+        self.__jac__.apply();
     }
 }
 

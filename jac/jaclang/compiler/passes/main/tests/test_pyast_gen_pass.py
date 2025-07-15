@@ -41,6 +41,93 @@ class PyastGenPassTests(TestCaseMicroSuite, AstSyncTestMixin):
 
         self.assertFalse(out.errors_had)
 
+    def test_sem_decorator(self) -> None:
+        """Test for @_.sem(...) decorator."""
+        code_gen = (out := JacProgram()).compile(
+            self.fixture_abs_path("codegen_sem.jac"),
+        )
+
+        # Function (full).
+        sym_fn1 = code_gen.lookup("fn1")
+        self.assertEqual(sym_fn1.semstr, "A function that takes two integers and returns nothing.")
+        self.assertEqual(sym_fn1.fetch_sym_tab.lookup("bar").semstr, "The first integer parameter.")
+
+        # Function (Missing baz)
+        sym_fn2 = code_gen.lookup("fn2")
+        self.assertEqual(sym_fn2.semstr, "A function that takes one integer and returns nothing.")
+        self.assertEqual(sym_fn2.fetch_sym_tab.lookup("bar").semstr, "The first integer parameter.")
+        self.assertEqual(sym_fn2.fetch_sym_tab.lookup("baz").semstr, "")
+
+        # Function (Without sem at all)
+        sym_fn3 = code_gen.lookup("fn3")
+        self.assertTrue(sym_fn3.semstr == "")
+        self.assertEqual(sym_fn3.fetch_sym_tab.lookup("bar").semstr, "")
+        self.assertEqual(sym_fn3.fetch_sym_tab.lookup("baz").semstr, "")
+
+        # Architype (with body).
+        sym_arch1 = code_gen.lookup("Arch1")
+        self.assertEqual(sym_arch1.semstr, "An object that contains two integer properties.")
+        self.assertEqual(sym_arch1.fetch_sym_tab.lookup("bar").semstr, "The first integer property.")
+        self.assertEqual(sym_arch1.fetch_sym_tab.lookup("baz").semstr, "The second integer property.")
+
+        # Architype (without body).
+        sym_arch2 = code_gen.lookup("Arch2")
+        self.assertEqual(sym_arch2.semstr, "An object that contains two integer properties.")
+        self.assertEqual(sym_arch2.fetch_sym_tab.lookup("bar").semstr, "The first integer property.")
+        self.assertEqual(sym_arch2.fetch_sym_tab.lookup("baz").semstr, "The second integer property.")
+
+        # Enum (with body).
+        sym_enum1 = code_gen.lookup("Enum1")
+        self.assertEqual(sym_enum1.semstr, "An enumeration that defines two values: Bar and Baz.")
+        self.assertEqual(sym_enum1.fetch_sym_tab.lookup("Bar").semstr, "The Bar value of the Enum1 enumeration.")
+        self.assertEqual(sym_enum1.fetch_sym_tab.lookup("Baz").semstr, "The Baz value of the Enum1 enumeration.")
+
+        # Enum (without body).
+        sym_enum2 = code_gen.lookup("Enum2")
+        self.assertEqual(sym_enum2.semstr, "An enumeration that defines two values: Bar and Baz.")
+        self.assertEqual(sym_enum2.fetch_sym_tab.lookup("Bar").semstr, "The Bar value of the Enum2 enumeration.")
+        self.assertEqual(sym_enum2.fetch_sym_tab.lookup("Baz").semstr, "The Baz value of the Enum2 enumeration.")
+
+        if code_gen.gen.py_ast and isinstance(code_gen.gen.py_ast[0], ast3.Module):
+            prog = compile(code_gen.gen.py_ast[0], filename="<ast>", mode="exec")
+            module = types.ModuleType("__main__")
+            module.__dict__["__file__"] = code_gen.loc.mod_path
+            exec(prog, module.__dict__)
+
+            # Function (full).
+            self.assertEqual(getattr(module.fn1, '_jac_semstr'), "A function that takes two integers and returns nothing.")
+            self.assertEqual(getattr(module.fn1, '_jac_semstr_inner')['bar'], "The first integer parameter.")
+            self.assertEqual(getattr(module.fn1, '_jac_semstr_inner')['baz'], "The second integer parameter.")
+
+            # Function (Missing baz)
+            self.assertEqual(getattr(module.fn2, '_jac_semstr'), "A function that takes one integer and returns nothing.")
+            self.assertEqual(getattr(module.fn2, '_jac_semstr_inner')['bar'], "The first integer parameter.")
+            self.assertNotIn('baz', getattr(module.fn2, '_jac_semstr_inner'))
+
+            # Function (Without sem at all)
+            self.assertFalse(hasattr(module.fn3, '_jac_semstr'))
+
+            # Architype (with body).
+            self.assertEqual(getattr(module.Arch1, '_jac_semstr'), "An object that contains two integer properties.")
+            self.assertEqual(getattr(module.Arch1, '_jac_semstr_inner')['bar'], "The first integer property.")
+            self.assertEqual(getattr(module.Arch1, '_jac_semstr_inner')['baz'], "The second integer property.")
+
+            # Architype (without body).
+            self.assertEqual(getattr(module.Arch2, '_jac_semstr'), "An object that contains two integer properties.")
+            self.assertEqual(getattr(module.Arch2, '_jac_semstr_inner')['bar'], "The first integer property.")
+            self.assertEqual(getattr(module.Arch2, '_jac_semstr_inner')['baz'], "The second integer property.")
+
+            # Enum (with body).
+            self.assertEqual(getattr(module.Enum1, '_jac_semstr'), "An enumeration that defines two values: Bar and Baz.")
+            self.assertEqual(getattr(module.Enum1, '_jac_semstr_inner')['Bar'], "The Bar value of the Enum1 enumeration.")
+            self.assertEqual(getattr(module.Enum1, '_jac_semstr_inner')['Baz'], "The Baz value of the Enum1 enumeration.")
+
+            # Enum (without body).
+            self.assertEqual(getattr(module.Enum2, '_jac_semstr'), "An enumeration that defines two values: Bar and Baz.")
+            self.assertEqual(getattr(module.Enum2, '_jac_semstr_inner')['Bar'], "The Bar value of the Enum2 enumeration.")
+            self.assertEqual(getattr(module.Enum2, '_jac_semstr_inner')['Baz'], "The Baz value of the Enum2 enumeration.")
+
+
     def test_circle_py_ast(self) -> None:
         """Basic test for pass."""
         code_gen = (out := JacProgram()).compile(

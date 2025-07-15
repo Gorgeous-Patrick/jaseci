@@ -65,3 +65,4 @@ class SemDefMatchPass(Transform[uni.Module, uni.Module]):
             target_sym = self.find_symbol_from_dotted_name(sym.sym_name, target_sym_tab)
             if target_sym is not None:
                 target_sym.decl.name_of.semstr = semdef.value.lit_value
+                target_sym.semstr = semdef.value.lit_value

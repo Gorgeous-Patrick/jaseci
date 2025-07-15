@@ -1,5 +1,6 @@
 """JacLang Jaseci Unit Test."""
 
+from concurrent.futures import ThreadPoolExecutor
 from os import getenv
 from pathlib import Path
 from time import sleep
@@ -192,6 +193,7 @@ class SimpleGraphTest(JacCloudTest):
                     "enum_field": "B",
                 },
                 "enum_field": "A",
+                "access": None,
             },
             res["reports"][0]["context"],
         )
@@ -224,6 +226,7 @@ class SimpleGraphTest(JacCloudTest):
                         "enum_field": "C",
                     },
                     "enum_field": "B",
+                    "access": None,
                 },
                 res["reports"][0]["context"],
             )
@@ -289,6 +292,7 @@ class SimpleGraphTest(JacCloudTest):
                     "enum_field": "B",
                 },
                 "enum_field": "A",
+                "access": None,
             },
             nested_node["context"],
         )
@@ -336,9 +340,13 @@ class SimpleGraphTest(JacCloudTest):
                     "enum_field": "C",
                 },
                 "enum_field": "B",
+                "access": None,
             },
             res["reports"][0]["context"],
         )
+
+        res = self.post_api(f"update_nested_node_trigger_save/{nested_node['id']}")
+        self.assertEqual(200, res["status"])
 
         # ----------- NO UPDATE SHOULD HAPPEN ----------- #
 
@@ -362,6 +370,7 @@ class SimpleGraphTest(JacCloudTest):
                     "enum_field": "B",
                 },
                 "enum_field": "A",
+                "access": None,
             },
             res["reports"][0]["context"],
         )
@@ -401,6 +410,7 @@ class SimpleGraphTest(JacCloudTest):
                     "enum_field": "C",
                 },
                 "enum_field": "B",
+                "access": None,
             },
             res["reports"][0]["context"],
         )
@@ -427,6 +437,7 @@ class SimpleGraphTest(JacCloudTest):
                     "enum_field": "C",
                 },
                 "enum_field": "B",
+                "access": None,
             },
             res["reports"][0]["context"],
         )
@@ -902,7 +913,14 @@ class SimpleGraphTest(JacCloudTest):
 
         if getenv("TASK_CONSUMER_CRON_SECOND"):
             for i in range(1, 4):
-                res = self.post_api("trigger_counter_task")
+                res = self.post_api("trigger_counter_task", json={"id": i})
+
+                wlk = self.q_walker.find_one(
+                    {"name": "trigger_counter_task", "archetype.id": i}
+                )
+
+                assert wlk is not None
+                self.assertEqual(i, wlk["archetype"]["id"])
 
                 self.assertEqual(200, res["status"])
                 self.assertEqual(1, len(res["reports"]))
@@ -1035,6 +1053,259 @@ class SimpleGraphTest(JacCloudTest):
             },
         )
 
+    def trigger_custom_access_validation_test(self) -> None:
+        """Test custom access validation."""
+        res = self.post_api("create_nested_node", user=1)
+
+        nested_node = res["reports"][0]
+
+        self.assertEqual(200, res["status"])
+        self.assertEqual(
+            {
+                "val": 0,
+                "arr": [],
+                "data": {},
+                "parent": {
+                    "val": 1,
+                    "arr": [1],
+                    "data": {"a": 1},
+                    "child": {
+                        "val": 2,
+                        "arr": [1, 2],
+                        "data": {"a": 1, "b": 2},
+                        "enum_field": "C",
+                    },
+                    "enum_field": "B",
+                },
+                "enum_field": "A",
+                "access": None,
+            },
+            nested_node["context"],
+        )
+
+        ##########################################################
+        #                        NO ACCESS                       #
+        ##########################################################
+
+        self.assertEqual(
+            403,
+            self.post_api(f"visit_nested_node/{nested_node['id']}", expect_error=True),
+        )
+
+        ##########################################################
+        #           UPDATE NODE (WILL ALLOW READ ACESS)          #
+        ##########################################################
+
+        # BY OWNER
+        res = self.post_api(
+            f"update_nested_node_access/{nested_node['id']}",
+            json={"access": "READ"},
+            user=1,
+        )
+        self.assertEqual(200, res["status"])
+        self.assertEqual(
+            {
+                "val": 0,
+                "arr": [],
+                "data": {},
+                "parent": {
+                    "val": 1,
+                    "arr": [1],
+                    "data": {"a": 1},
+                    "child": {
+                        "val": 2,
+                        "arr": [1, 2],
+                        "data": {"a": 1, "b": 2},
+                        "enum_field": "C",
+                    },
+                    "enum_field": "B",
+                },
+                "enum_field": "A",
+                "access": "READ",
+            },
+            res["reports"][0]["context"],
+        )
+
+        # BY OTHER
+        res = self.post_api(f"update_nested_node/{nested_node['id']}")
+        self.assertEqual(200, res["status"])
+        self.assertEqual(
+            {
+                "val": 1,
+                "arr": [1],
+                "data": {"a": 1},
+                "parent": {
+                    "val": 2,
+                    "arr": [1, 2],
+                    "data": {"a": 1, "b": 2},
+                    "child": {
+                        "val": 3,
+                        "arr": [1, 2, 3],
+                        "data": {"a": 1, "b": 2, "c": 3},
+                        "enum_field": "A",
+                    },
+                    "enum_field": "C",
+                },
+                "enum_field": "B",
+                "access": "READ",
+            },
+            res["reports"][0]["context"],
+        )
+
+        # ---- NO UPDATE SHOULD HAPPEN BUT STILL ACCESSIBLE ---- #
+
+        res = self.post_api(f"visit_nested_node/{nested_node['id']}")
+        self.assertEqual(200, res["status"])
+        self.assertEqual(
+            {
+                "val": 0,
+                "arr": [],
+                "data": {},
+                "parent": {
+                    "val": 1,
+                    "arr": [1],
+                    "data": {"a": 1},
+                    "child": {
+                        "val": 2,
+                        "arr": [1, 2],
+                        "data": {"a": 1, "b": 2},
+                        "enum_field": "C",
+                    },
+                    "enum_field": "B",
+                },
+                "enum_field": "A",
+                "access": "READ",
+            },
+            res["reports"][0]["context"],
+        )
+
+        ##########################################################
+        #          UPDATE NODE (WILL ALLOW WRITE ACESS)          #
+        ##########################################################
+
+        # BY OWNER
+        res = self.post_api(
+            f"update_nested_node_access/{nested_node['id']}",
+            json={"access": "WRITE"},
+            user=1,
+        )
+        self.assertEqual(200, res["status"])
+        self.assertEqual(
+            {
+                "val": 0,
+                "arr": [],
+                "data": {},
+                "parent": {
+                    "val": 1,
+                    "arr": [1],
+                    "data": {"a": 1},
+                    "child": {
+                        "val": 2,
+                        "arr": [1, 2],
+                        "data": {"a": 1, "b": 2},
+                        "enum_field": "C",
+                    },
+                    "enum_field": "B",
+                },
+                "enum_field": "A",
+                "access": "WRITE",
+            },
+            res["reports"][0]["context"],
+        )
+
+        # BY OTHER
+        res = self.post_api(f"update_nested_node/{nested_node['id']}")
+        self.assertEqual(200, res["status"])
+        self.assertEqual(
+            {
+                "val": 1,
+                "arr": [1],
+                "data": {"a": 1},
+                "parent": {
+                    "val": 2,
+                    "arr": [1, 2],
+                    "data": {"a": 1, "b": 2},
+                    "child": {
+                        "val": 3,
+                        "arr": [1, 2, 3],
+                        "data": {"a": 1, "b": 2, "c": 3},
+                        "enum_field": "A",
+                    },
+                    "enum_field": "C",
+                },
+                "enum_field": "B",
+                "access": "WRITE",
+            },
+            res["reports"][0]["context"],
+        )
+
+        # ---------------- UPDATE SHOULD HAPPEN ---------------- #
+
+        res = self.post_api(f"visit_nested_node/{nested_node['id']}")
+        self.assertEqual(200, res["status"])
+        self.assertEqual(
+            {
+                "val": 1,
+                "arr": [1],
+                "data": {"a": 1},
+                "parent": {
+                    "val": 2,
+                    "arr": [1, 2],
+                    "data": {"a": 1, "b": 2},
+                    "child": {
+                        "val": 3,
+                        "arr": [1, 2, 3],
+                        "data": {"a": 1, "b": 2, "c": 3},
+                        "enum_field": "A",
+                    },
+                    "enum_field": "C",
+                },
+                "enum_field": "B",
+                "access": "WRITE",
+            },
+            res["reports"][0]["context"],
+        )
+
+        ###################################################
+        #                REMOVE ROOT ACCESS               #
+        ###################################################
+
+        # UPDATE BY OWNER
+        res = self.post_api(
+            f"update_nested_node_access/{nested_node['id']}",
+            json={"access": None},
+            user=1,
+        )
+        self.assertEqual(200, res["status"])
+
+        # VISIT BY OTHER
+        self.assertEqual(
+            403,
+            self.post_api(f"visit_nested_node/{nested_node['id']}", expect_error=True),
+        )
+
+    def trigger_flood_request(self) -> None:
+        """Test multiple simultaneous request."""
+        with ThreadPoolExecutor(max_workers=20) as exc:
+            futures = [exc.submit(self.post_api, "traverse_graph") for i in range(20)]
+
+        for future in futures:
+            res = future.result()
+
+            self.assertEqual(200, res["status"])
+
+            root_node = res["reports"].pop(0)
+            self.assertTrue(root_node["id"].startswith("n::"))
+            self.assertEqual({}, root_node["context"])
+
+            for idx, report in enumerate(res["reports"]):
+                self.assertEqual({"val": idx + 1}, report["context"])
+
+                res = self.post_api(f"traverse_graph/{report["id"]}")
+                self.assertEqual(200, res["status"])
+                for _idx, report in enumerate(res["reports"]):
+                    self.assertEqual({"val": idx + _idx + 1}, report["context"])
+
     # Individual test methods for each feature
 
     def test_01_openapi_specs(self) -> None:
@@ -1154,9 +1425,9 @@ class SimpleGraphTest(JacCloudTest):
         """Test nested request payload."""
         self.trigger_nested_request_payload_test()
 
-        ##################################################
-        #              TASK CREATION TESTS               #
-        ##################################################
+    ##################################################
+    #              TASK CREATION TESTS               #
+    ##################################################
 
     def test_17_task_creation_and_scheduled_walker(self) -> None:
         """Test task creation and scheduled walker."""
@@ -1165,3 +1436,15 @@ class SimpleGraphTest(JacCloudTest):
     def test_18_async_walker(self) -> None:
         """Test async walker api call."""
         self.trigger_async_walker_test()
+
+    ###################################################
+    #             CUSTOM ACCESS VALIDATION            #
+    ###################################################
+
+    def test_19_custom_access_validation(self) -> None:
+        """Test custom access validation."""
+        self.trigger_custom_access_validation_test()
+
+    def test_20_flood_request(self) -> None:
+        """Test multiple simultaneous request."""
+        self.trigger_flood_request()

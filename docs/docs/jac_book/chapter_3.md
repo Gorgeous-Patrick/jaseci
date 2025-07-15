@@ -1,756 +1,716 @@
-# Chapter 3: Familiar Syntax with New Semantics
-As a Python developer, you'll find Jac's syntax comfortably familiar while discovering powerful enhancements that make your code more robust and expressive. This chapter explores the core language features, highlighting what's similar, what's enhanced, and what's new.
+# 3. Functions, Control Flow, and Collections in Jac
+---
+In this chapter, we will explore Jac's enhanced syntax and type system, focusing on functions, control flow, and collections. We will build upon the foundation laid in the previous chapters, introducing more complex data structures and control mechanisms.
 
-## 3.1 Variables and Types
-### Type Annotations are Mandatory (Unlike Python's Optional Hints)
+## Functions and Type Annotations
+---
+**Functions** are reusable blocks of code that perform a specific task. In Jac, functions are defined using the `def` keyword, followed by the function name and its parameters. Type annotations are mandatory for all function parameters and return types.
 
-In Python, type hints are optional and primarily serve as documentation:
-
-```python
-# Python - types are optional hints
-name = "Alice"  # Type inferred
-age = 30        # Type inferred
-score = 95.5    # Type inferred
-
-# Type hints can be added but aren't enforced
-def calculate_grade(score: float) -> str:  # Optional
-    return "A" if score >= 90 else "B"
-```
-
-In Jac, type annotations are mandatory and enforced at compile time:
-
-<div class="code-block">
+The following example demonstrates a simple function called `add_numbers`  that takes two integers as *arguments* and adds them together, returning the result as an integer. The function is defined with type annotations for both parameters and the return type, ensuring type safety and clarity.
 
 ```jac
-# Function parameters and returns MUST have types
-def calculate_grade(score: float) -> str {
-    return "A" if score >= 90.0 else "B";
+def add_numbers(a: int, b: int) -> int {
+    result: int = a + b;
+    return result;
 }
-
-with entry{
-    # Jac - types are required and enforced
-    name: str = "Alice";    # Explicit type required
-    age: int = 30;          # Must specify type
-    score: float = 95.5;    # Type checking enforced
-
-    # This would cause a compile error:
-    # mystery = "something";  # Error: missing type annotation
-}
-
 ```
-</div>
 
-### Benefits of Mandatory Types
-
-<div class="code-block">
+### Basic Calculator Program
+---
+Let's build a simple calculator to demonstrate Jac's function in action. The calculator consists of 4 functions that represent basic arithmetic operations: addition, subtraction, multiplication, and division. Each function takes two float arguments and returns the result.
 
 ```jac
-# Type safety prevents runtime errors
+# calculator.jac
+def add(a: float, b: float) -> float {
+    return a + b;
+}
+
+def subtract(a: float, b: float) -> float {
+    return a - b;
+}
+
+def multiply(a: float, b: float) -> float {
+    return a * b;
+}
+
+def divide(a: float, b: float) -> float {
+    return a / b;
+}
+
+with entry {
+    print("=== Simple Calculator ===");
+
+    # Test calculations
+    num1: float = 10.0;
+    num2: float = 3.0;
+
+    print(f"{num1} + {num2} = {add(num1, num2)}");
+    print(f"{num1} - {num2} = {subtract(num1, num2)}");
+    print(f"{num1} * {num2} = {multiply(num1, num2)}");
+    print(f"{num1} / {num2} = {divide(num1, num2)}");
+}
+```
+<br />
+
+More observant readers may notice that the `divide` function lacks error handling for division by zero—a common beginner mistake. We'll cover proper error handling techniques later in this chapter. In the meantime, use the `divide` function with care, especially when the second argument might be zero. After all, triggering a division-by-zero error might not actually launch a nuclear warhead... but let's not take any chances, shall we?
+<br />
+
+## Basic Object Oriented Programming
+---
+Jac is primarily an Object Spatial Language, but it also supports Object Oriented Programming (OOP) concepts. An object is a self-contained unit that combines data and behavior. In Jac, we can define objects using the `obj` keyword. Objects can also have methods which are defined using the `def` keyword and these represent the behavior of the object. Objects can also have attributes, which are defined using the `has` keyword. These attributes represent the data associated with the object.
+
+### Defining an Object
+```jac
 obj Student {
     has name: str;
-    has grades: list[float];
+    has age: int;
+    has gpa: float;
 
-    def add_grade(grade: float) {
-        # This would fail at compile time if grade wasn't a float
-        self.grades.append(grade);
-    }
-
-    def get_average() -> float {
-        if len(self.grades) == 0 {
-            return 0.0;  # Must return float, not int
-        }
-        return sum(self.grades) / len(self.grades);
+    def get_info() -> str {
+        return f"Name: {self.name}, Age: {self.age}, GPA: {self.gpa}";
     }
 }
 
-# Type errors caught at compile time
 with entry {
-    student = Student(name="Bob", grades=[]);
-
-    # student.add_grade("95");  # Compile error: string != float
-    student.add_grade(95.0);     # Correct
-
-    avg: float = student.get_average();  # Type-safe assignment
-    print(f"{student.name}'s average grade: {avg}");  # Should print "Bob's average grade: 95.0"
+    student: Student = Student("Alice", 20, 3.8);  # Create a new Student object
+    print(student.get_info());
 }
 ```
-</div>
+<br />
 
-### `glob` for Global Variables
+Hey, where is the constructor? Good question! Jac does not have a constructor in the traditional sense. Instead, the object is initialized with the `has` keyword, and the attributes are set directly. This is a design choice in Jac to keep things simple and straightforward.
 
-While Python uses the `global` keyword to modify globals within functions, Jac uses `glob` for declaration and `:g:` for access:
+!!! note
+    Jac's objects operates similar to data classes in Python, where the attributes are defined at the class level and can be set directly when creating an instance of the object. This allows for a more concise syntax while still providing the benefits of encapsulation and data organization.
 
-```python
-# Python
-counter = 0  # Global variable
 
-def increment():
-    global counter  # Declare intent to modify global
-    counter += 1
-```
+### Enhanced Calculator with Object-Oriented Design
+In a later chapter, we will explore more of Jac's object-oriented features. For now, let's enhance our calculator by encapsulating its functionality in a `obj` called `Calculator`. This allows us to maintain a history of calculations and provides a cleaner interface for users.
 
 <div class="code-block">
-
 ```jac
-glob counter: int = 0;  # Explicitly global variable
+# oop_calculator.jac
+obj Calculator {
+    has history: list[str] = [];
 
-def increment() {
-    :g: counter;    # Declare access to global
-    counter += 1;
+    def add(a: float, b: float) -> float {
+        result: float = a + b;
+        self.history.append(f"{a} + {b} = {result}");
+        return result;
+    }
+
+    def subtract(a: float, b: float) -> float {
+        result: float = a - b;
+        self.history.append(f"{a} - {b} = {result}");
+        return result;
+    }
+
+    def get_history() -> list[str] {
+        return self.history;
+    }
+
+    def clear_history() {
+        self.history = [];
+    }
 }
 
-# Access control for globals
-glob:pub api_version: str = "1.0";      # Public global
-glob:priv secret_key: str = "hidden";   # Private global
-glob:protect internal_state: dict = {}; # Protected global
-
-# Module-level globals with entry block
 with entry {
-    increment();
-    increment();
+    calc = Calculator();
 
-    print(f"Counter: {counter}, API Version: {api_version}");
+    # Perform calculations
+    result1: float = calc.add(5.0, 3.0);
+    result2: float = calc.subtract(10.0, 4.0);
+
+    print(f"Results: {result1}, {result2}");
+
+    # Show history
+    print("Calculation History:");
+    for entry in calc.get_history() {
+        print(f"  {entry}");
+    }
 }
 ```
 </div>
+<br />
+While Jac styles itself as a Object Spatial Language, it is important to note that it is not opposed to Object Oriented Programming. In fact, Jac supports both paradigms, allowing you to choose the best approach for your project. Think of Object Spatial as Object Oriented with rocket pack boosters. You can still use all of your OOP goodness, but with the added benefits of Jac's spatial features.
 
 
 
-### Working with Collection Types
 
-<div class="code-block">
-
+## Variable Scope and Global Variables
+---
+Jac supports both local and global variables. Local variables are defined within a block and are not accessible outside it, while global variables can be accessed anywhere in the code.
+### Local Variables
 ```jac
-with entry{
-    # Lists with explicit typing
-    numbers: list[int] = [1, 2, 3, 4, 5];
-    names: list[str] = ["Alice", "Bob", "Charlie"];
-    matrix: list[list[float]] = [[1.0, 2.0], [3.0, 4.0]];
-
-    # Dictionaries with key-value types
-    scores: dict[str, int] = {"Alice": 95, "Bob": 87};
-    config: dict[str, any] = {"debug": True, "port": 8080};
-
-    # Sets with element types
-    unique_ids: set[int] = {101, 102, 103};
-    tags: set[str] = {"python", "jac", "programming"};
-
-    # Tuples - both positional and keyword (Jac special!)
-    point: tuple = (3, 4);                    # Positional
+def add_numbers(a: int, b: int) -> int {
+    result: int = a + b;  # Local variable
+    return result;
+}
+with entry {
+    sum = add_numbers(5, 10);
+    print(f"Sum: {sum}");
 }
 ```
-</div>
+<br />
 
-### Working with Any Type
+### Global Variables
+Global variables in Jac are declared using the `glob` keyword and are accessible from anywhere in the program. They are typically used for defining constants or sharing data across multiple contexts. However, their use should be limited, as excessive reliance on global state can lead to unintended side effects. This aligns with Jac’s core philosophy of *moving computation to the data*—favoring localized logic and context-aware execution over broad, global manipulation.
 
-Sometimes you need dynamic typing. Jac provides `any` as an escape hatch:
 
-<div class="code-block">
 
 ```jac
-with entry{
-    # Using 'any' for flexible types
-    flexible: any = 42;
-    print(flexible);
+glob school_name: str = "Jac High School";
+glob passing_grade: int = 60;
+glob honor_threshold: float = 3.5;
 
-    flexible = "now a string";  # Allowed with 'any'
-    print(flexible);
+def get_school_info() -> str {
+    :g: school_name; # Accessing global variable
+    return f"Welcome to {school_name}";
+}
 
-    flexible = [1, 2, 3];      # Still allowed
-    print(flexible);
+with entry {
+    print(get_school_info());
+    print(f"Honor threshold is {honor_threshold}");
+}
+```
+<br />
 
 
-    # Useful for JSON-like data
-    json_data: dict[str, any] = {
-        "name": "Alice",
-        "age": 30,
-        "tags": ["developer", "python"],
-        "active": True
+
+
+
+## Collections and Data Structures
+---
+Since Jac is a super-set of Python, it supports the same collection types: lists, dictionaries, sets, and tuples. However, Jac enforces type annotations for all collections, ensuring type safety and clarity.
+
+### Lists
+Lists are ordered collections of items that can be of mixed types. In Jac, lists are declared with the `list` type.
+
+```jac
+with entry {
+    # Create an empty list for storing integer grades
+    alice_grades: list[int] = [];
+
+    # Append grades to the list
+    alice_grades.append(88); # [88]
+    alice_grades.append(92); # [88, 92]
+    alice_grades.append(85); # [88, 92, 85]
+
+    # Access grades by index
+    first_grade: int = alice_grades[0];  # 88
+    print(f"Alice's first grade: {first_grade}");
+
+    # print the entire list of grades
+    print(f"Alice's grades: {alice_grades}");
+}
+```
+<br />
+
+```text
+$ jac run example.jac
+Alice's first grade: 88
+Alice's grades: [88, 92, 85]
+```
+
+
+### Dictionaries
+Dictionaries are key-value pairs that allow for fast lookups. In Jac, dictionaries are declared with the `dict` type.
+
+```jac
+with entry {
+    # Class gradebook
+    math_grades: dict[str, int] = {
+        "Alice": 92,
+        "Bob": 85,
+        "Charlie": 78
     };
-    print(json_data);
 
+    # Access grades by student name
+    print(f"Alice's Math grade: {math_grades['Alice']}");
+    print(f"Bob's Math grade: {math_grades['Bob']}");
+    print(f"Charlie's Math grade: {math_grades['Charlie']}");
 }
 ```
-</div>
+<br />
 
-## 3.2 Control Flow
-
-### Curly Braces Instead of Indentation
-
-The most visible difference from Python is the use of curly braces for code blocks:
-
-```python
-# Python uses indentation
-if temperature > 30:
-    print("It's hot!")
-    if temperature > 40:
-        print("It's very hot!")
-else:
-    print("It's comfortable")
+```text
+$ jac run example.jac
+Alice's Math grade: 92
+Bob's Math grade: 85
+Charlie's Math grade: 78
 ```
 
-<div class="code-block">
+### Sets
+Sets are unordered collections of unique items. In Jac, sets are declared with the `set` type.
 
 ```jac
-with entry{
-    temperature = 35;  # Temperature in Celsius
+with entry {
+    # Track unique courses
+    alice_courses: set[str] = {"Math", "Science", "English"};
+    bob_courses: set[str] = {"Math", "History", "Art"};
 
-    # Jac uses curly braces
-    if temperature > 30 {
-        print("It's hot!");
-        if temperature > 40 {
-            print("It's very hot!");
-        }
+    # Find common courses
+    common_courses = alice_courses.intersection(bob_courses);
+    print(f"Common courses: {common_courses}");
+
+    # All unique courses
+    all_courses = alice_courses.union(bob_courses);
+    print(f"All courses: {all_courses}");
+}
+```
+<br />
+In the example above, we use the `intersection` method to identify courses that both Alice and Bob are enrolled in, and the `union` method to combine their courses into a single set of unique entries. These are standard operations provided by Python’s built-in `set` type, and Jac supports them as well. For a more comprehensive overview of collection-related functions in Python, refer to the [official Python documentation](https://docs.python.org/3/tutorial/datastructures.html).
+
+
+## Collection Comprehensions
+---
+Jac supports list and dictionary comprehensions, allowing for concise and expressive data processing. In the following example we will explore how to use comprehensions to filter and transform data in a gradebook.
+
+Lets say we have a list of test scores stored in the variable `test_scores` and we want to filter out passing grades:
+```jac
+with entry {
+    # Raw test scores
+    test_scores: list[int] = [78, 85, 92, 69, 88, 95, 72];
+
+    # Get passing grades (70 and above)
+    passing_scores: list[int] = [score for score in test_scores if score >= 70];
+    print(f"Passing scores: {passing_scores}");
+}
+```
+<br />
+
+The list comprehension syntax in Jac is similar to Python:
+```[expression for item in iterable if condition]``` where `expression` is the value to include in the new list, `item` is the variable representing each element in the original collection, `iterable` is the collection being processed, and `condition` is an optional filter.
+
+Suppose we want to apply a curve to the scores by adding 5 points to each score, we can use a comprehension to create a new list of curved scores:
+
+```jac
+with entry {
+    # Raw test scores
+    test_scores: list[int] = [78, 85, 92, 69, 88, 95, 72];
+
+    # Get passing grades (70 and above)
+    passing_scores: list[int] = [score for score in test_scores if score >= 70];
+    print(f"Passing scores: {passing_scores}");
+
+    # Apply curve (+5 points)
+    curved_scores: list[int] = [score + 5 for score in test_scores];
+    print(f"Curved scores: {curved_scores}");
+}
+```
+<br />
+
+## Control Flow with Curly Braces
+---
+Earlier in this chapter, we defined a simple calculator. However, our `divide` function had a critical oversight—it didn’t account for division by zero. In the interest of both robust code and global stability, we’ll now implement proper control flow to safely handle this case and enhance our calculator’s reliability.
+
+
+### If Statements
+An `if` statement allows you to execute code conditionally based on whether a certain condition is true. In Jac, we use curly braces `{}` to define the block of code that should be executed if the condition is met.
+
+```jac
+def divide(a: float, b: float) -> float | str {
+    if b == 0.0 {
+        return "Error: Cannot divide by zero!";
+    }
+    return a / b;
+}
+```
+<br />
+In the example above, we check if `b` is zero via the statement `if b == 0.0` before performing the division. If it is, we return an error message instead of attempting the division.
+
+### Conditional Logic `if-elif-else`
+
+Jac supports `if-elif-else` statements for multiple conditions. This allows you to handle various cases in a structured way. Lets extend our simple grading system to classify grades based on score ranges. In the following example, we will classify scores into letter grades by combining `if`, `elif`, and `else` statements along list comprehensions to apply the classification to a list of test scores.
+
+```jac
+def classify_grade(score: int) -> str {
+    if score >= 90 {
+        return "A";
+    } elif score >= 80 {
+        return "B";
+    } elif score >= 70 {
+        return "C";
+    } elif score >= 60 {
+        return "D";
     } else {
-        print("It's comfortable");
+        return "F";
     }
+}
+
+with entry {
+    # Raw test scores
+    test_scores: list[int] = [78, 85, 92, 69, 88, 95, 72];
+
+    # Get passing grades (70 and above)
+    passing_scores: list[int] = [score for score in test_scores if score >= 70];
+    print(f"Passing scores: {passing_scores}");
+
+    # Apply curve (+5 points)
+    curved_scores: list[int] = [score + 5 for score in test_scores];
+    print(f"Curved scores: {curved_scores}");
+
+    # Classify each score
+    grades: list[str] = [classify_grade(score) for score in test_scores];
+    print(f"Grades: {grades}");
 }
 ```
-</div>
+<br />
 
-### Enhanced For Loops: `for-to-by` Syntax
-
-Jac provides multiple for loop syntaxes, including a unique `for-to-by` construct:
-
-<div class="code-block">
-
-```jac
-with entry{
-    # Traditional for-in loop (like Python)
-    items: list[str] = ["apple", "banana", "cherry"];
-    for item in items {
-        print(item);
-    }
-
-    # Range-based loop (like Python)
-    for i in range(5) {
-        print(i);  # 0, 1, 2, 3, 4
-    }
-
-    # Jac's unique for-to-by loop
-    for i = 0 to i < 10 by i += 2 {
-        print(i);  # 0, 2, 4, 6, 8
-    }
-
-    # Complex for-to-by examples
-    # Countdown
-    for count = 10 to count > 0 by count -= 1 {
-        print(f"{count}...");
-    }
-    print("Liftoff!");
-
-    # Exponential growth
-    for value = 1 to value <= 1000 by value *= 2 {
-        print(value);  # 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
-    }
-}
+```text
+$ jac run example.jac
+Passing scores: [78, 85, 92, 88, 95, 72]
+Curved scores: [83, 90, 97, 74, 93, 100, 77]
+Grades: ['C', 'B', 'A', 'D', 'B', 'A', 'C']
 ```
-</div>
 
-### Match Statements (Pattern Matching)
+## Working with Loops
+---
+Jac provides multiple loop constructs including traditional `for` loops, Jac's unique `for-to-by` loops, and clear, structured `while` loops.
 
-Jac includes the familiar pattern matching from similar Python 3.10+':
-<div class="code-block">
+### Traditional For Loops
+
+The traditional for loop is useful when iterating over collections, such as lists or dictionaries.
 
 ```jac
-# Basic pattern matching
-def describe_number(n: int) -> str {
-    match n {
-        case 0: return "zero";
-        case 1: return "one";
-        case 2: return "two";
-        case x if x < 0: return "negative";
-        case x if x > 100: return "large";
-        case _: return "other";
-    }
-}
-
-# Structural pattern matching
-def process_data(data: any) -> str {
-    match data {
-        case None:
-            return "No data";
-
-        case list() if data == []:
-            return "Empty list";
-
-        case [x]:
-            return f"Single item: {x}";
-
-        case [first, *rest]:
-            return f"List starting with {first}";
-
-        case {"type": "user", "name": name}:
-            return f"User: {name}";
-
-        case {"type": t, **kwargs}:
-            return f"Object of type {t}";
-
-        case _:
-            return "Unknown data";
-    }
-}
-
-# Type pattern matching
-node Animal {
-    has name: str;
-}
-
-node Dog(Animal) {
-    has breed: str;
-}
-
-node Cat(Animal) {
-    has indoor: bool;
-}
-
-walker AnimalHandler {
-    can handle with Animal entry {
-        match here {
-            case Dog():
-                print(f"{here.name} is a {here.breed} dog");
-
-            case Cat() if here.indoor:
-                print(f"{here.name} is an indoor cat");
-
-            case Cat():
-                print(f"{here.name} is an outdoor cat");
-
-            case _:
-                print(f"{here.name} is some other animal");
+def process_class_grades(grades: dict[str, list[int]]) -> None {
+    for (student, student_grades) in grades.items() {
+        total = 0;
+        for grade in student_grades {
+            total += grade;
         }
+        average = total / len(student_grades);
+        print(f"{student}: Average = {average}");
     }
 }
 
 with entry {
-    dog = Dog(name = "Buddy", breed = "Golden Retriever");
-    cat = Cat(name = "Whiskers", indoor = True);
-    unknown_animal = Animal(name = "Mystery");
+    class_grades = {
+        "Alice": [88, 92, 85],
+        "Bob": [79, 83, 77],
+        "Charlie": [95, 89, 92]
+    };
 
-    AnimalHandler() spawn dog;
-    AnimalHandler() spawn cat;
-    AnimalHandler() spawn unknown_animal;
-
-    result = process_data([3, 4]);
-    print(result);  # Should print "List starting with 3"
+    # Process all students
+    process_class_grades(class_grades);
 }
 ```
-</div>
+ <br />
 
-### Walrus Operator (`:=`)
-
-Both Python and Jac support the walrus operator for assignment expressions:
-
-```python
-# Python walrus operator
-while (line := file.readline()):
-    process(line)
-
-if (n := len(items)) > 10:
-    print(f"Large list with {n} items")
-```
-<div class="code-block">
+### Jac's Unique For-to-by Loops
+Jac introduces the unique `for-to-by` loop, allowing clear and explicit iteration control.
 
 ```jac
 with entry {
-    # Jac walrus operator - same syntax, similar usage
-    while (line := file.readline()) {
-        process(line);
+    print("Scaled scores (0-100 to 0-4.0 GPA):");
+    for score = 60 to score <= 100 by score += 10 {
+        gpa = (score - 60) * 4.0 / 40.0;
+        print(f"Score {score} -> GPA {gpa}");
     }
+}
+```
+<br />
 
-    if (n := len(items)) > 10 {
-        print(f"Large list with {n} items");
+### While Loops
+Jac supports traditional `while` loops with clear curly brace syntax for iterative logic.
+
+```jac
+with entry {
+    count: int = 1;
+    total: int = 0;
+    while count <= 5 {
+        print(f"Adding {count} to total");
+        total += count;
+        count += 1;
     }
+    print(f"Final total: {total}");
+}
+```
+<br />
 
-    # Useful in comprehensions
-    results: list[int] = [
-        y for x in data
-        if (y := expensive_computation(x)) > threshold
-    ];
 
-    # In match statements
-    match get_user() {
-        case user if (role := user.get_role()) == "admin":
-            grant_admin_access(role);
+## Pattern Matching for Complex Logic
+---
+Use pattern matching to handle complex grading scenarios elegantly.
+
+```jac
+def process_grade_input(input: any) -> str {
+    match input {
+        case int() if 90 <= input <= 100:
+            return f"Excellent work! Score: {input}";
+        case int() if 80 <= input < 90:
+            return f"Good job! Score: {input}";
+        case int() if 70 <= input < 80:
+            return f"Satisfactory. Score: {input}";
+        case int() if 0 <= input < 70:
+            return f"Needs improvement. Score: {input}";
+        case str() if input in ["A", "B", "C", "D", "F"]:
+            return f"Letter grade received: {input}";
+        case list() if len(input) > 0:
+            avg = sum(input) / len(input);
+            return f"Average of {len(input)} grades: {avg}";
         case _:
-            grant_basic_access();
+            return "Invalid grade input";
     }
 }
+
+with entry {
+    print(process_grade_input(95));        # Number grade
+    print(process_grade_input("A"));       # Letter grade
+    print(process_grade_input([88, 92, 85])); # List of grades
+}
 ```
-</div>
+<br />
 
-### Control Flow Comparison
 
-```mermaid
-graph TD
-    subgraph "Python Control Flow"
-        A1[if/elif/else] --> A2[for in]
-        A2 --> A3[while]
-        A3 --> A4[try/except]
-        A4 --> A5[match/case<br/>≪3.10+≫]
-    end
-
-    subgraph "Jac Control Flow"
-        B1[if/elif/else<br/>+ braces] --> B2[for in<br/>for-to-by]
-        B2 --> B3[while<br/>+ braces]
-        B3 --> B4[try/except<br/>+ braces]
-        B4 --> B5[match/case<br/>≪enhanced≫]
-        B5 --> B6[visit<br/>≪new≫]
-        B6 --> B7[disengage<br/>≪new≫]
-    end
-
-    A1 -.->|similar| B1
-    A2 -.->|enhanced| B2
-    A3 -.->|similar| B3
-    A4 -.->|similar| B4
-    A5 -.->|enhanced| B5
-```
-
-### Exception Handling
-
-Exception handling in Jac follows Python patterns with brace syntax:
-
-<div class="code-block">
+## Exception Handling
+---
+Handle errors gracefully when processing student data.
 
 ```jac
-# Basic pattern matching
-def safe_divide(a: float, b: float) -> float {
+def safe_calculate_gpa(grades: list[int]) -> float {
     try {
-        return a / b;
-    } except ZeroDivisionError {
-        print("Cannot divide by zero!");
+        if len(grades) == 0 {
+            raise ValueError("No grades provided");
+        }
+        total = sum(grades);
+        return total / len(grades);
+    } except ValueError as e {
+        print(f"Error: {e}");
         return 0.0;
     }
 }
 
-# Raising exceptions
-def validate_age(age: int) {
-    if age < 0 {
-        raise ValueError("Age cannot be negative");
-    }
-    if age > 150 {
-        raise ValueError("Age seems unrealistic");
+def validate_grade(grade: int) -> None {
+    if grade < 0 or grade > 100 {
+        raise ValueError(f"Grade {grade} is out of valid range (0-100)");
     }
 }
 
 with entry {
-    print(safe_divide(10, 2));  # Should print 5.0
-    print(safe_divide(10, 0));  # Should print "Cannot divide by zero!" and return 0.0
+    # Test safe calculation
+    valid_grades = [85, 90, 78];
+    gpa = safe_calculate_gpa(valid_grades);
+    print(f"GPA: {gpa}");
 
+    # Test error handling
     try {
-        validate_age(-5);  # Should raise ValueError
+        validate_grade(150);  # Invalid grade
     } except ValueError as e {
         print(f"Validation error: {e}");
     }
 }
 ```
-</div>
+<br />
 
-## 3.3 Functions to Abilities
-
-
-
-Jac uses the same `def` as Python for function definitions:
-
-```python
-# Python function
-def calculate_area(radius: float) -> float:
-    return 3.14159 * radius ** 2
-```
-<div class="code-block">
-
-```jac
-# Jac function
-def calculate_area(radius: float) -> float {
-    return 3.14159 * radius ** 2;
-}
-with entry {
-    # Functions are first-class objects
-    area_calculator: func = calculate_area;
-    result: float = area_calculator(5.0);
-}
-```
-</div>
-
-### Type Safety and Return Types
-
-Jac enforces return type consistency:
-
-<div class="code-block">
-
-```jac
-# Return types are enforced
-def get_grade(score: float) -> str {
-    if score >= 90.0 {
-        return "A";
-    } elif score >= 80.0 {
-        return "B";
-    }
-    # return;  # Error: must return str
-    return "F";  # Must cover all paths
-}
-
-# Multiple return values via tuples
-def divmod(a: int, b: int) -> tuple[int, int] {
-    return (a // b, a % b);
-}
-
-
-def find_item(items: list[str], target: str) -> int {
-    for (i, item) in enumerate(items) {
-        if item == target {
-            return i;
-        }
-    }
-    return None;  # Explicitly return None for not found
-}
-
-with entry {
-    print(get_grade(85));  # Should print "B"
-    print(divmod(10, 3));  # Should print (3, 1)
-    print(find_item(["apple", "banana", "cherry"], "banana"));  # Should print 1
-}
-```
-</div>
-
-### Lambda Expressions with Required Type Annotations
-
-Python's lambdas can infer types, but Jac requires explicit annotations:
-
-```python
-# Python lambdas - types optional
-square = lambda x: x ** 2
-add = lambda x, y: x + y
-```
-
-<div class="code-block">
+## Comments in Jac
+---
+Comments help document your Jac code clearly. Jac supports both single-line and multiline comments.
 
 ```jac
 with entry {
-    # Jac lambdas - types required
-    square = lambda x: int : x ** 2;
-    add = lambda x: int, y: int : x + y;
+    # This is a single-line comment
+    student_name: str = "Alice";
 
-    # Using lambdas with higher-order functions
-    numbers: list[int] = [1, 2, 3, 4, 5];
-    squared: list[int] = map(lambda x: int : x ** 2, numbers);
-    evens: list[int] = filter(lambda x: int : x % 2 == 0, numbers);
+    #*
+        This is a
+        multi-line comment.
+    *#
 
+    grades: list[int] = [88, 92, 85];
 
-    # Lambda in sort
-    people: list[dict] = [
-        {"name": "Alice", "age": 30},
-        {"name": "Bob", "age": 25},
-        {"name": "Charlie", "age": 35}
-    ];
-    people.sort(key=lambda p: dict : p["age"]);
-    print(people);
+    print(student_name);
+    print(grades);
 }
 ```
-</div>
+<br />
 
-### Function Decorators and Metadata
+## Project Structure Conventions
+---
+Jac encourages separating interface declarations from implementations, making code more maintainable as projects grow.
 
-Jac supports Python-style decorators with enhanced integration:
+As your projects grow, following these conventions will help:
 
-<div class="code-block">
-
-```jac
-import from functools { lru_cache }
-
-# Using Python decorators
-@lru_cache(maxsize=128)
-def fibonacci(n: int) -> int {
-    if n <= 1 {
-        return n;
-    }
-    return fibonacci(n - 1) + fibonacci(n - 2);
-}
-
-# Custom decorators
-def timing_decorator(func: callable) -> callable {
-    def wrapper(*args: any, **kwargs: any) -> any {
-        import time;
-        start = time.time();
-        result = func(*args, **kwargs);
-        end = time.time();
-        print(f"{func.__name__} took {end - start} seconds");
-        return result;
-    }
-    return wrapper;
-}
-
-@timing_decorator
-def slow_operation(n: int) -> int {
-    result: int = 0;
-    for i in range(n) {
-        result += i ** 2;
-    }
-    return result;
-}
-
-
-with entry {
-    print("=== Decorators Example ===");
-
-    # Using the cached Fibonacci function
-    for i in range(10){
-        print(f"Fibonacci({i}) = {fibonacci(i)}");
-    }
-
-
-    # Using the slow operation with timing decorator
-    result = slow_operation(1000000);
-    print(f"Result of slow operation: {result}");
-}
 ```
-</div>
-
-### Async Functions
-
-Jac supports asynchronous programming similar to Python:
-
-<div class="code-block">
-
-```jac
-import asyncio;
-
-async def fetch_data(){
-    print("Starting fetch...");
-    # simulate an I/O-bound operation
-    await asyncio.sleep(2);
-    print("Fetch complete");
-    return {"data": 123};
-}
-
-async def main(){
-    print("Before fetch");
-    result = await fetch_data();   # pause here until fetch_data() finishes
-    print("After fetch:", result);
-}
-
-with entry {
-    asyncio.run(main());
-}
+my_project/
+├── main.jac              # Main program
+├── models/
+│   ├── user.jac          # User interface
+│   ├── user.impl.jac     # User implementation
+│   └── user.test.jac     # User tests
+└── utils/
+    ├── helpers.jac       # Helper functions
+    └── constants.jac     # Application constants
 ```
-</div>
+<br />
+### Interface and Implementation Separation
+You many notice that from the project structure above, there is a file `user.jac` and `user.impl.jac`. This is a common pattern in Jac projects where interfaces are defined separately from their implementations. This allows for better organization and easier testing.
 
-### Method Resolution and Super
+Lets consider a simple example of a user interface and its implementation. The user has a `name` and `email` attributes, and we want to validate the email format and provide a display name via the `get_display_name` and `validate` methods.
 
-Jac provides clear method resolution with the `super` keyword:
-
-<div class="code-block">
-
+We can first define the interface in `user.jac`:
 ```jac
-obj Animal {
+# user.jac - Interface declaration
+obj User {
     has name: str;
+    has email: str;
 
-    def speak() -> str {
-        return f"{self.name} makes a sound";
-    }
+    def validate() -> bool;
+    def get_display_name() -> str;
+}
+```
+<br />
+
+Next, we implement the interface in `user.impl.jac`:
+```jac
+# user.impl.jac - Implementation
+impl User.validate {
+    return "@" in self.email and len(self.name) > 0;
 }
 
-obj Dog(Animal) {
-    has breed: str;
+impl User.get_display_name {
+    return f"{self.name} <{self.email}>";
+}
+```
+<br />
 
-    def speak() -> str {
-        # Call parent method
-        base_sound = super.speak();
-        return f"{base_sound}: Woof!";
-    }
 
-    def fetch() {
-        print(f"{self.name} the {self.breed} is fetching!");
-    }
+
+
+
+
+
+
+## Common Beginner Mistakes and Solutions
+---
+Most beginner issues stem from Jac's stricter type requirements compared to Python. Here are the most common mistakes and their solutions.
+
+| **Issue** | **Solution** |
+|-----------|--------------|
+| Missing semicolons | Add `;` at the end of statements |
+| Missing type annotations | Add types to all variables: `x: int = 5;` |
+| No entry block | Add `with entry { ... }` for executable scripts |
+| Python-style indentation | Use `{ }` braces instead of indentation |
+
+### Example of Common Fixes
+Someone unfamiliar with Jac might write code like this:
+
+```jac
+# This won't work - missing types and semicolons
+def greet(name) {
+    return f"Hello, {name}"
 }
 
-obj GuideDog(Dog) {
-    has handler: str;
+# Missing entry block
+print(greet("World"))
+```
+<br />
 
-    def speak() -> str {
-        # Chain through inheritance
-        return f"{super.speak()} (Guide dog for {self.handler})";
-    }
+The corrected version of the code would be:
+```jac
+# This works - proper types and syntax
+def greet(name: str) -> str {
+    return f"Hello, {name}";
 }
 
 with entry {
-    my_dog = Dog(name="Buddy", breed="Golden Retriever");
-    print(my_dog.speak());  # Buddy makes a sound: Woof!
-    my_dog.fetch();
-
-    guide_dog = GuideDog(name="Max", breed="Labrador", handler="Alice");
-    print(guide_dog.speak());  # Max makes a sound (Guide dog for Alice): Woof!
-    guide_dog.fetch();
+    print(greet("World"));
 }
 ```
-</div>
+<br />
 
-### Best Practices for Functions and Abilities
 
-1. **Use Functions for Algorithms**: Pure computations without side effects
-2. **Use Abilities for Behavior**: Context-dependent actions in graph traversal
-3. **Type Everything**: Clear types prevent errors and improve readability
-4. **Avoid Deep Nesting**: Use early returns and guard clauses
-5. **Document Complex Logic**: Use docstrings for non-obvious behavior
+
+
+## Complete Example: Simple Grade Book System
+---
+Lets put everything together in a complete example of a simple grade book system. This example will demonstrate Jac's type system, functions, control flow, and collections in action. The grade book will allow adding students, recording grades, calculating averages, and displaying results.
 
 <div class="code-block">
-
 ```jac
-# Well-structured function example
-def calculate_discount(
-    price: float,
-    customer_type: str,
-    quantity: int
-) -> float {
-    # Guard clauses
-    if price <= 0.0 {
+obj GradeBook {
+    has students: dict[str, list[int]] = {};
+
+    def add_student(name: str) -> None;
+    def add_grade(student: str, grade: int) -> None;
+    def get_average(student: str) -> float;
+    def get_all_averages() -> dict[str, float];
+}
+
+impl GradeBook.add_student(name: str) -> None {
+    if name not in self.students {
+        self.students[name] = [];
+        print(f"Added student: {name}");
+    } else {
+        print(f"Student {name} already exists");
+    }
+}
+
+impl GradeBook.add_grade(student: str, grade: int) -> None {
+    if grade < 0 or grade > 100 {
+        print(f"Invalid grade: {grade}");
+        return;
+    }
+
+    if student in self.students {
+        self.students[student].append(grade);
+        print(f"Added grade {grade} for {student}");
+    } else {
+        print(f"Student {student} not found");
+    }
+}
+
+impl GradeBook.get_average(student: str) -> float {
+    if student not in self.students or len(self.students[student]) == 0 {
         return 0.0;
     }
+    grades = self.students[student];
+    return sum(grades) / len(grades);
+}
 
-    # Base discount by customer type
-    base_discount: float = 0.0;
-
-
-    match customer_type {
-        case "premium": base_discount = 0.15;
-        case "regular": base_discount = 0.05;
-    };
-
-    # Quantity bonus
-    quantity_bonus: float = 0.0;
-    match quantity {
-        case n if n >= 100: quantity_bonus = 0.10;
-        case n if n >= 50: quantity_bonus = 0.05;
-        case n if n >= 10: quantity_bonus = 0.02;
-    };
-
-    # Calculate total discount
-    total_rate = min(base_discount + quantity_bonus, 0.25);
-    return price * total_rate;
+impl GradeBook.get_all_averages() -> dict[str, float] {
+    averages: dict[str, float] = {};
+    for (student, grades) in self.students.items() {
+        if len(grades) > 0 {
+            averages[student] = sum(grades) / len(grades);
+        }
+    }
+    return averages;
 }
 
 with entry {
-    # Example usage
-    price = 200.0;
-    customer_type = "premium";
-    quantity = 75;
+    # Create gradebook
+    gradebook = GradeBook();
 
-    discount = calculate_discount(price, customer_type, quantity);
-    print(f"Discount for {customer_type} customer buying {quantity} items at ${price} each: ${discount}");
+    # Add students
+    gradebook.add_student("Alice");
+    gradebook.add_student("Bob");
+
+    # Add grades
+    gradebook.add_grade("Alice", 88);
+    gradebook.add_grade("Alice", 92);
+    gradebook.add_grade("Bob", 85);
+    gradebook.add_grade("Bob", 79);
+
+    # Get results
+    all_averages = gradebook.get_all_averages();
+    for (student, avg) in all_averages.items() {
+        letter = "A" if avg >= 90 else "B" if avg >= 80 else "C" if avg >= 70 else "F";
+        print(f"{student}: {avg} ({letter})");
+    }
 }
 ```
 </div>
+<br />
 
-## Summary
 
-In this chapter, we've seen how Jac builds on Python's familiar syntax while adding:
 
-- **Mandatory type safety** for more robust code
-- **Explicit variable declaration** for clarity
-- **Enhanced control flow** with for-to-by loops and pattern matching
-- **Implicit self** for cleaner method definitions
-- **Context-aware abilities** alongside traditional functions
+## Wrapping Up
+---
+This chapter introduced Jac's type system, functions, control flow, and collections. We built a simple calculator, explored object-oriented programming, and learned how to handle errors gracefully. We also covered common beginner mistakes and provided solutions to help you avoid them.
+These foundational concepts will serve as the building blocks for more advanced Jac programming. In the next chapter, we will explore Jac's advanced features, including AI integration and more sophisticated data structures taking advantage of Jac's powerful type system and syntax.
 
-These enhancements make Jac code more explicit, safer, and better suited for the complex, distributed systems you'll build with object-spatial programming.
 
-In the next chapter, we'll explore Jac's data structures and unique features like keyword tuples and pipe operators that make data manipulation even more powerful and expressive.
+---
+
+*Now that you understand Jac's type system and syntax, let's build more sophisticated programs with functions and AI integration!*

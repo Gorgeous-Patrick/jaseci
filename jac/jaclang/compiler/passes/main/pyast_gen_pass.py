@@ -212,6 +212,93 @@ class PyastGenPass(UniPass):
             ),
         )
 
+    def _get_sem_decorator(self, node: uni.UniNode) -> ast3.Call | None:
+        """Create a semstring decorator for the given semantic strings.
+
+        Example:
+            @_.sem(
+                "Returns the weather for a given city.", {
+                    "city" : "Name of the city to get the weather for.",
+                }
+            )
+            def get_weather(city: str) {}
+
+        This the second parameter (dict) will also used in the class `has` variables
+        enum values etc.
+        """
+        semstr: str = ""
+        inner_semstr: dict[str, str] = {}
+
+        if isinstance(node, uni.Archetype):
+            semstr = node.semstr
+            arch_ast_body: list[uni.UniNode] = []
+            if isinstance(node.body, list):
+                arch_ast_body = node.body
+            elif isinstance(node.body, uni.ImplDef) and isinstance(
+                node.body.body, list
+            ):
+                # Type check will fail because of the invariant between codeblock and enum block
+                # but since we're only reading the list (and python doesn't have const) the type
+                # error is irrelevent here.
+                arch_ast_body = node.body.body  # type: ignore
+            for stmt in arch_ast_body:
+                if isinstance(stmt, uni.ArchHas):
+                    for has_var in stmt.vars:
+                        if has_var.semstr:
+                            inner_semstr[has_var.sym_name] = has_var.semstr
+        elif isinstance(node, uni.Enum):
+            semstr = node.semstr
+            enum_ast_body: list[uni.UniNode] = []
+            if isinstance(node.body, list):
+                enum_ast_body = node.body
+            elif isinstance(node.body, uni.ImplDef) and isinstance(
+                node.body.body, list
+            ):
+                enum_ast_body = node.body.body  # type: ignore
+            for stmt in enum_ast_body:
+                if isinstance(stmt, uni.Assignment) and isinstance(
+                    stmt.target[0], uni.AstSymbolNode
+                ):
+                    name = stmt.target[0].sym_name
+                    val_semstr = stmt.target[0].semstr
+                    inner_semstr[name] = val_semstr
+        elif isinstance(node, uni.Ability):
+            semstr = node.semstr
+            inner_semstr = (
+                {
+                    param.sym_name: param.semstr
+                    for param in node.signature.params
+                    if param.semstr
+                }
+                if isinstance(node.signature, uni.FuncSignature)
+                else {}
+            )
+
+        if not semstr and not inner_semstr:
+            return None
+
+        return self.sync(
+            ast3.Call(
+                func=self.jaclib_obj("sem"),
+                args=[
+                    self.sync(ast3.Constant(value=semstr)),
+                    self.sync(
+                        ast3.Dict(
+                            keys=[
+                                self.sync(ast3.Constant(value=k))
+                                for k in inner_semstr.keys()
+                            ],
+                            values=[
+                                self.sync(ast3.Constant(value=v))
+                                for v in inner_semstr.values()
+                            ],
+                        )
+                    ),
+                ],
+                keywords=[],
+            )
+        )
+
     def flatten(self, body: list[T | list[T] | None]) -> list[T]:
         """Flatten a list of items or lists into a single list."""
         new_body: list[T] = []
@@ -585,6 +672,10 @@ class PyastGenPass(UniPass):
             if node.decorators
             else []
         )
+
+        if sem_decorator := self._get_sem_decorator(node):
+            decorators.append(sem_decorator)
+
         base_classes = [cast(ast3.expr, i.gen.py_ast[0]) for i in node.base_classes]
         if node.arch_type.name != Tok.KW_CLASS:
             base_classes.append(self.jaclib_obj(node.arch_type.value.capitalize()))
@@ -621,6 +712,10 @@ class PyastGenPass(UniPass):
             if node.decorators
             else []
         )
+
+        if sem_decorator := self._get_sem_decorator(node):
+            decorators.append(sem_decorator)
+
         base_classes = [cast(ast3.expr, i.gen.py_ast[0]) for i in node.base_classes]
         base_classes.append(self.sync(ast3.Name(id="Enum", ctx=ast3.Load())))
         node.gen.py_ast = [
@@ -640,32 +735,131 @@ class PyastGenPass(UniPass):
         if isinstance(node.body, uni.ImplDef):
             self.traverse(node.body)
 
+    def _invoke_llm_call(
+        self, model: ast3.expr, caller: ast3.expr, args: ast3.Dict
+    ) -> ast3.Call:
+        """Reusable method to codegen call_llm(model, caller, args)."""
+        return self.sync(
+            ast3.Call(
+                func=self.jaclib_obj("call_llm"),
+                args=[],
+                keywords=[
+                    self.sync(
+                        ast3.keyword(
+                            arg="model",
+                            value=model,
+                        )
+                    ),
+                    self.sync(
+                        ast3.keyword(
+                            arg="caller",
+                            value=caller,
+                        )
+                    ),
+                    self.sync(
+                        ast3.keyword(
+                            arg="args",
+                            value=args,
+                        )
+                    ),
+                ],
+            )
+        )
+
     def gen_llm_call_override(self, node: uni.FuncCall) -> list[ast3.AST]:
         """Generate python ast nodes for llm function body override syntax.
 
         example:
             foo() by llm();
         """
-        # to Avoid circular import
-        from jaclang.runtimelib.machine import JacMachineInterface
+        # from jaclang.runtimelib.machine import JacMachineInterface
+        # return JacMachineInterface.gen_llm_call_override(self, node)
+        if node.body_genai_call is None:
+            raise self.ice()
 
-        return JacMachineInterface.gen_llm_call_override(self, node)
+        model = cast(ast3.expr, node.body_genai_call.gen.py_ast[0])
+        caller = cast(ast3.expr, node.target.gen.py_ast[0])
 
-    def gen_llm_body(self, node: uni.Ability) -> list[ast3.AST]:
+        # Construct the arguments for the LLM call.
+        keys: list[ast3.expr | None] = []
+        values: list[ast3.expr] = []
+        for idx, call_arg in enumerate(node.params):
+            if isinstance(call_arg, uni.Expr):
+                keys.append(self.sync(ast3.Constant(value=idx)))
+                values.append(cast(ast3.expr, call_arg.gen.py_ast[0]))
+            else:
+                if call_arg.key:
+                    keys.append(self.sync(ast3.Constant(value=call_arg.key.sym_name)))
+                else:
+                    keys.append(self.sync(ast3.Constant(value=idx)))
+                values.append(cast(ast3.expr, call_arg.value.gen.py_ast[0]))
+
+        args = self.sync(ast3.Dict(keys=keys, values=values))
+
+        return [self._invoke_llm_call(model, caller, args)]
+
+    def gen_llm_body(self, node: uni.Ability) -> list[ast3.stmt]:
         """Generate the by LLM body."""
-        # to Avoid circular import
-        from jaclang.runtimelib.machine import JacMachineInterface
+        assert isinstance(node.body, uni.FuncCall)
+        assert isinstance(node.signature, uni.FuncSignature)
 
-        body: list[ast3.AST] = JacMachineInterface.gen_llm_body(self, node)
-        if node.doc:
-            body.insert(
-                0,
-                self.sync(
-                    ast3.Expr(value=cast(ast3.expr, node.doc.gen.py_ast[0])),
-                    jac_node=node.doc,
+        # Codegen for the caller of the LLM call.
+        caller: ast3.expr
+        if node.method_owner:
+            owner = self.sync(
+                ast3.Name(
+                    id="self" if not node.is_static else node.method_owner.sym_name,
+                    ctx=ast3.Load(),
                 ),
+                jac_node=node.method_owner,
             )
-        return body
+            caller = self.sync(
+                ast3.Attribute(
+                    value=owner,
+                    attr=node.name_ref.sym_name,
+                    ctx=ast3.Load(),
+                ),
+                jac_node=node.method_owner,
+            )
+        else:
+            caller = self.sync(ast3.Name(node.name_ref.sym_name, ctx=ast3.Load()))
+
+        # Codegen for arguments of the function.
+        #
+        # TODO: Currently this doesn't consider *args or **kwargs (but this also
+        # same in the current version so we're not breaking anything).
+        args = self.sync(
+            ast3.Dict(
+                keys=[
+                    self.sync(ast3.Constant(value=param.name.sym_name))
+                    for param in node.signature.params
+                ],
+                values=[
+                    self.sync(ast3.Name(param.name.sym_name, ctx=ast3.Load()))
+                    for param in node.signature.params
+                ],
+            )
+        )
+
+        llm_call = self._invoke_llm_call(
+            model=cast(ast3.expr, node.body.gen.py_ast[0]), caller=caller, args=args
+        )
+
+        # Attach docstring if exists and the llm call.
+        statements: list[ast3.stmt] = []
+        if node.doc:
+            statements.append(
+                self.sync(
+                    ast3.Expr(
+                        value=self.sync(
+                            ast3.Constant(value=node.doc.lit_value),
+                            jac_node=node.doc,
+                        )
+                    )
+                )
+            )
+        statements.append(self.sync(ast3.Return(value=llm_call)))
+        return statements
 
     def exit_ability(self, node: uni.Ability) -> None:
         func_type = ast3.AsyncFunctionDef if node.is_async else ast3.FunctionDef
@@ -714,6 +908,10 @@ class PyastGenPass(UniPass):
             if node.decorators
             else []
         )
+
+        if sem_decorator := self._get_sem_decorator(node):
+            decorator_list.append(sem_decorator)
+
         if isinstance(node.signature, uni.EventSignature):
             decorator_list.append(
                 self.jaclib_obj(
@@ -745,7 +943,11 @@ class PyastGenPass(UniPass):
             self.log_error(
                 "Ability has no body. Perhaps an impl must be imported.", node
             )
-            body = [self.sync(ast3.Pass(), node)]
+            body = [self.sync(ast3.Pass(), node)]  # type: ignore
+
+        ast_returns: ast3.expr = self.sync(ast3.Constant(value=None))
+        if isinstance(node.signature, uni.FuncSignature) and node.signature.return_type:
+            ast_returns = cast(ast3.expr, node.signature.return_type.gen.py_ast[0])
 
         node.gen.py_ast = [
             self.sync(
@@ -772,7 +974,7 @@ class PyastGenPass(UniPass):
                     ),
                     body=[cast(ast3.stmt, i) for i in body],
                     decorator_list=[cast(ast3.expr, i) for i in decorator_list],
-                    returns=self.sync(ast3.Constant(value=None)),
+                    returns=ast_returns,
                     type_params=[],
                 )
             )
@@ -1191,7 +1393,11 @@ class PyastGenPass(UniPass):
                         cast(ast3.stmt, stmt)
                         for stmt in self.resolve_stmt_block(node.body)
                     ],
-                    orelse=[],
+                    orelse=(
+                        [cast(ast3.stmt, stmt) for stmt in node.else_body.gen.py_ast]
+                        if node.else_body
+                        else []
+                    ),
                 )
             )
         ]
@@ -1522,29 +1728,6 @@ class PyastGenPass(UniPass):
                     )
                 )
             ]
-
-    def exit_ignore_stmt(self, node: uni.IgnoreStmt) -> None:
-        walker = self.sync(
-            ast3.Name(id="self", ctx=ast3.Load())
-            if node.from_walker
-            else ast3.Name(id=Con.VISITOR.value, ctx=ast3.Load())
-        )
-
-        node.gen.py_ast = [
-            self.sync(
-                ast3.Expr(
-                    value=self.sync(
-                        ast3.Call(
-                            func=self.jaclib_obj("ignore"),
-                            args=cast(
-                                list[ast3.expr], [walker, node.target.gen.py_ast[0]]
-                            ),
-                            keywords=[],
-                        )
-                    )
-                )
-            )
-        ]
 
     def exit_visit_stmt(self, node: uni.VisitStmt) -> None:
         loc = self.sync(
@@ -2281,40 +2464,6 @@ class PyastGenPass(UniPass):
     def exit_atom_unit(self, node: uni.AtomUnit) -> None:
         node.gen.py_ast = node.value.gen.py_ast
 
-    def by_llm_call(
-        self,
-        model: ast3.AST,
-        model_params: dict[str, uni.Expr],
-        scope: ast3.AST,
-        inputs: Sequence[Optional[ast3.AST]],
-        outputs: Sequence[Optional[ast3.AST]] | ast3.Call,
-        action: Optional[ast3.AST],
-        include_info: list[tuple[str, ast3.AST]],
-        exclude_info: list[tuple[str, ast3.AST]],
-    ) -> ast3.Call:
-        """Return the LLM Call, e.g. _Jac.with_llm()."""
-        # to avoid circular import
-        from jaclang.runtimelib.machine import JacMachineInterface
-
-        return JacMachineInterface.by_llm_call(
-            self,
-            model,
-            model_params,
-            scope,
-            inputs,
-            outputs,
-            action,
-            include_info,
-            exclude_info,
-        )
-
-    def get_by_llm_call_args(self, node: uni.FuncCall) -> dict:
-        """Get the arguments for the by_llm_call."""
-        # to avoid circular import
-        from jaclang.runtimelib.machine import JacMachineInterface
-
-        return JacMachineInterface.get_by_llm_call_args(self, node)
-
     def gen_call_args(
         self, node: uni.FuncCall
     ) -> tuple[list[ast3.expr], list[ast3.keyword]]:
@@ -2348,8 +2497,7 @@ class PyastGenPass(UniPass):
 
         # TODO: This needs to be changed to only generate parameters no the body.
         elif node.genai_call:
-            by_llm_call_args = self.get_by_llm_call_args(node)
-            node.gen.py_ast = [self.sync(self.by_llm_call(**by_llm_call_args))]
+            self.ice("Type(by llm()) call feature is temporarily disabled.")
 
         else:
             func = node.target.gen.py_ast[0]
