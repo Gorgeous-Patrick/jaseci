@@ -84,6 +84,7 @@ class SymbolicWalkerState:
 
     container: list[int]
     loc: int | None
+    path: list[int]
 
     def _new_possible_state(
         self, possible_visit: SymbolicVisits
@@ -96,11 +97,13 @@ class SymbolicWalkerState:
             elif insert_loc < 0:
                 insert_loc += len(container) + 1
             container = container[:insert_loc] + visit[1] + container[insert_loc:]
+        assert self.loc is not None
+        path = self.path + [self.loc]
         if len(container) > 0:
             loc = container.pop(0)
         else:
             loc = None
-        return SymbolicWalkerState(container=container, loc=loc)
+        return SymbolicWalkerState(container=container, loc=loc, path=path)
 
     def new_possible_states(
         self, possible_visits: SymbolicVisitPossibilities
@@ -130,7 +133,7 @@ def get_access_pattern_single_walker(
 ) -> None:
     """Iterate multiple times."""
     possible_states: list[SymbolicWalkerState] = [
-        SymbolicWalkerState(container=[], loc=start_idx)
+        SymbolicWalkerState(container=[], loc=start_idx, path=[])
     ]
 
     abilities = walker.get_all_sub_nodes(uni.Ability)
