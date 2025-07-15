@@ -17,6 +17,7 @@ def filter_neighbors(
     filtered_neighbors = []
 
     # Get all neighbors
+    # print(f"Unfiltered neighbor num: {len(list(network.neighbors(node_idx)))}")
     for neighbor_idx in network.neighbors(node_idx):
         # Get edge data between current node and neighbor
         edge_data = network.get_edge_data(node_idx, neighbor_idx)
@@ -30,7 +31,6 @@ def filter_neighbors(
             or visit_restrictions.edge_type == edge_type
         ):
             filtered_neighbors.append(neighbor_idx)
-            break  # Found a match, no need to check other visits
 
     return filtered_neighbors
 
@@ -50,14 +50,23 @@ def get_access_pattern_single_walker_one_run(
     res = possibilities.copy()
     bb_tail = start_node.get_tail()
     node = start_node
-    while not (node is bb_tail):
+    while True:
+        print(
+            f"{node.unparse()} --> len: {len(node.bb_out)}: {[code.unparse() for code in node.bb_out]}"
+        )
         if isinstance(node, uni.VisitStmt):
             visit_restriction = get_visit_restriction_of_single_visit(node)
+            # print(f"Visit Restriction: {visit_restriction}")
             neighbors = filter_neighbors(start_idx, network, visit_restriction)
+            # print(f"Neighbor Num: {len(neighbors)}")
             sym_visit = (visit_restriction.index, neighbors)
             res = [visits + [sym_visit] for visits in res]
-        node = node.bb_out[0]
+        if node is bb_tail:
+            break
+        else:
+            node = node.bb_out[0]
 
+    print("End of BB")
     if len(node.bb_out) == 0:
         return res
     accumulated: SymbolicVisitPossibilities = []
@@ -74,13 +83,12 @@ class SymbolicWalkerState:
     """Simplified walker state."""
 
     container: list[int]
-    loc: int
+    loc: int | None
 
     def _new_possible_state(
         self, possible_visit: SymbolicVisits
     ) -> "SymbolicWalkerState":
         container = self.container.copy()
-        loc = container.pop(0)
         for visit in possible_visit:
             insert_loc = visit[0]
             if insert_loc < -len(container):
@@ -88,6 +96,10 @@ class SymbolicWalkerState:
             elif insert_loc < 0:
                 insert_loc += len(container) + 1
             container = container[:insert_loc] + visit[1] + container[insert_loc:]
+        if len(container) > 0:
+            loc = container.pop(0)
+        else:
+            loc = None
         return SymbolicWalkerState(container=container, loc=loc)
 
     def new_possible_states(
@@ -100,29 +112,45 @@ class SymbolicWalkerState:
         ]
 
 
-def get_next_possible_states(
+def get_next_possible_visits(
     state: SymbolicWalkerState, flows: dict[str, uni.Ability], network: nx.DiGraph
-) -> list[SymbolicWalkerState]:
+) -> SymbolicVisitPossibilities:
     """Get the list of all possible next states."""
     flow = flows[network.nodes[state.loc]["node_type"]]
+    assert state.loc is not None
     possible_visits = get_access_pattern_single_walker_one_run(
         state.loc, network, flow, [[]]
     )
-    return state.new_possible_states(possible_visits)
+    return possible_visits
+    # return state.new_possible_states(possible_visits)
 
 
 def get_access_pattern_single_walker(
-    start_idx: int, network: nx.DiGraph, flows: dict[str, uni.Ability]
+    start_idx: int, network: nx.DiGraph, walker: uni.Archetype
 ) -> None:
     """Iterate multiple times."""
     possible_states: list[SymbolicWalkerState] = [
         SymbolicWalkerState(container=[], loc=start_idx)
     ]
 
-    for _ in range(100):
+    abilities = walker.get_all_sub_nodes(uni.Ability)
+    flows = {
+        ability.get_all_sub_nodes(uni.EventSignature)[0]
+        .get_all_sub_nodes(uni.Name)[0]
+        .value: ability
+        for ability in abilities
+    }
+    for i in range(100):
+        print(f"Iteration: {i}")
         new_possible_states: list[SymbolicWalkerState] = []
+        # print(len(possible_states))
         for possible_state in possible_states:
-            new_possible_states = new_possible_states + get_next_possible_states(
-                possible_state, flows, network
+            possible_visits = get_next_possible_visits(possible_state, flows, network)
+            print(f"Possibilities: {possible_visits}")
+            new_possible_states = (
+                new_possible_states
+                + possible_state.new_possible_states(possible_visits)
             )
-            possible_states = new_possible_states
+        possible_states = [
+            state for state in new_possible_states if state.loc is not None
+        ]

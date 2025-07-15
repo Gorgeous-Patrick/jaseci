@@ -8,19 +8,18 @@ node BFSNode {
 walker BFS {
   has visited: list[int] = [];
   can run with BFSNode entry {
-    if (here.name in self.visited) {
-      return;
+    if (not (here.name in self.visited)) {
+        print(here.name);
+        self.visited.append(here.name);
+        visit [-->];
     }
-    print(here.name);
-    self.visited.append(here.name);
-    visit [-->];
   }
 }
 
 
 with entry {
   nodes = [];
-  NODE_NUM = 5;
+  NODE_NUM = 50;
   for i in range(NODE_NUM) {
     nodes.append(BFSNode(name = i));
     root ++> nodes[i];
@@ -37,5 +36,5 @@ with entry {
     }
   }
   wlk = nodes[0] spawn BFS();
-  JacMachine.mapping([wlk]);
+  JacMachine.mapping(wlk, nodes[0]);
 }
