@@ -31,6 +31,7 @@ from typing import (
 from uuid import UUID
 
 
+import jaclang.compiler.unitree as ast
 from jaclang.compiler.constant import Constants as Con, EdgeDir, colors
 from jaclang.compiler.program import JacProgram
 from jaclang.runtimelib.archetype import (
@@ -735,7 +736,6 @@ class JacWalker:
             warch, targ = op2, op1
         else:
             raise TypeError("Invalid walker object")
-        node.spawned_walker_archetypes.append(walker.archetype)
 
         walker: WalkerAnchor = warch.__jac__
         loc: NodeAnchor | EdgeAnchor = assign(walker, targ)
