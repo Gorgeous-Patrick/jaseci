@@ -5,6 +5,7 @@ import from jaclang.runtimelib.machine {JacMachine}
 node Page {
   has id: int;
   has score: float = 0;
+  has new_score: float = 0;
 }
 
 edge HyperLink {}
@@ -20,9 +21,8 @@ walker PageRank{
       self.collected_score = here.score / len([->:HyperLink:->]);
       visit [->:HyperLink:->];
     } else {
-      here.score = self.collected_score;
+      here.new_score += self.collected_score;
     }
-
   }
 }
 

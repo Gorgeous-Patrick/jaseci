@@ -23,7 +23,7 @@ walker red {
 
 with entry {
   THREAD_NUM = 10;
-  DATA_LEN = 200;
+  DATA_LEN = 20;
   k = 0;
   heads = [];
   tails = [];
