@@ -1,4 +1,5 @@
-import:py math;
+import math;
+import from jaclang.runtimelib.machine {JacMachine}
 node Data {
   # input: int[DIM];
   # truth: int;
@@ -11,14 +12,11 @@ node Acc {
   has new_weight: list[int];
 }
 
-can sigmoid(x: int){
-  return 1 / (1 + math.exp(-x));
-}
-
 
 walker log_reg_train {
   has weight: list[int];
   has grads: list[int] = [];
+
   can grad_calc with Data entry {
      dot = 0;
     #  DIM = len(self.weight);
@@ -26,7 +24,8 @@ walker log_reg_train {
      for i in range(DIM) {
       dot += self.weight[i] * here.input[i];
      }
-     error = sigmoid(dot) - here.truth;
+     sigmoid = 1 / (1 + math.exp(-dot));
+     error = sigmoid - here.truth;
      self.grads = [0] * DIM;
      for i in range(DIM) {
       self.grads[i] = error * here.input[i];
@@ -46,6 +45,10 @@ with entry {
   data2 = Data(input=[4, 5, 6], truth=0);
   data3 = Data(input=[7, 8, 9], truth=1);
   data4 = Data(input=[10, 11, 12], truth=0);
+  root ++> data1;
+  root ++> data2;
+  root ++> data3;
+  root ++> data4;
   
   acc = Acc(new_weight=[0] * 3);
   
@@ -55,9 +58,10 @@ with entry {
   data4 ++> acc;
   
   wlk1 = data1 spawn log_reg_train(weight=[0] * 3);
-  wlk2 = data2 spawn log_reg_train(weight=[0] * 3);
-  wlk3 = data3 spawn log_reg_train(weight=[0] * 3);
-  wlk4 = data4 spawn log_reg_train(weight=[0] * 3);
+  JacMachine.mapping([wlk1]);
+  # wlk2 = data2 spawn log_reg_train(weight=[0] * 3);
+  # wlk3 = data3 spawn log_reg_train(weight=[0] * 3);
+  # wlk4 = data4 spawn log_reg_train(weight=[0] * 3);
 
   
   print(acc.new_weight);

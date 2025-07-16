@@ -1,3 +1,4 @@
+import from jaclang.runtimelib.machine {JacMachine}
 node Data {
   has chunk: float;
 }
@@ -26,13 +27,18 @@ with entry {
   data3 = Data(chunk=4);
   data4 = Data(chunk=5);
   end = End();
+  root ++> data1;
+  root ++> data2;
+  root ++> data3;
+  root ++> data4;
 
   data1 ++> data2;
   data2 ++> end;
   data3 ++> data4;
   data4 ++> end;
   wlk1 = data1 spawn histogram();
-  wlk2 = data3 spawn histogram();
+  JacMachine.mapping([wlk1]);
+  # wlk2 = data3 spawn histogram();
   
   print(end.result);
 }
