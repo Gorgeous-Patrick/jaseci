@@ -1,3 +1,4 @@
+import from jaclang.runtimelib.machine {JacMachine}
 edge Left {}
 edge Right {}
 
@@ -14,9 +15,9 @@ walker bs {
   has value: int;
   can run_down with BranchNode entry {
     if (self.value < here.mid) {
-      visit [-:Left:->];
+      visit [->:Left:->];
     } else {
-      visit [-:Right:->];
+      visit [->:Right:->];
     }
   }
 
@@ -34,14 +35,17 @@ with entry {
   n5 = DataNode(value = 6, index = 2);
   n6 = DataNode(value = 8, index = 3);
 
-  r+:Left:+>n1;
-  r+:Right:+>n2;
-  n1+:Left:+>n3;
-  n1+:Right:+>n4;
-  n2+:Left:+>n5;
-  n2+:Right:+>n6;
+  root ++> r;
+
+  r+>:Left:+>n1;
+  r+>:Right:+>n2;
+  n1+>:Left:+>n3;
+  n1+>:Right:+>n4;
+  n2+>:Left:+>n5;
+  n2+>:Right:+>n6;
 
   print("Starting binary search with value 5");
 
-  wlk = r spawn bs(value = 1);
+  wlk = r spawn bs(value = 5);
+  JacMachine.mapping([wlk]);
 }

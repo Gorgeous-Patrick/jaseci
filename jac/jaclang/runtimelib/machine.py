@@ -60,6 +60,11 @@ from jaclang.runtimelib.constructs import (
     WalkerArchetype,
 )
 from jaclang.runtimelib.data_mapper import VisitInfo
+from jaclang.runtimelib.data_mapper.access_pattern import (
+    get_access_pattern,
+    get_access_pattern_single_walker,
+)
+from jaclang.runtimelib.data_mapper.plot import plot_and_save
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -495,9 +500,35 @@ class JacWalker:
         walker.path = []
         current_loc = node.archetype
         if isinstance(current_loc, EdgeArchetype):
-            walker.set_trace.append(set([current_loc.__jac__.target]))
+            walker.set_trace.append({current_loc.__jac__.target})
         elif isinstance(current_loc, NodeArchetype):
-            walker.set_trace.append(set([current_loc.__jac__]))
+            walker.set_trace.append({current_loc.__jac__})
+
+        all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
+        if isinstance(current_loc, EdgeArchetype):
+            start_node = current_loc.__jac__.target
+        else:
+            start_node = current_loc.__jac__
+        node_idx = all_nodes.index(start_node)
+        graph = JacPIM.get_networkx(all_nodes, all_edges)
+        JacPIM.networkx_gen_png(graph)
+        visit_info = JacPIM._get_visit_info(
+            JacMachine.program.mod.get_all_sub_nodes(ast.VisitStmt)
+        )
+
+        walker_type = JacPIM._extract_name(walker.archetype)
+        traversal_paths = []
+        traversal_paths.append(
+            get_access_pattern_single_walker(
+                start_idx=node_idx,
+                network=graph,
+                visit_info=visit_info,
+                walker_type=walker_type,
+            )
+        )
+
+        access_pattern = get_access_pattern(network=graph, paths=traversal_paths)
+        plot_and_save(graph, access_pattern)
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -1786,11 +1817,19 @@ class JacPIM:
     def _get_graph_nodes_and_edges() -> tuple[list[NodeAnchor], list[EdgeAnchor]]:
         jctx = JacMachine.get_context()
         all_nodes = [
-            node for node in jctx.mem.__mem__.values() if isinstance(node, NodeAnchor)
+            node
+            for node in jctx.mem.__mem__.values()
+            if isinstance(node, NodeAnchor)
+            and JacPIM._extract_name(node.archetype) != "Root"
         ]
         all_edges = [
-            edge for edge in jctx.mem.__mem__.values() if isinstance(edge, EdgeAnchor)
+            edge
+            for edge in jctx.mem.__mem__.values()
+            if isinstance(edge, EdgeAnchor)
+            and JacPIM._extract_name(edge.target.archetype) != "Root"
+            and JacPIM._extract_name(edge.source.archetype) != "Root"
         ]
+        print([node.archetype for node in all_nodes])
         return all_nodes, all_edges
 
     @staticmethod
@@ -1802,11 +1841,23 @@ class JacPIM:
         all_nodes: list[NodeAnchor], all_edges: list[EdgeAnchor]
     ) -> nx.DiGraph:
         """Get the networkx graph for the Jac Input data Graph."""
+        import matplotlib.pyplot as plt
+
         graph = nx.DiGraph()
 
         for idx, node_anchor in enumerate(all_nodes):
             # Add node with detailed annotations
             graph.add_node(idx, node_type=JacPIM._extract_name(node_anchor.archetype))
+
+        # Assign colors by node_type
+        node_types = nx.get_node_attributes(graph, "node_type")
+        unique_types = sorted(set(node_types.values()))
+        cmap = plt.get_cmap("tab10")
+        color_map = {t: cmap(i) for i, t in enumerate(unique_types)}
+
+        # Store color in node attribute
+        for node in graph.nodes():
+            graph.nodes[node]["color"] = color_map[graph.nodes[node]["node_type"]]
 
         for _idx, edge_anchor in enumerate(all_edges):
             graph.add_edge(
@@ -1870,58 +1921,7 @@ class JacPIM:
     @staticmethod
     def mapping(walkers: list[WalkerArchetype]) -> None:
         """Generate mapping."""
-        from .data_mapper import (
-            get_access_pattern_single_walker,
-            get_access_pattern,
-            metis_partition,
-            get_num_dpu_jumps,
-            random_partition,
-            plot_and_save,
-            get_num_dpu_jumps_adaptive,
-        )
-        import time
-        start = time.time()
-
-        all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
-        graph = JacPIM.get_networkx(all_nodes, all_edges)
-        JacPIM.networkx_gen_png(graph)
-        visit_info = JacPIM._get_visit_info(
-            JacMachine.program.mod.get_all_sub_nodes(ast.VisitStmt)
-        )
-        traversal_paths = []
-        for node_idx, node in enumerate(all_nodes):
-            for walker_type in node.spawned_walker_archetypes:
-                # walker_type = str(walker_type).split('(')[0]
-                walker_type = JacPIM._extract_name(walker_type)
-                traversal_paths.append(
-                    get_access_pattern_single_walker(
-                        start_idx=node_idx,
-                        network=graph,
-                        visit_info=visit_info,
-                        walker_type=walker_type,
-                    )
-                )
-        access_pattern = get_access_pattern(network=graph, paths=traversal_paths)
-        plot_and_save(graph, access_pattern)
-        num_dpus = 20
-        metis_mapping = metis_partition(
-            access_pattern, min(num_dpus, access_pattern.number_of_nodes())
-        )
-        print("METIS MAPPING", metis_mapping)
-        
-        end = time.time()
-        print("Mapping took (seconds):", end - start)
-        traces = [
-            [all_nodes.index(node) for node in walker.__jac__.trace]
-            for walker in walkers
-        ]
-        set_traces = [
-            [set(all_nodes.index(node) for node in set_trace) for set_trace in walker.__jac__.set_trace]
-            for walker in walkers
-        ]
-        print("Num DPU Cross DPU Jumps (Metis)", get_num_dpu_jumps_adaptive(metis_mapping, set_traces))
-        random_mapping = [get_num_dpu_jumps_adaptive(random_partition(access_pattern, min(num_dpus, access_pattern.number_of_nodes())), set_traces)for _ in range(10)]
-        print("Num DPU Cross DPU Jumps (Random)", sum(random_mapping) / len(random_mapping))
+        pass
 
 
 class JacMachineInterface(

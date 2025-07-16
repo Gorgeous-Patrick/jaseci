@@ -1,36 +1,54 @@
-import networkx as nx
+"""Plotting diagrams."""
+
 import matplotlib.pyplot as plt
 
 import networkx as nx
-import matplotlib.pyplot as plt
 
-def plot_and_save(G1: nx.Graph, G2: nx.Graph, filename1="G1.png", filename2="G2.png"):
+
+def plot_and_save(
+    g1: nx.Graph,
+    g2: nx.Graph,
+    filename1: str = "g1.png",
+    filename2: str = "g2.png",
+) -> None:
+    """Plot graphs and save."""
+    node_colors = [g1.nodes[n]["color"] for n in g1.nodes()]
     # Use a shared layout from the union of nodes
-    all_nodes = set(G1.nodes()).union(G2.nodes())
+    all_nodes = set(g1.nodes()).union(g2.nodes())
     layout_graph = nx.Graph()
     layout_graph.add_nodes_from(all_nodes)
     pos = nx.kamada_kawai_layout(layout_graph)
 
-    # --- Plot G1: Solid edges ---
+    # --- Plot g1: Solid edges ---
     plt.figure(figsize=(8, 6))
-    nx.draw_networkx_nodes(G1, pos, nodelist=G1.nodes(), node_size=10)
-    nx.draw_networkx_edges(G1, pos, edge_color='black', style='solid', width=1, arrows=G1.is_directed())
-    labels1 = nx.get_edge_attributes(G1, 'weight')
+    nx.draw_networkx_nodes(
+        g1, pos, nodelist=g1.nodes(), node_size=10, node_color=node_colors
+    )
+    nx.draw_networkx_edges(
+        g1, pos, edge_color="black", style="solid", width=1, arrows=g1.is_directed()
+    )
+    labels1 = nx.get_edge_attributes(g1, "weight")
     if labels1:
-        nx.draw_networkx_edge_labels(G1, pos, edge_labels=labels1, font_size=10, font_color='black')
-    plt.axis('off')
+        nx.draw_networkx_edge_labels(
+            g1, pos, edge_labels=labels1, font_size=10, font_color="black"
+        )
+    plt.axis("off")
     plt.tight_layout()
     plt.savefig(filename1, dpi=300)
     plt.close()
 
-    # --- Plot G2: Dashed edges with weight labels ---
+    # --- Plot g2: Dashed edges with weight labels ---
     plt.figure(figsize=(8, 6))
-    nx.draw_networkx_nodes(G2, pos, nodelist=G2.nodes(), node_size=10)
-    nx.draw_networkx_edges(G2, pos, edge_color='blue', style='dashed', width=1, arrows=G2.is_directed())
-    labels2 = nx.get_edge_attributes(G2, 'weight')
-    if labels2:
-        nx.draw_networkx_edge_labels(G2, pos, edge_labels=labels2, font_size=10, font_color='blue')
-    plt.axis('off')
+    nx.draw_networkx_nodes(
+        g2, pos, nodelist=g2.nodes(), node_size=10, node_color=node_colors
+    )
+    nx.draw_networkx_edges(
+        g2, pos, edge_color="blue", style="dashed", width=1, arrows=g2.is_directed()
+    )
+    # labels2 = nx.get_edge_attributes(g2, 'weight')
+    # if labels2:
+    #     nx.draw_networkx_edge_labels(g2, pos, edge_labels=labels2, font_size=10, font_color='blue')
+    plt.axis("off")
     plt.tight_layout()
     plt.savefig(filename2, dpi=300)
     plt.close()
