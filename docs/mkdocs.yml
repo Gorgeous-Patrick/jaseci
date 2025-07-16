@@ -13,7 +13,7 @@ nav:
       - LittleX (your own twitter):
         - "learn/examples/littleX/tutorial.md"
         - "learn/examples/littleX/full_guide.md"
-      - RAG-based Conversational Chatbot:
+      - Jac MCP Conversational Chatbot:
         - "learn/examples/rag_chatbot/Overview.md"
         - "learn/examples/rag_chatbot/Tutorial.md"
       - RPG game with AI Genarated Maps: "learn/examples/mtp_examples/rpg_game.md"

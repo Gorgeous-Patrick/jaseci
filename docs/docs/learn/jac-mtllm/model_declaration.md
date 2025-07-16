@@ -55,57 +55,57 @@ In the jac program that you require to inference an LLM, please code as followin
 
 === "OpenAI"
     ```jac linenums="1"
-    import from mtllm.llms {OpenAI}
+    import from mtllm.llm {Model}
 
-    glob llm = OpenAI(
+    glob llm = Model(
         model_name = "gpt-4o"
     );
     ```
 === "Anthropic"
     ```jac linenums="1"
-    import from mtllm.llms {Anthropic}
+    import from mtllm.llm {Model}
 
-    glob llm = Anthropic(
+    glob llm = Model(
         model_name = "claude-3-sonnet-20240229"
     );
     ```
 === "Google"
     ```jac linenums="1"
-    import from mtllm.llms { Gemini }
+    import from mtllm.llm { Model }
 
-    glob llm = Gemini(
-        model_name="gemini-2.0-flash"
+    glob llm = Model(
+        model_name="gemini/gemini-2.0-flash"
     );
     ```
 === "Groq"
     ```jac linenums="1"
-    import from mtllm.llms {Groq}
+    import from mtllm.llm {Model}
 
-    glob llm = Groq(
+    glob llm = Model(
         model_name = "llama3-8b-8192", # Go through available models in website
     );
     ```
 === "Together AI"
     ```jac linenums="1"
-    import from mtllm.llms {TogetherAI}
+    import from mtllm.llm {Model}
 
-    glob llm = TogetherAI(
+    glob llm = Model(
         model_name = "meta-llama/Llama-2-70b-chat-hf" # Go through available models in website
     );
     ```
 === "Ollama"
     ```jac linenums="1"
-    import from mtllm.llms {Ollama}
+    import from mtllm.llm {Model}
 
-    glob llm = Ollama(
+    glob llm = Model(
         model_name = "llama3:8b" # Will pull model if does not exists
     );
     ```
 === "Hugging Face"
     ```jac linenums="1"
-    import from mtllm.llms {Huggingface}
+    import from mtllm.llm {Model}
 
-    glob llm = Huggingface(
+    glob llm = Model(
         model_name = "mistralai/Mistral-7B-v0.3" # Will pull model if does not exists
     );
     ```

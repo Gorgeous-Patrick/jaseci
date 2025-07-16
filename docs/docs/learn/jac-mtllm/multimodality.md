@@ -20,34 +20,34 @@ Currently, only multimodal LLMs from OpenAI and Anthropic are supported. In the 
 MTLLM can handle images as inputs. You can provide an image as input to the MTLLM Function or Method using the `Image` format of mtllm. Here is an example of how you can provide an image as input to the MTLLM Function or Method:
 
 ```jac
-import from mtllm.llms {OpenAI}
-import from mtllm {Image}
+import from mtllm.llm {Model}
+import from mtllm.types {Image, Text}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o-mini");
 
+'Personality of the Person'
 enum Personality {
-   INTROVERT: 'Person who is shy and reticent' = "Introvert",
-   EXTROVERT: 'Person who is outgoing and socially confident' = "Extrovert"
+   INTROVERT = "Introvert",
+   EXTROVERT = "Extrovert"
 }
 
-obj 'Person'
-Person {
+obj Person {
     has full_name: str,
-        yod: 'Year of Death': int,
-        personality: 'Personality of the Person': Personality;
+        year_of_death: str,
+        personality: Personality;
 }
 
-def get_person_info(img: 'Image of Person': Image) -> Person
-by llm();
+def get_person_info(image_content: Image) -> Person by llm();
 
 with entry {
-    person_obj = get_person_info(Image("person.png"));
+    image = Image("photo.jpg");
+    person_obj = get_person_info(image);
     print(person_obj);
 }
 ```
 
 Input Image (person.png):
-![person.png](https://preview.redd.it/g39au73fdir01.jpg?auto=webp&s=cef8394b639af82ba92d6ab084935f7adc8e841d)
+![person.png](../../assets/photo.jpg)
 
 ??? example "Output"
     Person(full_name='Albert Einstein', yod=1955, personality=Personality.INTROVERT)

@@ -59,9 +59,9 @@ Currently the Tasks in the Task Manager are just strings. Let's add a feature wh
 ### Creating the Jac Module
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI();
+glob llm = Model(model_name="gpt-4o");
 
 obj Task {
     has description: str,

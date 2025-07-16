@@ -40,9 +40,9 @@ MTLLM provides different levels of intelligence:
 Transform any function into an intelligent agent by adding the `by llm` declaration. Instead of writing manual API calls and prompt engineering, simply define the function signature and let MTLLM handle the implementation:
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 def translate(text: str, target_language: str) -> str by llm();
 def analyze_sentiment(text: str) -> str by llm();
@@ -56,9 +56,9 @@ These functions become intelligent agents that can understand natural language i
 Add the `method='Reason'` parameter to enable step-by-step reasoning for complex tasks:
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 def analyze_sentiment(text: str) -> str by llm(method='Reason');
 def generate_response(original_text: str, sentiment: str) -> str by llm();
@@ -82,9 +82,9 @@ with entry {
 MTLLM excels at generating structured outputs. Define functions that return complex types:
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 def get_joke_with_punchline() -> tuple[str, str] by llm();
 
@@ -104,9 +104,9 @@ Transform object methods into intelligent components that can reason about their
 ### Basic Object Methods
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 obj Person {
     has name: str;
@@ -128,9 +128,9 @@ with entry {
 Create sophisticated multi-agent systems using object methods:
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 obj Essay {
     has essay: str;
@@ -172,9 +172,9 @@ When building AI-integrated applications, providing the right amount of context 
 Docstrings serve as crucial context for your intelligent functions. MTLLM uses docstrings to understand the function's purpose and expected behavior. Keep them concise and focused - they should guide the LLM, not replace its reasoning.
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 """Translate text to the target language."""
 def translate(text: str, target_language: str) -> str by llm();
@@ -257,9 +257,9 @@ In addition to defining functions and methods with the `by llm()` syntax, Jaclan
 You can override any function call by appending `by llm()` to the function call:
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 """Greet the user with the given name."""
 def greet(name: str) -> str {
@@ -296,10 +296,10 @@ In this example:
 The ReAct (Reasoning and Acting) method enables true agentic behavior by allowing agents to reason about problems and use external tools to solve them. This is where functions become genuinely agentic - they can autonomously decide what tools they need and how to use them.
 
 ```jac linenums="1"
-import from mtllm.llms {OpenAI}
+import from mtllm.llm {Model}
 import from datetime {datetime}
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
 obj Person {
     has name: str;
