@@ -58,7 +58,6 @@ with entry {
   data4 ++> acc;
   
   wlk1 = data1 spawn log_reg_train(weight=[0] * 3);
-  JacMachine.mapping([wlk1]);
   # wlk2 = data2 spawn log_reg_train(weight=[0] * 3);
   # wlk3 = data3 spawn log_reg_train(weight=[0] * 3);
   # wlk4 = data4 spawn log_reg_train(weight=[0] * 3);

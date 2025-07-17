@@ -47,5 +47,4 @@ with entry {
   print("Starting binary search with value 5");
 
   wlk = r spawn bs(value = 5);
-  JacMachine.mapping([wlk]);
 }

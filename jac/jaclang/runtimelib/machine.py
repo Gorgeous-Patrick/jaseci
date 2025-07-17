@@ -1847,7 +1847,11 @@ class JacPIM:
 
         for idx, node_anchor in enumerate(all_nodes):
             # Add node with detailed annotations
-            graph.add_node(idx, node_type=JacPIM._extract_name(node_anchor.archetype))
+            graph.add_node(
+                idx,
+                node_type=JacPIM._extract_name(node_anchor.archetype),
+                node_id=getattr(node_anchor.archetype, "id", None),
+            )
 
         # Assign colors by node_type
         node_types = nx.get_node_attributes(graph, "node_type")

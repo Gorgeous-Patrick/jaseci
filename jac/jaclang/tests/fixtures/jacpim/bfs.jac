@@ -37,5 +37,4 @@ with entry {
     }
   }
   wlk = nodes[0] spawn BFS();
-  JacMachine.mapping([wlk]);
 }

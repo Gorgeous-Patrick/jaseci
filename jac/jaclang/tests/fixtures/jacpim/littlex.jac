@@ -44,5 +44,4 @@ with entry {
     for node in subgraph.nodes() {
       walkers.append(jac_nodes[node] spawn LoadFeed());
     }
-    JacMachine.mapping(walkers);
 }

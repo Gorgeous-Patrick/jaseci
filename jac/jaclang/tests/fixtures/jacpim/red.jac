@@ -59,5 +59,4 @@ with entry {
   for head in heads {
     walkers.append(head spawn red());
   }
-  JacMachine.mapping([walkers[0]]);
 }

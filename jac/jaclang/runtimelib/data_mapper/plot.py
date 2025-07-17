@@ -13,6 +13,7 @@ def plot_and_save(
 ) -> None:
     """Plot graphs and save."""
     node_colors = [g1.nodes[n]["color"] for n in g1.nodes()]
+    node_id = {n: g1.nodes[n]["node_id"] or "" for n in g1.nodes()}
     # Use a shared layout from the union of nodes
     all_nodes = set(g1.nodes()).union(g2.nodes())
     layout_graph = nx.Graph()
@@ -22,8 +23,9 @@ def plot_and_save(
     # --- Plot g1: Solid edges ---
     plt.figure(figsize=(8, 6))
     nx.draw_networkx_nodes(
-        g1, pos, nodelist=g1.nodes(), node_size=10, node_color=node_colors
+        g1, pos, nodelist=g1.nodes(), node_size=100, node_color=node_colors
     )
+    nx.draw_networkx_labels(g1, pos, node_id)
     nx.draw_networkx_edges(
         g1, pos, edge_color="black", style="solid", width=1, arrows=g1.is_directed()
     )
@@ -40,8 +42,9 @@ def plot_and_save(
     # --- Plot g2: Dashed edges with weight labels ---
     plt.figure(figsize=(8, 6))
     nx.draw_networkx_nodes(
-        g2, pos, nodelist=g2.nodes(), node_size=10, node_color=node_colors
+        g2, pos, nodelist=g2.nodes(), node_size=100, node_color=node_colors
     )
+    nx.draw_networkx_labels(g2, pos, node_id)
     nx.draw_networkx_edges(
         g2, pos, edge_color="blue", style="dashed", width=1, arrows=g2.is_directed()
     )

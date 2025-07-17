@@ -1,6 +1,7 @@
+
+import random;
 import from analytical.data_prep {download_and_cache, get_subgraph}
 import os;
-import from jaclang.runtimelib.machine {JacMachine}
 
 node Page {
   has id: int;
@@ -28,26 +29,22 @@ walker PageRank{
 
 with entry {
   
-  SNAP_URL = "https://snap.stanford.edu/data/wiki-topcats.txt.gz";
-  DATA_DIR = "snap_data";
-  RAW_FILE = os.path.join(DATA_DIR, "wiki-topcats.txt.gz");
-  EXTRACTED_FILE = os.path.join(DATA_DIR, "wiki-topcats.txt");
-  SUBGRAPH_FILE = os.path.join(DATA_DIR, "wiki-topcats-subgraph.txt");
+  nodes = [];
+  NODE_NUM = 20;
+  for i in range(NODE_NUM) {
+    nodes.append(Page(id = i));
+    root ++> nodes[i];
+  }
 
-    download_and_cache(RAW_FILE, EXTRACTED_FILE, SNAP_URL, DATA_DIR);
-
-    subgraph = get_subgraph(EXTRACTED_FILE, SUBGRAPH_FILE, target_size=300, limit=10000, small=True);
-    jac_nodes = {};
-    for node in subgraph.nodes() {
-      jac_nodes[node] = Page(id = node, score = 1/len(subgraph.nodes()));
-      root ++> jac_nodes[node];
+  for i in range(NODE_NUM) {
+    for j in range(NODE_NUM) {
+      if (i == j) {
+        continue;
+      }
+      if ((random.uniform(0, 1)) <= 0.5){
+        nodes[i] +>:HyperLink:+> nodes[j];
+      }
     }
-    for edge in subgraph.edges() {
-      jac_nodes[edge[0]] +>:HyperLink:+> jac_nodes[edge[1]];
-    }
-    walkers = [];
-    for node in subgraph.nodes() {
-      walkers.append(jac_nodes[node] spawn PageRank());
-    }
-    JacMachine.mapping(walkers);
+  }
+  wlk = nodes[0] spawn PageRank();
 }

@@ -18,7 +18,6 @@ with entry {
   root ++> b;
   c ++> b;
   wlk1 = a spawn BasciWalker();
-  wlk2 = b spawn BasciWalker();
-  JacMachine.mapping([wlk1, wlk2]);
+  # wlk2 = b spawn BasciWalker();
   # Run on DPU
 }
