@@ -176,6 +176,7 @@ markdown_extensions:
       custom_checkbox: true
   - pymdownx.arithmatex:
       generic: true
+  - pymdownx.blocks.caption
   - attr_list
   - md_in_html
   - attr_list

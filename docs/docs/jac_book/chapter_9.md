@@ -1,621 +1,480 @@
 # Chapter 9: Nodes and Edges
-
-**Nodes** and **Edges** are the fundamental building blocks of Object-Spatial Programming. Nodes represent data locations in your graph, while edges represent the relationships between them. This chapter shows you how to create, connect, and work with these spatial constructs using a simple classroom management system.
-
-!!! topic "Graph-Based Data Modeling Philosophy"
-    Instead of storing data in isolated objects, OSP organizes data as connected nodes in a graph. This makes relationships explicit and enables powerful traversal patterns that naturally express real-world connections.
-
-## Node Creation and Properties
-
-Nodes are the primary objects in Jac, representing entities like students, teachers, classrooms, etc. They can have properties and can be connected to other nodes through edges. Nodes can be created with the `node` keyword, and they automatically persist when connected to the root node.
+---
+**Nodes** and **Edges** are the fundamental building blocks of Object-Spatial Programming. Nodes represent data locations in your graph, while edges represent the relationships between them.
 
 
-!!! topic "What are Nodes?"
-    Nodes are special objects that can be connected to other nodes through edges. They automatically persist when connected to the root node and can react to visiting walkers.
+## Node Abilities
+---
+In Object-Spatial Programming, walkers often carry the intelligence—they traverse the graph, maintain state, and make decisions. But in Jac, nodes are not just passive data containers. They can have their own abilities—functions that trigger when a specific kind of walker arrives. This two-way dynamic enables powerful, flexible interactions between walkers and the graph they explore.
 
-### Basic Node Declaration
+### Usecase: Uninformed State Agent
+Imagine a generic agent called StateAgent. It’s been sent into a graph, tasked with collecting environmental information. However, this agent knows nothing in advance about the nodes it will visit. It doesn’t know what data to look for, or how to interpret it. In traditional programming, this would be a problem—how can an agent act on things it doesn’t understand?
+
+But in Jac, the nodes themselves are intelligent. They can recognize the type of walker arriving and decide how to interact with it. In this case, when the StateAgent visits, the nodes will update the agent’s internal state with their own properties—effectively teaching the agent as it moves.
+
+First, let's define our StateAgent walker:
+```jac
+walker StateAgent {
+    has state: dict = {};
+
+    can start with `root entry {
+        visit [-->];
+    }
+}
+```
+The `StateAgent` walker carries a dictionary called `state` to store data it collects as it walks the graph. It starts at the root node and visits all directly connected nodes.
+
+```jac
+node Weather {
+    has temp: int = 80;
+
+    can get with StateAgent entry {
+        visitor.state["temperature"] = self.temp;
+    }
+}
+```
+The `Weather` node knows what to do when a `StateAgent` visits. It sets the "temperature" key in the agent's state to its local `temp` value. In a production system, this could be a call to an API to get real-time weather data.
+
+```jac
+node Time {
+    has hour: int = 12;
+
+    can get with StateAgent entry {
+        visitor.state["time"] = f"{self.hour}:00 PM";
+    }
+}
+```
+Similarly, the `Time` node updates the agent's state with the current hour.
+
+```jac
+with entry {
+    root ++> Weather();
+    root ++> Time();
+
+    agent = StateAgent() spawn root;
+    print(agent.state);
+}
+```
+Finally, we build the graph: the `root` node connects to both `Weather` and `Time`. We spawn the `StateAgent`, and when the traversal completes, the agent’s internal state reflects the data it collected from each node.
+
+```jac
+# node_abilities.jac
+walker StateAgent{
+    has state: dict = {};
+
+    can start with `root entry {
+        visit [-->];
+    }
+}
+
+node Weather {
+    has temp: int = 80;
+
+    can get with StateAgent entry {
+        visitor.state["temperature"] = self.temp;
+    }
+}
+
+node Time {
+    has hour: int = 12;
+
+    can get with StateAgent entry {
+        visitor.state["time"] = f"{self.hour}:00 PM";
+    }
+}
+
+with entry {
+    root ++> Weather();
+    root ++> Time();
+
+    agent = StateAgent() spawn root;
+    print(agent.state);
+}
+```
 
 
-!!! example "Simple Node Types"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # Basic node for representing students
-        node Student {
-            has name: str;
-            has age: int;
-            has grade_level: int;
-            has student_id: str;
-        }
+```terminal
+$ jac run node_abilities.jac
 
-        # Basic node for representing teachers
-        node Teacher {
-            has name: str;
-            has subject: str;
-            has years_experience: int;
-            has email: str;
-        }
+{"temperature": 80, "time": "12:00 PM"}
+```
 
-        with entry {
-            # Create student nodes
-            alice = Student(
-                name="Alice Johnson",
-                age=16,
-                grade_level=10,
-                student_id="S001"
-            );
+## Node Inheritance
+---
+In Jac, nodes are more than just data—they can encapsulate behavior and interact with walkers. When building modular systems, it’s often useful to group nodes by type or functionality. This is where node inheritance comes in.
 
-            # Create teacher node
-            ms_brown = Teacher(
-                name="Ms. Brown",
-                subject="Mathematics",
-                years_experience=8,
-                email="brown@school.edu"
-            );
+Let’s revisit the `Weather` and `Time` nodes from the previous example. While they each provide different types of information, they serve a common purpose: delivering contextual data to an agent. In Jac, we can express this shared role using inheritance, just like in traditional object-oriented programming.
 
-            print(f"Created student: {alice.name} (Grade {alice.grade_level})");
-            print(f"Created teacher: {ms_brown.name} teaches {ms_brown.subject}");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # Python equivalent using regular classes
-        class Student:
-            def __init__(self, name: str, age: int, grade_level: int, student_id: str):
-                self.name = name
-                self.age = age
-                self.grade_level = grade_level
-                self.student_id = student_id
+We define a base node archetype called `Service`. This acts as a common interface for all context-providing nodes. Any node that inherits from `Service` is guaranteed to support certain interactions—either by shared methods or simply by tagging it with a common type.
 
-        class Teacher:
-            def __init__(self, name: str, subject: str, years_experience: int, email: str):
-                self.name = name
-                self.subject = subject
-                self.years_experience = years_experience
-                self.email = email
+```jac
+node Service {}
+```
 
-        if __name__ == "__main__":
-            # Create student objects
-            alice = Student(
-                name="Alice Johnson",
-                age=16,
-                grade_level=10,
-                student_id="S001"
-            )
+Then we define both `Weather` and `Time` as subtypes of `Service`:
+```jac
+node Weather(Service) {
+    has temp: int = 80;
 
-            bob = Student(
-                name="Bob Smith",
-                age=15,
-                grade_level=9,
-                student_id="S002"
-            )
+    can get with StateAgent entry {
+        visitor.state["temperature"] = self.temp;
+    }
+}
 
-            # Create teacher object
-            ms_brown = Teacher(
-                name="Ms. Brown",
-                subject="Mathematics",
-                years_experience=8,
-                email="brown@school.edu"
-            )
+node Time(Service) {
+    has hour: int = 12;
 
-            print(f"Created student: {alice.name} (Grade {alice.grade_level})")
-            print(f"Created teacher: {ms_brown.name} teaches {ms_brown.subject}")
-        ```
+    can get with StateAgent entry {
+        visitor.state["time"] = f"{self.hour}:00 PM";
+    }
+}
+```
+<br />
+Now, a walker doesn’t need to know what specific service it’s interacting with. It can simply filter by the base type:
 
-### Node Persistence with Root
+```jac
+walker StateAgent {
+    has state: dict = {};
 
-!!! topic "The Root Node"
-    Nodes connected to `root` (directly or indirectly) automatically persist between program runs. This gives you a database-like behavior without setup.
+    can start with `root entry {
+        visit [-->(`?Service)];  # Visit any node that is a subtype of Service
+    }
+}
+```
+<br />
+This allows `StateAgent` to be generic and extensible. If we later add new service nodes like `Location`, `Date`, or `WeatherForecast`, we don’t need to modify the walker—so long as those nodes inherit from `Service`, the walker will visit them automatically.
 
-!!! example "Persistent Classroom Data"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # Basic node for representing students
-        node Student {
-            has name: str;
-            has age: int;
-            has grade_level: int;
-            has student_id: str;
-        }
+The ```-->(`?NodeType)``` syntax is a powerful feature of Jac that allows you to filter nodes by type. It tells the walker to visit any node that matches the `NodeType` type, regardless of its specific implementation.
 
-        node Classroom {
-            has room_number: str;
-            has capacity: int;
-            has has_projector: bool = True;
-        }
+### Usecase: A Smarter NPC
+Imagine we want to create an NPC (non-player character) that adjusts its behavior based on the environment. It could change its mood depending on the **weather** or **time of day**—perhaps it's cheerful in the morning, grumpy when it's hot, or sleepy at night.
 
-        with entry {
-            # Connect to root for persistence
-            math_room = root ++> Classroom(
-                room_number="101",
-                capacity=30,
-                has_projector=True
-            );
+To enable this, we've already built the necessary groundwork:
+- A `Weather` node and a `Time` node, both of which inherit from a common base `Service`.
+- A `StateAgent` walker that visits all `Service` nodes and collects their data into its internal state dictionary.
 
-            # Also persistent (connected through math_room)
-            alice = math_room ++> Student(
-                name="Alice Johnson",
-                age=16,
-                grade_level=10,
-                student_id="S001"
-            );
+#### The Mood Function
+Now we want to generate a mood string based on that state. Instead of hardcoding dozens of conditionals, we’ll use a language model to synthesize a response.
 
-            # Temporary node (not connected to root)
-            temp_student = Student(
-                name="Temporary",
-                age=15,
-                grade_level=9,
-                student_id="TEMP"
-            );
+For this, we rely on the MTLLM plugin, introduced earlier in the book. It lets us define functions that delegate logic to an external language model—like OpenAI’s GPT—while keeping the interface clean and declarative.
 
-            print(f"Persistent classroom: {math_room[0].room_number}");
-            print(f"Persistent student: {alice[0].name}");
-            print(f"Temporary student: {temp_student.name} (will not persist)");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # Python simulation using a simple registry
-        class NodeRegistry:
-            def __init__(self):
-                self.nodes = {}
-                self.connections = {}
+Here’s the code for our mood function:
+```jac
+import from mtllm { Model }
 
-            def add_node(self, node_id: str, node):
-                self.nodes[node_id] = node
-                self.connections[node_id] = []
+# Configure the LLM model to use
+glob npc_model = Model(model_name="gpt-4.1-mini");
 
-            def connect(self, from_id: str, to_id: str):
-                if from_id in self.connections:
-                    self.connections[from_id].append(to_id)
+"""Adjusts the tone or personality of the shop keeper npc depending on weather/time."""
+def get_ambient_mood(state: dict) -> str by npc_model(incl_info=(state));
+```
+This function, `get_ambient_mood`, takes a dictionary (the walker’s state) and sends it to the model. The model interprets the contents—like `temperature` and `time`—and returns a textual mood that fits the situation.
 
-        class Classroom:
-            def __init__(self, room_number: str, capacity: int, has_projector: bool = True):
-                self.room_number = room_number
-                self.capacity = capacity
-                self.has_projector = has_projector
+#### The NPC Node
+The `NPC` node uses the LLM to personalize its mood based on the current state. It expects the agent to have already visited relevant `Service` nodes and stored that information in its `state` field:
 
-        if __name__ == "__main__":
-            # Simulate persistence with a registry
-            registry = NodeRegistry()
+```jac
+node NPC {
+    can get with StateAgent entry {
+        visitor.state["npc_mood"] = get_ambient_mood(visitor.state);
+    }
+}
+```
+This is where the NPC’s personality is generated—based entirely on the graph-derived context.
 
-            # Create classroom
-            math_room = Classroom(
-                room_number="101",
-                capacity=30,
-                has_projector=True
-            )
-            registry.add_node("math_room", math_room)
+#### Walker Composition
+We extend our `StateAgent` to create a specialized walker that visits the `NPC` node after gathering environmental data:
+```jac
+walker NPCWalker(StateAgent) {
+    can visit_npc with `root entry {
+        visit [-->(`?NPC)];
+    }
+}
+```
+The `NPCWalker` first inherits the behavior of `StateAgent` (which collects context), and then adds a second phase to interact with the NPC after that context is built.
 
-            # Create student connected to classroom
-            alice = Student(
-                name="Alice Johnson",
-                age=16,
-                grade_level=10,
-                student_id="S001"
-            )
-            registry.add_node("alice", alice)
-            registry.connect("math_room", "alice")
 
-            # Temporary object (not in registry)
-            temp_student = Student(
-                name="Temporary",
-                age=15,
-                grade_level=9,
-                student_id="TEMP"
-            )
+#### Putting It All Together
+Finally, we can compose everything in a single entry point:
+```jac
+import from mtllm { Model }
 
-            print(f"Registered classroom: {math_room.room_number}")
-            print(f"Registered student: {alice.name}")
-            print(f"Temporary student: {temp_student.name} (not registered)")
-        ```
+# Configure different models
+glob npc_model = Model(model_name="gpt-4.1-mini");
+
+node Service{}
+
+walker StateAgent{
+    has state: dict = {};
+
+    can start with `root entry {
+        visit [-->(`?Service)];
+    }
+}
+
+node Weather(Service) {
+    has temp: int = 80;
+
+    can get with StateAgent entry {
+        visitor.state["temperature"] = self.temp;
+    }
+}
+
+node Time(Service) {
+    has hour: int = 12;
+
+    can get with StateAgent entry {
+        visitor.state["time"] = f"{self.hour}:00 PM";
+    }
+}
+
+"""Adjusts the tone or personality of the shop keeper npc depending on weather/time."""
+def get_ambient_mood(state: dict) -> str by npc_model(incl_info=(state));
+
+node NPC {
+    can get with StateAgent entry {
+        visitor.state["npc_mood"] = get_ambient_mood(visitor.state);
+    }
+}
+
+walker NPCWalker(StateAgent) {
+    can visit_npc with `root entry{
+        visit [-->(`?NPC)];
+    }
+}
+
+
+with entry {
+    root ++> Weather();
+    root ++> Time();
+    root ++> NPC();
+
+    agent = NPCWalker() spawn root;
+    print(agent.state['npc_mood']);
+}
+```
+<br />
+
+```terminal
+$ jac run npc_mood.jac
+
+"The shopkeeper greets you warmly with a bright smile, saying, "What a hot day we’re having!
+Perfect time to stock up on some refreshing potions or cool drinks. Let me know if you need
+anything to beat the heat!"
+```
+<br />
+
 
 ## Edge Types and Relationships
-
+---
 Edges in Jac represent relationships between nodes. They are first-class objects with their own properties and behaviors, allowing you to model complex interactions like enrollment, teaching, and friendships. Edges can be created using the `edge` keyword, and they connect nodes in meaningful ways.
 
-!!! topic "First-Class Relationships"
-    Edges in Jac are not just connections - they're full objects with their own properties and behaviors. This makes relationships as important as the data they connect.
+
+Edges in Jac are not just connections - they're full objects with their own properties and behaviors. This makes relationships as important as the data they connect.
 
 ### Basic Edge Declaration
 
-!!! example "Classroom Relationships"
-    === "Jac"
+```jac
+# Basic node for representing teachers
+node Teacher {
+    has name: str;
+    has subject: str;
+    has years_experience: int;
+    has email: str;
+}
 
-        ```jac
-        # Basic node for representing teachers
-        node Teacher {
-            has name: str;
-            has subject: str;
-            has years_experience: int;
-            has email: str;
-        }
+# Basic node for representing students
+node Student {
+    has name: str;
+    has age: int;
+    has grade_level: int;
+    has student_id: str;
+}
 
-        # Basic node for representing students
-        node Student {
-            has name: str;
-            has age: int;
-            has grade_level: int;
-            has student_id: str;
-        }
+node Classroom {
+    has room_number: str;
+    has capacity: int;
+    has has_projector: bool = True;
+}
 
-        node Classroom {
-            has room_number: str;
-            has capacity: int;
-            has has_projector: bool = True;
-        }
+# Edge for student enrollment
+edge EnrolledIn {
+    has enrollment_date: str;
+    has grade: str = "Not Assigned";
+    has attendance_rate: float = 100.0;
+}
 
-        # Edge for student enrollment
-        edge EnrolledIn {
-            has enrollment_date: str;
-            has grade: str = "Not Assigned";
-            has attendance_rate: float = 100.0;
-        }
+# Edge for teaching assignments
+edge Teaches {
+    has start_date: str;
+    has schedule: str;  # "MWF 9:00-10:00"
+    has is_primary: bool = True;
+}
 
-        # Edge for teaching assignments
-        edge Teaches {
-            has start_date: str;
-            has schedule: str;  # "MWF 9:00-10:00"
-            has is_primary: bool = True;
-        }
+# Edge for friendship between students
+edge FriendsWith {
+    has since: str;
+    has closeness: int = 5;  # 1-10 scale
+}
 
-        # Edge for friendship between students
-        edge FriendsWith {
-            has since: str;
-            has closeness: int = 5;  # 1-10 scale
-        }
+with entry {
+    # Create the main classroom
+    science_lab = root ++> Classroom(
+        room_number="Lab-A",
+        capacity=24,
+        has_projector=True
+    );
 
-        with entry {
-            # Create the main classroom
-            science_lab = root ++> Classroom(
-                room_number="Lab-A",
-                capacity=24,
-                has_projector=True
-            );
+    # Create teacher and connect to classroom
+    dr_smith = science_lab +>:Teaches(
+        start_date="2024-08-01",
+        schedule="TR 10:00-11:30"
+    ):+> Teacher(
+        name="Dr. Smith",
+        subject="Chemistry",
+        years_experience=12,
+        email="smith@school.edu"
+    );
+}
+```
 
-            # Create teacher and connect to classroom
-            dr_smith = science_lab +>:Teaches(
-                start_date="2024-08-01",
-                schedule="TR 10:00-11:30"
-            ):+> Teacher(
-                name="Dr. Smith",
-                subject="Chemistry",
-                years_experience=12,
-                email="smith@school.edu"
-            );
-        }
-        ```
-
-    === "Python"
-        ```python
-        from typing import List, Dict
-        import uuid
-
-        class Edge:
-            def __init__(self, edge_type: str, from_node, to_node, **properties):
-                self.id = str(uuid.uuid4())
-                self.edge_type = edge_type
-                self.from_node = from_node
-                self.to_node = to_node
-                self.properties = properties
-
-        class EnrolledIn(Edge):
-            def __init__(self, from_node, to_node, enrollment_date: str, grade: str = "Not Assigned", attendance_rate: float = 100.0):
-                super().__init__("EnrolledIn", from_node, to_node)
-                self.enrollment_date = enrollment_date
-                self.grade = grade
-                self.attendance_rate = attendance_rate
-
-        class Teaches(Edge):
-            def __init__(self, from_node, to_node, start_date: str, schedule: str, is_primary: bool = True):
-                super().__init__("Teaches", from_node, to_node)
-                self.start_date = start_date
-                self.schedule = schedule
-                self.is_primary = is_primary
-
-        class FriendsWith(Edge):
-            def __init__(self, from_node, to_node, since: str, closeness: int = 5):
-                super().__init__("FriendsWith", from_node, to_node)
-                self.since = since
-                self.closeness = closeness
-
-        class GraphDatabase:
-            def __init__(self):
-                self.nodes = {}
-                self.edges = []
-
-            def add_node(self, node):
-                node.id = str(uuid.uuid4())
-                self.nodes[node.id] = node
-                return node
-
-            def add_edge(self, edge):
-                self.edges.append(edge)
-                return edge
-
-        if __name__ == "__main__":
-            db = GraphDatabase()
-
-            # Create nodes
-            math_class = db.add_node(Classroom(room_number="101", capacity=30))
-            alice = db.add_node(Student(name="Alice", age=16, grade_level=10, student_id="S001"))
-            bob = db.add_node(Student(name="Bob", age=16, grade_level=10, student_id="S002"))
-            ms_brown = db.add_node(Teacher(name="Ms. Brown", subject="Math", years_experience=8, email="brown@school.edu"))
-
-            # Create edges with properties
-            db.add_edge(EnrolledIn(
-                alice, math_class,
-                enrollment_date="2024-08-15",
-                grade="A",
-                attendance_rate=95.0
-            ))
-
-            db.add_edge(EnrolledIn(
-                bob, math_class,
-                enrollment_date="2024-08-15",
-                grade="B+",
-                attendance_rate=88.0
-            ))
-
-            db.add_edge(Teaches(
-                ms_brown, math_class,
-                start_date="2024-08-01",
-                schedule="MWF 9:00-10:00",
-                is_primary=True
-            ))
-
-            db.add_edge(FriendsWith(
-                alice, bob,
-                since="2023-09-01",
-                closeness=8
-            ))
-
-            print("Classroom connections created successfully!")
-            print(f"Database has {len(db.nodes)} nodes and {len(db.edges)} edges")
-        ```
-
-## Graph Creation Syntax
-
-!!! topic "Connection Operators"
-    Jac provides intuitive syntax for connecting nodes: `++>` creates a new connection, while `-->` references existing connections.
-
-### Connection Patterns
-Let's see how to create and connect nodes using Jac's syntax. You can create nodes and connect them in a single expression, which makes it easy to build complex relationships. The example below shows how to create a classroom, add a teacher, and enroll students in that classroom.
-
-!!! example "Building a Complete Classroom"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        --8<-- "docs/examples/chapter_10_school.jac:1:42"
-        --8<-- "docs/examples/chapter_10_school.jac:117:158"
-        ```
-        </div>
-    === "Python"
-        ```python
-        if __name__ == "__main__":
-            db = GraphDatabase()
-
-            # Create the main classroom
-            science_lab = db.add_node(Classroom(
-                room_number="Lab-A",
-                capacity=24,
-                has_projector=True
-            ))
-
-            # Create teacher
-            dr_smith = db.add_node(Teacher(
-                name="Dr. Smith",
-                subject="Chemistry",
-                years_experience=12,
-                email="smith@school.edu"
-            ))
-
-            # Connect teacher to classroom
-            db.add_edge(Teaches(
-                dr_smith, science_lab,
-                start_date="2024-08-01",
-                schedule="TR 10:00-11:30"
-            ))
-
-            # Create students and enroll them
-            students = [
-                ("Charlie", 17, 11, "S003"),
-                ("Diana", 16, 11, "S004"),
-                ("Eve", 17, 11, "S005")
-            ]
-
-            for name, age, grade, id in students:
-                student = db.add_node(Student(
-                    name=name,
-                    age=age,
-                    grade_level=grade,
-                    student_id=id
-                ))
-
-                db.add_edge(EnrolledIn(
-                    student, science_lab,
-                    enrollment_date="2024-08-15",
-                    attendance_rate=92.0
-                ))
-
-                print(f"Enrolled {student.name} in {science_lab.room_number}")
-
-            print(f"Created classroom {science_lab.room_number} with {dr_smith.name}")
-            print(f"Total nodes: {len(db.nodes)}, Total edges: {len(db.edges)}")
-        ```
 
 ## Graph Navigation and Filtering
+---
+Jac provides powerful and expressive syntax for navigating and querying graph structures. Walkers can traverse connections directionally—forward or backward—and apply filters to control exactly which nodes or edges should be visited.
 
-!!! topic "Traversal Syntax"
-    Jac provides powerful syntax for navigating graphs: `[-->]` gets outgoing connections, `[<--]` gets incoming connections, and filters can be applied to find specific nodes or edges.
+### Directional Traversal
+- `-->` : Follows outgoing edges from the current node.
+- `<--` : Follows incoming edges to the current node.
 
-### Basic Navigation
+These can be wrapped in a visit statement to direct walker movement:
+```jac
+visit [-->];   // Move to all connected child nodes
+visit [<--];   // Move to all parent nodes
+```
 
-!!! example "Finding Connected Nodes"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        --8<-- "docs/examples/chapter_10_school.jac:1:67"
-        --8<-- "docs/examples/chapter_10_school.jac:117:166"
-        ```
-        </div>
-    === "Python"
-        ```python
-        class ClassroomExplorer:
-            def __init__(self, db: GraphDatabase):
-                self.db = db
 
-            def explore_classroom(self, classroom):
-                print(f"=== Exploring {classroom.room_number} ===")
+### Filter by Node Type
+To narrow traversal to specific node types, use the filter syntax:
+```jac
+-->(`?NodeType)
+```
 
-                # Find all students enrolled in this classroom
-                students = []
-                for edge in self.db.edges:
-                    if (isinstance(edge, EnrolledIn) and
-                        edge.to_node == classroom):
-                        students.append(edge.from_node)
+This ensures the walker only visits nodes of the specified archetype.
+```jac
+# Example: Visit all Student nodes connected to the root
+walker FindStudents {
+    can start with `root entry {
+        visit [-->(`?Student)];
+    }
+}
+```
+This allows your walker to selectively traverse part of the graph, even in the presence of mixed node types.
 
-                print(f"Students enrolled: {len(students)}")
-                for student in students:
-                    print(f"  - {student.name} (ID: {student.student_id})")
+### Filtering by Node Attributes
+Jac also supports **attribute-based filtering** during traversal. You can match node properties using a rich syntax:
 
-                # Find the teacher
-                teachers = []
-                for edge in self.db.edges:
-                    if (isinstance(edge, Teaches) and
-                        edge.to_node == classroom):
-                        teachers.append(edge.from_node)
+```jac
+-->(`?NodeType: attr1 op value1, attr2 op value2, ...)
+```
+Where:
 
-                if teachers:
-                    teacher = teachers[0]
-                    print(f"Teacher: {teacher.name} ({teacher.subject})")
+- `NodeType` is the node archetype to match (e.g., `Student`)
+- `attr1`, `attr2` are properties of that node
+- `op` is a comparison operator
 
-                # Show classroom info
-                equipment = "Projector" if classroom.has_projector else "No projector"
-                print(f"Equipment: {equipment}")
-                print(f"Capacity: {classroom.capacity} students")
 
-        if __name__ == "__main__":
-            # Continuing from previous example...
-            explorer = ClassroomExplorer(db)
+#### Supported Operators
 
-            # Find all classrooms and explore them
-            classrooms = [node for node in db.nodes.values()
-                         if isinstance(node, Classroom)]
+| Operator   | Description                    | Example                             |
+|------------|--------------------------------|-------------------------------------|
+| `==`       | Equality                       | `grade == 90`                        |
+| `!=`       | Inequality                     | `status != "inactive"`              |
+| `<`        | Less than                      | `age < 18`                           |
+| `>`        | Greater than                   | `score > 70`                         |
+| `<=`       | Less than or equal to          | `temp <= 100`                       |
+| `>=`       | Greater than or equal to       | `hour >= 12`                        |
+| `is`       | Identity comparison            | `mood is "happy"`                   |
+| `is not`   | Negative identity comparison   | `type is not "admin"`              |
+| `in`       | Membership (value in list)     | `role in ["student", "teacher"]`    |
+| `not in`   | Negative membership            | `status not in ["inactive", "banned"]` |
 
-            for classroom in classrooms:
-                explorer.explore_classroom(classroom)
-        ```
+#### Example
+```jac
+# Find all students with a grade above 85
+walker FindTopStudents {
+    can start with `root entry {
+        visit [-->(`?Student: grade > 85)];
+    }
+}
+```
+This walker will only visit `Student` nodes where the `grade` property is greater than 85.
 
-### Advanced Filtering
+### Filtering by Edge Type and Attributes
+In addition to filtering by node types and attributes, Jac also allows you to filter based on edge types and edge attributes, enabling precise control over traversal paths in complex graphs.
 
-!!! example "Filtered Graph Queries"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        --8<-- "docs/examples/chapter_10_school.jac:1:177"
-        ```
-        </div>
-    === "Python"
-        ```python
-        class StudentAnalyzer:
-            def __init__(self, db: GraphDatabase):
-                self.db = db
-                self.high_performers = []
-                self.needs_help = []
+To traverse only edges of a specific type, use the following syntax:
+```jac
+visit [->:EdgeType->];
+```
 
-            def analyze_all_students(self):
-                # Find all students
-                students = [node for node in self.db.nodes.values()
-                           if isinstance(node, Student)]
+This tells the walker to follow only edges labeled as `EdgeType`, regardless of the type of the nodes they connect.
 
-                for student in students:
-                    self.analyze_student(student)
+#### Example
+```jac
+# Only follow "enrolled_in" edges
+visit [->:enrolled_in->];
+```
 
-                self.generate_report()
+### Edge Atribute Filtering
+You can further refine edge traversal by applying attribute-based filters directly to the edge:
+```jac
+visit [->:EdgeType: attr1 op val1, attr2 op val2:->];
+```
+This format allows you to filter based on metadata stored on the edge itself, not the nodes.
 
-            def analyze_student(self, student):
-                # Find enrollment information for this student
-                for edge in self.db.edges:
-                    if (isinstance(edge, EnrolledIn) and
-                        edge.from_node == student):
+#### Example
+```jac
+# Follow "graded" edges where score is above 80
+visit [->:graded: score > 80:->];
+```
+This pattern is especially useful when edges carry contextual data, such as timestamps, weights, relationships, or scores.
 
-                        grade = edge.grade
-                        attendance = edge.attendance_rate
-
-                        # Categorize students
-                        if grade in ["A", "A-", "B+"] and attendance >= 90.0:
-                            self.high_performers.append({
-                                "name": student.name,
-                                "grade": grade,
-                                "attendance": attendance
-                            })
-                        elif attendance < 85.0 or grade in ["D", "F"]:
-                            self.needs_help.append({
-                                "name": student.name,
-                                "grade": grade,
-                                "attendance": attendance
-                            })
-
-            def generate_report(self):
-                print("=== Student Analysis Report ===")
-
-                print(f"High Performers ({len(self.high_performers)}):")
-                for student in self.high_performers:
-                    print(f"  {student['name']}: {student['grade']} grade, {student['attendance']:.1f}% attendance")
-
-                print(f"Needs Support ({len(self.needs_help)}):")
-                for student in self.needs_help:
-                    print(f"  {student['name']}: {student['grade']} grade, {student['attendance']:.1f}% attendance")
-
-        if __name__ == "__main__":
-            # Continuing from previous example...
-            analyzer = StudentAnalyzer(db)
-            analyzer.analyze_all_students()
-        ```
-
-## Best Practices
-
-!!! summary "Design Guidelines"
-    - **Nodes for Entities**: Use nodes for things that exist independently (students, teachers, classrooms)
-    - **Edges for Relationships**: Use edges for connections between entities (enrollment, teaching, friendship)
-    - **Rich Edge Properties**: Store relationship-specific data in edges (grades, dates, status)
-    - **Consistent Naming**: Use clear, descriptive names for node and edge types
-    - **Connect to Root**: Always connect important nodes to root for persistence
+## Wrapping Up
+---
+In this chapter, we explored the foundational concepts of nodes and edges in Jac. We learned how to define nodes with properties, create edges to represent relationships, and navigate the graph using walkers. We also saw how to filter nodes and edges based on types and attributes, enabling powerful queries and interactions.
+These concepts form the backbone of Object-Spatial Programming, allowing you to model complex systems and relationships naturally. As you continue to build your Jac applications, keep these principles in mind to create rich, interconnected data structures that reflect the real-world entities and relationships you want to represent.
 
 ## Key Takeaways
+---
 
-!!! summary "What We've Learned"
-    **Node Fundamentals:**
+**Node Fundamentals:**
 
-    - **Spatial objects**: Nodes can be connected and automatically persist when linked to root
-    - **Property storage**: Nodes hold data using `has` declarations with automatic constructors
-    - **Automatic persistence**: Nodes connected to root persist between program runs
-    - **Type safety**: All node properties must have explicit types
+- **Spatial objects**: Nodes can be connected and automatically persist when linked to root
+- **Property storage**: Nodes hold data using `has` declarations with automatic constructors
+- **Automatic persistence**: Nodes connected to root persist between program runs
+- **Type safety**: All node properties must have explicit types
 
-    **Edge Fundamentals:**
+**Edge Fundamentals:**
 
-    - **First-class relationships**: Edges are full objects with their own properties and behaviors
-    - **Typed connections**: Edges define the nature of relationships between nodes
-    - **Bidirectional support**: Edges can be traversed in both directions
-    - **Rich metadata**: Store relationship-specific data directly in edge properties
+- **First-class relationships**: Edges are full objects with their own properties and behaviors
+- **Typed connections**: Edges define the nature of relationships between nodes
+- **Bidirectional support**: Edges can be traversed in both directions
+- **Rich metadata**: Store relationship-specific data directly in edge properties
 
-    **Graph Operations:**
+**Graph Operations:**
 
-    - **Creation syntax**: Use `++>` to create new connections, `-->` to reference existing ones
-    - **Navigation patterns**: `[-->]` for outgoing, `[<--]` for incoming connections
-    - **Filtering support**: Apply conditions to find specific nodes or edges
-    - **Traversal efficiency**: Graph operations are optimized for spatial queries
+- **Creation syntax**: Use `++>` to create new connections, `-->` to reference existing ones
+- **Navigation patterns**: `[-->]` for outgoing, `[<--]` for incoming connections
+- **Filtering support**: Apply conditions to find specific nodes or edges
+- **Traversal efficiency**: Graph operations are optimized for spatial queries
 
-    **Practical Applications:**
+**Practical Applications:**
 
-    - **Natural modeling**: Represent real-world entities and relationships directly
-    - **Query capabilities**: Find related data through graph traversal
-    - **Persistence automation**: No manual database management required
-    - **Scalable architecture**: Graph structure supports distributed processing
+- **Natural modeling**: Represent real-world entities and relationships directly
+- **Query capabilities**: Find related data through graph traversal
+- **Persistence automation**: No manual database management required
+- **Scalable architecture**: Graph structure supports distributed processing
 
 !!! tip "Try It Yourself"
     Practice with nodes and edges by building:

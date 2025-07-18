@@ -1,749 +1,253 @@
 # Chapter 8: OSP Introduction and Paradigm Shift
-
+---
 Object-Spatial Programming (OSP) represents a fundamental shift in how we think about and organize computation. Instead of the traditional approach of moving data to computation, OSP moves computation to data. This chapter introduces this revolutionary paradigm through simple examples that demonstrate the power and elegance of spatial thinking.
 
-!!! topic "The Core Paradigm Shift"
-    Traditional programming brings all data to a central location for processing. OSP sends computation to where the data lives, creating more natural, efficient, and scalable programs.
+
+Traditional programming brings all data to a central location for processing. OSP sends computation to where the data lives, creating more natural, efficient, and scalable programs.
+
+
+## Journey from OOP to OSP
+---
+### `with entry` vs `if __name__ == "__main__":`
+One of the first things you'll notice in Jac is the `with entry` block, which replaces the traditional Python `if __name__ == "__main__":` construct. This really isn't just syntactic sugar; it fundamentally changes how we think about program entry points for our Jac programs. Rather than beginning a program construct, we are entering an abstract space that is represented by a graph. In essence, we're entering the root of a global graph structure that we can build upon and traverse.
+
+![With Entry](../assets/with_entry.png){ width=350px }
+/// caption
+`with entry` marks the entry point into the Jac program, allowing us to build and traverse a global graph structure.
+///
+
+### Creating a Node and adding it to the Graph
+When the `with entry` block is executed, it creates a root node in the Jac graph. From there, we can add nodes and edges to build our data structure. Lets look at an example of creating a simple node using Jac's syntax:
+
+```jac
+node Node{
+    has name: str;
+}
+
+with entry {
+    node_a = Node(name="A");
+}
+```
+<br />
+
+![With Entry](../assets/examples/jac_book/node1.png){ width=350px }
+/// caption
+Adding a node to the graph.
+///
+
+Here, we define a node using the `node` keyword, which is similar to defining a class in traditional OOP. The `has` keyword declares properties for the node, and we create an instance of this node within the `with entry` block.
+
+### Connecting Nodes with Edges
+When the entry point is executed, it creates a root node on the Jac graph, which can be accessed using the `root` variable. This root node serves as the starting point for the program's graph structure, enabling traversal and manipulation of connected nodes.
+
+In the example above, we create a new node `node_a` with the name "A". However, this node is not automatically part of the graph—it exists in isolation. To incorporate it into the graph, we need to connect it to an existing node using an edge.
+
+This is where the `++>` operator comes in. It creates a directional edge from the root node to `node_a`, effectively linking the two and adding `node_a` into the graph.
+
+```jac
+node Node{
+    has name: str;
+}
+
+with entry {
+    node_a = Node(name="A");
+    root ++> node_a;  # Add node_a to the root graph
+}
+```
+<br />
+
+![With Entry](../assets/examples/jac_book/node2.png){ width=350px }
+/// caption
+Adding a node to the graph.
+///
+
+
+### Building out the rest of the Graph
+Now that we have a basic understanding of nodes and edges, let's add a few more nodes and edges to create a more complex graph structure. We'll introduce a second node and connect it to the first one:
+
+```jac
+node Node{
+    has name: str;
+}
+
+with entry {
+    node_a = Node(name="A");
+    node_b = Node(name="B");
+
+    root ++> node_a;  # Add node_a to the root graph
+    node_a ++> node_b;  # Connect node_a to node_b
+}
+```
+<br />
+
+Next let's define a terminal node that will represent the end of our graph traversal. This node will not have any outgoing edges, indicating that it is a leaf node in our graph structure:
+
+```jac
+node EndNode {}
+glob END = EndNode();  # Create a global end node
+```
+<br />
+
+Now we can connect our nodes to this end node, creating a complete graph structure:
+```jac
+node Node{
+    has name: str;
+}
+node EndNode {}
+glob END = EndNode();
+
+with entry {
+    node_a = Node(name="A");
+    node_b = Node(name="B");
+
+    root ++> node_a;  # Add node_a to the root graph
+    node_a ++> node_b;  # Connect node_a to node_b
+    node_b ++> END;  # Connect node_b to the end node
+}
+```
+<br />
+
+![With Entry](../assets/examples/jac_book/node3.png){ width=350px }
+/// caption
+Filling out the graph with nodes and edges.
+///
 
 ## From "Data to Computation" to "Computation to Data"
+---
 
-!!! topic "Traditional vs Object-Spatial"
-    Understanding the difference between these approaches is key to unlocking the power of Jac's unique programming model.
+### Walking the Graph
+One of the core innovations of Object-Spatial Programming (OSP) is the concept of **walkers**—mobile units of computation that traverse the graph, moving from node to node and edge to edge. Unlike traditional object-oriented programming, where methods are invoked on static data structures, OSP sends the logic itself to where the data resides.
 
-### Traditional Programming: Centralized Processing
+Walkers operate **locally**, performing actions at each node or edge they encounter. This enables a more natural and efficient way to process distributed data, especially in systems modeled as networks, hierarchies, or flows.
 
-In traditional programming, we gather all data in one place and then process it:
+But walkers are more than just graph crawlers—they can **maintain state**, **collect information** as they move, and **make decisions** based on the context of their current location. Since walkers are a subtype of the `object` archetype, they can define fields, store memory, and expose methods, making them ideal for modeling computation that evolves dynamically as it moves through the graph.
 
-!!! example "Traditional Data Processing"
-    === "Jac (Traditional Style)"
-        <div class="code-block">
-        ```jac
-        # Traditional approach - bring all data to one place
-        obj FamilyTraditional {
-            has members: list[dict] = [];
+This shift—from pulling data into centralized logic to pushing computation outward into the graph—is what makes OSP so powerful. Walkers embody this paradigm by allowing logic to unfold spatially, with behavior adapting to the structure and content of the graph itself.
 
-            def add_member(name: str, age: int, generation: int) -> None {
-                self.members.append({
-                    "name": name,
-                    "age": age,
-                    "generation": generation
-                });
-            }
+Getting back to our graph structure, lets define a simple walker that will traverse our graph and gather the names of the nodes it visits. When it reaches the terminal node, it will stop and return the collected names as a string:
 
-            def count_by_generation() -> dict[int, int] {
-                counts = {};
-                # Process all data in one loop
-                for member in self.members {
-                    gen = member["generation"];
-                    counts[gen] = counts.get(gen, 0) + 1;
-                }
-                return counts;
-            }
-        }
-
-        with entry {
-            family = FamilyTraditional();
-
-            # Add all family members
-            family.add_member("Grandpa Joe", 75, 1);
-            family.add_member("Grandma Sue", 72, 1);
-            family.add_member("Dad Mike", 45, 2);
-            family.add_member("Mom Lisa", 43, 2);
-            family.add_member("Son Alex", 16, 3);
-            family.add_member("Daughter Emma", 14, 3);
-
-            # Process all data centrally
-            generation_counts = family.count_by_generation();
-            print(f"Generation counts: {generation_counts}");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        class FamilyTraditional:
-            def __init__(self):
-                self.members = []
-
-            def add_member(self, name: str, age: int, generation: int):
-                self.members.append({
-                    "name": name,
-                    "age": age,
-                    "generation": generation
-                })
-
-            def count_by_generation(self):
-                counts = {}
-                # Process all data in one loop
-                for member in self.members:
-                    gen = member["generation"]
-                    counts[gen] = counts.get(gen, 0) + 1
-                return counts
-
-        if __name__ == "__main__":
-            family = FamilyTraditional()
-
-            # Add all family members
-            family.add_member("Grandpa Joe", 75, 1)
-            family.add_member("Grandma Sue", 72, 1)
-            family.add_member("Dad Mike", 45, 2)
-            family.add_member("Mom Lisa", 43, 2)
-            family.add_member("Son Alex", 16, 3)
-            family.add_member("Daughter Emma", 14, 3)
-
-            # Process all data centrally
-            generation_counts = family.count_by_generation()
-            print(f"Generation counts: {generation_counts}")
-        ```
-
-### Object-Spatial Programming: Distributed Processing
-
-In OSP, computation moves to where the data naturally lives:
-
-!!! example "Object-Spatial Family Tree"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # OSP approach - computation goes to data
-        node Person {
-            has name: str;
-            has age: int;
-            has generation: int;
-        }
-
-        edge Relationship{}
-        edge MarriedTo(Relationship){}
-        edge ParentOf(Relationship){}
-
-        walker GenerationCounter {
-            has generation_counts: dict[int, int] = {};
-            has visited: set[Person] = set();
-
-            can count with Person entry {
-                if here in self.visited {
-                    return;  # Skip if already visited
-                }
-
-                self.visited.add(here);  # Mark this person as visited
-
-                # Computation happens AT each person
-                gen = here.generation;
-                self.generation_counts[gen] = self.generation_counts.get(gen, 0) + 1;
-
-                visit [<-:MarriedTo:->];  # Visit married partners
-
-                print(f"Counted {here.name} (Generation {gen})");
-
-                # Visit children
-                visit [->:ParentOf:->];
-            }
-        }
-
-        with entry {
-            # Create family tree structure
-            grandpa = root ++> Person(name="Grandpa Joe", age=75, generation=1);
-            grandma = root ++> Person(name="Grandma Sue", age=72, generation=1);
-
-            grandpa <+:MarriedTo:+> grandma;  # Connect grandparents
-
-            # Second generation
-            dad = grandpa[0] +>:ParentOf:+> Person(name="Dad Mike", age=45, generation=2);
-            mom = grandma[0] +>:ParentOf:+> Person(name="Mom Lisa", age=43, generation=2);
-            dad <+:MarriedTo:+> mom;  # Connect parents
-
-            # Third generation
-            son = dad[0] +>:ParentOf:+> Person(name="Son Alex", age=16, generation=3);
-            daughter = mom[0] +>:ParentOf:+> Person(name="Daughter Emma", age=14, generation=3);
-
-            # Send computation to the data
-            counter = GenerationCounter();
-            counter spawn grandpa[0];  # Start traversal from grandpa
-
-            print(f"Final counts: {counter.generation_counts}");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        # Python simulation of OSP concepts
-        class Person:
-            def __init__(self, name: str, age: int, generation: int):
-                self.name = name
-                self.age = age
-                self.generation = generation
-                self.children = []
-
-            def add_child(self, child):
-                self.children.append(child)
-
-        class GenerationCounter:
-            def __init__(self):
-                self.generation_counts = {}
-
-            def count(self, person):
-                # Simulate "computation goes to data"
-                gen = person.generation
-                self.generation_counts[gen] = self.generation_counts.get(gen, 0) + 1
-
-                print(f"Counted {person.name} (Generation {gen})")
-
-                # Visit children recursively
-                for child in person.children:
-                    self.count(child)
-
-        if __name__ == "__main__":
-            # Create family tree structure
-            grandpa = Person("Grandpa Joe", 75, 1)
-            grandma = Person("Grandma Sue", 72, 1)
-
-            # Second generation
-            dad = Person("Dad Mike", 45, 2)
-            mom = Person("Mom Lisa", 43, 2)
-            grandpa.add_child(dad)
-            grandma.add_child(mom)
-
-            # Third generation
-            son = Person("Son Alex", 16, 3)
-            daughter = Person("Daughter Emma", 14, 3)
-            dad.add_child(son)
-            mom.add_child(daughter)
-
-            # Send computation to the data
-            counter = GenerationCounter()
-            counter.count(grandpa)  # Start traversal from grandpa
-
-            print(f"Final counts: {counter.generation_counts}")
-        ```
-
-## Data Spatial Programming Foundation
-
-!!! topic "Spatial Awareness"
-    In OSP, data structures are inherently spatial - they know their relationships and can react to visitors. This creates more intuitive and natural program organization.
-
-### Spatial Relationships in Data
-
-!!! example "Family Relationships"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        node FamilyMember {
-            has name: str;
-            has birth_year: int;
-
-            def get_age() -> int {
-                return 2024 - self.birth_year;
-            }
-        }
-
-        edge MarriedTo {
-            has marriage_year: int;
-
-            def get_marriage_duration() -> int {
-                return 2024 - self.marriage_year;
-            }
-        }
-
-        edge ChildOf {
-            has birth_order: int;  # 1st child, 2nd child, etc.
-        }
-
-        walker RelationshipFinder {
-            has relationships: list[str] = [];
-
-            can find_relationships with FamilyMember entry {
-                name = here.name;
-
-                # Find spouse
-                spouses= [->:MarriedTo:->];
-                for spouse in spouses {
-                    duration = [edge here --> spouse][0].get_marriage_duration();
-                    self.relationships.append(f"{name} married to {spouse.name} for {duration} years");
-                }
-
-                # Find children
-                children = [->:ChildOf:->];
-                if children {
-                    child_names = [child.name for child in children];
-                    self.relationships.append(f"{name} has children: {', '.join(child_names)}");
-                }
-
-                # Continue exploring family tree
-                visit [-->];
-            }
-        }
-
-        with entry {
-            # Create a simple family
-            john = root ++> FamilyMember(name="John", birth_year=1980);
-            mary = root ++> FamilyMember(name="Mary", birth_year=1982);
-
-            # Marriage relationship
-            john[0] +>:MarriedTo(marriage_year=2005):+> mary;
-
-            # Children
-            alice = john[0] +>:ChildOf(birth_order=1):+> FamilyMember(name="Alice", birth_year=2008);
-            bob = john[0] +>:ChildOf(birth_order=2):+> FamilyMember(name="Bob", birth_year=2010);
-
-            # Explore relationships
-            finder = RelationshipFinder();
-            finder spawn john[0];
-
-            for relationship in finder.relationships {
-                print(relationship);
-            }
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        from typing import List
-
-        class FamilyMember:
-            def __init__(self, name: str, birth_year: int):
-                self.name = name
-                self.birth_year = birth_year
-                self.spouse = None
-                self.children = []
-                self.marriage_year = None
-
-            def get_age(self) -> int:
-                return 2024 - self.birth_year
-
-            def marry(self, spouse, marriage_year: int):
-                self.spouse = spouse
-                self.marriage_year = marriage_year
-                spouse.spouse = self
-                spouse.marriage_year = marriage_year
-
-            def add_child(self, child):
-                self.children.append(child)
-
-        class RelationshipFinder:
-            def __init__(self):
-                self.relationships = []
-                self.visited = set()
-
-            def find_relationships(self, person: FamilyMember):
-                if person in self.visited:
-                    return
-
-                self.visited.add(person)
-                name = person.name
-
-                # Find spouse
-                if person.spouse:
-                    duration = 2024 - person.marriage_year
-                    self.relationships.append(f"{name} married to {person.spouse.name} for {duration} years")
-
-                # Find children
-                if person.children:
-                    child_names = [child.name for child in person.children]
-                    self.relationships.append(f"{name} has children: {', '.join(child_names)}")
-
-                # Continue exploring family tree
-                if person.spouse:
-                    self.find_relationships(person.spouse)
-                for child in person.children:
-                    self.find_relationships(child)
-
-        if __name__ == "__main__":
-            # Create a simple family
-            john = FamilyMember("John", 1980)
-            mary = FamilyMember("Mary", 1982)
-
-            # Marriage relationship
-            john.marry(mary, 2005)
-
-            # Children
-            alice = FamilyMember("Alice", 2008)
-            bob = FamilyMember("Bob", 2010)
-            john.add_child(alice)
-            john.add_child(bob)
-
-            # Explore relationships
-            finder = RelationshipFinder()
-            finder.find_relationships(john)
-
-            for relationship in finder.relationships:
-                print(relationship)
-        ```
-
-## Graph Thinking vs Object Thinking
-
-!!! topic "Mental Models"
-    OSP encourages thinking in terms of connections and relationships rather than isolated objects. This leads to more natural representations of real-world problems.
-
-### Object-Oriented Thinking
-
-In traditional OOP, we think about individual objects with their own data and methods:
-
-```python
-# Traditional OO thinking - isolated objects
-class Student:
-    def __init__(self, name):
-        self.name = name
-        self.grades = []
-
-    def add_grade(self, grade):
-        self.grades.append(grade)
-
-class Teacher:
-    def __init__(self, name):
-        self.name = name
-        self.students = []  # List of student references
-
-    def add_student(self, student):
-        self.students.append(student)
+First we define our walker archetype, that has a `input` field to store the names of the nodes it visits:
+```jac
+walker PathWalker {
+    has input: str;
+}
 ```
+<br />
 
-### Graph-Oriented Thinking
-
-In OSP, we think about entities and their relationships as a connected graph:
-
-!!! example "Classroom as a Graph"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        # Graph thinking - connected entities
-        node Student {
-            has name: str;
-            has grade_level: int;
-        }
-
-        node Teacher {
-            has name: str;
-            has subject: str;
-        }
-
-        edge Teaches {
-            has semester: str;
-            has classroom: str;
-        }
-
-        edge Attends {
-            has grade: str = "Not Set";
-        }
-
-        walker ClassroomAnalyzer {
-            has teacher_student_count: dict[str, int] = {};
-            has student_subjects: dict[str, list[str]] = {};
-
-            can analyze_teacher with Teacher entry {
-                # Count students for this teacher
-                students = [->:Teaches:->];
-                self.teacher_student_count[here.name] = len(students);
-
-                print(f"{here.name} teaches {here.subject} to {len(students)} students");
-
-                # Visit students to gather more info
-                visit students;
-            }
-
-            can analyze_student with Student entry {
-                # Find what subjects this student takes
-                teachers = [<-:Teaches:<-];
-                subjects = [teacher.subject for teacher in teachers];
-                self.student_subjects[here.name] = subjects;
-
-                print(f"{here.name} (Grade {here.grade_level}) takes: {', '.join(subjects)}");
-            }
-        }
-
-        with entry {
-            # Create classroom graph
-            ms_smith = Teacher(name="Ms. Smith", subject="Math");
-            mr_jones = Teacher(name="Mr. Jones", subject="Science");
-
-            # Create students
-            alice = Student(name="Alice", grade_level=9);
-            bob = Student(name="Bob", grade_level=9);
-            charlie = Student(name="Charlie", grade_level=10);
-
-            # Create teaching relationships
-            ms_smith +>:Teaches(semester="Fall 2024", classroom="Room 101"):+> alice;
-            ms_smith +>:Teaches(semester="Fall 2024", classroom="Room 101"):+> bob;
-            mr_jones +>:Teaches(semester="Fall 2024", classroom="Room 205"):+> alice;
-            mr_jones +>:Teaches(semester="Fall 2024", classroom="Room 205"):+> charlie;
-
-            # Analyze the classroom network
-            analyzer = ClassroomAnalyzer();
-            analyzer spawn ms_smith;
-            analyzer spawn mr_jones;
-
-
-
-            print(f"Teacher-student counts: {analyzer.teacher_student_count}");
-            print(f"Student subjects: {analyzer.student_subjects}");
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        from typing import List, Dict
-
-        class Student:
-            def __init__(self, name: str, grade_level: int):
-                self.name = name
-                self.grade_level = grade_level
-                self.teachers = []  # References to teachers
-
-        class Teacher:
-            def __init__(self, name: str, subject: str):
-                self.name = name
-                self.subject = subject
-                self.students = []  # References to students
-
-            def add_student(self, student: Student):
-                self.students.append(student)
-                student.teachers.append(self)
-
-        class ClassroomAnalyzer:
-            def __init__(self):
-                self.teacher_student_count = {}
-                self.student_subjects = {}
-                self.visited = set()
-
-            def analyze(self, entity):
-                if entity in self.visited:
-                    return
-
-                self.visited.add(entity)
-
-                if isinstance(entity, Teacher):
-                    # Count students for this teacher
-                    self.teacher_student_count[entity.name] = len(entity.students)
-                    print(f"{entity.name} teaches {entity.subject} to {len(entity.students)} students")
-
-                    # Visit students
-                    for student in entity.students:
-                        self.analyze(student)
-
-                elif isinstance(entity, Student):
-                    # Find what subjects this student takes
-                    subjects = [teacher.subject for teacher in entity.teachers]
-                    self.student_subjects[entity.name] = subjects
-                    print(f"{entity.name} (Grade {entity.grade_level}) takes: {', '.join(subjects)}")
-
-        if __name__ == "__main__":
-            # Create classroom network
-            ms_smith = Teacher("Ms. Smith", "Math")
-            mr_jones = Teacher("Mr. Jones", "Science")
-
-            # Create students
-            alice = Student("Alice", 9)
-            bob = Student("Bob", 9)
-            charlie = Student("Charlie", 10)
-
-            # Create teaching relationships
-            ms_smith.add_student(alice)
-            ms_smith.add_student(bob)
-            mr_jones.add_student(alice)
-            mr_jones.add_student(charlie)
-
-            # Analyze the classroom network
-            analyzer = ClassroomAnalyzer()
-            analyzer.analyze(ms_smith)
-            analyzer.analyze(mr_jones)
-
-            print(f"Teacher-student counts: {analyzer.teacher_student_count}")
-            print(f"Student subjects: {analyzer.student_subjects}")
-        ```
-
-## Benefits of the OSP Paradigm
-
-!!! topic "Why OSP Matters"
-    The spatial approach to programming offers several key advantages over traditional centralized processing.
-
-### Natural Problem Modeling
-
-OSP allows you to model problems the way they naturally exist in the real world:
-
-!!! example "Three-Generation Family Tree"
-    === "Jac"
-        <div class="code-block">
-        ```jac
-        node Person {
-            has name: str;
-            has birth_year: int;
-            has generation: int;
-
-            def get_age() -> int {
-                return 2024 - self.birth_year;
-            }
-        }
-
-        edge ParentChild {
-            has relationship: str;  # "father", "mother", "son", "daughter"
-        }
-
-        walker FamilyTreeExplorer {
-            has family_info: list[str] = [];
-
-            can explore with Person entry {
-                age = here.get_age();
-                gen = here.generation;
-
-                # Find parents
-                parents = [<-:ParentChild:<-];
-                parent_names = [p.name for p in parents];
-
-                # Find children
-                children = [->:ParentChild:->];
-                child_names = [c.name for c in children];
-
-                info = f"Generation {gen}: {here.name} (age {age})";
-                if parent_names {
-                    info += f" - Parents: {', '.join(parent_names)}";
-                }
-                if child_names {
-                    info += f" - Children: {', '.join(child_names)}";
-                }
-
-                self.family_info.append(info);
-
-                # Continue exploring
-                visit [->:ParentChild:->];
-            }
-        }
-
-        with entry {
-            # Generation 1 (Grandparents)
-            grandpa = root ++> Person(name="Robert", birth_year=1945, generation=1);
-            grandma = root ++> Person(name="Helen", birth_year=1948, generation=1);
-
-            # Generation 2 (Parents)
-            dad = grandpa[0] +>:ParentChild(relationship="father"):+> Person(name="Michael", birth_year=1975, generation=2);
-            mom = grandma[0] +>:ParentChild(relationship="mother"):+> Person(name="Sarah", birth_year=1977, generation=2);
-
-            # Generation 3 (Children)
-            son = dad[0] +>:ParentChild(relationship="father"):+> Person(name="David", birth_year=2005, generation=3);
-            daughter = mom[0] +>:ParentChild(relationship="mother"):+> Person(name="Emma", birth_year=2007, generation=3);
-            youngest = dad[0] +>:ParentChild(relationship="father"):+> Person(name="Luke", birth_year=2010, generation=3);
-
-            # Explore the family tree
-            explorer = FamilyTreeExplorer();
-            explorer spawn grandpa[0];
-
-            print("=== Family Tree ===");
-            for info in explorer.family_info {
-                print(info);
-            }
-        }
-        ```
-        </div>
-    === "Python"
-        ```python
-        class Person:
-            def __init__(self, name: str, birth_year: int, generation: int):
-                self.name = name
-                self.birth_year = birth_year
-                self.generation = generation
-                self.parents = []
-                self.children = []
-
-            def get_age(self) -> int:
-                return 2024 - self.birth_year
-
-            def add_child(self, child):
-                self.children.append(child)
-                child.parents.append(self)
-
-        class FamilyTreeExplorer:
-            def __init__(self):
-                self.family_info = []
-                self.visited = set()
-
-            def explore(self, person: Person):
-                if person in self.visited:
-                    return
-
-                self.visited.add(person)
-
-                age = person.get_age()
-                gen = person.generation
-
-                # Find family relationships
-                parent_names = [p.name for p in person.parents]
-                child_names = [c.name for c in person.children]
-
-                info = f"Generation {gen}: {person.name} (age {age})"
-                if parent_names:
-                    info += f" - Parents: {', '.join(parent_names)}"
-                if child_names:
-                    info += f" - Children: {', '.join(child_names)}"
-
-                self.family_info.append(info)
-
-                # Continue exploring
-                for child in person.children:
-                    self.explore(child)
-
-        if __name__ == "__main__":
-            # Generation 1 (Grandparents)
-            grandpa = Person("Robert", 1945, 1)
-            grandma = Person("Helen", 1948, 1)
-
-            # Generation 2 (Parents)
-            dad = Person("Michael", 1975, 2)
-            mom = Person("Sarah", 1977, 2)
-            grandpa.add_child(dad)
-            grandma.add_child(mom)
-
-            # Generation 3 (Children)
-            son = Person("David", 2005, 3)
-            daughter = Person("Emma", 2007, 3)
-            youngest = Person("Luke", 2010, 3)
-            dad.add_child(son)
-            mom.add_child(daughter)
-            dad.add_child(youngest)
-
-            # Explore the family tree
-            explorer = FamilyTreeExplorer()
-            explorer.explore(grandpa)
-
-            print("=== Family Tree ===")
-            for info in explorer.family_info:
-                print(info)
-        ```
-
-## Best Practices
-
-!!! summary "OSP Design Guidelines"
-    - **Think spatially**: Model your data as connected entities rather than isolated objects
-    - **Design for traversal**: Consider how walkers will move through your graph
-    - **Use meaningful relationships**: Edge types should represent real-world connections
-    - **Start simple**: Begin with basic nodes and edges before adding complex walkers
-    - **Leverage natural structure**: Let your domain guide the graph structure
+Next, we define the methods that the walker will use to traverse the graph. The `start` method is the entry point for the walker, and it will begin visiting nodes from the root node. The `visit_node` method will be called for each node it visits, and it will append the node's name to the `input` field. Finally, the `visit_end` method will be called when it reaches the terminal node, and it will return the collected names:
+
+```jac
+walker PathWalker {
+    has input: str;
+
+    can start with `root entry {
+        visit [-->];  # Start visiting from the root node
+    }
+
+    can visit_node with Node entry {
+        self.input += ", visiting " + here.name;  # Append node name to input
+        visit [-->];  # Continue visiting the next node
+    }
+
+    can visit_end with EndNode entry {
+        self.input += ", reached the end";  # Append end message
+        return;  # Stop visiting
+    }
+}
+```
+<br />
+
+### The `visit` Statement and `-->` Syntax
+To understand how walkers move through the graph, it's important to break down the `visit` statement and the `-->` operator used in the example above.
+
+In Jac, visit tells the walker to continue its traversal along the graph. What makes this powerful is the use of edge selectors inside the square brackets, like `[-->]`, which control how and where the walker moves.
+
+The `-->` symbol represents a forward edge in the graph—specifically, an edge from the current node (`here`) to any of its connected child nodes. So when you write visit `[-->];`, you're instructing the walker to follow all outgoing edges from the current node to the next set of reachable nodes.
+
+Let's walk through what each part means:
+
+- `visit [-->];`: Move the walker along all forward edges from the current node.
+- `visit [<--];`: Move backward (along incoming edges), useful for reverse traversals or backtracking.
+- `visit [-->-->];`: Move along two forward edges in succession, allowing for deeper traversal into the graph.
+
+Jac supports more complex edge selectors as well which we'll explore in subsequent chapters. For now, the key takeaway is that `visit` combined with edge selectors allows walkers to navigate the graph structure dynamically, processing nodes and edges as they go.
+
+
+### Putting it All Together
+Lets put everything together in a complete example that demonstrates how to create a graph, define a walker, and run it to collect node names:
+
+```jac
+node Node{
+    has name: str;
+}
+
+node EndNode {}
+glob END = EndNode();
+
+walker PathWalker {
+    has input: str;
+
+    can start with `root entry {
+        visit [-->];
+    }
+
+    can visit_node  with Node entry{
+        self.input += ", visiting " + here.name;
+        visit [here-->];
+    }
+
+    can visit_end with EndNode entry {
+        self.input += ", reached the end";
+        return;
+    }
+}
+
+with entry {
+    root ++> Node(name="A")
+         ++> Node(name="B")
+         ++> END;
+
+    my_walker = PathWalker(input="Start walking") spawn root;
+
+    print(my_walker.input);
+}
+```
+<br />
+
+```bash
+$ jac run path_walker.jac
+Start walking, visiting A, visiting B, reached the end
+```
+<br />
+
+
+## Wrapping Up
+---
+In this chapter, we've introduced the core concepts of Object-Spatial Programming (OSP) and how it differs from traditional object-oriented programming. We've seen how Jac allows us to define nodes and edges, create walkers, and traverse graphs in a way that naturally reflects the relationships between data.
+
 
 ## Key Takeaways
+---
 
-!!! summary "What We've Learned"
-    **Paradigm Fundamentals:**
+- **Computation to data**: Move processing to where data naturally lives
+- **Spatial relationships**: Model connections as first-class graph structures
+- **Natural representation**: Express real-world relationships directly in code
+- **Distributed processing**: Each data location can be processed independently
 
-    - **Computation to data**: Move processing to where data naturally lives
-    - **Spatial relationships**: Model connections as first-class graph structures
-    - **Natural representation**: Express real-world relationships directly in code
-    - **Distributed processing**: Each data location can be processed independently
+**Core Concepts:**
 
-    **Core Concepts:**
+- **Nodes**: Stateful entities that hold data and can react to visitors
+- **Edges**: First-class relationships with their own properties and behaviors
+- **Walkers**: Mobile computation that traverses and processes graph structures
+- **Graph thinking**: Shift from object-oriented to relationship-oriented design
 
-    - **Nodes**: Stateful entities that hold data and can react to visitors
-    - **Edges**: First-class relationships with their own properties and behaviors
-    - **Walkers**: Mobile computation that traverses and processes graph structures
-    - **Graph thinking**: Shift from object-oriented to relationship-oriented design
+**Key Advantages:**
 
-    **Key Advantages:**
+- **Intuitive modeling**: Problems are expressed in their natural graph form
+- **Efficient processing**: Computation happens exactly where it's needed
+- **Scalable architecture**: Naturally distributes across multiple nodes
+- **Maintainable code**: Clear separation of data, relationships, and processing logic
 
-    - **Intuitive modeling**: Problems are expressed in their natural graph form
-    - **Efficient processing**: Computation happens exactly where it's needed
-    - **Scalable architecture**: Naturally distributes across multiple nodes
-    - **Maintainable code**: Clear separation of data, relationships, and processing logic
-
-    **Mental Model Shift:**
-
-    - **From isolation to connection**: Objects become spatially-aware nodes
-    - **From centralized to distributed**: Processing happens throughout the graph
-    - **From procedural to reactive**: Data locations respond to visiting computation
-    - **From manual to automatic**: Relationships are maintained by the system
 
 !!! tip "Try It Yourself"
     Start thinking spatially by modeling:
