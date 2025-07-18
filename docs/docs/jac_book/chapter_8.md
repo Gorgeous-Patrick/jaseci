@@ -11,7 +11,7 @@ Traditional programming brings all data to a central location for processing. OS
 ### `with entry` vs `if __name__ == "__main__":`
 One of the first things you'll notice in Jac is the `with entry` block, which replaces the traditional Python `if __name__ == "__main__":` construct. This really isn't just syntactic sugar; it fundamentally changes how we think about program entry points for our Jac programs. Rather than beginning a program construct, we are entering an abstract space that is represented by a graph. In essence, we're entering the root of a global graph structure that we can build upon and traverse.
 
-![With Entry](../assets/with_entry.png){ width=350px }
+![With Entry](../assets/examples/jac_book/with_entry.png){ width=350px }
 /// caption
 `with entry` marks the entry point into the Jac program, allowing us to build and traverse a global graph structure.
 ///
