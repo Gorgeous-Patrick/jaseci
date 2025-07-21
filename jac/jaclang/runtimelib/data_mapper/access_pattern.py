@@ -60,7 +60,6 @@ def get_access_pattern_single_walker(
         # random.shuffle(filtered_neighbors)
         for neighbor in filtered_neighbors:
             container.append(neighbor)
-    print(f"Path: {path}")
     return path
 
 

@@ -536,7 +536,6 @@ class JacWalker:
 
         while len(walker.next):
             if current_loc := walker.next.pop(0).archetype:
-                print("GOING")
                 # Push the node into walker trace
                 if isinstance(current_loc, EdgeArchetype):
                     walker.trace.append(current_loc.__jac__.target)
@@ -1842,7 +1841,6 @@ class JacPIM:
             and JacPIM._extract_name(edge.target.archetype) != "Root"
             and JacPIM._extract_name(edge.source.archetype) != "Root"
         ]
-        print([node.archetype for node in all_nodes])
         return all_nodes, all_edges
 
     @staticmethod
@@ -1947,7 +1945,6 @@ class JacPIM:
         """Generate a graph for the walker actual trace."""
         graph = original_graph.copy()
         graph.clear_edges()
-        print(f"Length of trace: {len(walker.trace)}")
         edges = [
             (all_nodes.index(walker.trace[i]), all_nodes.index(walker.trace[i + 1]))
             for i in range(len(walker.trace) - 1)
