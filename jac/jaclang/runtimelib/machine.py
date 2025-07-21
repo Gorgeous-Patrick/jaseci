@@ -33,7 +33,6 @@ from typing import (
 )
 from uuid import UUID
 
-
 from jaclang.compiler import unitree as ast
 from jaclang.compiler.constant import Constants as Con, EdgeDir, colors
 from jaclang.compiler.passes.main.pyast_gen_pass import PyastGenPass
@@ -528,7 +527,6 @@ class JacWalker:
         )
 
         access_pattern = get_access_pattern(network=graph, paths=traversal_paths)
-        plot_and_save(graph, access_pattern)
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -614,6 +612,8 @@ class JacWalker:
                 return warch
 
         walker.ignores = []
+        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+        plot_and_save(graph, access_pattern, walker_trace_graph)
         return warch
 
     @staticmethod
@@ -1860,8 +1860,11 @@ class JacPIM:
         color_map = {t: cmap(i) for i, t in enumerate(unique_types)}
 
         # Store color in node attribute
-        for node in graph.nodes():
+        for idx, node in enumerate(graph.nodes()):
             graph.nodes[node]["color"] = color_map[graph.nodes[node]["node_type"]]
+            graph.nodes[node]["is_starting_node"] = (
+                len(all_nodes[idx].spawned_walker_archetypes)
+            ) > 0
 
         for _idx, edge_anchor in enumerate(all_edges):
             graph.add_edge(
@@ -1923,9 +1926,21 @@ class JacPIM:
         return res
 
     @staticmethod
-    def mapping(walkers: list[WalkerArchetype]) -> None:
-        """Generate mapping."""
-        pass
+    def gen_walker_trace_graph(
+        all_nodes: list[NodeAnchor],
+        original_graph: nx.DiGraph,
+        walker: WalkerAnchor,
+    ) -> nx.DiGraph:
+        """Generate a graph for the walker actual trace."""
+        graph = original_graph.copy()
+        graph.clear_edges()
+        edges = [
+            (all_nodes.index(walker.trace[i]), all_nodes.index(walker.trace[i + 1]))
+            for i in range(len(walker.trace) - 1)
+        ]
+        for from_node, to_node in edges:
+            graph.add_edge(from_node, to_node)
+        return graph
 
 
 class JacMachineInterface(

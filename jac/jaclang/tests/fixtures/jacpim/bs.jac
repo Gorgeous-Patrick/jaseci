@@ -14,6 +14,7 @@ node DataNode {
 walker bs {
   has value: int;
   can run_down with BranchNode entry {
+    print(here.mid);
     if (self.value < here.mid) {
       visit [->:Left:->];
     } else {
