@@ -46,17 +46,21 @@ def get_access_pattern_single_walker(
 ) -> list[int]:
     """Get the access pattern for a single walker spawn."""
     container: list[int] = [start_idx]
-    visited: set[int] = {start_idx}
+    visited: set[int] = set()
     path: list[int] = []
-    while len(container) > 0:
+    i = 0
+    while len(container) > 0 and i < 10:
+        i += 1
         top = container.pop(0)
         path.append(top)
+        if top in visited:
+            continue
+        visited.add(top)
         filtered_neighbors = filter_neighbors(top, network, visit_info, walker_type)
         # random.shuffle(filtered_neighbors)
         for neighbor in filtered_neighbors:
-            if neighbor not in visited and neighbor not in container:
-                container.append(neighbor)
-                visited.add(neighbor)
+            container.append(neighbor)
+    print(f"Path: {path}")
     return path
 
 

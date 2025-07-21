@@ -20,7 +20,7 @@ walker BFS {
 
 with entry {
   nodes = [];
-  NODE_NUM = 20;
+  NODE_NUM = 5;
   for i in range(NODE_NUM) {
     nodes.append(BFSNode(id = i));
     root ++> nodes[i];

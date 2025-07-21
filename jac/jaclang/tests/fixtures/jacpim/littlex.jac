@@ -24,7 +24,7 @@ walker LoadFeed{
 
 with entry {
   nodes = [];
-  NODE_NUM = 20;
+  NODE_NUM = 10;
   for i in range(NODE_NUM) {
     nodes.append(Profile(id = i, tweets = []));
     root ++> nodes[i];

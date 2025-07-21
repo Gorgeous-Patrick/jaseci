@@ -30,7 +30,7 @@ walker PageRank{
 with entry {
   
   nodes = [];
-  NODE_NUM = 20;
+  NODE_NUM = 10;
   for i in range(NODE_NUM) {
     nodes.append(Page(id = i));
     root ++> nodes[i];

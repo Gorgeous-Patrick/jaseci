@@ -536,6 +536,7 @@ class JacWalker:
 
         while len(walker.next):
             if current_loc := walker.next.pop(0).archetype:
+                print("GOING")
                 # Push the node into walker trace
                 if isinstance(current_loc, EdgeArchetype):
                     walker.trace.append(current_loc.__jac__.target)
@@ -553,6 +554,8 @@ class JacWalker:
                     ):
                         i.func(warch, current_loc)
                     if walker.disengaged:
+                        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with any entry
@@ -560,6 +563,8 @@ class JacWalker:
                     if not i.trigger:
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with walker entry
@@ -571,6 +576,8 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with walker exit
@@ -582,6 +589,8 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with any exit
@@ -589,6 +598,8 @@ class JacWalker:
                     if not i.trigger:
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # walker ability with loc exit
@@ -603,6 +614,8 @@ class JacWalker:
                     ):
                         i.func(warch, current_loc)
                     if walker.disengaged:
+                        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
         # walker ability with any exit
         for i in warch._jac_exit_funcs_:
@@ -1934,6 +1947,7 @@ class JacPIM:
         """Generate a graph for the walker actual trace."""
         graph = original_graph.copy()
         graph.clear_edges()
+        print(f"Length of trace: {len(walker.trace)}")
         edges = [
             (all_nodes.index(walker.trace[i]), all_nodes.index(walker.trace[i + 1]))
             for i in range(len(walker.trace) - 1)
