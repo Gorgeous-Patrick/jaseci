@@ -47,29 +47,6 @@ class JacLanguageTests(TestCase):
         # Check if the output contains the expected context information
         self.assertIn("Average marks for Alice : 86.75", stdout_value)
 
-    def test_llm_call_override(self) -> None:
-        """Test the foo() by llm(); functionality."""
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-        jac_import("llm_call_override", base_path=self.fixture_abs_path("./"))
-        sys.stdout = sys.__stdout__
-        stdout_value = captured_output.getvalue()
-
-        # Check normal function outputs
-        self.assertIn("Normal function call: Howdy Alex", stdout_value)
-        self.assertIn("Normal sentiment: Neutral", stdout_value)
-        self.assertIn("Normal translation: Translation not available", stdout_value)
-
-        # Check LLM override outputs (different from normal functions)
-        self.assertIn("LLM override call: Hello there, Alex!", stdout_value)
-        self.assertIn("LLM sentiment: Strongly Positive", stdout_value)
-        self.assertIn("LLM translation: Bonjour le monde!", stdout_value)
-
-        # Check function with more args
-        self.assertIn("42\nfoo\n3.14\n[1]", stdout_value)
-        self.assertIn("1;2;3;4;5", stdout_value)
-        self.assertIn('{"foo": "42"}', stdout_value)
-
     def test_with_llm_function(self) -> None:
         """Parse micro jac file."""
         captured_output = io.StringIO()

@@ -766,38 +766,6 @@ class PyastGenPass(UniPass):
             )
         )
 
-    def gen_llm_call_override(self, node: uni.FuncCall) -> list[ast3.AST]:
-        """Generate python ast nodes for llm function body override syntax.
-
-        example:
-            foo() by llm();
-        """
-        # from jaclang.runtimelib.machine import JacMachineInterface
-        # return JacMachineInterface.gen_llm_call_override(self, node)
-        if node.body_genai_call is None:
-            raise self.ice()
-
-        model = cast(ast3.expr, node.body_genai_call.gen.py_ast[0])
-        caller = cast(ast3.expr, node.target.gen.py_ast[0])
-
-        # Construct the arguments for the LLM call.
-        keys: list[ast3.expr | None] = []
-        values: list[ast3.expr] = []
-        for idx, call_arg in enumerate(node.params):
-            if isinstance(call_arg, uni.Expr):
-                keys.append(self.sync(ast3.Constant(value=idx)))
-                values.append(cast(ast3.expr, call_arg.gen.py_ast[0]))
-            else:
-                if call_arg.key:
-                    keys.append(self.sync(ast3.Constant(value=call_arg.key.sym_name)))
-                else:
-                    keys.append(self.sync(ast3.Constant(value=idx)))
-                values.append(cast(ast3.expr, call_arg.value.gen.py_ast[0]))
-
-        args = self.sync(ast3.Dict(keys=keys, values=values))
-
-        return [self._invoke_llm_call(model, caller, args)]
-
     def gen_llm_body(self, node: uni.Ability) -> list[ast3.stmt]:
         """Generate the by LLM body."""
         assert isinstance(node.body, uni.FuncCall)
@@ -2492,11 +2460,8 @@ class PyastGenPass(UniPass):
         return args, keywords
 
     def exit_func_call(self, node: uni.FuncCall) -> None:
-        if node.body_genai_call:
-            node.gen.py_ast = self.gen_llm_call_override(node)
-
         # TODO: This needs to be changed to only generate parameters no the body.
-        elif node.genai_call:
+        if node.genai_call:
             self.ice("Type(by llm()) call feature is temporarily disabled.")
 
         else:

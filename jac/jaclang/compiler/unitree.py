@@ -3711,12 +3711,10 @@ class FuncCall(Expr):
         params: Sequence[Expr | KWPair] | None,
         genai_call: Optional[FuncCall],
         kid: Sequence[UniNode],
-        body_genai_call: Optional[FuncCall] = None,
     ) -> None:
         self.target = target
         self.params = list(params) if params else []
         self.genai_call = genai_call
-        self.body_genai_call = body_genai_call
         UniNode.__init__(self, kid=kid)
         Expr.__init__(self)
 

@@ -47,7 +47,6 @@ LLM integration is a first class feature in Jaclang, enabling you to build AI-po
 - **Zero Prompt Engineering**: Define function signatures and let MTLLM handle implementation
 - **Type Safety**: Maintain strong typing while adding AI capabilities
 - **Tool Integration**: Connect AI functions to external APIs and services
-- **Function Overriding**: Transform existing functions with LLM behavior at runtime
 - **Context Aware Methods**: AI-powered methods that understand object context
 - **Structured Outputs**: Generate complex, typed data structures automatically
 - **Media Support**: Handle images and videos as inputs and outputs
@@ -275,40 +274,6 @@ obj Person {
 - **incl_info**: Use to selectively include relevant object state in method calls
 
 The `sem` keyword can be used in [separate implementation files](../../jac_book/chapter_5.md#declaring-interfaces-vs-implementations), allowing for cleaner code organization and better maintainability.
-
-## LLM Function/Method Overriding
-
-In addition to defining functions and methods with the `by llm()` syntax, Jaclang also supports **LLM overriding** of existing functions. This powerful feature allows you to take any regular function and override its behavior with LLM-powered implementation at runtime using the `function_call() by llm()` syntax.
-
-You can override any function call by appending `by llm()` to the function call:
-
-```jac linenums="1"
-import from mtllm.llm { Model }
-
-glob llm = Model(model_name="gpt-4o");
-
-"""Greet the user with the given name."""
-def greet(name: str) -> str {
-    return "Hello " + name;
-}
-
-def format_data(data: dict) -> str {
-    return str(data);
-}
-
-with entry {
-    # Normal function call
-    print("Normal:", greet("Alice"));
-
-    # LLM override call - makes greeting more natural and contextual
-    print("LLM Override:", greet("Alice") by llm());
-
-    # Override data formatting with intelligent presentation
-    user_data = {"name": "Bob", "role": "engineer", "experience": 5};
-    print("Normal format:", format_data(user_data));
-    print("Smart format:", format_data(user_data) by llm());
-}
-```
 
 In this example:
 
