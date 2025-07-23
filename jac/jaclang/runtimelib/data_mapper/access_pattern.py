@@ -1,7 +1,6 @@
 """Generate Access pattern graph."""
 
 import networkx as nx
-import random
 
 from .static_phase import VisitInfo
 
@@ -63,23 +62,21 @@ def get_access_pattern_single_walker(
     return path
 
 
-def get_access_pattern(network: nx.DiGraph, paths: list[list[int]]) -> nx.DiGraph:
+def get_access_pattern(network: nx.DiGraph, path: list[int]) -> nx.DiGraph:
     """Calculate edge weights based on path traversal frequency."""
     # Create a copy of the network and clear all existing edges
     weighted_network = network.copy()
     weighted_network.clear_edges()
 
-    # Count edge occurrences in paths and create weighted edges
-    edge_weights: dict[tuple[int, int], int] = {}
-    for path in paths:
-        for i in range(len(path) - 1):
-            current_node = path[i]
-            next_node = path[i + 1]
-            edge = (current_node, next_node)
-            edge_weights[edge] = edge_weights.get(edge, 0) + 1
+    edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
 
     # Add edges with their calculated weights
-    for edge, weight in edge_weights.items():
-        weighted_network.add_edge(edge[0], edge[1], weight=weight)
+    for idx, (from_node, to_node) in enumerate(edges):
+        attr = weighted_network.get_edge_data(from_node, to_node)
+        if attr is None:
+            attr = {"label": []}
+        label = attr.get("label", [])
+        label.append(idx)
+        weighted_network.add_edge(from_node, to_node, label=label)
 
     return weighted_network

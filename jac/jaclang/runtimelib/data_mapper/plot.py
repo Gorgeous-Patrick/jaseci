@@ -52,10 +52,10 @@ def _plot_one_diagram(graph: nx.DiGraph, edge_color: str, edge_style: str) -> No
         width=1,
         arrows=graph.is_directed(),
     )
-    labels1 = nx.get_edge_attributes(graph, "weight")
-    if labels1:
+    labels = nx.get_edge_attributes(graph, "label")
+    if labels:
         nx.draw_networkx_edge_labels(
-            graph, pos, edge_labels=labels1, font_size=10, font_color="black"
+            graph, pos, edge_labels=labels, font_size=10, font_color="black"
         )
     plt.axis("off")
     plt.tight_layout()
