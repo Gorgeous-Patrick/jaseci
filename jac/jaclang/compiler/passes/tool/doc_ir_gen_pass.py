@@ -484,6 +484,8 @@ class DocIRGenPass(UniPass):
                     indent_parts.append(i.gen.doc_ir)
             else:
                 parts.append(i.gen.doc_ir)
+                if isinstance(i, uni.Token) and i.name == Tok.KW_BY:
+                    parts.append(self.space())
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_atom_trailer(self, node: uni.AtomTrailer) -> None:
