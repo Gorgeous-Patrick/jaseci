@@ -136,6 +136,46 @@ test bool_return {
     assert is_true == False;
 }
 
+# =============================================================================
+# Case: Enum (auto/int)
+# =============================================================================
+
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+def get_random_color() -> Color by llm();
+
+test enum_case {
+    color = get_random_color();
+    assert isinstance(color, Color);
+    print(f"Generated Color: {color}");
+    assert color in Color.__members__.values(), f"Color {color} is not a valid Color";
+}
+
+
+# =============================================================================
+# Case: Enum (string)
+# =============================================================================
+
+enum WeatherCondition {
+    Sunny = "Sunny",
+    Cloudy = "Cloudy",
+    Rainy = "Rainy",
+    Windy = "Windy",
+}
+
+def get_random_weather_condition() -> WeatherCondition by llm();
+
+test enum_string_case {
+    condition = get_random_weather_condition();
+    assert isinstance(condition, WeatherCondition);
+    print(f"Generated Weather Condition: {condition}");
+    assert condition in WeatherCondition.__members__.values(), f"Condition {condition} is not a valid WeatherCondition";
+    assert isinstance(condition.value, str), f"Condition value {condition.value} is not a string";
+}
 
 # =============================================================================
 # Case: Test tool schema

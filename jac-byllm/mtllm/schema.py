@@ -5,7 +5,7 @@ and to validate instances against these schemas.
 """
 
 from dataclasses import is_dataclass
-from enum import Enum, IntEnum
+from enum import Enum
 from types import FunctionType, UnionType
 from typing import Callable, Union, get_args, get_origin, get_type_hints
 
@@ -24,7 +24,7 @@ def _type_to_schema(ty: type, title: str = "", desc: str = "") -> dict:
     )
 
     semstr: str = ty._jac_semstr if hasattr(ty, "_jac_semstr") else ""
-    semstr = semstr or (ty.__doc__ if hasattr(ty, "__doc__") else "")  # type: ignore
+    semstr = semstr or (ty.__doc__ if hasattr(ty, "__doc__") else "") or ""  # type: ignore
 
     semstr_inner: dict[str, str] = (
         ty._jac_semstr_inner if hasattr(ty, "_jac_semstr_inner") else {}
@@ -106,11 +106,26 @@ def _type_to_schema(ty: type, title: str = "", desc: str = "") -> dict:
 
     # Handle enums
     if isinstance(ty, type) and issubclass(ty, Enum):
+        enum_type = None
+        enum_values = []
+        for member in ty.__members__.values():
+            enum_values.append(member.value)
+            if enum_type is None:
+                enum_type = type(member.value)
+            elif type(member.value) is not enum_type:
+                raise ValueError(
+                    f"Enum {ty.__name__} has mixed types. Not supported for schema generation."
+                )
+            enum_type = enum_type or int
+        enum_desc = f"\nThe value *should* be one in this list: {enum_values}"
+        if enum_type not in (int, str):
+            raise ValueError(
+                f"Enum {ty.__name__} has unsupported type {enum_type}. "
+                "Only int and str enums are supported for schema generation."
+            )
         return {
-            "title": title or ty.__name__,
-            "description": semstr,
-            "type": "integer" if issubclass(ty, IntEnum) else "string",
-            "enum": [member.value for member in ty.__members__.values()],
+            "description": semstr + enum_desc,
+            "type": "integer" if enum_type is int else "string",
         }
 
     # Handle functions
