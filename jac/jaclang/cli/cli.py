@@ -99,7 +99,15 @@ def proc_file_sess(
         )
     base, mod = os.path.split(filename)
     base = base if base else "./"
-    mod = mod[:-4]
+    if filename.endswith(".jac") or filename.endswith(".jir"):
+        mod = mod[:-4]
+    elif filename.endswith(".py"):
+        mod = mod[:-3]
+    else:
+        print(
+            "Not a valid file!\nOnly supports `.jac`, `.jir`, and `.py`",
+            file=sys.stderr,
+        )
     mach = ExecutionContext(session=session, root=root)
     Jac.set_context(mach)
     return base, mod, mach
@@ -112,19 +120,20 @@ def run(
     main: bool = True,
     cache: bool = True,
 ) -> None:
-    """Run the specified .jac file.
+    """Run the specified .jac, .jir, or .py file.
 
-    Executes a Jac program file, loading it into the Jac runtime environment
-    and running its code. This is the primary way to execute Jac programs.
+    Executes a Jac program file or Python file, loading it into the Jac runtime environment
+    and running its code. This is the primary way to execute Jac programs and Python scripts.
 
     Args:
-        filename: Path to the .jac or .jir file to run
+        filename: Path to the .jac, .jir, or .py file to run
         session: Optional session identifier for persistent state
         main: Treat the module as __main__ (default: True)
         cache: Use cached compilation if available (default: True)
 
     Examples:
         jac run myprogram.jac
+        jac run myscript.py
         jac run myprogram.jac --session mysession
         jac run myprogram.jac --no-main
     """
@@ -133,7 +142,8 @@ def run(
     base, mod, mach = proc_file_sess(filename, session)
     Jac.set_base_path(base)
 
-    if filename.endswith(".jac"):
+    # if filename.endswith(".jac") or filename.endswith(".py"):
+    if filename.endswith((".jac", ".py")):
         try:
             Jac.jac_import(
                 target=mod,
@@ -153,9 +163,8 @@ def run(
                 )
         except Exception as e:
             print(e, file=sys.stderr)
-
     else:
-        print("Not a valid file!\nOnly supports `.jac` and `.jir`")
+        print("Not a valid file!\nOnly supports `.jac`, `.jir`, and `.py`")
     mach.close()
 
 

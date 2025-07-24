@@ -35,6 +35,22 @@ class JacCliTests(TestCase):
 
         self.assertIn("Hello World!", stdout_value)
 
+    def test_jac_cli_run_python_file(self) -> None:
+        """Test running Python files with jac run command."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        cli.run(self.fixture_abs_path("python_run_test.py"))
+
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+
+        self.assertIn("Hello from Python!", stdout_value)
+        self.assertIn("This is a test Python file.", stdout_value)
+        self.assertIn("Result: 42", stdout_value)
+        self.assertIn("Python execution completed.", stdout_value)
+        self.assertIn("10", stdout_value)
+
     def test_jac_cli_alert_based_err(self) -> None:
         """Basic test for pass."""
         captured_output = io.StringIO()
