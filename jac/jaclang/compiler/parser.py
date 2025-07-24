@@ -523,7 +523,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 or self.match(uni.FuncSignature)
                 or self.match(uni.EventSignature)
             )
-            tail = self.match(list) or self.match(uni.FuncCall)
+            tail = self.match(list) or self.match(uni.Expr)
             valid_tail = spec if tail is None else tail
             valid_spec = None if tail is None else spec
             impl = uni.ImplDef(
@@ -578,14 +578,12 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
         def impl_tail(
             self, _: None
-        ) -> Sequence[uni.EnumBlockStmt] | list[uni.CodeBlockStmt] | uni.FuncCall:
+        ) -> Sequence[uni.EnumBlockStmt] | list[uni.CodeBlockStmt] | uni.Expr:
             """Grammar rule.
 
             impl_tail: enum_block | block_tail
             """
-            tail = self.match(list) or self.consume(  # enum_block or code_block
-                uni.FuncCall
-            )  # block_tail (KW_BY atomic_call)
+            tail = self.match(list) or self.consume(uni.Expr)
             return tail
 
         def archetype_decl(self, _: None) -> uni.ArchSpec:
@@ -772,7 +770,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             signature = self.consume(uni.EventSignature)
 
             # Handle block_tail
-            body_sn_or_call = self.match(list) or self.match(uni.FuncCall)
+            body_sn_or_call = self.match(list) or self.match(uni.Expr)
             if body_sn_or_call is None:
                 is_abstract = self.match_token(Tok.KW_ABSTRACT) is not None
                 self.consume_token(Tok.SEMI)
@@ -812,7 +810,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             signature = self.match(uni.FuncSignature)
 
             # Handle block_tail
-            body_sn_or_call = self.match(list) or self.match(uni.FuncCall)
+            body_sn_or_call = self.match(list) or self.match(uni.Expr)
             if body_sn_or_call is None:
                 is_abstract = self.match_token(Tok.KW_ABSTRACT) is not None
                 self.consume_token(Tok.SEMI)
@@ -1867,13 +1865,12 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def atomic_call(self, _: None) -> uni.FuncCall:
             """Grammar rule.
 
-            atomic_call: atomic_chain LPAREN param_list? by_call? RPAREN
+            atomic_call: atomic_chain LPAREN param_list? by_llm? RPAREN
             """
-            genai_call: uni.FuncCall | None = None
             target = self.consume(uni.Expr)
             self.consume_token(Tok.LPAREN)
             params_sn = self.match(list)
-            genai_call = self.match(uni.FuncCall)
+            genai_call = self.match(uni.Expr)
             self.consume_token(Tok.RPAREN)
 
             return uni.FuncCall(
@@ -1887,15 +1884,13 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 kid=self.flat_cur_nodes,
             )
 
-        def by_call(self, _: None) -> uni.FuncCall:
+        def by_llm(self, _: None) -> uni.Expr:
             """Grammar rule.
 
-            by_call: KW_BY expression
+            by_llm: KW_BY expression
             """
             self.consume_token(Tok.KW_BY)
-            if call := self.match(uni.FuncCall):
-                return call
-            raise ValueError("Expected a function call")
+            return self.consume(uni.Expr)
 
         def index_slice(self, _: None) -> uni.IndexSlice:
             """Grammar rule.
@@ -2922,18 +2917,18 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 kid=self.cur_nodes,
             )
 
-        def block_tail(self, _: None) -> list[uni.CodeBlockStmt] | uni.FuncCall:
+        def block_tail(self, _: None) -> list[uni.CodeBlockStmt] | uni.Expr:
             """Grammar rule.
 
-            block_tail: code_block | KW_BY atomic_call SEMI | KW_ABSTRACT? SEMI
+            block_tail: code_block | KW_BY expression SEMI
             """
             # Try to match code_block first
             if code_block := self.match(list):
                 return code_block
 
-            # Otherwise, it must be KW_BY atomic_call SEMI
+            # Otherwise, it must be KW_BY expression SEMI
             by_token = self.consume_token(Tok.KW_BY)
-            func_call = self.consume(uni.FuncCall)
+            func_call = self.consume(uni.Expr)
             semi_token = self.consume_token(Tok.SEMI)
 
             # Add the tokens to the function call's kid array
