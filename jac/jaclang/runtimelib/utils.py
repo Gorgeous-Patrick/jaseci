@@ -14,6 +14,35 @@ if TYPE_CHECKING:
     from jaclang.runtimelib.constructs import NodeAnchor, NodeArchetype
 
 
+def read_file_with_encoding(file_path: str) -> str:
+    """Read file with proper encoding detection."""
+    encodings_to_try = [
+        "utf-8-sig",
+        "utf-8",
+        "utf-16",
+        "utf-16le",
+        "utf-16be",
+        # "latin-1", # TODO: Support reading files with Latin-1 encoding
+    ]
+
+    for encoding in encodings_to_try:
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                return f.read()
+        except UnicodeError:
+            continue
+        except Exception as e:
+            raise IOError(
+                f"Could not read file {file_path}: {e}. "
+                f"Report this issue: https://github.com/jaseci-labs/jaseci/issues"
+            ) from e
+
+    raise IOError(
+        f"Could not read file {file_path} with any encoding. "
+        f"Report this issue: https://github.com/jaseci-labs/jaseci/issues"
+    )
+
+
 @contextmanager
 def sys_path_context(path: str) -> Iterator[None]:
     """Add a path to sys.path temporarily."""

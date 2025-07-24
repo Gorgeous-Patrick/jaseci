@@ -21,6 +21,7 @@ from jaclang.runtimelib.machine import (
     JacMachine as Jac,
     JacMachineInterface as JacInterface,
 )
+from jaclang.runtimelib.utils import read_file_with_encoding
 from jaclang.utils.helpers import debugger as db
 from jaclang.utils.lang_tools import AstTool
 
@@ -581,15 +582,14 @@ def py2jac(filename: str) -> None:
         jac py2jac myscript.py > converted.jac
     """
     if filename.endswith(".py"):
-        with open(filename, "r") as f:
-            file_source = f.read()
-            code = PyastBuildPass(
-                ir_in=uni.PythonModuleAst(
-                    ast3.parse(file_source),
-                    orig_src=uni.Source(file_source, filename),
-                ),
-                prog=JacProgram(),
-            ).ir_out.unparse()
+        file_source = read_file_with_encoding(filename)
+        code = PyastBuildPass(
+            ir_in=uni.PythonModuleAst(
+                ast3.parse(file_source),
+                orig_src=uni.Source(file_source, filename),
+            ),
+            prog=JacProgram(),
+        ).ir_out.unparse()
         print(code)
     else:
         print("Not a .py file.")
@@ -610,8 +610,7 @@ def jac2py(filename: str) -> None:
         jac jac2py myprogram.jac > converted.py
     """
     if filename.endswith(".jac"):
-        with open(filename, "r"):
-            code = JacProgram().compile(file_path=filename).gen.py
+        code = JacProgram().compile(file_path=filename).gen.py
         print(code)
     else:
         print("Not a .jac file.", file=sys.stderr)
