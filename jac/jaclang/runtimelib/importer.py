@@ -143,7 +143,7 @@ class Importer:
 
 
 class PythonImporter(Importer):
-    """Importer for Python modules."""
+    """Importer for Python modules using Jac AST conversion."""
 
     def __init__(self) -> None:
         """Initialize the Python importer."""
@@ -152,16 +152,34 @@ class PythonImporter(Importer):
 
         self.resolver = PythonModuleResolver()
 
+    def load_and_execute(self, file_path: str) -> types.ModuleType:
+        """Convert Python file to Jac AST and create module."""
+        module_name = os.path.splitext(os.path.basename(file_path))[0]
+        module = types.ModuleType(module_name)
+        module.__file__ = file_path
+        module.__name__ = "__main__"
+
+        from jaclang.runtimelib.machine import JacMachine
+
+        codeobj = JacMachine.program.get_bytecode(full_target=file_path)
+        if codeobj:
+            exec(codeobj, module.__dict__)
+        else:
+            raise ImportError(f"Failed to generate bytecode for {file_path}")
+
+        return module
+
     def run_import(self, spec: ImportPathSpec) -> ImportReturn:
-        """Run the import process for Python modules."""
+        """Run the import process for Python modules using Jac AST."""
         try:
-            imported_module = self.resolver.resolve_and_import(
+            python_file_path = self.resolver.resolve_module_path(
                 target=spec.target,
                 base_path=spec.base_path,
             )
+            imported_module = self.load_and_execute(python_file_path)
+            # JacMachineInterface.load_module(imported_module.__name__, imported_module)
 
             loaded_items: list = []
-
             self.result = ImportReturn(imported_module, loaded_items, self)
             return self.result
 

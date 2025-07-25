@@ -51,6 +51,24 @@ class JacCliTests(TestCase):
         self.assertIn("Python execution completed.", stdout_value)
         self.assertIn("10", stdout_value)
 
+    def test_jac_run_py_fstr(self) -> None:
+        """Test running Python files with jac run command."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        cli.run(self.fixture_abs_path("pyfunc_fstr.py"))
+
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+
+        self.assertIn("Hello Peter", stdout_value)
+        self.assertIn("Hello Peter Peter", stdout_value)
+        self.assertIn("Peter squared is Peter Peter", stdout_value)
+        self.assertIn("PETER!  wrong poem", stdout_value)
+        self.assertIn("Hello Peter , yoo mother is Mary. Myself, I am Peter.", stdout_value)
+        self.assertIn("Left aligned: Apple | Price: 1.23", stdout_value)
+        self.assertIn("name = Peter 🤔", stdout_value)
+
     def test_jac_cli_alert_based_err(self) -> None:
         """Basic test for pass."""
         captured_output = io.StringIO()

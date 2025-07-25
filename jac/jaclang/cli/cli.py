@@ -123,7 +123,7 @@ def run(
     """Run the specified .jac, .jir, or .py file.
 
     Executes a Jac program file or Python file, loading it into the Jac runtime environment
-    and running its code. This is the primary way to execute Jac programs and Python scripts.
+    and running its code. Python files are converted to Jac AST for execution.
 
     Args:
         filename: Path to the .jac, .jir, or .py file to run
@@ -142,7 +142,6 @@ def run(
     base, mod, mach = proc_file_sess(filename, session)
     Jac.set_base_path(base)
 
-    # if filename.endswith(".jac") or filename.endswith(".py"):
     if filename.endswith((".jac", ".py")):
         try:
             Jac.jac_import(
@@ -151,7 +150,7 @@ def run(
                 override_name="__main__" if main else None,
             )
         except Exception as e:
-            print(e, file=sys.stderr)
+            print(f"Error running {filename}: {e}", file=sys.stderr)
     elif filename.endswith(".jir"):
         try:
             with open(filename, "rb") as f:
@@ -162,9 +161,13 @@ def run(
                     override_name="__main__" if main else None,
                 )
         except Exception as e:
-            print(e, file=sys.stderr)
+            print(f"Error running {filename}: {e}", file=sys.stderr)
     else:
-        print("Not a valid file!\nOnly supports `.jac`, `.jir`, and `.py`")
+        print(
+            "Not a valid file!\nOnly supports `.jac`, `.jir`, and `.py`",
+            file=sys.stderr,
+        )
+
     mach.close()
 
 

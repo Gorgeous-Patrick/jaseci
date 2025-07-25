@@ -1374,10 +1374,11 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         valid = [
             value for value in values if isinstance(value, (uni.String, uni.ExprStmt))
         ]
-        return uni.FString(
+        fstr = uni.FString(
             parts=valid,
             kid=[*valid] if valid else [uni.EmptyToken()],
         )
+        return uni.MultiString(strings=[fstr], kid=[fstr])
 
     def proc_lambda(self, node: py_ast.Lambda) -> uni.LambdaExpr:
         """Process python node.

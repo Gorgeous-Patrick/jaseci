@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
-import importlib.util
 import os
 import site
 import sys
-import types
 from typing import Optional, Tuple
 
 
@@ -171,41 +168,15 @@ def _candidate_from_typeshed(base: str, parts: list[str]) -> Optional[Tuple[str,
 class PythonModuleResolver:
     """Resolver for Python modules with enhanced import capabilities."""
 
-    def resolve_and_import(self, target: str, base_path: str) -> types.ModuleType:
-        """Resolve and import a Python module."""
-        return self._import_absolute_module(target, base_path)
-
-    def _import_absolute_module(self, target: str, base_path: str) -> types.ModuleType:
-        """Handle absolute imports."""
-        caller_dir = self._get_caller_directory(base_path, target)
-        local_py_file = os.path.join(caller_dir, target.split(".")[-1] + ".py")
-
-        if os.path.exists(local_py_file):
-            return self._create_main_module(local_py_file)
-        else:
-            raise ImportError(f"Module '{target}' not found in {caller_dir}")
-
-    def _create_main_module(self, file_path: str) -> types.ModuleType:
-        """Create a __main__ module."""
-        imp_spec = importlib.util.spec_from_file_location("__main__", file_path)
-        if not imp_spec or not imp_spec.loader:
-            raise ImportError(f"Cannot create import spec for {file_path}")
-
-        module = importlib.util.module_from_spec(imp_spec)
-        imp_spec.loader.exec_module(module)
-        return module
-
-    def _get_caller_directory(self, base_path: str, target: str) -> str:
-        """Get the caller directory, handling relative imports."""
+    def resolve_module_path(self, target: str, base_path: str) -> str:
+        """Resolve Python module path without importing."""
         caller_dir = (
             base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
         )
         caller_dir = caller_dir if caller_dir else os.getcwd()
+        local_py_file = os.path.join(caller_dir, target.split(".")[-1] + ".py")
 
-        if target.startswith("."):
-            chomp_target = target[1:]  # Remove first dot
-            while chomp_target.startswith("."):
-                caller_dir = os.path.dirname(caller_dir)
-                chomp_target = chomp_target[1:]
-
-        return caller_dir
+        if os.path.exists(local_py_file):
+            return local_py_file
+        else:
+            raise ImportError(f"Module '{target}' not found in {caller_dir}")
