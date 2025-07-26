@@ -29,26 +29,6 @@ with entry { # Generate random points
 
 This snippet natively imports Python packages `math` and `random` and runs identically to its Python counterpart. Jac targets Python bytecode, so all Python libraries work with Jac.
 
-## Four Types of Classes to Go Beyond OOP
-
-In addtion to traditional python classes (`class` or the dataclass-like `obj`), Jac programmers can also use node classes (`node`), edge classes (`edge`), and walker classes (`walker`) for a new type of problem solving and agentic programming.
-
-Instances of node and edge classes allow for assembling objects in a graph structure to express semantic relationships between objects. This goes beyond only modeling objects in memory as a disconnected soup of instances.
-
-Walker classes inverts the traditional relationship between data and computation. Rather than moving data to computation with parameter passing, walkers enable moving computation to data as they represent computational units that moves through the topology of node and edge objects.
-
-These new constructs gives rise to a new paradigm for problem solving and implementation we call Object-Spatial Programming (OSP).
-
-### Traditional OOP vs Object-Spatial Programming
-
-| **Traditional OOP**                                       | **Object-Spatial Programming**                                |
-| --------------------------------------------------------- | ------------------------------------------------------------- |
-| • **Centralized Control**: Logic pulls data to itself     | • **Distributed Execution**: Logic travels to data            |
-| • **Global Loops**: `for stage in stages: compute(stage)` | • **Spatial Awareness**: Walker visits GameStage nodes        |
-| • **Data Movement**: Objects moved to processing units    | • **Data Locality**: Computation happens where data lives     |
-| • **Rigid Structure**: Hard-coded execution patterns      | • **Composable Flows**: Stages as nodes, transitions as edges |
-| • **Single Machine**: Difficult to distribute             | • **Scale-Ready**: Walkers can traverse across devices        |
-
 
 ## Programming Abstractions for AI
 
@@ -73,7 +53,7 @@ with entry {
 }
 ```
 
-!!! info "How To Run"
+??? info "How To Run"
     1. Install the MTLLM plugin by `pip install mtllm[google]`
     2. Get a free Gemini API key: Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
     3. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`).
@@ -87,12 +67,17 @@ with entry {
 `by llm()` delegates execution to an LLM without any extra library code.
 
 
-## Agentic Programming with Nodes and Walkers
+## Beyond OOP: An Agentic Programming Model
 
-This example demonstrates Meaning-Typed Programming (MTP) in the Jaseci Stack, with Nodes and Walkers.
-Here nodes represent meaningful entities (like Weights, Cardio Machines), while walkers (agents) traverse these nodes, collect contextual information, and collaborate with an LLM to generate a personalized workout plan.
+In addtion to traditional python classes (`class` or Jac's dataclass-like `obj`), Jac programmers can also use node classes (`node`), edge classes (`edge`), and walker classes (`walker`) for a new type of problem solving and agentic programming.
 
-**Your Intelligent Fitness Planner !!**
+Instances of node and edge classes allow for assembling objects in a graph structure to express semantic relationships between objects. This goes beyond only modeling objects in memory as a disconnected soup of instances.
+
+Walker classes inverts the traditional relationship between data and computation. Rather than moving data to computation with parameter passing, walkers enable moving computation to data as they represent computational units that moves through the topology of node and edge objects.
+
+These new constructs gives rise to a new paradigm for problem solving and implementation we call Object-Spatial Programming (OSP).
+
+In this example, nodes represent meaningful entities (like Weights, Cardio Machines), while walkers (agents) traverse these nodes, collect contextual information, and collaborate with an LLM to generate a personalized workout plan.
 
 ```jac
 import from mtllm.llm {Model}
@@ -100,17 +85,6 @@ import from mtllm.llm {Model}
 glob llm = Model(model_name="gemini/gemini-2.5-flash");
 
 node Equipment {}
-
-walker FitnessAgent {
-    has gear: dict = {};
-
-    can start with `root entry {
-        visit [-->(`?Equipment)];
-    }
-
-    """Create a personalized workout plan based on available equipment and space."""
-    def create_workout(gear: dict) -> str by llm();
-}
 
 node Weights(Equipment) {
     has available: bool = False;
@@ -134,6 +108,17 @@ node Trainer {
     }
 }
 
+walker FitnessAgent {
+    has gear: dict = {};
+
+    can start with `root entry {
+        visit [-->(`?Equipment)];
+    }
+
+    """Create a personalized workout plan based on available equipment and space."""
+    def create_workout(gear: dict) -> str by llm();
+}
+
 walker CoachWalker(FitnessAgent) {
     can get_plan with `root entry {
         visit [-->(`?Trainer)];
@@ -151,7 +136,7 @@ with entry {
 }
 ```
 
-!!! info "How To Run"
+??? info "How To Run"
     1. Install the MTLLM plugin by `pip install mtllm`
     2. Save your OpenAI API as an environment variable (`export OPENAI_API_KEY="xxxxxxxx"`).
     > **Note:** > > You can use Gemini, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
@@ -238,13 +223,7 @@ This MTP example demonstrates how Jac seamlessly integrates LLMs with structured
 
 ## Zero to Infinite Scale without any Code Changes
 
-### Instantly deploy a Production ready Fast API server with no code changes !!!
-
-### What is Jac Cloud?
-
-Jac Cloud is a cloud-native execution environment designed specifically for Jac programs, allowing developers to build, deploy, and scale applications effortlessly. It integrates essential features like persistence, user management, and distributed execution directly into the language, enabling you to focus on business logic without worrying about infrastructure complexity.
-
-Jac's cloud-native abstractions make persistence and user concepts part of the language so that simple programs can run unchanged locally or in the cloud. Deployments can be scaled by increasing replicas of the `jac-cloud` service when needed.
+Jac's cloud-native abstractions make persistence and user concepts part of the language so that simple programs can run unchanged locally or in the cloud. Much like every object instance has a self referencial `this` or `self` reference. Every instance of a Jac program invocation has a `root` node reference that is unique to every user and for which any ohter node or edge objeccts connected to `root` will persist across code invocations. Thats it. Using `root` to access presistant user state and data, Jac deployments can be scaled from local enviornments infinitely into to the cloud with no code changes..
 
 ```jac
 node Post {
@@ -263,7 +242,7 @@ walker create_post {
 }
 ```
 
-!!! info "How To Run"
+??? info "How To Run"
     1. Install the Jac Cloud by `pip install jac-cloud`
     2. Copy this code into `example.jac` file and run with `jac serve example.jac`
 
@@ -278,27 +257,6 @@ walker create_post {
 
 ![Fast API Server](../assets/jac_cloud_example.jpg)
 
-### Key Features of Jac Cloud
-
-#### Scale-Agnostic Programming
-
-- **Write Once, Run Anywhere**: Jac Cloud enables you to write your application code once and run it seamlessly on your local machine or scale it to millions of users in the cloud—without any code changes.
-- **Automatic Scaling**: You can increase the number of Jac Cloud service replicas to handle higher loads. The platform manages all the complexities of scaling, so you don't have to.
-
-#### Instant API Generation
-
-- **No Manual Endpoint Definition**: Jac Cloud automatically transforms your Jac walkers into RESTful API endpoints. You don't need to manually define API routes or handlers—your business logic is instantly accessible as web services.
-- **Supports REST and WebSockets**: Applications can expose RESTful APIs, WebSocket services, and scheduled tasks with minimal configuration.
-
-#### Integrated Persistence and User Management
-
-- **User Authentication and Authorization**: Jac Cloud includes token-based authentication and role-based access control, making it easy to build secure, multi-user applications.
-
-#### Cloud-Native Abstractions
-
-- **First-Class Support for Modern Patterns**: Concepts like nodes, walkers, and graphs are deeply integrated, making it straightforward to model complex data and workflows that scale
-
-This simple social media post system runs locally or scales infinitely in the cloud with no code changes.
 
 ## Better Organized and Well Typed Codebases
 
