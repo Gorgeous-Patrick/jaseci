@@ -39,53 +39,6 @@ Walker classes inverts the traditional relationship between data and computation
 
 These new constructs gives rise to a new paradigm for problem solving and implementation we call Object-Spatial Programming (OSP).
 
-### Spatial Game Example
-
-This example shows how computation flows spatially rather than centrally:
-
-<div class="code-block">
-```jac
-# Define game stage nodes with properties
-node GameStage {
-    has name: str,
-    frame_time: float = 0.0;
-}
-
-# Walker that travels between game stages
-walker RenderWalk {
-    has fps: int = 60;  # Target frames per second
-
-    # Process each GameStage when walker arrives
-    can process with GameStage entry {
-        print(f"Processing {here.name} stage");
-
-        # Calculate frame time based on FPS
-        here.frame_time = 1000.0 / self.fps;  # ms per frame
-
-        # Move to next connected stage
-        visit [-->];  # Follow outgoing edges
-    }
-}
-
-# Entry point - construct the game stage flow
-with entry {
-    # Create the first stage
-    input_stage = GameStage(name="Input");
-
-    # Connect Stages using spatial connections
-    input_stage ++> GameStage(name="Update") ++>
-                    GameStage(name="Render") ++>
-                    GameStage(name="Present");
-
-    # Spawn walker to begin traversal
-    RenderWalk() spawn input_stage;
-}
-```
-
-</div>
-
-A walker travels through game stages using edges, demonstrating Object-Spatial Programming.
-
 ### Traditional OOP vs Object-Spatial Programming
 
 | **Traditional OOP**                                       | **Object-Spatial Programming**                                |
@@ -132,6 +85,156 @@ with entry {
     `
 
 `by llm()` delegates execution to an LLM without any extra library code.
+
+
+## Agentic Programming with Nodes and Walkers
+
+This example demonstrates Meaning-Typed Programming (MTP) in the Jaseci Stack, with Nodes and Walkers.
+Here nodes represent meaningful entities (like Weights, Cardio Machines), while walkers (agents) traverse these nodes, collect contextual information, and collaborate with an LLM to generate a personalized workout plan.
+
+**Your Intelligent Fitness Planner !!**
+
+```jac
+import from mtllm.llm {Model}
+
+glob llm = Model(model_name="gemini/gemini-2.5-flash");
+
+node Equipment {}
+
+walker FitnessAgent {
+    has gear: dict = {};
+
+    can start with `root entry {
+        visit [-->(`?Equipment)];
+    }
+
+    """Create a personalized workout plan based on available equipment and space."""
+    def create_workout(gear: dict) -> str by llm();
+}
+
+node Weights(Equipment) {
+    has available: bool = False;
+
+    can check with FitnessAgent entry {
+        visitor.gear["weights"] = self.available;
+    }
+}
+
+node Cardio(Equipment) {
+    has machine: str = "treadmill";
+
+    can check with FitnessAgent entry {
+        visitor.gear["cardio"] = self.machine;
+    }
+}
+
+node Trainer {
+    can plan with FitnessAgent entry {
+        visitor.gear["workout"] = visitor.create_workout(visitor.gear);
+    }
+}
+
+walker CoachWalker(FitnessAgent) {
+    can get_plan with `root entry {
+        visit [-->(`?Trainer)];
+    }
+}
+
+with entry {
+    root ++> Weights();
+    root ++> Cardio();
+    root ++> Trainer();
+
+    agent = CoachWalker() spawn root;
+    print("Your Workout Plan:");
+    print(agent.gear['workout']);
+}
+```
+
+!!! info "How To Run"
+    1. Install the MTLLM plugin by `pip install mtllm`
+    2. Save your OpenAI API as an environment variable (`export OPENAI_API_KEY="xxxxxxxx"`).
+    > **Note:** > > You can use Gemini, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
+    4. Copy this code into `example.jac` file and run with `jac run example.jac`
+
+??? example "Output"
+    `   Your Workout Plan:
+        **Personalized Workout Plan**
+
+        **Duration:** 4 weeks
+        **Frequency:** 5 days a week
+
+        **Week 1-2: Building Strength and Endurance**
+
+        **Day 1: Upper Body Strength**
+        - Warm-up: 5 minutes treadmill walk
+        - Dumbbell Bench Press: 3 sets of 10-12 reps
+        - Dumbbell Rows: 3 sets of 10-12 reps
+        - Shoulder Press: 3 sets of 10-12 reps
+        - Bicep Curls: 3 sets of 12-15 reps
+        - Tricep Extensions: 3 sets of 12-15 reps
+        - Cool down: Stretching
+
+        **Day 2: Cardio and Core**
+        - Warm-up: 5 minutes treadmill walk
+        - Treadmill Intervals: 20 minutes (1 min sprint, 2 min walk)
+        - Plank: 3 sets of 30-45 seconds
+        - Russian Twists: 3 sets of 15-20 reps
+        - Bicycle Crunches: 3 sets of 15-20 reps
+        - Cool down: Stretching
+
+        **Day 3: Lower Body Strength**
+        - Warm-up: 5 minutes treadmill walk
+        - Squats: 3 sets of 10-12 reps
+        - Lunges: 3 sets of 10-12 reps per leg
+        - Deadlifts (dumbbells): 3 sets of 10-12 reps
+        - Calf Raises: 3 sets of 15-20 reps
+        - Glute Bridges: 3 sets of 12-15 reps
+        - Cool down: Stretching
+
+        **Day 4: Active Recovery**
+        - 30-45 minutes light treadmill walk or yoga/stretching
+
+        **Day 5: Full Body Strength**
+        - Warm-up: 5 minutes treadmill walk
+        - Circuit (repeat 3 times):
+        - Push-ups: 10-15 reps
+        - Dumbbell Squats: 10-12 reps
+        - Bent-over Dumbbell Rows: 10-12 reps
+        - Mountain Climbers: 30 seconds
+        - Treadmill: 15 minutes steady pace
+        - Cool down: Stretching
+
+        **Week 3-4: Increasing Intensity**
+
+        **Day 1: Upper Body Strength with Increased Weight**
+        - Follow the same structure as weeks 1-2 but increase weights by 5-10%.
+
+        **Day 2: Longer Cardio Session**
+        - Warm-up: 5 minutes treadmill walk
+        - Treadmill: 30 minutes at a steady pace
+        - Core Exercises: Same as weeks 1-2, but add an additional set.
+
+        **Day 3: Lower Body Strength with Increased Weight**
+        - Increase weights for all exercises by 5-10%.
+        - Add an extra set for each exercise.
+
+        **Day 4: Active Recovery**
+        - 30-60 minutes light treadmill walk or yoga/stretching
+
+        **Day 5: Full Body Strength Circuit with Cardio Intervals**
+        - Circuit (repeat 4 times):
+        - Push-ups: 15 reps
+        - Dumbbell Squats: 12-15 reps
+        - Jumping Jacks: 30 seconds
+        - Dumbbell Shoulder Press: 10-12 reps
+        - Treadmill: 1 minute sprint after each circuit
+        - Cool down: Stretching
+
+        Ensure to hydrate and listen to your body throughout the program. Adjust weights and reps as needed based on your fitness level.
+    `
+
+This MTP example demonstrates how Jac seamlessly integrates LLMs with structured node-walker logic, enabling intelligent, context-aware agents with just a few lines of code.
 
 ## Zero to Infinite Scale without any Code Changes
 
