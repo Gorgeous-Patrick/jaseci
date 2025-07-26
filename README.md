@@ -5,14 +5,11 @@
     <img alt="Jaclang logo" src="https://www.jac-lang.org//assets/logo.png" width="20%">
   </picture>
 
-  [Jac Website] | [Getting started] | [Learn] | [Documentation] | [Contributing]
+  [jac-lang.org] | [Getting Started] | [Contributing]
 
-  [Jac]: https://www.jac-lang.org/
-  [Jac Website]: https://www.jac-lang.org/
-  [Getting Started]: https://www.jac-lang.org//start/
-  [Learn]: https://www.jac-lang.org//learn
-  [Documentation]: https://www.jac-lang.org//learn/guide/
-  [Contributing]: .github/CONTRIBUTING.md
+  [jac-lang.org]: https://www.jac-lang.org/
+  [Getting Started]: https://www.jac-lang.org/learn/getting_started/
+  [Contributing]: https://www.jac-lang.org/internals/contrib/
 </div>
 
 # Jaseci Ecosystem
