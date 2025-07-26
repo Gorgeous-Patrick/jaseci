@@ -69,6 +69,24 @@ class JacCliTests(TestCase):
         self.assertIn("Left aligned: Apple | Price: 1.23", stdout_value)
         self.assertIn("name = Peter 🤔", stdout_value)
 
+    def test_jac_run_py_fmt(self) -> None:
+        """Test running Python files with jac run command."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        cli.run(self.fixture_abs_path("pyfunc_fmt.py"))
+
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+
+        self.assertIn("One", stdout_value)
+        self.assertIn("Two", stdout_value)
+        self.assertIn("Three", stdout_value)
+        self.assertIn("baz", stdout_value)
+        self.assertIn("Processing...", stdout_value)
+        self.assertIn("Four", stdout_value)
+        self.assertIn("The End.", stdout_value)
+
     def test_jac_cli_alert_based_err(self) -> None:
         """Basic test for pass."""
         captured_output = io.StringIO()

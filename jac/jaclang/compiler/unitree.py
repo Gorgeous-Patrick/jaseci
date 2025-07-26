@@ -973,8 +973,10 @@ class Module(AstDocNode, UniScopeNode):
             prog=JacProgram(),
         ).ir_out.gen.jac
 
-    def unparse(self) -> str:
-        super().unparse()
+    def unparse(self, requires_format: bool = True) -> str:
+        unparsed = super().unparse()
+        if not requires_format:
+            return unparsed
         return self.format()
 
     @staticmethod

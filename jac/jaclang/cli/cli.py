@@ -601,8 +601,14 @@ def py2jac(filename: str) -> None:
                 orig_src=uni.Source(file_source, filename),
             ),
             prog=JacProgram(),
-        ).ir_out.unparse()
-        print(code)
+        ).ir_out.unparse(requires_format=False)
+        formatted_code = JacProgram().jac_str_formatter(
+            source_str=code, file_path=filename
+        )
+        if formatted_code:
+            print(formatted_code)
+        else:
+            print("Error converting Python code to Jac.", file=sys.stderr)
     else:
         print("Not a .py file.")
 
