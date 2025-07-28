@@ -87,6 +87,19 @@ class JacCliTests(TestCase):
         self.assertIn("Four", stdout_value)
         self.assertIn("The End.", stdout_value)
 
+    def test_jac_run_pyfunc_kwesc(self) -> None:
+        """Test running Python files with jac run command."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        cli.run(self.fixture_abs_path("pyfunc_kwesc.py"))
+
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        out = stdout_value.split("\n")
+        self.assertIn("89", out[0])
+        self.assertIn("(13, (), {'a': 1, 'b': 2})", out[1])
+
     def test_jac_cli_alert_based_err(self) -> None:
         """Basic test for pass."""
         captured_output = io.StringIO()
