@@ -2,7 +2,7 @@
 
 import networkx as nx
 
-from .static_phase import VisitInfo
+from .visit_sequence import VisitInfo
 
 
 def filter_neighbors(

@@ -64,6 +64,7 @@ from jaclang.runtimelib.data_mapper.access_pattern import (
     get_access_pattern_single_walker,
 )
 from jaclang.runtimelib.data_mapper.plot import plot_and_save
+from jaclang.runtimelib.data_mapper.visit_sequence import get_visit_sequences
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -498,6 +499,10 @@ class JacWalker:
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
+        for path in get_visit_sequences(JacMachine.program.mod.get_all_sub_nodes(ast.Ability)[0]):
+            for node in path:
+                print(node.unparse())
+            print("=====")
         if isinstance(current_loc, EdgeArchetype):
             walker.set_trace.append({current_loc.__jac__.target})
         elif isinstance(current_loc, NodeArchetype):
