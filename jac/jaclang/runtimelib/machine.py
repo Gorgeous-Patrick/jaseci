@@ -64,7 +64,7 @@ from jaclang.runtimelib.data_mapper.access_pattern import (
     get_access_pattern_single_walker,
 )
 from jaclang.runtimelib.data_mapper.plot import plot_and_save
-from jaclang.runtimelib.data_mapper.visit_sequence import get_visit_sequences
+from jaclang.runtimelib.data_mapper.visit_sequence import get_visit_sequences_temp
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -499,10 +499,6 @@ class JacWalker:
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
-        for path in get_visit_sequences(JacMachine.program.mod.get_all_sub_nodes(ast.Ability)[0]):
-            for node in path:
-                print(node.unparse())
-            print("=====")
         if isinstance(current_loc, EdgeArchetype):
             walker.set_trace.append({current_loc.__jac__.target})
         elif isinstance(current_loc, NodeArchetype):
@@ -516,19 +512,16 @@ class JacWalker:
         node_idx = all_nodes.index(start_node)
         graph = JacPIM.get_networkx(all_nodes, all_edges)
         JacPIM.networkx_gen_png(graph)
-        visit_info = JacPIM._get_visit_info(
-            JacMachine.program.mod.get_all_sub_nodes(ast.VisitStmt)
-        )
-
         walker_type = JacPIM._extract_name(walker.archetype)
+        walker_code = JacPIM.get_walker_code(walker.archetype)
+
         traversal_path = get_access_pattern_single_walker(
             start_idx=node_idx,
             network=graph,
-            visit_info=visit_info,
-            walker_type=walker_type,
+            walker_type=walker_code,
         )
 
-        access_pattern = get_access_pattern(network=graph, path=traversal_path)
+        access_pattern = get_access_pattern(network=graph, paths=traversal_path)
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -1809,6 +1802,13 @@ class JacPIM:
     """Jac PIM implementation."""
 
     @staticmethod
+    def get_walker_code(walker: WalkerAnchor) -> ast.Archetype:
+        for walker_code in JacMachine.program.mod.get_all_sub_nodes(ast.Archetype):
+            if walker_code.get_all_sub_nodes(ast.Name)[0].value == JacPIM._extract_name(walker):
+                return walker_code
+        raise ValueError(f"Walker code for {walker.archetype} not found in program.")
+
+    @staticmethod
     def networkx_gen_png(network: nx.DiGraph) -> str:
         """Generate the networkx png."""
         import matplotlib.pyplot as plt
@@ -1900,55 +1900,6 @@ class JacPIM:
 
         return graph
 
-    @staticmethod
-    def _get_from_node_type_of_visit(visit_stmt: ast.VisitStmt) -> str:
-        """Get the node type that the visit is from.
-
-        For example, if a visit is in an ability:
-            can xxx with XXX entry {...}, it will return XXX
-        """
-        ability = visit_stmt.parent_of_type(ast.Ability)
-        return (
-            ability.get_all_sub_nodes(ast.EventSignature)[0]
-            .get_all_sub_nodes(ast.Name)[0]
-            .value
-        )
-
-    @staticmethod
-    def _get_to_edge_type_of_visit(visit_stmt: ast.VisitStmt) -> str:
-        filters = visit_stmt.get_all_sub_nodes(ast.FilterCompr)
-        if len(filters) == 0:
-            return "GenericEdge"
-        return filters[0].get_all_sub_nodes(ast.Name)[0].value
-
-    @staticmethod
-    def _get_walker_type_from_visit(visit_stmt: ast.VisitStmt) -> str:
-        return (
-            visit_stmt.find_parent_of_type(ast.Archetype)
-            .get_all_sub_nodes(ast.Name)[0]
-            .value
-        )
-
-    @staticmethod
-    def _get_visit_info(visit_stmts: list[ast.VisitStmt]) -> list[VisitInfo]:
-        """Get the visit statement information."""
-        # res: dict[tuple[str, str, str | None], bool] = {}
-        res: list[VisitInfo] = []
-        # Get all visit statements from the AST
-        for visit_stmt in visit_stmts:
-            from_node = JacPIM._get_from_node_type_of_visit(visit_stmt)
-            edge_type = JacPIM._get_to_edge_type_of_visit(visit_stmt)
-            walker_type = JacPIM._get_walker_type_from_visit(visit_stmt)
-            res.append(
-                VisitInfo(
-                    from_node_type=from_node,
-                    edge_type=edge_type,
-                    walker_type=walker_type,
-                    async_edge=False,  # TODO: Add Async Visit Support
-                )
-            )
-            # res[walker_type, from_node, edge_type] = async_visit
-        return res
 
     @staticmethod
     def gen_walker_trace_graph(
