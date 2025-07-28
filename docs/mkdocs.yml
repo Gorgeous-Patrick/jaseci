@@ -61,6 +61,7 @@ nav:
         - "learn/jac-cloud/webhook.md"
       - Operations:
         - "learn/jac-cloud/deployment.md"
+        - "learn/jac-cloud/utilities.md"
     - Tooling:
       - "learn/tools/cli.md"
     - Specifications:
