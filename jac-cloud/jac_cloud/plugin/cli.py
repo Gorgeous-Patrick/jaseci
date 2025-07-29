@@ -1,7 +1,6 @@
 """Module for registering CLI plugins for jaseci."""
 
 from getpass import getpass
-from os import getenv
 from os.path import split
 from pickle import load
 from typing import Any
@@ -13,7 +12,7 @@ from jaclang.runtimelib.machine import hookimpl
 from pymongo.errors import ConnectionFailure, OperationFailure
 
 from ..core.archetype import BulkWrite, NodeAnchor
-from ..core.context import PUBLIC_ROOT_ID, SUPER_ROOT_ID
+from ..core.context import JaseciContext, PUBLIC_ROOT_ID, SUPER_ROOT_ID
 from ..jaseci.datasources import Collection
 from ..jaseci.main import FastAPI
 from ..jaseci.models import User as BaseUser
@@ -37,6 +36,8 @@ class JacCmd:
 
             FastAPI.enable()
 
+            ctx = JaseciContext.create(None)
+
             if filename.endswith(".jac"):
                 Jac.jac_import(target=mod, base_path=base, override_name="__main__")
             elif filename.endswith(".jir"):
@@ -45,6 +46,7 @@ class JacCmd:
                     Jac.jac_import(target=mod, base_path=base, override_name="__main__")
             else:
                 raise ValueError("Not a valid file!\nOnly supports `.jac` and `.jir`")
+            ctx.close()
             FastAPI.start(host=host, port=port)
 
         @cmd_registry.register
@@ -52,11 +54,6 @@ class JacCmd:
             filename: str, email: str = "", password: str = ""
         ) -> str:
             from jaclang import JacMachineInterface as Jac
-
-            if not getenv("DATABASE_HOST"):
-                raise NotImplementedError(
-                    "DATABASE_HOST env-var is required for this API!"
-                )
 
             base, mod = split(filename)
             base = base if base else "./"

@@ -235,13 +235,16 @@ class Symbol:
         defn: NameAtom,
         access: SymbolAccess,
         parent_tab: UniScopeNode,
+        imported: bool = False,
     ) -> None:
         """Initialize."""
         self.defn: list[NameAtom] = [defn]
         self.uses: list[NameAtom] = []
+        self.imported: bool = imported
         defn.sym = self
         self.access: SymbolAccess = access
         self.parent_tab = parent_tab
+        self.semstr: str = ""
 
     @property
     def decl(self) -> NameAtom:
@@ -270,7 +273,7 @@ class Symbol:
         return ".".join(out)
 
     @property
-    def fetch_sym_tab(self) -> Optional[UniScopeNode]:
+    def symbol_table(self) -> Optional[UniScopeNode]:
         """Get symbol table."""
         return self.parent_tab.find_scope(self.sym_name)
 
@@ -332,6 +335,7 @@ class UniScopeNode(UniNode):
         access_spec: Optional[AstAccessNode] | SymbolAccess = None,
         single: bool = False,
         force_overwrite: bool = False,
+        imported: bool = False,
     ) -> Optional[UniNode]:
         """Set a variable in the symbol table.
 
@@ -352,6 +356,7 @@ class UniScopeNode(UniNode):
                     else access_spec.access_type if access_spec else SymbolAccess.PUBLIC
                 ),
                 parent_tab=self,
+                imported=imported,
             )
         else:
             self.names_in_scope[node.sym_name].add_defn(node.name_spec)
@@ -385,6 +390,7 @@ class UniScopeNode(UniNode):
         access_spec: Optional[AstAccessNode] | SymbolAccess = None,
         single_decl: Optional[str] = None,
         force_overwrite: bool = False,
+        imported: bool = False,
     ) -> Optional[Symbol]:
         """Insert into symbol table."""
         if node.sym and self == node.sym.parent_tab:
@@ -394,6 +400,7 @@ class UniScopeNode(UniNode):
             single=single_decl is not None,
             access_spec=access_spec,
             force_overwrite=force_overwrite,
+            imported=imported,
         )
         self.update_py_ctx_for_def(node)
         return node.sym
@@ -2509,19 +2516,21 @@ class InForStmt(AstAsyncNode, AstElseBodyNode, CodeBlockStmt, UniScopeNode):
         return res
 
 
-class WhileStmt(CodeBlockStmt, UniScopeNode):
+class WhileStmt(AstElseBodyNode, CodeBlockStmt, UniScopeNode):
     """WhileStmt node type for Jac Ast."""
 
     def __init__(
         self,
         condition: Expr,
         body: Sequence[CodeBlockStmt],
+        else_body: Optional[ElseStmt],
         kid: Sequence[UniNode],
     ) -> None:
         self.condition = condition
         self.body: list[CodeBlockStmt] = list(body)
         UniNode.__init__(self, kid=kid)
         UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
+        AstElseBodyNode.__init__(self, else_body=else_body)
         CodeBlockStmt.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
@@ -2538,6 +2547,8 @@ class WhileStmt(CodeBlockStmt, UniScopeNode):
         for stmt in self.body:
             new_kid.append(stmt)
         new_kid.append(self.gen_token(Tok.RBRACE))
+        if self.else_body:
+            new_kid.append(self.else_body)
         self.set_kids(nodes=new_kid)
         return res
 
@@ -2796,32 +2807,6 @@ class ReturnStmt(CodeBlockStmt):
         if self.expr:
             new_kid.append(self.expr)
         new_kid.append(self.gen_token(Tok.SEMI))
-        self.set_kids(nodes=new_kid)
-        return res
-
-
-class IgnoreStmt(WalkerStmtOnlyNode, CodeBlockStmt):
-    """IgnoreStmt node type for Jac Ast."""
-
-    def __init__(
-        self,
-        target: Expr,
-        kid: Sequence[UniNode],
-    ) -> None:
-        self.target = target
-        UniNode.__init__(self, kid=kid)
-        WalkerStmtOnlyNode.__init__(self)
-        CodeBlockStmt.__init__(self)
-
-    def normalize(self, deep: bool = False) -> bool:
-        res = True
-        if deep:
-            res = self.target.normalize(deep)
-        new_kid: list[UniNode] = [
-            self.gen_token(Tok.KW_IGNORE),
-            self.target,
-            self.gen_token(Tok.SEMI),
-        ]
         self.set_kids(nodes=new_kid)
         return res
 
@@ -3509,7 +3494,7 @@ class InnerCompr(AstAsyncNode, UniScopeNode):
         return res
 
 
-class ListCompr(AtomExpr):
+class ListCompr(AtomExpr, UniScopeNode):
     """ListCompr node type for Jac Ast."""
 
     def __init__(
@@ -3523,6 +3508,7 @@ class ListCompr(AtomExpr):
         UniNode.__init__(self, kid=kid)
         Expr.__init__(self)
         AstSymbolStubNode.__init__(self, sym_type=SymbolType.SEQUENCE)
+        UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -3725,12 +3711,10 @@ class FuncCall(Expr):
         params: Sequence[Expr | KWPair] | None,
         genai_call: Optional[FuncCall],
         kid: Sequence[UniNode],
-        body_genai_call: Optional[FuncCall] = None,
     ) -> None:
         self.target = target
         self.params = list(params) if params else []
         self.genai_call = genai_call
-        self.body_genai_call = body_genai_call
         UniNode.__init__(self, kid=kid)
         Expr.__init__(self)
 

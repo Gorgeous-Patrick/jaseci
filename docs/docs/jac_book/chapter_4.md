@@ -1,632 +1,589 @@
-### Chapter 4: Data Structures and Collections
+# Chapter 4: More Functions
+---
+Jac provides a powerful function system with mandatory type annotations, built-in AI capabilities, decorators, and first-class support for functional programming patterns. This chapter builds a math functions library with AI-powered features and timing capabilities to demonstrate these features.
 
-Jac's data structures will feel familiar to Python developers, but they come with enhanced type safety, powerful new operations, and unique features like keyword tuples and pipe operators. This chapter explores how to work with collections effectively in Jac.
 
-#### 4.1 Collections Comparison
+> In Jac, functions are first-class citizens and can be passed around, returned from other functions, and stored in data structures.
 
-### Lists, Tuples, Dicts, Sets - Familiar but Enhanced
+## Functional Programming in Jac
+---
+Functional programming is a programming paradigm that treats computation as the evaluation of mathematical functions. While Jac is not a strict functional programming language, it supports functional programming concepts with features like first-class functions, higher-order functions, and lambda expressions.
 
-Let's start by comparing Python and Jac collections:
+### Function as First-Class Citizens
+When we say that functions are first-class citizens in Jac, it means that functions can be treated like any other data type. They can be passed as arguments to other functions, returned from functions, and assigned to variables.
 
-```python
-# Python - Dynamic typing, flexible but potentially error-prone
-numbers = [1, 2, 3]
-numbers.append("four")  # Allowed, but might cause issues later
-
-person = ("Alice", 30)  # Simple tuple
-scores = {"Alice": 95, "Bob": 87}
-tags = {"python", "programming", "tutorial"}
-```
+Lets return to our calculator example from Chapter 3, but this time we will use functions as first-class citizens to create a more flexible calculator.
 
 ```jac
-# Jac - Static typing, safe and predictable
-let numbers: list[int] = [1, 2, 3];
-with entry {
-    numbers.append("four");
-    print(numbers);
+# Define a basic calculator function
+def calculator(a: float, b: float, operation: callable) -> float {
+    return operation(a, b);
 }
-
-let person: tuple = ("Alice", 30);  # Positional tupl
-let scores: dict[str, int] = {"Alice": 95, "Bob": 87};
-let tags: set[str] = {"python", "programming", "tutorial"};
 ```
+<br />
 
-### Working with Lists
+This `calculator` function takes two numbers and an operation (which is a function) as arguments. It applies the operation to the two numbers and returns the result. We annotate the `operation` parameter with the type `callable`, indicating that it can be type that represents a function.
 
-Lists in Jac maintain order and allow duplicates, just like Python, but with type safety:
+Next lets use a `dict` to map operation names to the actual functions that we previously defined. This allows us to easily extend the calculator with new operations without modifying the core logic.
 
 ```jac
-# List creation and basic operations
-let fruits: list[str] = ["apple", "banana", "cherry"];
-let numbers: list[int] = [3, 1, 4, 1, 5, 9, 2, 6];
+glob operations: dict[str, callable] = {
+    "add": add,
+    "subtract": subtract,
+    "multiply": multiply,
+    "divide": divide
+};
+```
+<br />
 
-let unique_sorted: list[int] = sorted(set(numbers));  # Remove duplicates and sort → [1, 2, 3, 4, 5, 6, 9]
-let subset: list[int] = numbers[2:5];  # Slice → [4, 1, 5]
-let reversed: list[int] = numbers[::-1];  # Reverse the list → [6, 2, 9, 5, 1, 4, 1, 3]
+Finally, lets put it all together in a simple interactive calculator that allows users to choose an operation and perform calculations.
 
-with entry {
-    fruits.append("date");
-    fruits.insert(1, "blueberry");
-
-    print("fruits after update: ", fruits);
-    # ['apple', 'blueberry', 'banana', 'cherry', 'date']
-
-    numbers.sort();
-    print("numbers sorted: ", numbers);
-    # [1, 1, 2, 3, 4, 5, 6, 9]
-
-    print("unique sorted numbers: ", unique_sorted);
-    # [1, 2, 3, 4, 5, 6, 9]
-
-    print("subset [2:5]: ", subset);
-    # [4, 1, 5]
-
-    print("reversed numbers: ", reversed);
-    # [6, 2, 9, 5, 1, 4, 1, 3]
+```jac
+# Define a basic calculator function
+def calculator(a: float, b: float, operation: callable) -> float {
+    return operation(a, b);
 }
 
+# calculator.jac
+def add(a: float, b: float) -> float {
+    return a + b;
+}
 
-# Multi-dimensional lists
-let matrix: list[list[int]] = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9]
-];
+def subtract(a: float, b: float) -> float {
+    return a - b;
+}
 
-with entry {
-    print("matrix:");
-    for row in matrix {
-        print(row);
+def multiply(a: float, b: float) -> float {
+    return a * b;
+}
+def divide(a: float, b: float) -> float {
+    if b == 0 {
+        raise ValueError("Cannot divide by zero");
     }
-
-    print("element at [0][1]:", matrix[0][1]);  # 2
-    print("element at [2][2]:", matrix[2][2]);  # 9
-}
-```
-
-### Advanced List Operations
-
-```jac
-# List comprehensions with filtering
-let numbers: list[int] = range(1, 21);
-let evens: list[int] = [n for n in numbers if n % 2 == 0];
-let squares: list[int] = [n * n for n in numbers];
-let even_squares: list[int] = [n * n for n in numbers if n % 2 == 0];
-
-# Nested comprehensions
-let coords: list[tuple] = [(x, y) for x in range(3) for y in range(3)];
-# [(0,0), (0,1), (0,2), (1,0), (1,1), (1,2), (2,0), (2,1), (2,2)]
-
-# Functional-style operations
-let doubled: list[int] = [x * 2 for x in numbers];
-let filtered: list[int] = [x for x in numbers if x > 10];
-let total: int = 0;
-
-with entry {
-    for x in numbers {
-    total += x;
-    }
+    return a / b;
 }
 
-# List flattening
-let nested: list[list[int]] = [[1, 2], [3, 4], [5, 6]];
-let flat: list[int] = [item for sublist in nested for item in sublist];
-
-with entry {
-    print("numbers:", list(numbers));
-    print("evens:", evens);
-    print("squares:", squares);
-    print("even_squares:", even_squares);
-}
-
-with entry {
-    print("coordinates:", coords);
-}
-
-with entry {
-    print("doubled:", doubled);
-    print("filtered (>10):", filtered);
-    print("total sum:", total);
-}
-
-with entry {
-    print("nested:", nested);
-    print("flat:", flat);
-}
-```
-
-### Dictionaries with Type Safety
-
-```jac
-# Dictionary creation and manipulation
-glob user_scores: dict[str, int] = {
-    "Alice": 95,
-    "Bob": 87,
-    "Charlie": 92
+glob operations: dict[str, callable] = {
+    "add": add,
+    "subtract": subtract,
+    "multiply": multiply,
+    "divide": divide
 };
 
-# Safe access patterns
-glob alice_score: int = user_scores.get("Alice", 0);
-glob david_score: int = user_scores.get("David", 0);
-
-# Dictionary comprehensions
-glob squared_scores: dict[str, int] = {};
-
+# Main entry point
 with entry {
-    for (name, score) in user_scores.items() {
-        squared_scores[name] = score * score;
-    }
-}
+    a: float = 10.0;
+    b: float = 5.0;
 
-# Nested dictionaries
-glob user_profiles: dict[str, dict[str, any]] = {
-    "alice": {
-        "email": "alice@example.com",
-        "age": 30,
-        "scores": [95, 87, 91]
-    },
-    "bob": {
-        "email": "bob@example.com",
-        "age": 25,
-        "scores": [87, 89, 85]
-    }
-};
+    # Change this to "subtract", "multiply", or "divide" to test other operations
+    operation_name: str = "add";
 
-# Merging dictionaries
-glob defaults: dict[str, any] = {"status": "active", "role": "user"};
-glob user_data: dict[str, any] = {"name": "Alice", "role": "admin"};
-glob merged: dict[str, any] = {**defaults, **user_data};
-```
-
-### Sets for Unique Collections
-
-```jac
-# Set operations
-let skills_a: set[str] = {"Python", "Jac", "SQL", "Git"};
-let skills_b: set[str] = {"Jac", "JavaScript", "Git", "Docker"};
-
-# Set operations
-let common: set[str] = skills_a & skills_b;  # {"Jac", "Git"}
-let all_skills: set[str] = skills_a | skills_b;  # Union
-let unique_to_a: set[str] = skills_a - skills_b;  # {"Python", "SQL"}
-let symmetric_diff: set[str] = skills_a ^ skills_b;  # Unique to either
-
-# Set comprehensions
-let numbers: set[int] = {x * x for x in range(10) if x % 2 == 0};
-# {0, 4, 16, 36, 64}
-
-# Frozen sets (immutable)
-let constants: frozenset[str] = frozenset(["PI", "E", "PHI"]);
-```
-
-### Special Comprehensions and Filter Syntax
-
-Jac introduces powerful filter comprehensions with null-safety:
-
-```jac
-# Special filter syntax for graph operations
-node User {
-    has name: str;
-    has age: int;
-    has active: bool;
-    has visited: bool = False;  # Default value
-    has timestamp: datetime = now();  # Default to current time
-}
-
-
-# Standard filter (may fail on null)
-# let active_users = [user for user in users if user.is_active];
-
-# # Null-safe filter with ? operator
-# let active_users_safe = [user for user in users if user.is_active];
-
-with entry {
-    root ++> User(name= "Alice", age= 30, active= True);
-    root ++> User(name= "Bob", age= 17, active= False);
-    root ++> User(name= "Charlie", age= 25, active= True);
-    root ++> User(name= "Diana", age= 22, active= False);
-    root ++> User(name= "Eve", age= 19, active= True);
-    root ++> User(name= "Frank", age= 40, active= True);
-    root ++> User(name= "Grace", age= 15, active= False);
-    root ++> User(name= "Hank", age= 35, active= True);
-    root ++> User(name= "Ivy", age= 28, active= False);
-    root ++> User(name= "Jack", age= 20, active= True);
-}
-
-walker FindActiveAdults {
-    can search with entry {
-        # Filter nodes with special syntax
-        adults = [-->(?age >= 18)];  # Null-safe property access
-        active_adults = [-->(?age >= 18, active == True)];
-        print("Active adults:", active_adults);
-        # Type-specific filtering
-        user_nodes = [-->(`?User)];  # Only User nodes
-        print("User nodes:", user_nodes);
-        typed_adults = [-->(`?User)](?age >= 18);  # Typed + filtered , age >= 18
-        print("Typed adults:", typed_adults);
-    }
-}
-
-# Assignment comprehensions - unique to Jac!
-walker UpdateNodes {
-    can update with entry {
-        # Update all connected nodes
-        [-->](=visited: True, =timestamp: now());
-
-        # Conditional update
-        [-->(?score < 50)](=needs_review: true);
-
-        # Update specific types
-        [-->(`User: ?age >= 18)](=adult: true);
-    }
-}
-
-
-with entry {
-    root spawn FindActiveAdults();
-}
-```
-
-#### 4.2 Pipe Operators
-
-### Forward Pipe (`|>`)
-
-Pipe operators transform nested function calls into readable pipelines:
-
-```jac
-# Define the data and functions first
-glob data: str = "hello world";
-
-def parse(text: str) -> str {
-    return f"parsed({text})";
-}
-
-def validate(text: str) -> str {
-    return f"validated({text})";
-}
-
-def transform(text: str) -> str {
-    return f"transformed({text})";
-}
-
-def process(text: str) -> str {
-    return f"processed({text})";
-}
-
-with entry {
-    # Traditional nested approach (hard to read)
-    let result1 = process(transform(validate(parse(data))));
-    print("Nested approach:", result1);
-
-    # With forward pipe (left-to-right flow)
-    let result2 = data
-        |> parse
-        |> validate
-        |> transform
-        |> process;
-    print("Forward pipe:", result2);
-}
-```
-
-### Real-World Pipeline Examples
-
-```jac
-import string;
-
-# Data processing pipeline
-def clean_text(text: str) -> str {
-    return text.strip().lower();
-}
-
-def remove_punctuation(text: str) -> str {
-    return "".join([c for c in text if c not in string.punctuation]);
-}
-
-def tokenize(text: str) -> list[str] {
-    return text.split();
-}
-
-def remove_stopwords(words: list[str]) -> list[str] {
-    let stopwords = {"the", "a", "an", "and", "or", "but", "in", "on", "at"};
-    return [w for w in words if w not in stopwords];
-}
-
-walker TextProcessingPipeline {
-    has text: str;
-
-    can clean_text with entry {
-        self.text = clean_text(self.text);
-        print("After cleaning:", self.text);
-    }
-    can remove_punctuation with entry {
-        self.text = remove_punctuation(self.text);
-        print("After removing punctuation:", self.text);
-    }
-    can tokenize with entry {
-        self.tokens = tokenize(self.text);
-        print("After tokenizing:", self.tokens);
-    }
-    can remove_stopwords with entry {
-        self.tokens = remove_stopwords(self.tokens);
-        print("After removing stopwords:", self.tokens);
-    }
-}
-
-# Using the pipeline
-with entry {
-    raw_text = "  The Quick Brown Fox Jumps Over the Lazy Dog!  ";
-    text_processor = root spawn TextProcessingPipeline(text=raw_text);
-    processed = text_processor.tokens;
-    print("Raw text:", raw_text);
-    print("Processed tokens:", processed);  # ["quick", "brown", "fox", "jumps", "over", "lazy", "dog"]
-}
-```
-
-### Atomic Pipes (`:>` and `<:`)
-
-Atomic pipes have higher precedence for tighter binding:
-
-```jac
-# Standard pipe vs atomic pipe precedence
-let data = [1, 2, 3, 4, 5];
-
-# Standard pipe (lower precedence)
-let result1 = data |> sum |> str;  # "15"
-
-# Atomic pipe (higher precedence)
-let result2 = data :> filter(lambda x: int -> bool : x > 2) :> sum;  # 12
-
-# Mixing operators (atomic binds tighter)
-let result3 = data
-    :> filter(lambda x: int -> bool : x % 2 == 0)  # [2, 4]
-    |> sum  # 6
-    |> lambda x: int -> str : f"Sum: {x}";  # "Sum: 6"
-```
-
-### Replacing Nested Function Calls
-
-```jac
-# Complex nested calls (traditional)
-can traditional_approach(users: list[User]) -> dict[str, list[str]] {
-    return group_by(
-        map(
-            lambda u: User -> tuple : (u.department, u.name),
-            filter(
-                lambda u: User -> bool : u.active and u.age >= 18,
-                sort(users, key=lambda u: User -> str : u.name)
-            )
-        ),
-        key=lambda t: tuple -> str : t[0]
-    );
-}
-
-# Same logic with pipes (much clearer!)
-can piped_approach(users: list[User]) -> dict[str, list[str]] {
-    return users
-        |> sort(key=lambda u: User -> str : u.name)
-        |> filter(lambda u: User -> bool : u.active and u.age >= 18)
-        |> map(lambda u: User -> tuple : (u.department, u.name))
-        |> group_by(key=lambda t: tuple -> str : t[0]);
-}
-```
-
-### Integration with Method Chaining
-
-```jac
-# Combining pipes with method chaining
-obj DataProcessor {
-    has data: list[dict[str, any]];
-
-    can filter_by(key: str, value: any) -> DataProcessor {
-        self.data = [d for d in self.data if d.get(key) == value];
-        return self;
-    }
-
-    can sort_by(key: str) -> DataProcessor {
-        self.data.sort(key=lambda d: dict -> any : d.get(key, 0));
-        return self;
-    }
-
-    can transform(func: callable) -> DataProcessor {
-        self.data = [func(d) for d in self.data];
-        return self;
-    }
-
-    can get_results() -> list[dict[str, any]] {
-        return self.data;
-    }
-}
-
-# Using pipes with methods
-let processor = DataProcessor(data=raw_data);
-let results = processor
-    |> .filter_by("status", "active")
-    |> .sort_by("priority")
-    |> .transform(lambda d: dict -> dict : {**d, "processed": true})
-    |> .get_results();
-
-# Or with method chaining directly
-let results2 = processor
-    .filter_by("status", "active")
-    .sort_by("priority")
-    .transform(lambda d: dict -> dict : {**d, "processed": true})
-    .get_results();
-```
-
-### Advanced Pipeline Patterns
-
-```jac
-# Error handling in pipelines
-can safe_pipeline[T, R](
-    data: T,
-    *funcs: list[callable]
-) -> R? {
-    try {
-        let result: any = data;
-        for func in funcs {
-            result = func(result);
-        }
-        return result;
-    } except Exception as e {
-        print(f"Pipeline failed: {e}");
-        return None;
-    }
-}
-
-# Conditional pipelines
-can process_user_data(user: User) -> dict {
-    let base_pipeline = user
-        |> validate_user
-        |> normalize_data;
-
-    # Conditional continuation
-    if user.age >= 18 {
-        return base_pipeline
-            |> apply_adult_rules
-            |> generate_full_profile;
+    if operation_name in operations {
+        result: float = calculator(a, b, operations[operation_name]);
+        print(f"Result of {operation_name}({a}, {b}) = {result}");
     } else {
-        return base_pipeline
-            |> apply_minor_rules
-            |> generate_restricted_profile;
-    }
-}
-
-# Parallel pipelines
-can parallel_process(items: list[any]) -> list[any] {
-    import:py from concurrent.futures { ThreadPoolExecutor }
-
-    can process_item(item: any) -> any {
-        return item
-            |> validate
-            |> transform
-            |> enrich;
-    }
-
-    with ThreadPoolExecutor() as executor {
-        return list(executor.map(process_item, items));
+        print(f"Operation '{operation_name}' not supported.");
     }
 }
 ```
+<br />
 
-### Collection Pipeline Patterns
+
+### Lambda Functions
+Lambda functions are anonymous functions that can be defined in a single line. They are useful for short, throwaway functions that are not reused elsewhere.
+
+Lambda functions follow the syntax `lambda parameters: return_type: expression` and can be assigned to variables or used directly in expressions. They are particularly useful for functional programming patterns like map, filter, and reduce.
+
+For example, lets redefine the add function from the previous example using a lambda function:
 
 ```jac
-# Common collection transformations
-let numbers: list[int] = range(1, 101);
+add = lambda x: float, y: float: x + y;
+```
+<br />
+Here, `add` is assigned a lambda function that takes two parameters `x` and `y`, both of type `float`, and returns their sum and can be used just like a regular function.
 
-# Statistical pipeline
-let stats = numbers
-    |> filter(lambda n: int -> bool : n % 2 == 0)  # Even numbers
-    |> map(lambda n: int -> float : n ** 0.5)      # Square roots
-    |> sorted                                        # Sort
-    |> lambda lst: list -> tuple : (                # Create stats tuple
-        min=lst[0],
-        max=lst[-1],
-        median=lst[len(lst)#2],
-        mean=sum(lst)/len(lst)
-    );
+```jac
+with entry {
+    add = lambda x: float, y: float: x + y;
 
-# Text processing pipeline
-let words: list[str] = ["hello", "WORLD", "jAc", "PYTHON"];
-let processed = words
-    |> map(str.lower)                               # Lowercase all
-    |> filter(lambda w: str -> bool : len(w) > 3)  # Keep long words
-    |> sorted                                        # Alphabetize
-    |> lambda lst: list -> dict : {                 # Group by first letter
-        letter: [w for w in lst if w[0] == letter]
-        for letter in set(w[0] for w in lst)
+    a: float = 10.0;
+    b: float = 5.0;
+
+    # Using the lambda function
+    result: float = add(a, b);
+    print(f"Result of add({a}, {b}) = {result}");
+}
+```
+<br />
+
+### Higher-Order Functions
+Higher-order functions are functions that can take other functions as arguments or return functions as results. This allows for powerful abstractions and code reuse.
+
+```jac
+# Higher-order function that applies operation to list
+def apply_operation(numbers: list[float], operation: callable) -> list[float] {
+    return [operation(num) for num in numbers];
+}
+
+# Function that creates specialized functions
+def create_multiplier(factor: float) -> callable[[float], float] {
+    return lambda x: float: x * factor;
+}
+
+# Function composition
+def compose(f: callable, g: callable) -> callable {
+    return lambda x: any: f(g(x));
+}
+
+with entry {
+    print("=== Higher-Order Functions Demo ===");
+
+    numbers = [1.0, 2.0, 3.0, 4.0, 5.0];
+
+    # Create specialized multiplier functions
+    triple = create_multiplier(3.0);
+    quadruple = create_multiplier(4.0);
+
+    # Apply operations
+    tripled = apply_operation(numbers, triple);
+    quadrupled = apply_operation(numbers, quadruple);
+
+    print(f"Original: {numbers}");
+    print(f"Tripled: {tripled}");
+    print(f"Quadrupled: {quadrupled}");
+}
+```
+<br />
+
+### Built-in Higher-Order Functions `map`, `filter`, and `sorted`
+Jac provides built-in higher-order functions via Python that are applied to lists and other iterable data structures. These functions allow you to apply a function to each element of a list, filter elements based on a condition, and sort lists with custom criteria.
+
+### *filter*
+The higher-order function `filter` takes two arguments, a function that returns a boolean value and an iterable, returning a new iterable containing only the elements for which the function returns `True`.
+
+Lets consider the gradebook example from Chapter 3, where we had a list of student grades and we used list comprehensions to filter out passing grades.
+
+```jac
+with entry {
+    # Raw test scores
+    test_scores: list = [78, 85, 92, 69, 88, 95, 72];
+
+    # Get passing grades (70 and above)
+    passing_scores: list = [score for score in test_scores if score >= 70];
+    print(f"Passing scores: {passing_scores}");
+}
+```
+<br />
+
+The same result can be achieved using the `filter` function along with a lambda function to define the filtering condition.
+
+```jac
+with entry {
+    # Raw test scores
+    test_scores = [78, 85, 92, 69, 88, 95, 72];
+
+    # Get passing grades (70 and above)
+    passing_scores = list(filter(lambda x: float: x >= 70, test_scores));
+    print(f"Passing scores: {passing_scores}");
+}
+```
+<br />
+
+
+### *map*
+The `map` function applies a given function to each item of an iterable (like a list) and returns a new iterable with the results. This is useful for transforming data without writing explicit loops.
+
+```jac
+def classify_grade(score: int) -> str {
+    if score >= 90 {
+        return "A";
+    } elif score >= 80 {
+        return "B";
+    } elif score >= 70 {
+        return "C";
+    } elif score >= 60 {
+        return "D";
+    } else {
+        return "F";
+    }
+}
+
+with entry {
+    # Raw test scores
+    test_scores = [78, 85, 92, 69, 88, 95, 72];
+
+    # Get passing grades (70 and above)
+    passing_scores = list(filter(lambda x: float: x >= 70, test_scores));
+    print(f"Passing scores: {passing_scores}");
+
+    grades = list(map(classify_grade, passing_scores));
+    print(f"Grades: {grades}");
+}
+```
+<br />
+
+### *sorted*
+The `sorted` function sorts an iterable and returns a new sorted list. You can provide a custom sorting function using the `key` parameter to define how elements should be compared.
+
+```jac
+with entry {
+    # Raw test scores
+    test_scores = [78, 85, 92, 69, 88, 95, 72];
+
+    # Get passing grades (70 and above)
+    passing_scores = list(filter(lambda x: float: x >= 70, test_scores));
+    print(f"Passing scores: {passing_scores}");
+
+    sorted_scores = sorted(passing_scores);
+    print(f"Sorted passing scores: {sorted_scores}");
+}
+```
+<br />
+
+
+
+## Decorators for Enhanced Functionality
+---
+A decorator is a higher-order function that takes another function as an argument and extends its behavior without modifying its core logic. Decorators are commonly used for cross-cutting concerns like logging, timing, caching, and error handling.
+
+
+Consider the following example of a simple decorator that adds pre- and post-processing logic to a function. The decorator function call `decorator_name` takes a function `func` as an argument and wraps it in a new function `wrapper` that adds additional behavior before and after calling the original function. The decorator returns the `wrapper` function, which is then used to replace the original function when the decorator is applied.
+
+```jac
+def decorator_name(func: callable) -> callable {
+    def wrapper(*args: any, **kwargs: any) -> any {
+        # Pre-processing logic
+        result = func(*args, **kwargs);
+        # Post-processing logic
+        return result;
+    }
+    return wrapper;
+```
+
+!!! note
+    `*args` is a python contruct that allows a function to accept a variable number of positional arguments, while `**kwargs` allows it to accept a variable number of keyword arguments.
+
+
+Decorators provide a clean way to add functionality to functions without modifying their core logic. The general syntax for using decorators in Jac is:
+
+```jac
+@decorator_name
+def function_name(parameters) -> return_type {
+    # function body
+}
+```
+<br />
+
+
+### Decorator Stacking Order
+Decorator stacking applies decorators from bottom to top. The decorator closest to the function definition is applied first.
+
+```jac
+import time;
+
+def decorator_a(func: callable) -> callable {
+    def wrapper(*args: any, **kwargs: any) -> any {
+        print("Decorator A Start");
+        result = func(*args, **kwargs);
+        print("Decorator A End");
+        return result;
+    }
+    return wrapper;
+}
+
+def decorator_b(func: callable) -> callable {
+    def wrapper(*args: any, **kwargs: any) -> any {
+        print("Decorator B Start");
+        result = func(*args, **kwargs);
+        print("Decorator B End");
+        return result;
+    }
+    return wrapper;
+}
+
+@decorator_a
+@decorator_b
+def greet(name: str) -> None {
+    print(f"Hello, {name}!");
+}
+
+with entry {
+    greet("Alice");
+}
+```
+<br />
+
+### Parameterized Decorators
+Decorators can accept parameters, making them highly flexible.
+
+```jac
+def repeat(times: int) -> callable {
+    def decorator(func: callable) -> callable {
+        def wrapper(*args: any, **kwargs: any) -> any {
+            result: any;
+            for i in range(times) {
+                print(f"Execution {i+1} of {times}");
+                result = func(*args, **kwargs);
+            }
+            return result;
+        }
+        return wrapper;
+        }
+    return decorator;
+}
+
+@repeat(3)
+def say_hello(name: str) -> None {
+    print(f"Hello, {name}");
+}
+
+with entry {
+    say_hello("Bob");
+}
+```
+<br />
+
+### Error Handling in Decorators
+
+Decorators in Jac can handle exceptions, retry operations, and log errors gracefully.
+
+```jac
+import time;
+
+def retry_decorator(max_retries: int, delay: float) -> callable {
+    def decorator(func: callable) -> callable {
+        def wrapper(*args: any, **kwargs: any) -> any {
+            attempts: int = 0;
+            while attempts < max_retries {
+                try {
+                    return func(*args, **kwargs);
+                } except Exception as e {
+                    attempts += 1;
+                    print(f"Attempt {attempts} failed: {e}");
+                    time.sleep(delay);
+                }
+            }
+            raise Exception("Maximum retries exceeded");
+        }
+        return wrapper;
+    }
+    return decorator;
+}
+
+@retry_decorator(max_retries=3, delay=1.0)
+def risky_operation() -> None {
+    import random;
+    if random.random() < 0.7 {
+        raise ValueError("Random failure");
+    }
+    print("Operation succeeded!");
+}
+
+with entry {
+    risky_operation();
+}
+```
+<br />
+
+### Timing Decorator
+A timing decorator measures and logs execution time for performance monitoring.
+
+```jac
+import time;
+
+# Timing decorator to measure function performance
+def timing_decorator(func: callable) -> callable {
+    def wrapper(*args: any, **kwargs: any) -> any {
+        start_time = time.time();
+        result = func(*args, **kwargs);
+        end_time = time.time();
+        execution_time = end_time - start_time;
+        print(f"{func.__name__} executed in {execution_time} seconds");
+        return result;
+    }
+    return wrapper;
+}
+
+# Apply timing to our math functions
+@timing_decorator
+def slow_fibonacci(n: int) -> int {
+    if n <= 1 {
+        return n;
+    }
+    return slow_fibonacci(n - 1) + slow_fibonacci(n - 2);
+}
+
+@timing_decorator
+def slow_factorial(n: int) -> int {
+    if n <= 1 {
+        return 1;
+    }
+    return n * slow_factorial(n - 1);
+}
+
+with entry {
+    print("=== Timing Decorator Demo ===");
+    result1 = slow_fibonacci(2);
+    print(f"Fibonacci(2) = {result1}");
+
+    result2 = slow_factorial(3);
+    print(f"Factorial(3) = {result2}");
+}
+```
+<br />
+
+### Caching (Memoization) Decorator
+A caching decorator stores results for expensive calls, improving performance on repeated invocations.
+
+```jac
+import time;
+
+# Timing decorator to measure function performance
+def timing_decorator(func: callable) -> callable {
+    def wrapper(*args: any, **kwargs: any) -> any {
+        start_time = time.time();
+        result = func(*args, **kwargs);
+        end_time = time.time();
+        execution_time = end_time - start_time;
+        print(f"{func.__name__} executed in {execution_time} seconds");
+        return result;
+    }
+    return wrapper;
+}
+
+# Caching decorator for expensive computations
+def cache_decorator(func: callable) -> callable {
+    cache: dict[str, any] = {};
+
+    def wrapper(*args: any) -> any {
+        # Create a simple cache key from arguments
+        cache_key = str(args);
+
+        if cache_key in cache {
+            print(f"Cache hit for {func.__name__}{args}");
+            return cache[cache_key];
+        }
+
+        print(f"Computing {func.__name__}{args}");
+        result = func(*args);
+        cache[cache_key] = result;
+        return result;
+    }
+    return wrapper;
+}
+
+# Combine timing and caching decorators
+@timing_decorator
+@cache_decorator
+def optimized_fibonacci(n: int) -> int {
+    if n <= 1 {
+        return n;
+    }
+    return optimized_fibonacci(n - 1) + optimized_fibonacci(n - 2);
+}
+
+@timing_decorator
+@cache_decorator
+def expensive_calculation(n: int) -> int {
+    # Simulate expensive computation
+    result = 0;
+    for i in range(n * 1000) {
+        result += i;
+    }
+    return result;
+}
+
+with entry {
+    print("=== Cached Functions Demo ===");
+
+    # First call - computed and cached
+    result1 = optimized_fibonacci(3);
+    print(f"Fibonacci(3) = {result1}");
+
+    # Second call - retrieved from cache
+    result2 = optimized_fibonacci(3);
+    print(f"Fibonacci(3) again = {result2}");
+
+    # Expensive calculation test
+    result3 = expensive_calculation(10);
+    print(f"Expensive calculation result: {result3}");
+
+    # Second call to expensive calculation
+    result4 = expensive_calculation(10);
+    print(f"Expensive calculation again: {result4}");
+}
+```
+<br />
+
+
+## Async Functions
+---
+Jac supports async functions for handling concurrent operations and non-blocking I/O.
+
+### Basic Async Functions
+
+```jac
+import asyncio;
+import time;
+
+# Async function for simulated API calls
+async def fetch_data(source: str, delay: float) -> dict[str, any] {
+    print(f"Starting to fetch from {source}...");
+    await asyncio.sleep(delay);  # Simulate network delay
+
+    return {
+        "source": source,
+        "data": f"Data from {source}",
+        "timestamp": time.time()
     };
-```
+}
 
-### Pipes in Object-Spatial Context
+# Async function that processes multiple sources
+async def gather_all_data() -> list[dict[str, any]] {
+    # Run multiple async operations concurrently
+    tasks = [
+        fetch_data("API-1", 1.0),
+        fetch_data("API-2", 0.5),
+        fetch_data("API-3", 1.5)
+    ];
 
-```jac
-# Using pipes with graph operations
-walker DataAggregator {
-    has process_node: callable;
-    has combine_results: callable;
+    results = await asyncio.gather(*tasks);
+    return results;
+}
 
-    can aggregate with entry {
-        let results = [-->]                          # Get connected nodes
-            |> filter(lambda n: node -> bool : n.has_data())
-            |> map(self.process_node)                # Process each node
-            |> filter(lambda r: any -> bool : r is not None)
-            |> self.combine_results;                 # Combine all results
+# Regular function that uses async
+def run_async_example() -> None {
+    print("=== Async Functions Demo ===");
 
-        report results;
+    # Run the async function
+    results = asyncio.run(gather_all_data());
+
+    print("All data fetched:");
+    for result in results {
+        print(f"  {result['source']}: {result['data']}");
     }
 }
 
-# Node data extraction pipeline
-node DataNode {
-    has raw_data: dict;
-    has metadata: dict;
-
-    can extract_info with Extractor entry {
-        let info = self.raw_data
-            |> validate_structure
-            |> extract_fields(visitor.required_fields)
-            |> apply_transformations(visitor.transforms)
-            |> add_metadata(self.metadata);
-
-        visitor.collect(info);
-    }
+with entry {
+    run_async_example();
 }
 ```
+<br />
 
-### Best Practices for Collections and Pipes
+## Best Practices
+---
+- **Use descriptive names**: Function names should clearly indicate their purpose
+- **Keep functions focused**: Each function should have a single, well-defined responsibility
+- **Handle errors gracefully**: Use appropriate return types and exception handling
+- **Leverage decorators**: Use decorators for cross-cutting concerns like timing and caching
+- **Document with types**: Let type annotations serve as documentation
+- **Consider async**: Use async functions for I/O-bound operations
 
-1. **Type Your Collections**: Always specify element types
-   ```jac
-   let numbers: list[int] = [1, 2, 3];  # Good
-   # let numbers = [1, 2, 3];          # Bad - missing type
-   ```
+## Wrapping Up
+---
 
-2. **Use Keyword Tuples for Multiple Returns**: Clearer than positional
-   ```jac
-   return (success=true, data=result, errors=[]);  # Good
-   return (true, result, []);                       # Less clear
-   ```
+In this chapter, we looked at higher order functions, decorators, and async functions in Jac. We explored how to use these features to create flexible, reusable code that can handle complex operations efficiently.
 
-3. **Build Pipelines Incrementally**: Test each stage
-   ```jac
-   # Debug by breaking pipeline
-   let step1 = data |> clean;
-   print(f"After clean: {step1}");
-   let step2 = step1 |> validate;
-   print(f"After validate: {step2}");
-   ```
 
-4. **Prefer Pipes Over Nesting**: For readability
-   ```jac
-   # Good
-   result = data |> process |> transform |> format;
+*Ready to explore advanced AI operations? Continue to [Chapter 5: Advanced AI Operations](chapter_5.md)!*
 
-   # Avoid
-   result = format(transform(process(data)));
-   ```
-
-5. **Use Comprehensions for Filtering**: More efficient than loops
-   ```jac
-   # Good
-   adults = [u for u in users if u.age >= 18];
-
-   # Less efficient
-   adults = [];
-   for u in users {
-       if u.age >= 18 { adults.append(u); }
-   }
-   ```
-
-### Summary
-
-In this chapter, we've explored Jac's powerful collection features:
-
-- **Type-safe collections** that prevent runtime errors
-- **Special comprehensions** with null-safety and assignment operations
-- **Keyword tuples** that combine structure with flexibility
-- **Pipe operators** that transform nested calls into readable flows
-
-These features work together to make data manipulation in Jac both safer and more expressive than traditional approaches. The combination of static typing and functional pipeline patterns creates code that is both robust and maintainable.
-
-Next, we'll explore how Jac enhances object-oriented programming with archetypes, automatic constructors, and implementation separation—features that make large-scale development more manageable.

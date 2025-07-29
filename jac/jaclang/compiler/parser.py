@@ -1226,14 +1226,16 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def while_stmt(self, _: None) -> uni.WhileStmt:
             """Grammar rule.
 
-            while_stmt: KW_WHILE expression code_block
+            while_stmt: KW_WHILE expression code_block else_stmt?
             """
             self.consume_token(Tok.KW_WHILE)
             condition = self.consume(uni.Expr)
             body = self.consume(list)
+            else_body = self.match(uni.ElseStmt)
             return uni.WhileStmt(
                 condition=condition,
                 body=self.extract_from_list(body, uni.CodeBlockStmt),
+                else_body=else_body,
                 kid=self.flat_cur_nodes,
             )
 
@@ -1376,19 +1378,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
             spatial_stmt: visit_stmt | ignore_stmt
             """
             return self.consume(uni.CodeBlockStmt)
-
-        def ignore_stmt(self, _: None) -> uni.IgnoreStmt:
-            """Grammar rule.
-
-            ignore_stmt: KW_IGNORE expression SEMI
-            """
-            self.consume_token(Tok.KW_IGNORE)
-            target = self.consume(uni.Expr)
-            self.consume_token(Tok.SEMI)
-            return uni.IgnoreStmt(
-                target=target,
-                kid=self.cur_nodes,
-            )
 
         def disenage_stmt(self, _: None) -> uni.DisengageStmt:
             """Grammar rule.
@@ -1878,7 +1867,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def atomic_call(self, _: None) -> uni.FuncCall:
             """Grammar rule.
 
-            atomic_call: atomic_chain LPAREN param_list? by_call? RPAREN by_call?
+            atomic_call: atomic_chain LPAREN param_list? by_call? RPAREN
             """
             genai_call: uni.FuncCall | None = None
             target = self.consume(uni.Expr)
@@ -1886,7 +1875,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
             params_sn = self.match(list)
             genai_call = self.match(uni.FuncCall)
             self.consume_token(Tok.RPAREN)
-            body_genai_call = self.match(uni.FuncCall)
 
             return uni.FuncCall(
                 target=target,
@@ -1896,7 +1884,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     else []
                 ),
                 genai_call=genai_call,
-                body_genai_call=body_genai_call,
                 kid=self.flat_cur_nodes,
             )
 

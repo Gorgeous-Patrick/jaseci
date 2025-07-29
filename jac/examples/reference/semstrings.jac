@@ -1,5 +1,9 @@
-import from mtllm.llms { FakeLLM }
-glob llm = FakeLLM(default="[Output] R8@jL3pQ");
+import from mtllm { Model }
+
+glob llm = Model(
+    model_name="mockllm",
+    outputs=["R8@jL3pQ"],
+);
 
 
 def generate_password()  -> str byllm();

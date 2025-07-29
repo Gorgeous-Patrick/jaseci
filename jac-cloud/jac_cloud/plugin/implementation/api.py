@@ -36,6 +36,7 @@ from ...jaseci.security import authenticator, generate_webhook_auth, validate_re
 from ...jaseci.utils import log_entry, log_exit
 
 DISABLE_AUTO_ENDPOINT = getenv("DISABLE_AUTO_ENDPOINT") == "true"
+REQUIRE_AUTH_BY_DEFAULT = getenv("REQUIRE_AUTH_BY_DEFAULT") != "false"
 PATH_VARIABLE_REGEX = compile(r"{([^\}]+)}")
 FILE_TYPES = {
     UploadFile,
@@ -67,7 +68,7 @@ class DefaultSpecs:
     methods: list[str] = ["post"]
     as_query: str | list[str] = []
     excluded: str | list[str] = []
-    auth: bool = True
+    auth: bool = REQUIRE_AUTH_BY_DEFAULT
     private: bool = False
     webhook: dict | None = None
     entry_type: EntryType = EntryType.BOTH
@@ -130,7 +131,7 @@ def populate_apis(cls: Type[WalkerArchetype]) -> None:
         methods: list = specs.methods or []
         as_query: str | list[str] = specs.as_query or []
         excluded: str | list[str] = specs.excluded or []
-        auth: bool = specs.auth or False
+        auth: bool = specs.auth
         webhook: dict | None = specs.webhook
         entry_type: EntryType = specs.entry_type
         response_model: Any = specs.response_model
@@ -343,7 +344,7 @@ def specs(
     methods: list[str] = ["post"],  # noqa: B006
     as_query: str | list[str] = [],  # noqa: B006
     excluded: str | list[str] = [],  # noqa: B006
-    auth: bool = True,
+    auth: bool = REQUIRE_AUTH_BY_DEFAULT,
     private: bool = False,
     webhook: dict | None = None,
     entry_type: EntryType = EntryType.BOTH,

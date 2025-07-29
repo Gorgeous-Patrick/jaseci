@@ -29,14 +29,17 @@ with entry { # Generate random points
 
 This snippet natively imports Python packages `math` and `random` and runs identically to its Python counterpart. Jac targets Python bytecode, so all Python libraries work with Jac.
 
+## Four Types of Classes to Go Beyond OOP
 
-## Beyond OOP with Object-Spatial Programming
+In addtion to traditional python classes (`class` or the dataclass-like `obj`), Jac programmers can also use node classes (`node`), edge classes (`edge`), and walker classes (`walker`) for a new type of problem solving and agentic programming.
 
-Object-Spatial Programming (OSP) inverts the traditional relationship between data and computation. Rather than moving data to computation, OSP moves computation to data through topologically aware constructs. This paradigm introduces specialized archetypes—objects, nodes, edges and walkers—that model spatial relationships directly in the language and enable optimizations around data locality and distributed execution.    |
+Instances of node and edge classes allow for assembling objects in a graph structure to express semantic relationships between objects. This goes beyond only modeling objects in memory as a disconnected soup of instances.
 
-### 🎮 Spatial Game Example
+Walker classes inverts the traditional relationship between data and computation. Rather than moving data to computation with parameter passing, walkers enable moving computation to data as they represent computational units that moves through the topology of node and edge objects.
 
-**"Think of your data as an enemy spy network. In OOP, you'd sit at a desk phoning known contacts. In Jac, you deploy a Secret Agent (a walker) who infiltrates the network, moving from one safehouse to the next to uncover the entire plot on their own."**
+These new constructs gives rise to a new paradigm for problem solving and implementation we call Object-Spatial Programming (OSP).
+
+### Spatial Game Example
 
 This example shows how computation flows spatially rather than centrally:
 
@@ -83,7 +86,7 @@ with entry {
 
 A walker travels through game stages using edges, demonstrating Object-Spatial Programming.
 
-### 🔄 Traditional OOP vs 🚀 Object-Spatial Programming
+### Traditional OOP vs Object-Spatial Programming
 
 | **Traditional OOP**                                       | **Object-Spatial Programming**                                |
 | --------------------------------------------------------- | ------------------------------------------------------------- |
@@ -93,13 +96,14 @@ A walker travels through game stages using edges, demonstrating Object-Spatial P
 | • **Rigid Structure**: Hard-coded execution patterns      | • **Composable Flows**: Stages as nodes, transitions as edges |
 | • **Single Machine**: Difficult to distribute             | • **Scale-Ready**: Walkers can traverse across devices        |
 
+
 ## Programming Abstractions for AI
 
 Jac provides novel constructs for integrating LLMs into code. A function body can simply be replaced with a call to an LLM, removing the need for prompt engineering or extensive use of new libraries.
 
 ```jac
-import from mtllm.llms { Gemini }
-glob llm = Gemini(model_name="gemini-2.0-flash");
+import from mtllm.llm { Model }
+glob llm = Model(model_name="gemini/gemini-2.0-flash");
 
 enum Personality {
     INTROVERT = "Introvert",
@@ -119,7 +123,8 @@ with entry {
 !!! info "How To Run"
     1. Install the MTLLM plugin by `pip install mtllm[google]`
     2. Get a free Gemini API key: Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
-    3. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`). > **Note:** > > You can use OpenAI, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
+    3. Save your Gemini API as an environment variable (`export GEMINI_API_KEY="xxxxxxxx"`).
+    > **Note:** > > You can use OpenAI, Anthropic or other API services as well as host your own LLM using Ollama or Huggingface.
     4. Copy this code into `example.jac` file and run with `jac run example.jac`
 
 ??? example "Output"
@@ -172,21 +177,21 @@ walker create_post {
 
 ### Key Features of Jac Cloud
 
-#### 🚀 Scale-Agnostic Programming
+#### Scale-Agnostic Programming
 
 - **Write Once, Run Anywhere**: Jac Cloud enables you to write your application code once and run it seamlessly on your local machine or scale it to millions of users in the cloud—without any code changes.
 - **Automatic Scaling**: You can increase the number of Jac Cloud service replicas to handle higher loads. The platform manages all the complexities of scaling, so you don't have to.
 
-#### ⚡ Instant API Generation
+#### Instant API Generation
 
 - **No Manual Endpoint Definition**: Jac Cloud automatically transforms your Jac walkers into RESTful API endpoints. You don't need to manually define API routes or handlers—your business logic is instantly accessible as web services.
 - **Supports REST and WebSockets**: Applications can expose RESTful APIs, WebSocket services, and scheduled tasks with minimal configuration.
 
-#### 💾 Integrated Persistence and User Management
+#### Integrated Persistence and User Management
 
 - **User Authentication and Authorization**: Jac Cloud includes token-based authentication and role-based access control, making it easy to build secure, multi-user applications.
 
-#### ☁️ Cloud-Native Abstractions
+#### Cloud-Native Abstractions
 
 - **First-Class Support for Modern Patterns**: Concepts like nodes, walkers, and graphs are deeply integrated, making it straightforward to model complex data and workflows that scale
 
@@ -231,24 +236,26 @@ Jac focuses on type safety and readability. Type hints are required and the buil
     }
     ```
 
-This shows how declarations and implementations can live in separate files for maintainable, typed codebases.
+    This shows how declarations and implementations can live in separate files for maintainable, typed codebases.
+
+## Next Steps
 
 <div class="grid cards" markdown>
 
-- **In The Works**
+-   __In The Works__
 
-  ***
+    ---
 
-  _Roadmap Items_
+    *Roadmap Items*
 
-  [In The Roadmap](bigfeatures.md){ .md-button .md-button--primary }
+    [In The Roadmap](bigfeatures.md){ .md-button .md-button--primary }
 
-- **In The Future**
+-   __In The Future__
 
-  ***
+    ---
 
-  _Research in Jac/Jaseci_
+    *Research in Jac/Jaseci*
 
-  [In Research](research.md){ .md-button }
+    [In Research](research.md){ .md-button }
 
 </div>

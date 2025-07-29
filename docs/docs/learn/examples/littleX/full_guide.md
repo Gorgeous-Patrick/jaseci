@@ -102,6 +102,67 @@ LittleX’s graph-based architecture uses nodes for entities like users and post
 pip install jac-cloud mtllm
 ```
 
+### **Understanding LittleX File Structure**
+
+LittleX follows Jaseci's modular architecture pattern using three distinct file types that work together seamlessly:
+
+#### **littleX.jac - The Declaration File**
+This is the main file containing all **declarations** - the blueprint of your application:
+
+- **Node definitions** (Profile, Tweet, Comment)
+- **Edge definitions** (Follow, Like, Post)
+- **Walker signatures** (what walkers exist and their parameters)
+- **Ability signatures** (what abilities nodes can have)
+
+Think of this as your application's **interface** - it defines what exists but not how it works.
+
+#### **littleX.impl.jac - The Implementation File**
+This file contains all the **implementations** - the actual logic and behavior:
+
+- **Ability implementations** (how nodes respond to walker visits)
+- **Walker logic** (what walkers actually do when they run)
+- **Business logic** (the core functionality of your application)
+
+This is where the **"how"** lives - all the actual code that makes your application work.
+
+#### **littleX.test.jac - The Test File**
+This file contains **test cases** to verify your application works correctly:
+
+- **Unit tests** for individual walkers and abilities
+- **Integration tests** for complex workflows
+- **Validation tests** to ensure data integrity
+
+#### **How They Work Together**
+
+When you run Jaseci commands, the framework automatically combines these files:
+
+```bash
+# Run the application - automatically loads impl file
+jac run littleX.jac
+
+# Run tests - automatically loads both impl and test files
+jac test littleX.jac
+
+# Serve as API - loads impl file and creates REST endpoints
+jac serve littleX.jac
+```
+
+**The Magic**:
+
+Jaseci's compiler automatically:
+
+1. **Links declarations** from `.jac` with **implementations** from `.impl.jac`
+2. **Loads test cases** from `.test.jac` when testing
+3. **Validates** that all declared abilities have implementations
+4. **Creates RESTful APIs** from walker declarations
+
+This separation provides:
+
+- **Clean architecture** - clear separation of concerns
+- **Maintainability** - easy to find and modify specific functionality
+- **Testability** - comprehensive testing without cluttering main code
+- **Reusability** - declarations can have multiple implementations
+
 ### <span style="color: orange">**Lesson 1: Creating Nodes**
 
 **Jaclang**, language used in Jaseci stack, organizes data as interconnected nodes within a spatial or graph-like structure. It focuses on the **relationships** between data points, rather than processing them **step-by-step**.
@@ -291,7 +352,7 @@ Now, let's create the required nodes for LittleX.
             impl Tweet.comment {
                   current_profile = [root-->(`?Profile)];
                   comment_node = current_profile[0] ++> Comment(content=here.content);
-                  _.perm_grant(comment_node[0], level="CONNECT");
+                  grant(comment_node[0], level=ConnectPerm);
                   self ++> comment_node[0];
                   report comment_node[0];
             }
@@ -300,7 +361,7 @@ Now, let's create the required nodes for LittleX.
 
             * `comment_node = current_profile[0] ++> Comment(content=here.content) `creates a `Comment` node with the given content, connected from the user's profile.
 
-            * `_.perm_grant(comment_node[0], level="CONNECT")` grants connection permissions to the newly created `Comment` node.
+            * `grant(comment_node[0], level=ConnectPerm)` grants connection permissions to the newly created `Comment` node.
 
             * `self ++> comment_node[0]` links the `Comment` node to the `Tweet` node (self).
 
@@ -472,7 +533,7 @@ Now Lets create required walkers for LittleX.
             impl visit_profile.visit_profile {
                   visit [-->(`?Profile)] else {
                         new_profile = here ++> Profile();
-                        _.perm_grant(new_profile[0], level="CONNECT");
+                        grant(new_profile[0], level=ConnectPerm);
                         visit new_profile;
                   }
             }
@@ -515,17 +576,15 @@ Now Lets create required walkers for LittleX.
             impl load_user_profiles.load_profiles {
                   self.profiles: list = [];
 
-                  for user in NodeAnchor.Collection.find({"name": "Profile"}) {
-                        user_node = user.architype;
-                        self.profiles.append(
-                        {"name": user_node.username, "id": jid(user_node)}
-                        );
+                  for each_root in allroots() {
+                        profile = [each_root --> (`?Profile)][0];
+              	       self.profiles.append({"name": user_node.username, "id": jid(user_node)});
                   }
                   report self.profiles;
             }
             ```
                   * `static has auth: bool = False` Set disable authentication for that walker.
-                  * `NodeAnchor.Collection.find({"name": "profile"})` Get list of profiles.
+                  * `allroots()` Get list of roots.
                   * `user.architype` Get architype of user node.
                   * `jid(user_node)` Get the unique id of an object.
 
@@ -636,7 +695,7 @@ Now Lets create required walkers for LittleX.
             impl create_tweet.tweet {
                   embedding = sentence_transformer.encode(self.content).tolist();
                   tweet_node = here +>:Post:+> Tweet(content=self.content, embedding=embedding);
-                  _.perm_grant(tweet_node[0], level="CONNECT");
+                  grant(tweet_node[0], level=ConnectPerm);
                   report tweet_node;
             }
             ```
@@ -896,10 +955,10 @@ Jaclang offers explicit access control, ensuring data privacy and secure interac
 
 **Access Levels**
 
-- **`NO_ACCESS`:** No access to the current archetype.
-- **`READ`:** Read-only access to the current archetype.
-- **`CONNECT`:** Allows other users' nodes to connect to the current node.
-- **`WRITE`:** Full access, including modification of the current archetype.
+- **`NoPerm`:** No access to the current archetype.
+- **`ReadPerm`:** Read-only access to the current archetype.
+- **`ConnectPerm`:** Allows other users' nodes to connect to the current node.
+- **`WritePerm`:** Full access, including modification of the current archetype.
 
 **Granting and Managing Access**
 
@@ -915,11 +974,11 @@ By default, users cannot access other users' nodes. To grant access, permission 
       ```
 - **Grant Read Access to All**
       ```jac
-      Jac.perm_grant(here, "READ");
+      grant(here, ReadPerm);
       ```
 - **perm_revoke Access**
       ```jac
-      Jac.perm_revoke(here);
+      revoke(here);
       ```
 
 === "Guide"
@@ -937,28 +996,28 @@ By default, users cannot access other users' nodes. To grant access, permission 
                         can tweet with Profile entry {
                               embedding = sentence_transformer.encode(self.content).tolist();
                               tweet_node = here +>:Post:+> Tweet(content=self.content, embedding=embedding);
-                              Jac.perm_grant(tweet_node[0], level="CONNECT");
+                              grant(tweet_node[0], level=ConnectPerm);
                               report tweet_node;
                         }
                   }
                   ```
-        * `Jac.perm_grant(here, level="READ")` perm_grant that tweet node to everyone with read access.
+        * `grant(here, level=ReadPerm)` perm_grant that tweet node to everyone with read access.
 
       - Commenting on a Tweet
 
-        * Similar to liking, commenting requires CONNECT access.
+        * Similar to liking, commenting requires connect access.
         * A new comment node is created and linked to the tweet while granting READ access for others to view it.
         * **Comment Tweet Ability**
                   ```jac
                   can comment with comment_tweet entry {
                         current_profile = [root-->(`?Profile)];
                         comment_node = current_profile[0] ++> Comment(content=here.content);
-                        Jac.perm_grant(comment_node[0], level="CONNECT");
+                        grant(comment_node[0], level=ConnectPerm);
                         self ++> comment_node[0];
                         report comment_node[0];
                   }
                   ```
-        * `Jac.perm_grant(tweet_node, level="CONNECT")` perm_grant the tweet node to connect level.
+        * `grant(tweet_node, level=ConnectPerm)` perm_grant the tweet node to connect level.
 
 === "littleX.jac Upto Now"
     ```jac linenums="1"
@@ -1181,7 +1240,7 @@ You leave the Living Room, and the system turns off the lights and updates its r
 
                         can like with profile entry {
                               tweet_node = &self.tweet_id;
-                              Jac.perm_grant(tweet_node, level="CONNECT");
+                              grant(tweet_node, level=ConnectPerm);
                               tweet_node +>:like():+> here;
                               report tweet_node;
                         }
@@ -1244,7 +1303,7 @@ You leave the Living Room, and the system turns off the lights and updates its r
                         can add_comment with profile entry {
                               comment_node = here ++> comment(content=self.content);
                               tweet_node = &self.tweet_id;
-                              Jac.perm_grant(tweet_node, level="CONNECT");
+                              grant(tweet_node, level=ConnectPerm);
                               tweet_node ++> comment_node[0];
                               report comment_node[0];
                         }
@@ -1257,7 +1316,7 @@ You leave the Living Room, and the system turns off the lights and updates its r
                   can comment with comment_tweet entry {
                         current_profile = [root-->(`?Profile)];
                         comment_node = current_profile[0] ++> Comment(content=here.content);
-                        Jac.perm_grant(comment_node[0], level="CONNECT");
+                        grant(comment_node[0], level=ConnectPerm);
                         self ++> comment_node[0];
                         report comment_node[0];
                   }
@@ -1281,7 +1340,7 @@ You leave the Living Room, and the system turns off the lights and updates its r
                         }
 
                         can load_tweets with tweet entry {
-                              Jac.perm_grant(here, level="READ");
+                              grant(here, level=ReadPerm);
                               comments = here spawn load_comments();
                               likes = here spawn load_likes();
                               tweet_content = here spawn load_tweet();

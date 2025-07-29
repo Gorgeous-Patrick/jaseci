@@ -708,7 +708,7 @@ class JacLanguageTests(TestCase):
     def test_inherit_baseclass_sym(self) -> None:
         """Basic test for symtable support for inheritance."""
         mypass = JacProgram().compile(
-            self.examples_abs_path("guess_game/guess_game4.jac")
+            self.examples_abs_path("guess_game/guess_game3.jac")
         )
         table = None
         for i in mypass.sym_tab.kid_scope:
@@ -1340,3 +1340,27 @@ class JacLanguageTests(TestCase):
             )
             self.assertEqual(proc.returncode, 0, proc.stderr)
             self.assertEqual(proc.stdout.strip(), "via meta")
+
+    def test_spawn_loc_list(self) -> None:
+        """Test spawning a walker on list of nodes."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("spawn_loc_list", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertIn("I am here MyNode(val=5)", stdout_value[0])
+        self.assertIn("I am here MyNode(val=15)", stdout_value[2])
+        self.assertIn("I am here MyNode(val=20)", stdout_value[3])
+        self.assertIn("I am here MyEdge(val=100)", stdout_value[5])
+        self.assertIn("I am here MyNode(val=30)", stdout_value[6])
+
+    def test_while_else(self) -> None:
+        """Test else part in while loop."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("while_else", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertIn("Num:  4", stdout_value[0])
+        self.assertIn("Num:  3", stdout_value[1])
+        self.assertIn("Completed", stdout_value[2])

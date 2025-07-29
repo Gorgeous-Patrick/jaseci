@@ -27,7 +27,7 @@ graph TD
 - **Full Type Inference**: Variables can be implicitly typed based on their usage and initialization
 - **Gradual Typing**: Optional type annotations allow for flexibility while still providing type safety where specified
 - **Object-Oriented Type Checking**: Robust support for inheritance, interfaces, and polymorphism
-- **Data-Spatial Type Extensions**: Special handling for Jac-specific constructs like walkers, nodes, and edges
+- **Object-Spatial Type Extensions**: Special handling for Jac-specific constructs like walkers, nodes, and edges
 
 ## Documentation Structure
 
