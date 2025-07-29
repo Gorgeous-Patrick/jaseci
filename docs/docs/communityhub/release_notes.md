@@ -6,6 +6,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Jac Cloud Hot Reload**: Introduced the ability to enable development mode like uvicorn by adding `--reload` in `jac serve`. This supports targetting specific directories by using `--watch path/to/dir1,path/to/dir2` (comma separated).
 
 - **Removed LLM Override**: `function_call() by llm()` has been removed as it was introduce ambiguity in the grammer with LALR(1) shift/reduce error. This feature will be reintroduced in a future release with a different syntax.
+- **Enhanced Python File Support**: The `jac run` command now supports direct execution of `.py` files, expanding interoperability between Python and Jac environments.
+- **Improved Windows Compatibility**: Fixed file encoding issues that previously caused `UnicodeDecodeError` on Windows systems, ensuring seamless cross-platform development.
 - **Jac Clouds Traverse API**: Introduced the ability to traverse graph. This API support control of the following:
   - source - Starting node/edge. Defaults to root
   - detailed - If response includes archetype context. Defaults to False
