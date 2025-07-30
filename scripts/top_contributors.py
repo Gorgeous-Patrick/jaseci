@@ -342,7 +342,8 @@ def print_tabbed_tables(
 
 
 DEFAULT_MAIN_REPO = "jaclang/jaclang"
-DEFAULT_EXTRA_REPOS = ["TrueSelph/jivas", "jaseci-labs/jac_playground"]
+# DEFAULT_EXTRA_REPOS = ["TrueSelph/jivas", "jaseci-labs/jac_playground"]
+DEFAULT_EXTRA_REPOS: list = []
 GITHUB_STATS_PATH = os.path.join(
     os.path.dirname(__file__), "../docs/docs/assets/github_stats.json"
 )
@@ -412,7 +413,7 @@ def main() -> None:
         parser.print_help()
         return
 
-    repos = [args.repo] + args.extra_repos
+    repos = [args.repo]  # + args.extra_repos
 
     periods = []
     if args.days is not None:
