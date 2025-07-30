@@ -7,6 +7,9 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 - **Removed LLM Override**: `function_call() by llm()` has been removed as it was introduce ambiguity in the grammer with LALR(1) shift/reduce error. This feature will be reintroduced in a future release with a different syntax.
 - **Enhanced Python File Support**: The `jac run` command now supports direct execution of `.py` files, expanding interoperability between Python and Jac environments.
+- **Jac-Streamlit Plugin**: Introduced comprehensive Streamlit integration for Jac applications with two new CLI commands:
+  - `jac streamlit` - Run Streamlit applications written in Jac directly from `.jac` files
+  - `jac dot_view` - Visualize Jac graph structures in interactive Streamlit applications with both static (pygraphviz)
 - **Improved Windows Compatibility**: Fixed file encoding issues that previously caused `UnicodeDecodeError` on Windows systems, ensuring seamless cross-platform development.
 - **Jac Clouds Traverse API**: Introduced the ability to traverse graph. This API support control of the following:
   - source - Starting node/edge. Defaults to root
