@@ -287,7 +287,7 @@ class Model:
         message: LiteLLMMessage = response.choices[0].message  # type: ignore
         req.add_message(message)
 
-        output_content: str = message.content  # type: ignore
+        output_content: str = message.content or " "  # type: ignore
         self._log_info(f"LLM call completed with response:\n{output_content}")
         output_value = req.parse_response(output_content)
 
