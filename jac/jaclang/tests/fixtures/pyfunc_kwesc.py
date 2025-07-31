@@ -12,3 +12,22 @@ def bar(node= 12, *args,**kwargs):
     return node, args, kwargs
 
 print(str(bar(node=13, a=1, b=2)))
+
+
+functions = [
+
+        dict(   
+            name="replace_lines",
+            args=[
+                dict(name="text", type="str", default=None),
+                dict(name="old", type="str", default=None),
+                dict(name="new", type="str", default=None),
+            ],
+            returns=dict(type="str", default=None),
+        ),
+]
+
+print(f"Functions: {functions}")
+
+dict = 90
+print(f"Dict: {dict}")

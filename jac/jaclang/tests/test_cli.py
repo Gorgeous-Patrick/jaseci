@@ -99,6 +99,8 @@ class JacCliTests(TestCase):
         out = stdout_value.split("\n")
         self.assertIn("89", out[0])
         self.assertIn("(13, (), {'a': 1, 'b': 2})", out[1])
+        self.assertIn("Functions: [{'name': 'replace_lines'", out[2])
+        self.assertIn("Dict: 90", out[3])
 
     def test_jac_cli_alert_based_err(self) -> None:
         """Basic test for pass."""
