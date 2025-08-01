@@ -41,12 +41,12 @@ nav:
       - 19. Performance Optimization: "jac_book/chapter_19.md"
       - 20. Python to Jac Migration: "jac_book/chapter_20.md"
     - Programming 'by' AI:
-        - "learn/jac-mtllm/with_llm.md"
+        - What is MTP: "learn/jac-mtllm/with_llm.md"
         - Quick-start: "learn/jac-mtllm/quickstart.md"
         - How to use MTP: "learn/jac-mtllm/usage.md"
+        - Python MTLLM Interface: "learn/jac-mtllm/python_integration.md"
         - Using Multimodal models: "learn/jac-mtllm/multimodality.md"
         - Build your own MTLLM plugin: "learn/jac-mtllm/creating_mtllm_plugins.md"
-        - Python MTLLM Interface: "learn/jac-mtllm/python_integration.md"
     - Scale-Native Programming:
       - "learn/jac-cloud/introduction.md"
       - "learn/jac-cloud/quickstart.md"
