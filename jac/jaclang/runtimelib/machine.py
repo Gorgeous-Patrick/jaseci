@@ -31,7 +31,6 @@ from typing import (
 from uuid import UUID
 
 from jaclang.compiler import unitree as ast
-
 from jaclang.compiler.constant import Constants as Con, EdgeDir, colors
 from jaclang.compiler.program import JacProgram
 from jaclang.runtimelib.archetype import (
@@ -55,13 +54,11 @@ from jaclang.runtimelib.constructs import (
     WalkerAnchor,
     WalkerArchetype,
 )
-from jaclang.runtimelib.data_mapper import VisitInfo
 from jaclang.runtimelib.data_mapper.access_pattern import (
     get_access_pattern,
     get_access_pattern_single_walker,
 )
 from jaclang.runtimelib.data_mapper.plot import plot_and_save
-from jaclang.runtimelib.data_mapper.visit_sequence import get_visit_sequences_temp
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -513,7 +510,6 @@ class JacWalker:
         node_idx = all_nodes.index(start_node)
         graph = JacPIM.get_networkx(all_nodes, all_edges)
         JacPIM.networkx_gen_png(graph)
-        walker_type = JacPIM._extract_name(walker.archetype)
         walker_code = JacPIM.get_walker_code(walker.archetype)
 
         traversal_path = get_access_pattern_single_walker(
@@ -788,7 +784,7 @@ class JacWalker:
             warch, targ = op2, op1
         else:
             raise TypeError("Invalid walker object")
-        node.spawned_walker_archetypes.append(walker.archetype)
+        # node.spawned_walker_archetypes.append(walker.archetype)
 
         walker: WalkerAnchor = warch.__jac__
         loc: NodeAnchor | EdgeAnchor = assign(walker, targ)
@@ -1644,8 +1640,11 @@ class JacPIM:
 
     @staticmethod
     def get_walker_code(walker: WalkerAnchor) -> ast.Archetype:
+        """Get the walker type code from walker instance."""
         for walker_code in JacMachine.program.mod.get_all_sub_nodes(ast.Archetype):
-            if walker_code.get_all_sub_nodes(ast.Name)[0].value == JacPIM._extract_name(walker):
+            if walker_code.get_all_sub_nodes(ast.Name)[0].value == JacPIM._extract_name(
+                walker
+            ):
                 return walker_code
         raise ValueError(f"Walker code for {walker.archetype} not found in program.")
 
@@ -1740,7 +1739,6 @@ class JacPIM:
             )
 
         return graph
-
 
     @staticmethod
     def gen_walker_trace_graph(

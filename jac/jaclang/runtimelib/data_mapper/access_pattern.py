@@ -1,25 +1,25 @@
 """Generate Access pattern graph."""
 
-import networkx as nx
+from dataclasses import dataclass
 
 import jaclang.compiler.unitree as uni
+
+import networkx as nx
+
 from .visit_sequence import VisitInfo, get_walker_info
-from dataclasses import dataclass
 
 
 @dataclass
 class WalkerState:
+    """Store the walker state."""
+
     container: list[int]
     path: list[int]
 
-def filter_neighbors(
-    node_idx: int, network: nx.DiGraph, visit: VisitInfo
-) -> list[int]:
+
+def filter_neighbors(node_idx: int, network: nx.DiGraph, visit: VisitInfo) -> list[int]:
     """Filter neighbors based on visit info and walker type."""
     filtered_neighbors = []
-
-    # Get the node type of the current node
-    current_node_type = network.nodes[node_idx].get("node_type")
 
     # Get all neighbors
     for neighbor_idx in network.neighbors(node_idx):
@@ -35,7 +35,6 @@ def filter_neighbors(
     return filtered_neighbors
 
 
-
 def exec_visit_sequence(
     state: WalkerState, network: nx.DiGraph, visits: list[VisitInfo]
 ) -> WalkerState:
@@ -45,14 +44,16 @@ def exec_visit_sequence(
     node = new_container.pop(0)
     for visit in visits:
         filtered_neighbors = filter_neighbors(node, network, visit)
-        new_container.extend(filtered_neighbors) # TODO: Insert one by one with regard to the visit index.
+        new_container.extend(
+            filtered_neighbors
+        )  # TODO: Insert one by one with regard to the visit index.
 
     return WalkerState(
         container=new_container,
         path=new_path + [node],
     )
 
-    
+
 def get_access_pattern_single_walker(
     start_idx: int, network: nx.DiGraph, walker_type: uni.Archetype
 ) -> list[list[int]]:
@@ -64,7 +65,10 @@ def get_access_pattern_single_walker(
         state = active_state_set.pop(0)
         node = state.container[0]
         node_type = network.nodes[node].get("node_type")
-        new_state_set = [exec_visit_sequence(state, network, visit_sequence) for visit_sequence in visit_sequences[node_type]]
+        new_state_set = [
+            exec_visit_sequence(state, network, visit_sequence)
+            for visit_sequence in visit_sequences[node_type]
+        ]
         if len(new_state_set) == 0:
             # If no new states generated, finalize the path
             state.path.append(node)
@@ -98,8 +102,7 @@ def get_access_pattern(network: nx.DiGraph, paths: list[list[int]]) -> nx.DiGrap
             if attr is None:
                 attr = {"label": []}
             label = attr.get("label", [])
-            if idx not in label:
-                label.append(idx)
+            label.append(idx)
             weighted_network.add_edge(from_node, to_node, label=label)
 
     return weighted_network

@@ -61,12 +61,32 @@ def _plot_one_diagram(graph: nx.DiGraph, edge_color: str, edge_style: str) -> No
     plt.tight_layout()
 
 
+def _access_pattern_animation_graphs(
+    access_pattern_graph: nx.DiGraph,
+) -> list[nx.DiGraph]:
+    result: list[nx.DiGraph] = []
+    max_timestamp = 0
+    labels = nx.get_edge_attributes(access_pattern_graph, "label")
+    print(labels)
+    for _, timestamps in labels.items():
+        for timestamp in timestamps:
+            max_timestamp = max(max_timestamp, timestamp)
+    for timestamp in range(max_timestamp + 1):
+        new_graph = access_pattern_graph.copy()
+        new_graph.clear_edges()
+        for (n1, n2), timestamps in labels.items():
+            if timestamp in timestamps:
+                new_graph.add_edge(n1, n2)
+        result.append(new_graph)
+    return result
+
+
 def plot_and_save(
     input_data_graph: nx.DiGraph,
     access_pattern_graph: nx.DiGraph,
     walker_trace_graph: nx.DiGraph,
     filename1: str = "input_data_graph.png",
-    filename2: str = "access_pattern_graph.png",
+    filename2: str = "access_pattern_graph",
     filename3: str = "walker_trace.png",
 ) -> None:
     """Plot graphs and save."""
@@ -76,9 +96,12 @@ def plot_and_save(
     plt.close()
 
     # --- Plot access_pattern_graph: Dashed edges with weight labels ---
-    _plot_one_diagram(access_pattern_graph, "blue", "dashed")
-    plt.savefig(filename2, dpi=300)
-    plt.close()
+    access_pattern_graphs = _access_pattern_animation_graphs(access_pattern_graph)
+    for index, access_pattern_graph in enumerate(access_pattern_graphs):
+        _plot_one_diagram(access_pattern_graph, "blue", "dashed")
+        filename = f"{filename2}-{index}.png"
+        plt.savefig(filename, dpi=300)
+        plt.close()
 
     # --- Plot access_pattern_graph: Dashed edges with weight labels ---
     _plot_one_diagram(walker_trace_graph, "green", "dashed")
