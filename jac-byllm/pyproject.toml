@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mtllm"
-version = "0.4.0"
+version = "0.3.10"
 description = "MTLLM Provides Easy to use APIs for different LLM Providers to be used with Jaseci's Jaclang Programming Language."
 authors = ["Jason Mars <jason@jaseci.org>"]
 maintainers = ["Jason Mars <jason@jaseci.org>"]
