@@ -155,6 +155,7 @@ class LiteLLMConnector(LLMConnector):
         # When there is a by llm() call in the jaclang.
         logging.getLogger("httpx").setLevel(logging.WARNING)
         _disable_debugging()
+        litellm.drop_params = True
 
     @override
     def dispatch_no_streaming(self, mtir: MTIR) -> CompletionResult:
