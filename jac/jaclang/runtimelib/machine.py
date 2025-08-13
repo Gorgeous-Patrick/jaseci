@@ -58,7 +58,11 @@ from jaclang.runtimelib.data_mapper.access_pattern import (
     get_access_pattern,
     get_access_pattern_single_walker,
 )
+from jaclang.runtimelib.data_mapper.perf_measure import print_performance_info
 from jaclang.runtimelib.data_mapper.plot import plot_and_save
+from jaclang.runtimelib.data_mapper.partitioner import (
+    random_partition,
+)
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -629,6 +633,10 @@ class JacWalker:
 
         walker.ignores = []
         walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+        random_mapping = random_partition(graph, 5)
+        trace = [all_nodes.index(node) for node in walker.trace]
+        print_performance_info(random_mapping, walker, trace)
+
         plot_and_save(graph, access_pattern, walker_trace_graph)
         return warch
 

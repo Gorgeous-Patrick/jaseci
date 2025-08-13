@@ -9,6 +9,6 @@ def _calculate_size_single(obj):
         return 8
       return 0
 
-def calculate_size(obj):
+def calculate_size(obj) -> int:
       attrs = [getattr(obj,name) for name in dir(obj) if not name.startswith("_")]
       return sum([_calculate_size_single(attr) for attr in attrs])
