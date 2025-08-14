@@ -11,7 +11,7 @@ from .access_pattern import (  # noqa: F401
     get_access_pattern,
     get_access_pattern_single_walker,
 )
-from .partitioner import metis_partition, random_partition  # noqa: F401
+from .partitioner import random_partition  # noqa: F401
 from .perf_measure import get_num_dpu_jumps, get_num_dpu_jumps_adaptive  # noqa: F401
 from .visit_sequence import VisitInfo, get_visit_sequences, get_visit_sequences_temp  # noqa: F401
 from .size_calc import calculate_size # noqa: F401

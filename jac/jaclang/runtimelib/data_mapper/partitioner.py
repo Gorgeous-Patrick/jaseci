@@ -3,7 +3,7 @@
 import random
 from collections import defaultdict
 
-import metis
+# import metis
 
 import networkx as nx
 
@@ -51,19 +51,19 @@ def fennel_partition(
     return assignment, partitions
 
 
-def metis_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
-    """Metis partitioner."""
-    (edgecuts, parts) = metis.part_graph(
-        metis.networkx_to_metis(graph),
-        nparts=num_partitions,
-        # recursive=True,
-        # tpwgts=[1 / num_partitions] * num_partitions,
-        # ufactor=30,
-    )
-    res = {}
-    for i, name in enumerate(graph.nodes()):
-        res[name] = parts[i]
-    return res
+# def metis_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
+#     """Metis partitioner."""
+#     (edgecuts, parts) = metis.part_graph(
+#         metis.networkx_to_metis(graph),
+#         nparts=num_partitions,
+#         # recursive=True,
+#         # tpwgts=[1 / num_partitions] * num_partitions,
+#         # ufactor=30,
+#     )
+#     res = {}
+#     for i, name in enumerate(graph.nodes()):
+#         res[name] = parts[i]
+#     return res
 
 
 def random_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
