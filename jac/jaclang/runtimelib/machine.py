@@ -880,6 +880,15 @@ class JacBasics:
         return JacMachine.exec_ctx
 
     @staticmethod
+    def commit(anchor: Anchor | Archetype | None = None) -> None:
+        """Commit all data from memory to datasource."""
+        if isinstance(anchor, Archetype):
+            anchor = anchor.__jac__
+
+        mem = JacMachineInterface.get_context().mem
+        mem.commit(anchor)
+
+    @staticmethod
     def reset_graph(root: Optional[Root] = None) -> int:
         """Purge current or target graph."""
         ctx = JacMachineInterface.get_context()
@@ -1587,40 +1596,6 @@ class JacMachineInterface(
     """Jac Feature."""
 
 
-class JacMachine(JacMachineInterface):
-    """Jac Machine State."""
-
-    loaded_modules: dict[str, types.ModuleType] = {}
-    base_path_dir: str = os.getcwd()
-    program: JacProgram = JacProgram()
-    pool: ThreadPoolExecutor = ThreadPoolExecutor()
-    exec_ctx: ExecutionContext = ExecutionContext()
-
-    @staticmethod
-    def set_base_path(base_path: str) -> None:
-        """Set the base path for the machine."""
-        JacMachine.reset_machine()
-        JacMachine.base_path_dir = (
-            base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
-        )
-
-    @staticmethod
-    def set_context(context: ExecutionContext) -> None:
-        """Set the context for the machine."""
-        JacMachine.exec_ctx = context
-
-    @staticmethod
-    def reset_machine() -> None:
-        """Reset the machine."""
-        # for i in JacMachine.loaded_modules.values():
-        #     sys.modules.pop(i.__name__, None)
-        JacMachine.loaded_modules.clear()
-        JacMachine.base_path_dir = os.getcwd()
-        JacMachine.program = JacProgram()
-        JacMachine.pool = ThreadPoolExecutor()
-        JacMachine.exec_ctx = ExecutionContext()
-
-
 def generate_plugin_helpers(
     plugin_class: Type[Any],
 ) -> tuple[Type[Any], Type[Any], Type[Any]]:
@@ -1726,3 +1701,37 @@ def generate_plugin_helpers(
 
 JacMachineSpec, JacMachineImpl, JacMachineInterface = generate_plugin_helpers(JacMachineInterface)  # type: ignore[misc]
 plugin_manager.add_hookspecs(JacMachineSpec)
+
+
+class JacMachine(JacMachineInterface):
+    """Jac Machine State."""
+
+    loaded_modules: dict[str, types.ModuleType] = {}
+    base_path_dir: str = os.getcwd()
+    program: JacProgram = JacProgram()
+    pool: ThreadPoolExecutor = ThreadPoolExecutor()
+    exec_ctx: ExecutionContext = ExecutionContext()
+
+    @staticmethod
+    def set_base_path(base_path: str) -> None:
+        """Set the base path for the machine."""
+        JacMachine.reset_machine()
+        JacMachine.base_path_dir = (
+            base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
+        )
+
+    @staticmethod
+    def set_context(context: ExecutionContext) -> None:
+        """Set the context for the machine."""
+        JacMachine.exec_ctx = context
+
+    @staticmethod
+    def reset_machine() -> None:
+        """Reset the machine."""
+        # for i in JacMachine.loaded_modules.values():
+        #     sys.modules.pop(i.__name__, None)
+        JacMachine.loaded_modules.clear()
+        JacMachine.base_path_dir = os.getcwd()
+        JacMachine.program = JacProgram()
+        JacMachine.pool = ThreadPoolExecutor()
+        JacMachine.exec_ctx = ExecutionContext()

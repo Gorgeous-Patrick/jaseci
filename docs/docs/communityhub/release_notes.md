@@ -20,11 +20,12 @@ This document provides a summary of new features, improvements, and bug fixes in
   - depth - how deep the traversal from source. Count includes edges. Defaults to 1
   - node_types - Node filter by name. Defaults to no filter
   - edge_types - Edge filter by name. Defaults to no filter
+- **Dedicated Memory commit interface.**: Introduced the interface to commit memory to db at runtime. Previously, we only have it on jac-cloud but we generalized it and support it for both jac and jac-cloud.
 
 ## jaclang 0.8.4 / jac-cloud 0.2.4 / mtllm 0.3.9
 
 - **Support Spawning a Walker with List of Nodes and Edges**: Introduced the ability to spawn a walker on a list of nodes and edges. This feature enables initiating traversal across multiple graph elements simultaneously, providing greater flexibility and efficiency in handling complex graph structures.
-- **\_.save(...) should not override root in runtime**: The previous version bypassed access validation because the target archetype root was overridden by the current root, simulating ownership of the archetype.
+- **save(...) should not override root in runtime**: The previous version bypassed access validation because the target archetype root was overridden by the current root, simulating ownership of the archetype.
 - **Support Custom Access Validation**: Introduced the ability to override access validation. `Node`/`Edge` can override `__jac_access__` reserved function (`builtin`) to have a different way of validating access. Either you cross-check it by current attribute, check from db or global vars or by just returning specific access level. [PR#1524](https://github.com/jaseci-labs/jaseci/pull/1524)
 - **Get all Root Builtin Method**: Introduced `allroots` builtin method to get all the roots available in the memory. Developers can get all the roots in the memory/ database by calling `allroots()` method.
 - **Permission Update Builtin Methods**: Introduced `grant`, `revoke` builtin methods, `NoPerm`, `ReadPerm`, `ConnectPerm`, `WritePerm` builtin enums, to give the permission to a node or revoke the permission. Developers can use them by calling `grant(node_1, ConnectPerm)` or `revoke(node_1)` method.

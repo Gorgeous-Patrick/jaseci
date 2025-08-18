@@ -7,7 +7,7 @@ from abc import abstractmethod
 from enum import Enum
 from typing import ClassVar, Optional, override
 
-from jaclang.runtimelib.constructs import Archetype, NodeArchetype, Root
+from jaclang.runtimelib.constructs import NodeArchetype, Root
 from jaclang.runtimelib.machine import JacMachineInterface as Jac
 
 
@@ -58,30 +58,13 @@ def printgraph(
     )
 
 
-def jid(obj: Archetype) -> str:
-    """Get the id of the object."""
-    return Jac.object_ref(obj)
-
-
-def jobj(id: str) -> Archetype | None:
-    """Get the object from the id."""
-    return Jac.get_object(id)
-
-
-def grant(obj: Archetype, level: AccessLevelEnum) -> None:
-    """Grant permission for the object."""
-    assert isinstance(level, AccessLevelEnum), f'Use {ConnectPerm} instead of "CONNECT"'
-    Jac.perm_grant(obj, level=level.value)
-
-
-def revoke(obj: Archetype) -> None:
-    """Revoke permission for the object."""
-    Jac.perm_revoke(obj)
-
-
-def allroots() -> list[Jac.Root]:
-    """Get all the roots."""
-    return Jac.get_all_root()
+jid = Jac.object_ref
+jobj = Jac.get_object
+grant = Jac.perm_grant
+revoke = Jac.perm_revoke
+allroots = Jac.get_all_root
+save = Jac.save
+commit = Jac.commit
 
 
 def _jac_graph_json(file: Optional[str] = None) -> str:
@@ -128,6 +111,8 @@ __all__ = [
     "grant",
     "revoke",
     "allroots",
+    "save",
+    "commit",
     "NoPerm",
     "ReadPerm",
     "ConnectPerm",
