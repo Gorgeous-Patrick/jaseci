@@ -68,6 +68,11 @@ class Model:
         self.llm_connector.call_params = kwargs
         return self
 
+    @property
+    def call_params(self) -> dict[str, object]:
+        """Get the call parameters for the LLM."""
+        return self.llm_connector.call_params
+
     def invoke(self, mtir: MTIR) -> object:
         """Invoke the LLM with the given caller and arguments."""
         if mtir.stream:
