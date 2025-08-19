@@ -22,6 +22,10 @@ This document provides a summary of new features, improvements, and bug fixes in
   - edge_types - Edge filter by name. Defaults to no filter
 - **Dedicated Memory commit interface.**: Introduced the interface to commit memory to db at runtime. Previously, we only have it on jac-cloud but we generalized it and support it for both jac and jac-cloud.
 
+- **Fixed CFG inaccuracies**: Fixed issues when handling If statements with no Else body where the else edge was not captured in the CFG (as a NOOP) causing a missing branch on the CFG of the UniiR. Also fixed inaccuracies when terminating CFG branches where return statements and HasVariables had unexpected outgoing edges which are now being removed. However, the return still keeps connected to following code which are in the same scope(body) which are dead-code.
+
+- **CFG print tool for CLI**: The CFG for a given program can be printed as a dot graph by running `jac tool ir cfg. filename.jac` CLI command.
+
 ## jaclang 0.8.4 / jac-cloud 0.2.4 / mtllm 0.3.9
 
 - **Support Spawning a Walker with List of Nodes and Edges**: Introduced the ability to spawn a walker on a list of nodes and edges. This feature enables initiating traversal across multiple graph elements simultaneously, providing greater flexibility and efficiency in handling complex graph structures.
