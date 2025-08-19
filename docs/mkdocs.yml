@@ -13,7 +13,7 @@ nav:
     - Learn By Example:
       - LittleX (your own twitter):
         - "learn/examples/littleX/tutorial.md"
-        - "learn/examples/littleX/full_guide.md"
+        # - "learn/examples/littleX/full_guide.md"
       - Jac MCP Conversational Chatbot:
         - "learn/examples/rag_chatbot/Overview.md"
         # - "learn/examples/rag_chatbot/Tutorial.md"
