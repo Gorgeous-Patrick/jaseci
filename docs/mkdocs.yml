@@ -5,8 +5,9 @@ edit_uri: edit/main/docs/docs
 use_directory_urls: true
 nav:
   - Learn:
-    - Getting Started: "learn/getting_started.md"
+    # - Getting Started: "learn/getting_started.md"
     - Tour of Jac/Jaseci: "learn/introduction.md"
+    - Installation: "learn/installation.md"
     - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"
     - Jac Playground: "learn/jac_playground.md"
     - Jac Lens: "learn/jac-lens.md"
@@ -22,7 +23,7 @@ nav:
     - Learn Jac Language (WIP):
       - Introduction: "jac_book/index.md"
       - 1. Welcome to Jac: "jac_book/chapter_1.md"
-      - 2. Starting Jac, Variables and Types: "jac_book/chapter_2.md"
+      - 2. Variables, Types, and Basic Syntax: "jac_book/chapter_2.md"
       - 3. Functions, Control Flow, and Collections in Jac: "jac_book/chapter_3.md"
       - 4. AI functions and Decorators: "jac_book/chapter_4.md"
       - 5. Advanced AI Operations: "jac_book/chapter_5.md"
