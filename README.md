@@ -71,7 +71,7 @@ Jac is an innovative programming language that extends Python's semantics while 
 
 Get the complete, stable toolkit from PyPI:
 ```bash
-pip install jaclang jac-cloud mtllm
+pip install jac[all]
 ```
 This is the fastest way to get started with building applications.
 
