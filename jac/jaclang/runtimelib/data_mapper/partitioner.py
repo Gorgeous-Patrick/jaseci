@@ -65,6 +65,21 @@ def fennel_partition(
 #         res[name] = parts[i]
 #     return res
 
+def round_robin_partition(paths: list[list[int]], num_partitions: int):  # noqa: ANN201
+    MAX_PARTITION_SIZE = 1000  # Arbitrary limit to prevent overflow
+    dpu_data: list[set[int]] = [set() for _ in range(num_partitions)]
+    for idx, path in enumerate(paths):
+        dpu = idx % num_partitions
+        for node in path:
+            while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE:
+                dpu = (dpu + 1) % num_partitions
+            dpu_data[dpu].add(node)
+    # return a dict mapping node to partition
+    res = {}
+    for dpu, nodes in enumerate(dpu_data):
+        for node in nodes:
+            res[node] = dpu
+    return res, dpu_data
 
 def random_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
     """Random partitioner (baseline)."""
