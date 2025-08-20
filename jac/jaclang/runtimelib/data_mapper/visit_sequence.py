@@ -14,13 +14,13 @@ class VisitInfo:
 VisitSequence: TypeAlias = list[VisitInfo]
 _TracingInfo: TypeAlias = list[uni.UniCFGNode]
 
-def get_visit_sequences_temp(ability: uni.Ability) -> Generator[list[VisitInfo]]:
+def get_visit_sequences_temp(ability: uni.Ability) -> Generator[list[VisitInfo], None, None]:
     visit_stmts = ability.get_all_sub_nodes(uni.VisitStmt)
     for visit_stmt in visit_stmts:
         yield [_get_visit_info(visit_stmt)]
     return
 
-def get_visit_sequences(ability: uni.Ability) -> Generator[list[VisitInfo]]:
+def get_visit_sequences(ability: uni.Ability) -> Generator[list[VisitInfo], None, None]:
     print(ability.printgraph())
     print("=========")
     stack: list[_TracingInfo] = [[ability]]

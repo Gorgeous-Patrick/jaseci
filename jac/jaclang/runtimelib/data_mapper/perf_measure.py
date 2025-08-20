@@ -7,7 +7,7 @@ import networkx as nx
 
 
 DPU_BANDWIDTH = 2.4 * 1024 * 1024 * 1024  # 2.4 GB/s
-DPU_CYCLES = 3400
+DPU_CYCLES = 101221
 DPU_CLOCK_FREQUENCY = 450 * 2**20
 
 def get_num_dpu_jumps(mapping: dict[int, int], traces: list[list[int]]) -> int:
@@ -42,8 +42,8 @@ def print_performance_info(mapping: dict[int, int], walker: WalkerAnchor, trace:
     print(f"Transfer time: {transfer_time} seconds")
     print(f"Compute time: {compute_time} seconds")
     print(f"Total time: {total} seconds")
-    print(f"Compute time percentage: {compute_time / total * 100:.2f}%")
-    print(f"Transfer time percentage: {transfer_time / total * 100:.2f}%")
+    print(f"Compute time percentage: {compute_time / total * 100:.5f}%")
+    print(f"Transfer time percentage: {transfer_time / total * 100:.5f}%")
 
 
 def get_num_dpu_jumps_adaptive(mapping: dict[int, int], set_traces: list[list[set[int]]]) -> int:
