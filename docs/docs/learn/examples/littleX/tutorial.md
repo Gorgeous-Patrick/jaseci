@@ -34,12 +34,12 @@ Here's what you'll build - just **200 lines of code** for a full social media pl
 
 === "LittleX.jac"
     ```jac linenums="1"
-    --8<-- "docs/learn/examples/littleX/src/littleX.jac:17:125"
+    --8<-- "docs/learn/examples/littleX/src/littleX.jac:1:119"
     ```
 
 === "LittleX.impl.jac"
     ```jac linenums="1"
-    --8<-- "docs/learn/examples/littleX/src/littleX.impl.jac:9:121"
+    --8<-- "docs/learn/examples/littleX/src/littleX.impl.jac:1:119"
     ```
 
 === "LittleX.test.jac"
@@ -403,14 +403,5 @@ You've built a complete social media application. You now understand:
 Jaseci's graph-based approach works well for social networks where relationships between data are essential.
 
 ---
-
-## Next Steps
-
-Ready to build more? Explore these resources:
-
-- [**Jaseci Documentation**](https://jac-lang.org/) - Complete guides and references
-- [**Full LittleX Guide**](full_guide.md) - Advanced features and enterprise patterns
-
-You're ready to build your own graph-based applications!
 
 > **Happy coding with Jaseci!** 🚀
