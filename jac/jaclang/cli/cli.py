@@ -214,7 +214,7 @@ def get_object(filename: str, id: str, session: str = "", main: bool = True) -> 
 
 
 @cmd_registry.register
-def build(filename: str) -> None:
+def build(filename: str, typecheck: bool = False) -> None:
     """Build the specified .jac file.
 
     Compiles a Jac source file into a Jac Intermediate Representation (.jir) file,
@@ -222,21 +222,21 @@ def build(filename: str) -> None:
 
     Args:
         filename: Path to the .jac file to build
-        typecheck: Perform type checking during build (default: True)
+        typecheck: Perform type checking during build (default: False)
 
     Examples:
         jac build myprogram.jac
-        jac build myprogram.jac --no-typecheck
+        jac build myprogram.jac --typecheck
     """
-    if filename.endswith(".jac"):
-        (out := JacProgram()).compile(file_path=filename)
-        errs = len(out.errors_had)
-        warnings = len(out.warnings_had)
-        print(f"Errors: {errs}, Warnings: {warnings}")
-        with open(filename[:-4] + ".jir", "wb") as f:
-            pickle.dump(out, f)
-    else:
+    if not filename.endswith(".jac"):
         print("Not a .jac file.", file=sys.stderr)
+        exit(1)
+    (out := JacProgram()).compile(file_path=filename, type_check=typecheck)
+    errs = len(out.errors_had)
+    warnings = len(out.warnings_had)
+    print(f"Errors: {errs}, Warnings: {warnings}")
+    with open(filename[:-4] + ".jir", "wb") as f:
+        pickle.dump(out, f)
 
 
 @cmd_registry.register
@@ -272,35 +272,6 @@ def bind(filename: str, typecheck: bool = False) -> None:
         print(f"Errors: {errs}, Warnings: {warnings}")
     else:
         print("Not a .jac/.py file.", file=sys.stderr)
-
-
-# FIXME: grep(typecheck): Once this is fully implemented and done, remove this command and
-# migrate it to the `check` command.
-@cmd_registry.register
-def analyze(file_path: str) -> None:
-    """Run typecheck for the specified .jac file.
-
-    Perform static type analysis on the Jac program to identify potential type errors
-    without executing the code. Useful for catching errors early in development.
-
-    Args:
-        file_path: Path to the .jac file to typecheck
-
-    Examples:
-        jac analyze main.jac
-    """
-    # Early return if it's not a supported file.
-    if not file_path.endswith((".jac", ".py")):
-        print("Not a .jac/.py file.", file=sys.stderr)
-        exit(1)
-
-    # Run typecheck
-    program = JacProgram()
-    program.analyze(file_path=file_path)
-
-    # Dump diagnostics
-    for diagnostic in program.warnings_had + program.errors_had:
-        print(diagnostic.pretty_print(), file=sys.stderr, end="\n\n")
 
 
 @cmd_registry.register

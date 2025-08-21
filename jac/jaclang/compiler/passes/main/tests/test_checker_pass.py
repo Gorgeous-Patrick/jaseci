@@ -20,8 +20,7 @@ class TypeCheckerPassTests(TestCase):
         glob should_fail2: str = 42;
         """
         program = JacProgram()
-        mod = program.compile("main.jac", use_str=src)
-        TypeCheckPass(ir_in=mod, prog=program)
+        program.build("main.jac", use_str=src, type_check=True)
         self.assertEqual(len(program.errors_had), 2)
         self._assert_error_pretty_found("""
             glob should_fail1: int = "foo";
