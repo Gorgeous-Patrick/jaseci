@@ -119,6 +119,10 @@ class TypeEvaluator:
     # // and added to the map.
     def assign_type(self, src_type: TypeBase, dest_type: TypeBase) -> bool:
         """Assign the source type to the destination type."""
+        if types.TypeCategory.Unknown in (src_type.category, dest_type.category):
+            # NOTE: For now if we don't have the type info, we assume it's compatible.
+            # For strict mode we should disallow usage of unknown unless explicitly ignored.
+            return True
         # FIXME: This logic is not valid, just here as a stub.
         return src_type == dest_type
 
