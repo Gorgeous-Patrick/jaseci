@@ -274,6 +274,35 @@ def bind(filename: str, typecheck: bool = False) -> None:
         print("Not a .jac/.py file.", file=sys.stderr)
 
 
+# FIXME: grep(typecheck): Once this is fully implemented and done, remove this command and
+# migrate it to the `check` command.
+@cmd_registry.register
+def analyze(file_path: str) -> None:
+    """Run typecheck for the specified .jac file.
+
+    Perform static type analysis on the Jac program to identify potential type errors
+    without executing the code. Useful for catching errors early in development.
+
+    Args:
+        file_path: Path to the .jac file to typecheck
+
+    Examples:
+        jac analyze main.jac
+    """
+    # Early return if it's not a supported file.
+    if not file_path.endswith((".jac", ".py")):
+        print("Not a .jac/.py file.", file=sys.stderr)
+        exit(1)
+
+    # Run typecheck
+    program = JacProgram()
+    program.analyze(file_path=file_path)
+
+    # Dump diagnostics
+    for diagnostic in program.warnings_had + program.errors_had:
+        print(diagnostic.pretty_print(), file=sys.stderr, end="\n\n")
+
+
 @cmd_registry.register
 def check(filename: str, print_errs: bool = True) -> None:
     """Run type checker for a specified .jac file.

@@ -26,6 +26,7 @@ from jaclang.compiler.passes.main import (
     SymTabBuildPass,
     SymTabLinkPass,
     Transform,
+    TypeCheckPass,
 )
 from jaclang.compiler.passes.tool import (
     DocIRGenPass,
@@ -128,6 +129,11 @@ class JacProgram:
         for mod in self.mod.hub.values():
             DefUsePass(mod, prog=self)
         return mod_targ
+
+    def analyze(self, file_path: str) -> None:
+        """Analyze / type check on the specified .jac file."""
+        mod = self.compile(file_path, no_cgen=True)
+        TypeCheckPass(ir_in=mod, prog=self)
 
     def run_schedule(
         self,
