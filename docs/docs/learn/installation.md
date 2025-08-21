@@ -1,4 +1,4 @@
-# Starting Jac, Variables and Types
+# Getting Started with Jac: Installation, Setup, and Your First Program
 ---
 The first step is setting up your development environment. We'll cover how to install Jac, configure your code editor, and write and run your first program.
 
