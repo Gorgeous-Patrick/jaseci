@@ -68,6 +68,7 @@ nav:
     - Tooling:
       - "learn/tools/cli.md"
     - Specifications:
+      - Jac Keywords: "learn/keywords.md"
       - Object-Spatial Programming Specification: "learn/dspfoundation.md"
       - Full Language Specification: "learn/jac_ref.md"
     - Misc Docs:
