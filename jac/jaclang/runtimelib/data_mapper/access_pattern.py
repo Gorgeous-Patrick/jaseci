@@ -35,13 +35,14 @@ def filter_neighbors(node_idx: int, network: nx.DiGraph, visit: VisitInfo) -> li
     return filtered_neighbors
 
 
-def exec_visit_sequence(
+def exec_sync_visit_sequence(
     state: WalkerState, network: nx.DiGraph, visits: list[VisitInfo]
 ) -> WalkerState:
     """Execute the visit sequence to get the access pattern."""
     new_container: list[int] = state.container.copy()
     new_path: list[int] = state.path.copy()
     node = new_container.pop(0)
+    visits = [visit for visit in visits if visit.async_edge is False]
     for visit in visits:
         filtered_neighbors = filter_neighbors(node, network, visit)
         new_container.extend(
@@ -66,7 +67,7 @@ def get_access_pattern_single_walker(
         node = state.container[0]
         node_type = network.nodes[node].get("node_type")
         new_state_set = [
-            exec_visit_sequence(state, network, visit_sequence)
+            exec_sync_visit_sequence(state, network, visit_sequence)
             for visit_sequence in visit_sequences[node_type]
         ]
         if len(new_state_set) == 0:
