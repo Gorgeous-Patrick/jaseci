@@ -118,5 +118,8 @@ class TypeCheckPass(UniPass):
             if not self.evaluator.assign_type(right_type, left_type):
                 self.log_error(f"Cannot assign {right_type} to {left_type}")
         else:
-            pass
-            # TODO: handle
+            pass  # TODO: handle
+
+    def exit_atom_trailer(self, node: uni.AtomTrailer) -> None:
+        """Handle the atom trailer node."""
+        self.evaluator.get_type_of_expression(node)
