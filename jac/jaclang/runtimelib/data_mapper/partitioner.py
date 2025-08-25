@@ -73,19 +73,43 @@ def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa:
     RESERVED_SIZE = 1024
     MAX_PARTITION_SIZE = DPU_SIZE_LIMIT - RESERVED_SIZE
     dpu_data: list[set[int]] = [set() for _ in range(DPU_NUM)]
-    for idx, path in enumerate(paths):
-        dpu = idx % DPU_NUM
+    res = {}
+    for path in paths:
         for node in path:
+            # If node has been assigned, then skip it.
+            if node in res.keys():
+                continue
             node_size = network.nodes[node].get("node_size")
+            dpu = 0
             while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE - node_size:
                 dpu = (dpu + 1) % DPU_NUM
             dpu_data[dpu].add(node)
-    # return a dict mapping node to partition
-    res = {}
-    for dpu, nodes in enumerate(dpu_data):
-        for node in nodes:
             res[node] = dpu
-    return res, dpu_data
+    for node in network.nodes():
+        if node not in res.keys():
+            dpu = 0
+            while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE - node_size:
+                dpu = (dpu + 1) % DPU_NUM
+            dpu_data[dpu].add(node)
+            res[node] = dpu
+    print(res)
+    return res
+
+    # for idx, path in enumerate(paths):
+    #     dpu = idx % DPU_NUM
+    #     print(f"Assigning path {idx} to DPU {dpu}")
+    #     for node in path:
+    #         node_size = network.nodes[node].get("node_size")
+    #         while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE - node_size:
+    #             dpu = (dpu + 1) % DPU_NUM
+    #         dpu_data[dpu].add(node)
+    # # return a dict mapping node to partition
+    # res = {}
+    # for dpu, nodes in enumerate(dpu_data):
+    #     for node in nodes:
+    #         res[node] = dpu
+    print(res)
+    return res
 
 def random_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
     """Random partitioner (baseline)."""

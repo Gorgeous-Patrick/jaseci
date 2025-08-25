@@ -490,7 +490,7 @@ class JacWalker:
             start_node = current_loc.__jac__
         node_idx = all_nodes.index(start_node)
         graph = JacPIM.get_networkx(all_nodes, all_edges)
-        JacPIM.networkx_gen_png(graph)
+        # JacPIM.networkx_gen_png(graph)
         walker_code = JacPIM.get_walker_code(walker.archetype)
 
         traversal_path = get_access_pattern_single_walker(
@@ -611,11 +611,12 @@ class JacWalker:
         walker.ignores = []
         walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
         random_mapping = random_partition(graph, 5)
-        rounding_mapping, _ = round_robin_partition(traversal_path, graph)
+        rounding_mapping = round_robin_partition(traversal_path, graph)
         trace = [all_nodes.index(node) for node in walker.trace]
         print_performance_info(random_mapping, walker, trace)
+        print_performance_info(rounding_mapping, walker, trace)
 
-        plot_and_save(graph, access_pattern, walker_trace_graph)
+        # plot_and_save(graph, access_pattern, walker_trace_graph)
         return warch
 
     @staticmethod

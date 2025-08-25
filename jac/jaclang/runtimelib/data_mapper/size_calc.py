@@ -16,5 +16,4 @@ def _calculate_size_single(obj, name: str):
 def calculate_size(obj) -> int:
       attrs = [(name, getattr(obj,name)) for name in dir(obj) if not name.startswith("_") and not callable(getattr(obj,name))]
       names = [name for name, _ in attrs]
-      print(f"Calculating size for attributes: {names}")
       return sum([_calculate_size_single(attr, name) for name, attr in attrs])
