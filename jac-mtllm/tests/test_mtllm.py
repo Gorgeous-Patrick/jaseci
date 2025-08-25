@@ -74,6 +74,25 @@ class JacLanguageTests(TestCase):
         stdout_value = captured_output.getvalue()
         self.assertIn('The orca whale, or killer whale, is one of the most intelligent and adaptable marine predators', stdout_value)
 
+    def test_by_expr(self) -> None:
+        """Test by llm['as'].expression instead of llm() call."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        jac_import("by_expr", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        expected_lines = (
+            "Generated greeting: Hello, Alice! It's great to see you!",
+            "[run_and_test_python_code] Executing code:",
+            "[run_and_test_python_code] \"name = 'Alice'\\nprint(f'Hello, {name}! Welcome to the Python world!')\"",
+            "Hello, Alice! Welcome to the Python world!",
+            "[run_and_test_python_code] Code executed successfully.",
+            "Generated greeting code: name = 'Alice'",
+            "print(f'Hello, {name}! Welcome to the Python world!')"
+        )
+        for line in expected_lines:
+            self.assertIn(line, stdout_value)
+
     def test_with_llm_method(self) -> None:
         """Parse micro jac file."""
         captured_output = io.StringIO()

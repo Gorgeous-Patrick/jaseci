@@ -7,6 +7,7 @@ from typing import Optional
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.passes import UniPass
 from jaclang.compiler.unitree import UniScopeNode
+from jaclang.runtimelib.utils import read_file_with_encoding
 
 
 class BinderPass(UniPass):
@@ -523,8 +524,7 @@ class BinderPass(UniPass):
                 # symbol.symbol_table = existing_module.sym_tab
                 return existing_module
 
-            with open(module_path, "r", encoding="utf-8") as file:
-                source_str = file.read()
+            source_str = read_file_with_encoding(module_path)
 
             parsed_module: uni.Module = self.prog.parse_str(
                 source_str=source_str, file_path=module_path
@@ -540,7 +540,7 @@ class BinderPass(UniPass):
             return None
 
     def load_builtins(self) -> None:
-        """Load built-in symbols from the b uiltins.pyi file."""
+        """Load built-in symbols from the builtins.pyi file."""
         try:
             builtins_path = os.path.join(
                 os.path.dirname(__file__),
@@ -552,8 +552,7 @@ class BinderPass(UniPass):
                 self.log_warning(f"Builtins file not found at {builtins_path}")
                 return
 
-            with open(builtins_path, "r", encoding="utf-8") as f:
-                file_source = f.read()
+            file_source = read_file_with_encoding(builtins_path)
 
             from jaclang.compiler.passes.main.pyast_load_pass import PyastBuildPass
 

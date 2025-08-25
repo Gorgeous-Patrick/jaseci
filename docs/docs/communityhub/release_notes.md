@@ -3,8 +3,17 @@
 This document provides a summary of new features, improvements, and bug fixes in each version of Jac and Jaseci. For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](./breaking_changes.md) page.
 
 ## jaclang 0.8.5 / jac-cloud 0.2.5 / mtllm 0.4.0 (Unreleased)
+- **Jac Cloud Hot Reload**: Introduced the ability to enable development mode like uvicorn by adding `--reload` in `jac serve`. This supports targetting specific directories by using `--watch path/to/dir1,path/to/dir2` (comma separated).
 
 - **Removed LLM Override**: `function_call() by llm()` has been removed as it was introduce ambiguity in the grammer with LALR(1) shift/reduce error. This feature will be reintroduced in a future release with a different syntax.
+- **Enhanced Python File Support**: The `jac run` command now supports direct execution of `.py` files, expanding interoperability between Python and Jac environments.
+- **Improved Windows Compatibility**: Fixed file encoding issues that previously caused `UnicodeDecodeError` on Windows systems, ensuring seamless cross-platform development.
+- **Jac Clouds Traverse API**: Introduced the ability to traverse graph. This API support control of the following:
+  - source - Starting node/edge. Defaults to root
+  - detailed - If response includes archetype context. Defaults to False
+  - depth - how deep the traversal from source. Count includes edges. Defaults to 1
+  - node_types - Node filter by name. Defaults to no filter
+  - edge_types - Edge filter by name. Defaults to no filter
 
 - **Fixed CFG inacuracy when handling If statements with no Else body** When the program contains a else body, the else edge is not captured in the CFG (as a NOOP) which causes a missing branch on the CFG of the UniiR.
 
@@ -17,7 +26,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **\_.save(...) should not override root in runtime**: The previous version bypassed access validation because the target archetype root was overridden by the current root, simulating ownership of the archetype.
 - **Support Custom Access Validation**: Introduced the ability to override access validation. `Node`/`Edge` can override `__jac_access__` reserved function (`builtin`) to have a different way of validating access. Either you cross-check it by current attribute, check from db or global vars or by just returning specific access level. [PR#1524](https://github.com/jaseci-labs/jaseci/pull/1524)
 - **Get all Root Builtin Method**: Introduced `allroots` builtin method to get all the roots available in the memory. Developers can get all the roots in the memory/ database by calling `allroots()` method.
-- **Permission Update Builtin Methods**: Introduced `grant`, `revoke` builtin methods, `NoPerm`, `ReadPerm`,  `ConnectPerm`, `WritePerm` builtin enums,  to give the permission to a node or revoke the permission. Developers can use them by calling `grant(node_1, ConnectPerm)` or `revoke(node_1)` method.
+- **Permission Update Builtin Methods**: Introduced `grant`, `revoke` builtin methods, `NoPerm`, `ReadPerm`, `ConnectPerm`, `WritePerm` builtin enums, to give the permission to a node or revoke the permission. Developers can use them by calling `grant(node_1, ConnectPerm)` or `revoke(node_1)` method.
 - **`jac create_system_admin` cli now support local db**: `DATABASE_HOST` are now not required when creating system admin.
 
 - **Bug fix on supporting while loop with else part**: Now we are supporting while loop with else part.

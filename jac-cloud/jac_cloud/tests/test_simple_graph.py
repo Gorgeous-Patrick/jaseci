@@ -88,9 +88,9 @@ class SimpleGraphTest(JacCloudTest):
             {"user": user, "headers": {"Authorization": f"Bearer {token}"}}
         )
 
-    def trigger_create_graph_test(self) -> None:
+    def trigger_create_graph_test(self, user: int = 0) -> None:
         """Test Graph Creation."""
-        res = self.post_api("create_graph")
+        res = self.post_api("create_graph", user=user)
 
         self.assertEqual(200, res["status"])
 
@@ -1306,6 +1306,107 @@ class SimpleGraphTest(JacCloudTest):
                 for _idx, report in enumerate(res["reports"]):
                     self.assertEqual({"val": idx + _idx + 1}, report["context"])
 
+    def trigger_traverse_graph_util(self) -> None:
+        """Test traverse graph util."""
+        names = ["", "A", "B", "C"]
+
+        # full graph
+
+        res = get(
+            f"{self.host}/util/traverse?depth=-1",
+            headers=self.users[3]["headers"],
+        )
+        res.raise_for_status()
+
+        data = res.json()
+        edges = data["edges"]
+        nodes = data["nodes"]
+
+        self.assertEqual(3, len(edges))
+        self.assertEqual(4, len(nodes))
+
+        for i, edge in enumerate(edges):
+            self.assertTrue(edge["id"].startswith("e::"))
+            self.assertTrue(edge["source"].startswith(f"n:{names[i]}:"))
+            self.assertTrue(edge["target"].startswith(f"n:{names[i+1]}:"))
+
+        for i, node in enumerate(nodes):
+            self.assertTrue(node["id"].startswith(f"n:{names[i]}:"))
+            self.assertTrue(node["edges"])
+
+        # controlled depth
+
+        for i in range(0, 7):
+            res = get(
+                f"{self.host}/util/traverse?depth={i}",
+                headers=self.users[3]["headers"],
+            )
+            res.raise_for_status()
+
+            data = res.json()
+            edges = data["edges"]
+            nodes = data["nodes"]
+
+            self.assertEqual(int((i + 1) / 2), len(edges))
+            self.assertEqual(int(i / 2) + 1, len(nodes))
+
+            for i, edge in enumerate(edges):
+                self.assertTrue(edge["id"].startswith("e::"))
+                self.assertTrue(edge["source"].startswith(f"n:{names[i]}:"))
+                self.assertTrue(edge["target"].startswith(f"n:{names[i+1]}:"))
+
+            for i, node in enumerate(nodes):
+                self.assertTrue(node["id"].startswith(f"n:{names[i]}:"))
+                self.assertTrue(node["edges"])
+
+        # detailed true
+
+        res = get(
+            f"{self.host}/util/traverse?depth=1&detailed=true",
+            headers=self.users[3]["headers"],
+        )
+        res.raise_for_status()
+
+        data = res.json()
+        edges = data["edges"]
+        nodes = data["nodes"]
+
+        self.assertEqual(1, len(edges))
+        self.assertEqual(1, len(nodes))
+        self.assertTrue(edges[0]["id"].startswith("e::"))
+        self.assertTrue(edges[0]["source"].startswith("n::"))
+        self.assertTrue(edges[0]["target"].startswith("n:A:"))
+        self.assertEqual({}, edges[0]["archetype"])
+        self.assertTrue(nodes[0]["id"].startswith(f"n::"))
+        self.assertTrue(nodes[0]["edges"])
+        self.assertEqual({}, nodes[0]["archetype"])
+
+        # filter by node types
+
+        res = get(
+            f"{self.host}/util/traverse?depth=-1&detailed=true&node_types=A&node_types=B",
+            headers=self.users[3]["headers"],
+        )
+        res.raise_for_status()
+
+        data = res.json()
+        edges = data["edges"]
+        nodes = data["nodes"]
+
+        self.assertEqual(3, len(edges))
+        self.assertEqual(3, len(nodes))
+
+        for i, edge in enumerate(edges):
+            self.assertTrue(edge["id"].startswith("e::"))
+            self.assertTrue(edge["source"].startswith(f"n:{names[i]}:"))
+            self.assertTrue(edge["target"].startswith(f"n:{names[i+1]}:"))
+            self.assertEqual({}, edge["archetype"])
+
+        for i, node in enumerate(nodes):
+            self.assertTrue(node["id"].startswith(f"n:{names[i]}:"))
+            self.assertTrue(node["edges"])
+            self.assertTrue("archetype" in node)
+
     # Individual test methods for each feature
 
     def test_01_openapi_specs(self) -> None:
@@ -1317,6 +1418,7 @@ class SimpleGraphTest(JacCloudTest):
         self.trigger_create_user_test()
         self.trigger_create_user_test(suffix="2")
         self.trigger_create_user_test(suffix="3")
+        self.trigger_create_user_test(suffix="4")
 
     def test_03_basic_graph_operations(self) -> None:
         """Test basic graph operations."""
@@ -1448,3 +1550,8 @@ class SimpleGraphTest(JacCloudTest):
     def test_20_flood_request(self) -> None:
         """Test multiple simultaneous request."""
         self.trigger_flood_request()
+
+    def test_21_traverse_graph_util(self) -> None:
+        """Test traverse graph util."""
+        self.trigger_create_graph_test(3)
+        self.trigger_traverse_graph_util()

@@ -11,6 +11,7 @@ from jaclang.compiler.passes.main import PyastBuildPass
 from jaclang.compiler.passes.tool.doc_ir_gen_pass import DocIRGenPass
 from jaclang.compiler.program import JacProgram
 from jaclang.compiler.unitree import UniScopeNode
+from jaclang.runtimelib.utils import read_file_with_encoding
 from jaclang.utils.helpers import auto_generate_refs, pascal_to_snake
 
 
@@ -194,9 +195,8 @@ class AstTool:
             base = base if base else "./"
 
             if file_name.endswith(".py"):
-                with open(file_name, "r") as f:
-                    file_source = f.read()
-                    parsed_ast = py_ast.parse(file_source)
+                file_source = read_file_with_encoding(file_name)
+                parsed_ast = py_ast.parse(file_source)
                 if output == "pyast":
                     return f"\n{py_ast.dump(parsed_ast, indent=2)}"
                 try:

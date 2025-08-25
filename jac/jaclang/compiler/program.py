@@ -32,6 +32,7 @@ from jaclang.compiler.passes.tool import (
     FuseCommentsPass,
     JacFormatPass,
 )
+from jaclang.runtimelib.utils import read_file_with_encoding
 from jaclang.utils.log import logging
 
 
@@ -104,10 +105,8 @@ class JacProgram:
         self, file_path: str, use_str: str | None = None, no_cgen: bool = False
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
-        if not use_str:
-            with open(file_path, "r", encoding="utf-8") as file:
-                use_str = file.read()
-        mod_targ = self.parse_str(use_str, file_path)
+        keep_str = use_str or read_file_with_encoding(file_path)
+        mod_targ = self.parse_str(keep_str, file_path)
         self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
         if not no_cgen:
             self.run_schedule(mod=mod_targ, passes=py_code_gen)
@@ -115,9 +114,8 @@ class JacProgram:
 
     def bind(self, file_path: str, use_str: str | None = None) -> uni.Module:
         """Bind the Jac module."""
-        with open(file_path, "r", encoding="utf-8") as file:
-            use_str = file.read()
-        mod_targ = self.parse_str(use_str, file_path)
+        keep_str = use_str or read_file_with_encoding(file_path)
+        mod_targ = self.parse_str(keep_str, file_path)
         BinderPass(ir_in=mod_targ, prog=self)
         return mod_targ
 
@@ -150,9 +148,9 @@ class JacProgram:
     def jac_file_formatter(file_path: str) -> str:
         """Convert a Jac file to an AST."""
         prog = JacProgram()
-        with open(file_path) as file:
-            source = uni.Source(file.read(), mod_path=file_path)
-            prse: Transform = JacParser(root_ir=source, prog=prog)
+        source_str = read_file_with_encoding(file_path)
+        source = uni.Source(source_str, mod_path=file_path)
+        prse: Transform = JacParser(root_ir=source, prog=prog)
         for i in format_sched:
             prse = i(ir_in=prse.ir_out, prog=prog)
         prse.errors_had = prog.errors_had

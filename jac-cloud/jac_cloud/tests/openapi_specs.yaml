@@ -864,6 +864,138 @@ paths:
       summary: Verify
       tags:
         - User APIs
+  /util/traverse:
+    get:
+      description: Healthz API.
+      operationId: traverse_util_traverse_get
+      parameters:
+        - in: query
+          name: source
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Source
+        - in: query
+          name: detailed
+          required: false
+          schema:
+            default: false
+            title: Detailed
+            type: boolean
+        - in: query
+          name: depth
+          required: false
+          schema:
+            default: 1
+            title: Depth
+            type: integer
+        - in: query
+          name: node_types
+          required: false
+          schema:
+            anyOf:
+              - items:
+                  type: string
+                type: array
+                uniqueItems: true
+              - type: "null"
+            title: Node Types
+        - in: query
+          name: edge_types
+          required: false
+          schema:
+            anyOf:
+              - items:
+                  type: string
+                type: array
+                uniqueItems: true
+              - type: "null"
+            title: Edge Types
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      security:
+        - HTTPBearer: []
+      summary: Traverse
+      tags:
+        - Utility APIs
+  /util/traverse-stream:
+    get:
+      description: Traverse Graph stream.
+      operationId: traverse_stream_util_traverse_stream_get
+      parameters:
+        - in: query
+          name: source
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Source
+        - in: query
+          name: detailed
+          required: false
+          schema:
+            default: false
+            title: Detailed
+            type: boolean
+        - in: query
+          name: depth
+          required: false
+          schema:
+            default: 1
+            title: Depth
+            type: integer
+        - in: query
+          name: node_types
+          required: false
+          schema:
+            anyOf:
+              - items:
+                  type: string
+                type: array
+                uniqueItems: true
+              - type: "null"
+            title: Node Types
+        - in: query
+          name: edge_types
+          required: false
+          schema:
+            anyOf:
+              - items:
+                  type: string
+                type: array
+                uniqueItems: true
+              - type: "null"
+            title: Edge Types
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      security:
+        - HTTPBearer: []
+      summary: Traverse Stream
+      tags:
+        - Utility APIs
   /walker/allow_other_root_access:
     post:
       operationId: api_root_walker_allow_other_root_access_post

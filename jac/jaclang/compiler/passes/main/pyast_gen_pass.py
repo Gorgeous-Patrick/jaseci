@@ -641,15 +641,13 @@ class PyastGenPass(UniPass):
             self.traverse(node.body)
 
     def exit_archetype(self, node: uni.Archetype) -> None:
-        inner = None
+        inner: Sequence[uni.CodeBlockStmt] | Sequence[uni.EnumBlockStmt] | None = None
         if isinstance(node.body, uni.ImplDef):
-            inner = (
-                node.body.body if not isinstance(node.body.body, uni.FuncCall) else None
-            )
-        elif not isinstance(node.body, uni.FuncCall):
+            inner = node.body.body if not isinstance(node.body.body, uni.Expr) else None
+        elif not isinstance(node.body, uni.Expr):
             inner = node.body
-        body = self.resolve_stmt_block(inner, doc=node.doc)
-        if not body and not isinstance(node.body, uni.FuncCall):
+        body: list[ast3.AST] = self.resolve_stmt_block(inner, doc=node.doc)
+        if not body and not isinstance(node.body, uni.Expr):
             self.log_error(
                 "Archetype has no body. Perhaps an impl must be imported.", node
             )
@@ -699,12 +697,10 @@ class PyastGenPass(UniPass):
 
     def exit_enum(self, node: uni.Enum) -> None:
         self.needs_enum()
-        inner = None
+        inner: Sequence[uni.CodeBlockStmt] | Sequence[uni.EnumBlockStmt] | None = None
         if isinstance(node.body, uni.ImplDef):
-            inner = (
-                node.body.body if not isinstance(node.body.body, uni.FuncCall) else None
-            )
-        elif not isinstance(node.body, uni.FuncCall):
+            inner = node.body.body if not isinstance(node.body.body, uni.Expr) else None
+        elif not isinstance(node.body, uni.Expr):
             inner = node.body
         body = self.resolve_stmt_block(inner, doc=node.doc)
         decorators = (
@@ -768,7 +764,7 @@ class PyastGenPass(UniPass):
 
     def gen_llm_body(self, node: uni.Ability) -> list[ast3.stmt]:
         """Generate the by LLM body."""
-        assert isinstance(node.body, uni.FuncCall)
+        assert isinstance(node.body, uni.Expr)
         assert isinstance(node.signature, uni.FuncSignature)
 
         # Codegen for the caller of the LLM call.
@@ -833,10 +829,10 @@ class PyastGenPass(UniPass):
         func_type = ast3.AsyncFunctionDef if node.is_async else ast3.FunctionDef
         body = (
             self.gen_llm_body(node)
-            if isinstance(node.body, uni.FuncCall)
+            if isinstance(node.body, uni.Expr)
             or (
                 isinstance(node.body, uni.ImplDef)
-                and isinstance(node.body.body, uni.FuncCall)
+                and isinstance(node.body.body, uni.Expr)
             )
             else (
                 [
@@ -854,10 +850,10 @@ class PyastGenPass(UniPass):
                         (
                             node.body.body
                             if isinstance(node.body, uni.ImplDef)
-                            and not isinstance(node.body.body, uni.FuncCall)
+                            and not isinstance(node.body.body, uni.Expr)
                             else (
                                 node.body
-                                if not isinstance(node.body, uni.FuncCall)
+                                if not isinstance(node.body, uni.Expr)
                                 else None
                             )
                         ),
@@ -907,7 +903,7 @@ class PyastGenPass(UniPass):
             decorator_list.insert(
                 0, self.sync(ast3.Name(id="staticmethod", ctx=ast3.Load()))
             )
-        if not body and not isinstance(node.body, uni.FuncCall):
+        if not body and not isinstance(node.body, uni.Expr):
             self.log_error(
                 "Ability has no body. Perhaps an impl must be imported.", node
             )

@@ -209,7 +209,7 @@ class UniNode:
 
     def flatten(self) -> list[UniNode]:
         """Flatten ast."""
-        ret = [self]
+        ret: list[UniNode] = [self]
         for k in self.kid:
             ret += k.flatten()
         return ret
@@ -973,8 +973,10 @@ class Module(AstDocNode, UniScopeNode):
             prog=JacProgram(),
         ).ir_out.gen.jac
 
-    def unparse(self) -> str:
-        super().unparse()
+    def unparse(self, requires_format: bool = True) -> str:
+        unparsed = super().unparse()
+        if not requires_format:
+            return unparsed
         return self.format()
 
     @staticmethod
@@ -1535,7 +1537,7 @@ class ImplDef(CodeBlockStmt, ElementStmt, ArchBlockStmt, AstSymbolNode, UniScope
         decorators: Optional[Sequence[Expr]],
         target: Sequence[NameAtom],
         spec: Sequence[Expr] | FuncSignature | EventSignature | None,
-        body: Sequence[CodeBlockStmt] | Sequence[EnumBlockStmt] | FuncCall,
+        body: Sequence[CodeBlockStmt] | Sequence[EnumBlockStmt] | Expr,
         kid: Sequence[UniNode],
         doc: Optional[String] = None,
         decl_link: Optional[UniNode] = None,
@@ -1581,7 +1583,7 @@ class ImplDef(CodeBlockStmt, ElementStmt, ArchBlockStmt, AstSymbolNode, UniScope
                     res = res and sp.normalize(deep)
             else:
                 res = res and self.spec.normalize(deep) if self.spec else res
-            if isinstance(self.body, FuncCall):
+            if isinstance(self.body, Expr):
                 res = res and self.body.normalize(deep)
             else:
                 for stmt in self.body:
@@ -1614,7 +1616,7 @@ class ImplDef(CodeBlockStmt, ElementStmt, ArchBlockStmt, AstSymbolNode, UniScope
                 new_kid.append(self.gen_token(Tok.RPAREN))
             else:
                 new_kid.append(self.spec)
-        if isinstance(self.body, FuncCall):
+        if isinstance(self.body, Expr):
             new_kid.append(self.body)
         else:
             new_kid.append(self.gen_token(Tok.LBRACE))
@@ -1787,7 +1789,7 @@ class Ability(
         is_abstract: bool,
         access: Optional[SubTag[Token]],
         signature: FuncSignature | EventSignature | None,
-        body: Sequence[CodeBlockStmt] | ImplDef | FuncCall | None,
+        body: Sequence[CodeBlockStmt] | ImplDef | Expr | None,
         kid: Sequence[UniNode],
         doc: Optional[String] = None,
         decorators: Sequence[Expr] | None = None,
@@ -1838,7 +1840,7 @@ class Ability(
 
     @property
     def is_genai_ability(self) -> bool:
-        return isinstance(self.body, FuncCall)
+        return isinstance(self.body, Expr)
 
     def get_pos_argc_range(self) -> tuple[int, int]:
         """Get the range of positional arguments for this ability.
@@ -2291,8 +2293,7 @@ class ExprStmt(CodeBlockStmt):
         CodeBlockStmt.__init__(self)
 
     def normalize(self, deep: bool = True) -> bool:
-        if deep:
-            res = self.expr.normalize(deep)
+        res = self.expr.normalize(deep) if deep else False
         new_kid: list[UniNode] = []
         if self.in_fstring:
             new_kid.append(self.expr)
@@ -3709,7 +3710,7 @@ class FuncCall(Expr):
         self,
         target: Expr,
         params: Sequence[Expr | KWPair] | None,
-        genai_call: Optional[FuncCall],
+        genai_call: Optional[Expr],
         kid: Sequence[UniNode],
     ) -> None:
         self.target = target

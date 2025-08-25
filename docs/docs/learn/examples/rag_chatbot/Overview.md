@@ -1,30 +1,42 @@
-# Jac MCP Chatbot Overview
+# MCP Chatbot Overview
 
-This project demonstrates a modern Retrieval-Augmented Generation (RAG) chatbot built using the Jac programming language, MTLLM, Jac Cloud, and Model Context Protocol (MCP) servers. It combines document ingestion, semantic search, and large language models (LLMs) to deliver a conversational AI experience that can answer questions based on your own documents.
+This project demonstrates a modern Retrieval-Augmented Generation (RAG) chatbot built using the Jac programming language, MTLLM, Jac Cloud, and Model Context Protocol (MCP) servers. It combines document ingestion, semantic search, multimodal capabilities, and large language models (LLMs) to deliver a conversational AI experience that can answer questions based on your own documents, images, videos, and real-time web search.
 
 ## Key Features
 
-- **Document Upload & Ingestion**: Upload PDF files, which are automatically processed and indexed for semantic search.
+- **Multimodal Upload & Processing**: Upload PDF, text files, images, and videos, which are automatically processed and indexed for semantic and multimodal search.
 - **Retrieval-Augmented Generation**: Combines LLMs with document retrieval for accurate, context-aware answers.
-- **Web Search Integration**: Optionally augments responses with real-time web search results.
-- **MCP Server Architecture**: Uses Model Context Protocol for modular tool management and better scalability.
-- **Streamlit Frontend**: User-friendly chat interface for interacting with the bot and uploading documents.
-- **API Server**: RESTful endpoints for chat, document upload, and more, powered by Jac Cloud.
-- **Session Management**: Maintains chat history and user sessions.
+- **Multimodal Chat**: Users can chat about uploaded images and videos, not just text documents, using advanced multimodal LLMs.
+- **Web Search Integration**: Augments responses with real-time web search results using Serper API.
+- **MCP Server Architecture**: Uses Model Context Protocol with FastMCP for modular tool management and better scalability.
+- **Object Spatial Programming**: Leverages Jac's unique node-walker architecture for intelligent routing and task handling.
+- **Mean Typed Programming (MTP)**: Uses LLM-based classification to route queries to specialized nodes (RAG, QA, IMAGE, VIDEO).
+- **Streamlit Frontend**: User-friendly chat interface for interacting with the bot and uploading documents, images, and videos.
+- **API Server**: RESTful endpoints for chat, multimodal file upload, and more, powered by Jac Cloud.
+- **Session Management**: Maintains chat history and user sessions with file context.
 
 ## Technologies Used
-- Jac & Jac Cloud & Jac MTLLM
-- Model Context Protocol (MCP)
-- LangChain, ChromaDB, PyPDF, Streamlit
-- OpenAI or local LLMs (Ollama)
+- **Jac Language**: Object Spatial Programming with nodes and walkers
+- **Mean Typed Programming (MTP)**: LLM-based query classification and routing
+- **Jac Cloud**: Backend infrastructure and a Production ready server
+- **Model Context Protocol (MCP)** with FastMCP for tool management
+- **LangChain, ChromaDB, PyPDF**: Document processing and vector storage
+- **Streamlit**: Frontend interface
+- **Serper API**: Real-time web search
 
 ## Architecture
 
-- **client.jac**: Implements the Streamlit-based frontend for chat and document upload.
-- **server.jac**: Hosts the API, manages sessions, and coordinates with MCP tools using ReAct pattern.
-- **mcp_server.jac**: MCP server that exposes document search and web search tools.
+- **client.jac**: Implements the Streamlit-based frontend for chat and multimodal file upload (PDFs, images, videos).
+- **server.jac**: Hosts the API using Object Spatial Programming with Router, Session, and specialized Chat nodes (RagChat, QAChat, ImageChat, VideoChat). Uses Mean Typed Programming for intelligent routing.
+- **mcp_server.jac**: FastMCP server that exposes document search and web search tools.
 - **mcp_client.jac**: Client interface for communicating with MCP servers.
 - **tools.jac**: Contains the RAG engine and web search implementations used by the MCP server.
+
+### Node-Walker Architecture
+- **Router Node**: Classifies user queries using MTP to route to appropriate chat nodes
+- **Chat Nodes**: Specialized nodes for different interaction types (RAG, QA, IMAGE, VIDEO)
+- **Session Node**: Manages user sessions and chat history
+- **Walkers**: `infer` walker handles routing logic, `interact` walker manages sessions, `upload_file` walker processes file uploads
 
 
 === "Frontend Preview"

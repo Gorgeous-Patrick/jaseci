@@ -10,10 +10,12 @@ dependencies = [
     "pygments",
     "mkdocs",
     "mkdocs-material",
+    "pymdown-extensions",
     "mkdocs-video",
     "mkdocs-open-in-new-tab",
     "starlette",
-    "uvicorn"
+    "uvicorn",
+    "watchdog"
 ]
 authors = [
     { name = "Jason Mars", email = "jason@jaseci.org" }

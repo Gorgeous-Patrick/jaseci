@@ -18,7 +18,6 @@ class SSLServiceTest(TestCase):
     def test_ssl_service(self) -> None:
         """Run server."""
         run(["fuser", "-k", "8443/tcp"])
-        run(["jac", "clean"])
 
         self.directory = Path(__file__).parent
 

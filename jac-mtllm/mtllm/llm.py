@@ -157,7 +157,7 @@ class Model:
 
         # Prepare return type.
         return_type = get_type_hints(caller).get("return")
-        is_streaming = bool(self.call_params.pop("stream", False))
+        is_streaming = bool(self.call_params.get("stream", False))
 
         if is_streaming:
             if return_type is not str:

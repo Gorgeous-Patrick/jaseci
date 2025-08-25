@@ -61,6 +61,7 @@ nav:
         - "learn/jac-cloud/webhook.md"
       - Operations:
         - "learn/jac-cloud/deployment.md"
+        - "learn/jac-cloud/utilities.md"
     - Tooling:
       - "learn/tools/cli.md"
     - Specifications:
@@ -103,6 +104,7 @@ nav:
         - Runtime Plugin Interface: "internals/jac_plugins.md"
       - Planning Specs and Docs:
         - Language Ref Roadmap: "internals/planning_specs/ref_roadmap.md"
+        - Archetype Lifecycle Enhancement Roadmap: "internals/planning_specs/spawn_life_cycle.md"
         - Error System: "internals/planning_specs/error_system.md"
         - Formatter System: "internals/planning_specs/formatter_system.md"
         - Native Type System:
@@ -207,6 +209,7 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js
   - js/jac.monarch.js
   - js/run-code.js
+  - js/feedback.js
 
 plugins:
   - search

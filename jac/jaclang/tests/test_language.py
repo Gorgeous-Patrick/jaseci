@@ -13,6 +13,7 @@ from jaclang import JacMachine as Jac
 from jaclang.cli import cli
 from jaclang.compiler.program import JacProgram
 from jaclang.utils.test import TestCase
+from jaclang.runtimelib.utils import read_file_with_encoding
 
 
 class JacLanguageTests(TestCase):
@@ -1364,3 +1365,97 @@ class JacLanguageTests(TestCase):
         self.assertIn("Num:  4", stdout_value[0])
         self.assertIn("Num:  3", stdout_value[1])
         self.assertIn("Completed", stdout_value[2])
+
+    def test_read_file_with_encoding_utf8(self) -> None:
+        """Test reading UTF-8 encoded file."""
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as f:
+            test_content = "Hello, 世界! 🌍 Testing UTF-8 encoding."
+            f.write(test_content)
+            temp_path = f.name
+        
+        try:
+            result = read_file_with_encoding(temp_path)
+            self.assertEqual(result, test_content)
+        finally:
+            os.unlink(temp_path)
+
+    def test_read_file_with_encoding_utf16(self) -> None:
+        """Test reading UTF-16 encoded file when UTF-8 fails."""
+        with tempfile.NamedTemporaryFile(delete=False, mode="w", encoding="utf-16") as f:
+            test_content = "Hello, 世界! UTF-16 encoding test."
+            f.write(test_content)
+            temp_path = f.name
+        
+        try:
+            result = read_file_with_encoding(temp_path)
+            self.assertEqual(result, test_content)
+        finally:
+            os.unlink(temp_path)
+
+    def test_read_file_with_encoding_utf8_bom(self) -> None:
+        """Test reading UTF-8 with BOM encoded file."""
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8-sig') as f:
+            test_content = "Hello, UTF-8 BOM test! 🚀"
+            f.write(test_content)
+            temp_path = f.name
+        
+        try:
+            result = read_file_with_encoding(temp_path)
+            self.assertEqual(result, test_content)
+        finally:
+            os.unlink(temp_path)
+
+    # TODO: Support reading files with Latin-1 encoding
+    # def test_read_file_with_encoding_latin1(self) -> None:
+    #     """Test reading Latin-1 encoded file as fallback."""
+    #     with tempfile.NamedTemporaryFile(mode='w', encoding='latin-1', delete=False) as f:
+    #         test_content = "Hello, café! Latin-1 test."
+    #         f.write(test_content)
+    #         f.flush()
+    #         temp_path = f.name
+
+    #     try:
+    #         result = read_file_with_encoding(temp_path)
+    #         self.assertEqual(result, test_content)
+    #     finally:
+    #         os.unlink(temp_path)
+
+    def test_read_file_with_encoding_binary_file_fallback(self) -> None:
+        """Test reading binary file falls back to latin-1."""
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            binary_data = bytes([0xFF, 0xFE, 0x00, 0x48, 0x65, 0x6C, 0x6C, 0x6F])
+            f.write(binary_data)
+            f.flush()  
+            temp_path = f.name
+        
+        try:
+            result = read_file_with_encoding(temp_path)
+            self.assertIsInstance(result, str)
+            self.assertGreater(len(result), 0)
+        finally:
+            os.unlink(temp_path)
+
+    def test_read_file_with_encoding_special_characters(self) -> None:
+        """Test reading file with various special characters."""
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as f:
+            test_content = (
+                "Special chars: åäö ñ ü ç é\n"
+                "Symbols: ©®™ §¶†‡•\n" 
+                "Math: ∑∏∫√±≤≥≠\n"
+                "Arrows: ←→↑↓↔\n"
+                "Emoji: 😀😍🎉🔥💯\n"
+            )
+            f.write(test_content)
+            f.flush()  
+            temp_path = f.name
+        
+        try:
+            result = read_file_with_encoding(temp_path)
+
+            self.assertEqual(result, test_content)
+            self.assertIn("åäö", result)
+            self.assertIn("©®™", result)
+            self.assertIn("∑∏∫", result)
+            self.assertIn("😀😍", result)
+        finally:
+            os.unlink(temp_path)
