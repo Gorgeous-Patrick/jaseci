@@ -62,7 +62,9 @@ def get_access_pattern_single_walker(
     active_state_set: list[WalkerState] = [WalkerState(container=[start_idx], path=[])]
     visit_sequences = get_walker_info(walker_type)
     paths: list[list[int]] = []
-    while len(active_state_set) > 0:
+    cnt = 0
+    while len(active_state_set) > 0 and cnt < 100000:
+        cnt += 1
         state = active_state_set.pop(0)
         node = state.container[0]
         node_type = network.nodes[node].get("node_type")
@@ -82,6 +84,10 @@ def get_access_pattern_single_walker(
                 # If no more nodes to visit, finalize the path
                 state.path.append(node)
                 paths.append(state.path)
+    # Finalize all remaining paths
+    for state in active_state_set:
+        state.path.append(state.container[0])
+        paths.append(state.path)
     print(paths)
     return paths
 
@@ -95,7 +101,6 @@ def get_access_pattern(network: nx.DiGraph, paths: list[list[int]]) -> nx.DiGrap
     for path in paths:
 
         edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
-        print(edges)
 
         # Add edges with their calculated weights
         for idx, (from_node, to_node) in enumerate(edges):

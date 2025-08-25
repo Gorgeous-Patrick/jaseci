@@ -62,7 +62,9 @@ from jaclang.runtimelib.data_mapper.perf_measure import print_performance_info
 from jaclang.runtimelib.data_mapper.plot import plot_and_save
 from jaclang.runtimelib.data_mapper.partitioner import (
     random_partition,
+    round_robin_partition,
 )
+from jaclang.runtimelib.data_mapper.size_calc import calculate_size
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -609,6 +611,7 @@ class JacWalker:
         walker.ignores = []
         walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
         random_mapping = random_partition(graph, 5)
+        rounding_mapping, _ = round_robin_partition(traversal_path, graph)
         trace = [all_nodes.index(node) for node in walker.trace]
         print_performance_info(random_mapping, walker, trace)
 
@@ -1706,6 +1709,7 @@ class JacPIM:
                 idx,
                 node_type=JacPIM._extract_name(node_anchor.archetype),
                 node_id=getattr(node_anchor.archetype, "id", None),
+                node_size=calculate_size(node_anchor.archetype)
             )
 
         # Assign colors by node_type

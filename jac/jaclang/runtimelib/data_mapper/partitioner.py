@@ -7,6 +7,8 @@ from collections import defaultdict
 
 import networkx as nx
 
+DPU_SIZE_LIMIT = 64 * 1024 * 1024
+DPU_NUM = 2560
 
 def fennel_partition(
     graph: nx.DiGraph, num_partitions: int, capacity: int
@@ -65,14 +67,18 @@ def fennel_partition(
 #         res[name] = parts[i]
 #     return res
 
-def round_robin_partition(paths: list[list[int]], num_partitions: int):  # noqa: ANN201
-    MAX_PARTITION_SIZE = 1000  # Arbitrary limit to prevent overflow
-    dpu_data: list[set[int]] = [set() for _ in range(num_partitions)]
+def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa: ANN201
+    # MAX_PARTITION_SIZE =   # Arbitrary limit to prevent overflow
+    # TODO: Change this size to a more accurate one.
+    RESERVED_SIZE = 1024
+    MAX_PARTITION_SIZE = DPU_SIZE_LIMIT - RESERVED_SIZE
+    dpu_data: list[set[int]] = [set() for _ in range(DPU_NUM)]
     for idx, path in enumerate(paths):
-        dpu = idx % num_partitions
+        dpu = idx % DPU_NUM
         for node in path:
-            while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE:
-                dpu = (dpu + 1) % num_partitions
+            node_size = network.nodes[node].get("node_size")
+            while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE - node_size:
+                dpu = (dpu + 1) % DPU_NUM
             dpu_data[dpu].add(node)
     # return a dict mapping node to partition
     res = {}
