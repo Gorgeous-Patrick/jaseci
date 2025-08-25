@@ -10,7 +10,6 @@ nav:
     - Installation: "learn/installation.md"
     - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"
     - Jac Playground: "learn/jac_playground.md"
-    - Jac Lens: "learn/jac-lens.md"
     - Learn By Example:
       - LittleX (your own twitter):
         - "learn/examples/littleX/tutorial.md"
@@ -65,6 +64,7 @@ nav:
       - Operations:
         - "learn/jac-cloud/deployment.md"
         - "learn/jac-cloud/utilities.md"
+      - Jac Lens: "learn/jac-lens.md"
     - Tooling:
       - "learn/tools/cli.md"
     - Specifications:
