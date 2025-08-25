@@ -230,11 +230,11 @@ class WebSocketManager:
 def walker_execution(websocket: WebSocket, event: WalkerEvent) -> dict:
     """Websocket event sychronizer."""
     if walker_event := websocket_events.get(even_walker := event.walker):
-        if walker_event["auth"] and websocket._root is PUBLIC_ROOT:  # type: ignore[attr-defined]
+        if walker_event["auth"] and websocket._root == PUBLIC_ROOT:  # type: ignore[attr-defined]
             raise WalkerExecutionError(
                 f"Event {even_walker} requires to be authenticated!"
             )
-        elif not walker_event["auth"] and websocket._root is not PUBLIC_ROOT:  # type: ignore[attr-defined]
+        elif not walker_event["auth"] and websocket._root != PUBLIC_ROOT:  # type: ignore[attr-defined]
             raise WalkerExecutionError(
                 f"Event {even_walker} requires to be unauthenticated!"
             )

@@ -56,11 +56,10 @@ class FastAPI:
         if not isinstance(cls.__app__, _FaststAPI):
             from .routers import routers
             from ..plugin.implementation import (
+                Routers,
                 WEBSOCKET_MANAGER,
                 scheduler,
                 repopulate_tasks,
-                walker_router,
-                webhook_walker_router,
                 websocket_router,
             )
 
@@ -95,8 +94,7 @@ class FastAPI:
 
             for router in [
                 *routers,
-                walker_router,
-                webhook_walker_router,
+                Routers.walker_router,
                 websocket_router,
             ]:
                 cls.__app__.include_router(router)
@@ -116,6 +114,8 @@ class FastAPI:
                 )
 
                 return ORJSONResponse(response, status_code=500)
+
+            Routers.main_router = cls.__app__
 
         return cls.__app__
 

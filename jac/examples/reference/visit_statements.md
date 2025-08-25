@@ -32,11 +32,11 @@ The `[-->]` syntax represents traversal along outgoing edges from the current no
 Visit statements support an advanced feature that controls traversal behavior through queue insertion indices:
 
 ```jac
-visit :0:[-->];    // Insert at beginning (index 0)
-visit :-1:[-->];   // Insert at end (index -1)
-visit :2:[-->];    // Insert at index 2
-visit :-3:[-->];   // Insert 3 positions from end
-visit [-->];       // Default behavior
+visit :0:[-->];    # Insert at beginning (index 0)
+visit :-1:[-->];   # Insert at end (index -1)
+visit :2:[-->];    # Insert at index 2
+visit :-3:[-->];   # Insert 3 positions from end
+visit [-->];       # Default behavior
 ```
 
 This syntax controls where new destinations are inserted into the walker's traversal queue:
@@ -72,13 +72,13 @@ Consider a walker that uses conditional queue insertion:
 walker MyWalker {
     can does with MyNode entry {
         if here.val == 20 {
-            visit :0:[-->];  // Depth-first from this node
+            visit :0:[-->];  # Depth-first from this node
         }
         elif here.val == 30 {
-            visit :-1:[-->]; // Breadth-first from this node
+            visit :-1:[-->]; # Breadth-first from this node
         }
         else {
-            visit [-->];     // Default traversal
+            visit [-->];     # Default traversal
         }
     }
 }

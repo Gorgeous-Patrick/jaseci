@@ -8,7 +8,7 @@ from typing import cast
 
 from bson import ObjectId
 
-from httpx import get, post
+from httpx import get, post, stream
 
 from pymongo.collection import Collection as PCollection
 from pymongo.mongo_client import MongoClient
@@ -1328,7 +1328,7 @@ class SimpleGraphTest(JacCloudTest):
         for i, edge in enumerate(edges):
             self.assertTrue(edge["id"].startswith("e::"))
             self.assertTrue(edge["source"].startswith(f"n:{names[i]}:"))
-            self.assertTrue(edge["target"].startswith(f"n:{names[i+1]}:"))
+            self.assertTrue(edge["target"].startswith(f"n:{names[i + 1]}:"))
 
         for i, node in enumerate(nodes):
             self.assertTrue(node["id"].startswith(f"n:{names[i]}:"))
@@ -1353,7 +1353,7 @@ class SimpleGraphTest(JacCloudTest):
             for i, edge in enumerate(edges):
                 self.assertTrue(edge["id"].startswith("e::"))
                 self.assertTrue(edge["source"].startswith(f"n:{names[i]}:"))
-                self.assertTrue(edge["target"].startswith(f"n:{names[i+1]}:"))
+                self.assertTrue(edge["target"].startswith(f"n:{names[i + 1]}:"))
 
             for i, node in enumerate(nodes):
                 self.assertTrue(node["id"].startswith(f"n:{names[i]}:"))
@@ -1377,7 +1377,7 @@ class SimpleGraphTest(JacCloudTest):
         self.assertTrue(edges[0]["source"].startswith("n::"))
         self.assertTrue(edges[0]["target"].startswith("n:A:"))
         self.assertEqual({}, edges[0]["archetype"])
-        self.assertTrue(nodes[0]["id"].startswith(f"n::"))
+        self.assertTrue(nodes[0]["id"].startswith("n::"))
         self.assertTrue(nodes[0]["edges"])
         self.assertEqual({}, nodes[0]["archetype"])
 
@@ -1399,13 +1399,46 @@ class SimpleGraphTest(JacCloudTest):
         for i, edge in enumerate(edges):
             self.assertTrue(edge["id"].startswith("e::"))
             self.assertTrue(edge["source"].startswith(f"n:{names[i]}:"))
-            self.assertTrue(edge["target"].startswith(f"n:{names[i+1]}:"))
+            self.assertTrue(edge["target"].startswith(f"n:{names[i + 1]}:"))
             self.assertEqual({}, edge["archetype"])
 
         for i, node in enumerate(nodes):
             self.assertTrue(node["id"].startswith(f"n:{names[i]}:"))
             self.assertTrue(node["edges"])
             self.assertTrue("archetype" in node)
+
+    def trigger_generate_walker(self) -> None:
+        """Test dynamic generation of walker endpoint."""
+        res = get(f"{self.host}/walker/generated_walker")
+        self.assertEqual(404, res.status_code)
+
+        res = get(f"{self.host}/walker/generate_walker")
+        res.raise_for_status()
+        self.assertEqual({"status": 200, "reports": ["generate_walker"]}, res.json())
+
+        res = get(f"{self.host}/walker/generated_walker")
+        res.raise_for_status()
+        self.assertEqual({"status": 200, "reports": ["generated_walker"]}, res.json())
+
+    def trigger_custom_walkers(self) -> None:
+        """Test custom specification walkers."""
+        resp = self.post_api("exclude_in_specs")
+        self.assertEqual({"status": 200, "reports": []}, resp)
+
+        res = get(f"{self.host}/walker/html_response")
+        res.raise_for_status()
+        self.assertEqual(
+            '<!DOCTYPE html><html lang="en"><body>HELLO WORLD</body></html>', res.text
+        )
+        self.assertEqual("text/html; charset=utf-8", res.headers["content-type"])
+
+        with stream("GET", f"{self.host}/walker/stream_response") as streamer:
+            streamer.raise_for_status()
+            self.assertEqual(
+                "text/event-stream; charset=utf-8", streamer.headers["content-type"]
+            )
+            for i, chunk in enumerate(streamer.iter_text()):
+                self.assertEqual(str(i), chunk)
 
     # Individual test methods for each feature
 
@@ -1555,3 +1588,11 @@ class SimpleGraphTest(JacCloudTest):
         """Test traverse graph util."""
         self.trigger_create_graph_test(3)
         self.trigger_traverse_graph_util()
+
+    def test_22_generate_dynamic_walker(self) -> None:
+        """Test multiple simultaneous request."""
+        self.trigger_generate_walker()
+
+    def test_23_trigger_custom_walkers(self) -> None:
+        """Test custom specification walkers."""
+        self.trigger_custom_walkers()

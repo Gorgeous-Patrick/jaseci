@@ -99,6 +99,8 @@ class JacCliTests(TestCase):
         out = stdout_value.split("\n")
         self.assertIn("89", out[0])
         self.assertIn("(13, (), {'a': 1, 'b': 2})", out[1])
+        self.assertIn("Functions: [{'name': 'replace_lines'", out[2])
+        self.assertIn("Dict: 90", out[3])
 
     def test_jac_cli_alert_based_err(self) -> None:
         """Basic test for pass."""
@@ -266,6 +268,27 @@ class JacCliTests(TestCase):
         stdout_value = captured_output.getvalue()
         self.assertIn(
             '[label="MultiString" shape="oval" style="filled" fillcolor="#fccca4"]',
+            stdout_value,
+        )
+    
+    def test_cfg_printgraph(self) -> None:
+        """Testing for print CFG."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        cli.tool("ir", ["cfg.", f"{self.fixture_abs_path('hello.jac')}"])
+
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        correct_graph = (
+            "digraph G {\n"
+            '  0 [label="BB0\\n\\nprint ( \'\\"im still here\\"\' ) ;\", shape=box];\n'
+            '  1 [label="BB1\\n\'\\"Hello World!\\"\' |> print ;\", shape=box];\n'
+            "}\n\n"
+        )
+
+        self.assertEqual(
+            correct_graph,
             stdout_value,
         )
 

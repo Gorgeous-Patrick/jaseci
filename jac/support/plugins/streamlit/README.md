@@ -1,53 +1,83 @@
-# jaclang_streamlit Plugin Documentation
+# Jac-Streamlit Plugin
 
-The `jaclang_streamlit` plugin is a powerful tool that allows you to run and test Streamlit apps written in Jac. This documentation will guide you through the installation process and provide instructions on how to run and test your Jac Streamlit apps.
+The `jac-streamlit` plugin provides seamless integration between the Jac programming language and Streamlit, enabling you to create interactive web applications and visualizations directly from Jac code.
+
+## Features
+
+- **Direct Execution**: Run Streamlit apps written in Jac with a single command
+- **Graph Visualization**: Interactive and static visualization of Jac graph structures
+- **Testing Framework**: Comprehensive testing support for Jac-Streamlit applications
+- **Cross-Platform**: Works on Windows, macOS, and Linux
 
 ## Installation
 
-To install the `jaclang_streamlit` plugin, you can use pip:
-
 ```shell
-pip install jaclang_streamlit
+pip install jac-streamlit
 ```
 
-## Running Jac Streamlit Apps
+## Quick Start
 
-To run a Streamlit app written in Jac, you can use the following command:
+### Running Jac Streamlit Applications
+
+Execute a Streamlit app written in Jac:
 
 ```shell
 jac streamlit app.jac
 ```
 
-Replace `app.jac` with the path to your Jac Streamlit app file.
+### Visualizing Jac Graphs
 
-## Generating Graphs with Jac Streamlit
-
-If you want to visualize the graph of your Jac Streamlit app in a browser, you can use the following command:
+Visualize your Jac graph structures in an interactive web interface:
 
 ```shell
 jac dot_view app.jac
 ```
 
-This will open up a Streamlit app in your browser, displaying the graph of your Jac Streamlit app.
+This opens a Streamlit application with two visualization modes:
+- **Interactive View**: Using streamlit-agraph for dynamic graph exploration
+- **Static View**: Using pygraphviz for traditional graph rendering
 
-## Testing Jac Streamlit Apps
+## Testing
 
-To test your Jac Streamlit app using the Streamlit testing framework, you can follow these steps:
-
-1. Import the `AppTest` class from `jaclang_streamlit`:
+The plugin includes a testing framework compatible with Streamlit's testing methodology:
 
 ```python
 from jaclang_streamlit import AppTest
+
+# Create test instance from Jac file
+app_test = AppTest.from_jac_file("path/to/your/app.jac")
+
+# Run the app and perform tests
+app = app_test.run()
+assert len(app.exception) == 0
 ```
 
-2. Use the `AppTest.from_jac_file(filename)` method to create an instance of `AppTest` for your Jac Streamlit app:
+## Example
 
-```python
-app_test = AppTest.from_jac_file(filename)
+Here's a simple Jac Streamlit application:
+
+```jac
+import streamlit as st;
+
+with entry {
+    st.title("Hello Jac Streamlit!");
+    name = st.text_input("Enter your name");
+    if st.button("Greet") and name {
+        st.success(f"Hello, {name}!");
+    }
+}
 ```
 
-Replace `filename` with the path to your Jac Streamlit app file.
+## Requirements
 
-3. You can now use the `app_test` instance to test your Jac Streamlit app using the Streamlit testing methodology.
+- Python 3.12+
+- Jac programming language (jaclang)
+- Streamlit 1.38+
 
-Please note that the testing methodology for Jac Streamlit apps is similar to the one used for regular Streamlit apps.
+## Documentation
+
+For comprehensive documentation and examples, visit [jac-lang.org](https://jac-lang.org).
+
+## License
+
+MIT License - see the [LICENSE](https://github.com/jaseci-labs/jaseci/blob/main/LICENSE) file for details.

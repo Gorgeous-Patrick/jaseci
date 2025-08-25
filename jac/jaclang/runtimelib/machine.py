@@ -66,7 +66,6 @@ from jaclang.runtimelib.data_mapper.partitioner import (
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
-    collect_node_connections,
     traverse_graph,
 )
 from jaclang.utils import infer_language
@@ -277,30 +276,6 @@ class JacAccessValidation:
 
 class JacNode:
     """Jac Node Operations."""
-
-    @staticmethod
-    def node_dot(node: NodeArchetype, dot_file: Optional[str] = None) -> str:
-        """Generate Dot file for visualizing nodes and edges."""
-        visited_nodes: set[NodeAnchor] = set()
-        connections: set[tuple[NodeArchetype, NodeArchetype, str]] = set()
-        unique_node_id_dict = {}
-
-        collect_node_connections(node.__jac__, visited_nodes, connections)
-        dot_content = 'digraph {\nnode [style="filled", shape="ellipse", fillcolor="invis", fontcolor="black"];\n'
-        for idx, i in enumerate([nodes_.archetype for nodes_ in visited_nodes]):
-            unique_node_id_dict[i] = (i.__class__.__name__, str(idx))
-            dot_content += f'{idx} [label="{i}"];\n'
-        dot_content += 'edge [color="gray", style="solid"];\n'
-
-        for pair in list(set(connections)):
-            dot_content += (
-                f"{unique_node_id_dict[pair[0]][1]} -> {unique_node_id_dict[pair[1]][1]}"
-                f' [label="{pair[2]}"];\n'
-            )
-        if dot_file:
-            with open(dot_file, "w") as f:
-                f.write(dot_content + "}")
-        return dot_content + "}"
 
     @staticmethod
     def get_edges(
@@ -950,6 +925,15 @@ class JacBasics:
         return JacMachine.exec_ctx
 
     @staticmethod
+    def commit(anchor: Anchor | Archetype | None = None) -> None:
+        """Commit all data from memory to datasource."""
+        if isinstance(anchor, Archetype):
+            anchor = anchor.__jac__
+
+        mem = JacMachineInterface.get_context().mem
+        mem.commit(anchor)
+
+    @staticmethod
     def reset_graph(root: Optional[Root] = None) -> int:
         """Purge current or target graph."""
         ctx = JacMachineInterface.get_context()
@@ -1428,9 +1412,7 @@ class JacBasics:
         return decorator
 
     @staticmethod
-    def call_llm(
-        model: object, caller: Callable, args: dict[str | int, object]
-    ) -> Any:  # noqa: ANN401
+    def call_llm(model: object, mtir: object) -> Any:  # noqa: ANN401
         """Call the LLM model."""
         raise ImportError(
             "mtllm is not installed. Please install it with `pip install mtllm` and run `jac clean`."
@@ -1786,40 +1768,6 @@ class JacMachineInterface(
     """Jac Feature."""
 
 
-class JacMachine(JacMachineInterface):
-    """Jac Machine State."""
-
-    loaded_modules: dict[str, types.ModuleType] = {}
-    base_path_dir: str = os.getcwd()
-    program: JacProgram = JacProgram()
-    pool: ThreadPoolExecutor = ThreadPoolExecutor()
-    exec_ctx: ExecutionContext = ExecutionContext()
-
-    @staticmethod
-    def set_base_path(base_path: str) -> None:
-        """Set the base path for the machine."""
-        JacMachine.reset_machine()
-        JacMachine.base_path_dir = (
-            base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
-        )
-
-    @staticmethod
-    def set_context(context: ExecutionContext) -> None:
-        """Set the context for the machine."""
-        JacMachine.exec_ctx = context
-
-    @staticmethod
-    def reset_machine() -> None:
-        """Reset the machine."""
-        # for i in JacMachine.loaded_modules.values():
-        #     sys.modules.pop(i.__name__, None)
-        JacMachine.loaded_modules.clear()
-        JacMachine.base_path_dir = os.getcwd()
-        JacMachine.program = JacProgram()
-        JacMachine.pool = ThreadPoolExecutor()
-        JacMachine.exec_ctx = ExecutionContext()
-
-
 def generate_plugin_helpers(
     plugin_class: Type[Any],
 ) -> tuple[Type[Any], Type[Any], Type[Any]]:
@@ -1925,3 +1873,37 @@ def generate_plugin_helpers(
 
 JacMachineSpec, JacMachineImpl, JacMachineInterface = generate_plugin_helpers(JacMachineInterface)  # type: ignore[misc]
 plugin_manager.add_hookspecs(JacMachineSpec)
+
+
+class JacMachine(JacMachineInterface):
+    """Jac Machine State."""
+
+    loaded_modules: dict[str, types.ModuleType] = {}
+    base_path_dir: str = os.getcwd()
+    program: JacProgram = JacProgram()
+    pool: ThreadPoolExecutor = ThreadPoolExecutor()
+    exec_ctx: ExecutionContext = ExecutionContext()
+
+    @staticmethod
+    def set_base_path(base_path: str) -> None:
+        """Set the base path for the machine."""
+        JacMachine.reset_machine()
+        JacMachine.base_path_dir = (
+            base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
+        )
+
+    @staticmethod
+    def set_context(context: ExecutionContext) -> None:
+        """Set the context for the machine."""
+        JacMachine.exec_ctx = context
+
+    @staticmethod
+    def reset_machine() -> None:
+        """Reset the machine."""
+        # for i in JacMachine.loaded_modules.values():
+        #     sys.modules.pop(i.__name__, None)
+        JacMachine.loaded_modules.clear()
+        JacMachine.base_path_dir = os.getcwd()
+        JacMachine.program = JacProgram()
+        JacMachine.pool = ThreadPoolExecutor()
+        JacMachine.exec_ctx = ExecutionContext()

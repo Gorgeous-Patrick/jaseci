@@ -542,6 +542,92 @@ info:
   version: 0.1.0
 openapi: 3.1.0
 paths:
+  /custom/walker/path:
+    post:
+      operationId: api_root_custom_walker_path_post
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+      security:
+        - HTTPBearer: []
+      summary: Api Root
+      tags:
+        - Walker APIs
+  /custom/walker/path/{node}:
+    post:
+      operationId: api_entry_custom_walker_path__node__post
+      parameters:
+        - in: path
+          name: node
+          required: true
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Node
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      security:
+        - HTTPBearer: []
+      summary: Api Entry
+      tags:
+        - Walker APIs
+  /custom/webhook/path:
+    post:
+      operationId: api_root_custom_webhook_path_post
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+      summary: Api Root
+      tags:
+        - Webhook Walker APIs
+  /custom/webhook/path/{node}:
+    post:
+      operationId: api_entry_custom_webhook_path__node__post
+      parameters:
+        - in: path
+          name: node
+          required: true
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Node
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Api Entry
+      tags:
+        - Webhook Walker APIs
   /healthz:
     get:
       description: Healthz API.
@@ -1705,9 +1791,9 @@ paths:
       summary: Api Root
       tags:
         - Walker APIs
-  /walker/combination2/{node}/{a}:
+  /walker/combination2/{a}/{node}:
     delete:
-      operationId: api_entry_walker_combination2__node___a__delete
+      operationId: api_entry_walker_combination2__a___node__delete
       parameters:
         - in: path
           name: node
@@ -1754,7 +1840,7 @@ paths:
       tags:
         - Walker APIs
     get:
-      operationId: api_entry_walker_combination2__node___a__get
+      operationId: api_entry_walker_combination2__a___node__get
       parameters:
         - in: path
           name: node
@@ -1801,7 +1887,7 @@ paths:
       tags:
         - Walker APIs
     head:
-      operationId: api_entry_walker_combination2__node___a__head
+      operationId: api_entry_walker_combination2__a___node__head
       parameters:
         - in: path
           name: node
@@ -1848,7 +1934,7 @@ paths:
       tags:
         - Walker APIs
     options:
-      operationId: api_entry_walker_combination2__node___a__options
+      operationId: api_entry_walker_combination2__a___node__options
       parameters:
         - in: path
           name: node
@@ -1889,7 +1975,7 @@ paths:
       tags:
         - Walker APIs
     patch:
-      operationId: api_entry_walker_combination2__node___a__patch
+      operationId: api_entry_walker_combination2__a___node__patch
       parameters:
         - in: path
           name: node
@@ -1936,7 +2022,7 @@ paths:
       tags:
         - Walker APIs
     post:
-      operationId: api_entry_walker_combination2__node___a__post
+      operationId: api_entry_walker_combination2__a___node__post
       parameters:
         - in: path
           name: node
@@ -1983,7 +2069,7 @@ paths:
       tags:
         - Walker APIs
     put:
-      operationId: api_entry_walker_combination2__node___a__put
+      operationId: api_entry_walker_combination2__a___node__put
       parameters:
         - in: path
           name: node
@@ -2030,7 +2116,7 @@ paths:
       tags:
         - Walker APIs
     trace:
-      operationId: api_entry_walker_combination2__node___a__trace
+      operationId: api_entry_walker_combination2__a___node__trace
       parameters:
         - in: path
           name: node
@@ -2642,6 +2728,47 @@ paths:
       summary: Enter summary here!!!
       tags:
         - Documented
+  /walker/generate_walker:
+    get:
+      operationId: api_root_walker_generate_walker_get
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+      summary: Api Root
+      tags:
+        - Walker APIs
+  /walker/generate_walker/{node}:
+    get:
+      operationId: api_entry_walker_generate_walker__node__get
+      parameters:
+        - in: path
+          name: node
+          required: true
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Node
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Api Entry
+      tags:
+        - Walker APIs
   /walker/get_all_query:
     get:
       operationId: api_root_walker_get_all_query_get
@@ -2929,6 +3056,19 @@ paths:
       security:
         - HTTPBearer: []
       summary: Api Entry
+      tags:
+        - Walker APIs
+  /walker/html_response:
+    get:
+      operationId: api_root_walker_html_response_get
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+      summary: Api Root
       tags:
         - Walker APIs
   /walker/manual_create_nested_node:
@@ -3468,9 +3608,9 @@ paths:
       summary: Api Root
       tags:
         - Walker APIs
-  /walker/post_path_var/{node}/{a}:
+  /walker/post_path_var/{a}/{node}:
     get:
-      operationId: api_entry_walker_post_path_var__node___a__get
+      operationId: api_entry_walker_post_path_var__a___node__get
       parameters:
         - in: path
           name: node
@@ -3505,7 +3645,7 @@ paths:
       tags:
         - Walker APIs
     post:
-      operationId: api_entry_walker_post_path_var__node___a__post
+      operationId: api_entry_walker_post_path_var__a___node__post
       parameters:
         - in: path
           name: node
@@ -3767,6 +3907,19 @@ paths:
       security:
         - HTTPBearer: []
       summary: Api Entry
+      tags:
+        - Walker APIs
+  /walker/stream_response:
+    get:
+      operationId: api_root_walker_stream_response_get
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+      summary: Api Root
       tags:
         - Walker APIs
   /walker/traverse_graph:
@@ -4458,9 +4611,22 @@ paths:
       summary: Api Entry
       tags:
         - Webhook Walker APIs
-  /webhook/walker/webhook_by_path/{node}/{test_key}:
+  /webhook/walker/webhook_by_path/{test_key}:
     post:
-      operationId: api_entry_webhook_walker_webhook_by_path__node___test_key__post
+      operationId: api_root_webhook_walker_webhook_by_path__test_key__post
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextResponse_Any_"
+          description: Successful Response
+      summary: Api Root
+      tags:
+        - Webhook Walker APIs
+  /webhook/walker/webhook_by_path/{test_key}/{node}:
+    post:
+      operationId: api_entry_webhook_walker_webhook_by_path__test_key___node__post
       parameters:
         - in: path
           name: node
@@ -4484,19 +4650,6 @@ paths:
                 $ref: "#/components/schemas/HTTPValidationError"
           description: Validation Error
       summary: Api Entry
-      tags:
-        - Webhook Walker APIs
-  /webhook/walker/webhook_by_path/{test_key}:
-    post:
-      operationId: api_root_webhook_walker_webhook_by_path__test_key__post
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ContextResponse_Any_"
-          description: Successful Response
-      summary: Api Root
       tags:
         - Webhook Walker APIs
   /webhook/walker/webhook_by_query:

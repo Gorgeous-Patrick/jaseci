@@ -26,6 +26,7 @@ from jaclang.compiler.passes.main import (
     SymTabBuildPass,
     SymTabLinkPass,
     Transform,
+    TypeCheckPass,
 )
 from jaclang.compiler.passes.tool import (
     DocIRGenPass,
@@ -45,6 +46,9 @@ ir_gen_sched = [
     SemDefMatchPass,
     CFGBuildPass,
     InheritancePass,
+]
+type_check_sched: list = [
+    TypeCheckPass,
 ]
 py_code_gen = [
     PyastGenPass,
@@ -102,12 +106,20 @@ class JacProgram:
         return mod
 
     def compile(
-        self, file_path: str, use_str: str | None = None, no_cgen: bool = False
+        self,
+        file_path: str,
+        use_str: str | None = None,
+        # TODO: Create a compilation options class and put the bellow
+        # options in it.
+        no_cgen: bool = False,
+        type_check: bool = False,
     ) -> uni.Module:
         """Convert a Jac file to an AST."""
         keep_str = use_str or read_file_with_encoding(file_path)
         mod_targ = self.parse_str(keep_str, file_path)
         self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
+        if type_check:
+            self.run_schedule(mod=mod_targ, passes=type_check_sched)
         if not no_cgen:
             self.run_schedule(mod=mod_targ, passes=py_code_gen)
         return mod_targ
@@ -119,9 +131,11 @@ class JacProgram:
         BinderPass(ir_in=mod_targ, prog=self)
         return mod_targ
 
-    def build(self, file_path: str, use_str: str | None = None) -> uni.Module:
+    def build(
+        self, file_path: str, use_str: str | None = None, type_check: bool = False
+    ) -> uni.Module:
         """Convert a Jac file to an AST."""
-        mod_targ = self.compile(file_path, use_str)
+        mod_targ = self.compile(file_path, use_str, type_check=type_check)
         JacImportDepsPass(ir_in=mod_targ, prog=self)
         for mod in self.mod.hub.values():
             SymTabLinkPass(ir_in=mod, prog=self)

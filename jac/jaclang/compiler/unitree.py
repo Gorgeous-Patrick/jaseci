@@ -30,6 +30,7 @@ from jaclang.compiler.constant import (
     SymbolType,
 )
 from jaclang.compiler.constant import DELIM_MAP, SymbolAccess, Tokens as Tok
+from jaclang.compiler.type_system.types import TypeBase
 from jaclang.utils import resolve_relative_path
 from jaclang.utils.treeprinter import (
     print_ast_tree,
@@ -720,6 +721,14 @@ class Expr(UniNode):
     def __init__(self) -> None:
         self._sym_type: str = "NoType"
         self._type_sym_tab: Optional[UniScopeNode] = None
+
+        # When the type of an expression is resolved, we'll be caching
+        # the type here.
+        #
+        # TODO:
+        # 1. Find a better name for this
+        # 2. Migrate this to expr_type property
+        self.type: TypeBase | None = None
 
     @property
     def expr_type(self) -> str:

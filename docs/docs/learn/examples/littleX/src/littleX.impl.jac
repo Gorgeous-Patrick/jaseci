@@ -1,4 +1,3 @@
-
 impl search_tweets {
     query_embedding = sentence_transformer.encode([query]);
     tweet_embeddings = sentence_transformer.encode([tweet]);
