@@ -610,7 +610,7 @@ class JacWalker:
 
         walker.ignores = []
         walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
-        random_mapping = random_partition(graph, 5)
+        random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
         trace = [all_nodes.index(node) for node in walker.trace]
         print_performance_info(random_mapping, walker, trace)

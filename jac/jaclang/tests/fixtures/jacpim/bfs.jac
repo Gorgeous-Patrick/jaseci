@@ -6,13 +6,13 @@ node BFSNode {
 
 
 walker BFS {
-  has visited_4000: list[int] = [];
+  has visited_500: list[int] = [];
   can run with BFSNode entry {
-    if (here.id in self.visited_4000) {
+    if (here.id in self.visited_500) {
       return;
     }
     print(here.id);
-    self.visited_4000.append(here.id);
+    self.visited_500.append(here.id);
     visit [-->];
   }
 }

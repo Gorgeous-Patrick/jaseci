@@ -7,8 +7,10 @@ from collections import defaultdict
 
 import networkx as nx
 
-DPU_SIZE_LIMIT = 64 * 1024 * 1024
+DPU_SIZE_LIMIT = 1024
 DPU_NUM = 2560
+RESERVED_SIZE = 128
+MAX_PARTITION_SIZE = DPU_SIZE_LIMIT - RESERVED_SIZE
 
 def fennel_partition(
     graph: nx.DiGraph, num_partitions: int, capacity: int
@@ -70,9 +72,8 @@ def fennel_partition(
 def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa: ANN201
     # MAX_PARTITION_SIZE =   # Arbitrary limit to prevent overflow
     # TODO: Change this size to a more accurate one.
-    RESERVED_SIZE = 1024
-    MAX_PARTITION_SIZE = DPU_SIZE_LIMIT - RESERVED_SIZE
     dpu_data: list[set[int]] = [set() for _ in range(DPU_NUM)]
+    dpu_data_amount: list[int] = [0 for _ in range(DPU_NUM)]
     res = {}
     for path in paths:
         for node in path:
@@ -80,18 +81,33 @@ def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa:
             if node in res.keys():
                 continue
             node_size = network.nodes[node].get("node_size")
-            dpu = 0
-            while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE - node_size:
-                dpu = (dpu + 1) % DPU_NUM
+            print("NODE_SIZE:", node_size)
+            dpu = -1
+            for i in range(DPU_NUM):
+                if dpu_data_amount[i] <= MAX_PARTITION_SIZE - node_size:
+                    dpu = i
+                    break
+            if dpu == -1:
+                print("No suitable DPU found")
+                exit(1)
             dpu_data[dpu].add(node)
+            dpu_data_amount[dpu] += node_size
             res[node] = dpu
     for node in network.nodes():
         if node not in res.keys():
-            dpu = 0
-            while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE - node_size:
-                dpu = (dpu + 1) % DPU_NUM
+            node_size = network.nodes[node].get("node_size")
+            dpu = -1
+            for i in range(DPU_NUM):
+                if dpu_data_amount[i] <= MAX_PARTITION_SIZE - node_size:
+                    dpu = i
+                    break
+            if dpu == -1:
+                print("No suitable DPU found")
+                exit(1)
             dpu_data[dpu].add(node)
+            dpu_data_amount[dpu] += node_size
             res[node] = dpu
+    print("Memory usage per DPU:", dpu_data_amount)
     print(res)
     return res
 
@@ -111,12 +127,11 @@ def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa:
     print(res)
     return res
 
-def random_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
+def random_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa: ANN201
     """Random partitioner (baseline)."""
-    graph = graph.copy()
     res = {}
-    for _, name in enumerate(graph.nodes()):
-        res[name] = random.randint(0, num_partitions - 1)
+    for _, name in enumerate(network.nodes()):
+        res[name] = random.randint(0, DPU_NUM - 1)
     return res
 
 
