@@ -37,7 +37,9 @@ def print_performance_info(mapping: dict[int, int], walker: WalkerAnchor, trace:
     transfer_time = get_transfer_time(num_jumps, walker_size)
     compute_time = get_compute_time(trace_len)
     total = transfer_time + compute_time
-    print(f"Number of jumps: {num_jumps}")
+    print("===============")
+    print(f"Total number of jumps: {trace_len - 1}")
+    print(f"Number of cross DPU jumps: {num_jumps}")
     print(f"Walker size: {walker_size} bytes")
     print(f"Transfer time: {transfer_time} seconds")
     print(f"Compute time: {compute_time} seconds")

@@ -2,15 +2,36 @@
 
 import random
 from collections import defaultdict
-
-# import metis
-
 import networkx as nx
 
 DPU_SIZE_LIMIT = 1024
 DPU_NUM = 50
 RESERVED_SIZE = 128
 MAX_PARTITION_SIZE = DPU_SIZE_LIMIT - RESERVED_SIZE
+
+class NodeDistribution:
+    def __init__(self):
+        self.node_to_partition = {}
+        self.partition_availability = [0] * DPU_NUM
+    def add_node(self, node: int, partition: int, node_size: int):
+        self.node_to_partition[node] = partition
+        self.partition_availability[partition] += node_size
+        assert self.partition_availability[partition] <= MAX_PARTITION_SIZE
+
+    def node_assigned(self, node: int):
+        return node in self.node_to_partition.keys()
+    
+    def available_partitions(self, node_size: int):
+        return [
+            i for i in range(DPU_NUM)
+            if self.partition_availability[i] + node_size <= MAX_PARTITION_SIZE
+        ]
+    
+    def get_dpu_data_amount(self):
+        return self.partition_availability
+
+    def get_partition(self):
+        return self.node_to_partition
 
 def fennel_partition(
     graph: nx.DiGraph, num_partitions: int, capacity: int
@@ -54,84 +75,72 @@ def fennel_partition(
 
     return assignment, partitions
 
-
-# def metis_partition(graph: nx.DiGraph, num_partitions: int):  # noqa: ANN201
-#     """Metis partitioner."""
-#     (edgecuts, parts) = metis.part_graph(
-#         metis.networkx_to_metis(graph),
-#         nparts=num_partitions,
-#         # recursive=True,
-#         # tpwgts=[1 / num_partitions] * num_partitions,
-#         # ufactor=30,
-#     )
-#     res = {}
-#     for i, name in enumerate(graph.nodes()):
-#         res[name] = parts[i]
-#     return res
-
 def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa: ANN201
     # MAX_PARTITION_SIZE =   # Arbitrary limit to prevent overflow
     # TODO: Change this size to a more accurate one.
-    dpu_data: list[set[int]] = [set() for _ in range(DPU_NUM)]
-    dpu_data_amount: list[int] = [0 for _ in range(DPU_NUM)]
-    res = {}
+    # dpu_data: list[set[int]] = [set() for _ in range(DPU_NUM)]
+    # dpu_data_amount: list[int] = [0 for _ in range(DPU_NUM)]
+    # res = {}
+    node_distribution = NodeDistribution()
     for path in paths:
         for node in path:
             # If node has been assigned, then skip it.
-            if node in res.keys():
+            if node_distribution.node_assigned(node):
                 continue
             node_size = network.nodes[node].get("node_size")
-            print("NODE_SIZE:", node_size)
-            dpu = -1
-            for i in range(DPU_NUM):
-                if dpu_data_amount[i] <= MAX_PARTITION_SIZE - node_size:
-                    dpu = i
-                    break
-            if dpu == -1:
-                print("No suitable DPU found")
-                exit(1)
-            dpu_data[dpu].add(node)
-            dpu_data_amount[dpu] += node_size
-            res[node] = dpu
+            available_partitions = node_distribution.available_partitions(node_size)
+            if not available_partitions:
+                print("No available partition found")
+                continue
+            node_distribution.add_node(node, available_partitions[0], node_size)
+            # dpu = -1
+            # for i in range(DPU_NUM):
+            #     if dpu_data_amount[i] <= MAX_PARTITION_SIZE - node_size:
+            #         dpu = i
+            #         break
+            # if dpu == -1:
+            #     print("No suitable DPU found")
+            #     exit(1)
+            # dpu_data[dpu].add(node)
+            # dpu_data_amount[dpu] += node_size
+            # res[node] = dpu
     for node in network.nodes():
-        if node not in res.keys():
+        if not node_distribution.node_assigned(node):
+            print("Assigning node:", node)
             node_size = network.nodes[node].get("node_size")
-            dpu = -1
-            for i in range(DPU_NUM):
-                if dpu_data_amount[i] <= MAX_PARTITION_SIZE - node_size:
-                    dpu = i
-                    break
-            if dpu == -1:
-                print("No suitable DPU found")
-                exit(1)
-            dpu_data[dpu].add(node)
-            dpu_data_amount[dpu] += node_size
-            res[node] = dpu
-    print("Memory usage per DPU:", dpu_data_amount)
-    print(res)
-    return res
-
-    # for idx, path in enumerate(paths):
-    #     dpu = idx % DPU_NUM
-    #     print(f"Assigning path {idx} to DPU {dpu}")
-    #     for node in path:
-    #         node_size = network.nodes[node].get("node_size")
-    #         while len(dpu_data[dpu]) >= MAX_PARTITION_SIZE - node_size:
-    #             dpu = (dpu + 1) % DPU_NUM
-    #         dpu_data[dpu].add(node)
-    # # return a dict mapping node to partition
-    # res = {}
-    # for dpu, nodes in enumerate(dpu_data):
-    #     for node in nodes:
-    #         res[node] = dpu
-    print(res)
+            available_partitions = node_distribution.available_partitions(node_size)
+            if not available_partitions:
+                print("No available partition found")
+                continue
+            node_distribution.add_node(node, available_partitions[0], node_size)
+            # dpu = -1
+            # for i in range(DPU_NUM):
+            #     if dpu_data_amount[i] <= MAX_PARTITION_SIZE - node_size:
+            #         dpu = i
+            #         break
+            # if dpu == -1:
+            #     print("No suitable DPU found")
+            #     exit(1)
+            # dpu_data[dpu].add(node)
+            # dpu_data_amount[dpu] += node_size
+            # res[node] = dpu
+    print("Memory usage per DPU:", node_distribution.get_dpu_data_amount())
+    res = node_distribution.get_partition()
+    assert(all(node in res.keys() for node in network.nodes()))
+    print("Node to partition mapping:", res)
     return res
 
 def random_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa: ANN201
     """Random partitioner (baseline)."""
     res = {}
+    node_distribution = NodeDistribution()
     for _, name in enumerate(network.nodes()):
-        res[name] = random.randint(0, DPU_NUM - 1)
+        # res[name] = random.randint(0, DPU_NUM - 1)
+        dpu = random.choice(node_distribution.available_partitions(network.nodes[name].get("node_size")))
+        assert dpu is not None
+        node_distribution.add_node(name, dpu, network.nodes[name].get("node_size"))
+    res = node_distribution.get_partition()
+    assert(all(node in res.keys() for node in network.nodes()))
     return res
 
 

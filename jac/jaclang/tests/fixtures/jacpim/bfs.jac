@@ -11,7 +11,7 @@ walker BFS {
     if (here.id in self.visited_500) {
       return;
     }
-    print(here.id);
+    # print(here.id);
     self.visited_500.append(here.id);
     visit [-->];
   }
