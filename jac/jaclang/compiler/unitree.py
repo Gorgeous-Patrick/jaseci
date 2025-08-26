@@ -1380,7 +1380,7 @@ class ModuleItem(AstSymbolNode):
         AstSymbolNode.__init__(
             self,
             sym_name=alias.sym_name if alias else name.sym_name,
-            name_spec=alias if alias else name,
+            name_spec=alias or name,
             sym_category=SymbolType.MOD_VAR,
         )
         self.abs_path: Optional[str] = None

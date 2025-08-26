@@ -7,10 +7,16 @@ PyrightReference:
 """
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.type_system import types
 
+if TYPE_CHECKING:
+    from jaclang.compiler.program import JacProgram
+
+from .type_utils import ClassMember
 from .types import TypeBase
 
 
@@ -41,7 +47,7 @@ class PrefetchedTypes:
 class TypeEvaluator:
     """Type evaluator for JacLang."""
 
-    def __init__(self, builtins_module: uni.Module) -> None:
+    def __init__(self, builtins_module: uni.Module, program: "JacProgram") -> None:
         """Initialize the type evaluator with prefetched types.
 
         Implementation Note:
@@ -53,6 +59,7 @@ class TypeEvaluator:
         are prefetching the builtins at the constructor level once.
         """
         self.builtins_module = builtins_module
+        self.program = program
         self.prefetch = self._prefetch_types()
 
     # Pyright equivalent function name = getEffectiveTypeOfSymbol.
@@ -60,11 +67,46 @@ class TypeEvaluator:
         """Return the effective type of the symbol."""
         return self._get_type_of_symbol(symbol)
 
-    def get_type_of_class(self, node: uni.Archetype) -> TypeBase:
+    def get_type_of_module(self, node: uni.ModulePath) -> types.ModuleType:
+        """Return the effective type of the module."""
+        if node.name_spec.type is not None:
+            return cast(types.ModuleType, node.name_spec.type)
+
+        # Get the module, if it's not loaded yet, compile and get it.
+        #
+        # TODO:
+        # We're not typechecking inside the module itself however we
+        # need to check if the module path is site-package or not and
+        # do typecheck inside as well.
+        mod: uni.Module
+        path_str = node.resolve_relative_path()
+        if path_str in self.program.mod.hub:
+            mod = self.program.mod.hub[path_str]
+        else:
+            mod = self.program.compile(path_str, no_cgen=True, type_check=False)
+            # FIXME: Inherit from builtin symbol table logic is currently implemented
+            # here and checker pass, however it should be in one location, since we're
+            # doing type_check=False, it doesn't set parent_scope to builtins, this
+            # needs to be done properly. The way jaclang handles symbol table is different
+            # than pyright, so we cannot strictly follow them, however as long as a new
+            # module has a parent scope as builtin scope, we're aligned with pyright.
+            if mod.parent_scope is None and mod is not self.builtins_module:
+                mod.parent_scope = self.builtins_module
+
+        mod_type = types.ModuleType(
+            mod_name=node.name_spec.sym_name,
+            file_uri=Path(node.resolve_relative_path()).resolve(),
+            symbol_table=mod,
+        )
+
+        node.name_spec.type = mod_type
+        return mod_type
+
+    def get_type_of_class(self, node: uni.Archetype) -> types.ClassType:
         """Return the effective type of the class."""
         # Is this type already cached?
         if node.name_spec.type is not None:
-            return node.name_spec.type
+            return cast(types.ClassType, node.name_spec.type)
 
         cls_type = types.ClassType(
             types.ClassType.ClassDetailsShared(
@@ -191,6 +233,9 @@ class TypeEvaluator:
         """Return the declared type of the symbol."""
         node = symbol.decl.name_of
         match node:
+            case uni.ModulePath():
+                return self.get_type_of_module(node)
+
             case uni.Archetype():
                 return self.get_type_of_class(node)
 
@@ -235,21 +280,40 @@ class TypeEvaluator:
                 # NOTE: Pyright is using CFG to figure out the member type by narrowing the base
                 # type and filtering the members. We're not doing that anytime sooner.
                 base_type = self.get_type_of_expression(expr.target)
+
                 if expr.is_attr:  # <expr>.member
                     assert isinstance(expr.right, uni.Name)
-                    if base_type.is_instantiable_class():
+
+                    if isinstance(base_type, types.ModuleType):
+                        # getTypeOfMemberAccessWithBaseType()
+                        if sym := base_type.symbol_table.lookup(
+                            expr.right.value, deep=True
+                        ):
+                            expr.right.sym = sym
+                            return self.get_type_of_symbol(sym)
+                        return types.UnknownType()
+
+                    elif base_type.is_instantiable_class():
                         assert isinstance(base_type, types.ClassType)
-                        return self._lookup_class_member_type(
+                        if member := self._lookup_class_member(
                             base_type, expr.right.value
-                        )
+                        ):
+                            expr.right.sym = member.symbol
+                            return self.get_type_of_symbol(member.symbol)
+                        return types.UnknownType()
+
                     elif base_type.is_class_instance():
                         assert isinstance(base_type, types.ClassType)
-                        return self._lookup_object_member_type(
+                        if member := self._lookup_object_member(
                             base_type, expr.right.value
-                        )
+                        ):
+                            expr.right.sym = member.symbol
+                            return self.get_type_of_symbol(member.symbol)
+                        return types.UnknownType()
 
                 elif expr.is_null_ok:  # <expr>?.member
                     pass  # TODO:
+
                 else:  # <expr>[<expr>]
                     pass  # TODO:
 
@@ -272,9 +336,9 @@ class TypeEvaluator:
             return jtype.clone_as_instance()
         return jtype
 
-    def _lookup_class_member_type(
+    def _lookup_class_member(
         self, base_type: types.ClassType, member: str
-    ) -> TypeBase:
+    ) -> ClassMember | None:
         """Lookup the class member type."""
         assert self.prefetch.int_class is not None
         # FIXME: Pyright's way: Implement class member iterator (based on mro and the multiple inheritance)
@@ -283,16 +347,16 @@ class TypeEvaluator:
         # NOTE: This is a simple implementation to make it work and more robust implementation will
         # be done in a future PR.
         if sym := base_type.lookup_member_symbol(member):
-            return self.get_type_of_symbol(sym)
-        return types.UnknownType()
+            return ClassMember(sym, base_type)
+        return None
 
-    def _lookup_object_member_type(
+    def _lookup_object_member(
         self, base_type: types.ClassType, member: str
-    ) -> TypeBase:
+    ) -> ClassMember | None:
         """Lookup the object member type."""
         assert self.prefetch.int_class is not None
         if base_type.is_class_instance():
             assert isinstance(base_type, types.ClassType)
             # TODO: We need to implement Member lookup flags and set SkipInstanceMember to 0.
-            return self._lookup_class_member_type(base_type, member)
-        return types.UnknownType()
+            return self._lookup_class_member(base_type, member)
+        return None

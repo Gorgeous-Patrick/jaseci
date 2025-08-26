@@ -42,7 +42,10 @@ class TypeCheckPass(UniPass):
         self._insert_builtin_symbols()
 
         assert TypeCheckPass._BUILTINS_MODULE is not None
-        self.evaluator = TypeEvaluator(TypeCheckPass._BUILTINS_MODULE)
+        self.evaluator = TypeEvaluator(
+            builtins_module=TypeCheckPass._BUILTINS_MODULE,
+            program=self.prog,
+        )
 
     # --------------------------------------------------------------------------
     # Internal helper functions

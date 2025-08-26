@@ -235,6 +235,10 @@ def build(filename: str, typecheck: bool = False) -> None:
     errs = len(out.errors_had)
     warnings = len(out.warnings_had)
     print(f"Errors: {errs}, Warnings: {warnings}")
+
+    for alrt in out.errors_had + out.warnings_had:
+        print(alrt.pretty_print(), file=sys.stderr)
+
     with open(filename[:-4] + ".jir", "wb") as f:
         pickle.dump(out, f)
 

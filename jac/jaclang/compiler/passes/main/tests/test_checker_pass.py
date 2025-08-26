@@ -102,6 +102,30 @@ class TypeCheckerPassTests(TestCase):
           ^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_import_symbol_type_infer(self) -> None:
+        src = """
+        import math as alias;
+        with entry {
+
+          # math module imports sys so it has the symbol
+          # we're not using math.pi since it's a Final[float]
+          # and we haven't implemented generic types yet.
+          m = alias;
+
+          i: int = m.sys.prefix; # <-- Error
+          s: str = m.sys.prefix; # <-- Ok
+        }
+        """
+        program = JacProgram()
+        mod = program.compile("main.jac", use_str=src)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 1)
+        self._assert_error_pretty_found("""
+            i: int = m.sys.prefix;
+            ^^^^^^^^^^^^^^^^^^^^^
+        """, program.errors_had[0].pretty_print())
+
+
     def _assert_error_pretty_found(self, needle: str, haystack: str) -> None:
         for line in [line.strip() for line in needle.splitlines() if line.strip()]:
             self.assertIn(line, haystack, f"Expected line '{line}' not found in:\n{haystack}")
