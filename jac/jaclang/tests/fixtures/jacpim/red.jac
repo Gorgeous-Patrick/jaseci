@@ -22,7 +22,7 @@ walker red {
 }
 
 with entry {
-  THREAD_NUM = 500;
+  THREAD_NUM = 50;
   DATA_LEN = 1500;
   k = 0;
   heads = [];
@@ -56,7 +56,5 @@ with entry {
   }
 
   walkers = [];
-  for head in heads {
-    walkers.append(head spawn red());
-  }
+  walker_inst = heads[0] spawn red();
 }
