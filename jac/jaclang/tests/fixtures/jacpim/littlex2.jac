@@ -5,7 +5,7 @@ node Profile {
 
 node Tweet {
   has id: int;
-  has content: str;
+  has content_32: str;
 }
 
 edge Follow {}
@@ -25,19 +25,19 @@ walker LoadFeed {
   }
 
   can calc with Tweet entry {
-    print(here.id, here.content);
+    print(here.id, here.content_32);
   }
 }
 
 with entry {
   nodes = [];
-  NODE_NUM = 5;
+  NODE_NUM = 256;
   TWEET_NUM = 2;
   for i in range(NODE_NUM) {
     nodes.append(Profile(id = i));
     root ++> nodes[i];
     for j in range(TWEET_NUM) {
-      nodes[i] +>:Post:+> Tweet(id=j, content="hello world");
+      nodes[i] +>:Post:+> Tweet(id=j, content_32="hello world");
     }
   }
 

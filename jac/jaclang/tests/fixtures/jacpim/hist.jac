@@ -4,26 +4,26 @@ node Data {
 }
 
 node FinalResult {
-  has result: list[int] = [0] * 100;
+  has result_800: list[int] = [0] * 100;
 }
 
 walker histogram {
-  has tmp_result: list[int] = [0] * 100;
+  has tmp_result_800: list[int] = [0] * 100;
   can get with Data entry {
-    self.tmp_result[here.data % 100] += 1;
+    self.tmp_result_800[here.data % 100] += 1;
     visit [->:SumEdge:->];
   }
 
   can sum_up with FinalResult entry {
     for i in range(100) {
-      here.result[i] += self.tmp_result[i];
+      here.result_800[i] += self.tmp_result_800[i];
     }
   }
 }
 
 with entry {
-  THREAD_NUM = 5;
-  DATA_LEN = 15;
+  THREAD_NUM = 50;
+  DATA_LEN = 1024;
   k = 0;
   heads = [];
   tails = [];
@@ -50,14 +50,14 @@ with entry {
     prev = n;
   }
   tails.append(prev);
-  final = FinalResult(result = [0] * 100);
+  final = FinalResult(result_800 = [0] * 100);
   for tail in tails {
     tail +>:SumEdge:+> final;
   }
 
   walkers = [];
   wlk1 = heads[0] spawn histogram();
-  print(final.result);
+  print(final.result_800);
 }
 
 # Single number per node

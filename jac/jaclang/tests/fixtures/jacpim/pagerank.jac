@@ -12,17 +12,17 @@ node Page {
 edge HyperLink {}
 
 walker PageRank{
-  has collected_score: float | None = None;
+  has collected_score_8: float | None = None;
   can run with Page entry  {
     print(f"visit ID {here.id}");
-    if (self.collected_score is None) {
+    if (self.collected_score_8 is None) {
       if (len([->:HyperLink:->]) == 0) {
         return;
       }
-      self.collected_score = here.score / len([->:HyperLink:->]);
+      self.collected_score_8 = here.score / len([->:HyperLink:->]);
       visit [->:HyperLink:->];
     } else {
-      here.new_score += self.collected_score;
+      here.new_score += self.collected_score_8;
     }
   }
 }
@@ -30,7 +30,7 @@ walker PageRank{
 with entry {
   
   nodes = [];
-  NODE_NUM = 10;
+  NODE_NUM = 512;
   for i in range(NODE_NUM) {
     nodes.append(Page(id = i));
     root ++> nodes[i];

@@ -25,8 +25,8 @@ def random_tree(nodes: list) -> None {
 
 
 with entry {
-    NUM_NODES_PER_TREE = 10;
-    NUM_TREE = 3;
+    NUM_NODES_PER_TREE = 128;
+    NUM_TREE = 40;
     all_nodes = [];
     for i in range(NUM_TREE) {
         nodes = [Data(id = id) for id in range(i * NUM_NODES_PER_TREE, (i + 1) * NUM_NODES_PER_TREE)];

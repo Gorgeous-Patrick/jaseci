@@ -8,7 +8,7 @@ from collections import defaultdict
 import networkx as nx
 
 DPU_SIZE_LIMIT = 1024
-DPU_NUM = 2560
+DPU_NUM = 50
 RESERVED_SIZE = 128
 MAX_PARTITION_SIZE = DPU_SIZE_LIMIT - RESERVED_SIZE
 
