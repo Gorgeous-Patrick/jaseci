@@ -22,8 +22,8 @@ walker red {
 }
 
 with entry {
-  THREAD_NUM = 5;
-  DATA_LEN = 15;
+  THREAD_NUM = 500;
+  DATA_LEN = 1500;
   k = 0;
   heads = [];
   tails = [];

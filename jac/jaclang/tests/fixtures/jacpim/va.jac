@@ -22,8 +22,9 @@ walker va {
 
 
 with entry {
-    vectorA = [1, 2, 3, 4, 5];
-    vectorB = [6, 7, 8, 9, 10];
+    N = 1000000;
+    vectorA = list(range(N));
+    vectorB = list(range(N, 2*N));
     vectorAData = [Data(id=f"A{idx}", data = num) for (idx, num) in enumerate(vectorA)];
     vectorBData = [Data(id=f"B{idx}", data = num) for (idx, num) in enumerate(vectorB)];
     vectorCData = [Result(id=f"C{idx}") for (idx, num) in enumerate(vectorB)];
