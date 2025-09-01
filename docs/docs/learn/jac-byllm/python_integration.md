@@ -1,22 +1,22 @@
-# MTLLM as a Library for Python
+# byLLM as a Library for Python
 
-The MTLLM module is a Jaclang plugin that provides AI functionality. Since Jaclang supersets Python, MTLLM can be integrated into Python applications. This guide demonstrates how to use MTLLM in Python.
+The byLLM module is a Jaclang plugin that provides AI functionality. Since Jaclang supersets Python, byLLM can be integrated into Python applications. This guide demonstrates how to use byLLM in Python.
 
-MTLLM is a Python package that needs to be installed using:
+byLLM is a Python package that needs to be installed using:
 
 ```bash
-pip install mtllm
+pip install byllm
 ```
 
-## Importing MTLLM in Python
+## Importing byLLM in Python
 
-MTLLM functionality is accessed by importing the `mtllm` module and using the `by` decorator on functions.
+byLLM functionality is accessed by importing the `byllm` module and using the `by` decorator on functions.
 
 ```python linenums="1"
 import jaclang
 from jaclang import JacMachineInterface as Jac
 from dataclasses import dataclass
-from mtllm import Model, Image, by
+from byllm import Model, Image, by
 
 llm = Model(model_name="gpt-4o")
 
@@ -36,7 +36,7 @@ person = get_person_info(img)
 print(f"Name: {person.full_name}, Description: {person.description}, Year of Birth: {person.year_of_birth}")
 ```
 ??? example "NOTE:"
-    Here MTLLM can only use primitive types and dataclasses as input and output types. We are working to resolve this limitation.
+    Here byLLM can only use primitive types and dataclasses as input and output types. We are working to resolve this limitation.
 
 
 ## Model Hyper-parameters
@@ -44,7 +44,7 @@ print(f"Name: {person.full_name}, Description: {person.description}, Year of Bir
 In Jaclang, hyper-parameters are set by passing them to the LLM model:
 
 ```jac linenums="1"
-import from mtllm { Model }
+import from byllm { Model }
 
 glob llm = Model(model_name="gpt-4o")
 
@@ -56,7 +56,7 @@ The `temperature` hyper-parameter controls the randomness of the output. Lower v
 In Python, hyper-parameters are passed similarly:
 
 ```python linenums="1"
-from mtllm import Model, by
+from byllm import Model, by
 
 llm = Model(model_name="gpt-4o")
 
@@ -66,10 +66,10 @@ def generate_joke() -> str: ...
 
 ## Using Python Functions as Tools
 
-Python functions can be used as tools in MTLLM. Functions defined in Python are callable by the LLM to perform specific tasks:
+Python functions can be used as tools in byLLM. Functions defined in Python are callable by the LLM to perform specific tasks:
 
 ```python linenums="1"
-from mtllm.llm import Model
+from byllm.llm import Model
 llm = Model(model_name="gpt-4o")
 
 

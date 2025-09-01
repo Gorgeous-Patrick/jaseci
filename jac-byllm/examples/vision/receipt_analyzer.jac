@@ -1,22 +1,18 @@
-import from mtllm.llms { OpenAI }
-import from mtllm.tools.math_utils { math_tool }
-import from PIL { Image }
+import from byllm { Model, Image }
 
-glob llm = OpenAI(verbose=True, model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
-obj 'Purchased Item'
-PurchasedItem {
-    has name: 'Item Name': str,
-        price: 'Item Price': float,
-        quantity: 'Item Quantity': int;
+obj PurchasedItem {
+    has name: str,
+        price: float,
+        quantity: int;
 }
 
-obj 'Receipt'
-Receipt {
-    has store: 'Store Name': str,
-        date: 'Purchase Date': str,
-        items: 'Items': list[PurchasedItem],
-        total: 'Total': float;
+obj Receipt {
+    has store: str,
+        date: str,
+        items: list[PurchasedItem],
+        total: float;
 
     def pp() -> None {
         print(f"Store: {self.store}");
@@ -28,9 +24,8 @@ Receipt {
     }
 }
 
-def 'Get Reciept Object'
-get_reciept(reciept_img: 'Image of the Receipt': Image) -> 'Reciept Object': Receipt by llm();
-def verity_total(reciept: Receipt) -> bool by llm(method="ReAct", tools=[math_tool]);
+def get_reciept(reciept_img: Image) -> Receipt by llm();
+def verity_total(reciept: Receipt) -> bool by llm();
 
 with entry {
     reciept_img = Image.open("receipt.jpg");

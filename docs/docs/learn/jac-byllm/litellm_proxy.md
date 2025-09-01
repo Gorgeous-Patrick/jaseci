@@ -2,16 +2,16 @@
 
 <img width="2069" height="1071" alt="image" src="https://github.com/user-attachments/assets/2680a26d-8f66-4288-a06c-5aa02898a91e" />
 
-MTLLM model can also be connected to a [LiteLLM proxy server](https://docs.litellm.ai/docs/simple_proxy). This allows you to use the MTLLM model as a proxy for LiteLLM, enabling you to leverage the capabilities of MTLLM in a LiteLLM environment.
+byLLM model can also be connected to a [LiteLLM proxy server](https://docs.litellm.ai/docs/simple_proxy). This allows you to use the byLLM model as a proxy for LiteLLM, enabling you to leverage the capabilities of byLLM in a LiteLLM environment.
 
 To set up and deploy the LiteLLM proxy server, you can follow the instructions provided in the LiteLLM documentation:
 
 Reference: [https://docs.litellm.ai/docs/proxy/deploy](https://docs.litellm.ai/docs/proxy/deploy)
 
-Once The proxy server is setted up and running, you can connect to it by simply passing the URL of the proxy server to the MTLLM model with the parameter `proxy_url`:
+Once The proxy server is setted up and running, you can connect to it by simply passing the URL of the proxy server to the byLLM model with the parameter `proxy_url`:
 
 ```python
-from mtllm import Model
+from byllm import Model
 
 llm = Model(
     model_name="gpt-4o",                # The model name to be used

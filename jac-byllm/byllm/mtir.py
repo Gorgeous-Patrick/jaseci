@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from types import MethodType
 from typing import Callable, get_type_hints
 
-from mtllm.schema import json_to_instance, type_to_schema
-from mtllm.types import (
+from byllm.schema import json_to_instance, type_to_schema
+from byllm.types import (
     LiteLLMMessage,
     Media,
     Message,

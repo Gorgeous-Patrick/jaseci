@@ -2,10 +2,10 @@
 
 from typing import Callable
 
-from jaclang.runtimelib.machine import hookimpl
+from byllm.llm import Model
+from byllm.mtir import MTIR
 
-from mtllm.llm import Model
-from mtllm.mtir import MTIR
+from jaclang.runtimelib.machine import hookimpl
 
 
 class JacMachine:

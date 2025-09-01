@@ -1,38 +1,38 @@
-# AI-Integrated Programming with MTLLM
+# AI-Integrated Programming with byLLM
 
-This guide covers different ways to use MTLLM for AI-integrated software development in Jaclang. MTLLM provides language-level abstractions for integrating Large Language Models into applications, from basic AI-powered functions to complex multi-agent systems. For agentic behavior capabilities, MTLLM includes the ReAct method with tool integration.
+This guide covers different ways to use byLLM for AI-integrated software development in Jaclang. byLLM provides language-level abstractions for integrating Large Language Models into applications, from basic AI-powered functions to complex multi-agent systems. For agentic behavior capabilities, byLLM includes the ReAct method with tool integration.
 
 ## Supported Models
 
-MTLLM uses [LiteLLM](https://docs.litellm.ai/docs) to provide integration with a wide range of models.
+byLLM uses [LiteLLM](https://docs.litellm.ai/docs) to provide integration with a wide range of models.
 
 === "OpenAI"
     ```jac linenums="1"
-    import from mtllm {Model}
+    import from byllm {Model}
 
     glob llm = Model(model_name = "gpt-4o")
     ```
 === "Gemini"
     ```jac linenums="1"
-    import from mtllm {Model}
+    import from byllm {Model}
 
     glob llm = Model(model_name = "gemini/gemini-2.0-flash")
     ```
 === "Anthropic"
     ```jac linenums="1"
-    import from mtllm {Model}
+    import from byllm {Model}
 
     glob llm = Model(model_name = "claude-3-5-sonnet-20240620")
     ```
 === "Ollama"
     ```jac linenums="1"
-    import from mtllm {Model}
+    import from byllm {Model}
 
     glob llm = Model(model_name = "ollama/llama3:70b")
     ```
 === "HuggingFace Models"
     ```jac linenums="1"
-    import from mtllm {Model}
+    import from byllm {Model}
 
     glob llm = Model(model_name = "huggingface/meta-llama/Llama-3.3-70B-Instruct")
     ```
@@ -47,7 +47,7 @@ MTLLM uses [LiteLLM](https://docs.litellm.ai/docs) to provide integration with a
 Functions can be integrated with LLM capabilities by adding the `by llm` declaration. This eliminates the need for manual API calls and prompt engineering:
 
 ```jac linenums="1"
-import from mtllm.llm { Model }
+import from byllm.llm { Model }
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -65,7 +65,7 @@ These functions process natural language inputs and generate contextually approp
 The `method='Reason'` parameter enables step-by-step reasoning for complex tasks:
 
 ```jac linenums="1"
-import from mtllm.llm { Model }
+import from byllm.llm { Model }
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -89,7 +89,7 @@ with entry {
 
 ### Structured Output Functions
 
-MTLLM supports generation of structured outputs. Functions can return complex types:
+byLLM supports generation of structured outputs. Functions can return complex types:
 
 ```jac linenums="1"
 obj Person {
@@ -119,7 +119,7 @@ Methods can be integrated with LLM capabilities to process object state and cont
 When integrating LLMs for methods of a class, MTP automatically adds attributes of the initialized object into the prompt of the LLM, adding extra context to the LLM.
 
 ```jac linenums="1"
-import from mtllm.llm { Model }
+import from byllm.llm { Model }
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -143,7 +143,7 @@ with entry {
 <!-- Multi-step workflows can be implemented using object methods: -->
 
 <!-- ```jac linenums="1"
-import from mtllm.llm { Model }
+import from byllm.llm { Model }
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -183,14 +183,14 @@ with entry {
 
 ## Adding Explicit Context for Functions, Methods and Objects
 
-Providing appropriate context is essential for optimal LLM performance. MTLLM provides multiple methods to add context to functions and objects.
+Providing appropriate context is essential for optimal LLM performance. byLLM provides multiple methods to add context to functions and objects.
 
 ### Adding Context with Docstrings
 
-Docstrings provide context for LLM-integrated functions. MTLLM uses docstrings to understand function purpose and expected behavior.
+Docstrings provide context for LLM-integrated functions. byLLM uses docstrings to understand function purpose and expected behavior.
 
 ```jac linenums="1"
-import from mtllm.llm { Model }
+import from byllm.llm { Model }
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -230,7 +230,7 @@ def check_eligibility(person: Person, service_type: str) -> bool by llm();
 The `incl_info` parameter provides additional context to LLM methods for context-aware processing:
 
 ```jac linenums="1"
-import from mtllm.llm { Model }
+import from byllm.llm { Model }
 import from datetime { datetime }
 
 glob llm = Model(model_name="gpt-4o");
@@ -270,7 +270,7 @@ In this example:
 The ReAct (Reasoning and Acting) method enables agentic behavior by allowing functions to reason about problems and use external tools. Functions can be made agentic by adding the `by llm(tools=[...])` declaration.
 
 ```jac linenums="1"
-import from mtllm.llm { Model }
+import from byllm.llm { Model }
 import from datetime { datetime }
 
 glob llm = Model(model_name="gpt-4o");
@@ -304,7 +304,7 @@ The streaming feature enables real-time token reception from LLM functions, usef
 Set `stream=True` in the invoke parameters to enable streaming:
 
 ```jac linenums="1"
-import from mtllm { Model }
+import from byllm { Model }
 
 glob llm = Model(model_name="gpt-4o-mini");
 

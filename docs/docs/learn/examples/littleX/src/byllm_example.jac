@@ -1,6 +1,6 @@
-import from mtllm.llms {Ollama}
+import from byllm {Model}
 
-glob llm = Ollama(host="http://127.0.0.1:11434", model_name="llama3.2:1b");
+glob llm = Model(host="http://127.0.0.1:11434", model_name="ollama/llama3.2:1b");
 
 """Summarize latest trends, major events, and notable interactions from the recent tweets in one line."""
 def summarise_tweets(tweets: list[str]) -> str

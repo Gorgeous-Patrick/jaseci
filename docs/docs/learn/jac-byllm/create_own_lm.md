@@ -1,6 +1,6 @@
 # Create Your Own Language Model
 
-This guide will help you to bring your own language model to be used with MTLLM. This is helpful if you have a self-hosted Language Model or you are using a different service that is not currently supported by MTLLM.
+This guide will help you to bring your own language model to be used with byLLM. This is helpful if you have a self-hosted Language Model or you are using a different service that is not currently supported by byLLM.
 
 > **IMPORTANT**
 >
@@ -12,7 +12,7 @@ This guide will help you to bring your own language model to be used with MTLLM.
 
 In Python,
 ```python linenums="1"
-from mtllm.llms.base import BaseLLM
+from byllm.llms.base import BaseLLM
 
 class MyLLM(BaseLLM):
     def __init__(self, verbose: bool = False, max_tries: int = 10, **kwargs):
@@ -66,12 +66,12 @@ with entry {
 You can change the prompting techniques overriding the the following parameters in your class.
 
 ```python
-from mtllm.llms.base import BaseLLM
+from byllm.llms.base import BaseLLM
 
 class MyLLM(BaseLLM):
-    MTLLM_SYSTEM_PROMPT = 'Your System Prompt'
-    MTLLM_PROMPT = 'Your Prompt' # Not Recommended to change this
-    MTLLM_METHOD_PROMPTS = {
+    byLLM_SYSTEM_PROMPT = 'Your System Prompt'
+    byLLM_PROMPT = 'Your Prompt' # Not Recommended to change this
+_METHOD_PROMPTS = {
         "Normal": 'Your Normal Prompt',
         "Reason": 'Your Reason Prompt',
         "Chain-of-Thoughts": 'Your Chain-of-Thought Prompt',
@@ -83,7 +83,7 @@ class MyLLM(BaseLLM):
     # Rest of the code
 ```
 
-Thats it! You have successfully created your own Language Model to be used with MTLLM.
+Thats it! You have successfully created your own Language Model to be used with byLLM.
 
 >  **NOTICE**
 >

@@ -306,7 +306,7 @@ class Video(Media):
         except ImportError:
             raise ImportError(
                 "OpenCV is required to process video files."
-                "Install `pip install mtllm[video]` for video capabilities."
+                "Install `pip install byllm[video]` for video capabilities."
             )
 
         self._base64frames = []

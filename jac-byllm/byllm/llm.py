@@ -9,7 +9,7 @@ enhanced functionality and interface for language model operations.
 import os
 from typing import Generator
 
-from mtllm.mtir import MTIR
+from byllm.mtir import MTIR
 
 # This will prevent LiteLLM from fetching pricing information from
 # the bellow URL every time we import the litellm and use a cached

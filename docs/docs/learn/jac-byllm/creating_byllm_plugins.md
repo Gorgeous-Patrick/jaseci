@@ -1,10 +1,10 @@
-# Creating MTLLM Plugins
+# Creating byLLM Plugins
 
-This document describes how to create plugins for MTLLM (Multi-Modal Large Language Model), which is a plugin system for Jaclang's `by llm()` feature.
+This document describes how to create plugins for byLLM (Multi-Modal Large Language Model), which is a plugin system for Jaclang's `by llm()` feature.
 
 ## Understanding the Plugin System
 
-MTLLM uses a plugin architecture based on [Pluggy](https://pluggy.readthedocs.io/), the same plugin system used by pytest. Plugins allow you to extend or modify how MTLLM handles LLM calls in Jaclang programs.
+byLLM uses a plugin architecture based on [Pluggy](https://pluggy.readthedocs.io/), the same plugin system used by pytest. Plugins allow you to extend or modify how byLLM handles LLM calls in Jaclang programs.
 
 ### How Plugins Work
 
@@ -31,29 +31,29 @@ The plugin system consists of three main components:
 Create a Python package for the plugin:
 
 ```
-my-mtllm-plugin/
+my-byllm-plugin/
 ├── pyproject.toml
 ├── README.md
-└── my_mtllm_plugin/
+└── my_byllm_plugin/
     ├── __init__.py
     └── plugin.py
 ```
 
 ### Step 2: Define Your Plugin Class
 
-Create the plugin implementation in `my_mtllm_plugin/plugin.py`:
+Create the plugin implementation in `my_byllm_plugin/plugin.py`:
 
 ```python
-"""Custom MTLLM Plugin."""
+"""Custom byLLM Plugin."""
 
 from typing import Callable
 
 from jaclang.runtimelib.machine import hookimpl
-from mtllm.llm import Model
+from byllm.llm import Model
 
 
-class MyMtllmMachine:
-    """Custom MTLLM Plugin Implementation."""
+class MybyllmMachine:
+    """Custom byLLM Plugin Implementation."""
 
     @staticmethod
     @hookimpl
@@ -81,18 +81,18 @@ Register the plugin using entry points in `pyproject.toml`:
 
 ```toml
 [tool.poetry]
-name = "my-mtllm-plugin"
+name = "my-byllm-plugin"
 version = "0.1.0"
-description = "My custom MTLLM plugin"
+description = "My custom byLLM plugin"
 authors = ["Your Name <your.email@example.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-mtllm = "*"
+byllm = "*"
 jaclang = "*"
 
 [tool.poetry.plugins."jac"]
-my-mtllm-plugin = "my_mtllm_plugin.plugin:MyMtllmMachine"
+my-byllm-plugin = "my_byllm_plugin.plugin:MybyllmMachine"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -108,7 +108,7 @@ build-backend = "poetry.core.masonry.api"
 
 2. Create a test Jaclang file to verify plugin functionality:
    ```jaclang
-   import:py from mtllm, Model;
+   import:py from byllm, Model;
 
    glob llm = Model(model_name="gpt-3.5-turbo");
 
@@ -134,17 +134,17 @@ build-backend = "poetry.core.masonry.api"
 ### Example 1: Caching Plugin
 
 ```python
-"""Caching MTLLM Plugin."""
+"""Caching byLLM Plugin."""
 
 import hashlib
 import json
 from typing import Callable, Any
 
 from jaclang.runtimelib.machine import hookimpl
-from mtllm.llm import Model
+from byllm.llm import Model
 
 
-class CachingMtllmMachine:
+class CachingbyllmMachine:
     """Plugin that caches LLM responses."""
 
     _cache: dict[str, Any] = {}
@@ -165,15 +165,15 @@ class CachingMtllmMachine:
         ).hexdigest()
 
         # Check cache first
-        if cache_key in CachingMtllmMachine._cache:
+        if cache_key in CachingbyllmMachine._cache:
             print(f"Cache hit for {caller.__name__}")
-            return CachingMtllmMachine._cache[cache_key]
+            return CachingbyllmMachine._cache[cache_key]
 
         # Call original implementation
         result = model.invoke(caller, args)
 
         # Store in cache
-        CachingMtllmMachine._cache[cache_key] = result
+        CachingbyllmMachine._cache[cache_key] = result
         print(f"Cached result for {caller.__name__}")
 
         return result
@@ -182,16 +182,16 @@ class CachingMtllmMachine:
 ### Example 2: Logging Plugin
 
 ```python
-"""Logging MTLLM Plugin."""
+"""Logging byLLM Plugin."""
 
 import time
 from typing import Callable
 
 from jaclang.runtimelib.machine import hookimpl
-from mtllm.llm import Model
+from byllm.llm import Model
 
 
-class LoggingMtllmMachine:
+class LoggingbyllmMachine:
     """Plugin that logs all LLM calls."""
 
     @staticmethod
@@ -230,7 +230,7 @@ class LoggingMtllmMachine:
 from typing import Callable
 
 from jaclang.runtimelib.machine import hookimpl
-from mtllm.llm import Model
+from byllm.llm import Model
 
 
 class CustomProviderMachine:
@@ -275,7 +275,7 @@ class CustomProviderMachine:
 
 ### call_llm Hook
 
-The primary hook that all MTLLM plugins implement:
+The primary hook that all byLLM plugins implement:
 
 ```python
 @hookimpl
@@ -352,11 +352,11 @@ Create comprehensive tests:
 
 ```python
 import pytest
-from mtllm.llm import Model
-from my_mtllm_plugin.plugin import MyMtllmMachine
+from byllm.llm import Model
+from my_byllm_plugin.plugin import MybyllmMachine
 
 def test_plugin():
-    machine = MyMtllmMachine()
+    machine = MybyllmMachine()
     model = Model("mockllm", outputs=["test response"])
 
     def test_function(x: str) -> str:
@@ -413,7 +413,7 @@ for plugin in plugin_manager.get_plugins():
 
 ## Conclusion
 
-MTLLM plugins extend Jaclang's LLM capabilities through a clean, extensible plugin system. Plugins can add caching, logging, custom providers, and other functionality to enhance the LLM experience.
+byLLM plugins extend Jaclang's LLM capabilities through a clean, extensible plugin system. Plugins can add caching, logging, custom providers, and other functionality to enhance the LLM experience.
 
 Key considerations:
 - Follow the hook specification exactly
@@ -422,4 +422,4 @@ Key considerations:
 - Consider backward compatibility
 - Handle errors gracefully
 
-For more examples and advanced use cases, see the [official MTLLM plugin](https://github.com/Jaseci-Labs/jaclang/tree/main/jac-mtllm) implementation.
+For more examples and advanced use cases, see the [official byLLM plugin](https://github.com/Jaseci-Labs/jaclang/tree/main/jac-byllm) implementation.

@@ -2,10 +2,10 @@
 
 ## Installation
 
-To get started with MTLLM, install the base package:
+To get started with byLLM, install the base package:
 
 ```bash
-pip install mtllm
+pip install byllm
 ```
 
 ## AI-Integrated Function Example
@@ -37,14 +37,14 @@ with entry {
 
 **Limitations**: Defining an algorithm in code for this problem is difficult, while integrating an LLM to perform the task would require manual prompt engineering, response parsing, and type conversion to be implemented by the developer.
 
-### MTLLM Implementation
+### byLLM Implementation
 
 The `by` keyword abstraction enables functions to process inputs of any type and generate contextually appropriate outputs of the specified type:
 
 #### Step 1: Configure LLM Model
 
 ```jac linenums="1"
-import from mtllm {Model}
+import from byllm {Model}
 
 glob llm = Model(model_name="gemini/gemini-2.0-flash");
 ```
@@ -71,13 +71,13 @@ jac run personality.jac
 For complete usage methodologies of the `by` abstraction, refer to the [Usage Guide](./usage.md) for documentation on object methods, object instantiation, and multi-agent workflows.
 
 
-### MTLLM Usage in Python
+### byLLM Usage in Python
 
-As MTLLM is a python package, it can be natively used in jac. The following code show the above example application built in native python with MTLLM.
+As byLLM is a python package, it can be natively used in jac. The following code show the above example application built in native python with byLLM.
 
 ```python linenums="1"
 import jaclang
-from mtllm import Model, by
+from byllm import Model, by
 from enum import Enum
 
 llm = Model(model_name="gemini/gemini-2.0-flash")
@@ -95,4 +95,4 @@ result = get_personality(name)
 print(f"{result.value} personality detected for {name}")
 ```
 
-To learn more about usage of `by` in python, please refer to [MTLLM python Interface](./python_integration.md).
+To learn more about usage of `by` in python, please refer to [byLLM python Interface](./python_integration.md).

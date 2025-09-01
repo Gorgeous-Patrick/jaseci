@@ -1345,7 +1345,7 @@ class JacBasics:
     def call_llm(model: object, mtir: object) -> Any:  # noqa: ANN401
         """Call the LLM model."""
         raise ImportError(
-            "mtllm is not installed. Please install it with `pip install mtllm` and run `jac clean`."
+            "byLLM is not installed. Please install it with `pip install byllm` and run `jac clean`."
         )
 
 

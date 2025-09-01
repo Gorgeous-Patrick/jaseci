@@ -1,6 +1,6 @@
 """
-This fixture is to test all cases of schema are supported in jac-mtllm.
-It is used to ensure that the schema support in jac-mtllm works as expected.
+This fixture is to test all cases of schema are supported in jac-byllm.
+It is used to ensure that the schema support in jac-byllm works as expected.
 
 NOTE: This file should not be used in CI tests, as it supposed to call OpenAI
 API and mocking the API will make the test ineffective.
@@ -13,7 +13,7 @@ To run a specific test:
 """
 
 
-import from mtllm { Model }
+import from byllm { Model }
 
 glob llm = Model(
     model_name="gpt-4o-mini",

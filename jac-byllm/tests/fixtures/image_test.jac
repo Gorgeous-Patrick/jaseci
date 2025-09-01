@@ -1,5 +1,5 @@
 
-import from mtllm { Model, Image }
+import from byllm { Model, Image }
 import os;
 
 glob llm = Model(

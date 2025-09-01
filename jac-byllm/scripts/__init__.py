@@ -1,1 +1,1 @@
-"""Scripts package for jac-mtllm."""
+"""Scripts package for jac-byllm."""

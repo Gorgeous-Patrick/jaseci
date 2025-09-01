@@ -1,19 +1,19 @@
 # Using Multi-modal Models
 
-MTLLM supports multimodal inputs including text, images, and videos. This section covers how MTLLM handles multimodal inputs.
+byLLM supports multimodal inputs including text, images, and videos. This section covers how byLLM handles multimodal inputs.
 
-Images are supported in the default MTLLM distribution. Video support requires installing mtllm with the `video` extra:
+Images are supported in the default byLLM distribution. Video support requires installing byllm with the `video` extra:
 
 ```bash
-pip install mtllm[video]
+pip install byllm[video]
 ```
 
 ## Image
 
-MTLLM supports image inputs through the `Image` format. Images can be provided as input to MTLLM functions or methods:
+byLLM supports image inputs through the `Image` format. Images can be provided as input to byLLM functions or methods:
 
 ```jac
-import from mtllm.llm { Model, Image }
+import from byllm.llm { Model, Image }
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -54,10 +54,10 @@ In this example, an image of a person is provided as input to the `get_person_in
 
 ## Video
 
-MTLLM supports video inputs through the `Video` format. Videos can be provided as input to MTLLM functions or methods:
+byLLM supports video inputs through the `Video` format. Videos can be provided as input to byLLM functions or methods:
 
 ```jac
-import from mtllm { Model, Video }
+import from byllm { Model, Video }
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -72,7 +72,7 @@ with entry {
 ```
 
 Input Video:
-[SampleVideo_1280x720_2mb.mp4](https://github.com/Jaseci-Labs/jaseci/raw/refs/heads/main/jac-mtllm/tests/fixtures/SampleVideo_1280x720_2mb.mp4)
+[SampleVideo_1280x720_2mb.mp4](https://github.com/Jaseci-Labs/jaseci/raw/refs/heads/main/jac-byllm/tests/fixtures/SampleVideo_1280x720_2mb.mp4)
 
 
 ??? example "Output"

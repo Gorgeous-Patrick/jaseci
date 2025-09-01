@@ -2,7 +2,7 @@
 from os import path
 from dataclasses import dataclass
 
-from mtllm import by, Model, Image
+from byllm import by, Model, Image
 
 @dataclass
 class Person:

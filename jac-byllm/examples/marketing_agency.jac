@@ -1,9 +1,9 @@
-import from mtllm { Model }
+import from byllm { Model }
 
-# Note that these tools are not available in mtllm package and
+# Note that these tools are not available in byllm package and
 # Should be defined by the user him/herself.
-import from mtllm.tools.wikipedia_utils { wikipedia_summary }
-import from mtllm.tools.serper { search, scrape }
+import from byllm.tools.wikipedia_utils { wikipedia_summary }
+import from byllm.tools.serper { search, scrape }
 
 glob llm = Model(model_name="gpt-4o-mini");
 

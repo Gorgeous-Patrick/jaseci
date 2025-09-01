@@ -1,12 +1,11 @@
-import from mtllm.llms { OpenAI }
-import from mtllm { Video }
+import from byllm { Model, Video }
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
-def is_aligned(video: Video, text: str) -> bool by llm(
-    method="Chain-of-Thoughts",
-    context="Mugen is the moving character"
-);
+"""
+Mugen is a moving character
+"""
+def is_aligned(video: Video, text: str) -> bool by llm();
 
 with entry {
     video = Video("mugen.mp4", 1);

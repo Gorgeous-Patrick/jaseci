@@ -1,23 +1,19 @@
-import from mtllm.llms { OpenAI }
-import from mtllm { Image }
+import from byllm { Model, Image }
 
-glob llm = OpenAI(model_name="gpt-4o");
+glob llm = Model(model_name="gpt-4o");
 
-enum 'Personality of the Person'
-Personality {
-    INTROVERT: 'Person who is shy and reticent' = "Introvert",
-    EXTROVERT: 'Person who is outgoing and socially confident' = "Extrovert"
+enum Personality {
+    INTROVERT = "Introvert",
+    EXTROVERT = "Extrovert"
 }
 
-obj 'Person'
-Person {
-    has full_name: 'Fullname of the Person': str,
-        yod: 'Year of Death': int,
-        personality: 'Personality of the Person': Personality;
+obj Person {
+    has full_name: str,
+        yod: int,
+        personality: Personality;
 }
 
-can 'Get Person Information use common knowledge'
-get_person_info(img_of_person: 'Image of Person': Image) -> 'Person': Person by llm();
+can get_person_info(img_of_person: Image) -> Person by llm();
 
 with entry {
     person_obj = get_person_info(Image("person.png"));

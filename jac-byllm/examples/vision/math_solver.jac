@@ -1,10 +1,8 @@
-import from mtllm.llms { OpenAI }
-import from PIL { Image }
+import from byllm { Model, Image }
 
-glob llm = OpenAI(verbose=True, model_name="gpt-4o");
+glob llm = Model(verbose=True, model_name="gpt-4o");
 
-can 'Solve the Given Math Question'
-solve_math_question(question_img: 'Image of the Question': Image) -> 'Answer to the Question': str by llm(method="Chain-of-Thoughts");
+def solve_math_question(question_img: Image) -> str by llm();
 
 with entry {
     print(

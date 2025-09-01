@@ -1,9 +1,9 @@
 """
-Fantasy Trading Game - An interactive RPG trading simulation using MTLLM
-Demonstrates MTLLM character generation, conversation, and transaction systems
+Fantasy Trading Game - An interactive RPG trading simulation using byLLM
+Demonstrates byLLM character generation, conversation, and transaction systems
 """
 
-import from mtllm { Model }
+import from byllm { Model }
 import from os { get_terminal_size }
 
 

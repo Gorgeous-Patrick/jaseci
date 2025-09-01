@@ -1,11 +1,11 @@
-# MTLLM - AI Integration Framework for Jac-lang
+# byLLM - AI Integration Framework for Jac-lang
 
 [![PyPI version](https://img.shields.io/pypi/v/mtllm.svg)](https://pypi.org/project/mtllm/) [![tests](https://github.com/jaseci-labs/jaseci/actions/workflows/test-jaseci.yml/badge.svg?branch=main)](https://github.com/jaseci-labs/jaseci/actions/workflows/test-jaseci.yml)
 
-Meaning Typed Programming (MTP) is a programming paradigm for AI integration where prompt engineering is hidden through code semantics. MTLLM is the plugin built, exploring this hypothesis. MTLLM is built as a plugin to the Jaseci ecosystem. This plugin can be installed as a PyPI package.
+Meaning Typed Programming (MTP) is a programming paradigm for AI integration where prompt engineering is hidden through code semantics. byLLM is the plugin built, exploring this hypothesis. byLLM is built as a plugin to the Jaseci ecosystem. This plugin can be installed as a PyPI package.
 
 ```bash
-pip install mtllm
+pip install byllm
 ```
 
 ## Basic Example
@@ -13,7 +13,7 @@ pip install mtllm
 A basic usecase of MTP can be demonstrated as follows:
 
 ```python
-import from mtllm{Model}
+import from byllm {Model}
 
 glob llm = Model(model_name="openai\gpt-4o");
 
@@ -28,7 +28,7 @@ with entry {
 ## AI-Powered Object Generation
 
 ```python
-import from mtllm {Model}
+import from byllm {Model}
 
 glob llm = Model(model_name="gpt-4o");
 
@@ -53,7 +53,7 @@ The `by` abstraction allows to automate semantic extraction from existing code s
 
 ## Documentation and Examples
 
-**📚 Full Documentation**: [Jac MTLLM Documentation](https://www.jac-lang.org/learn/jac-mtllm/with_llm/)
+**📚 Full Documentation**: [Jac byLLM Documentation](https://www.jac-lang.org/learn/jac-byllm/with_llm/)
 
 **🎮 Complete Examples**:
 - [Fantasy Trading Game](https://www.jac-lang.org/learn/examples/mtp_examples/fantasy_trading_game/) - Interactive RPG with AI-generated characters
@@ -64,7 +64,7 @@ The `by` abstraction allows to automate semantic extraction from existing code s
 
 ## Quick Links
 
-- [Getting Started Guide](https://www.jac-lang.org/learn/jac-mtllm/with_llm/)
-- [Model Configuration](https://www.jac-lang.org/learn/jac-mtllm/model_declaration/)
+- [Getting Started Guide](https://www.jac-lang.org/learn/jac-byllm/with_llm/)
+- [Model Configuration](https://www.jac-lang.org/learn/jac-byllm/model_declaration/)
 - [Jac Language Documentation](https://www.jac-lang.org/)
 - [GitHub Repository](https://github.com/jaseci-labs/jaseci)

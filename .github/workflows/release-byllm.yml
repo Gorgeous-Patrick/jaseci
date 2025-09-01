@@ -1,4 +1,4 @@
-name: Release jac-mtllm to PYPI
+name: Release jac-byllm to PYPI
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: jac-byllm/deprecation/
+        working-directory: jac-byllm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

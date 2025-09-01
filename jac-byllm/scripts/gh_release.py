@@ -1,4 +1,4 @@
-"""GH Release script for MTLLM."""
+"""GH Release script for byLLM."""
 
 import tomllib
 
@@ -29,7 +29,7 @@ with open("pyproject.toml", "rb") as f:
 version = data["tool"]["poetry"]["version"]
 
 gh_release_create(
-    "Jaseci-Labs/mtllm",
+    "Jaseci-Labs/byllm",
     version,
     publish=True,
     name=f"v{version}",
