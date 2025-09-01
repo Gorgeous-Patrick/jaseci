@@ -186,6 +186,10 @@ print(app.logic.__name__)
 
 This approach requires no changes to your existing import statements or project structure. Once \texttt{jaclang} is imported, the Python interpreter treats \texttt{.jac} files as first-class modules. Your IDE's autocomplete, type checking, and refactoring tools continue to work, though they may need plugins to fully understand Jac syntax within \texttt{.jac} files.
 
+\begin{nerd}
+\textbf{How native \texttt{.jac} import works (PEP 302)}\quad Importing \texttt{jaclang} registers a meta path finder on \texttt{sys.meta\_path} that recognizes modules resolving to \texttt{.jac} sources and provides a \texttt{ModuleSpec} with a custom loader. That loader resolves the \texttt{.jac} file using Python's normal package rules, parses it to a Jac AST, transpiles to a Python \texttt{ast.AST}, compiles the AST to a code object via the CPython compiler, creates a module object while setting \texttt{\_\_file\_\_}, \texttt{\_\_package\_\_}, \texttt{\_\_loader\_\_}, and \texttt{\_\_spec\_\_}, executes the code object in the module's namespace, and installs the module into \texttt{sys.modules}. This adheres to PEP 302's import hook model and PEP 451's \texttt{ModuleSpec} refinement, so relative imports, packages and namespace packages, caching in \texttt{\_\_pycache\_\_/}, and reload semantics behave exactly like any Python module; caches are invalidated when the \texttt{.jac} source changes, and if a request isn't for \texttt{.jac} the finder simply defers to the rest of \texttt{sys.meta\_path}. It's a small demonstration of Python's elegant, extensible import machinery—principled, mature, and one of the reasons Python shines as a host for language innovation.
+\end{nerd}
+
 \subsubsection{Programmatic import (explicit control)}
 
 For scenarios requiring finer control over the import process—such as dynamically loading modules, handling multiple versions, or implementing custom resolution logic—use the Jac API:
