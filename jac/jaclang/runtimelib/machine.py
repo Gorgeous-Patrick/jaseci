@@ -971,6 +971,7 @@ class JacBasics:
         override_name: Optional[str] = None,
         items: Optional[dict[str, Union[str, Optional[str]]]] = None,
         reload_module: Optional[bool] = False,
+        lng: Optional[str] = None,
     ) -> tuple[types.ModuleType, ...]:
         """Core Import Process."""
         from jaclang.runtimelib.importer import (
@@ -979,7 +980,8 @@ class JacBasics:
             PythonImporter,
         )
 
-        lng = infer_language(target, base_path)
+        if lng is None:
+            lng = infer_language(target, base_path)
 
         spec = ImportPathSpec(
             target,

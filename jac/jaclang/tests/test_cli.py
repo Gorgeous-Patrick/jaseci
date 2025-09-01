@@ -541,3 +541,20 @@ class JacCliTests(TestCase):
                     description_pattern,
                     f"Parameter description for '{param_name}' not found in help text for '{cmd_name}'",
                 )
+
+    def test_run_jac_name_py(self) -> None:
+        """Test a specific test case."""
+        process = subprocess.Popen(
+            [
+                "jac",
+                "run",
+                self.fixture_abs_path("py_run.py"),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = process.communicate()
+        self.assertIn("Hello, World!", stdout)
+        self.assertIn("Sum: 8", stdout)
