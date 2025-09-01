@@ -336,40 +336,34 @@ This simple entry block ensures environment variables are loaded when the module
 
 This implementation showcases virtually every major Jac feature in a cohesive, real-world application:
 
-\subsection{Object-Spatial Programming}
-\begin{itemize}
-    \item \textbf{Nodes}: \texttt{Memory}, \texttt{Session}, \texttt{Task}, and toolbox nodes represent persistent entities with behavior
-    \item \textbf{Walkers}: \texttt{agent}, \texttt{task\_manager}, and utility walkers orchestrate system interactions
-    \item \textbf{Object-Spatial Navigation}: \texttt{-->}, \texttt{++>}, and \texttt{visit} operations manage relationships and traversal
-    \item \textbf{Object-Spatial Queries}: List comprehensions with object-spatial filters retrieve connected entities
-\end{itemize}
-
-\subsection{AI Integration}
-\begin{itemize}
-    \item \textbf{Method Delegation}: \texttt{by llm()} transforms function signatures into AI-powered implementations
-    \item \textbf{Tool Composition}: ReAct methodology enables AI models to use regular methods as tools
-    \item \textbf{Semantic Annotations}: \texttt{sem} statements provide behavioral guidance without cluttering interfaces
-    \item \textbf{Configuration}: Model parameters and reasoning modes control AI behavior
-\end{itemize}
-
-\subsection{Scale Constructs}
-\begin{itemize}
-    \item \textbf{Root Node}: Provides persistent anchor for all system state
-    \item \textbf{Automatic Persistence}: Spatial connectivity determines what persists across program runs
-    \item \textbf{Session Management}: User context maintained through persistent session nodes
-    \item \textbf{Scalable Architecture}: Same code works for single user or multi-tenant scenarios
-\end{itemize}
-
-\subsection{Language Features}
-\begin{itemize}
-    \item \textbf{Module System}: Import and include statements with enhanced syntax
-    \item \textbf{Type System}: Mandatory typing for node fields and function parameters
-    \item \textbf{Abstract Methods}: Interface definitions with \texttt{abs} keyword
-    \item \textbf{Implementation Blocks}: Separation of interface from implementation
-    \item \textbf{Entry Blocks}: Explicit module initialization with \texttt{with entry}
-    \item \textbf{Global Variables}: \texttt{glob} declarations for shared state
-    \item \textbf{Enums}: Type-safe enumeration with string values
-\end{itemize}
+\noindent{\scriptsize
+\begin{tabular}{|p{0.28\linewidth}|p{0.70\linewidth}|}
+\hline
+\textbf{Object-Spatial Programming} & \textbf{Nodes}: \texttt{Memory}, \texttt{Session}, \texttt{Task}, and toolbox nodes represent persistent entities with behavior \\
+ & \textbf{Walkers}: \texttt{agent}, \texttt{task\_manager}, and utility walkers orchestrate system interactions \\
+ & \textbf{Object-Spatial Navigation}: \texttt{-->}, \texttt{++>}, and \texttt{visit} operations manage relationships and traversal \\
+ & \textbf{Object-Spatial Queries}: List comprehensions with object-spatial filters retrieve connected entities \\
+\hline
+\textbf{AI Integration} & \textbf{Method Delegation}: \texttt{by llm()} transforms function signatures into AI-powered implementations \\
+ & \textbf{Tool Composition}: ReAct methodology enables AI models to use regular methods as tools \\
+ & \textbf{Semantic Annotations}: \texttt{sem} statements provide behavioral guidance without cluttering interfaces \\
+ & \textbf{Configuration}: Model parameters and reasoning modes control AI behavior \\
+\hline
+\textbf{Scale Constructs} & \textbf{Root Node}: Provides persistent anchor for all system state \\
+ & \textbf{Automatic Persistence}: Spatial connectivity determines what persists across program runs \\
+ & \textbf{Session Management}: User context maintained through persistent session nodes \\
+ & \textbf{Scalable Architecture}: Same code works for single user or multi-tenant scenarios \\
+\hline
+\textbf{Language Features} & \textbf{Module System}: Import and include statements with enhanced syntax \\
+ & \textbf{Type System}: Mandatory typing for node fields and function parameters \\
+ & \textbf{Abstract Methods}: Interface definitions with \texttt{abs} keyword \\
+ & \textbf{Implementation Blocks}: Separation of interface from implementation \\
+ & \textbf{Entry Blocks}: Explicit module initialization with \texttt{with entry} \\
+ & \textbf{Global Variables}: \texttt{glob} declarations for shared state \\
+ & \textbf{Enums}: Type-safe enumeration with string values \\
+\hline
+\end{tabular}
+}
 
 \section{Understanding the Architecture Choices}
 
