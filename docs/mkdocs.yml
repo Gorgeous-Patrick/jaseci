@@ -67,6 +67,7 @@ nav:
       - Jac Lens: "learn/jac-lens.md"
     - Tooling:
       - "learn/tools/cli.md"
+      - "learn/tools/streamlit.md"
     - Specifications:
       - Jac Keywords: "learn/keywords.md"
       - Object-Spatial Programming Specification: "learn/dspfoundation.md"
