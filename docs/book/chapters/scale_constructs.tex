@@ -16,7 +16,7 @@ To understand the significance of this design, consider how traditional applicat
 
 \subsection{Global Accessibility and Automatic Persistence}
 
-The root node is accessible from anywhere in your program through the \texttt{root} keyword, similar to how \texttt{self} provides access to the current object or \texttt{here} provides access to the current spatial location. This global accessibility, combined with automatic persistence, creates a programming model where state management becomes remarkably simple.
+The root node is accessible from anywhere in your program through the \texttt{root} keyword, similar to how \texttt{self} provides access to the current object or \texttt{here} provides access to the current object-spatial location. This global accessibility, combined with automatic persistence, creates a programming model where state management becomes remarkably simple.
 
 \begin{jacblock}
 node Profile {
@@ -134,7 +134,7 @@ The beauty of this approach is that the same code works whether you're building 
 
 Traditional programming languages assume a single entry point—typically a \texttt{main()} function—where program execution begins. This model works well for batch processing and command-line tools but poorly represents modern applications that are fundamentally service-oriented, with multiple entry points corresponding to different user actions or external events.
 
-Jac's walker system naturally extends to support multiple entry points through walker entry point designation. Any walker can be marked as an entry point, automatically generating appropriate interfaces for external invocation while maintaining the spatial programming model internally.
+Jac's walker system naturally extends to support multiple entry points through walker entry point designation. Any walker can be marked as an entry point, automatically generating appropriate interfaces for external invocation while maintaining the object-spatial programming model internally.
 
 \subsection{Entry Point Registration and Parameter Mapping}
 
@@ -328,7 +328,7 @@ walker send_message {
 
 \subsection{Distributed Computation Patterns}
 
-Walker entry points can coordinate distributed computations across multiple user contexts or system boundaries. This enables patterns like map-reduce operations, distributed consensus, and cross-shard transactions while maintaining the spatial programming model.
+Walker entry points can coordinate distributed computations across multiple user contexts or system boundaries. This enables patterns like map-reduce operations, distributed consensus, and cross-shard transactions while maintaining the object-spatial programming model.
 
 \begin{jacblock}
 walker compute_network_metrics {
