@@ -2,12 +2,12 @@ import jaclang.compiler.unitree as uni
 import networkx as nx
 def num_cycles(ability: uni.Ability) -> int:
   # Count the number of instructions per ability
-  container = [(ability, 0)]
+  container: list[tuple[uni.UniCFGNode, int]] = [(ability, 0)]
   max_depth = 0
   while len(container) > 0:
     curr, depth = container.pop()
     max_depth = max(max_depth, depth)
-    for child in curr.children:
+    for child in curr.bb_out:
       container.append((child, depth + 1))
   return max_depth
 

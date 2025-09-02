@@ -1,7 +1,9 @@
 """Performance measurement toolkit of jacpim."""
 
 from jaclang.runtimelib.archetype import WalkerAnchor
+from jaclang.runtimelib.data_mapper.simple_simulator import get_total_number_cycles
 from jaclang.runtimelib.data_mapper.size_calc import calculate_size
+import jaclang.compiler.unitree as uni
 
 import networkx as nx
 
@@ -29,13 +31,20 @@ def get_compute_time(trace_len: int) -> float:
     compute_time = trace_len * DPU_CYCLES / DPU_CLOCK_FREQUENCY
     return compute_time
 
-def print_performance_info(mapping: dict[int, int], walker: WalkerAnchor, trace: list[int]) -> None:
+def print_performance_info(network: nx.DiGraph, mapping: dict[int, int], walker: WalkerAnchor, walker_code: uni.Archetype, trace: list[int]) -> None:
     """Print the performance information of a walker."""
     num_jumps = get_num_dpu_jumps(mapping, [trace])
     trace_len = len(trace)
     walker_size = calculate_size(walker.archetype)
+
+    ability_list = walker_code.get_all_sub_nodes(uni.Ability)
+    abilities = {ability.get_all_sub_nodes(uni.EventSignature)[0].get_all_sub_nodes(uni.Name)[0].value: ability for ability in ability_list}
+    
+    
+    exec_number_cycles = get_total_number_cycles(trace, network, abilities)
     transfer_time = get_transfer_time(num_jumps, walker_size)
-    compute_time = get_compute_time(trace_len)
+    # compute_time = get_compute_time(trace_len)
+    compute_time = exec_number_cycles / DPU_CLOCK_FREQUENCY
     total = transfer_time + compute_time
     print("===============")
     print(f"Total number of jumps: {trace_len - 1}")
@@ -43,6 +52,7 @@ def print_performance_info(mapping: dict[int, int], walker: WalkerAnchor, trace:
     print(f"Walker size: {walker_size} bytes")
     print(f"Transfer time: {transfer_time} seconds")
     print(f"Compute time: {compute_time} seconds")
+    print(f"Simple Compute Cycles: {exec_number_cycles}")
     print(f"Total time: {total} seconds")
     print(f"Compute time percentage: {compute_time / total * 100:.5f}%")
     print(f"Transfer time percentage: {transfer_time / total * 100:.5f}%")

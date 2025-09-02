@@ -613,8 +613,8 @@ class JacWalker:
         random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
         trace = [all_nodes.index(node) for node in walker.trace]
-        print_performance_info(random_mapping, walker, trace)
-        print_performance_info(rounding_mapping, walker, trace)
+        print_performance_info(graph, random_mapping, walker, walker_code, trace)
+        print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
 
         # plot_and_save(graph, access_pattern, walker_trace_graph)
         return warch
