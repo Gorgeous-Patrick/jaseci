@@ -343,17 +343,22 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Animate code change
-        demoCode.style.opacity = '0';
-        demoCode.style.transform = 'translateY(10px)';
+        // Animate code change with null checks
+        if (demoCode) {
+            demoCode.style.opacity = '0';
+            demoCode.style.transform = 'translateY(10px)';
+        }
 
         setTimeout(() => {
-            demoCode.innerHTML = `<pre><code>${demo.code}</code></pre>`;
-            demoCode.style.opacity = '1';
-            demoCode.style.transform = 'translateY(0)';
-
+            if (demoCode) {
+                demoCode.innerHTML = `<pre><code>${demo.code}</code></pre>`;
+                demoCode.style.opacity = '1';
+                demoCode.style.transform = 'translateY(0)';
+            }
             // Clear output
-            demoOutput.innerHTML = '<div class="output-line info-line">Click "Run" to execute this program ▶️</div>';
+            if (demoOutput) {
+                demoOutput.innerHTML = '<div class="output-line info-line">Click "Run" to execute this program ▶️</div>';
+            }
         }, 300);
     }
 
@@ -598,7 +603,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.head.appendChild(style);
 
     // Fetch GitHub stars and forks from local JSON file
-    fetch('/assets/github_stats.json')
+    fetch('../assets/github_stats.json')
         .then(response => response.json())
         .then(data => {
             // Check for the "jaseci-labs/jaseci" key and get stars/forks
