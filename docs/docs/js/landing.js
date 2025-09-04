@@ -822,8 +822,8 @@ Ensure to hydrate and listen to your body throughout the program. Adjust weights
         link: "https://www.jac-lang.org/learn/introduction/#beyond-oop-an-agentic-programming-model"
     },
     {
-        tagline: "Object-oriented programming",
-        summary: `This is the summary`,
+        tagline: "Object-spatial programming",
+        summary: `New language constructs (node, edge and walker classes) that allow for assembling objects in a graph structure to express semantic relationships between objects, giving rise to a new paradigm for problem solving and implementation we call Object-Spatial Programming (OSP).`,
         filename: "oop_example.jac",
         code: `
 # oop_calculator.jac
