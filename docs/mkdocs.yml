@@ -127,6 +127,8 @@ nav:
   - Jac Playground:
     - Playground: "/playground/"
 
+  - Jac GPT: "https://jac-gpt.jaseci.org"
+
 theme:
   logo: "assets/logo.png"
   name: "material"
