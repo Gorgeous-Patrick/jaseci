@@ -500,6 +500,12 @@ class JacWalker:
         )
 
         access_pattern = get_access_pattern(network=graph, paths=traversal_path)
+        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+        random_mapping = random_partition(traversal_path, graph)
+        rounding_mapping = round_robin_partition(traversal_path, graph)
+
+        mapping = rounding_mapping
+        
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -609,14 +615,9 @@ class JacWalker:
                 return warch
 
         walker.ignores = []
-        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
-        random_mapping = random_partition(traversal_path, graph)
-        rounding_mapping = round_robin_partition(traversal_path, graph)
         trace = [all_nodes.index(node) for node in walker.trace]
         print_performance_info(graph, random_mapping, walker, walker_code, trace)
         print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
-
-        # plot_and_save(graph, access_pattern, walker_trace_graph)
         return warch
 
     @staticmethod

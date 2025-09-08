@@ -20,29 +20,34 @@ class WalkerExecution(BaseModel):
     func: FunctionDef
 
   
-class Context(BaseModel):
+class CodeGenContext(BaseModel):
     node_types: list[TypeDef]
+    walker_types: list[TypeDef]
     run_ability_functions: list[FunctionDef]
     walker_executions: list[WalkerExecution]
     
 
 TEMPLATE_PATH = Path(__file__).parent / "dpu_template.jinja"
 
-def gen_code(context: Context) -> str:
+def gen_code(context: CodeGenContext) -> str:
     template_loader = jinja2.FileSystemLoader(searchpath=str(TEMPLATE_PATH.parent))
     template_env = jinja2.Environment(loader=template_loader)
     template = template_env.get_template(TEMPLATE_PATH.name)
     return template.render(
         node_types=context.node_types,
+        walker_types= context.walker_types,
         run_ability_functions=context.run_ability_functions,
         walker_executions=context.walker_executions,
     )
 
 if __name__ == "__main__":
-    context = Context(
+    context = CodeGenContext(
         node_types=[
-            TypeDef(name="NodeTypeA", definition="struct NodeTypeA { int id; float value; };"),
-            TypeDef(name="NodeTypeB", definition="struct NodeTypeB { int id; double value; };"),
+            TypeDef(name="NodeTypeA", definition="int id; float value;"),
+            TypeDef(name="NodeTypeB", definition="int id; double value;"),
+        ],
+        walker_types = [
+            TypeDef(name="WalkerTypeA", definition="int id;")
         ],
         run_ability_functions=[
             FunctionDef(name="run_ability_A", body="/* function body */", walker_type=TypeDef(name="WalkerTypeA", definition="/* walker type definition */"), node_type=TypeDef(name="NodeTypeA", definition="/* node type definition */")),

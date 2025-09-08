@@ -1,0 +1,1 @@
+from .upmem_codegen import gen_code

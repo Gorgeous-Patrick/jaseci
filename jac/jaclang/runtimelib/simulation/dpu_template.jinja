@@ -1,7 +1,14 @@
 {% include "dpu_support.h" %}
 {% for node_type in node_types %}
+struct {{node_type.name}} {
 {{node_type.definition}}
+};
+{% endfor %}
 
+{% for walker_type in walker_types %}
+struct {{walker_type.name}} {
+{{walker_type.definition}}
+};
 {% endfor %}
 {% for run_ability_function in run_ability_functions %}
 void {{run_ability_function.full_name()}} ({{run_ability_function.node_type.name}} *node, uint32_t node_id, {{run_ability_function.walker_type.name}}* walker) {

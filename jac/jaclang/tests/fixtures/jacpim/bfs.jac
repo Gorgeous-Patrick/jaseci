@@ -7,6 +7,9 @@ node BFSNode {
   def get_byte_stream() {
     return struct.pack("<q", self.id);
   }
+  def get_type_def() {
+    return "struct BFSNode {int id;};"
+  }
 }
 
 
