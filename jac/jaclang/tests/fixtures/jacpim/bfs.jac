@@ -1,7 +1,12 @@
 import random;
 import from jaclang.runtimelib.machine {JacMachine}
+import struct;
 node BFSNode {
   has id:int;
+  has jac_node_size: int = 8;
+  def get_byte_stream() {
+    return struct.pack("<q", self.id);
+  }
 }
 
 
