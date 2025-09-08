@@ -66,6 +66,7 @@ from jaclang.runtimelib.data_mapper.partitioner import (
 )
 from jaclang.runtimelib.data_mapper.size_calc import calculate_size
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
+from jaclang.runtimelib.simulation.run_sim import get_node_types
 from jaclang.runtimelib.utils import (
     all_issubclass,
     traverse_graph,
@@ -484,6 +485,7 @@ class JacWalker:
             walker.set_trace.append({current_loc.__jac__})
 
         all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
+        get_node_types(all_nodes)
         if isinstance(current_loc, EdgeArchetype):
             start_node = current_loc.__jac__.target
         else:

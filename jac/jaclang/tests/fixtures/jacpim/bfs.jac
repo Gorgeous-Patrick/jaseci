@@ -7,8 +7,8 @@ node BFSNode {
   def get_byte_stream() {
     return struct.pack("<q", self.id);
   }
-  def get_type_def() {
-    return "struct BFSNode {int id;};"
+  static def get_type_def() {
+    return "struct BFSNode {int id;};";
   }
 }
 
@@ -22,6 +22,10 @@ walker BFS {
     # print(here.id);
     self.visited_500.append(here.id);
     visit [-->];
+  }
+
+  def get_impl_run_on_BFSNode() {
+    return "print()";
   }
 }
 

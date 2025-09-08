@@ -1,3 +1,6 @@
+from jaclang.runtimelib.archetype import NodeAnchor, WalkerAnchor
+
+
 class DPUMemoryContext():
     def __init__(self):
         self.node_memory: bytes = b""
@@ -39,3 +42,11 @@ class DPUMemoryContext():
     def dump_to_file(self, filename: str):
         with open(filename, "wb") as f:
             f.write(self.node_memory + self.walker_memory)
+
+def get_memory_context(node_ids: list[int], all_nodes: list[NodeAnchor], walker: WalkerAnchor):
+    context = DPUMemoryContext()
+    node_id_to_stream = {node_id : all_nodes[node_id].archetype.get_byte_stream() for node_id in node_ids}
+    context.download_nodes(node_id_to_stream)
+    walker_id_to_stream = {0: walker.archetype.get_byte_stream()}
+    context.download_walkers(walker_id_to_stream)
+    return context
