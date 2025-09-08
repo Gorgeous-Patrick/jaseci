@@ -122,5 +122,4 @@ def calculate_performance(walker_traces: dict, label: dict[str, int]):  # noqa: 
             if label[u] != label[v]:
                 # print(f"Edge ({u}, {v}) crosses partition boundaries: {label[u]} vs {label[v]}")
                 res += 1
-    print(f"Total edges crossing partition boundaries: {res}")
     return res

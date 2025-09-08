@@ -88,7 +88,7 @@ def get_access_pattern_single_walker(
     for state in active_state_set:
         state.path.append(state.container[0])
         paths.append(state.path)
-    print(paths)
+    # print(paths)
     return paths
 
 

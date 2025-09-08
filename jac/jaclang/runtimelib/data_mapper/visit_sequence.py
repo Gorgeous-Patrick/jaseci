@@ -15,7 +15,7 @@ VisitSequence: TypeAlias = list[VisitInfo]
 _TracingInfo: TypeAlias = list[uni.UniCFGNode]
 
 def get_visit_sequences(ability: uni.Ability) -> Generator[list[VisitInfo], None, None]:
-    print("=========")
+    # print("=========")
     stack: list[_TracingInfo] = [[ability]]
     while (len(stack) > 0):
         path = stack.pop()
@@ -76,6 +76,6 @@ def get_walker_info(walker: uni.Archetype) -> dict[str, list[list[VisitInfo]]]:
     for ability in abilities:
         name = ability.get_all_sub_nodes(uni.EventSignature)[0].get_all_sub_nodes(uni.Name)[0].value
         visit_info[name] = list(get_visit_sequences(ability))
-    print(visit_info)
+    # print(visit_info)
         
     return visit_info
