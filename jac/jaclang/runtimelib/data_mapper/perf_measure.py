@@ -38,7 +38,7 @@ def print_performance_info(network: nx.DiGraph, mapping: dict[int, int], walker:
     walker_size = calculate_size(walker.archetype)
 
     ability_list = walker_code.get_all_sub_nodes(uni.Ability)
-    abilities = {ability.get_all_sub_nodes(uni.EventSignature)[0].get_all_sub_nodes(uni.Name)[0].value: ability for ability in ability_list}
+    abilities = {ability.get_all_sub_nodes(uni.EventSignature)[0].get_all_sub_nodes(uni.Name)[0].value: ability for ability in ability_list if len(ability.get_all_sub_nodes(uni.EventSignature)) > 0}
     
     
     exec_number_cycles = get_total_number_cycles(trace, network, abilities)

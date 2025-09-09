@@ -74,6 +74,8 @@ def get_walker_info(walker: uni.Archetype) -> dict[str, list[list[VisitInfo]]]:
     visit_info: dict[str, list[list[VisitInfo]]] = {}
     abilities = walker.get_all_sub_nodes(uni.Ability)
     for ability in abilities:
+        if len(ability.get_all_sub_nodes(uni.EventSignature)) == 0:
+            continue
         name = ability.get_all_sub_nodes(uni.EventSignature)[0].get_all_sub_nodes(uni.Name)[0].value
         visit_info[name] = list(get_visit_sequences(ability))
     # print(visit_info)

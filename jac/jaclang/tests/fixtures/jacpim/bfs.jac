@@ -27,6 +27,9 @@ walker BFS {
   def get_impl_run_on_BFSNode() {
     return "print()";
   }
+  def get_byte_stream() {
+    
+  }
 }
 
 

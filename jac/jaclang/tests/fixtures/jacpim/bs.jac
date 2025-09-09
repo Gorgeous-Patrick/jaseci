@@ -1,14 +1,28 @@
 import from jaclang.runtimelib.machine {JacMachine}
+import struct;
 edge Left {}
 edge Right {}
 
 node BranchNode {
   has mid: int;
+  def get_type_def() {
+    return "uint64_t mid;";
+  }
+
+  def get_byte_stream() {
+    return struct.pack("<Q", self.mid);
+  }
 }
 
 node DataNode {
   has value: int;
   has index: int;
+  def get_type_def() {
+    return "uint64_t value; uint64_t index;";
+  }
+  def get_byte_stream() {
+    return struct.pack("<2Q", self.value, self.index);
+  }
 }
 
 walker bs {
@@ -24,6 +38,14 @@ walker bs {
 
   can print_node with DataNode entry {
     print(here.value);
+  }
+
+  def get_type_def() {
+    return "uint64_t value;";
+  }
+
+  def get_byte_stream() {
+    return struct.pack("<Q", self.value);
   }
 }
 

@@ -61,11 +61,13 @@ from jaclang.runtimelib.data_mapper.access_pattern import (
 from jaclang.runtimelib.data_mapper.perf_measure import print_performance_info
 from jaclang.runtimelib.data_mapper.plot import plot_and_save
 from jaclang.runtimelib.data_mapper.partitioner import (
+    DPU_NUM,
     random_partition,
     round_robin_partition,
 )
 from jaclang.runtimelib.data_mapper.size_calc import calculate_size
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
+from jaclang.runtimelib.simulation.dpu_mem_layout import get_all_memory_contexts, get_memory_context
 from jaclang.runtimelib.simulation.run_sim import get_node_types
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -507,7 +509,8 @@ class JacWalker:
         rounding_mapping = round_robin_partition(traversal_path, graph)
 
         mapping = rounding_mapping
-        
+        mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
+        print(mem_ctxs)
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -609,6 +612,9 @@ class JacWalker:
                         )
                         plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
+                current_node: NodeAnchor = current_loc.__jac__ if isinstance(current_loc, NodeArchetype) else current_loc.__jac__.target
+                mem_ctx.change_node_value(all_nodes.index(current_node), current_node)
+                mem_ctx.change_walker_value(0, walker)
         # walker ability with any exit
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
