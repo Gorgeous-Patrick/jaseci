@@ -105,7 +105,11 @@ def context_gen(
         )
         for task in tasks
     ]
+    max_node_size = max([task.start_mem_ctx.max_node_size() for task in tasks])
+    max_walker_size = max([task.start_mem_ctx.max_walker_size() for task in tasks])
     return CodeGenContext(
+        max_node_size=max_node_size,
+        max_walker_size =max_walker_size,
         node_types=node_types,
         walker_types=walker_types,
         run_ability_functions=walker_abilities,

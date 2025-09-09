@@ -37,6 +37,8 @@ class TaskExecution(BaseModel):
 
 
 class CodeGenContext(BaseModel):
+    max_node_size: int
+    max_walker_size: int
     node_types: list[TypeDef]
     walker_types: list[TypeDef]
     run_ability_functions: list[FunctionDef]
@@ -51,15 +53,18 @@ def gen_code(context: CodeGenContext) -> str:
     template_env = jinja2.Environment(loader=template_loader)
     template = template_env.get_template(TEMPLATE_PATH.name)
     return template.render(
-        node_types=context.node_types,
-        walker_types=context.walker_types,
-        run_ability_functions=context.run_ability_functions,
-        task_executions=context.task_executions,
+        # node_types=context.node_types,
+        # walker_types=context.walker_types,
+        # run_ability_functions=context.run_ability_functions,
+        # task_executions=context.task_executions,
+        context
     )
 
 
 if __name__ == "__main__":
     context = CodeGenContext(
+            max_node_size=16,
+            max_walker_size=64,
         node_types=[
             TypeDef(name="NodeTypeA", definition="int id; float value;"),
             TypeDef(name="NodeTypeB", definition="int id; double value;"),

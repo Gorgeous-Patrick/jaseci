@@ -32,6 +32,9 @@ class DPUMemoryContext:
     def change_node_value(self, node_id: int, node: NodeAnchor):
         return self.change_node_stream(node_id, node.archetype.get_byte_stream())
 
+    def max_node_size(self) -> int:
+        return max([mem_range.size for mem_range in self.node_id_to_range.values()])
+
     def download_walkers(self, walker_id_to_stream: dict[int, bytes]):
         for walker_id, walker_stream in walker_id_to_stream.items():
             self.walker_id_to_range[walker_id] = MemoryRange(ptr=len(self.walker_memory) + len(self.node_memory), size = len(walker_stream))
@@ -51,6 +54,9 @@ class DPUMemoryContext:
 
     def change_walker_value(self, walker_id: int, walker: WalkerAnchor):
         return self.change_walker_stream(walker_id, walker.archetype.get_byte_stream())
+
+    def max_walker_size(self) -> int:
+        return max([mem_range.size for mem_range in self.walker_id_to_range.values()])
 
     def dump_to_file(self, filename: str):
         with open(filename, "wb") as f:

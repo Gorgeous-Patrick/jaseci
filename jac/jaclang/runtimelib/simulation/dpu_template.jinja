@@ -19,6 +19,8 @@ void {{run_ability_function.full_name()}} ({{run_ability_function.node_type.name
 void *node_buffer;
 void *walker_buffer;
 void mem_init() {
+    node_buffer = mem_alloc({{max_node_size}});
+    walker_buffer = mem_alloc({{max_walker_size}});
 }
 
 int main_kernel1() {
