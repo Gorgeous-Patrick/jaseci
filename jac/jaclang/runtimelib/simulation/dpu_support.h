@@ -11,28 +11,17 @@
 
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 
-void get_node(node_t *node, uint32_t node_id) {
+void get(void * buf, uint32_t start, uint32_t size) {
     // Read the node from MRAM
-    uint32_t addr = DPU_MRAM_HEAP_POINTER + node_id * aligned_malloc_size(sizeof(node_t));
-    mram_read((__mram_ptr void*)(addr), node, aligned_malloc_size(sizeof(node_t)));
+    uint32_t addr = DPU_MRAM_HEAP_POINTER + start;
+    mram_read((__mram_ptr void*)(addr), buf, size);
 }
 
-void save_node(node_t *node, uint32_t node_id) {
-    // Write the node back to MRAM
-    uint32_t addr = DPU_MRAM_HEAP_POINTER + node_id * aligned_malloc_size(sizeof(node_t));
-    mram_write(node, (__mram_ptr void*)(addr), aligned_malloc_size(sizeof(node_t)));
-}
-
-void get_walker(walker_t *walker) {
-    // Read the walker from MRAM
-    uint32_t addr = DPU_MRAM_HEAP_POINTER + DPU_INPUT_ARGUMENTS.num_nodes_assigned * aligned_malloc_size(sizeof(node_t));
-    mram_read((__mram_ptr void*)(addr), walker, aligned_malloc_size(sizeof(walker_t)));
-}
-
-void save_walker(walker_t *walker) {
+void save(void * buf, uint32_t start, uint32_t size) {
     // Write the walker back to MRAM
-    uint32_t addr = DPU_MRAM_HEAP_POINTER + DPU_INPUT_ARGUMENTS.num_nodes_assigned * aligned_malloc_size(sizeof(node_t));
-    mram_write(walker, (__mram_ptr void*)(addr), aligned_malloc_size(sizeof(walker_t)));
+    uint32_t addr = DPU_MRAM_HEAP_POINTER + start;
+    mram_write(walker, (__mram_ptr void*)(addr), size);
+
 }
 
 node_t *node_buffer;

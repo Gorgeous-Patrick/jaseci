@@ -16,6 +16,11 @@ void {{run_ability_function.full_name()}} ({{run_ability_function.node_type.name
 }
 {% endfor %}
 
+void *node_buffer;
+void *walker_buffer;
+void mem_init() {
+}
+
 int main_kernel1() {
     // Barrier
     // barrier_wait(&my_barrier);
@@ -31,11 +36,14 @@ int main_kernel1() {
 
     int cnt = 0;
     get_walker(walker_buffer);
-
-    {% for walker_execution in walker_executions %}
-    get_node(node_buffer, {{walker_execution.node_ptr}}); 
+    {% for task_execution in task_executions %}
+    if (task_id == {{task_execution.task_id}}) {
+    {% for walker_execution in task_execution.walker_executions %}
+    get_node(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
     {{walker_execution.func.full_name()}}(node_buffer, {{walker_execution.node_id}}, walker_buffer);
-    save_node(node_buffer, {{walker_execution.node_ptr}});
+    save_node(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
+    {% endfor %}
+    }
     {% endfor %}
 
     save_walker(walker_buffer);

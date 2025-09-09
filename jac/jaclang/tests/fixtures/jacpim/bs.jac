@@ -27,7 +27,7 @@ node DataNode {
 
 walker bs {
   has value: int;
-  can run_down with BranchNode entry {
+  can rundown with BranchNode entry {
     print(here.mid);
     if (self.value < here.mid) {
       visit [->:Left:->];
@@ -36,8 +36,18 @@ walker bs {
     }
   }
 
-  can print_node with DataNode entry {
+  def get_impl_rundown_on_BranchNode() {
+  return "1;";
+    
+  }
+
+  can printnode with DataNode entry {
     print(here.value);
+  }
+
+  def get_impl_printnode_on_DataNode() {
+    
+  return "1;";
   }
 
   def get_type_def() {

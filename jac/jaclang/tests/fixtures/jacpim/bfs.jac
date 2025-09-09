@@ -14,13 +14,12 @@ node BFSNode {
 
 
 walker BFS {
-  has visited_500: list[int] = [];
+  has visited_512: list[bool] = [False] * 512;
   can run with BFSNode entry {
-    if (here.id in self.visited_500) {
+    if (self.visited_512[here.id]) {
       return;
     }
-    # print(here.id);
-    self.visited_500.append(here.id);
+    self.visited_512[here.id] = True;
     visit [-->];
   }
 
@@ -28,7 +27,10 @@ walker BFS {
     return "print()";
   }
   def get_byte_stream() {
-    
+    return struct.pack("<512?", *self.visited_512);
+  }
+  def get_type_def() {
+    return "bool visited_512[512];";
   }
 }
 

@@ -3,6 +3,10 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 
+class MemoryRange(BaseModel):
+    ptr: int
+    size: int
+
 class TypeDef(BaseModel):
     name: str
     definition: str
@@ -21,16 +25,22 @@ class FunctionDef(BaseModel):
 
 
 class WalkerExecution(BaseModel):
-    node_ptr: int
+    node_range: MemoryRange
     node_id: int
     func: FunctionDef
+
+
+class TaskExecution(BaseModel):
+    task_id: int
+    walker_range: MemoryRange
+    walker_executions: list[WalkerExecution]
 
 
 class CodeGenContext(BaseModel):
     node_types: list[TypeDef]
     walker_types: list[TypeDef]
     run_ability_functions: list[FunctionDef]
-    walker_executions: list[WalkerExecution]
+    task_executions: list[TaskExecution]
 
 
 TEMPLATE_PATH = Path(__file__).parent / "dpu_template.jinja"
@@ -44,7 +54,7 @@ def gen_code(context: CodeGenContext) -> str:
         node_types=context.node_types,
         walker_types=context.walker_types,
         run_ability_functions=context.run_ability_functions,
-        walker_executions=context.walker_executions,
+        task_executions=context.task_executions,
     )
 
 
@@ -77,35 +87,45 @@ if __name__ == "__main__":
                 ),
             ),
         ],
-        walker_executions=[
-            WalkerExecution(
-                node_ptr=1,
-                node_id=1,
-                func=FunctionDef(
-                    name="run_ability_A",
-                    body="/* function body */",
-                    walker_type=TypeDef(
-                        name="WalkerTypeA", definition="/* walker type definition */"
+        task_executions=[
+            TaskExecution(
+                task_id=0,
+                walker_range=MemoryRange(ptr=30, size=80),
+                walker_executions=[
+                    WalkerExecution(
+                        node_range=MemoryRange(ptr=30, size=80),
+                        node_id=1,
+                        func=FunctionDef(
+                            name="run_ability_A",
+                            body="/* function body */",
+                            walker_type=TypeDef(
+                                name="WalkerTypeA",
+                                definition="/* walker type definition */",
+                            ),
+                            node_type=TypeDef(
+                                name="NodeTypeA",
+                                definition="/* node type definition */",
+                            ),
+                        ),
                     ),
-                    node_type=TypeDef(
-                        name="NodeTypeA", definition="/* node type definition */"
+                    WalkerExecution(
+                        node_range=MemoryRange(ptr=30, size=80),
+                        node_id=2,
+                        func=FunctionDef(
+                            name="run_ability_B",
+                            body="/* function body */",
+                            walker_type=TypeDef(
+                                name="WalkerTypeB",
+                                definition="/* walker type definition */",
+                            ),
+                            node_type=TypeDef(
+                                name="NodeTypeB",
+                                definition="/* node type definition */",
+                            ),
+                        ),
                     ),
-                ),
-            ),
-            WalkerExecution(
-                node_ptr=2,
-                node_id=2,
-                func=FunctionDef(
-                    name="run_ability_B",
-                    body="/* function body */",
-                    walker_type=TypeDef(
-                        name="WalkerTypeB", definition="/* walker type definition */"
-                    ),
-                    node_type=TypeDef(
-                        name="NodeTypeB", definition="/* node type definition */"
-                    ),
-                ),
-            ),
+                ],
+            )
         ],
     )
 

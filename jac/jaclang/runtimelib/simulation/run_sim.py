@@ -1,6 +1,13 @@
 from jaclang.runtimelib.archetype import WalkerAnchor
+from jaclang.runtimelib.simulation.task import Task
 from .dpu_mem_layout import DPUMemoryContext
-from .upmem_codegen import CodeGenContext, FunctionDef, TypeDef, WalkerExecution
+from .upmem_codegen import (
+    CodeGenContext,
+    FunctionDef,
+    TaskExecution,
+    TypeDef,
+    WalkerExecution,
+)
 from jaclang.runtimelib.constructs import NodeAnchor
 
 
@@ -55,16 +62,16 @@ def get_walker_abilities(
 
 
 def get_walker_executions(
-    mem_context: DPUMemoryContext,
-    trace: list[int],
-    all_nodes: list[NodeAnchor],
+    task: Task,
     walker_type: TypeDef,
+    all_nodes: list[NodeAnchor],
     node_types: list[TypeDef],
     abilities_defs: list[FunctionDef],
-) -> list[WalkerExecution]:
+) -> TaskExecution:
     res: list[WalkerExecution] = []
-    for node_id in trace:
-        node_ptr = mem_context.get_node_ptr(node_id)
+    walker_range = task.start_mem_ctx.get_walker_range(0)
+    for node_id in task.trace:
+        node_range = task.start_mem_ctx.get_node_range(node_id)
         node = all_nodes[node_id]
         node_type_name = str(node.archetype).split(chr(40))[0]
         node_type_def = [
@@ -75,31 +82,32 @@ def get_walker_executions(
             for func in abilities_defs
             if func.walker_type is walker_type and func.node_type is node_type_def
         ][0]
-        exe = WalkerExecution(node_ptr=node_ptr, node_id=node_id, func=func_def)
+        exe = WalkerExecution(node_range=node_range, node_id=node_id, func=func_def)
         res.append(exe)
-    return res
+    return TaskExecution(task_id=task.task_id, walker_executions=res, walker_range=walker_range)
 
 
 def context_gen(
-    mem_context: DPUMemoryContext,
-    partial_trace: list[int],
+    tasks: list[Task],
     all_nodes: list[NodeAnchor],
     walker: WalkerAnchor,
 ) -> CodeGenContext:
     node_types = get_node_types(all_nodes)
     walker_types = get_walker_types([walker])
     walker_abilities = get_walker_abilities(walker, walker_types[0], node_types)
-    executions = get_walker_executions(
-        mem_context=mem_context,
-        trace=partial_trace,
-        all_nodes=all_nodes,
-        walker_type=walker_types[0],
-        node_types=node_types,
-        abilities_defs=walker_abilities,
-    )
+    task_executions = [
+        get_walker_executions(
+            task=task,
+            walker_type=walker_types[0],
+            all_nodes=all_nodes,
+            node_types=node_types,
+            abilities_defs=walker_abilities,
+        )
+        for task in tasks
+    ]
     return CodeGenContext(
         node_types=node_types,
         walker_types=walker_types,
         run_ability_functions=walker_abilities,
-        walker_executions=executions,
+        task_executions=task_executions,
     )
