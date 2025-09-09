@@ -1,14 +1,14 @@
 {% include "dpu_support.h" %}
 {% for node_type in node_types %}
-struct {{node_type.name}} {
+typedef struct __{{node_type.name}} {
 {{node_type.definition}}
-};
+} {{node_type.name}};
 {% endfor %}
 
 {% for walker_type in walker_types %}
-struct {{walker_type.name}} {
+typedef struct __{{walker_type.name}} {
 {{walker_type.definition}}
-};
+} {{walker_type.name}};
 {% endfor %}
 {% for run_ability_function in run_ability_functions %}
 void {{run_ability_function.full_name()}} ({{run_ability_function.node_type.name}} *node, uint32_t node_id, {{run_ability_function.walker_type.name}}* walker) {
@@ -24,31 +24,20 @@ void mem_init() {
 }
 
 int main_kernel1() {
-    // Barrier
-    // barrier_wait(&my_barrier);
-
-
-    // Get number of nodes and walkers assigned
-    uint32_t num_nodes_assigned = DPU_INPUT_ARGUMENTS.num_nodes_assigned;
-
-    #ifdef DEBUG
-    printf("num_nodes_assigned = %u\n", num_nodes_assigned);
-    #endif
-
-
     int cnt = 0;
-    get_walker(walker_buffer);
+    if (task_id == -1) {return 0;}
     {% for task_execution in task_executions %}
     if (task_id == {{task_execution.task_id}}) {
+    get(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
     {% for walker_execution in task_execution.walker_executions %}
-    get_node(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
+    get(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
     {{walker_execution.func.full_name()}}(node_buffer, {{walker_execution.node_id}}, walker_buffer);
-    save_node(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
+    save(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
     {% endfor %}
+    save(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
     }
     {% endfor %}
 
-    save_walker(walker_buffer);
     #ifdef DEBUG
     printf("Ending.\n");
     print_container();
@@ -70,6 +59,5 @@ int main() {
         mem_reset(); // Reset the heap
     }
     mem_init();
-    return 0;
     return main_kernel1(); // Directly call the main_kernel1 function
 }

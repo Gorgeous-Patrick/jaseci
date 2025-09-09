@@ -6,10 +6,9 @@
 #include <perfcounter.h>
 #include <barrier.h>
 
-#include "../support/common.h"
 // #define DEBUG
 
-__host dpu_arguments_t DPU_INPUT_ARGUMENTS;
+__host uint64_t task_id;
 
 void get(void * buf, uint32_t start, uint32_t size) {
     // Read the node from MRAM
@@ -20,20 +19,13 @@ void get(void * buf, uint32_t start, uint32_t size) {
 void save(void * buf, uint32_t start, uint32_t size) {
     // Write the walker back to MRAM
     uint32_t addr = DPU_MRAM_HEAP_POINTER + start;
-    mram_write(walker, (__mram_ptr void*)(addr), size);
+    mram_write(buf, (__mram_ptr void*)(addr), size);
 
 }
 
-node_t *node_buffer;
-walker_t *walker_buffer;
 #define MAX_CONTAINER_BUFFER_SIZE 128
 uint64_t container_buffer[MAX_CONTAINER_BUFFER_SIZE];
 uint64_t container_buffer_size = 0;
-void mem_init() {
-    // Initialize the memory for the container value buffer, only one uint32_t.
-    node_buffer = (node_t *) mem_alloc(aligned_malloc_size(sizeof(node_t)));
-    walker_buffer = (walker_t *) mem_alloc(aligned_malloc_size(sizeof(walker_t)));
-}
 
 void push_new_element_to_container(uint32_t id) {
     #ifdef DEBUG

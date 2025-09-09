@@ -37,8 +37,9 @@ walker bs {
   }
 
   def get_impl_rundown_on_BranchNode() {
-  return "1;";
-    
+  return """
+    printf("BranchNode ID: %u, Mid: %lu, Walker Value: %lu\\n", node_id, node->mid, walker->value);
+  """;
   }
 
   can printnode with DataNode entry {
@@ -46,8 +47,9 @@ walker bs {
   }
 
   def get_impl_printnode_on_DataNode() {
-    
-  return "1;";
+  return """
+    printf("DataNode ID: %u, Value: %lu, Index: %lu, Walker Value: %lu\\n", node_id, node->value, node->index, walker->value);
+  """;
   }
 
   def get_type_def() {

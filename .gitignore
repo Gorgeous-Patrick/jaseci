@@ -69,3 +69,6 @@ env
 *.png
 *.dot
 snap_data
+
+task.c
+*.bin

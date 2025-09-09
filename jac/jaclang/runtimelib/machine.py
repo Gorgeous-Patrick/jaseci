@@ -511,8 +511,8 @@ class JacWalker:
         random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
 
-        mapping = rounding_mapping
-        # mapping = random_mapping
+        # mapping = rounding_mapping
+        mapping = random_mapping
         mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
         print(mem_ctxs)
         # walker ability on any entry
@@ -641,7 +641,7 @@ class JacWalker:
             current_task.save()
         walker.ignores = []
         trace = [all_nodes.index(node) for node in walker.trace]
-        with open("dpu.c", "w") as file:
+        with open("task.c", "w") as file:
             file.write(gen_code(context_gen(tasks, all_nodes, walker)))
         print_performance_info(graph, random_mapping, walker, walker_code, trace)
         print_performance_info(graph, rounding_mapping, walker, walker_code, trace)

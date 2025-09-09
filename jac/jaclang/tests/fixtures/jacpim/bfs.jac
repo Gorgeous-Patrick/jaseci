@@ -8,7 +8,7 @@ node BFSNode {
     return struct.pack("<q", self.id);
   }
   static def get_type_def() {
-    return "struct BFSNode {int id;};";
+    return "int id;";
   }
 }
 
@@ -16,6 +16,7 @@ node BFSNode {
 walker BFS {
   has visited_512: list[bool] = [False] * 512;
   can run with BFSNode entry {
+    print("Visited node ID: %d" % here.id);
     if (self.visited_512[here.id]) {
       return;
     }
@@ -24,7 +25,8 @@ walker BFS {
   }
 
   def get_impl_run_on_BFSNode() {
-    return "print()";
+    # Return C code here
+    return """printf(\"Visited node ID: %d\\n\", here.id);""";
   }
   def get_byte_stream() {
     return struct.pack("<512?", *self.visited_512);
