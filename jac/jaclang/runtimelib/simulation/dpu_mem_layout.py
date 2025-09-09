@@ -72,5 +72,7 @@ def get_all_memory_contexts(
     for _ in range(dpu_num):
         dpu_mem_contexts.append(DPUMemoryContext())
     for node_id, dpu_id in mapping.items():
-        dpu_mem_contexts[dpu_id].change_node_value(node_id, all_nodes[node_id])
+        dpu_mem_contexts[dpu_id].download_nodes(
+            {node_id: all_nodes[node_id].archetype.get_byte_stream()}
+        )
     return dpu_mem_contexts

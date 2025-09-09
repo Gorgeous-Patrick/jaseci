@@ -69,6 +69,7 @@ from jaclang.runtimelib.data_mapper.size_calc import calculate_size
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.simulation.dpu_mem_layout import get_all_memory_contexts, get_memory_context
 from jaclang.runtimelib.simulation.run_sim import get_node_types
+from jaclang.runtimelib.simulation.task import Task
 from jaclang.runtimelib.utils import (
     all_issubclass,
     traverse_graph,
@@ -508,7 +509,8 @@ class JacWalker:
         random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
 
-        mapping = rounding_mapping
+        # mapping = rounding_mapping
+        mapping = random_mapping
         mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
         print(mem_ctxs)
         # walker ability on any entry
@@ -517,7 +519,7 @@ class JacWalker:
                 i.func(warch, current_loc)
             if walker.disengaged:
                 return warch
-
+        current_task: Task | None = None
         while len(walker.next):
             if current_loc := walker.next.pop(0).archetype:
                 # Push the node into walker trace
@@ -526,6 +528,17 @@ class JacWalker:
                 elif isinstance(current_loc, NodeArchetype):
                     walker.trace.append(current_loc.__jac__)
                 # walker ability with loc entry
+                current_node: NodeAnchor = current_loc.__jac__ if isinstance(current_loc, NodeArchetype) else current_loc.__jac__.target
+                current_node_id = all_nodes.index(current_node)
+                current_dpu_id = mapping[current_node_id]
+                mem_ctxs[current_dpu_id].download_walkers({0: warch.get_byte_stream()})
+                if current_task is None:
+                    current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id])
+                elif current_task.dpu_id != current_dpu_id:
+                    current_task.save()
+                    current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id])
+                current_task.add_node(current_node_id)
+                
                 for i in warch._jac_entry_funcs_:
                     if (
                         i.trigger
@@ -612,9 +625,7 @@ class JacWalker:
                         )
                         plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
-                current_node: NodeAnchor = current_loc.__jac__ if isinstance(current_loc, NodeArchetype) else current_loc.__jac__.target
-                mem_ctx.change_node_value(all_nodes.index(current_node), current_node)
-                mem_ctx.change_walker_value(0, walker)
+                mem_ctxs[current_dpu_id].change_walker_value(0, walker)
         # walker ability with any exit
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
@@ -622,6 +633,8 @@ class JacWalker:
             if walker.disengaged:
                 return warch
 
+        if current_task != None:
+            current_task.save()
         walker.ignores = []
         trace = [all_nodes.index(node) for node in walker.trace]
         print_performance_info(graph, random_mapping, walker, walker_code, trace)
