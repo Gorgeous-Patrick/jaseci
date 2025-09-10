@@ -16,7 +16,6 @@ from lsprotocol.types import (
 from jaclang.langserve.tests.server_test.utils import (
     create_temp_jac_file,
     get_code,
-    get_jac_file_path,
     get_simple_code,
     create_ls_with_workspace,  # new helper
 )
@@ -25,8 +24,6 @@ from jaclang.vendor.pygls.workspace import Workspace
 from jaclang import JacMachineInterface as _
 from jaclang.langserve.engine import JacLangServer
 from jaclang.langserve.server import did_open, did_save, did_change, formatting
-
-JAC_FILE = get_jac_file_path()
 
 
 class TestLangServe:
@@ -190,7 +187,7 @@ class TestLangServe:
         await did_save(ls, params)
         sem_tokens = ls.get_semantic_tokens(uri)
         # semantic tokens should still be present even if there is a syntax error
-        assert len(sem_tokens.data) == 320
+        assert len(sem_tokens.data) == 340
         diagnostics = ls.diagnostics.get(uri, [])
         assert isinstance(diagnostics, list)
         assert len(diagnostics) == 1
@@ -254,7 +251,7 @@ class TestLangServe:
         await did_change(ls, params)
         sem_tokens = ls.get_semantic_tokens(uri)
         # semantic tokens should still be present even if there is a syntax error
-        assert len(sem_tokens.data) == 320
+        assert len(sem_tokens.data) == 340
         diagnostics = ls.diagnostics.get(uri, [])
         assert isinstance(diagnostics, list)
         assert len(diagnostics) == 1

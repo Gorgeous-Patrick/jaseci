@@ -464,6 +464,11 @@ class TypeEvaluator:
                 caller_type = self.get_type_of_expression(expr.target)
                 if isinstance(caller_type, types.FunctionType):
                     return caller_type.return_type or types.UnknownType()
+                if (
+                    isinstance(caller_type, types.ClassType)
+                    and caller_type.is_instantiable_class()
+                ):
+                    return caller_type.clone_as_instance()
                 # TODO: Check if it has a `__call__` method if it's not a function type.
 
             case uni.Name():
