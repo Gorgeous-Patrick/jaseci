@@ -37,8 +37,13 @@ walker bs {
   }
 
   def get_impl_rundown_on_BranchNode() {
+    # Write C implementation for the rundown walker on BranchNode here
   return """
-    printf("BranchNode ID: %u, Mid: %lu, Walker Value: %lu\\n", node_id, node->mid, walker->value);
+    if (walker->value < node->mid) {
+      push_new_element_to_container(0);
+    } else {
+      push_new_element_to_container(1);
+    }
   """;
   }
 
@@ -48,7 +53,6 @@ walker bs {
 
   def get_impl_printnode_on_DataNode() {
   return """
-    printf("DataNode ID: %u, Value: %lu, Index: %lu, Walker Value: %lu\\n", node_id, node->value, node->index, walker->value);
   """;
   }
 
@@ -62,24 +66,26 @@ walker bs {
 }
 
 with entry {
-  r = BranchNode(mid = 5);
-  n1 = BranchNode(mid = 3);
-  n2 = BranchNode(mid = 7);
-  n3 = DataNode(value = 1, index = 0);
-  n4 = DataNode(value = 4, index = 1);
-  n5 = DataNode(value = 6, index = 2);
-  n6 = DataNode(value = 8, index = 3);
-
-  root ++> r;
-
-  r+>:Left:+>n1;
-  r+>:Right:+>n2;
-  n1+>:Left:+>n3;
-  n1+>:Right:+>n4;
-  n2+>:Left:+>n5;
-  n2+>:Right:+>n6;
-
-  print("Starting binary search with value 5");
-
-  wlk = r spawn bs(value = 5);
+  NUM=1024;
+  values = [i for i in range(NUM)];
+  data_nodes = [(DataNode(value=values[i], index=i), values[i], values[i]) for i in range(NUM)];
+  granularity = 1;
+  print(data_nodes);
+  while (len(data_nodes) > 1) {
+  new_nodes = [];
+  while (len(data_nodes) > 1) {
+    first = data_nodes.pop(0);
+    second = data_nodes.pop(0);
+    mid = second[1];
+    branch = BranchNode(mid=mid);
+    branch +>:Left:+>first[0];
+    branch +>:Right:+>second[0];
+    new_nodes.append((branch, first[1], second[2]));
+  }
+  data_nodes = new_nodes + data_nodes;
+  print(data_nodes);
+  }
+  root ++> data_nodes[0][0];
+  walker_instance = data_nodes[0][0] spawn bs(value=5);
+  print("Walker instance created with value 5");
 }
