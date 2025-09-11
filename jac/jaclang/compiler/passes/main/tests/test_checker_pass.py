@@ -117,6 +117,17 @@ class TypeCheckerPassTests(TestCase):
             ^^^^^^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_checker_mod_path(self) -> None:
+        path = self.fixture_abs_path("checker_mod_path.jac")
+        program = JacProgram()
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 1)
+        self._assert_error_pretty_found("""
+            a:int = uni.Module; # <-- Error
+            ^^^^^^^^^^^^^^
+        """, program.errors_had[0].pretty_print())
+
     def test_cyclic_symbol(self) -> None:
         path = self.fixture_abs_path("checker_cyclic_symbol.jac")
         program = JacProgram()
