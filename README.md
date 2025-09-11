@@ -34,13 +34,13 @@
 
 Welcome to the Jaseci project. This repository houses the core libraries and tooling for building next-generation applications with the Jac programming language.
 
-Jaseci serves as the implementation stack for the Jac programming language, functioning in a relationship similar to how CPython serves as the reference implementation for Python. This runtime stack enables Jac code to execute with its enhanced features while maintaining the seamless Python interoperability that makes the language particularly accessible to Python developers.
+Jaseci serves as the implementation stack for the Jac programming language, and is packaged as a simple Python library. This runtime stack enables Jac code to execute with its enhanced features while maintaining the seamless Python interoperability that makes the language particularly accessible to Python developers.
 
 The project brings together a set of components that work seamlessly together:
 
 - **[`jaclang`](jac/):** The Jac programming language, a drop‑in replacement for and superset of Python.
-- **[`byllm`](jac-byllm/):** Easy integration of large language models into your applications.
-- **[`jac-cloud`](jac-cloud/):** Cloud‑native utilities that automatically turn a Jac application into a production-ready server stack.
+- **[`byllm`](jac-byllm/):** Python plugin for Jac enabling easy integration of large language models into your applications.
+- **[`jac-cloud`](jac-cloud/):** Python plugin for Jac with cloud‑native utilities that automatically turn a Jac application into a production-ready server stack.
 - **[`jac VSCE`](jac/support/vscode_ext):** The official VS Code extension for Jac.
 
 ---
@@ -71,7 +71,7 @@ Jac is an innovative programming language that extends Python's semantics while 
 
 Get the complete, stable toolkit from PyPI:
 ```bash
-pip install jac[all]
+pip install jaclang[all]
 ```
 This is the fastest way to get started with building applications.
 
