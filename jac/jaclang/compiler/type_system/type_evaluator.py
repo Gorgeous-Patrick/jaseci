@@ -504,7 +504,12 @@ class TypeEvaluator:
                     and caller_type.is_instantiable_class()
                 ):
                     return caller_type.clone_as_instance()
-                # TODO: Check if it has a `__call__` method if it's not a function type.
+                if caller_type.is_class_instance():
+                    magic_call_ret = self.get_type_of_magic_method_call(
+                        caller_type, "__call__"
+                    )
+                    if magic_call_ret:
+                        return magic_call_ret
 
             case uni.BinaryExpr():
                 return operations.get_type_of_binary_operation(self, expr)

@@ -92,6 +92,18 @@ class TypeCheckerPassTests(TestCase):
           ^^^^^^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_call_expr_magic(self) -> None:
+        path = self.fixture_abs_path("checker_magic_call.jac")
+        program = JacProgram()
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 1)
+        self._assert_error_pretty_found("""
+            b: Bar = fn()(); # <-- Ok
+            f: Foo = fn()(); # <-- Error
+            ^^^^^^^^^^^^^^^^
+        """, program.errors_had[0].pretty_print())
+
     def test_binary_op(self) -> None:
         program = JacProgram()
         mod = program.compile(self.fixture_abs_path("checker_binary_op.jac"))
