@@ -66,6 +66,8 @@ class JacLangServer(JacProgram , LanguageServer) {
         self.tasks: dict[(str, asyncio.Task)] = {};
         self.sem_managers: dict[(str, SemTokManager)] = {};
         self.module_manager = ModuleManager(self, self.sem_managers);
+        self._quick_tasks: dict[str, asyncio.Task] = {};
+        self._deep_tasks: dict[str, asyncio.Task] = {};
     }
 
     """Return diagnostics for all files as a dict {uri: diagnostics}."""
@@ -169,34 +171,34 @@ class JacLangServer(JacProgram , LanguageServer) {
         }
     }
 
-    """Analyze and publish diagnostics."""
-    async def launch_quick_check(self: JacLangServer, uri: str) -> bool {
-        return await asyncio.get_event_loop().run_in_executor(
-            self.executor,
-            self.quick_check,
-            uri
-        );
+    """Analyze and publish diagnostics with debouncing."""
+    async def launch_quick_check(self: JacLangServer, uri: str, delay: float = 0.5) -> bool {
+        try {
+            return await self._debounced_run(self.quick_check, uri, delay, self._quick_tasks);
+        } except asyncio.CancelledError {
+            return False;
+        } except Exception as e {
+            self.log_error(f" 'Error during quick check launch: ' {e} ");
+            return False;
+        }
     }
-
-    """Analyze and publish diagnostics."""
-    async def launch_deep_check(self: JacLangServer, uri: str) -> None {
-        async def run_in_executor(
-            func: Callable[([str, Optional[str]], bool)],
-            file_path: str,
-            annex_view: Optional[str] = None
-        ) -> None {
-            loop = asyncio.get_event_loop();
-            await loop.run_in_executor(self.executor, func, file_path, annex_view);
+    """Analyze and publish diagnostics with debouncing."""
+    async def launch_deep_check(
+        self: JacLangServer,
+        uri: str,
+        delay: float = 1.0,
+        annex_view: Optional[str] = None
+    ) -> bool {
+        def deep_check_wrapper(file_uri: str) -> bool {
+            return self.deep_check(file_uri, annex_view);
         }
-        if uri in self.tasks and not self.tasks[uri].done()  {
-            self.log_py(f"'Canceling '{uri}' deep check...'");
-            self.tasks[uri].cancel();
-            del (self.tasks[uri], ) ;
+        try {
+            return await self._debounced_run(deep_check_wrapper, uri, delay, self._deep_tasks);
+        } except asyncio.CancelledError {
+            return False;
+        } except Exception as e {
+            self.log_error(f" 'Error during deep check launch: ' {e} ");
         }
-        self.log_py(f"'Analyzing '{uri}'...'");
-        task = asyncio.create_task(run_in_executor(self.deep_check, uri));
-        self.tasks[uri] = task;
-        await task;
     }
 
     """Return completion for a file."""
@@ -647,4 +649,37 @@ class JacLangServer(JacProgram , LanguageServer) {
     def log_py(self: JacLangServer, message: str) -> None {
         logging.info(message);
     }
+
+    """Run a function with debouncing per file."""
+    async def _debounced_run(
+        self: JacLangServer,
+        func: Callable,
+        file_uri: str,
+        delay: float,
+        task_dict: dict[(str, asyncio.Task)]
+    ) -> None {
+        if ((file_uri in task_dict) and not task_dict[file_uri].done() ) {
+            task_dict[file_uri].cancel();
+            self.log_py(
+                f" {func.__name__} ' was cancelled due to debounce for ' {file_uri} "
+            );
+        }
+        async def wrapper() {
+            try {
+                await asyncio.sleep(delay);
+                loop = asyncio.get_event_loop();
+                result = await loop.run_in_executor(None, func, file_uri);
+                return result;
+            } except asyncio.CancelledError {
+                self.log_py(
+                    f" {func.__name__} ' was cancelled due to debounce for ' {file_uri} "
+                );
+                raise ;
+            }
+        }
+        new_task = asyncio.create_task(wrapper());
+        task_dict[file_uri] = new_task;
+        return await new_task;
+    }
+
 }
