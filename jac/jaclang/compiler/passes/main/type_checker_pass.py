@@ -138,3 +138,10 @@ class TypeCheckPass(UniPass):
     def exit_atom_trailer(self, node: uni.AtomTrailer) -> None:
         """Handle the atom trailer node."""
         self.evaluator.get_type_of_expression(node)
+
+    def exit_func_call(self, node: uni.FuncCall) -> None:
+        """Handle the function call node."""
+        # TODO:
+        # 1. Function Existence & Callable Validation
+        # 2. Argument Matching(count, types, names)
+        self.evaluator.get_type_of_expression(node)

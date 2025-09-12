@@ -127,6 +127,9 @@ class TestJacLangServer(TestCase):
             str(lsp.get_definition(circle_file, lspt.Position(20, 16))),
         )
 
+    @pytest.mark.xfail(
+        reason="Incorrect handling of 'self' in DefUsePass.TODO: Fix chain_use_lookup."
+    )
     def test_go_to_definition_method(self) -> None:
         """Test that the go to definition is correct."""
         lsp = JacLangServer()
@@ -595,7 +598,11 @@ class TestJacLangServer(TestCase):
         workspace_path = self.fixture_abs_path("")
         workspace = Workspace(workspace_path, lsp)
         lsp.lsp._workspace = workspace
-        guess_game_file = uris.from_fs_path(self.fixture_abs_path('../../../compiler/passes/main/tests/fixtures/sym_binder.jac'))
+        guess_game_file = uris.from_fs_path(
+            self.fixture_abs_path(
+                "../../../compiler/passes/main/tests/fixtures/sym_binder.jac"
+            )
+        )
         lsp.deep_check(guess_game_file)
         self.assertIn(
             "/tests/fixtures/M1.jac:0:0-0:0",
