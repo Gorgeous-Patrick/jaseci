@@ -57,6 +57,7 @@ nav:
         - "learn/jac-cloud/permission.md"
         - "learn/jac-cloud/logging.md"
         - "learn/jac-cloud/env_vars.md"
+        - "learn/jac-cloud/sso_implementation.md"
       - Real-time & Async:
         - "learn/jac-cloud/websocket.md"
         - "learn/jac-cloud/scheduler.md"
