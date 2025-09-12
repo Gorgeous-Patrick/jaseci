@@ -12,6 +12,26 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Fix `lambda self injection in abilities`**: Removed unintended `self` parameter in lambdas declared inside abilities/methods.
 - **Fix `jac2py lambda annotations`**: Stripped type annotations from lambda parameters during jac2py conversion to ensure valid Python output while keeping them in Jac AST for type checking.
 
+- **TypeChecker Diagnostics**: Introduced type checking capabilities to catch errors early and improve code quality! The new type checker pass provides static analysis including:
+  - **Type Annotation Validation**: Checks explicit type annotations in variable assignments for type mismatches
+  - **Type Inference**: Simple type inference for assignments with validation against declared types
+  - **Member Access Type Checking**: Type checking for member access patterns (e.g., `obj.field.subfield`)
+  - **Import Symbol Type Checking**: Type inference for imported symbols (Basic support)
+  - **Function Call Return Type Validation**: Return type checking for function calls (parameter validation not yet supported)
+  - **Magic Method Support**: Type checking for special methods like `__call__`, `__add__`, `__mul__`
+  - **Binary Operation Type Checking**: Operator type validation with simple custom operator support
+  - **Class Instantiation**: Type checking for class constructor calls and member access
+  - **Cyclic Symbol Detection**: Detection of self-referencing variable assignments
+  - **Missing Import Detection**: Detection of imports from non-existent modules
+
+  Type errors now appear in the Jac VS Code extension (VSCE) with error highlighting during editing.
+
+- **VSCE Semantic Token Refresh Optimization**: Introduced a debounce mechanism for semantic token refresh in the Jac Language Server, significantly improving editor responsiveness:
+  - Reduces redundant deep checks during rapid file changes
+  - Optimizes semantic token updates for smoother editing experience
+
+- **Windows LSP Improvements**: Fixed an issue where outdated syntax and type errors persisted on Windows. Now, only current errors are displayed
+
 ## jaclang 0.8.5 / jac-cloud 0.2.5 / mtllm 0.4.0
 
 - **Jac Cloud Hot Reload**: Introduced the ability to enable development mode like uvicorn by adding `--reload` in `jac serve`. This supports targetting specific directories by using `--watch path/to/dir1,path/to/dir2` (comma separated).
