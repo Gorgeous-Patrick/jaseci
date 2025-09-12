@@ -128,6 +128,13 @@ class TypeCheckerPassTests(TestCase):
             ^^^^^^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_checker_import_missing_module(self) -> None:
+        path = self.fixture_abs_path("checker_import_missing_module.jac")
+        program = JacProgram()
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 0)
+
     def test_cyclic_symbol(self) -> None:
         path = self.fixture_abs_path("checker_cyclic_symbol.jac")
         program = JacProgram()
