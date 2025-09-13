@@ -662,6 +662,14 @@ def start_cli() -> None:
     - None
     """
     parser = cmd_registry.parser
+    # Default to `run` when a file is provided without a subcommand
+    raw_argv = sys.argv[1:]
+    if (
+        raw_argv
+        and not raw_argv[0].startswith("-")
+        and raw_argv[0].lower().endswith((".jac", ".jir", ".py"))
+    ):
+        sys.argv = [sys.argv[0], "run"] + raw_argv
     args = parser.parse_args()
     cmd_registry.args = args
 
