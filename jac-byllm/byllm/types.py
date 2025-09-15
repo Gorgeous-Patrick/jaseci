@@ -8,6 +8,7 @@ tool calls, and tools that can be used in LLM requests and responses.
 import base64
 import mimetypes
 import os
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 from io import BytesIO
@@ -90,14 +91,15 @@ class Tool:
 
     def __post_init__(self) -> None:
         """Post-initialization to validate the function."""
-        self.func.__annotations__ = get_type_hints(self.func)
+        annotations = get_type_hints(self.func)
+        with suppress(Exception):
+            self.func.__annotations__ = annotations
+
         self.description = Tool.get_func_description(self.func)
         if hasattr(self.func, "_jac_semstr_inner"):
             self.params_desc = self.func._jac_semstr_inner  # type: ignore
         else:
-            self.params_desc = {
-                name: str(type) for name, type in self.func.__annotations__.items()
-            }
+            self.params_desc = {name: str(type) for name, type in annotations.items()}
 
     def __call__(self, *args: list, **kwargs: dict) -> object:
         """Call the tool function with the provided arguments."""
@@ -152,7 +154,13 @@ class Tool:
     def parse_arguments(self, args_json: dict) -> dict:
         """Parse the arguments from JSON to the function's expected format."""
         args = {}
-        annotations = self.func.__annotations__
+
+        annotations: dict = {}
+        try:
+            annotations = self.func.__annotations__
+        except AttributeError:
+            annotations = get_type_hints(self.func)
+
         for arg_name, arg_json in args_json.items():
             if arg_type := annotations.get(arg_name):
                 args[arg_name] = TypeAdapter(arg_type).validate_python(arg_json)

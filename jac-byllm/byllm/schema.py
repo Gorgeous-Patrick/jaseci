@@ -6,7 +6,7 @@ and to validate instances against these schemas.
 
 from dataclasses import is_dataclass
 from enum import Enum
-from types import FunctionType, UnionType
+from types import FunctionType, MethodType, UnionType
 from typing import Callable, Union, get_args, get_origin, get_type_hints
 
 from pydantic import TypeAdapter
@@ -129,7 +129,7 @@ def _type_to_schema(ty: type, title: str = "", desc: str = "") -> dict:
         }
 
     # Handle functions
-    if isinstance(ty, FunctionType):
+    if isinstance(ty, (FunctionType, MethodType)):
         hints = get_type_hints(ty)
         hints.pop("return", None)
         params = {

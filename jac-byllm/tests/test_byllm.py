@@ -56,6 +56,16 @@ class JacLanguageTests(TestCase):
         stdout_value = captured_output.getvalue()
         self.assertIn('👤➡️🗼', stdout_value)
 
+    def test_method_tool_call(self) -> None:
+        """Parse micro jac file."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        jac_import("method_tool", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn('Calculator.add called with 12, 34', stdout_value)
+        self.assertIn('Result: 46', stdout_value)
+
     def test_image_input(self) -> None:
         """Parse micro jac file."""
         captured_output = io.StringIO()
