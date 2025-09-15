@@ -49,7 +49,7 @@ async def did_change(
     try {
         document = ls.workspace.get_text_document(file_path);
         lines = document.source.splitlines();
-        fs_path = file_path.removeprefix('file://');
+        fs_path = document.path;
         if (fs_path in ls.sem_managers) {
             sem_manager = ls.sem_managers[fs_path];
             sem_manager.update_sem_tokens(params, sem_manager.sem_tokens, lines);
