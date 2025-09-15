@@ -2,7 +2,9 @@
 
 This document provides a summary of new features, improvements, and bug fixes in each version of Jac and Jaseci. For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](./breaking_changes.md) page.
 
-## jaclang 0.8.7 / jac-cloud 0.2.7 / byllm 0.4.2 (Unreleased)
+## jaclang 0.8.8 / jac-cloud 0.2.8 / byllm 0.4.3 (Unreleased)
+
+## jaclang 0.8.7 / jac-cloud 0.2.7 / byllm 0.4.2 (Latest Release)
 
 - **Fix `jac run same_name_of_jac.py`**- there was a bug which only runs jac file if both jac and python files were having same name. It was fixed so that developers run python files which has same name as jac with `jac run` command. (Ex: `jac run example.jac`, `jac run example.py`)
 - **Fix `jac run pythonfile.py` bugs**: Few bugs such as `init` is not found, `SubTag` ast node issue, are fixed. So that developers can run `jac run` of python files without these issues.
