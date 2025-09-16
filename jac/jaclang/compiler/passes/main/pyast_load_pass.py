@@ -2091,6 +2091,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         """Process python node.
 
         class arguments(AST):
+            posonlyargs: list[arg]
             args: list[arg]
             vararg: arg | None
             kwonlyargs: list[arg]
@@ -2098,6 +2099,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             kwarg: arg | None
             defaults: list[expr]
         """
+        posonlyargs = [self.convert(arg) for arg in node.posonlyargs]
         args = [self.convert(arg) for arg in node.args]
         vararg = self.convert(node.vararg) if node.vararg else None
         if vararg and isinstance(vararg, uni.ParamVar):
@@ -2157,12 +2159,14 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             fs_params = valid_params
             return uni.FuncSignature(
                 params=fs_params,
+                posonly_params=posonlyargs,
                 return_type=None,
                 kid=fs_params,
             )
         else:
             return uni.FuncSignature(
                 params=[],
+                posonly_params=posonlyargs,
                 return_type=None,
                 kid=[self.operator(Tok.LPAREN, "("), self.operator(Tok.RPAREN, ")")],
             )

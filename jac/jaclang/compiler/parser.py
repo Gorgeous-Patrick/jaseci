@@ -850,6 +850,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 return uni.FuncSignature(
                     params=[],
                     return_type=return_spec,
+                    posonly_params=[],
                     kid=self.flat_cur_nodes,
                 )
             # Otherwise, parse the traditional parameter list form
@@ -864,6 +865,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                         self.extract_from_list(params, uni.ParamVar) if params else []
                     ),
                     return_type=return_spec,
+                    posonly_params=[],
                     kid=self.flat_cur_nodes,
                 )
 
@@ -1549,6 +1551,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                         self.extract_from_list(params, uni.ParamVar) if params else []
                     ),
                     return_type=return_type,
+                    posonly_params=[],
                     kid=sig_kid,
                 )
                 if params or return_type

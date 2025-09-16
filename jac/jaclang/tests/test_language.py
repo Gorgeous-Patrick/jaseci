@@ -589,6 +589,25 @@ class JacLanguageTests(TestCase):
         self.assertIn("case Container(inner = Inner(x = a, y = b)):\n", output)
         self.assertIn("case _:\n", output)
 
+    def test_py2jac_params(self) -> None:
+        """Test py ast to Jac ast conversion."""
+        from jaclang.compiler.passes.main import PyastBuildPass
+        import jaclang.compiler.unitree as ast
+        import ast as py_ast
+
+        py_out_path = os.path.join(self.fixture_abs_path("./"), "py2jac_params.py")
+        with open(py_out_path) as f:
+            file_source = f.read()
+            output = PyastBuildPass(
+                ir_in=ast.PythonModuleAst(
+                    py_ast.parse(file_source),
+                    orig_src=ast.Source(file_source, py_out_path),
+                ),
+                prog=None,
+            ).ir_out.unparse()
+        self.assertIn("isinstance( <>obj: object , class_or_tuple: _ClassInfo)", output)
+        self.assertIn("len(<>obj: Sized, astt: Any, z: int, j: str, a: Any = 90)", output)
+
     def test_refs_target(self) -> None:
         """Test py ast to Jac ast conversion output."""
         captured_output = io.StringIO()

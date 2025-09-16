@@ -1943,23 +1943,28 @@ class FuncSignature(UniNode):
         self,
         params: Sequence[ParamVar] | None,
         return_type: Optional[Expr],
+        posonly_params: Sequence[ParamVar],
         kid: Sequence[UniNode],
     ) -> None:
         self.params: list[ParamVar] = list(params) if params else []
         self.return_type = return_type
+        self.posonly_params: list[ParamVar] = list(posonly_params)
         UniNode.__init__(self, kid=kid)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
         is_lambda = self.parent and isinstance(self.parent, LambdaExpr)
         if deep:
+            for prm in self.posonly_params:
+                res = res and prm.normalize(deep)
             for prm in self.params:
                 res = res and prm.normalize(deep)
             res = res and self.return_type.normalize(deep) if self.return_type else res
         new_kid: list[UniNode] = [self.gen_token(Tok.LPAREN)] if not is_lambda else []
-        for idx, prm in enumerate(self.params):
+        total_params = list(self.posonly_params) + list(self.params)
+        for idx, prm in enumerate(total_params):
             new_kid.append(prm)
-            if idx < len(self.params) - 1:
+            if idx < len(total_params) - 1:
                 new_kid.append(self.gen_token(Tok.COMMA))
         if not is_lambda:
             new_kid.append(self.gen_token(Tok.RPAREN))
