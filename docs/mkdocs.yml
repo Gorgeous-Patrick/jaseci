@@ -229,6 +229,9 @@ plugins:
       video_autoplay: True
       # video_loop: True
       video_controls: False
+  - redirects:
+      redirect_maps:
+        index.md: learn/introduction.md
 
 hooks:
   - scripts/handle_jac_compile_data.py
