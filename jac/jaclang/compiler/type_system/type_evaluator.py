@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import jaclang.compiler.unitree as uni
+from jaclang.compiler.constant import Tokens as Tok
 from jaclang.compiler.type_system import types
 
 if TYPE_CHECKING:
@@ -229,11 +230,14 @@ class TypeEvaluator:
         if node.name_spec.type is not None:
             return cast(types.ClassType, node.name_spec.type)
 
+        is_builtin_class = node.find_parent_of_type(uni.Module) == self.builtins_module
+
         cls_type = types.ClassType(
             types.ClassType.ClassDetailsShared(
                 class_name=node.name_spec.sym_name,
                 symbol_table=node,
                 # TODO: Resolve the base class expression and pass them here.
+                is_builtin_class=is_builtin_class,
             ),
             flags=types.TypeFlags.Instantiable,
         )
@@ -515,11 +519,52 @@ class TypeEvaluator:
                 return operations.get_type_of_binary_operation(self, expr)
 
             case uni.Name():
+                # NOTE: For self's type pyright is getting the first parameter of a method and
+                # the name can be anything not just self, however we don't have the first parameter
+                # and self is a keyword, we need to do it in this way.
+                if (
+                    (expr.name == Tok.KW_SELF.value)
+                    and (fn := self._get_enclosing_method(expr))
+                    and (not fn.is_static)
+                ):
+                    return self._get_type_of_self(expr)
+
                 if symbol := expr.sym_tab.lookup(expr.value, deep=True):
                     expr.sym = symbol
                     return self.get_type_of_symbol(symbol)
 
             # TODO: More expressions.
+        return types.UnknownType()
+
+    # -----------------------------------------------------------------------------
+    # Helper functions
+    # -----------------------------------------------------------------------------
+
+    def _get_enclosing_function(self, node: uni.UniNode) -> uni.Ability | None:
+        """Get the enclosing function (ability) of the given node."""
+        if (impl := node.find_parent_of_type(uni.ImplDef)) and (
+            isinstance(impl.decl_link, uni.Ability)
+        ):
+            return impl.decl_link
+        return node.find_parent_of_type(uni.Ability)
+
+    def _get_enclosing_method(self, node: uni.UniNode) -> uni.Ability | None:
+        """Get the enclosing method (ability) of the given node."""
+        enclosing_fn = self._get_enclosing_function(node)
+        while enclosing_fn and (not enclosing_fn.is_method):
+            enclosing_fn = self._get_enclosing_function(enclosing_fn)
+        if enclosing_fn and enclosing_fn.is_method:
+            return enclosing_fn
+        return None
+
+    def _get_type_of_self(self, node: uni.Name) -> TypeBase:
+        """Return the effective type of self."""
+        if method := self._get_enclosing_method(node):
+            cls = method.method_owner
+            if isinstance(cls, uni.Archetype):
+                return self.get_type_of_class(cls).clone_as_instance()
+            if isinstance(cls, uni.Enum):
+                pass  # TODO: Implement type from enum.
         return types.UnknownType()
 
     def _convert_to_instance(self, jtype: TypeBase) -> TypeBase:

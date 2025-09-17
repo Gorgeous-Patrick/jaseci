@@ -14,6 +14,7 @@ import os
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.passes import UniPass
+from jaclang.compiler.type_system import types as jtypes
 from jaclang.compiler.type_system.type_evaluator import TypeEvaluator
 from jaclang.runtimelib.utils import read_file_with_encoding
 
@@ -117,6 +118,16 @@ class TypeCheckPass(UniPass):
     # --------------------------------------------------------------------------
     # Ast walker hooks
     # --------------------------------------------------------------------------
+
+    def enter_ability(self, node: uni.Ability) -> None:
+        """Enter an ability node."""
+        # If the node has @staticmethod decorator, mark it as static method.
+        # this is needed since ast raised from python does not have this info.
+        for decor in node.decorators or []:
+            ty = self.evaluator.get_type_of_expression(decor)
+            if isinstance(ty, jtypes.ClassType) and ty.is_builtin("staticmethod"):
+                node.is_static = True
+                break
 
     def exit_assignment(self, node: uni.Assignment) -> None:
         """Pyright: Checker.visitAssignment(node: AssignmentNode): boolean."""

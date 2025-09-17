@@ -163,11 +163,24 @@ class ClassType(TypeBase):
             class_name: str,
             symbol_table: SymbolTable,
             base_classes: list[TypeBase] | None = None,
+            is_builtin_class: bool = False,
         ) -> None:
             """Initialize obviously."""
             self.class_name = class_name
             self.symbol_table = symbol_table
             self.base_classes = base_classes or []
+
+            # In pyright classes have ClassTypeFlags to indicate if it's builtin
+            # along with other information, I'm adding only the builtin flag for now.
+            # add the other flags if needed in the future with a bitmask enum.
+            #
+            # export const enum ClassTypeFlags {
+            #   ...
+            #   // Class is defined in the "builtins" or "typing" file.
+            #   BuiltIn = 1 << 0,
+            #   ...
+            #
+            self.is_builtin_class = is_builtin_class
 
     def __init__(
         self,
@@ -195,6 +208,18 @@ class ClassType(TypeBase):
     def lookup_member_symbol(self, member: str) -> Symbol | None:
         """Lookup a member in the class type."""
         return self.shared.symbol_table.lookup(member, deep=True)
+
+    def is_builtin(self, class_name: str | None = None) -> bool:
+        """
+        Return true if this class is a builtin class.
+
+        If class_name is provided, also check if the class name matches.
+        """
+        if not self.shared.is_builtin_class:
+            return False
+        if class_name is not None:
+            return self.shared.class_name == class_name
+        return True
 
 
 class Parameter:
