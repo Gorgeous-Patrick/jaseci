@@ -36,6 +36,7 @@ class PrefetchedTypes:
     tuple_class: TypeBase | None = None
     bool_class: TypeBase | None = None
     int_class: TypeBase | None = None
+    float_class: TypeBase | None = None
     str_class: TypeBase | None = None
     dict_class: TypeBase | None = None
     module_type_class: TypeBase | None = None
@@ -289,6 +290,11 @@ class TypeEvaluator:
         assert self.prefetch.int_class is not None
         return self.prefetch.int_class
 
+    def get_type_of_float(self, node: uni.Float) -> TypeBase:
+        """Return the effective type of the float."""
+        assert self.prefetch.float_class is not None
+        return self.prefetch.float_class
+
     # Pyright equivalent function name = getTypeOfExpression();
     def get_type_of_expression(self, node: uni.Expr) -> TypeBase:
         """Return the effective type of the expression."""
@@ -378,6 +384,7 @@ class TypeEvaluator:
             tuple_class=self._get_builtin_type("tuple"),
             bool_class=self._get_builtin_type("bool"),
             int_class=self._get_builtin_type("int"),
+            float_class=self._get_builtin_type("float"),
             str_class=self._get_builtin_type("str"),
             dict_class=self._get_builtin_type("dict"),
             # module_type_class=
@@ -454,6 +461,9 @@ class TypeEvaluator:
 
             case uni.Int():
                 return self._convert_to_instance(self.get_type_of_int(expr))
+
+            case uni.Float():
+                return self._convert_to_instance(self.get_type_of_float(expr))
 
             case uni.AtomTrailer():
                 # NOTE: Pyright is using CFG to figure out the member type by narrowing the base
