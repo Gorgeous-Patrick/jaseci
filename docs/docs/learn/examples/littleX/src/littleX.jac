@@ -1,12 +1,11 @@
 import datetime;
 import numpy;
-import from sentence_transformers { SentenceTransformer }
+import from sklearn.feature_extraction.text { TfidfVectorizer }
 import from sklearn.metrics.pairwise { cosine_similarity }
 
-glob sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2');
+glob vectorizer = TfidfVectorizer();
 
 def search_tweets(query: str, tweet:str) -> int;
-
 
 node Profile {
     has username: str = "";
@@ -78,6 +77,8 @@ walker load_user_profiles {
         static has auth: bool = False;
     }
     can load_profiles with `root entry;
+
+    can report_profiles with exit;
 }
 
 walker follow_request {}
@@ -115,5 +116,7 @@ walker load_feed(visit_profile) {
     has results: list = [];
 
     can load with Profile entry;
+
+    can report_feed with exit;
 
 }
