@@ -9,7 +9,8 @@ from typing import Optional, Sequence
 
 from jaclang.runtimelib.machine import JacMachine as Jac
 from jaclang.runtimelib.machine import JacMachineInterface
-from jaclang.utils.module_resolver import get_jac_search_paths
+from jaclang.settings import settings
+from jaclang.utils.module_resolver import get_jac_search_paths, get_py_search_paths
 
 
 class JacMetaImporter(importlib.abc.MetaPathFinder, importlib.abc.Loader):
@@ -48,6 +49,30 @@ class JacMetaImporter(importlib.abc.MetaPathFinder, importlib.abc.Loader):
                 return importlib.util.spec_from_file_location(
                     fullname, candidate_path + ".jac", loader=self
                 )
+
+        # TODO: We can remove it once python modules are fully supported in jac
+        if path is None and settings.pyfile_raise:
+            if settings.pyfile_raise_full:
+                paths_to_search = get_jac_search_paths()
+            else:
+                paths_to_search = get_py_search_paths()
+            for search_path in paths_to_search:
+                candidate_path = os.path.join(search_path, *module_path_parts)
+                # Check for directory package
+                if os.path.isdir(candidate_path):
+                    init_file = os.path.join(candidate_path, "__init__.py")
+                    if os.path.isfile(init_file):
+                        return importlib.util.spec_from_file_location(
+                            fullname,
+                            init_file,
+                            loader=self,
+                            submodule_search_locations=[candidate_path],
+                        )
+                # Check for .py file
+                if os.path.isfile(candidate_path + ".py"):
+                    return importlib.util.spec_from_file_location(
+                        fullname, candidate_path + ".py", loader=self
+                    )
         return None
 
     def create_module(
@@ -78,6 +103,7 @@ class JacMetaImporter(importlib.abc.MetaPathFinder, importlib.abc.Loader):
             target=target,
             base_path=base_path,
             override_name=module.__name__,
+            lng="py" if file_path.endswith(".py") else "jac",
         )
         if ret:
             loaded_module = ret[0]

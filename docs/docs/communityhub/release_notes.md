@@ -4,6 +4,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jaclang 0.8.8 / jac-cloud 0.2.8 / byllm 0.4.3 (Unreleased)
 
+- **Jac Import of Python Files**: This upgrade allows Python files in the current working directory to be imported using the Jac import system by running `export JAC_PYFILE_RAISE=true`. To extend Jac import functionality to all Python files, including those in site-packages, developers can enable it by running `export JAC_PYFILE_RAISE_ALL=true`.
 - **Support Positional-Only Parameters in Function Signatures**: Positional-only parameters were not being captured in function signatures during `py2jac`. (Ex: `def func(a, b, /, c): ...`)
 - **Consistent Jac Code Execution**: Fixed an issue allowing Jac code to be executed both as a standalone program and as an application. Running `jac run` now executes the `main()` function, while `jac serve` launches the application without invoking `main()`.
 
