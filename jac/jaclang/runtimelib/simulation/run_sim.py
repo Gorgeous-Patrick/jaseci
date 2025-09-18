@@ -233,4 +233,10 @@ def save_result_sum(stats: list[SimStats]) -> ThreadScheduler:
         total.breakdown_run += stat.thread_scheduler.breakdown_run
     with open(Path.home() / "uPIMulators/results/summary.txt", "w") as f:
         json.dump(total.__dict__, f, indent=4)
+    MAPPING = os.environ.get("MAPPING", "UNKNOWN")
+    test_name = os.getenv("TEST_NAME", "default_test") + "_" + MAPPING
+    copy_result_path = Path.home() / f"uPIMulators/results_{test_name}"
+    if copy_result_path.exists():
+        shutil.rmtree(copy_result_path)
+    shutil.copytree(Path.home() / "uPIMulators/results", copy_result_path)
     return total

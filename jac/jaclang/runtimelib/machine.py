@@ -511,8 +511,13 @@ class JacWalker:
         random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
 
-        mapping = rounding_mapping
-        # mapping = random_mapping
+        MAPPING = os.environ.get("MAPPING")
+        if MAPPING is None:
+            raise ValueError("MAPPING environment variable not set")
+        elif MAPPING == "random":
+            mapping = random_mapping
+        elif MAPPING == "rounding":
+            mapping = rounding_mapping
         mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
         print(mem_ctxs)
         # walker ability on any entry
