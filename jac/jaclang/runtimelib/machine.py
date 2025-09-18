@@ -542,7 +542,7 @@ class JacWalker:
                 if current_task is None:
                     current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id], walker=walker)
                 elif current_task.dpu_id != current_dpu_id:
-                    current_task.save()
+                    # current_task.save()
                     tasks.append(current_task)
                     current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id], walker=walker)
                 current_task.add_node(current_node_id)
@@ -643,7 +643,7 @@ class JacWalker:
 
         if current_task != None:
             tasks.append(current_task)
-            current_task.save()
+            # current_task.save()
         walker.ignores = []
         trace = [all_nodes.index(node) for node in walker.trace]
         # with open("task.c", "w") as file:
