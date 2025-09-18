@@ -1,11 +1,26 @@
 import random;
+import struct;
 node Profile {
   has id: int;
+  def get_byte_stream() {
+    return struct.pack("<q", self.id);
+  }
+  static def get_type_def() {
+    return "int id;";
+  }
 }
 
 node Tweet {
   has id: int;
   has content_32: str;
+
+  def get_byte_stream() {
+    res = struct.pack("<q", self.id) + struct.pack("<32s", self.content_32.encode('utf-8'));
+    return res;
+  }
+  static def get_type_def() {
+    return "int id;";
+  }
 }
 
 edge Follow {}
@@ -26,6 +41,28 @@ walker LoadFeed {
 
   can calc with Tweet entry {
     print(here.id, here.content_32);
+  }
+
+  def get_impl_load_on_Profile() {
+    return """
+    if (!self->visiting_neighbors) {
+      self->visiting_neighbors = true;
+      visit(ctx, me, "Post", "->", NULL);
+      visit(ctx, me, "Follow", "->", NULL);
+    } else {
+      visit(ctx, me, "Post", "->", NULL);
+    }
+    """;
+  }
+  def get_impl_calc_on_Tweet() {
+    return """printf("%d %s\\n", here.id, here.content_32);""";
+  }
+  def get_byte_stream() {
+    return struct.pack("<q", self.visiting_neighbors);
+  }
+
+  def get_byte_stream() {
+    return "visiting_neighbors: uint64_t;";
   }
 }
 
