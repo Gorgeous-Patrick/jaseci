@@ -27,19 +27,7 @@ int main() {
     // Kernel
     // return kernels[DPU_INPUT_ARGUMENTS.kernel](); 
     // Initialize memory
-    unsigned int tasklet_id = me();
-
-    #ifdef DEBUG
-    printf("tasklet_id = %u\n", tasklet_id);
-    #endif
-    if (tasklet_id == 0){ // Initialize once the cycle counter
-        mem_reset(); // Reset the heap
-    }
     mem_init();
-    if (task_id == -1) {return 0;}
-    switch (task_id) {
-    {% for task_execution in task_executions %}
-    case {{task_execution.task_id}}: {
     get(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
     {% for walker_execution in task_execution.walker_executions %}
     get(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
@@ -47,10 +35,6 @@ int main() {
     save(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
     {% endfor %}
     save(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
-    break;
-    }
-    {% endfor %}
-    }
 
     #ifdef DEBUG
     printf("Ending.\n");

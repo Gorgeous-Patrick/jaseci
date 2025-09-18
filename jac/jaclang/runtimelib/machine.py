@@ -68,7 +68,7 @@ from jaclang.runtimelib.data_mapper.partitioner import (
 from jaclang.runtimelib.data_mapper.size_calc import calculate_size
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.simulation.dpu_mem_layout import get_all_memory_contexts, get_memory_context
-from jaclang.runtimelib.simulation.run_sim import context_gen, get_node_types
+from jaclang.runtimelib.simulation.run_sim import context_gen, get_node_types, uPIMulator, get_result_sum
 from jaclang.runtimelib.simulation.task import Task
 from jaclang.runtimelib.simulation.upmem_codegen import gen_code
 from jaclang.runtimelib.utils import (
@@ -511,8 +511,8 @@ class JacWalker:
         random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
 
-        # mapping = rounding_mapping
-        mapping = random_mapping
+        mapping = rounding_mapping
+        # mapping = random_mapping
         mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
         print(mem_ctxs)
         # walker ability on any entry
@@ -641,8 +641,12 @@ class JacWalker:
             current_task.save()
         walker.ignores = []
         trace = [all_nodes.index(node) for node in walker.trace]
-        with open("task.c", "w") as file:
-            file.write(gen_code(context_gen(tasks, all_nodes, walker)))
+        # with open("task.c", "w") as file:
+        #     file.write(gen_code(context_gen(tasks, all_nodes, walker)))
+        upimulator = uPIMulator(20)
+        upimulator.run_sims(tasks, all_nodes, walker)
+        sim_result_sum = get_result_sum(upimulator.get_results())
+        print(f"Simulation result summary: {sim_result_sum}")
         print_performance_info(graph, random_mapping, walker, walker_code, trace)
         print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
         return warch

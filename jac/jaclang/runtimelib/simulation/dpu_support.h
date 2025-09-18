@@ -8,8 +8,6 @@
 
 // #define DEBUG
 
-__host uint64_t task_id;
-
 void get(void * buf, uint32_t start, uint32_t size) {
     // Read the node from MRAM
     uint32_t addr = DPU_MRAM_HEAP_POINTER + start;
