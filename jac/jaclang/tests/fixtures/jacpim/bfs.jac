@@ -26,7 +26,15 @@ walker BFS {
 
   def get_impl_run_on_BFSNode() {
     # Return C code here
-    return """printf(\"Visited node ID: %d\\n\", here.id);""";
+    # return """printf(\"Visited node ID: %d\\n\", here.id);""";
+    # Use node_id for here.id.
+    return """
+    if (walker->visited_512[node_id]) {
+      return;
+    }
+    walker->visited_512[node_id] = true;
+    push_new_element_to_container(0);
+    """;
   }
   def get_byte_stream() {
     return struct.pack("<512?", *self.visited_512);

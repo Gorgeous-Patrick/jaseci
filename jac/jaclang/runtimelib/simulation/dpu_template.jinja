@@ -37,8 +37,9 @@ int main() {
     }
     mem_init();
     if (task_id == -1) {return 0;}
+    switch (task_id) {
     {% for task_execution in task_executions %}
-    if (task_id == {{task_execution.task_id}}) {
+    case {{task_execution.task_id}}: {
     get(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
     {% for walker_execution in task_execution.walker_executions %}
     get(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
@@ -46,8 +47,10 @@ int main() {
     save(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}}); 
     {% endfor %}
     save(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
+    break;
     }
     {% endfor %}
+    }
 
     #ifdef DEBUG
     printf("Ending.\n");
