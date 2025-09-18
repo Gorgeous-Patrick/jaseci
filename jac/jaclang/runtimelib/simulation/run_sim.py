@@ -1,3 +1,4 @@
+import json
 from queue import Queue
 import shutil
 from jaclang.runtimelib.archetype import WalkerAnchor
@@ -223,11 +224,13 @@ class uPIMulator:
                 results.append(stats)
         return results
     
-def get_result_sum(stats: list[SimStats]) -> ThreadScheduler:
+def save_result_sum(stats: list[SimStats]) -> ThreadScheduler:
     print( f"Got {len(stats)} simulation results")
     total = ThreadScheduler()
     for stat in stats:
         total.breakdown_dma += stat.thread_scheduler.breakdown_dma
         total.breakdown_etc += stat.thread_scheduler.breakdown_etc
         total.breakdown_run += stat.thread_scheduler.breakdown_run
+    with open(Path.home() / "uPIMulators/results/summary.txt", "w") as f:
+        json.dump(total.__dict__, f, indent=4)
     return total
