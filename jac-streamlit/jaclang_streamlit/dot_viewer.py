@@ -10,7 +10,8 @@ parser.add_argument("dot_file", type=str, help="Path to the DOT file")
 try:
     args = parser.parse_args()
 except SystemExit as e:
-    os._exit(e.code)
+    exit_code = e.code if e.code is not None else 1
+    os._exit(exit_code if isinstance(exit_code, int) else 1)
 
 
 def get_nodes_edges(dot_file: str) -> tuple[dict, list]:

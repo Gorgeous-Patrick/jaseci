@@ -9,6 +9,7 @@ from jaclang.runtimelib.machine import hookimpl
 
 import streamlit.web.bootstrap as bootstrap
 
+
 class JacCmd:
     """Jac CLI."""
 
