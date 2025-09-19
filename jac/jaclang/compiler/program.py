@@ -15,7 +15,6 @@ from jaclang.compiler.passes.main import (
     CFGBuildPass,
     DeclImplMatchPass,
     DefUsePass,
-    InheritancePass,
     JacAnnexPass,
     JacImportDepsPass,
     PyBytecodeGenPass,
@@ -24,7 +23,6 @@ from jaclang.compiler.passes.main import (
     PyastGenPass,
     SemDefMatchPass,
     SymTabBuildPass,
-    SymTabLinkPass,
     Transform,
     TypeCheckPass,
 )
@@ -45,7 +43,6 @@ ir_gen_sched = [
     DefUsePass,
     SemDefMatchPass,
     CFGBuildPass,
-    InheritancePass,
 ]
 type_check_sched: list = [
     TypeCheckPass,
@@ -137,8 +134,6 @@ class JacProgram:
         """Convert a Jac file to an AST."""
         mod_targ = self.compile(file_path, use_str, type_check=type_check)
         JacImportDepsPass(ir_in=mod_targ, prog=self)
-        for mod in self.mod.hub.values():
-            SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             DefUsePass(mod, prog=self)
         return mod_targ
