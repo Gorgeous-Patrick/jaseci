@@ -13,8 +13,6 @@ pip install byllm
 byLLM functionality is accessed by importing the `byllm` module and using the `by` decorator on functions.
 
 ```python linenums="1"
-import jaclang
-from jaclang import JacMachineInterface as Jac
 from dataclasses import dataclass
 from byllm import Model, Image, by
 
@@ -53,7 +51,7 @@ def generate_joke() -> str by llm(temperature=0.3);
 
 The `temperature` hyper-parameter controls the randomness of the output. Lower values produce more deterministic output, while higher values produce more random output.
 
-In Python, hyper-parameters are passed similarly:
+In Python, hyper-parameters are passed as follows:
 
 ```python linenums="1"
 from byllm import Model, by
@@ -69,7 +67,7 @@ def generate_joke() -> str: ...
 Python functions can be used as tools in byLLM. Functions defined in Python are callable by the LLM to perform specific tasks:
 
 ```python linenums="1"
-from byllm.llm import Model
+from byllm import Model
 llm = Model(model_name="gpt-4o")
 
 
@@ -79,3 +77,37 @@ def get_weather(city: str) -> str:
 @by(llm(tools=[get_weather]))
 def answer_question(question: str) -> str: ...
 ```
+
+## Using Semstrings for Semantic Enrichment
+
+In Jac we introduced the `sem` keyword as a means to attach additional semantics to code objects such as object attributes and function argument. The syntax in jac is as follows.
+
+```jac
+obj Person {
+    has name:str;
+    has age:int;
+    has ssn: int;
+}
+sem Person.ssn = "last four digits of the Social Security number"
+```
+
+Using `sem` functionality in python is a bit diferent as the attachment is done using a `@sem` decorator.
+
+```python
+from jaclang import JacMachineInterface as Jac
+
+@Jac.sem('<Person Semstring>', {
+    'name' : '<name semstring>',
+    'age' : '<age semstring>',
+    'ssn' : "<ssn semstring>"
+    }
+)
+@datclass
+class Person:
+    name: str
+    age: int
+    ssn: int
+```
+
+!!! note
+    The `sem` implementation in Python is a work-in-progress. The Python way of adding semstrings may change in future releases of byLLM.

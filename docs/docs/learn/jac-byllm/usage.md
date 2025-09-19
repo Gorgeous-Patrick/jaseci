@@ -270,7 +270,7 @@ In this example:
 The ReAct (Reasoning and Acting) method enables agentic behavior by allowing functions to reason about problems and use external tools. Functions can be made agentic by adding the `by llm(tools=[...])` declaration.
 
 ```jac linenums="1"
-import from byllm.llm { Model }
+import from byllm { Model }
 import from datetime { datetime }
 
 glob llm = Model(model_name="gpt-4o");
