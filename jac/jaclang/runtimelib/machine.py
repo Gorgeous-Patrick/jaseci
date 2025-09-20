@@ -67,8 +67,16 @@ from jaclang.runtimelib.data_mapper.partitioner import (
 )
 from jaclang.runtimelib.data_mapper.size_calc import calculate_size
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
-from jaclang.runtimelib.simulation.dpu_mem_layout import get_all_memory_contexts, get_memory_context
-from jaclang.runtimelib.simulation.run_sim import context_gen, get_node_types, uPIMulator, save_result_sum
+from jaclang.runtimelib.simulation.dpu_mem_layout import (
+    get_all_memory_contexts,
+    get_memory_context,
+)
+from jaclang.runtimelib.simulation.run_sim import (
+    context_gen,
+    get_node_types,
+    uPIMulator,
+    save_result_sum,
+)
 from jaclang.runtimelib.simulation.task import Task
 from jaclang.runtimelib.simulation.upmem_codegen import gen_code
 from jaclang.runtimelib.utils import (
@@ -519,7 +527,7 @@ class JacWalker:
         elif MAPPING == "rounding":
             mapping = rounding_mapping
         mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
-        print(mem_ctxs)
+        # print(mem_ctxs)
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -535,18 +543,30 @@ class JacWalker:
                 elif isinstance(current_loc, NodeArchetype):
                     walker.trace.append(current_loc.__jac__)
                 # walker ability with loc entry
-                current_node: NodeAnchor = current_loc.__jac__ if isinstance(current_loc, NodeArchetype) else current_loc.__jac__.target
+                current_node: NodeAnchor = (
+                    current_loc.__jac__
+                    if isinstance(current_loc, NodeArchetype)
+                    else current_loc.__jac__.target
+                )
                 current_node_id = all_nodes.index(current_node)
                 current_dpu_id = mapping[current_node_id]
                 mem_ctxs[current_dpu_id].download_walkers({0: warch.get_byte_stream()})
                 if current_task is None:
-                    current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id], walker=walker)
+                    current_task = Task(
+                        dpu_id=current_dpu_id,
+                        start_mem_ctx=mem_ctxs[current_dpu_id],
+                        walker=walker,
+                    )
                 elif current_task.dpu_id != current_dpu_id:
                     # current_task.save()
                     tasks.append(current_task)
-                    current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id], walker=walker)
+                    current_task = Task(
+                        dpu_id=current_dpu_id,
+                        start_mem_ctx=mem_ctxs[current_dpu_id],
+                        walker=walker,
+                    )
                 current_task.add_node(current_node_id)
-                
+
                 for i in warch._jac_entry_funcs_:
                     if (
                         i.trigger
@@ -648,10 +668,11 @@ class JacWalker:
         trace = [all_nodes.index(node) for node in walker.trace]
         # with open("task.c", "w") as file:
         #     file.write(gen_code(context_gen(tasks, all_nodes, walker)))
-        upimulator = uPIMulator(20)
-        upimulator.run_sims(tasks, all_nodes, walker)
-        sim_result_sum = save_result_sum(upimulator.get_results())
-        print(f"Simulation result summary: {sim_result_sum}")
+        if os.environ.get("RUN_SIM") == "1":
+            upimulator = uPIMulator(20)
+            upimulator.run_sims(tasks, all_nodes, walker)
+            sim_result_sum = save_result_sum(upimulator.get_results())
+            print(f"Simulation result summary: {sim_result_sum}")
         print_performance_info(graph, random_mapping, walker, walker_code, trace)
         print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
         return warch
@@ -1747,7 +1768,7 @@ class JacPIM:
                 idx,
                 node_type=JacPIM._extract_name(node_anchor.archetype),
                 node_id=getattr(node_anchor.archetype, "id", None),
-                node_size=calculate_size(node_anchor.archetype)
+                node_size=calculate_size(node_anchor.archetype),
             )
 
         # Assign colors by node_type

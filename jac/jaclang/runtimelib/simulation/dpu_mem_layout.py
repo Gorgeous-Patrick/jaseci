@@ -10,11 +10,12 @@ class DPUMemoryContext:
         )
         self.node_id_to_range: dict[int, MemoryRange] = {}
         self.walker_id_to_range: dict[int, MemoryRange] = {}
-        self.current_execution_id: int = 0
 
     def download_nodes(self, node_id_to_stream: dict[int, bytes]):
         for node_id, node_stream in node_id_to_stream.items():
-            self.node_id_to_range[node_id] = MemoryRange(ptr=len(self.node_memory), size = len(node_stream))
+            self.node_id_to_range[node_id] = MemoryRange(
+                ptr=len(self.node_memory), size=len(node_stream)
+            )
             assert len(node_stream) % 8 == 0
             self.node_memory += node_stream
 
@@ -37,15 +38,18 @@ class DPUMemoryContext:
 
     def download_walkers(self, walker_id_to_stream: dict[int, bytes]):
         for walker_id, walker_stream in walker_id_to_stream.items():
-            self.walker_id_to_range[walker_id] = MemoryRange(ptr=len(self.walker_memory) + len(self.node_memory), size = len(walker_stream))
+            self.walker_id_to_range[walker_id] = MemoryRange(
+                ptr=len(self.walker_memory) + len(self.node_memory),
+                size=len(walker_stream),
+            )
             assert len(walker_stream) % 8 == 0
             self.walker_memory += walker_stream
 
-    def get_walker_range(self, walker_id: int)-> MemoryRange:
+    def get_walker_range(self, walker_id: int) -> MemoryRange:
         return self.walker_id_to_range[walker_id]
 
     def change_walker_stream(self, walker_id: int, walker_stream: bytes):
-        buf = bytearray(self.walker_memory[self.current_execution_id])
+        buf = bytearray(self.walker_memory)
         mem_range = self.walker_id_to_range[walker_id]
         ptr = mem_range.ptr - len(self.node_memory)
         assert mem_range.size == len(walker_stream)
