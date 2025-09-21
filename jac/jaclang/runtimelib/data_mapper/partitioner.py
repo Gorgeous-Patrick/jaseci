@@ -82,7 +82,7 @@ def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa:
             # If node has been assigned, then skip it.
             if node_distribution.node_assigned(node):
                 continue
-            node_size = network.nodes[node].get("node_size")
+            node_size = network.nodes[node].get("node_size", 0)
             available_partitions = node_distribution.available_partitions(node_size)
             if not available_partitions:
                 print("No available partition found")
@@ -90,7 +90,7 @@ def round_robin_partition(paths: list[list[int]], network: nx.DiGraph):  # noqa:
             node_distribution.add_node(node, available_partitions[0], node_size)
     for node in network.nodes():
         if not node_distribution.node_assigned(node):
-            node_size = network.nodes[node].get("node_size")
+            node_size = network.nodes[node].get("node_size", 0)
             available_partitions = node_distribution.available_partitions(node_size)
             if not available_partitions:
                 continue

@@ -514,12 +514,13 @@ class JacWalker:
             network=graph,
             walker_type=walker_code,
         ))
-        print("Traversal Path Sample:", [[all_nodes[i].archetype for i in path] for path in traversal_path[:5]])
+        # print("Traversal Path Sample:", [[all_nodes[i].archetype for i in path] for path in traversal_path])
 
         access_pattern = get_access_pattern(network=graph, paths=traversal_path)
         walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
         random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
+        print(rounding_mapping)
 
         MAPPING = os.environ.get("MAPPING")
         if MAPPING is None:
