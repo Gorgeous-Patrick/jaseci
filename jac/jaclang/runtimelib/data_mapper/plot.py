@@ -67,7 +67,7 @@ def _access_pattern_animation_graphs(
     result: list[nx.DiGraph] = []
     max_timestamp = 0
     labels = nx.get_edge_attributes(access_pattern_graph, "label")
-    print(labels)
+    # print(labels)
     for _, timestamps in labels.items():
         for timestamp in timestamps:
             max_timestamp = max(max_timestamp, timestamp)

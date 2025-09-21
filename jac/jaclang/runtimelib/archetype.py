@@ -350,6 +350,7 @@ class WalkerAnchor(Anchor):
     trace: list[NodeAnchor] = field(default_factory=list)
     set_trace: list[set[NodeAnchor]] = field(default_factory=list)
     ignores: list[NodeAnchor] = field(default_factory=list)
+    walker_id: int = field(default=0)
     disengaged: bool = False
 
 

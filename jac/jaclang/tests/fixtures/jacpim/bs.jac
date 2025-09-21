@@ -66,11 +66,12 @@ walker bs {
 }
 
 with entry {
-  NUM=1024;
+  # NUM=1024;
+  NUM=4;
   values = [i for i in range(NUM)];
   data_nodes = [(DataNode(value=values[i], index=i), values[i], values[i]) for i in range(NUM)];
   granularity = 1;
-  print(data_nodes);
+  # print(data_nodes);
   while (len(data_nodes) > 1) {
   new_nodes = [];
   while (len(data_nodes) > 1) {
@@ -83,7 +84,7 @@ with entry {
     new_nodes.append((branch, first[1], second[2]));
   }
   data_nodes = new_nodes + data_nodes;
-  print(data_nodes);
+  # print(data_nodes);
   }
   root ++> data_nodes[0][0];
   walker_instance = data_nodes[0][0] spawn bs(value=5);

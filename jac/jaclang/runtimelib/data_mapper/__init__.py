@@ -7,10 +7,6 @@ from dataclasses import dataclass  # noqa: F401
 
 from jaclang.compiler import unitree as uni  # noqa: F401
 
-from .access_pattern import (  # noqa: F401
-    get_access_pattern,
-    get_access_pattern_single_walker,
-)
 from .partitioner import random_partition  # noqa: F401
 from .perf_measure import get_num_dpu_jumps, get_num_dpu_jumps_adaptive  # noqa: F401
 from .visit_sequence import VisitInfo, get_visit_sequences  # noqa: F401

@@ -54,9 +54,10 @@ from jaclang.runtimelib.constructs import (
     WalkerAnchor,
     WalkerArchetype,
 )
-from jaclang.runtimelib.data_mapper.access_pattern import (
+from jaclang.runtimelib.temporal_trace_graph.access_pattern import (
     get_access_pattern,
     get_access_pattern_single_walker,
+    get_paths_from_ttg,
 )
 from jaclang.runtimelib.data_mapper.perf_measure import print_performance_info
 from jaclang.runtimelib.data_mapper.plot import plot_and_save
@@ -508,11 +509,12 @@ class JacWalker:
         # JacPIM.networkx_gen_png(graph)
         walker_code = JacPIM.get_walker_code(walker.archetype)
 
-        traversal_path = get_access_pattern_single_walker(
+        traversal_path = get_paths_from_ttg(get_access_pattern_single_walker(
             start_idx=node_idx,
             network=graph,
             walker_type=walker_code,
-        )
+        ))
+        print("Traversal Path Sample:", [[all_nodes[i].archetype for i in path] for path in traversal_path[:5]])
 
         access_pattern = get_access_pattern(network=graph, paths=traversal_path)
         walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
