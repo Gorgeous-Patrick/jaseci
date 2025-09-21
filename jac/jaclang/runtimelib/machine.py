@@ -500,37 +500,11 @@ class JacWalker:
         elif isinstance(current_loc, NodeArchetype):
             walker.set_trace.append({current_loc.__jac__})
 
-        all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
-        get_node_types(all_nodes)
         if isinstance(current_loc, EdgeArchetype):
             start_node = current_loc.__jac__.target
         else:
             start_node = current_loc.__jac__
-        node_idx = all_nodes.index(start_node)
-        graph = JacPIM.get_networkx(all_nodes, all_edges)
         # JacPIM.networkx_gen_png(graph)
-        walker_code = JacPIM.get_walker_code(walker.archetype)
-
-        traversal_path = get_paths_from_ttg(get_access_pattern_single_walker(
-            start_idx=node_idx,
-            network=graph,
-            walker_type=walker_code,
-        ))
-        # print("Traversal Path Sample:", [[all_nodes[i].archetype for i in path] for path in traversal_path])
-
-        access_pattern = get_access_pattern(network=graph, paths=traversal_path)
-        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
-        random_mapping = random_partition(traversal_path, graph)
-        rounding_mapping = round_robin_partition(traversal_path, graph)
-
-        MAPPING = os.environ.get("MAPPING")
-        if MAPPING is None:
-            raise ValueError("MAPPING environment variable not set")
-        elif MAPPING == "random":
-            mapping = random_mapping
-        elif MAPPING == "rounding":
-            mapping = rounding_mapping
-        mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
         # print(mem_ctxs)
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
@@ -547,29 +521,29 @@ class JacWalker:
                 elif isinstance(current_loc, NodeArchetype):
                     walker.trace.append(current_loc.__jac__)
                 # walker ability with loc entry
-                current_node: NodeAnchor = (
-                    current_loc.__jac__
-                    if isinstance(current_loc, NodeArchetype)
-                    else current_loc.__jac__.target
-                )
-                current_node_id = all_nodes.index(current_node)
-                current_dpu_id = mapping[current_node_id]
-                mem_ctxs[current_dpu_id].download_walkers({0: warch.get_byte_stream()})
-                if current_task is None:
-                    current_task = Task(
-                        dpu_id=current_dpu_id,
-                        start_mem_ctx=mem_ctxs[current_dpu_id],
-                        walker=walker,
-                    )
-                elif current_task.dpu_id != current_dpu_id:
-                    # current_task.save()
-                    tasks.append(current_task)
-                    current_task = Task(
-                        dpu_id=current_dpu_id,
-                        start_mem_ctx=mem_ctxs[current_dpu_id],
-                        walker=walker,
-                    )
-                current_task.add_node(current_node_id)
+                # current_node: NodeAnchor = (
+                #     current_loc.__jac__
+                #     if isinstance(current_loc, NodeArchetype)
+                #     else current_loc.__jac__.target
+                # )
+                # current_node_id = all_nodes.index(current_node)
+                # current_dpu_id = mapping[current_node_id]
+                # mem_ctxs[current_dpu_id].download_walkers({0: warch.get_byte_stream()})
+                # if current_task is None:
+                #     current_task = Task(
+                #         dpu_id=current_dpu_id,
+                #         start_mem_ctx=mem_ctxs[current_dpu_id],
+                #         walker=walker,
+                #     )
+                # elif current_task.dpu_id != current_dpu_id:
+                #     # current_task.save()
+                #     tasks.append(current_task)
+                #     current_task = Task(
+                #         dpu_id=current_dpu_id,
+                #         start_mem_ctx=mem_ctxs[current_dpu_id],
+                #         walker=walker,
+                #     )
+                # current_task.add_node(current_node_id)
 
                 for i in warch._jac_entry_funcs_:
                     if (
@@ -583,10 +557,6 @@ class JacWalker:
                         print(f"DEBUG: Executing walker entry function {i.func.__name__} on {current_loc}")
                         i.func(warch, current_loc)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with any entry
@@ -595,10 +565,6 @@ class JacWalker:
                         print(f"DEBUG: Executing location entry function {i.func.__name__} on {current_loc}")
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with walker entry
@@ -610,10 +576,6 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with walker exit
@@ -625,10 +587,6 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with any exit
@@ -636,10 +594,6 @@ class JacWalker:
                     if not i.trigger:
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # walker ability with loc exit
@@ -654,12 +608,8 @@ class JacWalker:
                     ):
                         i.func(warch, current_loc)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
-                mem_ctxs[current_dpu_id].change_walker_value(0, walker)
+                # mem_ctxs[current_dpu_id].change_walker_value(0, walker)
         # walker ability with any exit
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
@@ -671,17 +621,6 @@ class JacWalker:
             tasks.append(current_task)
             # current_task.save()
         walker.ignores = []
-        trace = [all_nodes.index(node) for node in walker.trace]
-        # with open("task.c", "w") as file:
-        #     file.write(gen_code(context_gen(tasks, all_nodes, walker)))
-        if os.environ.get("RUN_SIM") == "1":
-            upimulator = uPIMulator(20)
-            upimulator.run_sims(tasks, all_nodes, walker)
-            sim_result_sum = save_result_sum(upimulator.get_results())
-            print(f"Simulation result summary: {sim_result_sum}")
-        print_performance_info(graph, random_mapping, walker, walker_code, trace)
-        print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
-        print(f"DEBUG: spawn_call completed for walker {walker.archetype}")
         return warch
 
     @staticmethod
@@ -1831,19 +1770,54 @@ class JacPIM:
             print(f"DEBUG: Starting thread {i} for destination {destination} (type: {type(destination)})")
             dest_anchor = destination.__jac__ if hasattr(destination, '__jac__') else destination
             print(f"DEBUG: dest_anchor type: {type(dest_anchor)}, {walker.__jac__.archetype}")
-            future = JacMachine.thread_run(lambda da=dest_anchor: JacMachine.spawn_call(walker.__jac__, da))
-            print(f"DEBUG: Thread {i} started, future: {future}")
-            cls.par_walkers.append(future)
+            # future = JacMachine.thread_run(lambda da=dest_anchor: JacMachine.spawn_call(walker.__jac__, da))
+            JacMachine.spawn_call(walker.__jac__, dest_anchor)
+            # print(f"DEBUG: Thread {i} started, future: {future}")
+            # cls.par_walkers.append(future)
             # Wait for the thread to complete to see the output
             # result = JacMachine.thread_wait(future)
             # print(f"DEBUG: Thread {i} completed, result: {result}")
-    @classmethod
-    def wait_par_walkers(cls):
-        print(f"DEBUG: Waiting for {len(cls.par_walkers)} parallel walkers to complete")
-        for i, future in enumerate(cls.par_walkers):
-            result = JacMachine.thread_wait(future)
-            print(f"DEBUG: Parallel walker {i} completed, result: {result}")
-        cls.par_walkers.clear()
+    @staticmethod
+    def wait_par_walkers(walker: WalkerAnchor) -> None:
+        all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
+        node_idx = all_nodes.index(start_node)
+        graph = JacPIM.get_networkx(all_nodes, all_edges)
+        walker_code = JacPIM.get_walker_code(walker.archetype)
+
+        traversal_path = get_paths_from_ttg(get_access_pattern_single_walker(
+            start_idx=node_idx,
+            network=graph,
+            walker_type=walker_code,
+        ))
+        # print("Traversal Path Sample:", [[all_nodes[i].archetype for i in path] for path in traversal_path])
+
+        access_pattern = get_access_pattern(network=graph, paths=traversal_path)
+        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
+        random_mapping = random_partition(traversal_path, graph)
+        rounding_mapping = round_robin_partition(traversal_path, graph)
+
+        MAPPING = os.environ.get("MAPPING")
+        if MAPPING is None:
+            raise ValueError("MAPPING environment variable not set")
+        elif MAPPING == "random":
+            mapping = random_mapping
+        elif MAPPING == "rounding":
+            mapping = rounding_mapping
+        mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
+
+        trace = [all_nodes.index(node) for node in walker.trace]
+        # with open("task.c", "w") as file:
+        #     file.write(gen_code(context_gen(tasks, all_nodes, walker)))
+        if os.environ.get("RUN_SIM") == "1":
+            upimulator = uPIMulator(20)
+            upimulator.run_sims(tasks, all_nodes, walker)
+            sim_result_sum = save_result_sum(upimulator.get_results())
+            print(f"Simulation result summary: {sim_result_sum}")
+        print_performance_info(graph, random_mapping, walker, walker_code, trace)
+        print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
+        print(f"DEBUG: spawn_call completed for walker {walker.archetype}")
+    
+    
 
 
 class JacMachineInterface(

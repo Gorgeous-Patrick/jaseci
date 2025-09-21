@@ -35,7 +35,7 @@ with entry {
   a ++> c;
   a ++> b;
   wlk1 = a spawn BasicWalker();
-  JacMachine.wait_par_walkers();
+  # JacMachine.wait_par_walkers();
   # wlk2 = b spawn BasciWalker();
   # Run on DPU
 }
