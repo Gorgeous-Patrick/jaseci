@@ -60,7 +60,7 @@ from jaclang.runtimelib.temporal_trace_graph.access_pattern import (
     get_paths_from_ttg,
 )
 from jaclang.runtimelib.data_mapper.perf_measure import print_performance_info
-from jaclang.runtimelib.data_mapper.plot import plot_and_save
+from jaclang.runtimelib.temporal_trace_graph.plot import plot_and_save
 from jaclang.runtimelib.data_mapper.partitioner import (
     DPU_NUM,
     random_partition,
@@ -489,6 +489,8 @@ class JacWalker:
         node: NodeAnchor | EdgeAnchor,
     ) -> WalkerArchetype:
         """Jac's spawn operator feature."""
+        print("SPAWNING")
+        print(f"DEBUG: spawn_call started with walker {walker.archetype} on node {node.archetype}")
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
@@ -520,7 +522,6 @@ class JacWalker:
         walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
         random_mapping = random_partition(traversal_path, graph)
         rounding_mapping = round_robin_partition(traversal_path, graph)
-        print(rounding_mapping)
 
         MAPPING = os.environ.get("MAPPING")
         if MAPPING is None:
@@ -579,6 +580,7 @@ class JacWalker:
                         )
                         and isinstance(current_loc, i.trigger)
                     ):
+                        print(f"DEBUG: Executing walker entry function {i.func.__name__} on {current_loc}")
                         i.func(warch, current_loc)
                     if walker.disengaged:
                         walker_trace_graph = JacPIM.gen_walker_trace_graph(
@@ -590,6 +592,7 @@ class JacWalker:
                 # loc ability with any entry
                 for i in current_loc._jac_entry_funcs_:
                     if not i.trigger:
+                        print(f"DEBUG: Executing location entry function {i.func.__name__} on {current_loc}")
                         i.func(current_loc, warch)
                     if walker.disengaged:
                         walker_trace_graph = JacPIM.gen_walker_trace_graph(
@@ -678,6 +681,7 @@ class JacWalker:
             print(f"Simulation result summary: {sim_result_sum}")
         print_performance_info(graph, random_mapping, walker, walker_code, trace)
         print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
+        print(f"DEBUG: spawn_call completed for walker {walker.archetype}")
         return warch
 
     @staticmethod
@@ -1692,6 +1696,7 @@ class JacUtils:
 
 class JacPIM:
     """Jac PIM implementation."""
+    par_walkers: list[Future] = []
 
     @staticmethod
     def get_walker_code(walker: WalkerAnchor) -> ast.Archetype:
@@ -1817,6 +1822,28 @@ class JacPIM:
             label.append(idx)
             graph.add_edge(from_node, to_node, label=label)
         return graph
+    
+    @classmethod
+    def par_visit(cls, walker: WalkerAnchor, destinations: list[EdgeAnchor]):
+        print(f"DEBUG: par_visit called with walker type {type(walker)} and {len(destinations)} destinations")
+        for i, destination in enumerate(destinations):
+            # Use the walker anchor directly, but get the destination's anchor
+            print(f"DEBUG: Starting thread {i} for destination {destination} (type: {type(destination)})")
+            dest_anchor = destination.__jac__ if hasattr(destination, '__jac__') else destination
+            print(f"DEBUG: dest_anchor type: {type(dest_anchor)}, {walker.__jac__.archetype}")
+            future = JacMachine.thread_run(lambda da=dest_anchor: JacMachine.spawn_call(walker.__jac__, da))
+            print(f"DEBUG: Thread {i} started, future: {future}")
+            cls.par_walkers.append(future)
+            # Wait for the thread to complete to see the output
+            # result = JacMachine.thread_wait(future)
+            # print(f"DEBUG: Thread {i} completed, result: {result}")
+    @classmethod
+    def wait_par_walkers(cls):
+        print(f"DEBUG: Waiting for {len(cls.par_walkers)} parallel walkers to complete")
+        for i, future in enumerate(cls.par_walkers):
+            result = JacMachine.thread_wait(future)
+            print(f"DEBUG: Parallel walker {i} completed, result: {result}")
+        cls.par_walkers.clear()
 
 
 class JacMachineInterface(

@@ -62,6 +62,24 @@ def exec_sync_visit_sequence(
         ttg_node=new_ttg_node,
     )
 
+def get_new_walker_states(state: WalkerState, network: nx.DiGraph, visit_sequences: list[list[VisitInfo]]) -> list[WalkerState]:
+    """Get new walker states based on the visit sequences."""
+    new_states: list[WalkerState] = []
+    for visit_sequence in visit_sequences:
+        new_state = exec_sync_visit_sequence(state, network, visit_sequence)
+        new_states.append(new_state)
+        for visit_info in [v for v in visit_sequence if v.async_edge]:
+            filtered_neighbors = filter_neighbors(state.container[0], network, visit_info)
+            for neighbor in filtered_neighbors:
+                new_container = [neighbor]
+                new_ttg_node = TTG_Node(
+                    idx=new_container[0] if len(new_container) > 0 else None, conditional_next_nodes=[], parallel_next_nodes=[]
+                )
+                new_states.append(WalkerState(
+                    container=new_container,
+                    ttg_node=new_ttg_node,
+                ))
+    return new_states
 
 def get_access_pattern_single_walker(
     start_idx: int, network: nx.DiGraph, walker_type: uni.Archetype, target_node_cnt: int = 100000
@@ -78,11 +96,8 @@ def get_access_pattern_single_walker(
         cnt += 1
         state = active_state_set.pop(0)
         node = state.container[0]
-        node_type = network.nodes[node].get("node_type")
-        new_state_set = [
-            exec_sync_visit_sequence(state, network, visit_sequence)
-            for visit_sequence in visit_sequences[node_type]
-        ]
+        node_type = str(network.nodes[node].get("node_type"))
+        new_state_set = get_new_walker_states(state, network, visit_sequences[node_type])
         state.ttg_node.conditional_next_nodes = [new_state.ttg_node for new_state in new_state_set]
         for new_state in new_state_set:
             if len(new_state.container) > 0 and new_state.container[0] is not None:

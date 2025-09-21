@@ -14,13 +14,10 @@ walker BasicWalker {
   has num: int = 10;
   can basic with Basic entry {
     print("hello");
-    if (self.num > 0) {
-      self.num = self.num - 1;
-
-    visit [-->];
-    } else {
-      return;
-    }
+    JacMachine.par_visit(self, [-->]);
+    # for i in [-->] {
+    #   task = flow spawn BasicWalker() on i;
+    # }
   }
   def get_type_def() {
     return "";
@@ -38,6 +35,7 @@ with entry {
   a ++> c;
   a ++> b;
   wlk1 = a spawn BasicWalker();
+  JacMachine.wait_par_walkers();
   # wlk2 = b spawn BasciWalker();
   # Run on DPU
 }

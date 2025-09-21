@@ -1,5 +1,6 @@
 """Plotting diagrams."""
 
+from jaclang.runtimelib.temporal_trace_graph.ttg_node import TTG_Node
 import matplotlib.pyplot as plt
 
 import networkx as nx
@@ -62,7 +63,8 @@ def _plot_one_diagram(graph: nx.DiGraph, edge_color: str, edge_style: str) -> No
 
 
 def _access_pattern_animation_graphs(
-    access_pattern_graph: nx.DiGraph,
+    input_data_graph: nx.DiGraph,
+    ttg_root: TTG_Node,
 ) -> list[nx.DiGraph]:
     result: list[nx.DiGraph] = []
     max_timestamp = 0
@@ -83,8 +85,7 @@ def _access_pattern_animation_graphs(
 
 def plot_and_save(
     input_data_graph: nx.DiGraph,
-    access_pattern_graph: nx.DiGraph,
-    walker_trace_graph: nx.DiGraph,
+    ttg_root: TTG_Node,
     filename1: str = "input_data_graph.png",
     filename2: str = "access_pattern_graph",
     filename3: str = "walker_trace.png",

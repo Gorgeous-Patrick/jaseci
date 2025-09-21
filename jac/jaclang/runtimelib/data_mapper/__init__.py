@@ -11,6 +11,5 @@ from .partitioner import random_partition  # noqa: F401
 from .perf_measure import get_num_dpu_jumps, get_num_dpu_jumps_adaptive  # noqa: F401
 from .visit_sequence import VisitInfo, get_visit_sequences  # noqa: F401
 from .size_calc import calculate_size # noqa: F401
-from .plot import plot_and_save
 
 # from .mapping_phase import get_visit_info, png_gen_networkx   # noqa: F401
