@@ -42,7 +42,7 @@ class CodeGenContext(BaseModel):
     node_types: list[TypeDef]
     walker_types: list[TypeDef]
     run_ability_functions: list[FunctionDef]
-    task_execution: TaskExecution
+    taskset_execution: list[TaskExecution]
 
 
 TEMPLATE_PATH = Path(__file__).parent / "dpu_template.jinja"
@@ -92,8 +92,8 @@ if __name__ == "__main__":
                 ),
             ),
         ],
-        task_execution=
-            TaskExecution(
+        taskset_execution=
+            [TaskExecution(
                 task_id=0,
                 walker_range=MemoryRange(ptr=30, size=80),
                 walker_executions=[
@@ -130,7 +130,7 @@ if __name__ == "__main__":
                         ),
                     ),
                 ],
-            )
+            )] * 3
     )
 
     generated_code = gen_code(context)

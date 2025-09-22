@@ -52,6 +52,11 @@ walker LoadFeed {
     # visit [->:Profile:->];
     JacMachine.par_visit(self, LoadFeed(), [-->]);
   }
+  def get_impl_boot_on_Start() {
+    return """
+    // printf("Starting load feed from user %d\\n", here->id);
+    """;
+  }
   can load with Profile entry {
     if (not self.visiting_neighbors) {
       self.visiting_neighbors = True;
@@ -115,7 +120,6 @@ with entry {
   start_node = Start(id=0);
   root ++> start_node;
   for i in range(max(NODE_NUM // 10, 30)){
-
     start_node ++> nodes[i];
   }
   wlk = LoadFeed();
