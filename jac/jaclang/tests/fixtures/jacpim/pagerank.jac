@@ -2,11 +2,18 @@
 import random;
 import from analytical.data_prep {download_and_cache, get_subgraph}
 import os;
+import struct;
 
 node Page {
   has id: int;
   has score: float = 0;
   has new_score: float = 0;
+  def get_byte_stream() {
+    return struct.pack("<qdd", self.id, self.score, self.new_score);
+  }
+  static def get_type_def() {
+    return "int id; float score; float new_score;";
+  }
 }
 
 edge HyperLink {}
@@ -25,6 +32,34 @@ walker PageRank{
       here.new_score += self.collected_score_8;
     }
   }
+  def get_type_def() {
+    return "float collected_score_8;";
+  }
+  def get_byte_stream() {
+    if self.collected_score_8 is None {
+
+      return struct.pack("<d", -1.0);
+    }
+    else {
+
+      return struct.pack("<d", self.collected_score_8);
+    }
+  }
+  def get_impl_run_on_Page() {
+    # Use node pointer here to access node (here) attributes
+    # Use walker pointer here to access walker (self) attributes
+    # No need to printf
+    return """
+    if (walker->collected_score_8 < 0) {
+     walker->collected_score_8 = node->score / 100;
+      for (int i = 0; i < 100; i++) {
+        push_new_element_to_container(0);
+      }
+    } else {
+      node->new_score += walker->collected_score_8;
+    }
+    """;
+}
 }
 
 with entry {

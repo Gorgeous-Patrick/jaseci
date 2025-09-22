@@ -28,6 +28,13 @@ edge Post {}
 
 walker LoadFeed {
   has visiting_neighbors: bool = False;
+  def get_type_def() {
+    return "uint64_t visiting_neighbors;";
+  }
+
+  def get_byte_stream() {
+    return struct.pack("<q", self.visiting_neighbors);
+  }
   can load with Profile entry {
     if (not self.visiting_neighbors) {
       self.visiting_neighbors = True;
@@ -45,24 +52,24 @@ walker LoadFeed {
 
   def get_impl_load_on_Profile() {
     return """
-    if (!self->visiting_neighbors) {
-      self->visiting_neighbors = true;
-      visit(ctx, me, "Post", "->", NULL);
-      visit(ctx, me, "Follow", "->", NULL);
+    if (walker->visiting_neighbors == false) {
+      walker->visiting_neighbors = true;
+    push_new_element_to_container(0);
+    push_new_element_to_container(0);
+    push_new_element_to_container(0);
+    push_new_element_to_container(0);
     } else {
-      visit(ctx, me, "Post", "->", NULL);
+    push_new_element_to_container(0);
+    push_new_element_to_container(0);
     }
     """;
   }
   def get_impl_calc_on_Tweet() {
-    return """printf("%d %s\\n", here.id, here.content_32);""";
+    # return """printf("%d %s\\n", here.id, here.content_32);""";
+    return "";
   }
   def get_byte_stream() {
     return struct.pack("<q", self.visiting_neighbors);
-  }
-
-  def get_byte_stream() {
-    return "visiting_neighbors: uint64_t;";
   }
 }
 
