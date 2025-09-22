@@ -535,6 +535,7 @@ class JacWalker:
                         dpu_id=current_dpu_id,
                         start_mem_ctx=JacPIMCtxMgr.get_ctx().mem_ctxs[current_dpu_id],
                     )
+                    JacPIMCtxMgr.get_ctx().task_manager.add_task(current_task, dependency_task_id=task_dependency)
                     walker.current_task_id = current_task.task_id
                 elif current_task.dpu_id != current_dpu_id:
                     # current_task.save()
@@ -620,8 +621,10 @@ class JacWalker:
                 return warch
 
         if current_task != None:
-            # tasks.append(current_task)
-            JacPIMCtxMgr.get_ctx().task_manager.add_task(current_task)
+            # Only add task if it hasn't been added already
+            if current_task.task_id not in JacPIMCtxMgr.get_ctx().task_manager.tasks:
+                # tasks.append(current_task)
+                JacPIMCtxMgr.get_ctx().task_manager.add_task(current_task)
             # current_task.save()
         walker.ignores = []
         return warch
@@ -1769,12 +1772,21 @@ class JacPIM:
     
     @classmethod
     def par_visit(cls, old_walker: WalkerArchetype, new_walker: WalkerArchetype, destinations: list[EdgeArchetype]):
+        # Capture the original task ID before spawning to ensure all spawned walkers depend on the same task
+        # This is important because current_task_id gets updated during spawn, creating unintended sequential dependencies
+        original_task_id = old_walker.__jac__.current_task_id
+        print(f"DEBUG par_visit: Starting with original_task_id={original_task_id}")
         for i, destination in enumerate(destinations):
             # Use the walker anchor directly, but get the destination's anchor
-
+            current_task_id_before = old_walker.__jac__.current_task_id
+            print(f"DEBUG par_visit: Before spawn {i}, original_task_id={original_task_id}, current_task_id={current_task_id_before}")
+            
             # future = JacMachine.thread_run(lambda da=dest_anchor: JacMachine.spawn_call(walker.__jac__, da))
-            print(f"DEBUG par_visit: Spawning walker {new_walker} to destination {destination}, task_dependency={old_walker.__jac__.current_task_id}")
-            JacMachine.spawn(new_walker, destination, task_dependency=old_walker.__jac__.current_task_id)
+            print(f"DEBUG par_visit: Spawning walker {new_walker} to destination {destination}, task_dependency={original_task_id}")
+            JacMachine.spawn(new_walker, destination, task_dependency=original_task_id)
+            
+            current_task_id_after = old_walker.__jac__.current_task_id
+            print(f"DEBUG par_visit: After spawn {i}, current_task_id={current_task_id_after}")
             # print(f"DEBUG: Thread {i} started, future: {future}")
             # cls.par_walkers.append(future)
             # Wait for the thread to complete to see the output
@@ -1790,6 +1802,12 @@ class JacPIM:
         graph = JacPIM.get_networkx(all_nodes, all_edges)
         walker_code = JacPIM.get_walker_code(walker_anchor)
         JacPIMCtxMgr.create_ctx(all_nodes, all_edges, start_node_anchor, graph, walker_code)
+    
+    @staticmethod
+    def end() -> None:
+        ctx = JacPIMCtxMgr.get_ctx()
+        ctx.task_manager.schedule_all_tasks()
+        print(ctx.task_manager.get_scheduling_plan())
 
         # trace = [all_nodes.index(node) for node in walker.trace]
         # # with open("task.c", "w") as file:

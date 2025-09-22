@@ -35,10 +35,11 @@ with entry {
   c = Basic(name = 3);
   root ++> a;
   a ++> b;
-  b ++> c;
+  a ++> c;
   wlk1 = BasicWalker();
   JacMachine.start(wlk1, a);
   wlk1 = a spawn BasicWalker();
+  JacMachine.end();
   # JacMachine.wait_par_walkers();
   # wlk2 = b spawn BasciWalker();
   # Run on DPU
