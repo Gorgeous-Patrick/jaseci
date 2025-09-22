@@ -71,6 +71,22 @@ class TypeCheckerPassTests(TestCase):
           ^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_inherited_symbol(self) -> None:
+        program = JacProgram()
+        mod = program.compile(self.fixture_abs_path("checker_sym_inherit.jac"))
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 2)
+        self._assert_error_pretty_found("""
+          c.val = 42;     # <-- Ok
+          c.val = "str";  # <-- Error
+          ^^^^^^^^^^^^^
+        """, program.errors_had[0].pretty_print())
+        self._assert_error_pretty_found("""
+          l.name = "Simba";  # <-- Ok
+          l.name = 42;       # <-- Error
+          ^^^^^^^^^^^
+        """, program.errors_had[1].pretty_print())
+
     def test_import_symbol_type_infer(self) -> None:
         program = JacProgram()
         mod = program.compile(self.fixture_abs_path("import_symbol_type_infer.jac"))

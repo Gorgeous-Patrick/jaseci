@@ -39,3 +39,29 @@ class ClassMember:
         # True if member lookup skipped an undeclared (inferred) type
         # in a subclass before finding a declared type in a base class
         self.skipped_undeclared_type = False
+
+
+def compute_mro_linearization(cls: types.ClassType) -> None:
+    """Compute the method resolution order (MRO) for a class type.
+
+    This uses the C3 linearization algorithm to compute the MRO.
+    See https://www.python.org/download/releases/2.3/mro/
+    """
+    if cls.shared.mro:
+        return
+
+    # FIXME: This is an ad-hoc implementation to make the MRO works
+    # and it'll cover the 90% or more of the user cases.
+
+    # Computer MRO for base classes first
+    cls.shared.mro.append(cls)
+    for base in cls.shared.base_classes:
+        if isinstance(base, types.ClassType):
+            compute_mro_linearization(base)
+
+    # Then add base classes and their MROs
+    for base in cls.shared.base_classes:
+        if isinstance(base, types.ClassType):
+            for mro_cls in base.shared.mro:
+                if mro_cls not in cls.shared.mro:
+                    cls.shared.mro.append(mro_cls)

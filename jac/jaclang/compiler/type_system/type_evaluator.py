@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from jaclang.compiler.program import JacProgram
 
 from . import operations
-from .type_utils import ClassMember
+from .type_utils import ClassMember, compute_mro_linearization
 from .types import TypeBase
 
 
@@ -231,17 +231,23 @@ class TypeEvaluator:
         if node.name_spec.type is not None:
             return cast(types.ClassType, node.name_spec.type)
 
+        base_classes: list[TypeBase] = []
+        for base_class in node.base_classes or []:
+            base_class_type = self.get_type_of_expression(base_class)
+            base_classes.append(base_class_type)
         is_builtin_class = node.find_parent_of_type(uni.Module) == self.builtins_module
 
         cls_type = types.ClassType(
             types.ClassType.ClassDetailsShared(
                 class_name=node.name_spec.sym_name,
                 symbol_table=node,
-                # TODO: Resolve the base class expression and pass them here.
+                base_classes=base_classes,
                 is_builtin_class=is_builtin_class,
             ),
             flags=types.TypeFlags.Instantiable,
         )
+
+        compute_mro_linearization(cls_type)
 
         # Cache the type, pyright is doing invalidateTypeCacheIfCanceled()
         # we're not doing that any time sooner.
@@ -599,8 +605,9 @@ class TypeEvaluator:
 
         # NOTE: This is a simple implementation to make it work and more robust implementation will
         # be done in a future PR.
-        if sym := base_type.lookup_member_symbol(member):
-            return ClassMember(sym, base_type)
+        for cls in base_type.shared.mro:
+            if sym := cls.lookup_member_symbol(member):
+                return ClassMember(sym, cls)
         return None
 
     def _lookup_object_member(

@@ -169,6 +169,7 @@ class ClassType(TypeBase):
             self.class_name = class_name
             self.symbol_table = symbol_table
             self.base_classes = base_classes or []
+            self.mro: list[ClassType] = []
 
             # In pyright classes have ClassTypeFlags to indicate if it's builtin
             # along with other information, I'm adding only the builtin flag for now.
