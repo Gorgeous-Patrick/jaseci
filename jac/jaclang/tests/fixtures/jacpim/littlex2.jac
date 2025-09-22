@@ -1,12 +1,24 @@
 import random;
 import struct;
+import from jaclang.runtimelib.machine {JacMachine}
+node Start {
+  has id: int = 0;
+  def get_byte_stream() {
+    res = struct.pack("<q", self.id);
+    return res;
+  }
+  static def get_type_def() {
+    return "uint64_t id;";
+  }
+}
 node Profile {
   has id: int;
   def get_byte_stream() {
-    return struct.pack("<q", self.id);
+    res = struct.pack("<q", self.id);
+    return res;
   }
   static def get_type_def() {
-    return "int id;";
+    return "uint64_t id;";
   }
 }
 
@@ -19,7 +31,7 @@ node Tweet {
     return res;
   }
   static def get_type_def() {
-    return "int id;";
+    return "uint64_t id; char content_32[32];";
   }
 }
 
@@ -34,6 +46,11 @@ walker LoadFeed {
 
   def get_byte_stream() {
     return struct.pack("<q", self.visiting_neighbors);
+  }
+  can boot with Start entry {
+    # print("Starting load feed from user ", here.id);
+    # visit [->:Profile:->];
+    JacMachine.par_visit(self, LoadFeed(), [-->]);
   }
   can load with Profile entry {
     if (not self.visiting_neighbors) {
@@ -95,5 +112,14 @@ with entry {
       }
     }
   }
-  wlk = nodes[0] spawn LoadFeed();
+  start_node = Start(id=0);
+  root ++> start_node;
+  for i in range(max(NODE_NUM // 10, 30)){
+
+    start_node ++> nodes[i];
+  }
+  wlk = LoadFeed();
+  JacMachine.start(wlk, start_node);
+  wlk = start_node spawn wlk;
+  JacMachine.end(wlk);
 }

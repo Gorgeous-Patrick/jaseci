@@ -7,6 +7,7 @@ from jaclang.runtimelib.simulation.task import Task
 import traceback
 import sys
 import os
+
 from .upmem_codegen import (
     CodeGenContext,
     FunctionDef,
@@ -15,6 +16,7 @@ from .upmem_codegen import (
     WalkerExecution,
     gen_code,
 )
+from .task import TaskSet, Task, TaskMgr
 from jaclang.runtimelib.constructs import NodeAnchor
 from queue import Queue
 from pathlib import Path
@@ -144,14 +146,15 @@ class uPIMulator:
                 shutil.rmtree(Path.home() / "uPIMulators/results")
             os.mkdir(Path.home() / "uPIMulators/results")
 
-    def run_single_sim(self, sim_id: int, task: Task, context: CodeGenContext):
+    def run_single_sim(self, sim_id: int, taskset: TaskSet, context: CodeGenContext):
         import os
         import subprocess
         sim_path = self.get_simulator_path(sim_id)
         # Write the src code to {simulator_path}/golang/uPIMulator/benchmark/GEN/dpu/task.c
         with open(sim_path / "golang/uPIMulator/benchmark/GEN/dpu/task.c", "w") as f:
             f.write(gen_code(context))
-        task.start_mem_ctx.dump_to_file(
+        assert taskset.mem_ctx is not None
+        taskset.mem_ctx.dump_to_file(
             f"{sim_path}/golang/uPIMulator/Task.bin"
         )
         # Run the simulator with pwd: {simulator_path}/golang/uPIMulator
@@ -162,36 +165,35 @@ class uPIMulator:
 
         # Copy the result folder from {simulator_path}/golang/uPIMulator/bin/
         # to ~/uPIMulators/results
-        if (Path.home() / f"uPIMulators/results/task_{task.task_id}").exists():
-            shutil.rmtree(Path.home() / f"uPIMulators/results/task_{task.task_id}")
+        if (Path.home() / f"uPIMulators/results/taskset_{taskset.task_set_id}").exists():
+            shutil.rmtree(Path.home() / f"uPIMulators/results/taskset_{taskset.task_set_id}")
         shutil.copytree(
             self.get_simulator_path(sim_id) / "golang/uPIMulator/bin/",
-            Path.home() / f"uPIMulators/results/task_{task.task_id}",
+            Path.home() / f"uPIMulators/results/taskset_{taskset.task_set_id}",
         )
         # Write the stdout and stderr to ~/uPIMulators/results/task_{task.task_id}/output.txt
-        with open(Path.home() / f"uPIMulators/results/task_{task.task_id}/output.txt", "w") as f:
+        with open(Path.home() / f"uPIMulators/results/taskset_{taskset.task_set_id}/output.txt", "w") as f:
             f.write("STDOUT:\n")
             f.write(result.stdout.decode())
             f.write("\n\nSTDERR:\n")
             f.write(result.stderr.decode())
-
-    def run_sims(self, tasks: list[Task], all_nodes: list[NodeAnchor], walker: WalkerAnchor):
-        print(f"Running {len(tasks)} tasks on {self.sim_num} simulators")
-        tasks_and_contexts = [
-            (task,context_gen(task=task, all_nodes=all_nodes, walker=walker)) for task in tasks
-        ]
+    
+    def run_single_round_sim(self, tasksets: list[TaskSet], all_nodes: list[NodeAnchor], walker: WalkerAnchor):
         # I want to run self.run_single_sim in parallel for sim_num sims
         # Task with the same sim_id will be run in the same simulator, and running multiple tasks in the same simulator is not parallel
+        tasksets_and_contexts = [
+            (taskset, context_gen(taskset=taskset, all_nodes=all_nodes, walker=walker)) for taskset in tasksets
+        ]
         q = Queue()
 
         def worker(sim_id: int):
             while True:
-                task, context = q.get()
-                if task is None:
+                taskset, context = q.get()
+                if taskset is None:
                     q.task_done()
                     break
                 try:
-                    self.run_single_sim(sim_id, task, context)
+                    self.run_single_sim(sim_id, taskset, context)
                 except Exception:  # crash whole program on any task failure
                     # Print the traceback for debugging, then exit *immediately*.
                     traceback.print_exc(file=sys.stderr)
@@ -205,8 +207,8 @@ class uPIMulator:
             t = threading.Thread(target=worker, args=(sim_id,))
             t.start()
             threads.append(t)
-        for task, context in tasks_and_contexts:
-            q.put((task, context))
+        for taskset, context in tasksets_and_contexts:
+            q.put((taskset, context))
         # block until all tasks are done
         q.join()
         # stop workers
@@ -214,6 +216,12 @@ class uPIMulator:
             q.put((None, None))
         for t in threads:
             t.join()
+        
+
+    def run_sims(self, task_mgr: TaskMgr, all_nodes: list[NodeAnchor], walker: WalkerAnchor):
+        rounds = task_mgr.get_tasksets_by_rounds()
+        print(f"Scheduling plan has {len(rounds)} rounds")
+
     def get_results(self) -> list[SimStats]:
         results: list[SimStats] = []
         for result_dir in (Path.home() / "uPIMulators/results").iterdir():

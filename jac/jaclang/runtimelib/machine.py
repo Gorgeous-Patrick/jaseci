@@ -54,12 +54,14 @@ from jaclang.runtimelib.constructs import (
     WalkerAnchor,
     WalkerArchetype,
 )
-from jaclang.runtimelib.data_mapper.access_pattern import (
+from jaclang.runtimelib.jacpim_ctx import JacPIMCtxMgr
+from jaclang.runtimelib.temporal_trace_graph.access_pattern import (
     get_access_pattern,
     get_access_pattern_single_walker,
+    get_paths_from_ttg,
 )
 from jaclang.runtimelib.data_mapper.perf_measure import print_performance_info
-from jaclang.runtimelib.data_mapper.plot import plot_and_save
+from jaclang.runtimelib.temporal_trace_graph.plot import plot_and_save
 from jaclang.runtimelib.data_mapper.partitioner import (
     DPU_NUM,
     random_partition,
@@ -67,8 +69,16 @@ from jaclang.runtimelib.data_mapper.partitioner import (
 )
 from jaclang.runtimelib.data_mapper.size_calc import calculate_size
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
-from jaclang.runtimelib.simulation.dpu_mem_layout import get_all_memory_contexts, get_memory_context
-from jaclang.runtimelib.simulation.run_sim import context_gen, get_node_types, uPIMulator, save_result_sum
+from jaclang.runtimelib.simulation.dpu_mem_layout import (
+    get_all_memory_contexts,
+    get_memory_context,
+)
+from jaclang.runtimelib.simulation.run_sim import (
+    context_gen,
+    get_node_types,
+    uPIMulator,
+    save_result_sum,
+)
 from jaclang.runtimelib.simulation.task import Task
 from jaclang.runtimelib.simulation.upmem_codegen import gen_code
 from jaclang.runtimelib.utils import (
@@ -478,48 +488,25 @@ class JacWalker:
     def spawn_call(
         walker: WalkerAnchor,
         node: NodeAnchor | EdgeAnchor,
+        task_dependency: int | None = None
     ) -> WalkerArchetype:
         """Jac's spawn operator feature."""
+        print("SPAWNING")
+        print(f"DEBUG: spawn_call started with walker {walker.archetype} on node {node.archetype}, task_dependency: {task_dependency}")
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
-        tasks: list[Task] = []
         if isinstance(current_loc, EdgeArchetype):
             walker.set_trace.append({current_loc.__jac__.target})
         elif isinstance(current_loc, NodeArchetype):
             walker.set_trace.append({current_loc.__jac__})
 
-        all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
-        get_node_types(all_nodes)
         if isinstance(current_loc, EdgeArchetype):
             start_node = current_loc.__jac__.target
         else:
             start_node = current_loc.__jac__
-        node_idx = all_nodes.index(start_node)
-        graph = JacPIM.get_networkx(all_nodes, all_edges)
         # JacPIM.networkx_gen_png(graph)
-        walker_code = JacPIM.get_walker_code(walker.archetype)
-
-        traversal_path = get_access_pattern_single_walker(
-            start_idx=node_idx,
-            network=graph,
-            walker_type=walker_code,
-        )
-
-        access_pattern = get_access_pattern(network=graph, paths=traversal_path)
-        walker_trace_graph = JacPIM.gen_walker_trace_graph(all_nodes, graph, walker)
-        random_mapping = random_partition(traversal_path, graph)
-        rounding_mapping = round_robin_partition(traversal_path, graph)
-
-        MAPPING = os.environ.get("MAPPING")
-        if MAPPING is None:
-            raise ValueError("MAPPING environment variable not set")
-        elif MAPPING == "random":
-            mapping = random_mapping
-        elif MAPPING == "rounding":
-            mapping = rounding_mapping
-        mem_ctxs = get_all_memory_contexts(mapping, all_nodes, DPU_NUM)
-        print(mem_ctxs)
+        # print(mem_ctxs)
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -535,18 +522,32 @@ class JacWalker:
                 elif isinstance(current_loc, NodeArchetype):
                     walker.trace.append(current_loc.__jac__)
                 # walker ability with loc entry
-                current_node: NodeAnchor = current_loc.__jac__ if isinstance(current_loc, NodeArchetype) else current_loc.__jac__.target
-                current_node_id = all_nodes.index(current_node)
-                current_dpu_id = mapping[current_node_id]
-                mem_ctxs[current_dpu_id].download_walkers({0: warch.get_byte_stream()})
+                current_node: NodeAnchor = (
+                    current_loc.__jac__
+                    if isinstance(current_loc, NodeArchetype)
+                    else current_loc.__jac__.target
+                )
+                current_node_id = JacPIMCtxMgr.get_ctx().all_nodes.index(current_node)
+                current_dpu_id = JacPIMCtxMgr.get_ctx().mapping[current_node_id]
+                JacPIMCtxMgr.get_ctx().mem_ctxs[current_dpu_id].download_walkers({0: warch.get_byte_stream()})
                 if current_task is None:
-                    current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id], walker=walker)
+                    current_task = Task(
+                        dpu_id=current_dpu_id,
+                        start_mem_ctx=JacPIMCtxMgr.get_ctx().mem_ctxs[current_dpu_id],
+                    )
+                    JacPIMCtxMgr.get_ctx().task_manager.add_task(current_task, dependency_task_id=task_dependency)
+                    walker.current_task_id = current_task.task_id
                 elif current_task.dpu_id != current_dpu_id:
                     # current_task.save()
-                    tasks.append(current_task)
-                    current_task = Task(dpu_id=current_dpu_id, start_mem_ctx=mem_ctxs[current_dpu_id], walker=walker)
+                    current_task = Task(
+                        dpu_id=current_dpu_id,
+                        start_mem_ctx=JacPIMCtxMgr.get_ctx().mem_ctxs[current_dpu_id],
+                    )
+                    JacPIMCtxMgr.get_ctx().task_manager.add_task(current_task, dependency_task_id=task_dependency)
+                    walker.current_task_id = current_task.task_id
+                    task_dependency = walker.current_task_id
                 current_task.add_node(current_node_id)
-                
+
                 for i in warch._jac_entry_funcs_:
                     if (
                         i.trigger
@@ -556,23 +557,17 @@ class JacWalker:
                         )
                         and isinstance(current_loc, i.trigger)
                     ):
+                        print(f"DEBUG: Executing walker entry function {i.func.__name__} on {current_loc}")
                         i.func(warch, current_loc)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with any entry
                 for i in current_loc._jac_entry_funcs_:
                     if not i.trigger:
+                        print(f"DEBUG: Executing location entry function {i.func.__name__} on {current_loc}")
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with walker entry
@@ -584,10 +579,6 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with walker exit
@@ -599,10 +590,6 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # loc ability with any exit
@@ -610,10 +597,6 @@ class JacWalker:
                     if not i.trigger:
                         i.func(current_loc, warch)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
 
                 # walker ability with loc exit
@@ -628,12 +611,8 @@ class JacWalker:
                     ):
                         i.func(warch, current_loc)
                     if walker.disengaged:
-                        walker_trace_graph = JacPIM.gen_walker_trace_graph(
-                            all_nodes, graph, walker
-                        )
-                        plot_and_save(graph, access_pattern, walker_trace_graph)
                         return warch
-                mem_ctxs[current_dpu_id].change_walker_value(0, walker)
+                JacPIMCtxMgr.get_ctx().mem_ctxs[current_dpu_id].change_walker_value(0, walker)
         # walker ability with any exit
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
@@ -642,18 +621,12 @@ class JacWalker:
                 return warch
 
         if current_task != None:
-            tasks.append(current_task)
+            # Only add task if it hasn't been added already
+            if current_task.task_id not in JacPIMCtxMgr.get_ctx().task_manager.tasks:
+                # tasks.append(current_task)
+                JacPIMCtxMgr.get_ctx().task_manager.add_task(current_task)
             # current_task.save()
         walker.ignores = []
-        trace = [all_nodes.index(node) for node in walker.trace]
-        # with open("task.c", "w") as file:
-        #     file.write(gen_code(context_gen(tasks, all_nodes, walker)))
-        upimulator = uPIMulator(20)
-        upimulator.run_sims(tasks, all_nodes, walker)
-        sim_result_sum = save_result_sum(upimulator.get_results())
-        print(f"Simulation result summary: {sim_result_sum}")
-        print_performance_info(graph, random_mapping, walker, walker_code, trace)
-        print_performance_info(graph, rounding_mapping, walker, walker_code, trace)
         return warch
 
     @staticmethod
@@ -766,9 +739,11 @@ class JacWalker:
 
     @staticmethod
     def spawn(
-        op1: Archetype | list[Archetype], op2: Archetype | list[Archetype]
+        op1: Archetype | list[Archetype], op2: Archetype | list[Archetype], task_dependency: int | None = None
     ) -> Union[WalkerArchetype, Coroutine]:
         """Jac's spawn operator feature."""
+        print(f"DEBUG: spawn called with op1 {op1} and op2 {op2}, task_dependency: {task_dependency}")
+
 
         def collect_targets(
             walker: WalkerAnchor, items: list[Archetype]
@@ -815,7 +790,7 @@ class JacWalker:
 
         if warch.__jac_async__:
             return JacMachineInterface.async_spawn_call(walker=walker, node=loc)
-        return JacMachineInterface.spawn_call(walker=walker, node=loc)
+        return JacMachineInterface.spawn_call(walker=walker, node=loc, task_dependency=task_dependency)
 
     @staticmethod
     def disengage(walker: WalkerArchetype) -> bool:
@@ -1668,13 +1643,14 @@ class JacUtils:
 
 class JacPIM:
     """Jac PIM implementation."""
+    par_walkers: list[Future] = []
 
     @staticmethod
     def get_walker_code(walker: WalkerAnchor) -> ast.Archetype:
         """Get the walker type code from walker instance."""
         for walker_code in JacMachine.program.mod.get_all_sub_nodes(ast.Archetype):
             if walker_code.get_all_sub_nodes(ast.Name)[0].value == JacPIM._extract_name(
-                walker
+                walker.archetype
             ):
                 return walker_code
         raise ValueError(f"Walker code for {walker.archetype} not found in program.")
@@ -1747,7 +1723,7 @@ class JacPIM:
                 idx,
                 node_type=JacPIM._extract_name(node_anchor.archetype),
                 node_id=getattr(node_anchor.archetype, "id", None),
-                node_size=calculate_size(node_anchor.archetype)
+                node_size=calculate_size(node_anchor.archetype),
             )
 
         # Assign colors by node_type
@@ -1793,6 +1769,58 @@ class JacPIM:
             label.append(idx)
             graph.add_edge(from_node, to_node, label=label)
         return graph
+    
+    @classmethod
+    def par_visit(cls, old_walker: WalkerArchetype, new_walker: WalkerArchetype, destinations: list[EdgeArchetype]):
+        # Capture the original task ID before spawning to ensure all spawned walkers depend on the same task
+        # This is important because current_task_id gets updated during spawn, creating unintended sequential dependencies
+        original_task_id = old_walker.__jac__.current_task_id
+        print(f"DEBUG par_visit: Starting with original_task_id={original_task_id}")
+        for i, destination in enumerate(destinations):
+            # Use the walker anchor directly, but get the destination's anchor
+            current_task_id_before = old_walker.__jac__.current_task_id
+            print(f"DEBUG par_visit: Before spawn {i}, original_task_id={original_task_id}, current_task_id={current_task_id_before}")
+            
+            # future = JacMachine.thread_run(lambda da=dest_anchor: JacMachine.spawn_call(walker.__jac__, da))
+            print(f"DEBUG par_visit: Spawning walker {new_walker} to destination {destination}, task_dependency={original_task_id}")
+            JacMachine.spawn(new_walker, destination, task_dependency=original_task_id)
+            
+            current_task_id_after = old_walker.__jac__.current_task_id
+            print(f"DEBUG par_visit: After spawn {i}, current_task_id={current_task_id_after}")
+            # print(f"DEBUG: Thread {i} started, future: {future}")
+            # cls.par_walkers.append(future)
+            # Wait for the thread to complete to see the output
+            # result = JacMachine.thread_wait(future)
+            # print(f"DEBUG: Thread {i} completed, result: {result}")
+    @staticmethod
+    def start(walker: WalkerArchetype, start_node: NodeArchetype) -> None:
+        all_nodes, all_edges = JacPIM._get_graph_nodes_and_edges()
+        print(type(start_node))
+        start_node_anchor: NodeAnchor = start_node.__jac__
+        walker_anchor: WalkerAnchor = walker.__jac__
+        node_idx = all_nodes.index(start_node_anchor)
+        graph = JacPIM.get_networkx(all_nodes, all_edges)
+        walker_code = JacPIM.get_walker_code(walker_anchor)
+        JacPIMCtxMgr.create_ctx(all_nodes, all_edges, start_node_anchor, graph, walker_code)
+    
+    @staticmethod
+    def end(walker: WalkerArchetype) -> None:
+        ctx = JacPIMCtxMgr.get_ctx()
+        ctx.task_manager.schedule_all_tasks()
+        print(ctx.task_manager.get_scheduling_plan())
+
+        # trace = [all_nodes.index(node) for node in walker.trace]
+        # # with open("task.c", "w") as file:
+        # #     file.write(gen_code(context_gen(tasks, all_nodes, walker)))
+        if os.environ.get("RUN_SIM") == "1":
+            upimulator = uPIMulator(20)
+            upimulator.run_sims(ctx.task_manager, ctx.all_nodes, walker.__jac__)
+            sim_result_sum = save_result_sum(upimulator.get_results())
+            print(f"Simulation result summary: {sim_result_sum}")
+        # print_performance_info(graph, JacPIMCtxMgr.get_ctx().mapping, walker, walker_code, trace)
+        # print(f"DEBUG: spawn_call completed for walker {walker.archetype}")
+    
+    
 
 
 class JacMachineInterface(

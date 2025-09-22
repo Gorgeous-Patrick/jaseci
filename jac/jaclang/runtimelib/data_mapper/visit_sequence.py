@@ -15,7 +15,6 @@ VisitSequence: TypeAlias = list[VisitInfo]
 _TracingInfo: TypeAlias = list[uni.UniCFGNode]
 
 def get_visit_sequences(ability: uni.Ability) -> Generator[list[VisitInfo], None, None]:
-    # print("=========")
     stack: list[_TracingInfo] = [[ability]]
     while (len(stack) > 0):
         path = stack.pop()
@@ -25,10 +24,29 @@ def get_visit_sequences(ability: uni.Ability) -> Generator[list[VisitInfo], None
         for new_path in new_paths:
             new_node = new_path[-1]
             if len(new_node.bb_out) == 0:
-                yield [_get_visit_info(new_node) for new_node in new_path if isinstance(new_node, uni.VisitStmt)]
+                res = [_get_visit_info(new_node) for new_node in new_path if isinstance(new_node, uni.VisitStmt)] + [_get_par_visit_info(new_node) for new_node in new_path if isinstance(new_node, uni.ExprStmt)]
+                yield [v for v in res if v is not None]
             else:
                 stack.append(new_path)
     
+
+def _get_par_visit_info(par_visit_stmt: uni.FuncCall):
+    """Get the visit info of a par_visit statement."""
+    print(f"DEBUG: Processing par_visit statement: {par_visit_stmt}")
+    if not par_visit_stmt.get_all_sub_nodes(uni.AtomTrailer):
+        return None
+    names = par_visit_stmt.get_all_sub_nodes(uni.AtomTrailer)[0].get_all_sub_nodes(uni.Name)
+    if all(name.value != "par_visit" for name in names):
+        return None
+    res =  VisitInfo(
+        from_node_type=_get_from_node_type_of_visit(par_visit_stmt),
+        walker_type=_get_walker_type_from_visit(par_visit_stmt),
+        edge_type=_get_to_edge_type_of_visit(par_visit_stmt),
+        async_edge=True,
+    )
+    print(f"DEBUG: Extracted par_visit info: {res}")
+    return res
+
 
 def _get_from_node_type_of_visit(visit_stmt: uni.VisitStmt) -> str:
     """Get the node type that the visit is from.
