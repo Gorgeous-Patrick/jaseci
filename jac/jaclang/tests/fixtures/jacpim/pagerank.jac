@@ -2,6 +2,7 @@
 import random;
 import from analytical.data_prep {download_and_cache, get_subgraph}
 import os;
+import from jaclang.runtimelib.machine {JacMachine}
 
 node Page {
   has id: int;
@@ -46,5 +47,8 @@ with entry {
       }
     }
   }
-  wlk = nodes[0] spawn PageRank();
+  wlk = PageRank();
+  JacMachine.start(wlk, nodes[0]);
+  wlk = nodes[0] spawn wlk;
+  JacMachine.end();
 }
