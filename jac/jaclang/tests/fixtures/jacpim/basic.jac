@@ -34,8 +34,8 @@ with entry {
   b = Basic(name = 2);
   c = Basic(name = 3);
   root ++> a;
-  a ++> c;
   a ++> b;
+  b ++> c;
   wlk1 = BasicWalker();
   JacMachine.start(wlk1, a);
   wlk1 = a spawn BasicWalker();
