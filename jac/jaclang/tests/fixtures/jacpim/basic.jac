@@ -14,7 +14,9 @@ walker BasicWalker {
   has num: int = 10;
   can basic with Basic entry {
     print("hello");
-    JacMachine.par_visit(self, [-->]);
+    print(self.__jac__.current_task_id);
+    JacMachine.par_visit(self, BasicWalker(num=self.num), [-->]);
+    # visit [-->];
     # for i in [-->] {
     #   task = flow spawn BasicWalker() on i;
     # }
@@ -34,6 +36,8 @@ with entry {
   root ++> a;
   a ++> c;
   a ++> b;
+  wlk1 = BasicWalker();
+  JacMachine.start(wlk1, a);
   wlk1 = a spawn BasicWalker();
   # JacMachine.wait_par_walkers();
   # wlk2 = b spawn BasciWalker();
