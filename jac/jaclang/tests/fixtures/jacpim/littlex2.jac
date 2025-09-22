@@ -110,5 +110,5 @@ with entry {
   wlk = LoadFeed();
   JacMachine.start(wlk, start_node);
   wlk = start_node spawn wlk;
-  JacMachine.end();
+  JacMachine.end(wlk);
 }

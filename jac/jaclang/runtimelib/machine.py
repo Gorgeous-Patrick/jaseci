@@ -1804,7 +1804,7 @@ class JacPIM:
         JacPIMCtxMgr.create_ctx(all_nodes, all_edges, start_node_anchor, graph, walker_code)
     
     @staticmethod
-    def end() -> None:
+    def end(walker: WalkerArchetype) -> None:
         ctx = JacPIMCtxMgr.get_ctx()
         ctx.task_manager.schedule_all_tasks()
         print(ctx.task_manager.get_scheduling_plan())
@@ -1812,11 +1812,11 @@ class JacPIM:
         # trace = [all_nodes.index(node) for node in walker.trace]
         # # with open("task.c", "w") as file:
         # #     file.write(gen_code(context_gen(tasks, all_nodes, walker)))
-        # if os.environ.get("RUN_SIM") == "1":
-        #     upimulator = uPIMulator(20)
-        #     upimulator.run_sims(tasks, all_nodes, walker)
-        #     sim_result_sum = save_result_sum(upimulator.get_results())
-        #     print(f"Simulation result summary: {sim_result_sum}")
+        if os.environ.get("RUN_SIM") == "1":
+            upimulator = uPIMulator(20)
+            upimulator.run_sims(ctx.task_manager, ctx.all_nodes, walker.__jac__)
+            sim_result_sum = save_result_sum(upimulator.get_results())
+            print(f"Simulation result summary: {sim_result_sum}")
         # print_performance_info(graph, JacPIMCtxMgr.get_ctx().mapping, walker, walker_code, trace)
         # print(f"DEBUG: spawn_call completed for walker {walker.archetype}")
     

@@ -65,7 +65,31 @@ class DPUMemoryContext:
     def dump_to_file(self, filename: str):
         with open(filename, "wb") as f:
             f.write(self.node_memory + self.walker_memory)
-
+    
+    def merge(self, other: "DPUMemoryContext"):
+        # Merge another DPUMemoryContext into the current one.
+        # The node memory size must be the same.
+        # The walker memory will be appended in the sequence of walker id.
+        assert len(self.node_memory) == len(other.node_memory), f"Node memory sizes must match: {len(self.node_memory)} != {len(other.node_memory)}"
+        # Update walker memory.
+        # 1. Get the list of all walker ids.
+        existing_walker_ids = sorted(list(self.walker_id_to_range.keys()) + list(other.walker_id_to_range.keys()))
+        # 2. Create new walker memory and mapping.
+        new_walker_memory = bytearray()
+        new_walker_id_to_range = {}
+        current_ptr = len(self.node_memory)
+        for walker_id in existing_walker_ids:
+            if walker_id in self.walker_id_to_range:
+                mem_range = self.walker_id_to_range[walker_id]
+                walker_stream = self.walker_memory[mem_range.ptr - len(self.node_memory) : mem_range.ptr - len(self.node_memory) + mem_range.size]
+            else:
+                mem_range = other.walker_id_to_range[walker_id]
+                walker_stream = other.walker_memory[mem_range.ptr - len(other.node_memory) : mem_range.ptr - len(other.node_memory) + mem_range.size]
+            new_walker_id_to_range[walker_id] = MemoryRange(ptr=current_ptr, size=len(walker_stream))
+            new_walker_memory += walker_stream
+            current_ptr += len(walker_stream)
+        self.walker_memory = bytes(new_walker_memory)
+        self.walker_id_to_range = new_walker_id_to_range
 
 def get_memory_context(
     node_ids: list[int], all_nodes: list[NodeAnchor], walker: WalkerAnchor

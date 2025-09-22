@@ -28,15 +28,28 @@ class Task:
 DPU_THREAD_NUM = 12  # Number of threads (walkers) that can run parallely on a DPU.
 
 class TaskSet:
+    TASK_SET_COUNT = 0
     # A list of walkers running parallely on the same DPU.
     def __init__(self, dpu_id: int):
         self.dpu_id = dpu_id
         self.tasks: list[Task] = []
-    
+        self.mem_ctx: Optional[DPUMemoryContext] = None
+        self.task_set_id = TaskSet.TASK_SET_COUNT
+        TaskSet.TASK_SET_COUNT += 1
+
     def add_task(self, task: Task):
         assert task.dpu_id == self.dpu_id
         assert len(self.tasks) < DPU_THREAD_NUM
         self.tasks.append(task)
+        if self.mem_ctx is None:
+            self.mem_ctx = copy.deepcopy(task.start_mem_ctx)
+        else:
+            self.mem_ctx.merge(task.start_mem_ctx)
+    
+    def get_mem_ctx(self) -> DPUMemoryContext:
+        if self.mem_ctx is None:
+            raise ValueError("No memory context available, no tasks added yet.")
+        return self.mem_ctx
 
 
 class TaskMgr:
@@ -216,6 +229,32 @@ class TaskMgr:
             plan.append(round_info)
         
         return plan
+    
+    def get_tasksets_by_rounds(self) -> List[List[TaskSet]]:
+        """
+        Get the scheduling plan as a simple list of lists of TaskSets.
+        
+        Returns:
+            List[List[TaskSet]] where:
+            - Outer list represents sequential rounds (round 0, round 1, etc.)
+            - Inner list contains TaskSets that can run in parallel within that round
+            - All TaskSets in round i must complete before TaskSets in round i+1 can start
+            
+        Example:
+            [
+                [TaskSet(dpu=0, tasks=[0]), TaskSet(dpu=1, tasks=[1])],  # Round 0: parallel
+                [TaskSet(dpu=2, tasks=[2])],                              # Round 1: after round 0
+                [TaskSet(dpu=0, tasks=[3]), TaskSet(dpu=3, tasks=[4])]   # Round 2: after round 1
+            ]
+        """
+        rounds = []
+        for round_tasksets in self.scheduling_rounds:
+            # Only include TaskSets that have tasks
+            round_with_tasks = [taskset for taskset in round_tasksets if len(taskset.tasks) > 0]
+            if round_with_tasks:  # Only add round if it has tasks
+                rounds.append(round_with_tasks)
+        
+        return rounds
     
     def reset_scheduling(self):
         """Reset the scheduling state to start fresh."""
