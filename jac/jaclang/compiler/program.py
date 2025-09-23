@@ -17,6 +17,7 @@ from jaclang.compiler.passes.main import (
     DefUsePass,
     JacAnnexPass,
     JacImportDepsPass,
+    PreDynamoPass,
     PyBytecodeGenPass,
     PyJacAstLinkPass,
     PyastBuildPass,
@@ -32,6 +33,7 @@ from jaclang.compiler.passes.tool import (
     JacFormatPass,
 )
 from jaclang.runtimelib.utils import read_file_with_encoding
+from jaclang.settings import settings
 from jaclang.utils.log import logging
 
 
@@ -118,6 +120,8 @@ class JacProgram:
         if type_check:
             self.run_schedule(mod=mod_targ, passes=type_check_sched)
         if not no_cgen:
+            if settings.predynamo_pass:
+                py_code_gen.insert(0, PreDynamoPass)
             self.run_schedule(mod=mod_targ, passes=py_code_gen)
         return mod_targ
 
