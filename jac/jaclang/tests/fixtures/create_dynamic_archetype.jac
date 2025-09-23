@@ -2,23 +2,23 @@ import from jaclang.runtimelib.machine { JacMachine }
 # Dynamically create a node archetype
  glob source_code =
     """
-    node dynamic_node {
-    has value:int;
-    can print_value with entry {
-    print("Dynamic Node Value:", f'{self.value}');
-    }
-    }
-    """;
+node dynamic_node {
+has value:int;
+can print_value with entry {
+print("Dynamic Node Value:", f'{self.value}');
+}
+}
+""";
 
 # Create a new walker archetype dynamically
  glob walker_code =
     """
-    walker dynamic_walker {
-    can visit_nodes with entry {
-    visit [-->];
-    }
-    }
-    """;
+walker dynamic_walker {
+can visit_nodes with entry {
+visit [-->];
+}
+}
+""";
 
 
 with entry {

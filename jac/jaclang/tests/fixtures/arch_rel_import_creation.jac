@@ -3,20 +3,20 @@ import from jaclang.runtimelib.machine { JacMachine }
 
 glob dynamic_module_source =
     """
-    import from arch_create_util {UtilityNode}
+import from arch_create_util {UtilityNode}
 
-    walker DynamicWalker {
-    can start with entry {
-    print("DynamicWalker Started");
-    here ++> UtilityNode(data=42);
-    visit [-->](`?UtilityNode);
-    }
+walker DynamicWalker {
+can start with entry {
+print("DynamicWalker Started");
+here ++> UtilityNode(data=42);
+visit [-->](`?UtilityNode);
+}
 
-    def UtilityNode {
-    here.display_data();
-    }
-    }
-    """;
+def UtilityNode {
+here.display_data();
+}
+}
+""";
 
 
 with entry {
