@@ -2,7 +2,9 @@ class SemTokManager {
     """Initialize semantic token manager."""
     def init(self: SemTokManager, ir: uni.Module) -> None {
         self.aaaaastatic_sem_tokens:
-            List[Tuple[lspt.Position, int, int, uni.AstSymbolNode]] = self.gen_sem_tok_node(ir);
+            List[Tuple[lspt.Position, int, int, uni.AstSymbolNode]] = self.gen_sem_tok_node(
+            ir
+        );
     }
 }
 
@@ -10,6 +12,9 @@ class SemTokManager {
 def walrus_example() {
     if ((x := 10) > 5) {
         print(x);
+        b = a(
+            11111111111111111111111111111111111111111111111111111111111111111111111111
+        );
     }
 }
 
