@@ -192,6 +192,10 @@ class ClassType(TypeBase):
         super().__init__(flags=flags)
         self.shared = shared
 
+    def __str__(self) -> str:
+        """Return a string representation of the class type."""
+        return f"<class {self.shared.class_name}>"
+
     def clone_as_instance(self) -> "ClassType":
         """Clone this class type as an instance type."""
         if self.is_instance():

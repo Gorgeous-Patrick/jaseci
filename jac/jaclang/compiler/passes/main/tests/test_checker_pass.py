@@ -61,6 +61,17 @@ class TypeCheckerPassTests(TestCase):
           ^^^^^^^^^^^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_imported_sym(self) -> None:
+        program = JacProgram()
+        mod = program.compile(self.fixture_abs_path("checker/import_sym_test.jac"))
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 1)
+        self._assert_error_pretty_found("""
+          a: str = foo();  # <-- Ok
+          b: int = foo();  # <-- Error
+          ^^^^^^^^^^^^^^
+        """, program.errors_had[0].pretty_print())
+
     def test_member_access_type_infered(self) -> None:
         program = JacProgram()
         mod = program.compile(self.fixture_abs_path("member_access_type_inferred.jac"))

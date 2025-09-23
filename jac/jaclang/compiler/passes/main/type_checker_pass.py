@@ -129,6 +129,13 @@ class TypeCheckPass(UniPass):
                 node.is_static = True
                 break
 
+    def exit_import(self, node: uni.Import) -> None:
+        """Exit an import node."""
+        if node.from_loc:
+            for item in node.items:
+                if isinstance(item, uni.ModuleItem):
+                    self.evaluator.get_type_of_module_item(item)
+
     def exit_assignment(self, node: uni.Assignment) -> None:
         """Pyright: Checker.visitAssignment(node: AssignmentNode): boolean."""
         # TODO: In pyright this logic is present at evaluateTypesForAssignmentStatement
