@@ -1892,15 +1892,35 @@ class FuncSignature(UniNode):
 
     def __init__(
         self,
-        params: Sequence[ParamVar] | None,
-        return_type: Optional[Expr],
         posonly_params: Sequence[ParamVar],
+        params: Sequence[ParamVar] | None,
+        varargs: Optional[ParamVar],
+        kwonlyargs: Sequence[ParamVar],
+        kwargs: Optional[ParamVar],
+        return_type: Optional[Expr],
         kid: Sequence[UniNode],
     ) -> None:
-        self.params: list[ParamVar] = list(params) if params else []
-        self.return_type = return_type
         self.posonly_params: list[ParamVar] = list(posonly_params)
+        self.params: list[ParamVar] = list(params) if params else []
+        self.varargs = varargs
+        self.kwonlyargs: list[ParamVar] = list(kwonlyargs)
+        self.kwargs = kwargs
+        self.return_type = return_type
         UniNode.__init__(self, kid=kid)
+
+    @property
+    # fmt: off
+    def args_pp(self) -> str:
+        arg_detail = "----Function Parameters- ----\n"
+        arg_detail += f"\tposonly: {"\n\t\t".join(str(param.unparse()) for param in self.posonly_params)}\n"
+        arg_detail += f"\tparams:  {"\n\t\t".join(str(arg.unparse()) for arg in self.params)} \n"
+        arg_detail += f"\tvarargs: {self.varargs.unparse() if self.varargs else None}\n"
+        arg_detail += f"\tkwonlyargs: {"\n\t\t\t".join(
+            str(keyword_param.unparse()) for keyword_param in self.kwonlyargs
+        )}\n"
+        arg_detail += f"\tkwargs: {self.kwargs.unparse() if self.kwargs else 'None'}\n"
+        return arg_detail
+    # fmt: on
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1912,11 +1932,30 @@ class FuncSignature(UniNode):
                 res = res and prm.normalize(deep)
             res = res and self.return_type.normalize(deep) if self.return_type else res
         new_kid: list[UniNode] = [self.gen_token(Tok.LPAREN)] if not is_lambda else []
-        total_params = list(self.posonly_params) + list(self.params)
-        for idx, prm in enumerate(total_params):
-            new_kid.append(prm)
-            if idx < len(total_params) - 1:
+        if self.posonly_params:
+            for prm in self.posonly_params:
+                new_kid.append(prm)
                 new_kid.append(self.gen_token(Tok.COMMA))
+            new_kid.append(self.gen_token(Tok.DIV))
+            new_kid.append(self.gen_token(Tok.COMMA))
+        if self.params:
+            for prm in self.params:
+                new_kid.append(prm)
+                new_kid.append(self.gen_token(Tok.COMMA))
+        if self.varargs:
+            new_kid.append(self.varargs)
+            new_kid.append(self.gen_token(Tok.COMMA))
+        elif self.kwonlyargs:
+            new_kid.append(self.gen_token(Tok.STAR_MUL))
+            new_kid.append(self.gen_token(Tok.COMMA))
+        for prm in self.kwonlyargs:
+            new_kid.append(prm)
+            new_kid.append(self.gen_token(Tok.COMMA))
+        if self.kwargs:
+            new_kid.append(self.kwargs)
+            new_kid.append(self.gen_token(Tok.COMMA))
+        if new_kid and isinstance(new_kid[-1], Token) and new_kid[-1].name == Tok.COMMA:
+            new_kid = new_kid[:-1]
         if not is_lambda:
             new_kid.append(self.gen_token(Tok.RPAREN))
         if self.return_type:

@@ -848,26 +848,98 @@ class JacParser(Transform[uni.Source, uni.Module]):
             if self.match_token(Tok.RETURN_HINT):
                 return_spec = self.consume(uni.Expr)
                 return uni.FuncSignature(
-                    params=[],
-                    return_type=return_spec,
                     posonly_params=[],
+                    params=[],
+                    varargs=None,
+                    kwonlyargs=[],
+                    kwargs=None,
+                    return_type=return_spec,
                     kid=self.flat_cur_nodes,
                 )
             # Otherwise, parse the traditional parameter list form
             else:
                 self.consume_token(Tok.LPAREN)
-                params = self.match(list)
+                all_params = self.match(list) or []
+                posonly_params, params, varargs, kwonlyargs, kwargs = (
+                    self._parse_parameter_categories(all_params)
+                )
                 self.consume_token(Tok.RPAREN)
                 if self.match_token(Tok.RETURN_HINT):
                     return_spec = self.consume(uni.Expr)
                 return uni.FuncSignature(
-                    params=(
-                        self.extract_from_list(params, uni.ParamVar) if params else []
-                    ),
+                    posonly_params=posonly_params,
+                    params=params,
+                    varargs=varargs,
+                    kwonlyargs=kwonlyargs,
+                    kwargs=kwargs,
                     return_type=return_spec,
-                    posonly_params=[],
                     kid=self.flat_cur_nodes,
                 )
+
+        def _parse_parameter_categories(self, all_params: list[uni.UniNode]) -> tuple[
+            list[uni.ParamVar],
+            list[uni.ParamVar],
+            uni.ParamVar | None,
+            list[uni.ParamVar],
+            uni.ParamVar | None,
+        ]:
+            posonly_params = []
+            params = []
+            varargs = None
+            kwonlyargs = []
+            kwargs = None
+
+            # Initial state determination
+            cur_state = "positional"
+            for param in all_params:
+                if isinstance(param, uni.Token) and param.name == Tok.DIV:
+                    cur_state = "posonly"
+                    break
+
+            for cur_nd in all_params:
+                cur_state = self._update_parameter_state(cur_nd, cur_state)
+                if isinstance(cur_nd, uni.ParamVar):
+                    if cur_state == "positional":
+                        params.append(cur_nd)
+                    elif cur_state == "posonly":
+                        posonly_params.append(cur_nd)
+                    elif cur_state == "varargs":
+                        varargs = cur_nd
+                        cur_state = "keyword_only"
+                    elif cur_state == "keyword_only":
+                        kwonlyargs.append(cur_nd)
+                    elif cur_state == "kwargs":
+                        kwargs = cur_nd
+                    else:
+                        raise self.ice()
+
+            return posonly_params, params, varargs, kwonlyargs, kwargs
+
+        def _update_parameter_state(self, cur_nd: uni.UniNode, cur_state: str) -> str:
+            if isinstance(cur_nd, uni.Token):
+                if cur_nd.name == Tok.DIV:
+                    if cur_state in ["keyword_only", "kwargs", "positional"]:
+                        self.parse_ref.log_error(
+                            "Invalid syntax in function parameters: '/' cannot appear after '*' or '**'.",
+                            node_override=cur_nd,
+                        )
+                    return "positional"
+                elif cur_nd.name == Tok.STAR_MUL:
+                    if cur_state in ["keyword_only", "kwargs"]:
+                        self.parse_ref.log_error(
+                            "Invalid syntax in function parameters: '*' cannot appear after '**'.",
+                            node_override=cur_nd,
+                        )
+                    return "keyword_only"
+                elif cur_nd.name == Tok.COMMA:
+                    return cur_state
+
+            elif isinstance(cur_nd, uni.ParamVar):
+                if cur_nd.unpack and cur_nd.unpack.name == Tok.STAR_MUL:
+                    return "varargs"
+                elif cur_nd.unpack and cur_nd.unpack.name == Tok.STAR_POW:
+                    return "kwargs"
+            return cur_state
 
         def func_decl_params(self, _: None) -> list[uni.UniNode]:
             """Grammar rule.
@@ -876,11 +948,17 @@ class JacParser(Transform[uni.Source, uni.Module]):
             """
             return self.cur_nodes
 
-        def param_var(self, _: None) -> uni.ParamVar:
+        def param_var(self, _: None) -> uni.ParamVar | uni.Token:
             """Grammar rule.
 
-            param_var: (STAR_POW | STAR_MUL)? NAME type_tag (EQ expression)?
+            param_var: (STAR_POW | STAR_MUL)? named_ref type_tag (EQ expression)?
+                    | DIV
+                    | STAR_MUL
             """
+            if len(self.cur_nodes) == 1 and (
+                star_only := self.match_token(Tok.DIV) or self.match_token(Tok.STAR_MUL)
+            ):
+                return star_only
             star = self.match_token(Tok.STAR_POW) or self.match_token(Tok.STAR_MUL)
             name = self.consume(uni.Name)
             type_tag = self.consume(uni.SubTag)
@@ -1547,11 +1625,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 sig_kid.append(return_type)
             signature = (
                 uni.FuncSignature(
+                    posonly_params=[],
                     params=(
                         self.extract_from_list(params, uni.ParamVar) if params else []
                     ),
+                    varargs=None,
+                    kwonlyargs=[],
+                    kwargs=None,
                     return_type=return_type,
-                    posonly_params=[],
                     kid=sig_kid,
                 )
                 if params or return_type

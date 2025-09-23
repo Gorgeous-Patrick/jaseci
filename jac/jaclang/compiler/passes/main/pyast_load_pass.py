@@ -2142,31 +2142,42 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             )
             kwarg.add_kids_left([kwarg.unpack])
         defaults = [self.convert(expr) for expr in node.defaults]
-        params = [*args]
-        for param, default in zip(params[::-1], defaults[::-1]):
-            if isinstance(default, uni.Expr) and isinstance(param, uni.ParamVar):
-                param.value = default
-                param.add_kids_right([default])
-        if vararg:
-            params.append(vararg)
-        params += kwonlyargs
-        if kwarg:
-            params.append(kwarg)
-        params += defaults
+        # iterate reverse to match from the end
+        for para in [*posonlyargs, *args][::-1]:
+            if not defaults:
+                break
+            default = defaults.pop()
+            if (
+                default
+                and isinstance(para, uni.ParamVar)
+                and isinstance(default, uni.Expr)
+            ):
+                para.value = default
+                para.add_kids_right([para.value])
 
-        valid_params = [param for param in params if isinstance(param, uni.ParamVar)]
-        if valid_params:
-            fs_params = valid_params
+        if kwonlyargs or args or posonlyargs or vararg or kwarg:
+            kids = []
+            kids.extend(posonlyargs) if posonlyargs else None
+            kids.extend(args) if args else None
+            kids.append(vararg) if vararg else None
+            kids.extend(kwonlyargs) if kwonlyargs else None
+            kids.append(kwarg) if kwarg else None
             return uni.FuncSignature(
-                params=fs_params,
                 posonly_params=posonlyargs,
+                params=args,
+                varargs=vararg,
+                kwonlyargs=kwonlyargs,
+                kwargs=kwarg,
                 return_type=None,
-                kid=fs_params,
+                kid=kids,
             )
         else:
             return uni.FuncSignature(
-                params=[],
                 posonly_params=posonlyargs,
+                params=[],
+                varargs=vararg,
+                kwonlyargs=kwonlyargs,
+                kwargs=kwarg,
                 return_type=None,
                 kid=[self.operator(Tok.LPAREN, "("), self.operator(Tok.RPAREN, ")")],
             )

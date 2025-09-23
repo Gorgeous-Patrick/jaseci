@@ -1001,6 +1001,8 @@ class PyastGenPass(UniPass):
 
     def exit_func_signature(self, node: uni.FuncSignature) -> None:
         posonlyargs = [i.gen.py_ast[0] for i in node.posonly_params]
+        vararg = node.varargs.gen.py_ast[0] if node.varargs else None
+        kwarg = node.kwargs.gen.py_ast[0] if node.kwargs else None
         params = (
             [self.sync(ast3.arg(arg="self", annotation=None))]
             if (abl := node.parent)
@@ -1010,29 +1012,33 @@ class PyastGenPass(UniPass):
             and not node.is_in_py_class
             else []
         )
-        vararg = None
-        kwarg = None
-        for i in node.params:
-            if i.unpack and i.unpack.value == "*":
-                vararg = i.gen.py_ast[0]
-            elif i.unpack and i.unpack.value == "**":
-                kwarg = i.gen.py_ast[0]
+        if posonlyargs:
+            posonlyargs = params + posonlyargs
+            params = [i.gen.py_ast[0] for i in node.params]
+        else:
+            params = params + [i.gen.py_ast[0] for i in node.params]
+        defaults = []
+        for i in [*node.posonly_params, *node.params]:
+            if i.value:
+                defaults.append(cast(ast3.expr, i.value.gen.py_ast[0]))
+        kwonly_args = [i.gen.py_ast[0] for i in node.kwonlyargs]
+        # kw_defaults must be the same length as kwonlyargs
+        # it will have None for args that don't have defaults
+        kw_defaults: list[ast3.expr | None] = []
+        for i in node.kwonlyargs:
+            if i.value:
+                kw_defaults.append(cast(ast3.expr, i.value.gen.py_ast[0]))
             else:
-                (
-                    params.append(i.gen.py_ast[0])
-                    if isinstance(i.gen.py_ast[0], ast3.arg)
-                    else self.ice("This list should only be Args")
-                )
-        defaults = [x.value.gen.py_ast[0] for x in node.params if x.value]
+                kw_defaults.append(None)
         node.gen.py_ast = [
             self.sync(
                 ast3.arguments(
                     posonlyargs=[cast(ast3.arg, param) for param in posonlyargs],
                     args=[cast(ast3.arg, param) for param in params],
-                    kwonlyargs=[],
+                    kwonlyargs=kwonly_args,
                     vararg=cast(ast3.arg, vararg) if vararg else None,
                     kwarg=cast(ast3.arg, kwarg) if kwarg else None,
-                    kw_defaults=[],
+                    kw_defaults=kw_defaults,
                     defaults=[cast(ast3.expr, default) for default in defaults],
                 )
             )

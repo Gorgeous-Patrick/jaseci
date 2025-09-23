@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import traceback
 import unittest
 from jaclang.cli import cli
@@ -431,6 +432,41 @@ class JacCliTests(TestCase):
         self.assertIn(
             "sorted(users, key=lambda x: x['email'], reverse=True)", stdout_value
         )
+
+    def test_param_arg(self) -> None:
+        """Test for lambda argument annotation."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        from jaclang.compiler.program import JacProgram
+        
+        filename = self.fixture_abs_path('../../tests/fixtures/params/test_complex_params.jac')
+        cli.jac2py(f"{self.fixture_abs_path('../../tests/fixtures/params/test_complex_params.jac')}")
+        py_code = JacProgram().compile(file_path=filename).gen.py
+        
+        # Create temporary Python file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_file:
+            temp_file.write(py_code)
+            py_file_path = temp_file.name
+        
+        try:
+            jac_code = JacProgram().compile(use_str=py_code, file_path=py_file_path).unparse()
+            # Create temporary Jac file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.jac', delete=False) as temp_file:
+                temp_file.write(jac_code)
+                jac_file_path = temp_file.name
+            cli.run(jac_file_path)
+        finally:
+                os.remove(py_file_path)
+                os.remove(jac_file_path)
+        
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertEqual("ULTIMATE_MIN: 1|def|2.5|0|test|100|0", stdout_value[-7])
+        self.assertEqual("ULTIMATE_FULL: 1|custom|3.14|3|req|200|1", stdout_value[-6])
+        self.assertEqual("SEPARATORS: 42", stdout_value[-5])
+        self.assertEqual("EDGE_MIX: 1-test-2-True-1", stdout_value[-4])
+        self.assertEqual("RECURSIVE: 7 11", stdout_value[-3])
+        self.assertEqual("VALIDATION: x:1,y:2.5,z:10,args:1,w:True,kwargs:1", stdout_value[-2])
 
     def test_caching_issue(self) -> None:
         """Test for Caching Issue."""
