@@ -160,11 +160,6 @@ def run(
                 )
         except Exception as e:
             print(f"Error running {filename}: {e}", file=sys.stderr)
-    else:
-        print(
-            "Not a valid file!\nOnly supports `.jac`, `.jir`, and `.py`",
-            file=sys.stderr,
-        )
 
     mach.close()
 
