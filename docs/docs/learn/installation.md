@@ -62,10 +62,22 @@ pip install jaclang
 ### VS Code Extension
 For the best development experience, install the Jac VS Code extension:
 
+**For VS Code users:**
+
+
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X)
 3. Search for "Jac"
 4. Install the official Jac extension
+
+**For Cursor users:**
+
+1. Download the VSIX file: [jaclang-extension-2025.7.17.vsix](../../assets/vsce/jaclang-extension-2025.7.17.vsix)
+2. Open Cursor
+3. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+4. Type `>install from vsix` and select the command
+5. Select the downloaded `jaclang-extension-2025.7.17.vsix` file
+6. The extension will be installed and ready to use
 
 Alternatively, visit the [VS Code marketplace](https://marketplace.visualstudio.com/items?itemName=jaseci-labs.jaclang-extension) directly.
 
