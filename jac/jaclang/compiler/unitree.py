@@ -1392,23 +1392,12 @@ class Archetype(
             self,
             sym_name=name.value,
             name_spec=name,
-            sym_category=(
-                SymbolType.OBJECT_ARCH
-                if arch_type.name == Tok.KW_OBJECT
-                else (
-                    SymbolType.NODE_ARCH
-                    if arch_type.name == Tok.KW_NODE
-                    else (
-                        SymbolType.EDGE_ARCH
-                        if arch_type.name == Tok.KW_EDGE
-                        else (
-                            SymbolType.WALKER_ARCH
-                            if arch_type.name == Tok.KW_WALKER
-                            else SymbolType.TYPE
-                        )
-                    )
-                )
-            ),
+            sym_category={
+                Tok.KW_OBJECT.value: SymbolType.OBJECT_ARCH,
+                Tok.KW_NODE.value: SymbolType.NODE_ARCH,
+                Tok.KW_EDGE.value: SymbolType.EDGE_ARCH,
+                Tok.KW_WALKER.value: SymbolType.WALKER_ARCH,
+            }.get(arch_type.name, SymbolType.TYPE),
         )
         AstImplNeedingNode.__init__(self, body=body)
         AstAccessNode.__init__(self, access=access)
@@ -1963,6 +1952,10 @@ class FuncSignature(UniNode):
             new_kid.append(self.return_type)
         self.set_kids(nodes=new_kid)
         return res
+
+    def get_parameters(self) -> list[ParamVar]:
+        """Return all parameters in the declared order."""
+        return self.posonly_params + self.params
 
     @property
     def is_static(self) -> bool:
