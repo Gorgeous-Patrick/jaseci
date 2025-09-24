@@ -756,10 +756,21 @@ class DocIRGenPass(UniPass):
         """Generate DocIR for list comprehensions."""
         parts: list[doc.DocType] = []
         for i in node.kid:
+            if isinstance(i, uni.InnerCompr):
+                parts.append(self.tight_line())
             parts.append(i.gen.doc_ir)
             parts.append(self.space())
         parts.pop()
-        node.gen.doc_ir = self.group(self.concat(parts))
+        node.gen.doc_ir = self.group(
+            self.concat(
+                [
+                    parts[0],
+                    self.indent(self.concat([self.tight_line(), *parts[2:-2]])),
+                    self.tight_line(),
+                    parts[-1],
+                ]
+            )
+        )
 
     def exit_inner_compr(self, node: uni.InnerCompr) -> None:
         """Generate DocIR for inner comprehension clauses."""
@@ -892,19 +903,41 @@ class DocIRGenPass(UniPass):
         """Generate DocIR for generator comprehensions."""
         parts: list[doc.DocType] = []
         for i in node.kid:
+            if isinstance(i, uni.InnerCompr):
+                parts.append(self.tight_line())
             parts.append(i.gen.doc_ir)
             parts.append(self.space())
         parts.pop()
-        node.gen.doc_ir = self.group(self.concat(parts))
+        node.gen.doc_ir = self.group(
+            self.concat(
+                [
+                    parts[0],
+                    self.indent(self.concat([self.tight_line(), *parts[2:-2]])),
+                    self.tight_line(),
+                    parts[-1],
+                ]
+            )
+        )
 
     def exit_set_compr(self, node: uni.SetCompr) -> None:
         """Generate DocIR for set comprehensions."""
         parts: list[doc.DocType] = []
         for i in node.kid:
+            if isinstance(i, uni.InnerCompr):
+                parts.append(self.tight_line())
             parts.append(i.gen.doc_ir)
             parts.append(self.space())
         parts.pop()
-        node.gen.doc_ir = self.group(self.concat(parts))
+        node.gen.doc_ir = self.group(
+            self.concat(
+                [
+                    parts[0],
+                    self.indent(self.concat([self.tight_line(), *parts[2:-2]])),
+                    self.tight_line(),
+                    parts[-1],
+                ]
+            )
+        )
 
     def exit_dict_compr(self, node: uni.DictCompr) -> None:
         """Generate DocIR for dictionary comprehensions."""
@@ -913,10 +946,21 @@ class DocIRGenPass(UniPass):
             if isinstance(i, uni.Token) and i.name in [Tok.STAR_POW, Tok.STAR_MUL]:
                 parts.append(i.gen.doc_ir)
             else:
+                if isinstance(i, uni.InnerCompr):
+                    parts.append(self.tight_line())
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
         parts.pop()
-        node.gen.doc_ir = self.group(self.concat(parts))
+        node.gen.doc_ir = self.group(
+            self.concat(
+                [
+                    parts[0],
+                    self.indent(self.concat([self.tight_line(), *parts[2:-2]])),
+                    self.tight_line(),
+                    parts[-1],
+                ]
+            )
+        )
 
     def exit_k_w_pair(self, node: uni.KWPair) -> None:
         """Generate DocIR for keyword arguments."""
