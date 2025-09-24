@@ -2,9 +2,9 @@
     <img src="/assets/byLLM_name_logo.png" height="150" width="400">
 </div>
 
-# **Less Prompting! More Coding!**
+# **Coding, Less Prompting**
 
-[![PyPI version](https://img.shields.io/pypi/v/byllm.svg)](https://pypi.org/project/byllm/) [![tests](https://github.com/jaseci-labs/jaseci/actions/workflows/test-jaseci.yml/badge.svg?branch=main)](https://github.com/jaseci-labs/jaseci/actions/workflows/test-jaseci.yml)
+<!-- [![PyPI version](https://img.shields.io/pypi/v/byllm.svg)](https://pypi.org/project/byllm/) [![tests](https://github.com/jaseci-labs/jaseci/actions/workflows/test-jaseci.yml/badge.svg?branch=main)](https://github.com/jaseci-labs/jaseci/actions/workflows/test-jaseci.yml) -->
 
 byLLM is an innovative AI integration framework built for the Jaseci ecosystem, implementing the cutting-edge Meaning Typed Programming (MTP) paradigm. MTP revolutionizes AI integration by embedding prompt engineering directly into code semantics, making AI interactions more natural and maintainable. While primarily designed to complement the Jac programming language, byLLM also provides a powerful Python library interface.
 
@@ -16,23 +16,10 @@ Meaning-Typed Programming (MTP) is a programming paradigm that automates LLM int
 The MTP concept is implemented in Jac-lang through the **byLLM** plugin, which is available as a PyPI package. -->
 
 
-<div class="grid cards" markdown>
-
--   __MTP Research__
-
-    ---
-
-    *Research documentation for MTP*
-
-    [arXiv PAPER](https://arxiv.org/abs/2405.08965){ .md-button}
-
--   __Get Started with MTP__
-
-    ---
-
-    *Quickstart guide for byLLM*
-
-    [DOCS](./quickstart.md){ .md-button}
+<div align="left" style="margin-top: 1em;">
+    <a href="https://arxiv.org/abs/2405.08965" class="md-button" style="display: inline-block; margin-right: 10px;">MTP Research</a>
+    <a href="./quickstart.md" class="md-button" style="display: inline-block; margin-right: 10px;">Get Started with MTP</a>
+    <a href="https://github.com/jaseci-labs/jaseci/tree/main/jac-byllm" class="md-button" style="display: inline-block;">GitHub</a>
 </div>
 
 <!-- ![](./assets/byLLM_name_logo.png) -->
@@ -43,11 +30,6 @@ The MTP concept is implemented in Jac-lang through the **byLLM** plugin, which i
 - [Get started](https://www.jac-lang.org/learn/jac-byllm/quickstart/)
 - [Usage docs](https://www.jac-lang.org/learn/jac-byllm/usage/)
 - [Research Paper](https://arxiv.org/abs/2405.08965) -->
-
-[About byLLM]: https://www.jac-lang.org/learn/jac-byllm/with_llm/
-[Get started]: https://www.jac-lang.org/learn/jac-byllm/quickstart/
-[Usage docs]: https://www.jac-lang.org/learn/jac-byllm/usage/
-[Research Paper]: https://arxiv.org/abs/2405.08965
 
 
 Installation is simple via PyPI:
@@ -218,7 +200,7 @@ This project is licensed under the MIT License.
 
 ### Third-Party Dependencies
 
-byLLM integrates with various LLM providers (OpenAI, Anthropic, Google, etc.) through LiteLLM.
+byLLM integrates with various LLM providers (OpenAI, Anthropic, Google, etc.) through [LiteLLM](https://litellm.ai/).
 
 ## Cite our research
 
@@ -227,10 +209,3 @@ byLLM integrates with various LLM providers (OpenAI, Anthropic, Google, etc.) th
 Kashmira, Krisztian Flautner, Lingjia Tang, and Jason Mars. 2025. MTP: A Meaning-Typed Language Ab-
 straction for AI-Integrated Programming. Proc. ACM Program. Lang. 9, OOPSLA2, Article 314 (October 2025),
 29 pages. https://doi.org/10.1145/3763092
-
-
-## Jaseci Contributors
-
-<a href="https://github.com/jaseci-labs/jaseci/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=jaseci-labs/jaseci" />
-</a>
