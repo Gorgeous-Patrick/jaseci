@@ -79,9 +79,9 @@ Consider a program that detects the personality type of a historical figure from
     glob llm = Model(model_name="gemini/gemini-2.0-flash");
 
     enum Personality {
-        INTROVERT = "Introvert",
-        EXTROVERT = "Extrovert",
-        AMBIVERT = "Ambivert"
+        INTROVERT,
+        EXTROVERT,
+        AMBIVERT
     }
 
     def get_personality(name: str) -> Personality by llm();
@@ -99,16 +99,16 @@ Consider a program that detects the personality type of a historical figure from
     llm =  Model(model_name="gemini/gemini-2.0-flash")
 
     class Personality(Enum):
-        INTROVERT = "Introvert"
-        EXTROVERT = "Extrovert"
-        AMBIVERT = "Ambivert"
+        INTROVERT
+        EXTROVERT
+        AMBIVERT
 
     @by(model=llm)
     def get_personality(name: str) -> Personality: ...
 
     name = "Albert Einstein"
     result = get_personality(name)
-    print(f"{result.value} personality detected for {name}")
+    print(f"{result} personality detected for {name}")
     ```
 
 Similarly, custom types can be used as output types which force the LLM to adhere to the specified type and produce a valid result.
@@ -163,11 +163,12 @@ Docstrings naturally enhance the semantics of their associated code constructs, 
 **📚 Full Documentation**: [Jac byLLM Documentation](https://www.jac-lang.org/learn/jac-byllm/with_llm/)
 
 **🎮 Complete Examples**:
+
 - [Fantasy Trading Game](https://www.jac-lang.org/learn/examples/mtp_examples/fantasy_trading_game/) - Interactive RPG with AI-generated characters
 - [RPG Level Generator](https://www.jac-lang.org/learn/examples/mtp_examples/rpg_game/) - AI-powered game level creation
 - [RAG Chatbot Tutorial](https://www.jac-lang.org/learn/examples/rag_chatbot/Overview/) - Building chatbots with document retrieval
 
-**🔬 Research**: The research journey of MTP is available on [Arxiv](https://arxiv.org/abs/2405.08965) and accepted for OOPSLA 2025.
+**🔬 Research**: The research paper of byLLM is available on [Arxiv](https://arxiv.org/abs/2405.08965) and accepted for OOPSLA 2025.
 
 ## Quick Links
 
@@ -205,7 +206,4 @@ byLLM integrates with various LLM providers (OpenAI, Anthropic, Google, etc.) th
 ## Cite our research
 
 
-> Jayanaka L. Dantanarayana, Yiping Kang, Kugesan Sivasothynathan, Christopher Clarke, Baichuan Li, Savini
-Kashmira, Krisztian Flautner, Lingjia Tang, and Jason Mars. 2025. MTP: A Meaning-Typed Language Ab-
-straction for AI-Integrated Programming. Proc. ACM Program. Lang. 9, OOPSLA2, Article 314 (October 2025),
-29 pages. https://doi.org/10.1145/3763092
+> Jayanaka L. Dantanarayana, Yiping Kang, Kugesan Sivasothynathan, Christopher Clarke, Baichuan Li, Savini Kashmira, Krisztian Flautner, Lingjia Tang, and Jason Mars. 2025. MTP: A Meaning-Typed Language Abstraction for AI-Integrated Programming. Proc. ACM Program. Lang. 9, OOPSLA2, Article 314 (October 2025), 29 pages. https://doi.org/10.1145/3763092

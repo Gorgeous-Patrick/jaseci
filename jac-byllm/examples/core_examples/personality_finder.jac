@@ -4,7 +4,8 @@ glob llm = Model(verbose=True, model_name="gpt-4o-mini");
 
 enum Personality {
     INTROVERT,
-    EXTROVERT
+    EXTROVERT,
+    AMBIVERT
 }
 
 obj Person {

@@ -19,8 +19,8 @@ glob llm = Model(model_name="gpt-4o");
 
 'Personality of the Person'
 enum Personality {
-   INTROVERT = "Introvert",
-   EXTROVERT = "Extrovert"
+   INTROVERT,
+   EXTROVERT
 }
 
 sem Personality.INTROVERT = 'Person who is shy and reticent';
