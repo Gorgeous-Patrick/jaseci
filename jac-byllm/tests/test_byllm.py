@@ -239,3 +239,17 @@ class JacLanguageTests(TestCase):
         self.assertIn("1912", str(person.birth_year))
         self.assertIn("A pioneering mathematician and computer scientist", person.description)
         self.assertIn("breaking the Enigma code", person.description)
+
+    def test_enum_without_value(self) -> None:
+        "This tests enum without values, where enum names gets into the prompt."
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        try:
+            jac_import("enum_no_value", base_path=self.fixture_abs_path("./"))
+        except Exception:
+            # API key error is expected, but we still capture the output before the error
+            pass
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn("YES", stdout_value)
+        self.assertIn("NO", stdout_value)
