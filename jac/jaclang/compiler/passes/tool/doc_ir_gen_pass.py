@@ -275,8 +275,17 @@ class DocIRGenPass(UniPass):
             elif isinstance(i, uni.Token) and i.name == Tok.RPAREN and node.params:
                 in_params = False
                 has_parens = True
+                if isinstance(indent_parts[-1], doc.Line):
+                    indent_parts.pop()
                 parts.append(
-                    self.indent(self.concat([self.tight_line(), *indent_parts]))
+                    self.indent(
+                        self.concat(
+                            [
+                                self.tight_line(),
+                                self.group(self.concat([*indent_parts])),
+                            ]
+                        )
+                    )
                 )
                 parts.append(self.tight_line())
                 parts.append(i.gen.doc_ir)
@@ -471,8 +480,17 @@ class DocIRGenPass(UniPass):
                 parts.append(i.gen.doc_ir)
             elif isinstance(i, uni.Token) and i.name == Tok.RPAREN and node.params:
                 in_params = False
+                if isinstance(indent_parts[-1], doc.Line):
+                    indent_parts.pop()
                 parts.append(
-                    self.indent(self.concat([self.tight_line(), *indent_parts]))
+                    self.indent(
+                        self.concat(
+                            [
+                                self.tight_line(),
+                                self.group(self.concat([*indent_parts])),
+                            ]
+                        )
+                    )
                 )
                 parts.append(self.tight_line())
                 parts.append(i.gen.doc_ir)
