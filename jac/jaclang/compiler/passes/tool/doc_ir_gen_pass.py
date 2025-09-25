@@ -757,8 +757,9 @@ class DocIRGenPass(UniPass):
         parts: list[doc.DocType] = []
         for i in node.kid:
             if isinstance(i, uni.InnerCompr):
-                parts.append(self.tight_line())
-            parts.append(i.gen.doc_ir)
+                parts.append(self.group(self.concat([self.tight_line(), i.gen.doc_ir])))
+            else:
+                parts.append(i.gen.doc_ir)
             parts.append(self.space())
         parts.pop()
         node.gen.doc_ir = self.group(
@@ -904,8 +905,9 @@ class DocIRGenPass(UniPass):
         parts: list[doc.DocType] = []
         for i in node.kid:
             if isinstance(i, uni.InnerCompr):
-                parts.append(self.tight_line())
-            parts.append(i.gen.doc_ir)
+                parts.append(self.group(self.concat([self.tight_line(), i.gen.doc_ir])))
+            else:
+                parts.append(i.gen.doc_ir)
             parts.append(self.space())
         parts.pop()
         node.gen.doc_ir = self.group(
@@ -924,8 +926,9 @@ class DocIRGenPass(UniPass):
         parts: list[doc.DocType] = []
         for i in node.kid:
             if isinstance(i, uni.InnerCompr):
-                parts.append(self.tight_line())
-            parts.append(i.gen.doc_ir)
+                parts.append(self.group(self.concat([self.tight_line(), i.gen.doc_ir])))
+            else:
+                parts.append(i.gen.doc_ir)
             parts.append(self.space())
         parts.pop()
         node.gen.doc_ir = self.group(
@@ -947,8 +950,11 @@ class DocIRGenPass(UniPass):
                 parts.append(i.gen.doc_ir)
             else:
                 if isinstance(i, uni.InnerCompr):
-                    parts.append(self.tight_line())
-                parts.append(i.gen.doc_ir)
+                    parts.append(
+                        self.group(self.concat([self.tight_line(), i.gen.doc_ir]))
+                    )
+                else:
+                    parts.append(i.gen.doc_ir)
                 parts.append(self.space())
         parts.pop()
         node.gen.doc_ir = self.group(
@@ -1186,6 +1192,7 @@ class DocIRGenPass(UniPass):
         for i in node.kid:
             parts.append(i.gen.doc_ir)
             parts.append(self.space())
+        parts.pop()
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_filter_compr(self, node: uni.FilterCompr) -> None:
