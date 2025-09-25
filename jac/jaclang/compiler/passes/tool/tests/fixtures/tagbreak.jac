@@ -86,6 +86,17 @@ class ModuleManager {
 }
 
 
+## expr as item extra space issue
+ with entry {
+    with open(f"Apple{apple}.txt") as f {
+        # Fix syntax highlighting
+        print(
+            f.read()
+        );
+    }
+}
+
+
 def func_with_very_long_params(
     aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: int,
     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: int,
