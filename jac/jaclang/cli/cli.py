@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 import jaclang.compiler.unitree as uni
-from jaclang.cli.cmdreg import CommandShell, cmd_registry
+from jaclang.cli.cmdreg import cmd_registry
 from jaclang.compiler.passes.main import PyastBuildPass
 from jaclang.compiler.program import JacProgram
 from jaclang.runtimelib.builtin import printgraph
@@ -132,9 +132,10 @@ def run(
         jac run myprogram.jac --session mysession
         jac run myprogram.jac --no-main
     """
-    # if no session specified, check if it was defined when starting the command shell
+    # if no session specified, check if it was defined via global CLI args
     # otherwise default to jaclang.session
     base, mod, mach = proc_file_sess(filename, session)
+    lng = filename.split(".")[-1]
     Jac.set_base_path(base)
 
     if filename.endswith((".jac", ".py")):
@@ -143,6 +144,7 @@ def run(
                 target=mod,
                 base_path=base,
                 override_name="__main__" if main else None,
+                lng=lng,
             )
         except Exception as e:
             print(f"Error running {filename}: {e}", file=sys.stderr)
@@ -154,14 +156,10 @@ def run(
                     target=mod,
                     base_path=base,
                     override_name="__main__" if main else None,
+                    lng=lng,
                 )
         except Exception as e:
             print(f"Error running {filename}: {e}", file=sys.stderr)
-    else:
-        print(
-            "Not a valid file!\nOnly supports `.jac`, `.jir`, and `.py`",
-            file=sys.stderr,
-        )
 
     mach.close()
 
@@ -235,6 +233,10 @@ def build(filename: str, typecheck: bool = False) -> None:
     errs = len(out.errors_had)
     warnings = len(out.warnings_had)
     print(f"Errors: {errs}, Warnings: {warnings}")
+
+    for alrt in out.errors_had + out.warnings_had:
+        print(alrt.pretty_print(), file=sys.stderr)
+
     with open(filename[:-4] + ".jir", "wb") as f:
         pickle.dump(out, f)
 
@@ -655,6 +657,14 @@ def start_cli() -> None:
     - None
     """
     parser = cmd_registry.parser
+    # Default to `run` when a file is provided without a subcommand
+    raw_argv = sys.argv[1:]
+    if (
+        raw_argv
+        and not raw_argv[0].startswith("-")
+        and raw_argv[0].lower().endswith((".jac", ".jir", ".py"))
+    ):
+        sys.argv = [sys.argv[0], "run"] + raw_argv
     args = parser.parse_args()
     cmd_registry.args = args
 
@@ -664,16 +674,22 @@ def start_cli() -> None:
         print("Jac path:", __file__)
         return
 
+    if args.command is None:
+        parser.print_help()
+        return
+
     command = cmd_registry.get(args.command)
-    if command:
-        args_dict = vars(args)
-        args_dict.pop("command")
-        args_dict.pop("version", None)
-        ret = command.call(**args_dict)
-        if ret:
-            print(ret)
-    else:
-        CommandShell(cmd_registry).cmdloop()
+    if not command:
+        print(f"Unknown command: {args.command}", file=sys.stderr)
+        parser.print_help()
+        return
+
+    args_dict = vars(args)
+    args_dict.pop("command")
+    args_dict.pop("version", None)
+    ret = command.call(**args_dict)
+    if ret:
+        print(ret)
 
 
 if __name__ == "__main__":

@@ -62,26 +62,19 @@ class JacFormatPass(Transform[uni.Module, uni.Module]):
             ):
                 return flat_contents_str
             else:
-                full_width_for_broken_content = self.MAX_LINE_LENGTH - (
-                    indent_level * self.indent_size
-                )
                 return self.format_doc_ir(
                     doc_node.contents,
                     indent_level,
-                    full_width_for_broken_content,
+                    width_remaining,  # full_width_for_broken_content,
                     is_broken=True,
                 )
 
         elif isinstance(doc_node, doc.Indent):
             new_indent_level = indent_level + 1
-
-            width_for_indented_content = self.MAX_LINE_LENGTH - (
-                new_indent_level * self.indent_size
-            )
             return self.format_doc_ir(
                 doc_node.contents,
                 new_indent_level,
-                width_for_indented_content,  # Budget for lines within indent
+                width_remaining,  # width_for_indented_content  # Budget for lines within indent
                 is_broken,  # is_broken state propagates
             )
 

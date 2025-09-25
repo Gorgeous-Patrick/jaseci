@@ -306,7 +306,6 @@ class UniScopeNode(UniNode):
         self.parent_scope = parent_scope
         self.kid_scope: list[UniScopeNode] = []
         self.names_in_scope: dict[str, Symbol] = {}
-        self.inherited_scope: list[InheritedSymbolTable] = []
 
     def get_type(self) -> SymbolType:
         """Get type."""
@@ -322,10 +321,6 @@ class UniScopeNode(UniNode):
         """Lookup a variable in the symbol table."""
         if name in self.names_in_scope:
             return self.names_in_scope[name]
-        for i in self.inherited_scope:
-            found = i.lookup(name, deep=False)
-            if found:
-                return found
         if deep and self.parent_scope:
             return self.parent_scope.lookup(name, deep)
         return None
@@ -369,9 +364,6 @@ class UniScopeNode(UniNode):
         for k in self.kid_scope:
             if k.scope_name == name:
                 return k
-        for k2 in self.inherited_scope:
-            if k2.base_symbol_table.scope_name == name:
-                return k2.base_symbol_table
         return None
 
     def link_kid_scope(self, key_node: UniScopeNode) -> UniScopeNode:
@@ -489,22 +481,6 @@ class UniScopeNode(UniNode):
 
             fix(node)
 
-    def inherit_baseclasses_sym(self, node: Archetype | Enum) -> None:
-        """Inherit base classes symbol tables."""
-        if node.base_classes:
-            for base_cls in node.base_classes:
-                if (
-                    isinstance(base_cls, AstSymbolNode)
-                    and (found := self.use_lookup(base_cls))
-                    and found
-                ):
-                    found_tab = found.decl.sym_tab
-                    inher_sym_tab = InheritedSymbolTable(
-                        base_symbol_table=found_tab, load_all_symbols=True, symbols=[]
-                    )
-                    self.inherited_scope.append(inher_sym_tab)
-                    base_cls.name_spec.name_of = found.decl.name_of
-
     def sym_pp(self, depth: Optional[int] = None) -> str:
         """Pretty print."""
         return print_symtab_tree(root=self, depth=depth)
@@ -519,31 +495,6 @@ class UniScopeNode(UniNode):
         for k, v in self.names_in_scope.items():
             out += f"    {k}: {v}\n"
         return out
-
-
-class InheritedSymbolTable:
-    """Inherited symbol table."""
-
-    def __init__(
-        self,
-        base_symbol_table: UniScopeNode,
-        load_all_symbols: bool = False,  # This is needed for python imports
-        symbols: Optional[list[str]] = None,
-    ) -> None:
-        """Initialize."""
-        self.base_symbol_table: UniScopeNode = base_symbol_table
-        self.load_all_symbols: bool = load_all_symbols
-        self.symbols: list[str] = symbols if symbols else []
-
-    def lookup(self, name: str, deep: bool = False) -> Optional[Symbol]:
-        """Lookup a variable in the symbol table."""
-        if self.load_all_symbols:
-            return self.base_symbol_table.lookup(name, deep)
-        else:
-            if name in self.symbols:
-                return self.base_symbol_table.lookup(name, deep)
-            else:
-                return None
 
 
 class AstSymbolNode(UniNode):
@@ -1380,7 +1331,7 @@ class ModuleItem(AstSymbolNode):
         AstSymbolNode.__init__(
             self,
             sym_name=alias.sym_name if alias else name.sym_name,
-            name_spec=alias if alias else name,
+            name_spec=alias or name,
             sym_category=SymbolType.MOD_VAR,
         )
         self.abs_path: Optional[str] = None
@@ -1388,13 +1339,9 @@ class ModuleItem(AstSymbolNode):
     @property
     def from_parent(self) -> Import:
         """Get import parent."""
-        if (
-            not self.parent
-            or not self.parent.parent
-            or not isinstance(self.parent.parent, Import)
-        ):
+        if not self.parent or not isinstance(self.parent, Import):
             raise ValueError("Import parent not found. Not Possible.")
-        return self.parent.parent
+        return self.parent
 
     @property
     def from_mod_path(self) -> ModulePath:
@@ -1445,23 +1392,12 @@ class Archetype(
             self,
             sym_name=name.value,
             name_spec=name,
-            sym_category=(
-                SymbolType.OBJECT_ARCH
-                if arch_type.name == Tok.KW_OBJECT
-                else (
-                    SymbolType.NODE_ARCH
-                    if arch_type.name == Tok.KW_NODE
-                    else (
-                        SymbolType.EDGE_ARCH
-                        if arch_type.name == Tok.KW_EDGE
-                        else (
-                            SymbolType.WALKER_ARCH
-                            if arch_type.name == Tok.KW_WALKER
-                            else SymbolType.TYPE
-                        )
-                    )
-                )
-            ),
+            sym_category={
+                Tok.KW_OBJECT.value: SymbolType.OBJECT_ARCH,
+                Tok.KW_NODE.value: SymbolType.NODE_ARCH,
+                Tok.KW_EDGE.value: SymbolType.EDGE_ARCH,
+                Tok.KW_WALKER.value: SymbolType.WALKER_ARCH,
+            }.get(arch_type.name, SymbolType.TYPE),
         )
         AstImplNeedingNode.__init__(self, body=body)
         AstAccessNode.__init__(self, access=access)
@@ -1533,7 +1469,8 @@ class Archetype(
                     new_kid.append(stmt)
                 new_kid.append(self.gen_token(Tok.RBRACE))
         else:
-            new_kid.append(self.gen_token(Tok.SEMI))
+            new_kid.append(self.gen_token(Tok.LBRACE))
+            new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 
@@ -1944,26 +1881,70 @@ class FuncSignature(UniNode):
 
     def __init__(
         self,
+        posonly_params: Sequence[ParamVar],
         params: Sequence[ParamVar] | None,
+        varargs: Optional[ParamVar],
+        kwonlyargs: Sequence[ParamVar],
+        kwargs: Optional[ParamVar],
         return_type: Optional[Expr],
         kid: Sequence[UniNode],
     ) -> None:
+        self.posonly_params: list[ParamVar] = list(posonly_params)
         self.params: list[ParamVar] = list(params) if params else []
+        self.varargs = varargs
+        self.kwonlyargs: list[ParamVar] = list(kwonlyargs)
+        self.kwargs = kwargs
         self.return_type = return_type
         UniNode.__init__(self, kid=kid)
+
+    @property
+    # fmt: off
+    def args_pp(self) -> str:
+        arg_detail = "----Function Parameters- ----\n"
+        arg_detail += f"\tposonly: {"\n\t\t".join(str(param.unparse()) for param in self.posonly_params)}\n"
+        arg_detail += f"\tparams:  {"\n\t\t".join(str(arg.unparse()) for arg in self.params)} \n"
+        arg_detail += f"\tvarargs: {self.varargs.unparse() if self.varargs else None}\n"
+        arg_detail += f"\tkwonlyargs: {"\n\t\t\t".join(
+            str(keyword_param.unparse()) for keyword_param in self.kwonlyargs
+        )}\n"
+        arg_detail += f"\tkwargs: {self.kwargs.unparse() if self.kwargs else 'None'}\n"
+        return arg_detail
+    # fmt: on
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
         is_lambda = self.parent and isinstance(self.parent, LambdaExpr)
         if deep:
+            for prm in self.posonly_params:
+                res = res and prm.normalize(deep)
             for prm in self.params:
                 res = res and prm.normalize(deep)
             res = res and self.return_type.normalize(deep) if self.return_type else res
         new_kid: list[UniNode] = [self.gen_token(Tok.LPAREN)] if not is_lambda else []
-        for idx, prm in enumerate(self.params):
-            new_kid.append(prm)
-            if idx < len(self.params) - 1:
+        if self.posonly_params:
+            for prm in self.posonly_params:
+                new_kid.append(prm)
                 new_kid.append(self.gen_token(Tok.COMMA))
+            new_kid.append(self.gen_token(Tok.DIV))
+            new_kid.append(self.gen_token(Tok.COMMA))
+        if self.params:
+            for prm in self.params:
+                new_kid.append(prm)
+                new_kid.append(self.gen_token(Tok.COMMA))
+        if self.varargs:
+            new_kid.append(self.varargs)
+            new_kid.append(self.gen_token(Tok.COMMA))
+        elif self.kwonlyargs:
+            new_kid.append(self.gen_token(Tok.STAR_MUL))
+            new_kid.append(self.gen_token(Tok.COMMA))
+        for prm in self.kwonlyargs:
+            new_kid.append(prm)
+            new_kid.append(self.gen_token(Tok.COMMA))
+        if self.kwargs:
+            new_kid.append(self.kwargs)
+            new_kid.append(self.gen_token(Tok.COMMA))
+        if new_kid and isinstance(new_kid[-1], Token) and new_kid[-1].name == Tok.COMMA:
+            new_kid = new_kid[:-1]
         if not is_lambda:
             new_kid.append(self.gen_token(Tok.RPAREN))
         if self.return_type:
@@ -1971,6 +1952,10 @@ class FuncSignature(UniNode):
             new_kid.append(self.return_type)
         self.set_kids(nodes=new_kid)
         return res
+
+    def get_parameters(self) -> list[ParamVar]:
+        """Return all parameters in the declared order."""
+        return self.posonly_params + self.params
 
     @property
     def is_static(self) -> bool:
@@ -4664,7 +4649,7 @@ class String(Literal):
 
     def unparse(self) -> str:
         super().unparse()
-        return repr(self.value)
+        return self.value
 
 
 class Bool(Literal):

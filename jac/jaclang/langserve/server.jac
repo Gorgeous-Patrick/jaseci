@@ -21,7 +21,7 @@ with entry {
 """Check syntax on change."""
 @server.feature(lspt.TEXT_DOCUMENT_DID_OPEN)
 async def did_open(ls: JacLangServer, params: lspt.DidOpenTextDocumentParams) -> None {
-    await ls.launch_deep_check(params.text_document.uri);
+    await ls.launch_deep_check(params.text_document.uri, delay=0.001);
     ls.lsp.send_request(lspt.WORKSPACE_SEMANTIC_TOKENS_REFRESH);
 }
 
@@ -30,37 +30,44 @@ async def did_open(ls: JacLangServer, params: lspt.DidOpenTextDocumentParams) ->
 @server.feature(lspt.TEXT_DOCUMENT_DID_SAVE)
 async def did_save(ls: JacLangServer, params: lspt.DidOpenTextDocumentParams) -> None {
     file_path = params.text_document.uri;
-    quick_check_passed = await ls.launch_quick_check(file_path);
+    quick_check_passed = await ls.launch_quick_check(file_path, delay=0.1);
     if not quick_check_passed {
         return;
     }
-    await ls.launch_deep_check(file_path);
+    await ls.launch_deep_check(file_path, delay=0.2);
     ls.lsp.send_request(lspt.WORKSPACE_SEMANTIC_TOKENS_REFRESH);
 }
 
 
-"""Check syntax on change."""
-@server.feature(lspt.TEXT_DOCUMENT_DID_CHANGE)
+"""Check syntax on change with debouncing."""
+@ server.feature(lspt.TEXT_DOCUMENT_DID_CHANGE)
 async def did_change(
     ls: JacLangServer,
     params: lspt.DidChangeTextDocumentParams
 ) -> None {
     file_path = params.text_document.uri;
-    quick_check_passed = await ls.launch_quick_check(file_path);
-
-    if quick_check_passed {
+    try {
         document = ls.workspace.get_text_document(file_path);
         lines = document.source.splitlines();
-        sem_manager = ls.sem_managers[file_path.removeprefix('file://')];
-        sem_manager.update_sem_tokens(
-            params,sem_manager.sem_tokens,lines
+        fs_path = document.path;
+        if (fs_path in ls.sem_managers) {
+            sem_manager = ls.sem_managers[fs_path];
+            sem_manager.update_sem_tokens(params, sem_manager.sem_tokens, lines);
+            ls.lsp.send_request(lspt.WORKSPACE_SEMANTIC_TOKENS_REFRESH);
+        }
+    } except Exception as e {
+        ls.log_py(f" 'Failed to update semantic tokens: ' {e} ");
+    }
+    ls.log_py(f" 'Launching debounced quick check for ' {file_path} ");
+    quick_check_passed = await ls.launch_quick_check(file_path, delay=0.5);
+    if quick_check_passed {
+        ls.log_py(
+            f" 'Quick check passed, launching debounced deep check for ' {file_path} "
         );
-        ls.lsp.send_request(lspt.WORKSPACE_SEMANTIC_TOKENS_REFRESH);
-        await ls.launch_deep_check(file_path);
+        await ls.launch_deep_check(file_path, delay=1.0);
         ls.lsp.send_request(lspt.WORKSPACE_SEMANTIC_TOKENS_REFRESH);
     }
 }
-
 
 """Format the given document."""
 @server.feature(lspt.TEXT_DOCUMENT_FORMATTING)

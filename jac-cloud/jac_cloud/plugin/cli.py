@@ -48,11 +48,11 @@ def run_cloud(
     ctx = JaseciContext.create(None)
 
     if filename.endswith(".jac"):
-        Jac.jac_import(target=mod, base_path=base, override_name="__main__")
+        Jac.jac_import(target=mod, base_path=base)
     elif filename.endswith(".jir"):
         with open(filename, "rb") as f:
             Jac.attach_program(load(f))
-            Jac.jac_import(target=mod, base_path=base, override_name="__main__")
+            Jac.jac_import(target=mod, base_path=base)
     else:
         raise ValueError("Not a valid file!\nOnly supports `.jac` and `.jir`")
     ctx.close()
@@ -101,19 +101,11 @@ class JacCmd:
             mod = mod[:-4]
 
             if filename.endswith(".jac"):
-                Jac.jac_import(
-                    target=mod,
-                    base_path=base,
-                    override_name="__main__",
-                )
+                Jac.jac_import(target=mod, base_path=base)
             elif filename.endswith(".jir"):
                 with open(filename, "rb") as f:
                     Jac.attach_program(load(f))
-                    Jac.jac_import(
-                        target=mod,
-                        base_path=base,
-                        override_name="__main__",
-                    )
+                    Jac.jac_import(target=mod, base_path=base)
 
             if not email:
                 trial = 0

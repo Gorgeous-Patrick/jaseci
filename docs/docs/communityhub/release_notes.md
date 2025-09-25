@@ -2,9 +2,51 @@
 
 This document provides a summary of new features, improvements, and bug fixes in each version of Jac and Jaseci. For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](./breaking_changes.md) page.
 
-## jaclang 0.8.6 / jac-cloud 0.2.6 / mtllm 0.3.11 (Unreleased)
 
-## jaclang 0.8.5 / jac-cloud 0.2.5 / mtllm 0.3.10
+## jaclang 0.8.8 / jac-cloud 0.2.8 / byllm 0.4.3 (Unreleased)
+
+- **Jac Import of Python Files**: This upgrade allows Python files in the current working directory to be imported using the Jac import system by running `export JAC_PYFILE_RAISE=true`. To extend Jac import functionality to all Python files, including those in site-packages, developers can enable it by running `export JAC_PYFILE_RAISE_ALL=true`.
+- **Consistent Jac Code Execution**: Fixed an issue allowing Jac code to be executed both as a standalone program and as an application. Running `jac run` now executes the `main()` function, while `jac serve` launches the application without invoking `main()`.
+- **Run transformed pytorch codes**: With `export JAC_PREDYNAMO_PASS=true`, pytorch breaking if statements will be transformed into non breaking torch.where statements. It improves the efficiency of pytorch programs.
+- **Complete Python Function Parameter Syntax Support**: Added full support for advanced Python function parameter patterns including positional-only parameters (`/` separator), keyword-only parameters (`*` separator without type hints), and complex parameter combinations (e.g., `def foo(a, b, /, *, c, d=1, **kwargs): ...`). This enhancement enables seamless Python-to-Jac conversion (`py2jac`) by supporting the complete Python function signature syntax.
+- **Function Call Parameter Type Checking**: Extended type checker to validate function call parameters including argument type checking, parameter count validation, and basic function signature matching. This provides early detection of function call mismatches and improves code reliability.
+- **Improved VSCE Environment Handling**: Enhanced Jac VS Code extension to gracefully handle missing or uninstalled Jac environments by prompting users to select a valid environment instead of displaying long error messages.
+- **Enhanced Import Symbol Type Resolution**: Improved type checking for imported symbols by resolving their types even when not immediately required, providing better type inference and error detection for imported functions and classes.
+
+## jaclang 0.8.7 / jac-cloud 0.2.7 / byllm 0.4.2 (Latest Release)
+
+- **byLLM transition**: MTLLM has been transitioned to byLLM and PyPi package is renamed to `byllm`. Github actions are changed to push byllm PyPi. Alongside an mtllm PyPi will be pushed which installs latest `byllm` and produces a deprecation warning when imported as `mtllm`.
+- **Fix `jac run same_name_of_jac.py`**- there was a bug which only runs jac file if both jac and python files were having same name. It was fixed so that developers run python files which has same name as jac with `jac run` command. (Ex: `jac run example.jac`, `jac run example.py`)
+- **Fix `jac run pythonfile.py` bugs**: Few bugs such as `init` is not found, `SubTag` ast node issue, are fixed. So that developers can run `jac run` of python files without these issues.
+- **Fix `lambda self injection in abilities`**: Removed unintended `self` parameter in lambdas declared inside abilities/methods.
+- **Fix `jac2py lambda annotations`**: Stripped type annotations from lambda parameters during jac2py conversion to ensure valid Python output while keeping them in Jac AST for type checking.
+- **byLLM Feature Methods as Tools**: byLLM now supports adding methods of classes as tools for the llm using such as `tools=[ToolHolder.tool]`
+
+- **TypeChecker Diagnostics**: Introduced type checking capabilities to catch errors early and improve code quality! The new type checker pass provides static analysis including:
+  - **Type Annotation Validation**: Checks explicit type annotations in variable assignments for type mismatches
+  - **Type Inference**: Simple type inference for assignments with validation against declared types
+  - **Member Access Type Checking**: Type checking for member access patterns (e.g., `obj.field.subfield`)
+  - **Import Symbol Type Checking**: Type inference for imported symbols (Basic support)
+  - **Function Call Return Type Validation**: Return type checking for function calls (parameter validation not yet supported)
+  - **Magic Method Support**: Type checking for special methods like `__call__`, `__add__`, `__mul__`
+  - **Binary Operation Type Checking**: Operator type validation with simple custom operator support
+  - **Class Instantiation**: Type checking for class constructor calls and member access
+  - **Cyclic Symbol Detection**: Detection of self-referencing variable assignments
+  - **Missing Import Detection**: Detection of imports from non-existent modules
+
+  Type errors now appear in the Jac VS Code extension (VSCE) with error highlighting during editing.
+
+- **VSCE Semantic Token Refresh Optimization**: Introduced a debounce mechanism for semantic token refresh in the Jac Language Server, significantly improving editor responsiveness:
+  - Reduces redundant deep checks during rapid file changes
+  - Optimizes semantic token updates for smoother editing experience
+
+- **Windows LSP Improvements**: Fixed an issue where outdated syntax and type errors persisted on Windows. Now, only current errors are displayed
+
+## jaclang 0.8.6 / jac-cloud 0.2.6 / byllm 0.4.1
+
+- **byLLM transition**: MTLLM has been transitioned to byLLM and PyPi package is renamed to `byllm`. Github actions are changed to push byllm PyPi. Alongside an mtllm PyPi will be pushed which installs latest `byllm` and produces a deprecation warning when imported as `mtllm`.
+
+## jaclang 0.8.5 / jac-cloud 0.2.5 / mtllm 0.4.0
 
 - **Jac Cloud Hot Reload**: Introduced the ability to enable development mode like uvicorn by adding `--reload` in `jac serve`. This supports targetting specific directories by using `--watch path/to/dir1,path/to/dir2` (comma separated).
 - **Dynamic Runtime Walker Endpoint**: Fixes auto-generated endpoints for walkers created at runtime.
@@ -65,4 +107,5 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Object-Spatial Arrow Notation Update**: Typed arrow notations `-:MyEdge:->` and `+:MyEdge:+>` are now `->:MyEdge:->` and `+>:MyEdge:+>` respectively, to avoid conflicts with Python-style list slicing.
 - **Import `from` Syntax Update**: The syntax for importing specific modules from a package now uses curly braces (e.g., `import from utils { helper, math_utils }`) for improved clarity.
 - **Auto-Resolved Imports**: Removed the need for explicit language annotations (`:py`, `:jac`) in import statements; the compiler now automatically resolves imports.
+- **Permission API Renaming**: The `Jac.restrict` and `Jac.unrestrict` interfaces have been renamed to `Jac.perm_revoke` and `Jac.perm_grant` respectively, for better clarity on their actions.
 - **Permission API Renaming**: The `Jac.restrict` and `Jac.unrestrict` interfaces have been renamed to `Jac.perm_revoke` and `Jac.perm_grant` respectively, for better clarity on their actions.

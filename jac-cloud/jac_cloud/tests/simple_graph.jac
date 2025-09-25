@@ -1,4 +1,5 @@
 """Example of simple walker walking nodes."""
+import sys;
 import from jac_cloud.core.context {JaseciContext}
 import from jac_cloud.jaseci.models {User as BaseUser, NO_PASSWORD}
 import from jac_cloud.jaseci.utils {SendGridEmailer}
@@ -1216,3 +1217,9 @@ walker generate_walker {
 
 # ------------------------------------------------------------- #
 #################################################################
+
+with entry:__main__ {
+    print("You should not be able to see this log if runned by `jac serve`");
+    sys.exit();
+    print("This should not be printed!");
+}
