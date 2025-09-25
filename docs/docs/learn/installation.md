@@ -72,12 +72,13 @@ For the best development experience, install the Jac VS Code extension:
 
 **For Cursor users:**
 
-1. Download the VSIX file: [jaclang-extension-2025.7.17.vsix](../../assets/vsce/jaclang-extension-2025.7.17.vsix)
-2. Open Cursor
-3. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
-4. Type `>install from vsix` and select the command
-5. Select the downloaded `jaclang-extension-2025.7.17.vsix` file
-6. The extension will be installed and ready to use
+1. Go to the [latest Jaseci release page](https://github.com/Jaseci-Labs/jaseci/releases/latest)
+2. Download the latest `jaclang-extension-*.vsix` file from the release assets
+3. Open Cursor
+4. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+5. Type `>install from vsix` and select the command
+6. Select the downloaded VSIX file
+7. The extension will be installed and ready to use
 
 Alternatively, visit the [VS Code marketplace](https://marketplace.visualstudio.com/items?itemName=jaseci-labs.jaclang-extension) directly.
 
