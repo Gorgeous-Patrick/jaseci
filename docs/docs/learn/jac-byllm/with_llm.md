@@ -162,11 +162,11 @@ Docstrings naturally enhance the semantics of their associated code constructs, 
 
 **📚 Full Documentation**: [Jac byLLM Documentation](https://www.jac-lang.org/learn/jac-byllm/with_llm/)
 
-**🎮 Complete Examples**:
+**🎮 Code Examples**: [Jac byLLM Examples](https://www.jac-lang.org/learn/jac-byllm/examples/)
 
-- [Fantasy Trading Game](https://www.jac-lang.org/learn/examples/mtp_examples/fantasy_trading_game/) - Interactive RPG with AI-generated characters
+<!-- - [Fantasy Trading Game](https://www.jac-lang.org/learn/examples/mtp_examples/fantasy_trading_game/) - Interactive RPG with AI-generated characters
 - [RPG Level Generator](https://www.jac-lang.org/learn/examples/mtp_examples/rpg_game/) - AI-powered game level creation
-- [RAG Chatbot Tutorial](https://www.jac-lang.org/learn/examples/rag_chatbot/Overview/) - Building chatbots with document retrieval
+- [RAG Chatbot Tutorial](https://www.jac-lang.org/learn/examples/rag_chatbot/Overview/) - Building chatbots with document retrieval -->
 
 **🔬 Research**: The research paper of byLLM is available on [Arxiv](https://arxiv.org/abs/2405.08965) and accepted for OOPSLA 2025.
 

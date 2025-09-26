@@ -13,6 +13,7 @@ pip install byllm
 byLLM functionality is accessed by importing the `byllm` module and using the `by` decorator on functions.
 
 ```python linenums="1"
+import jaclang
 from dataclasses import dataclass
 from byllm import Model, Image, by
 
@@ -54,6 +55,7 @@ The `temperature` hyper-parameter controls the randomness of the output. Lower v
 In Python, hyper-parameters are passed as follows:
 
 ```python linenums="1"
+import jaclang
 from byllm import Model, by
 
 llm = Model(model_name="gpt-4o")
@@ -67,6 +69,7 @@ def generate_joke() -> str: ...
 Python functions can be used as tools in byLLM. Functions defined in Python are callable by the LLM to perform specific tasks:
 
 ```python linenums="1"
+import jaclang
 from byllm import Model
 llm = Model(model_name="gpt-4o")
 

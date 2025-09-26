@@ -25,7 +25,7 @@
 
     ---
 
-    *This Tutorial shows how to implemented a agentic AI application using the byLLM package and object-spatiol programming. In additionn MCP integration is demonstrated here. *
+    *This Tutorial shows how to implemented a agentic AI application using the byLLM package and object-spatiol programming. In additionn MCP integration is demonstrated here.*
 
     [Start](./../../examples/rag_chatbot/Overview/){ .md-button }
 
@@ -111,13 +111,13 @@ Repository location: [jac-byllm/examples/tool_calling](https://github.com/Jaseci
         --8<-- "jac-byllm/examples/tool_calling/debate_agent.jac"
         ```
 
-### Agentic examples
+### Agentic AI examples
 
 Small agentic patterns and lightweight multi-step reasoning examples (multi-turn planning, simple agents). These live under the agentic_ai examples folder.
 
 Repository location: [jac-byllm/examples/agentic_ai](https://github.com/Jaseci-Labs/jaseci/tree/main/jac-byllm/examples/agentic_ai)
 
-??? note "Agentic examples (code) (code)"
+??? note "Agentic AI examples (code)"
     Examples that demonstrate small agentic behaviors and light-weight multi-step reasoning.
 
     === "friendzone_lite.jac"

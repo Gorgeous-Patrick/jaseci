@@ -40,7 +40,7 @@ byLLM uses [LiteLLM](https://docs.litellm.ai/docs) to provide integration with a
 ??? Note
     Additional supported models and model serving platforms are available with LiteLLM. Refer to their [documentation](https://docs.litellm.ai/docs/providers) for model names.
 
-## MTP for Functions
+## byLLM for Functions
 
 ### Basic Functions
 
@@ -110,13 +110,13 @@ with entry {
 A more complex example using object schema for context and structured output generation is demonstrated in the [game level generation](../examples/mtp_examples/rpg_game.md) example.
 
 
-## Context-Aware MTP Methods
+## Context-Aware byLLM Methods
 
 Methods can be integrated with LLM capabilities to process object state and context:
 
 <!-- ### Basic Methods -->
 
-When integrating LLMs for methods of a class, MTP automatically adds attributes of the initialized object into the prompt of the LLM, adding extra context to the LLM.
+When integrating LLMs for methods of a class, byLLM automatically adds attributes of the initialized object into the prompt of the LLM, adding extra context to the LLM.
 
 ```jac linenums="1"
 import from byllm.llm { Model }
