@@ -19,7 +19,7 @@ class Settings:
     # Compiler configuration
     disable_mtllm: bool = False
     ignore_test_annex: bool = False
-    pyout_jaclib_alias: str = "_"
+    pyout_jaclib_alias: str = "_jl"
     pyfile_raise: bool = False
     pyfile_raise_full: bool = False
 
