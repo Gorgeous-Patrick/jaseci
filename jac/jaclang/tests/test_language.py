@@ -1296,9 +1296,9 @@ class JacLanguageTests(TestCase):
             ).ir_out.unparse()
         self.assertIn("(prev_token_index is None)", output)
         self.assertIn("(next_token_index is None)", output)
-        self.assertIn("(tok[ 0 ] > change_end_line)", output)
-        self.assertIn("(tok[ 0 ] == change_end_line)", output)
-        self.assertIn("(tok[ 1 ] > change_end_char)", output)
+        self.assertIn("(tok[0] > change_end_line)", output)
+        self.assertIn("(tok[0] == change_end_line)", output)
+        self.assertIn("(tok[1] > change_end_char)", output)
 
     def test_here_visitor_usage(self) -> None:
         """Test visitor, here keyword usage in jaclang."""

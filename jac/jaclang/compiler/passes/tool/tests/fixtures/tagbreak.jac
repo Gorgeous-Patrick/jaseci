@@ -118,5 +118,5 @@ def func_with_long_params(
 
 
 def func_with_short_params(a: int, b: int) -> None {
-    print(a + b);
+    print(a + b + c[5:]);
 }
