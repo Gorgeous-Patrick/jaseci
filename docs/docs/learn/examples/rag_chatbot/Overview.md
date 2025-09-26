@@ -12,6 +12,10 @@ You'll create a chatbot that can:
 - Understand and discuss images and videos using AI vision
 - Route different types of questions to specialized AI handlers
 
+![Chatbot Workflow](images/image.png)
+
+*The AI-powered chatbot in action, demonstrating its multi modality and mcp tool calling while maintaining conversational context.*
+
 ## What You'll Learn
 
 - **Object Spatial Programming**: Use Jac's node-walker architecture to organize your application
