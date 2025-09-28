@@ -2,6 +2,7 @@
 
 import configparser
 import os
+from argparse import Namespace
 from dataclasses import dataclass, fields
 
 
@@ -47,6 +48,8 @@ class Settings:
         """Load settings from all available sources."""
         self.load_config_file()
         self.load_env_vars()
+        # CLI arguments are applied by the CLI after parsing, via
+        # `settings.load_command_line_arguments(args)` in start_cli.
 
     def load_config_file(self) -> None:
         """Load settings from a configuration file."""
@@ -69,19 +72,15 @@ class Settings:
             if env_value is not None:
                 setattr(self, key, self.convert_type(env_value))
 
-        # def load_command_line_arguments(self):
-        #     """Override settings from command-line arguments if provided."""
-        #     parser = argparse.ArgumentParser()
-        #     parser.add_argument(
-        #         "--debug",
-        #         type=self.str_to_bool,
-        #         nargs="?",
-        #         const=True,
-        #         default=self.config["debug"],
-        #     )
-        #     parser.add_argument("--port", type=int, default=self.config["port"])
-        #     parser.add_argument("--host", default=self.config["host"])
-        #     args = parser.parse_args()
+    def load_command_line_arguments(self, args: Namespace) -> None:
+        """Override settings from command-line arguments if provided."""
+        args_dict = vars(args) if not isinstance(args, dict) else args
+        for key in [f.name for f in fields(self)]:
+            if key in args_dict and args_dict[key] is not None:
+                val = args_dict[key]
+                if isinstance(val, str):
+                    val = self.convert_type(val)
+                setattr(self, key, val)
 
     def str_to_bool(self, value: str) -> bool:
         """Convert string to boolean."""

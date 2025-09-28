@@ -5,7 +5,10 @@ from __future__ import annotations
 import argparse
 import inspect
 import re
+from dataclasses import fields as dataclass_fields
 from typing import Callable, Dict, Optional
+
+from jaclang.settings import Settings as JacSettings
 
 
 class Command:
@@ -105,6 +108,47 @@ class CommandRegistry:
             metavar="COMMAND",
         )
         self.args = argparse.Namespace()
+
+        # Global settings overrides
+        settings_group = self.parser.add_argument_group(
+            "settings",
+            "Override Jac settings (from config/env). Provide only flags you want to change.",
+        )
+        for fld in dataclass_fields(JacSettings):
+            name = fld.name
+            opt = f"--{name.replace('_', '-')}"
+            if fld.type is bool:
+                # Tri-state: default None so unspecified won't override
+                settings_group.add_argument(
+                    opt,
+                    dest=name,
+                    action="store_true",
+                    default=None,
+                    help=f"bool - Override setting '{name}' to true",
+                )
+                settings_group.add_argument(
+                    f"--no-{name.replace('_', '-')}",
+                    dest=name,
+                    action="store_false",
+                    default=None,
+                    help=f"bool - Override setting '{name}' to false",
+                )
+            elif fld.type is int:
+                settings_group.add_argument(
+                    opt,
+                    dest=name,
+                    type=int,
+                    default=None,
+                    help=f"int - Override setting '{name}'",
+                )
+            else:
+                settings_group.add_argument(
+                    opt,
+                    dest=name,
+                    type=str,
+                    default=None,
+                    help=f"str - Override setting '{name}'",
+                )
 
     def register(self, func: Callable) -> Callable:
         """Register a command in the registry."""

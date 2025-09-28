@@ -1,12 +1,12 @@
 """Command line interface tool for the Jac language."""
 
 import ast as ast3
-import importlib
 import marshal
 import os
 import pickle
 import sys
 import types
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +18,7 @@ from jaclang.runtimelib.builtin import printgraph
 from jaclang.runtimelib.constructs import WalkerArchetype
 from jaclang.runtimelib.machine import ExecutionContext, JacMachine as Jac
 from jaclang.runtimelib.utils import read_file_with_encoding
+from jaclang.settings import settings
 from jaclang.utils.helpers import debugger as db
 from jaclang.utils.lang_tools import AstTool
 
@@ -317,7 +318,7 @@ def lsp() -> None:
     Examples:
         jac lsp
     """
-    from jaclang.langserve.server import run_lang_server
+    from jaclang.langserve.server import run_lang_server  # type: ignore
 
     run_lang_server()
 
@@ -335,7 +336,7 @@ def lsp_dev() -> None:
     Examples:
         jac lsp_dev
     """
-    from jaclang.langserve.dev_server import run_lang_server
+    from jaclang.langserve.dev_server import run_lang_server  # type: ignore
 
     run_lang_server()
 
@@ -668,8 +669,11 @@ def start_cli() -> None:
     args = parser.parse_args()
     cmd_registry.args = args
 
+    # Apply global settings overrides from CLI flags before running commands
+    settings.load_command_line_arguments(args)
+
     if args.version:
-        version = importlib.metadata.version("jaclang")
+        version = pkg_version("jaclang")
         print(f"Jac version {version}")
         print("Jac path:", __file__)
         return
@@ -687,7 +691,12 @@ def start_cli() -> None:
     args_dict = vars(args)
     args_dict.pop("command")
     args_dict.pop("version", None)
-    ret = command.call(**args_dict)
+
+    # Only pass parameters that the target command accepts
+    allowed_params = set(command.sig.parameters.keys())
+    filtered_args = {k: v for k, v in args_dict.items() if k in allowed_params}
+
+    ret = command.call(**filtered_args)
     if ret:
         print(ret)
 
