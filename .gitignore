@@ -65,3 +65,4 @@ mydatabase/
 *.dir
 *.log
 .env
+*.png
