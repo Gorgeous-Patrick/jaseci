@@ -20,6 +20,7 @@ class JacPIMStaticCtx:
     all_nodes: list[NodeArchetype] | None = None
     all_edges: list[EdgeArchetype] | None = None
     network: nx.DiGraph | None = None
+    layout: dict | None = None
 
     @classmethod
     def set_graph_nodes_and_edges(
@@ -88,3 +89,10 @@ class JacPIMStaticCtx:
             )
 
         return graph
+
+    @classmethod
+    def get_layout(cls) -> dict:
+        """Get the graph layout."""
+        if cls.layout is None:
+            cls.layout = nx.kamada_kawai_layout(cls.get_networkx())
+        return cls.layout

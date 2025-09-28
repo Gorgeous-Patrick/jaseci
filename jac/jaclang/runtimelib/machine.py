@@ -1568,6 +1568,9 @@ class JacPIM:
             jacpim_static_analysis.JacPIMStaticCtx()
         )
         ctx.set_graph_nodes_and_edges(JacMachine.get_context())
+        jacpim_static_analysis.plot_one_graph(
+            ctx.get_networkx(), ctx.get_layout(), "temp.png"
+        )
 
 
 class JacMachineInterface(
