@@ -119,7 +119,7 @@ with entry {
   }
   start_node = Start(id=0);
   root ++> start_node;
-  for i in range(max(NODE_NUM // 10, 30)){
+  for i in range(max(NODE_NUM // 10, 25)){
     start_node ++> nodes[i];
   }
   wlk = LoadFeed();

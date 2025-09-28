@@ -5,6 +5,17 @@ import os;
 import struct;
 import from jaclang.runtimelib.machine {JacMachine}
 
+node Start {
+  has id: int = 0;
+  def get_byte_stream() {
+    res = struct.pack("<q", self.id);
+    return res;
+  }
+  static def get_type_def() {
+    return "uint64_t id;";
+  }
+}
+
 node Page {
   has id: int;
   has score: float = 0;
@@ -21,6 +32,14 @@ edge HyperLink {}
 
 walker PageRank{
   has collected_score_8: float | None = None;
+  can boot with Start entry {
+    JacMachine.par_visit(self, PageRank(), [-->]);
+  }
+  def get_impl_boot_on_Start() {
+    return """
+    // printf("Starting load feed from user %d\\n", here->id);
+    """;
+  }
   can run with Page entry  {
     print(f"visit ID {here.id}");
     if (self.collected_score_8 is None) {
@@ -71,6 +90,11 @@ with entry {
     nodes.append(Page(id = i));
     root ++> nodes[i];
   }
+  start_node = Start(id=0);
+  root ++> start_node;
+  for i in range(max(NODE_NUM, 25)) {
+    start_node ++> nodes[i];
+  }
 
   for i in range(NODE_NUM) {
     for j in range(NODE_NUM) {
@@ -85,5 +109,5 @@ with entry {
   wlk = PageRank();
   JacMachine.start(wlk, nodes[0]);
   wlk = nodes[0] spawn wlk;
-  JacMachine.end();
+  JacMachine.end(wlk);
 }
