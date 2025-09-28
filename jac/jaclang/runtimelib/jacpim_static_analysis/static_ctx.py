@@ -22,10 +22,11 @@ class JacPIMStaticCtx:
     network: nx.DiGraph | None = None
 
     @classmethod
-    def _get_graph_nodes_and_edges(
+    def set_graph_nodes_and_edges(
         cls,
         jctx: Any,  # noqa: ANN401, to avoid circular dependency
     ) -> None:
+        """Store the nodes and the edges using the context."""
         all_nodes = [
             node.archetype
             for node in jctx.mem.__mem__.values()

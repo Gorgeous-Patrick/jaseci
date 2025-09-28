@@ -31,6 +31,7 @@ from typing import (
 from uuid import UUID
 
 
+import jaclang.runtimelib.jacpim_static_analysis as jacpim_static_analysis
 from jaclang.compiler.constant import Constants as Con, EdgeDir, colors
 from jaclang.compiler.program import JacProgram
 from jaclang.runtimelib.archetype import (
@@ -1557,6 +1558,18 @@ class JacUtils:
         return future.result()
 
 
+class JacPIM:
+    """Jaclang PIM support."""
+
+    @staticmethod
+    def jacpim_start() -> None:
+        """Imaginary entry point of JacPIM."""
+        ctx: jacpim_static_analysis.JacPIMStaticCtx = (
+            jacpim_static_analysis.JacPIMStaticCtx()
+        )
+        ctx.set_graph_nodes_and_edges(JacMachine.get_context())
+
+
 class JacMachineInterface(
     JacClassReferences,
     JacAccessValidation,
@@ -1567,6 +1580,7 @@ class JacMachineInterface(
     JacCmd,
     JacBasics,
     JacUtils,
+    JacPIM,
 ):
     """Jac Feature."""
 
