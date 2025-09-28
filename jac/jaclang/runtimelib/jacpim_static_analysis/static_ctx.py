@@ -20,7 +20,7 @@ class JacPIMStaticCtx:
 
     all_nodes: list[NodeArchetype] | None = None
     all_edges: list[EdgeArchetype] | None = None
-    network: nx.DiGraph | None = None
+    network: nx.MultiDiGraph | None = None
     layout: dict | None = None
     program: JacProgram | None = None
 
@@ -61,12 +61,12 @@ class JacPIMStaticCtx:
         return cls.all_edges
 
     @classmethod
-    def get_networkx(cls) -> nx.DiGraph:
+    def get_networkx(cls) -> nx.MultiDiGraph:
         """Get the networkx construction for JacPIM."""
         if cls.network is not None:
             return cls.network
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         for idx, node_arch in enumerate(cls.get_all_nodes()):
             # Add node with detailed annotations

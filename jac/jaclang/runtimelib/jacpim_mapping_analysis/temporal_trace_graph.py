@@ -45,30 +45,30 @@ class WalkerState:
     ttt_node: TemporalTraceTreeNode
 
 
-def filter_neighbors(node_idx: int, network: nx.DiGraph, visit: VisitInfo) -> list[int]:
+def filter_neighbors(
+    node_idx: int, network: nx.MultiDiGraph, visit: VisitInfo
+) -> list[int]:
     """Filter neighbors based on visit info and walker type."""
     filtered_neighbors = []
 
     # Get all neighbors
     for neighbor_idx in network.neighbors(node_idx):
         # Get edge data between current node and neighbor
-        edge_data = network.get_edge_data(node_idx, neighbor_idx)
+        edge_datas = network.get_edge_data(node_idx, neighbor_idx)
+        for edge_data in edge_datas.values():
+            edge_arch = edge_data.get("archetype")
+            if edge_arch is None:
+                raise RuntimeError("Archetype not found")
+            edge_type = extract_name(edge_arch)
 
-        if edge_data is None:
-            continue
-        edge_arch = edge_data.get("archetype")
-        if edge_arch is None:
-            raise RuntimeError("Archetype not found")
-        edge_type = extract_name(edge_arch)
-
-        if visit.edge_type is None or visit.edge_type == edge_type:
-            filtered_neighbors.append(neighbor_idx)
+            if visit.edge_type is None or visit.edge_type == edge_type:
+                filtered_neighbors.append(neighbor_idx)
 
     return filtered_neighbors
 
 
 def exec_sync_visit_sequence(
-    state: WalkerState, network: nx.DiGraph, visits: list[VisitInfo]
+    state: WalkerState, network: nx.MultiDiGraph, visits: list[VisitInfo]
 ) -> WalkerState:
     """Execute the visit sequence to get the access pattern."""
     new_container: list[int] = state.container.copy()
@@ -95,7 +95,7 @@ def exec_sync_visit_sequence(
 
 
 def get_new_walker_states(
-    state: WalkerState, network: nx.DiGraph, visit_sequences: list[list[VisitInfo]]
+    state: WalkerState, network: nx.MultiDiGraph, visit_sequences: list[list[VisitInfo]]
 ) -> list[WalkerState]:
     """Get new walker states based on the visit sequences."""
     new_states: list[WalkerState] = []
@@ -124,7 +124,7 @@ def get_new_walker_states(
 
 def get_access_pattern_single_walker(
     start_node: NodeArchetype,
-    network: nx.DiGraph,
+    network: nx.MultiDiGraph,
     walker_type: uni.Archetype,
     target_node_cnt: int = 100000,
 ) -> TemporalTraceTreeNode:
@@ -187,7 +187,7 @@ class TTGEdgeAttribute:
     timestamp: int
 
 
-def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.DiGraph:
+def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.MultiDiGraph:
     """Generate the Temporal Trace Graph from ttt."""
     graph = static_ctx.JacPIMStaticCtx.get_networkx().copy()
     graph.clear_edges()

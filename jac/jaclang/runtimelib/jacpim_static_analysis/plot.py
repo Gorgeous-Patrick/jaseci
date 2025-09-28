@@ -7,7 +7,7 @@ import networkx as nx
 from .info_extract import get_node_info_from_node_arch
 
 
-def plot_one_graph(graph: nx.DiGraph, pos: dict, filename: str) -> None:
+def plot_one_graph(graph: nx.MultiDiGraph, pos: dict, filename: str) -> None:
     """Plot and save one graph."""
     plt.figure()
     nx.draw_networkx_nodes(graph, pos, node_size=100)

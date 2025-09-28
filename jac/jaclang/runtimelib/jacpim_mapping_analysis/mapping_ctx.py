@@ -26,7 +26,7 @@ class JacPIMMappingCtx:
     """JacPIM Mapping Phase global context."""
 
     mapping: dict[NodeArchetype, int] | None
-    ttg: networkx.DiGraph | None
+    ttg: networkx.MultiDiGraph | None
 
     @classmethod
     def setter(cls, start_node: NodeArchetype, walker: WalkerArchetype) -> None:
@@ -40,7 +40,7 @@ class JacPIMMappingCtx:
         )
 
     @classmethod
-    def get_ttg(cls) -> networkx.DiGraph:
+    def get_ttg(cls) -> networkx.MultiDiGraph:
         """Read the Temporal Trace Graph."""
         if cls.ttg is None:
             raise RuntimeError("TTG is None!")

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 
-def plot_ttg(graph: nx.DiGraph, pos: dict, filename: str) -> None:
+def plot_ttg(graph: nx.MultiDiGraph, pos: dict, filename: str) -> None:
     """Plot and save one graph."""
     plt.figure()
     nx.draw_networkx_nodes(graph, pos, node_size=100)
