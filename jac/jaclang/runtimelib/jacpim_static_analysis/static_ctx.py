@@ -83,7 +83,7 @@ class JacPIMStaticCtx:
             graph.add_edge(
                 cls.get_all_nodes().index(edge_arch.__jac__.source.archetype),
                 cls.get_all_nodes().index(edge_arch.__jac__.target.archetype),
-                edge_type=_extract_name(edge_arch),
+                archetype=edge_arch,
             )
 
         return graph
