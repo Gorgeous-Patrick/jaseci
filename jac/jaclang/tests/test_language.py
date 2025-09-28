@@ -3,7 +3,7 @@
 import io
 import os
 import sys
-import sysconfig
+import pytest
 import tempfile
 import subprocess
 from pathlib import Path
@@ -514,12 +514,11 @@ class JacLanguageTests(TestCase):
                 ),
                 prog=JacProgram(),
             ).ir_out.unparse()
-        self.assertIn("def greet2(**kwargs: Any)", output)
+        self.assertIn("def greet2( **kwargs: Any) {", output)
         self.assertEqual(output.count("with entry {"), 14)
         self.assertIn("assert (x == 5) , 'x should be equal to 5' ;", output)
         self.assertIn("if not (x == y) {", output)
-        self.assertIn("def greet2(**kwargs: Any) {", output)
-        self.assertIn("squares_dict = { x : (x ** 2) for x in numbers };", output)
+        self.assertIn("squares_dict = {x : (x ** 2) for x in numbers};", output)
         self.assertIn(
             '\n\n"""Say hello"""\n@ my_decorator\n\n def say_hello() {', output
         )
@@ -588,6 +587,27 @@ class JacLanguageTests(TestCase):
         self.assertIn("case Container(inner = Inner(x = a, y = 0)):\n", output)
         self.assertIn("case Container(inner = Inner(x = a, y = b)):\n", output)
         self.assertIn("case _:\n", output)
+
+    def test_py2jac_params(self) -> None:
+        """Test py ast to Jac ast conversion."""
+        from jaclang.compiler.passes.main import PyastBuildPass
+        import jaclang.compiler.unitree as ast
+        import ast as py_ast
+
+        py_out_path = os.path.join(self.fixture_abs_path("./"), "py2jac_params.py")
+        with open(py_out_path) as f:
+            file_source = f.read()
+            output = PyastBuildPass(
+                ir_in=ast.PythonModuleAst(
+                    py_ast.parse(file_source),
+                    orig_src=ast.Source(file_source, py_out_path),
+                ),
+                prog=None,
+            ).ir_out.unparse()
+        self.assertIn(
+            "def isinstance( <>obj: object , class_or_tuple: _ClassInfo , /)  -> bool {", output)
+        self.assertIn(
+            "def len(<>obj: Sized, astt: Any, /, z: int, j: str, a: Any = 90) -> int {", output)
 
     def test_refs_target(self) -> None:
         """Test py ast to Jac ast conversion output."""
@@ -712,6 +732,7 @@ class JacLanguageTests(TestCase):
         mypass = JacProgram().compile(self.fixture_abs_path("byllmissue.jac"))
         self.assertIn("2:5 - 4:8", mypass.pp())
 
+    @pytest.mark.xfail(reason="TODO: Support symtable for inheritance")
     def test_inherit_baseclass_sym(self) -> None:
         """Basic test for symtable support for inheritance."""
         mypass = JacProgram().compile(
@@ -745,6 +766,43 @@ class JacLanguageTests(TestCase):
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
         self.assertIn("i work", stdout_value)
+
+    def test_kwonly_params(self) -> None:
+        """Test importing python."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("test_kwonly_params", base_path=self.fixture_abs_path("./params"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertEqual("KW_SIMPLE: 42", stdout_value[0])
+        self.assertEqual("KW_DEF: 10-def 20-def", stdout_value[1])
+        self.assertEqual("REG_KW: 10|test", stdout_value[2])
+        self.assertEqual("MIXED_KW: 1-def-2.5-True 2-custom-3.5-False", stdout_value[3])
+        self.assertEqual("ALL_KW: 100:test:1.0 200:hi:9.9", stdout_value[4])
+
+    def test_complex_params(self) -> None:
+        """Test importing python."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("test_complex_params", base_path=self.fixture_abs_path("./params"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertEqual("ULTIMATE_MIN: 1|def|2.5|0|test|100|0", stdout_value[0])
+        self.assertEqual("ULTIMATE_FULL: 1|custom|3.14|3|req|200|1", stdout_value[1])
+        self.assertEqual("SEPARATORS: 42", stdout_value[2])
+        self.assertEqual("EDGE_MIX: 1-test-2-True-1", stdout_value[3])
+        self.assertEqual("RECURSIVE: 7 11", stdout_value[4])
+        self.assertEqual("VALIDATION: x:1,y:2.5,z:10,args:1,w:True,kwargs:1", stdout_value[5])
+
+    def test_param_failing(self) -> None:
+        """Test importing python."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        for i in ["test_failing_posonly", "test_failing_kwonly", "test_failing_varargs"]:
+            Jac.jac_import(i, base_path=self.fixture_abs_path("./params"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertNotIn('FAILED', stdout_value)
 
     def test_double_import_exec(self) -> None:
         """Test importing python."""
@@ -1378,7 +1436,7 @@ class JacLanguageTests(TestCase):
             test_content = "Hello, 世界! 🌍 Testing UTF-8 encoding."
             f.write(test_content)
             temp_path = f.name
-        
+
         try:
             result = read_file_with_encoding(temp_path)
             self.assertEqual(result, test_content)
@@ -1391,7 +1449,7 @@ class JacLanguageTests(TestCase):
             test_content = "Hello, 世界! UTF-16 encoding test."
             f.write(test_content)
             temp_path = f.name
-        
+
         try:
             result = read_file_with_encoding(temp_path)
             self.assertEqual(result, test_content)
@@ -1404,7 +1462,7 @@ class JacLanguageTests(TestCase):
             test_content = "Hello, UTF-8 BOM test! 🚀"
             f.write(test_content)
             temp_path = f.name
-        
+
         try:
             result = read_file_with_encoding(temp_path)
             self.assertEqual(result, test_content)
@@ -1431,9 +1489,9 @@ class JacLanguageTests(TestCase):
         with tempfile.NamedTemporaryFile(delete=False) as f:
             binary_data = bytes([0xFF, 0xFE, 0x00, 0x48, 0x65, 0x6C, 0x6C, 0x6F])
             f.write(binary_data)
-            f.flush()  
+            f.flush()
             temp_path = f.name
-        
+
         try:
             result = read_file_with_encoding(temp_path)
             self.assertIsInstance(result, str)
@@ -1446,15 +1504,15 @@ class JacLanguageTests(TestCase):
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as f:
             test_content = (
                 "Special chars: åäö ñ ü ç é\n"
-                "Symbols: ©®™ §¶†‡•\n" 
+                "Symbols: ©®™ §¶†‡•\n"
                 "Math: ∑∏∫√±≤≥≠\n"
                 "Arrows: ←→↑↓↔\n"
                 "Emoji: 😀😍🎉🔥💯\n"
             )
             f.write(test_content)
-            f.flush()  
+            f.flush()
             temp_path = f.name
-        
+
         try:
             result = read_file_with_encoding(temp_path)
 

@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: jac/support/plugins/streamlit
+        working-directory: jac-streamlit
 
     steps:
       - name: Checkout code

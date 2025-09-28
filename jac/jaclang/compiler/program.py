@@ -15,16 +15,15 @@ from jaclang.compiler.passes.main import (
     CFGBuildPass,
     DeclImplMatchPass,
     DefUsePass,
-    InheritancePass,
     JacAnnexPass,
     JacImportDepsPass,
+    PreDynamoPass,
     PyBytecodeGenPass,
     PyJacAstLinkPass,
     PyastBuildPass,
     PyastGenPass,
     SemDefMatchPass,
     SymTabBuildPass,
-    SymTabLinkPass,
     Transform,
     TypeCheckPass,
 )
@@ -34,6 +33,7 @@ from jaclang.compiler.passes.tool import (
     JacFormatPass,
 )
 from jaclang.runtimelib.utils import read_file_with_encoding
+from jaclang.settings import settings
 from jaclang.utils.log import logging
 
 
@@ -45,7 +45,6 @@ ir_gen_sched = [
     DefUsePass,
     SemDefMatchPass,
     CFGBuildPass,
-    InheritancePass,
 ]
 type_check_sched: list = [
     TypeCheckPass,
@@ -121,6 +120,8 @@ class JacProgram:
         if type_check:
             self.run_schedule(mod=mod_targ, passes=type_check_sched)
         if not no_cgen:
+            if settings.predynamo_pass:
+                py_code_gen.insert(0, PreDynamoPass)
             self.run_schedule(mod=mod_targ, passes=py_code_gen)
         return mod_targ
 
@@ -137,8 +138,6 @@ class JacProgram:
         """Convert a Jac file to an AST."""
         mod_targ = self.compile(file_path, use_str, type_check=type_check)
         JacImportDepsPass(ir_in=mod_targ, prog=self)
-        for mod in self.mod.hub.values():
-            SymTabLinkPass(ir_in=mod, prog=self)
         for mod in self.mod.hub.values():
             DefUsePass(mod, prog=self)
         return mod_targ

@@ -20,9 +20,14 @@ class Settings:
     disable_mtllm: bool = False
     ignore_test_annex: bool = False
     pyout_jaclib_alias: str = "_"
+    pyfile_raise: bool = False
+    pyfile_raise_full: bool = False
 
     # Formatter configuration
     max_line_length: int = 88
+
+    # pytorch configuration
+    predynamo_pass: bool = False
 
     # LSP configuration
     lsp_debug: bool = False

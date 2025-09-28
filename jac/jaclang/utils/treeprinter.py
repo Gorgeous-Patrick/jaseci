@@ -391,20 +391,6 @@ def _build_symbol_tree_common(
     children = SymbolTree(node_name="Sub Tables", parent=root)
 
     syms_to_iterate = set(node.names_in_scope.values())
-    for inhrited_symtab in node.inherited_scope:
-        for inhrited_sym in inhrited_symtab.symbols:
-            sym = inhrited_symtab.lookup(inhrited_sym)
-            assert sym is not None
-            syms_to_iterate.add(sym)
-
-    for stab in node.inherited_scope:
-        if stab.load_all_symbols:
-            syms_to_iterate.update(list(stab.base_symbol_table.names_in_scope.values()))
-        else:
-            for sname in stab.symbols:
-                sym = stab.base_symbol_table.lookup(sname)
-                assert sym is not None
-                syms_to_iterate.add(sym)
 
     for sym in syms_to_iterate:
         symbol_node = SymbolTree(node_name=f"{sym.sym_name}", parent=symbols)
@@ -437,10 +423,6 @@ def _build_symbol_tree_common(
             continue
         _build_symbol_tree_common(k, children)
 
-    for k2 in node.inherited_scope:
-        if k2.base_symbol_table.scope_name == "builtins":
-            continue
-        _build_symbol_tree_common(k2.base_symbol_table, children)
     return root
 
 

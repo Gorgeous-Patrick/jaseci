@@ -188,11 +188,11 @@ class PyastGenPass(UniPass):
         )
 
     def needs_mtllm(self) -> None:
-        """Ensure MTLLM is imported only once."""
+        """Ensure byLLM is imported only once."""
         self._add_preamble_once(
             self.needs_mtllm.__name__,
             ast3.Import(
-                names=[self.sync(ast3.alias(name="mtllm"), jac_node=self.ir_out)]
+                names=[self.sync(ast3.alias(name="byllm"), jac_node=self.ir_out)]
             ),
         )
 
@@ -747,7 +747,7 @@ class PyastGenPass(UniPass):
         self.needs_mtllm()
         mtir_cls_ast = self.sync(
             ast3.Attribute(
-                value=self.sync(ast3.Name(id="mtllm", ctx=ast3.Load())),
+                value=self.sync(ast3.Name(id="byllm", ctx=ast3.Load())),
                 attr="MTIR",
                 ctx=ast3.Load(),
             )
@@ -1000,37 +1000,45 @@ class PyastGenPass(UniPass):
         pass
 
     def exit_func_signature(self, node: uni.FuncSignature) -> None:
+        posonlyargs = [i.gen.py_ast[0] for i in node.posonly_params]
+        vararg = node.varargs.gen.py_ast[0] if node.varargs else None
+        kwarg = node.kwargs.gen.py_ast[0] if node.kwargs else None
         params = (
             [self.sync(ast3.arg(arg="self", annotation=None))]
-            if (abl := node.find_parent_of_type(uni.Ability))
+            if (abl := node.parent)
+            and isinstance(abl, uni.Ability)
             and abl.is_method
             and not node.is_static
             and not node.is_in_py_class
             else []
         )
-        vararg = None
-        kwarg = None
-        for i in node.params:
-            if i.unpack and i.unpack.value == "*":
-                vararg = i.gen.py_ast[0]
-            elif i.unpack and i.unpack.value == "**":
-                kwarg = i.gen.py_ast[0]
+        if posonlyargs:
+            posonlyargs = params + posonlyargs
+            params = [i.gen.py_ast[0] for i in node.params]
+        else:
+            params = params + [i.gen.py_ast[0] for i in node.params]
+        defaults = []
+        for i in [*node.posonly_params, *node.params]:
+            if i.value:
+                defaults.append(cast(ast3.expr, i.value.gen.py_ast[0]))
+        kwonly_args = [i.gen.py_ast[0] for i in node.kwonlyargs]
+        # kw_defaults must be the same length as kwonlyargs
+        # it will have None for args that don't have defaults
+        kw_defaults: list[ast3.expr | None] = []
+        for i in node.kwonlyargs:
+            if i.value:
+                kw_defaults.append(cast(ast3.expr, i.value.gen.py_ast[0]))
             else:
-                (
-                    params.append(i.gen.py_ast[0])
-                    if isinstance(i.gen.py_ast[0], ast3.arg)
-                    else self.ice("This list should only be Args")
-                )
-        defaults = [x.value.gen.py_ast[0] for x in node.params if x.value]
+                kw_defaults.append(None)
         node.gen.py_ast = [
             self.sync(
                 ast3.arguments(
-                    posonlyargs=[],
+                    posonlyargs=[cast(ast3.arg, param) for param in posonlyargs],
                     args=[cast(ast3.arg, param) for param in params],
-                    kwonlyargs=[],
+                    kwonlyargs=kwonly_args,
                     vararg=cast(ast3.arg, vararg) if vararg else None,
                     kwarg=cast(ast3.arg, kwarg) if kwarg else None,
-                    kw_defaults=[],
+                    kw_defaults=kw_defaults,
                     defaults=[cast(ast3.expr, default) for default in defaults],
                 )
             )
@@ -2123,6 +2131,10 @@ class PyastGenPass(UniPass):
         ]
 
     def exit_lambda_expr(self, node: uni.LambdaExpr) -> None:
+        # Python lambda expressions don't support type annotations
+        if node.signature:
+            self._remove_lambda_param_annotations(node.signature)
+
         node.gen.py_ast = [
             self.sync(
                 ast3.Lambda(
@@ -2143,6 +2155,11 @@ class PyastGenPass(UniPass):
                 )
             )
         ]
+
+    def _remove_lambda_param_annotations(self, signature: uni.FuncSignature) -> None:
+        for param in signature.params:
+            if param.gen.py_ast and isinstance(param.gen.py_ast[0], ast3.arg):
+                param.gen.py_ast[0].annotation = None
 
     def exit_unary_expr(self, node: uni.UnaryExpr) -> None:
         op_cls = UNARY_OP_MAP.get(node.op.name)
@@ -2400,7 +2417,7 @@ class PyastGenPass(UniPass):
                     self.sync(
                         ast3.Attribute(
                             value=cast(ast3.expr, node.target.gen.py_ast[0]),
-                            attr=(node.right.sym_name),
+                            attr=node.right.sym_name,
                             ctx=cast(ast3.expr_context, node.right.py_ctx_func()),
                         )
                     )
@@ -2997,7 +3014,7 @@ class PyastGenPass(UniPass):
             node.gen.py_ast = [self.sync(op_cls())]
 
     def exit_name(self, node: uni.Name) -> None:
-        name = node.sym_name[2:] if node.sym_name.startswith("<>") else node.sym_name
+        name = node.sym_name
         node.gen.py_ast = [self.sync(ast3.Name(id=name, ctx=node.py_ctx_func()))]
 
     def exit_float(self, node: uni.Float) -> None:

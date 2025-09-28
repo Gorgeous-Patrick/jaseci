@@ -15,7 +15,7 @@ from pymongo.mongo_client import MongoClient
 
 from yaml import safe_load
 
-from .test_utils import JacCloudTest
+from .test_utils import JacCloudTest, run
 from ..jaseci.datasources import Collection
 
 
@@ -1440,6 +1440,18 @@ class SimpleGraphTest(JacCloudTest):
             for i, chunk in enumerate(streamer.iter_text()):
                 self.assertEqual(str(i), chunk)
 
+    def trigger_jac_run(self) -> None:
+        """Test custom specification walkers."""
+        result = run(
+            ["jac", "run", f"{self.directory}/simple_graph.jac"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(
+            "You should not be able to see this log if runned by `jac serve`",
+            result.stdout.strip(),
+        )
+
     # Individual test methods for each feature
 
     def test_01_openapi_specs(self) -> None:
@@ -1596,3 +1608,7 @@ class SimpleGraphTest(JacCloudTest):
     def test_23_trigger_custom_walkers(self) -> None:
         """Test custom specification walkers."""
         self.trigger_custom_walkers()
+
+    def test_24_trigger_jac_run(self) -> None:
+        """Test trigger jac run."""
+        self.trigger_jac_run()

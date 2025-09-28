@@ -70,6 +70,8 @@ func_decl: (LPAREN func_decl_params? RPAREN) (RETURN_HINT expression)?
 
 func_decl_params: (param_var COMMA)* param_var COMMA?
 param_var: (STAR_POW | STAR_MUL)? named_ref type_tag (EQ expression)?
+         | DIV
+         | STAR_MUL
 
 // [Heading]: Implementations.
 impl_def: decorators? KW_IMPL dotted_name impl_spec? impl_tail

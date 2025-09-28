@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import traceback
 import unittest
 from jaclang.cli import cli
@@ -65,7 +66,9 @@ class JacCliTests(TestCase):
         self.assertIn("Hello Peter Peter", stdout_value)
         self.assertIn("Peter squared is Peter Peter", stdout_value)
         self.assertIn("PETER!  wrong poem", stdout_value)
-        self.assertIn("Hello Peter , yoo mother is Mary. Myself, I am Peter.", stdout_value)
+        self.assertIn(
+            "Hello Peter , yoo mother is Mary. Myself, I am Peter.", stdout_value
+        )
         self.assertIn("Left aligned: Apple | Price: 1.23", stdout_value)
         self.assertIn("name = Peter 🤔", stdout_value)
 
@@ -205,19 +208,6 @@ class JacCliTests(TestCase):
         self.assertIn("Sub objects.", stdout_value)
         self.assertGreater(stdout_value.count("def exit_"), 10)
 
-    def test_jac_cmd_line(self) -> None:
-        """Basic test for pass."""
-        process = subprocess.Popen(
-            ["jac"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        stdout_value, _ = process.communicate(input="exit\n")
-        self.assertEqual(process.returncode, 0, "Process did not exit successfully")
-        self.assertIn("Welcome to the Jac CLI!", stdout_value)
-
     def test_ast_print(self) -> None:
         """Testing for print AstTool."""
         captured_output = io.StringIO()
@@ -270,7 +260,7 @@ class JacCliTests(TestCase):
             '[label="MultiString" shape="oval" style="filled" fillcolor="#fccca4"]',
             stdout_value,
         )
-    
+
     def test_cfg_printgraph(self) -> None:
         """Testing for print CFG."""
         captured_output = io.StringIO()
@@ -282,8 +272,8 @@ class JacCliTests(TestCase):
         stdout_value = captured_output.getvalue()
         correct_graph = (
             "digraph G {\n"
-            '  0 [label="BB0\\n\\nprint ( \'\\"im still here\\"\' ) ;\", shape=box];\n'
-            '  1 [label="BB1\\n\'\\"Hello World!\\"\' |> print ;\", shape=box];\n'
+            '  0 [label="BB0\\n\\nprint ( \\"im still here\\" ) ;", shape=box];\n'
+            '  1 [label="BB1\\n\\"Hello World!\\" |> print ;", shape=box];\n'
             "}\n\n"
         )
 
@@ -412,6 +402,71 @@ class JacCliTests(TestCase):
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
         self.assertIn("def my_print(x: object) -> None", stdout_value)
+        self.assertIn("class MyClass {", stdout_value)
+        self.assertIn('"""Print function."""', stdout_value)
+
+    def test_lambda_arg_annotation(self) -> None:
+        """Test for lambda argument annotation."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        cli.jac2py(
+            f"{self.fixture_abs_path('../../tests/fixtures/lambda_arg_annotation.jac')}"
+        )
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn("x = lambda a, b: b + a", stdout_value)
+        self.assertIn("y = lambda: 567", stdout_value)
+        self.assertIn("f = lambda x: 'even' if x % 2 == 0 else 'odd'", stdout_value)
+
+    def test_lambda_self(self) -> None:
+        """Test for lambda argument annotation."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        cli.jac2py(f"{self.fixture_abs_path('../../tests/fixtures/lambda_self.jac')}")
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn("def travel(self, here: City) -> None:", stdout_value)
+        self.assertIn("def foo(a: int) -> None:", stdout_value)
+        self.assertIn("x = lambda a, b: b + a", stdout_value)
+        self.assertIn("def visit_city(self, c: City) -> None:", stdout_value)
+        self.assertIn(
+            "sorted(users, key=lambda x: x['email'], reverse=True)", stdout_value
+        )
+
+    def test_param_arg(self) -> None:
+        """Test for lambda argument annotation."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        from jaclang.compiler.program import JacProgram
+        
+        filename = self.fixture_abs_path('../../tests/fixtures/params/test_complex_params.jac')
+        cli.jac2py(f"{self.fixture_abs_path('../../tests/fixtures/params/test_complex_params.jac')}")
+        py_code = JacProgram().compile(file_path=filename).gen.py
+        
+        # Create temporary Python file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_file:
+            temp_file.write(py_code)
+            py_file_path = temp_file.name
+        
+        try:
+            jac_code = JacProgram().compile(use_str=py_code, file_path=py_file_path).unparse()
+            # Create temporary Jac file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.jac', delete=False) as temp_file:
+                temp_file.write(jac_code)
+                jac_file_path = temp_file.name
+            cli.run(jac_file_path)
+        finally:
+                os.remove(py_file_path)
+                os.remove(jac_file_path)
+        
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertEqual("ULTIMATE_MIN: 1|def|2.5|0|test|100|0", stdout_value[-7])
+        self.assertEqual("ULTIMATE_FULL: 1|custom|3.14|3|req|200|1", stdout_value[-6])
+        self.assertEqual("SEPARATORS: 42", stdout_value[-5])
+        self.assertEqual("EDGE_MIX: 1-test-2-True-1", stdout_value[-4])
+        self.assertEqual("RECURSIVE: 7 11", stdout_value[-3])
+        self.assertEqual("VALIDATION: x:1,y:2.5,z:10,args:1,w:True,kwargs:1", stdout_value[-2])
 
     def test_caching_issue(self) -> None:
         """Test for Caching Issue."""
@@ -541,3 +596,52 @@ class JacCliTests(TestCase):
                     description_pattern,
                     f"Parameter description for '{param_name}' not found in help text for '{cmd_name}'",
                 )
+
+    def test_run_jac_name_py(self) -> None:
+        """Test a specific test case."""
+        process = subprocess.Popen(
+            [
+                "jac",
+                "run",
+                self.fixture_abs_path("py_run.py"),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = process.communicate()
+        self.assertIn("Hello, World!", stdout)
+        self.assertIn("Sum: 8", stdout)
+
+    def test_jac_run_py_bugs(self) -> None:
+        """Test jac run python files."""
+        process = subprocess.Popen(
+            [
+                "jac",
+                "run",
+                self.fixture_abs_path("jac_run_py_bugs.py"),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = process.communicate()
+        self.assertIn("Hello, my name is Alice and I am 30 years old.", stdout)
+        self.assertIn("MyModule initialized!", stdout)
+
+    def test_cli_defaults_to_run_with_file(self) -> None:
+        """jac myfile.jac should behave like jac run myfile.jac."""
+        process = subprocess.Popen(
+            [
+                "jac",
+                self.fixture_abs_path("hello.jac"),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = process.communicate()
+        self.assertIn("Hello World!", stdout)

@@ -10,6 +10,7 @@ import jaclang.compiler.unitree as uni;
 import from jaclang { JacMachineInterface as Jac }
 import from jaclang.compiler.constant {SymbolType}
 import from jaclang.compiler.program { JacProgram }
+import from jaclang.compiler.type_system.types{ ClassType}
 import from jaclang.compiler.unitree { UniScopeNode }
 import from sem_manager { SemTokManager }
 import from jaclang.vendor.pygls { uris }
@@ -22,7 +23,7 @@ import utils;
 """Handles Jac module, semantic manager, and alert management."""
 class ModuleManager {
     """Initialize ModuleManager."""
-    def init(self: ModuleManager, program: JacProgram, sem_managers: <>dict) -> None {
+    def init(self: ModuleManager, program: JacProgram, sem_managers: dict) -> None {
         self.program = program;
         self.sem_managers = sem_managers;
     }
@@ -34,7 +35,6 @@ class ModuleManager {
         build: uni.Module,
         update_annexed: bool = True
     ) -> None {
-        file_path = file_path.removeprefix('file://');
         self.program.mod.hub[file_path] = build;
         if update_annexed {
             self.sem_managers[file_path] = SemTokManager(ir=build);
@@ -63,31 +63,32 @@ class JacLangServer(JacProgram , LanguageServer) {
         LanguageServer.init(self, 'jac-lsp', 'v0.1');
         JacProgram.init(self);
         self.executor = ThreadPoolExecutor();
-        self.tasks: <>dict[(str, asyncio.Task)] = {};
-        self.sem_managers: <>dict[(str, SemTokManager)] = {};
+        self.tasks: dict[(str, asyncio.Task)] = {};
+        self.sem_managers: dict[(str, SemTokManager)] = {};
         self.module_manager = ModuleManager(self, self.sem_managers);
+        self._quick_tasks: dict[str, asyncio.Task] = {};
+        self._deep_tasks: dict[str, asyncio.Task] = {};
     }
 
     """Return diagnostics for all files as a dict {uri: diagnostics}."""
     @ property
-    def diagnostics(self: JacLangServer, ) -> <>dict[str, <>list] {
+    def diagnostics(self: JacLangServer, ) -> dict[str, list] {
         result = {};
         for file_path in self.mod.hub {
             uri = uris.from_fs_path(file_path);
             result[uri] =
-                utils.gen_diagnostics(uri, self.errors_had, self.warnings_had);
+                utils.gen_diagnostics(file_path, self.errors_had, self.warnings_had);
         }
         return result;
     }
 
     """Remove errors and warnings for a specific file from the lists."""
-    def _clear_alerts_for_file(self: JacLangServer, file_path_fs: str) -> None {
-        self.module_manager.clear_alerts_for_file(file_path_fs);
+    def _clear_alerts_for_file(self: JacLangServer, file_path: str) -> None {
+        self.module_manager.clear_alerts_for_file(file_path);
     }
 
     """Get IR for a file path."""
     def get_ir(self: JacLangServer, file_path: str) -> Optional[uni.Module] {
-        file_path = file_path.removeprefix('file://');
         return self.mod.hub.get(file_path);
     }
 
@@ -105,17 +106,19 @@ class JacLangServer(JacProgram , LanguageServer) {
     """Rebuild a file (syntax only)."""
     def quick_check(self: JacLangServer, file_path: str) -> bool {
         try {
-            file_path_fs = file_path.removeprefix('file://');
             document = self.workspace.get_text_document(file_path);
-            self._clear_alerts_for_file(file_path_fs);
-            build = self.compile(use_str=document.source, file_path=document.path);
-            self.update_modules(file_path_fs, build, need=False);
+            fs_path = document.path;
+
+            self._clear_alerts_for_file(fs_path);
+            build = self.compile(use_str=document.source, file_path=fs_path);
+            self.update_modules(fs_path, build, need=False);
+            # to display diagnostics, it needs URI starts with "file://"
             self.publish_diagnostics(
                 file_path,
-                utils.gen_diagnostics(file_path, self.errors_had, self.warnings_had)
+                utils.gen_diagnostics(fs_path, self.errors_had, self.warnings_had)
             );
             build_errors =
-                [ e for e in self.errors_had if e.loc.mod_path == file_path_fs ];
+                [ e for e in self.errors_had if e.loc.mod_path == fs_path];
             return len(build_errors) == 0;
         } except Exception as e {
             self.log_error(f"'Error during syntax check: '{e}");
@@ -131,29 +134,31 @@ class JacLangServer(JacProgram , LanguageServer) {
     ) -> bool {
         try {
             start_time = time.time();
-            file_path_fs = file_path.removeprefix('file://');
             document = self.workspace.get_text_document(file_path);
-            self._clear_alerts_for_file(file_path_fs);
-            build = self.build(use_str=document.source, file_path=document.path);
-            self.update_modules(file_path_fs, build);
+            fs_path = document.path;
+
+            self._clear_alerts_for_file(fs_path);
+            build = self.compile(use_str=document.source, file_path=document.path,type_check=True);
+            self.update_modules(fs_path, build);
             if build.annexable_by {
                 return self.deep_check(
                     uris.from_fs_path(build.annexable_by),
-                    annex_view=file_path
+                    annex_view=fs_path
                 );
             }
             self.publish_diagnostics(
-                annex_view if annex_view else file_path,
+                # to display diagnostic , it need URI starts with "file://"
+                uris.from_fs_path(annex_view) if annex_view else uris.from_fs_path(fs_path) ,
                 utils.gen_diagnostics(
-                    annex_view if annex_view else file_path,
+                    annex_view if annex_view else fs_path,
                     self.errors_had,
                     self.warnings_had
                 )
             );
             if annex_view {
                 self.publish_diagnostics(
-                    file_path,
-                    utils.gen_diagnostics(file_path, self.errors_had, self.warnings_had)
+                    uris.from_fs_path(fs_path) ,
+                    utils.gen_diagnostics(fs_path, self.errors_had, self.warnings_had)
                 );
             }
             self.log_py(
@@ -166,34 +171,34 @@ class JacLangServer(JacProgram , LanguageServer) {
         }
     }
 
-    """Analyze and publish diagnostics."""
-    async def launch_quick_check(self: JacLangServer, uri: str) -> bool {
-        return await asyncio.get_event_loop().run_in_executor(
-            self.executor,
-            self.quick_check,
-            uri
-        );
+    """Analyze and publish diagnostics with debouncing."""
+    async def launch_quick_check(self: JacLangServer, uri: str, delay: float = 0.5) -> bool {
+        try {
+            return await self._debounced_run(self.quick_check, uri, delay, self._quick_tasks);
+        } except asyncio.CancelledError {
+            return False;
+        } except Exception as e {
+            self.log_error(f" 'Error during quick check launch: ' {e} ");
+            return False;
+        }
     }
-
-    """Analyze and publish diagnostics."""
-    async def launch_deep_check(self: JacLangServer, uri: str) -> None {
-        async def run_in_executor(
-            func: Callable[([str, Optional[str]], bool)],
-            file_path: str,
-            annex_view: Optional[str] = None
-        ) -> None {
-            loop = asyncio.get_event_loop();
-            await loop.run_in_executor(self.executor, func, file_path, annex_view);
+    """Analyze and publish diagnostics with debouncing."""
+    async def launch_deep_check(
+        self: JacLangServer,
+        uri: str,
+        delay: float = 1.0,
+        annex_view: Optional[str] = None
+    ) -> bool {
+        def deep_check_wrapper(file_uri: str) -> bool {
+            return self.deep_check(file_uri, annex_view);
         }
-        if uri in self.tasks and not self.tasks[uri].done()  {
-            self.log_py(f"'Canceling '{uri}' deep check...'");
-            self.tasks[uri].cancel();
-            del (self.tasks[uri], ) ;
+        try {
+            return await self._debounced_run(deep_check_wrapper, uri, delay, self._deep_tasks);
+        } except asyncio.CancelledError {
+            return False;
+        } except Exception as e {
+            self.log_error(f" 'Error during deep check launch: ' {e} ");
         }
-        self.log_py(f"'Analyzing '{uri}'...'");
-        task = asyncio.create_task(run_in_executor(self.deep_check, uri));
-        self.tasks[uri] = task;
-        await task;
     }
 
     """Return completion for a file."""
@@ -205,7 +210,7 @@ class JacLangServer(JacProgram , LanguageServer) {
     ) -> lspt.CompletionList {
         try {
             document = self.workspace.get_text_document(file_path);
-            mod_ir = self.get_ir(file_path);
+            mod_ir = self.get_ir(document.path);
             if not mod_ir {
                 return lspt.CompletionList(is_incomplete=False, items=[]);
             }
@@ -334,7 +339,7 @@ class JacLangServer(JacProgram , LanguageServer) {
     }
 
     """Return formatted jac."""
-    def formatted_jac(self: JacLangServer, file_path: str) -> <>list[lspt.TextEdit] {
+    def formatted_jac(self: JacLangServer, file_path: str) -> list[lspt.TextEdit] {
         try {
             document = self.workspace.get_text_document(file_path);
             formatted_text =
@@ -365,11 +370,12 @@ class JacLangServer(JacProgram , LanguageServer) {
         file_path: str,
         position: lspt.Position
     ) -> Optional[lspt.Hover] {
-        file_path_fs = file_path.removeprefix('file://');
-        if file_path_fs not in self.mod.hub {
+        fs_path = uris.to_fs_path(file_path);
+
+        if fs_path not in self.mod.hub {
             return None;
         }
-        sem_mgr = self.sem_managers.get(file_path_fs);
+        sem_mgr = self.sem_managers.get(fs_path);
         if not sem_mgr {
             return None;
         }
@@ -392,22 +398,25 @@ class JacLangServer(JacProgram , LanguageServer) {
     }
 
     """Extract meaningful information from the AST node."""
-    def get_node_info(self: JacLangServer, <>node: uni.AstSymbolNode) -> Optional[str] {
+    def get_node_info(self: JacLangServer, sym_node: uni.AstSymbolNode) -> Optional[str] {
         try {
-            if isinstance(<>node, uni.NameAtom) {
-                <>node = <>node.name_of;
+            if isinstance(sym_node, uni.NameAtom) {
+                sym_node = sym_node.name_of;
             }
-            access = (<>node.sym.access.value + ' ') if <>node.sym else None;
+            access = (sym_node.sym.access.value + ' ') if sym_node.sym else None;
             node_info =
-                f"'('{access if access else ''}{<>node.sym_category.value}') '{<>node.sym_name}";
-            if <>node.name_spec.clean_type {
-                node_info += f"': '{<>node.name_spec.clean_type}";
+                f"'('{access if access else ''}{sym_node.sym_category.value}') '{sym_node.sym_name}";
+            if sym_node.name_spec.clean_type {
+                node_info += f"': '{sym_node.name_spec.clean_type}";
             }
-            if isinstance(<>node, uni.AstDocNode) and <>node.doc  {
-                node_info += f"'\n'{<>node.doc.value}";
+            if isinstance(sym_node,uni.AstSymbolNode) and isinstance(sym_node.name_spec.type,ClassType) {
+                node_info += f"': '{sym_node.name_spec.type.shared.class_name}";
             }
-            if isinstance(<>node, uni.Ability) and <>node.signature  {
-                node_info += f"'\n'{<>node.signature.unparse()}";
+            if isinstance(sym_node, uni.AstDocNode) and sym_node.doc  {
+                node_info += f"'\n'{sym_node.doc.value}";
+            }
+            if isinstance(sym_node, uni.Ability) and sym_node.signature  {
+                node_info += f"'\n'{sym_node.signature.unparse()}";
             }
         } except AttributeError as e {
             self.log_warning(f"'Attribute error when accessing node attributes: '{e}");
@@ -416,10 +425,10 @@ class JacLangServer(JacProgram , LanguageServer) {
     }
 
     """Return document symbols for a file."""
-    def get_outline(self: JacLangServer, file_path: str) -> <>list[lspt.DocumentSymbol] {
-        file_path_fs = file_path.removeprefix('file://');
-        if file_path_fs in self.mod.hub
-        and (root_node := self.mod.hub[file_path_fs].sym_tab)
+    def get_outline(self: JacLangServer, file_path: str) -> list[lspt.DocumentSymbol] {
+        fs_path = uris.to_fs_path(file_path);
+        if fs_path in self.mod.hub
+        and (root_node := self.mod.hub[fs_path].sym_tab)
          {
             return utils.get_symbols_for_outline(root_node);
         }
@@ -432,11 +441,12 @@ class JacLangServer(JacProgram , LanguageServer) {
         file_path: str,
         position: lspt.Position
     ) -> Optional[lspt.Location] {
-        file_path_fs = file_path.removeprefix('file://');
-        if file_path_fs not in self.mod.hub {
+        fs_path = uris.to_fs_path(file_path);
+
+        if fs_path not in self.mod.hub {
             return None;
         }
-        sem_mgr = self.sem_managers.get(file_path_fs);
+        sem_mgr = self.sem_managers.get(fs_path);
         if not sem_mgr {
             return None;
         }
@@ -543,12 +553,13 @@ class JacLangServer(JacProgram , LanguageServer) {
         self: JacLangServer,
         file_path: str,
         position: lspt.Position
-    ) -> <>list[lspt.Location] {
-        file_path_fs = file_path.removeprefix('file://');
-        if file_path_fs not in self.mod.hub {
+    ) -> list[lspt.Location] {
+        fs_path = uris.to_fs_path(file_path);
+
+        if fs_path not in self.mod.hub {
             return [];
         }
-        sem_mgr = self.sem_managers.get(file_path_fs);
+        sem_mgr = self.sem_managers.get(fs_path);
         if not sem_mgr {
             return [];
         }
@@ -559,11 +570,11 @@ class JacLangServer(JacProgram , LanguageServer) {
         }
         node_selected = sem_mgr.static_sem_tokens[index1][3];
         if node_selected and node_selected.sym  {
-            list_of_references: <>list[lspt.Location] =
+            list_of_references: list[lspt.Location] =
                 [ lspt.Location(
-                    uri=uris.from_fs_path(<>node.loc.mod_path),
-                    range=utils.create_range(<>node.loc)
-                ) for <>node in node_selected.sym.uses ];
+                    uri=uris.from_fs_path(cur_node.loc.mod_path),
+                    range=utils.create_range(cur_node.loc)
+                ) for cur_node in node_selected.sym.uses ];
             return list_of_references;
         }
         return [];
@@ -576,11 +587,11 @@ class JacLangServer(JacProgram , LanguageServer) {
         position: lspt.Position,
         new_name: str
     ) -> Optional[lspt.WorkspaceEdit] {
-        file_path_fs = file_path.removeprefix('file://');
-        if file_path_fs not in self.mod.hub {
+        fs_path = uris.to_fs_path(file_path);
+        if fs_path not in self.mod.hub {
             return None;
         }
-        sem_mgr = self.sem_managers.get(file_path_fs);
+        sem_mgr = self.sem_managers.get(fs_path);
         if not sem_mgr {
             return None;
         }
@@ -591,12 +602,12 @@ class JacLangServer(JacProgram , LanguageServer) {
         }
         node_selected = sem_mgr.static_sem_tokens[index1][3];
         if node_selected and node_selected.sym  {
-            changes: <>dict[(str, <>list[lspt.TextEdit])] = {};
-            for <>node in [*node_selected.sym.uses, node_selected.sym.defn[0]] {
-                key = uris.from_fs_path(<>node.loc.mod_path);
+            changes: dict[(str, list[lspt.TextEdit])] = {};
+            for node in [*node_selected.sym.uses, node_selected.sym.defn[0]] {
+                key = uris.from_fs_path(node.loc.mod_path);
                 new_edit =
                     lspt.TextEdit(
-                        range=utils.create_range(<>node.loc),
+                        range=utils.create_range(node.loc),
                         new_text=new_name
                     );
                 utils.add_unique_text_edit(changes, key, new_edit);
@@ -608,8 +619,8 @@ class JacLangServer(JacProgram , LanguageServer) {
 
     """Return semantic tokens for a file."""
     def get_semantic_tokens(self: JacLangServer, file_path: str) -> lspt.SemanticTokens {
-        file_path_fs = file_path.removeprefix('file://');
-        sem_mgr = self.sem_managers.get(file_path_fs);
+        fs_path = uris.to_fs_path(file_path);
+        sem_mgr = self.sem_managers.get(fs_path);
         if not sem_mgr {
             return lspt.SemanticTokens(data=[]);
         }
@@ -638,4 +649,37 @@ class JacLangServer(JacProgram , LanguageServer) {
     def log_py(self: JacLangServer, message: str) -> None {
         logging.info(message);
     }
+
+    """Run a function with debouncing per file."""
+    async def _debounced_run(
+        self: JacLangServer,
+        func: Callable,
+        file_uri: str,
+        delay: float,
+        task_dict: dict[(str, asyncio.Task)]
+    ) -> None {
+        if ((file_uri in task_dict) and not task_dict[file_uri].done() ) {
+            task_dict[file_uri].cancel();
+            self.log_py(
+                f" {func.__name__} ' was cancelled due to debounce for ' {file_uri} "
+            );
+        }
+        async def wrapper() {
+            try {
+                await asyncio.sleep(delay);
+                loop = asyncio.get_event_loop();
+                result = await loop.run_in_executor(None, func, file_uri);
+                return result;
+            } except asyncio.CancelledError {
+                self.log_py(
+                    f" {func.__name__} ' was cancelled due to debounce for ' {file_uri} "
+                );
+                raise ;
+            }
+        }
+        new_task = asyncio.create_task(wrapper());
+        task_dict[file_uri] = new_task;
+        return await new_task;
+    }
+
 }

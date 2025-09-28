@@ -34,17 +34,17 @@ Here's what you'll build - just **200 lines of code** for a full social media pl
 
 === "LittleX.jac"
     ```jac linenums="1"
-    --8<-- "docs/learn/examples/littleX/src/littleX.jac:1:119"
+    --8<-- "docs/learn/examples/littleX/src/littleX.jac"
     ```
 
 === "LittleX.impl.jac"
     ```jac linenums="1"
-    --8<-- "docs/learn/examples/littleX/src/littleX.impl.jac:1:119"
+    --8<-- "docs/learn/examples/littleX/src/littleX.impl.jac"
     ```
 
 === "LittleX.test.jac"
     ```jac linenums="1"
-    --8<-- "docs/learn/examples/littleX/src/littleX.test.jac:1:88"
+    --8<-- "docs/learn/examples/littleX/src/littleX.test.jac"
     ```
 
 ---
@@ -233,10 +233,10 @@ walker create_tweet(visit_profile) {
 }
 
 impl create_tweet.tweet {
-    embedding = sentence_transformer.encode(self.content).tolist();
-    tweet_node = here +>:Post:+> Tweet(content=self.content, embedding=embedding);
-    grant(tweet_node[0], level=ConnectPerm);
-    report tweet_node;
+        embedding = vectorizer.fit_transform([self.content]).toarray().tolist();
+        tweet_node = here +>:Post():+> Tweet(content=self.content, embedding=embedding);
+        grant(tweet_node[0], level=ConnectPerm);
+        report tweet_node;
 }
 ```
 
