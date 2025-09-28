@@ -9,6 +9,8 @@ from jaclang.runtimelib.archetype import (
     NodeArchetype,
 )
 
+import networkx as nx
+
 from .info_extract import _extract_name
 
 
@@ -17,6 +19,7 @@ class JacPIMStaticCtx:
 
     all_nodes: list[NodeArchetype] | None = None
     all_edges: list[EdgeArchetype] | None = None
+    network: nx.DiGraph | None = None
 
     @classmethod
     def _get_graph_nodes_and_edges(
@@ -50,3 +53,37 @@ class JacPIMStaticCtx:
         if cls.all_edges is None:
             raise RuntimeError("all_edges is None")
         return cls.all_edges
+
+    @classmethod
+    def get_networkx(cls) -> nx.DiGraph:
+        """Get the networkx construction for JacPIM."""
+        if cls.network is not None:
+            return cls.network
+
+        graph = nx.DiGraph()
+
+        for idx, node_arch in enumerate(cls.get_all_nodes()):
+            # Add node with detailed annotations
+            graph.add_node(idx, archetype=node_arch)
+
+        # Assign colors by node_type
+        # node_types = nx.get_node_attributes(graph, "node_type")
+        # unique_types = sorted(set(node_types.values()))
+        # cmap = plt.get_cmap("tab10")
+        # color_map = {t: cmap(i) for i, t in enumerate(unique_types)}
+
+        # Store color in node attribute
+        # for idx, node in enumerate(graph.nodes()):
+        #     graph.nodes[node]["color"] = color_map[graph.nodes[node]["node_type"]]
+        #     graph.nodes[node]["is_starting_node"] = (
+        #         len(cls.get_all_nodes()[idx].spawned_walker_archetypes)
+        #     ) > 0
+
+        for _idx, edge_arch in enumerate(cls.get_all_edges()):
+            graph.add_edge(
+                cls.get_all_nodes().index(edge_arch.__jac__.source.archetype),
+                cls.get_all_nodes().index(edge_arch.__jac__.target.archetype),
+                edge_type=_extract_name(edge_arch),
+            )
+
+        return graph
