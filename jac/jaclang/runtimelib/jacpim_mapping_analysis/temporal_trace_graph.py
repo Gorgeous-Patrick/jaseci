@@ -194,8 +194,11 @@ def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.DiGraph:
     ttt_nodes: list[tuple[int, TemporalTraceTreeNode]] = [(0, ttt_node)]
     while len(ttt_nodes) > 0:
         step, ttt_node = ttt_nodes.pop(0)
-        print(ttt_node.idx is None)
+        if ttt_node.idx is None:
+            raise RuntimeError("parent idx is None")
         for neighbor in ttt_node.conditional_next_nodes:
+            if neighbor.idx is None:
+                continue
             graph.add_edge(
                 ttt_node.idx,
                 neighbor.idx,
@@ -203,6 +206,8 @@ def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.DiGraph:
             )
             ttt_nodes.append((step + 1, neighbor))
         for neighbor in ttt_node.parallel_next_nodes:
+            if neighbor.idx is None:
+                continue
             graph.add_edge(
                 ttt_node.idx,
                 neighbor.idx,

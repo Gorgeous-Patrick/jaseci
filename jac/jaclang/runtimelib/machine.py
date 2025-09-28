@@ -56,6 +56,7 @@ from jaclang.runtimelib.constructs import (
     WalkerArchetype,
 )
 from jaclang.runtimelib.jacpim_mapping_analysis import JacPIMMappingCtx
+from jaclang.runtimelib.jacpim_mapping_analysis.plot import plot_ttg
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -1574,6 +1575,7 @@ class JacPIM:
         )
         mapping_ctx = JacPIMMappingCtx
         mapping_ctx.setter(start_node, walker)
+        plot_ttg(mapping_ctx.ttg, static_ctx.get_layout(), "temp.png")
 
 
 class JacMachineInterface(

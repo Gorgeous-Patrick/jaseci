@@ -9,6 +9,8 @@ from jaclang.runtimelib.jacpim_mapping_analysis.temporal_trace_graph import (
 from jaclang.runtimelib.jacpim_static_analysis import JacPIMStaticCtx
 from jaclang.runtimelib.jacpim_static_analysis.info_extract import extract_name
 
+import networkx
+
 
 def get_walker_code(walker: WalkerArchetype) -> uni.Archetype:
     """Get the walker type code from walker instance."""
@@ -24,14 +26,22 @@ class JacPIMMappingCtx:
     """JacPIM Mapping Phase global context."""
 
     mapping: dict[NodeArchetype, int] | None
+    ttg: networkx.DiGraph | None
 
     @classmethod
     def setter(cls, start_node: NodeArchetype, walker: WalkerArchetype) -> None:
         """Set all the values in the context."""
         static_ctx = JacPIMStaticCtx
         walker_code = get_walker_code(walker)
-        get_ttg_from_ttt(
+        cls.ttg = get_ttg_from_ttt(
             get_access_pattern_single_walker(
                 start_node, static_ctx.get_networkx(), walker_code
             )
         )
+
+    @classmethod
+    def get_ttg(cls) -> networkx.DiGraph:
+        """Read the Temporal Trace Graph."""
+        if cls.ttg is None:
+            raise RuntimeError("TTG is None!")
+        return cls.ttg
