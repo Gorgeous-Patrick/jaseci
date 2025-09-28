@@ -55,6 +55,7 @@ from jaclang.runtimelib.constructs import (
     WalkerAnchor,
     WalkerArchetype,
 )
+from jaclang.runtimelib.jacpim_mapping_analysis import JacPIMMappingCtx
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -1562,15 +1563,17 @@ class JacPIM:
     """Jaclang PIM support."""
 
     @staticmethod
-    def jacpim_start() -> None:
+    def jacpim_start(start_node: NodeArchetype, walker: WalkerArchetype) -> None:
         """Imaginary entry point of JacPIM."""
-        ctx: jacpim_static_analysis.JacPIMStaticCtx = (
+        static_ctx: jacpim_static_analysis.JacPIMStaticCtx = (
             jacpim_static_analysis.JacPIMStaticCtx()
         )
-        ctx.set_graph_nodes_and_edges(JacMachine.get_context())
+        static_ctx.setter(JacMachine.get_context(), JacMachine.program)
         jacpim_static_analysis.plot_one_graph(
-            ctx.get_networkx(), ctx.get_layout(), "temp.png"
+            static_ctx.get_networkx(), static_ctx.get_layout(), "temp.png"
         )
+        mapping_ctx = JacPIMMappingCtx
+        mapping_ctx.setter(start_node, walker)
 
 
 class JacMachineInterface(

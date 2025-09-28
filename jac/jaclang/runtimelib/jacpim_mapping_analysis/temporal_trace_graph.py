@@ -3,7 +3,13 @@
 from dataclasses import dataclass
 
 import jaclang.compiler.unitree as uni
-from jaclang.runtimelib.jacpim_static_analysis import VisitInfo, get_walker_info
+from jaclang.runtimelib.archetype import NodeArchetype
+from jaclang.runtimelib.jacpim_static_analysis import (
+    VisitInfo,
+    get_walker_info,
+    static_ctx,
+)
+from jaclang.runtimelib.jacpim_static_analysis.info_extract import extract_name
 
 import networkx as nx
 
@@ -20,14 +26,14 @@ class TemporalTraceTreeNode:
 def print_ttt(node: TemporalTraceTreeNode) -> None:
     """Print temporal trace tree."""
     print("================")
-    _print_ttg_simple(node)
+    _print_ttt_simple(node)
 
 
-def _print_ttg_simple(node: TemporalTraceTreeNode, level: int = 0) -> None:
+def _print_ttt_simple(node: TemporalTraceTreeNode, level: int = 0) -> None:
     indent = "    " * level
     print(f"{indent}{node.idx}")
     for child in node.conditional_next_nodes + node.parallel_next_nodes:
-        _print_ttg_simple(child, level + 1)
+        _print_ttt_simple(child, level + 1)
 
 
 @dataclass
@@ -36,7 +42,7 @@ class WalkerState:
 
     container: list[int]
     # path: list[int]
-    ttg_node: TemporalTraceTreeNode
+    ttt_node: TemporalTraceTreeNode
 
 
 def filter_neighbors(node_idx: int, network: nx.DiGraph, visit: VisitInfo) -> list[int]:
@@ -47,9 +53,13 @@ def filter_neighbors(node_idx: int, network: nx.DiGraph, visit: VisitInfo) -> li
     for neighbor_idx in network.neighbors(node_idx):
         # Get edge data between current node and neighbor
         edge_data = network.get_edge_data(node_idx, neighbor_idx)
+
         if edge_data is None:
             continue
-        edge_type = edge_data.get("edge_type")
+        edge_arch = edge_data.get("archetype")
+        if edge_arch is None:
+            raise RuntimeError("Archetype not found")
+        edge_type = extract_name(edge_arch)
 
         if visit.edge_type is None or visit.edge_type == edge_type:
             filtered_neighbors.append(neighbor_idx)
@@ -72,7 +82,7 @@ def exec_sync_visit_sequence(
         )  # TODO: Insert one by one with regard to the visit index.
         # print(f"At node {node}, going to {filtered_neighbors} with visit {visit}")
 
-    new_ttg_node = TemporalTraceTreeNode(
+    new_ttt_node = TemporalTraceTreeNode(
         idx=new_container[0] if len(new_container) > 0 else None,
         conditional_next_nodes=[],
         parallel_next_nodes=[],
@@ -80,7 +90,7 @@ def exec_sync_visit_sequence(
 
     return WalkerState(
         container=new_container,
-        ttg_node=new_ttg_node,
+        ttt_node=new_ttt_node,
     )
 
 
@@ -98,7 +108,7 @@ def get_new_walker_states(
             )
             for neighbor in filtered_neighbors:
                 new_container = [neighbor]
-                new_ttg_node = TemporalTraceTreeNode(
+                new_ttt_node = TemporalTraceTreeNode(
                     idx=new_container[0] if len(new_container) > 0 else None,
                     conditional_next_nodes=[],
                     parallel_next_nodes=[],
@@ -106,24 +116,25 @@ def get_new_walker_states(
                 new_states.append(
                     WalkerState(
                         container=new_container,
-                        ttg_node=new_ttg_node,
+                        ttt_node=new_ttt_node,
                     )
                 )
     return new_states
 
 
 def get_access_pattern_single_walker(
-    start_idx: int,
+    start_node: NodeArchetype,
     network: nx.DiGraph,
     walker_type: uni.Archetype,
     target_node_cnt: int = 100000,
 ) -> TemporalTraceTreeNode:
     """Get the access pattern for a single walker spawn."""
-    root_ttg_node = TemporalTraceTreeNode(
+    start_idx = static_ctx.JacPIMStaticCtx.get_all_nodes().index(start_node)
+    root_ttt_node = TemporalTraceTreeNode(
         idx=start_idx, conditional_next_nodes=[], parallel_next_nodes=[]
     )
     active_state_set: list[WalkerState] = [
-        WalkerState(container=[start_idx], ttg_node=root_ttg_node)
+        WalkerState(container=[start_idx], ttt_node=root_ttt_node)
     ]
     visit_sequences = get_walker_info(walker_type)
     # paths: list[list[int]] = []
@@ -132,35 +143,70 @@ def get_access_pattern_single_walker(
         cnt += 1
         state = active_state_set.pop(0)
         node = state.container[0]
-        node_type = str(network.nodes[node].get("node_type"))
+        node_arch = network.nodes[node].get("archetype")
+        if node_arch is None:
+            raise RuntimeError("NodeArchetype Not found")
+        node_type = extract_name(node_arch)
         new_state_set = get_new_walker_states(
             state, network, visit_sequences[node_type]
         )
-        state.ttg_node.conditional_next_nodes = [
-            new_state.ttg_node for new_state in new_state_set
+        state.ttt_node.conditional_next_nodes = [
+            new_state.ttt_node for new_state in new_state_set
         ]
         for new_state in new_state_set:
             if len(new_state.container) > 0 and new_state.container[0] is not None:
                 active_state_set.append(new_state)
 
-        # print(f"Going from {node} to {[new_state.ttg_node.idx for new_state in new_state_set]}")
-    return root_ttg_node
+    return root_ttt_node
 
 
-def get_paths_from_ttg(
-    ttg_node: TemporalTraceTreeNode, current_path: list[int] | None = None
+def get_paths_from_ttt(
+    ttt_node: TemporalTraceTreeNode, current_path: list[int] | None = None
 ) -> list[list[int]]:
     """Extract all paths from the TTG."""
     if current_path is None:
         current_path = []
-    if ttg_node.conditional_next_nodes == []:
+    if ttt_node.conditional_next_nodes == []:
         return [current_path.copy()]
-    assert ttg_node.idx is not None
-    current_path.append(ttg_node.idx)
+    assert ttt_node.idx is not None
+    current_path.append(ttt_node.idx)
     paths = []
-    for next_node in ttg_node.conditional_next_nodes:
-        paths.extend(get_paths_from_ttg(next_node, current_path))
-    for next_node in ttg_node.parallel_next_nodes:
-        paths.extend(get_paths_from_ttg(next_node, current_path))
+    for next_node in ttt_node.conditional_next_nodes:
+        paths.extend(get_paths_from_ttt(next_node, current_path))
+    for next_node in ttt_node.parallel_next_nodes:
+        paths.extend(get_paths_from_ttt(next_node, current_path))
     current_path.pop()
     return paths
+
+
+@dataclass
+class TTGEdgeAttribute:
+    """Attributes of the Temporal Trace Graph Edges."""
+
+    is_parallel_edge: bool
+    timestamp: int
+
+
+def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.DiGraph:
+    """Generate the Temporal Trace Graph from ttt."""
+    graph = static_ctx.JacPIMStaticCtx.get_networkx().copy()
+    graph.clear_edges()
+    ttt_nodes: list[tuple[int, TemporalTraceTreeNode]] = [(0, ttt_node)]
+    while len(ttt_nodes) > 0:
+        step, ttt_node = ttt_nodes.pop(0)
+        print(ttt_node.idx is None)
+        for neighbor in ttt_node.conditional_next_nodes:
+            graph.add_edge(
+                ttt_node.idx,
+                neighbor.idx,
+                ttg_attr=TTGEdgeAttribute(is_parallel_edge=False, timestamp=step),
+            )
+            ttt_nodes.append((step + 1, neighbor))
+        for neighbor in ttt_node.parallel_next_nodes:
+            graph.add_edge(
+                ttt_node.idx,
+                neighbor.idx,
+                ttg_attr=TTGEdgeAttribute(is_parallel_edge=True, timestamp=step),
+            )
+            ttt_nodes.append((step + 1, neighbor))
+    return graph

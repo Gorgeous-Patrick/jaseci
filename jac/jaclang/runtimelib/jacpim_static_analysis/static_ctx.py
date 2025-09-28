@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from jaclang.compiler.program import JacProgram
 from jaclang.runtimelib.archetype import (
     EdgeAnchor,
     EdgeArchetype,
@@ -11,7 +12,7 @@ from jaclang.runtimelib.archetype import (
 
 import networkx as nx
 
-from .info_extract import _extract_name
+from .info_extract import extract_name
 
 
 class JacPIMStaticCtx:
@@ -21,24 +22,27 @@ class JacPIMStaticCtx:
     all_edges: list[EdgeArchetype] | None = None
     network: nx.DiGraph | None = None
     layout: dict | None = None
+    program: JacProgram | None = None
 
     @classmethod
-    def set_graph_nodes_and_edges(
+    def setter(
         cls,
         jctx: Any,  # noqa: ANN401, to avoid circular dependency
+        program: JacProgram,
     ) -> None:
         """Store the nodes and the edges using the context."""
+        cls.program = program
         all_nodes = [
             node.archetype
             for node in jctx.mem.__mem__.values()
-            if isinstance(node, NodeAnchor) and _extract_name(node.archetype) != "Root"
+            if isinstance(node, NodeAnchor) and extract_name(node.archetype) != "Root"
         ]
         all_edges = [
             edge.archetype
             for edge in jctx.mem.__mem__.values()
             if isinstance(edge, EdgeAnchor)
-            and _extract_name(edge.target.archetype) != "Root"
-            and _extract_name(edge.source.archetype) != "Root"
+            and extract_name(edge.target.archetype) != "Root"
+            and extract_name(edge.source.archetype) != "Root"
         ]
         cls.all_nodes, cls.all_edges = all_nodes, all_edges
 
@@ -96,3 +100,10 @@ class JacPIMStaticCtx:
         if cls.layout is None:
             cls.layout = nx.kamada_kawai_layout(cls.get_networkx())
         return cls.layout
+
+    @classmethod
+    def get_jac_program(cls) -> JacProgram:
+        """Get the JacProgram."""
+        if cls.program is None:
+            raise RuntimeError("JacProgram Not set.")
+        return cls.program

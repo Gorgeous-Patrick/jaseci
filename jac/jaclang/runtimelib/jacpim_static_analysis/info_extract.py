@@ -23,7 +23,7 @@ class JacPIMEdgeInfo:
     type_name: str
 
 
-def _extract_name(input: Archetype) -> str:
+def extract_name(input: Archetype) -> str:
     """Split the name by left bracket."""
     return str(input).split(chr(40))[0]
 
@@ -31,7 +31,7 @@ def _extract_name(input: Archetype) -> str:
 def get_node_info_from_node_arch(node: NodeArchetype) -> JacPIMNodeInfo:
     """Extract node information."""
     return JacPIMNodeInfo(
-        type_name=_extract_name(node),
+        type_name=extract_name(node),
         display_name=getattr(node, "id", None),
         node_size_bytes=calculate_size(node),
     )
@@ -39,4 +39,4 @@ def get_node_info_from_node_arch(node: NodeArchetype) -> JacPIMNodeInfo:
 
 def get_edge_info_from_edge_arch(edge: EdgeArchetype) -> JacPIMEdgeInfo:
     """Extract edge information."""
-    return JacPIMEdgeInfo(type_name=_extract_name(edge))
+    return JacPIMEdgeInfo(type_name=extract_name(edge))
