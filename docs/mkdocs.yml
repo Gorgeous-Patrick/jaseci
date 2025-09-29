@@ -12,11 +12,9 @@ nav:
     - Native Superset of Python: "learn/superset_python.md"
     - Jac Playground: "learn/jac_playground.md"
     - Learn By Example:
-      - LittleX (your own twitter):
-        - "learn/examples/littleX/tutorial.md"
+      - LittleX (your own twitter): "learn/examples/littleX/tutorial.md"
         # - "learn/examples/littleX/full_guide.md"
-      - Jac MCP Conversational Chatbot:
-        - "learn/examples/rag_chatbot/Overview.md"
+      - Jac MCP Conversational Chatbot: "learn/examples/rag_chatbot/Overview.md"
         # - "learn/examples/rag_chatbot/Tutorial.md"
       - RPG game with AI Genarated Maps: "learn/examples/mtp_examples/rpg_game.md"
       - Agentic Fantasy Trading Game: "learn/examples/mtp_examples/fantasy_trading_game.md"

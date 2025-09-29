@@ -12,9 +12,6 @@ You'll create a chatbot that can:
 - Understand and discuss images and videos using AI vision
 - Route different types of questions to specialized AI handlers
 
-![Chatbot Workflow](images/image.png)
-
-*The AI-powered chatbot in action, demonstrating its multi modality and mcp tool calling while maintaining conversational context.*
 
 ## What You'll Learn
 
@@ -34,13 +31,55 @@ You'll create a chatbot that can:
 
 ## Project Structure
 
-We'll create five main files:
+We'll create six main files:
 
 - `client.jac`: The web interface for chat and file uploads
 - `server.jac`: The main application using Object Spatial Programming
+- `server.impl.jac`: Implementation details and function bodies for `server.jac` (automatically imported by Jac)
 - `mcp_server.jac`: Tool server for document search and web search
 - `mcp_client.jac`: Interface to communicate with tools
 - `tools.jac`: Document processing and search logic
+
+### Complete Code Preview
+
+Here's what you'll build - a full AI-powered multimodal MCP chatbot:
+
+=== "Frontend Preview"
+    ![Chatbot Workflow](images/image.png)
+
+=== "client.jac"
+    ```jac linenums="1"
+    --8<-- "docs/learn/examples/rag_chatbot/solution/client.jac"
+    ```
+
+=== "server.jac"
+    ```jac linenums="1"
+    --8<-- "docs/learn/examples/rag_chatbot/solution/server.jac"
+    ```
+
+=== "server.impl.jac"
+    ```jac linenums="1"
+    --8<-- "docs/learn/examples/rag_chatbot/solution/server.impl.jac"
+    ```
+
+=== "mcp_server.jac"
+    ```jac linenums="1"
+    --8<-- "docs/learn/examples/rag_chatbot/solution/mcp_server.jac"
+    ```
+
+=== "mcp_client.jac"
+    ```jac linenums="1"
+    --8<-- "docs/learn/examples/rag_chatbot/solution/mcp_client.jac"
+    ```
+
+=== "tools.jac"
+    ```jac linenums="1"
+    --8<-- "docs/learn/examples/rag_chatbot/solution/tools.jac"
+    ```
+
+The full source code for this project is also available at: [https://github.com/jaseci-labs/Agentic-AI/tree/main/jac-mcp-chatbot](https://github.com/jaseci-labs/Agentic-AI/tree/main/jac-mcp-chatbot)
+
+---
 
 ## Step 1: Set Up Your Environment
 
@@ -61,84 +100,27 @@ export SERPER_API_KEY=<your-serper-key>
 
 If you see no errors, you're ready to start building!
 
-## Step 2: Build the Document Processing Engine
+## Step 2: Understanding the Architecture
 
-We'll start by creating the core engine that processes and searches your documents. Create `tools.jac`:
+Your application uses Jac's Object Spatial Programming to create a clean, modular design:
 
-=== "tools.jac"
-    ```jac linenums="1"
-    --8<-- "docs/learn/examples/rag_chatbot/solution/tools.jac"
-    ```
+**Nodes** represent different parts of your system (Router, Chat types, Sessions). Each node has specific responsibilities and capabilities.
 
-This engine is the foundation of your chatbot. It processes your uploaded documents, splits them into chunks, creates embeddings, and stores them for efficient search. Let's break down what it does:
+**Walkers** move through your node network, carrying information and executing logic. They represent the actions your system can perform.
 
-- **Document Processing**: Reads PDFs and text files, extracting their content
-- **Text Chunking**: Splits large documents into smaller, searchable pieces
-- **Vector Embeddings**: Converts text into numerical representations for semantic search
-- **Storage**: Uses ChromaDB to store and index your documents
+**Mean Typed Programming (MTP)** lets AI automatically classify and route requests, making your application intelligent without complex rule-based logic.
 
-## Step 3: Build the Tool Server
+**Implementation Separation**: The `server.jac` file contains the high-level structure and logic, while `server.impl.jac` provides the detailed function implementations. Jac seamlessly imports the implementation file, allowing for clean separation of concerns.
 
-Now create the MCP server that exposes document search and web search as tools. Create `mcp_server.jac`:
+The application consists of:
 
-=== "mcp_server.jac"
-    ```jac linenums="1"
-    --8<-- "docs/learn/examples/rag_chatbot/solution/mcp_server.jac"
-    ```
+- **Document Processing Engine** (`tools.jac`): Processes and searches documents using vector embeddings
+- **Tool Server** (`mcp_server.jac`): Exposes document and web search as MCP tools
+- **Tool Client** (`mcp_client.jac`): Interfaces with the tool server
+- **Main Application** (`server.jac` + `server.impl.jac`): Routes queries and manages conversations
+- **Web Interface** (`client.jac`): User-friendly Streamlit interface
 
-This server exposes two tools: one for searching your uploaded documents and another for web search. The FastMCP framework makes it easy to create these modular tools that your main application can use.
-
-## Step 4: Create the Tool Interface
-
-Next, create `mcp_client.jac` to communicate with your tool server:
-
-=== "mcp_client.jac"
-    ```jac linenums="1"
-    --8<-- "docs/learn/examples/rag_chatbot/solution/mcp_client.jac"
-    ```
-
-This client handles the communication between your main application and the tools.
-
-## Step 5: Create the Main Application with Object Spatial Programming
-
-Now for the core application logic. Create `server.jac`:
-
-=== "server.jac"
-    ```jac linenums="1"
-    --8<-- "docs/learn/examples/rag_chatbot/solution/server.jac"
-    ```
-
-Let's break down what we just built:
-
-**Router Node**: This is the brain of your application. It uses Mean Typed Programming (MTP) to automatically classify user questions and route them to the right specialist.
-
-**Specialized Chat Nodes**: Each type of question gets its own expert:
-
-- `RagChat`: Handles document-based questions
-- `QAChat`: Manages general questions and web search
-- `ImageChat`: Processes image-related conversations
-- `VideoChat`: Handles video discussions
-
-**Session Management**: The `Session` node keeps track of each user's conversation history and uploaded files.
-
-**Walkers**: These handle the flow of your application:
-
-- `infer`: Routes questions to the right chat node
-- `interact`: Manages conversations and maintains session state
-- `upload_file`: Processes file uploads
-
-## Step 6: Build the Web Interface
-
-Finally, create the user-friendly interface with `client.jac`:
-
-=== "client.jac"
-    ```jac linenums="1"
-    --8<-- "docs/learn/examples/rag_chatbot/solution/client.jac"
-    ```
-
-This creates a clean, intuitive interface where users can register, log in, upload files, and chat with the AI.
-
-## Step 7: Run Your Application
+## Step 3: Run Your Application
 
 Now let's see your creation in action! You'll need three terminal windows:
 
@@ -159,7 +141,7 @@ jac streamlit client.jac
 
 If everything starts successfully, open your browser and go to the Streamlit URL (typically `http://localhost:8501`).
 
-## Step 8: Test Your Chatbot
+## Step 4: Test Your Chatbot
 
 1. **Register and log in** using the web interface
 2. **Upload some files**: Try PDFs, text files, images, or videos
@@ -171,16 +153,6 @@ The system will automatically route your questions:
 - General questions use web search
 - Image questions use vision AI
 - Video questions analyze video content
-
-## Understanding the Architecture
-
-Your application uses Jac's Object Spatial Programming to create a clean, modular design:
-
-**Nodes** represent different parts of your system (Router, Chat types, Sessions). Each node has specific responsibilities and capabilities.
-
-**Walkers** move through your node network, carrying information and executing logic. They represent the actions your system can perform.
-
-**Mean Typed Programming (MTP)** lets AI automatically classify and route requests, making your application intelligent without complex rule-based logic.
 
 ## What You've Accomplished
 
