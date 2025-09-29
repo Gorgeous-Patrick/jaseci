@@ -1575,7 +1575,23 @@ class JacPIM:
         )
         mapping_ctx = JacPIMMappingCtx
         mapping_ctx.setter(start_node, walker)
-        plot_ttg(mapping_ctx.ttg, static_ctx.get_layout(), "temp.png")
+        plot_ttg(mapping_ctx.get_ttg(), static_ctx.get_layout(), "temp.png")
+
+    @classmethod
+    def par_visit(
+        cls,
+        old_walker: WalkerArchetype,
+        new_walker: WalkerArchetype,
+        destinations: list[EdgeArchetype],
+    ) -> None:
+        """Parallelly visit nodes."""
+        pass
+        # original_task_id = old_walker.__jac__.current_task_id
+        # for _, destination in enumerate(destinations):
+        #     pass
+
+        # JacMachine.spawn(new_walker, destination, task_dependency=original_task_id)
+        # current_task_id_after = old_walker.__jac__.current_task_id
 
 
 class JacMachineInterface(
