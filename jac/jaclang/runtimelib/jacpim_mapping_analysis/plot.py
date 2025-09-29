@@ -11,6 +11,7 @@ import networkx as nx
 
 def plot_ttg(graph: nx.MultiDiGraph, pos: dict, filename: str) -> None:
     """Plot and save one graph."""
+    print(graph)
     plt.figure()
     nx.draw_networkx_nodes(graph, pos, node_size=100)
     display_names = {

@@ -139,7 +139,8 @@ def get_access_pattern_single_walker(
     visit_sequences = get_walker_info(walker_type)
     # paths: list[list[int]] = []
     cnt = 0
-    while len(active_state_set) > 0 and cnt < target_node_cnt:
+    while len(active_state_set) > 0 and cnt < min(target_node_cnt, len(network.nodes)):
+        print_ttt(root_ttt_node)
         cnt += 1
         state = active_state_set.pop(0)
         node = state.container[0]
@@ -189,6 +190,8 @@ class TTGEdgeAttribute:
 
 def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.MultiDiGraph:
     """Generate the Temporal Trace Graph from ttt."""
+    # print(get_paths_from_ttt(ttt_node))
+    print_ttt(ttt_node)
     graph = static_ctx.JacPIMStaticCtx.get_networkx().copy()
     graph.clear_edges()
     ttt_nodes: list[tuple[int, TemporalTraceTreeNode]] = [(0, ttt_node)]
@@ -204,6 +207,7 @@ def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.MultiDiGraph:
                 neighbor.idx,
                 ttg_attr=TTGEdgeAttribute(is_parallel_edge=False, timestamp=step),
             )
+            # print(f"DEBUG: Edge from {ttt_node.idx} to {neighbor.idx}")
             ttt_nodes.append((step + 1, neighbor))
         for neighbor in ttt_node.parallel_next_nodes:
             if neighbor.idx is None:
@@ -213,5 +217,6 @@ def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.MultiDiGraph:
                 neighbor.idx,
                 ttg_attr=TTGEdgeAttribute(is_parallel_edge=True, timestamp=step),
             )
+            # print(f"DEBUG: Parallel Edge from {ttt_node.idx} to {neighbor.idx}")
             ttt_nodes.append((step + 1, neighbor))
     return graph
