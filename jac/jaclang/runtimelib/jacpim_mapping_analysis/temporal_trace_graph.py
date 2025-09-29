@@ -140,7 +140,6 @@ def get_access_pattern_single_walker(
     # paths: list[list[int]] = []
     cnt = 0
     while len(active_state_set) > 0 and cnt < min(target_node_cnt, len(network.nodes)):
-        print_ttt(root_ttt_node)
         cnt += 1
         state = active_state_set.pop(0)
         node = state.container[0]
