@@ -510,6 +510,12 @@ class TypeEvaluator:
             if base_cls.shared == dest_type.shared:
                 return True
 
+        # Everything is assignable to an object.
+        if dest_type.is_builtin("object"):
+            # TODO: Invariance not handled yet
+            # invariant contexts to avoid list[int] <: list[object] errors.
+            return True
+
         # Integers can be used where floats are expected.
         if src_type.is_builtin("int") and dest_type.is_builtin("float"):
             return True
