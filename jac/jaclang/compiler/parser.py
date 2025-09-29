@@ -900,15 +900,20 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 cur_state = self._update_parameter_state(cur_nd, cur_state)
                 if isinstance(cur_nd, uni.ParamVar):
                     if cur_state == "positional":
+                        cur_nd.param_kind = uni.ParamKind.NORMAL
                         params.append(cur_nd)
                     elif cur_state == "posonly":
+                        cur_nd.param_kind = uni.ParamKind.POSONLY
                         posonly_params.append(cur_nd)
                     elif cur_state == "varargs":
+                        cur_nd.param_kind = uni.ParamKind.VARARG
                         varargs = cur_nd
                         cur_state = "keyword_only"
                     elif cur_state == "keyword_only":
+                        cur_nd.param_kind = uni.ParamKind.KWONLY
                         kwonlyargs.append(cur_nd)
                     elif cur_state == "kwargs":
+                        cur_nd.param_kind = uni.ParamKind.KWARG
                         kwargs = cur_nd
                     else:
                         raise self.ice()
@@ -935,9 +940,9 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     return cur_state
 
             elif isinstance(cur_nd, uni.ParamVar):
-                if cur_nd.unpack and cur_nd.unpack.name == Tok.STAR_MUL:
+                if cur_nd.is_vararg:
                     return "varargs"
-                elif cur_nd.unpack and cur_nd.unpack.name == Tok.STAR_POW:
+                if cur_nd.is_kwargs:
                     return "kwargs"
             return cur_state
 

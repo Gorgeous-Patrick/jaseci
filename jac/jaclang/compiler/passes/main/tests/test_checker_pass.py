@@ -143,7 +143,26 @@ class TypeCheckerPassTests(TestCase):
             ^^^^^^^^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
-    def check_param_arg_match(self) -> None:
+    def test_arity(self) -> None:
+        path = self.fixture_abs_path("checker_arity.jac")
+        program = JacProgram()
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 3)
+        self._assert_error_pretty_found("""
+            f.first_is_self(f); # <-- Error
+                            ^
+        """, program.errors_had[0].pretty_print())
+        self._assert_error_pretty_found("""
+            f.with_default_args(1, 2, 3); # <-- Error
+                                      ^
+        """, program.errors_had[1].pretty_print())
+        self._assert_error_pretty_found("""
+            f.with_default_args();        # <-- Error
+            ^^^^^^^^^^^^^^^^^^^^^
+        """, program.errors_had[2].pretty_print())
+
+    def test_param_types(self) -> None:
         path = self.fixture_abs_path("checker_param_types.jac")
         program = JacProgram()
         mod = program.compile(path)
@@ -154,6 +173,103 @@ class TypeCheckerPassTests(TestCase):
             foo(B()); # <-- Error
                 ^^^
         """, program.errors_had[0].pretty_print())
+
+    def test_param_arg_match(self) -> None:
+        path = self.fixture_abs_path("checker_param_types.jac")
+        program = JacProgram()
+        path = self.fixture_abs_path("checker_arg_param_match.jac")
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 13)
+
+        expected_errors = [
+            """
+            Not all required parameters were provided in the function call: 'a'
+                     f = Foo();
+                     f.bar();
+                     ^^^^^^^
+            """,
+            """
+            Too many positional arguments
+                     f.bar();
+                     f.bar(1);
+                     f.bar(1, 2);
+                              ^
+            """,
+            """
+            Not all required parameters were provided in the function call: 'self', 'a'
+                     f.bar(1, 2);
+                     f.baz();
+                     ^^^^^^^
+            """,
+            """
+            Not all required parameters were provided in the function call: 'a'
+                     f.baz();
+                     f.baz(1);
+                     ^^^^^^^^
+            """,
+            """
+            Not all required parameters were provided in the function call: 'f'
+                     foo(1, 2, d=3, e=4, f=5, c=4);  # order does not matter for named
+                     foo(1, 2, 3, d=4, e=5, g=7, h=8); # missing argument 'f'
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            """,
+            """
+            Positional only parameter 'b' cannot be matched with a named argument
+                     foo(1, 2, 3, d=4, e=5, g=7, h=8); # missing argument 'f'
+                     foo(1, b=2, c=3, d=4, e=5, f=6); # b is positional only
+                            ^^^
+            """,
+            """
+            Too many positional arguments
+                     bar(1, 2, 3, 4, 5, f=6);
+                     bar(1, 2, 3, 4, 5, 6, 7, 8, 9); # too many args
+                                           ^
+            """,
+            """
+            Too many positional arguments
+                     bar(1, 2, 3, 4, 5, f=6);
+                     bar(1, 2, 3, 4, 5, 6, 7, 8, 9); # too many args
+                                              ^
+            """,
+            """
+            Too many positional arguments
+                     bar(1, 2, 3, 4, 5, f=6);
+                     bar(1, 2, 3, 4, 5, 6, 7, 8, 9); # too many args
+                                                 ^
+            """,
+            """
+            Parameter 'c' already matched
+                     bar(1, 2, 3, 4, 5, f=6);
+                     bar(1, 2, 3, 4, 5, 6, 7, 8, 9); # too many args
+                     bar(1, 2, 3, 4, 5, 6, c=3); # already matched
+                                           ^^^
+            """,
+            """
+            Named argument 'h' does not match any parameter
+                     bar(1, 2, 3, 4, 5, 6, 7, 8, 9); # too many args
+                     bar(1, 2, 3, 4, 5, 6, c=3); # already matched
+                     bar(1, 2, 3, 4, 5, 6, h=1); # h is not matched
+                                           ^^^
+            """,
+            """
+            Too many positional arguments
+                     baz(a=1, b=2);
+                     baz(1, b=2); # a can be both positional and keyword
+                     baz(1, 2);  # 'b' can only be keyword arg
+                            ^
+            """,
+            """
+            Not all required parameters were provided in the function call: 'b'
+                     baz(a=1, b=2);
+                     baz(1, b=2); # a can be both positional and keyword
+                     baz(1, 2);  # 'b' can only be keyword arg
+                     ^^^^^^^^^
+            """,
+        ]
+
+        for i, expected in enumerate(expected_errors):
+            self._assert_error_pretty_found(expected, program.errors_had[i].pretty_print())
 
     def test_self_type_inference(self) -> None:
         path = self.fixture_abs_path("checker_self_type.jac")

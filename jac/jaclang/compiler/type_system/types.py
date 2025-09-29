@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import ClassVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from jaclang.compiler.unitree import Symbol, UniScopeNode as SymbolTable
+    from jaclang.compiler.unitree import Expr, Symbol, UniScopeNode as SymbolTable
 
 
 class TypeCategory(IntEnum):
@@ -227,17 +227,43 @@ class ClassType(TypeBase):
         return True
 
 
+class ParamKind(IntEnum):
+    """Enumeration of parameter kinds."""
+
+    POSONLY = 0
+    NORMAL = 1
+    VARARG = 2
+    KWONLY = 3
+    KWARG = 4
+
+
 class Parameter:
     """Represents a function parameter."""
 
     def __init__(
-        self, name: str, category: ParameterCategory, param_type: TypeBase | None
+        self,
+        name: str,
+        category: ParameterCategory,
+        param_type: TypeBase | None,
+        default_value: Expr | None = None,
+        is_self: bool = False,
+        param_kind: ParamKind = ParamKind.NORMAL,
     ) -> None:
         """Initialize obviously."""
         super().__init__()
         self.name = name
         self.category = category
+        self.default_value = default_value
         self.param_type = param_type
+
+        # This will set to true if the parameter is `self`. In jaclang self
+        # in the context of obj, node, edge, walker methods is not required to
+        # be explicitly defined. However, in the `class` methods it should be
+        # explicitly defined.
+        self.is_self = is_self
+
+        # Kind is wheather it's normal, posonly, vararg, kwonly, kwarg.
+        self.param_kind: ParamKind = param_kind
 
 
 class FunctionType(TypeBase):

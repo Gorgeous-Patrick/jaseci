@@ -7,6 +7,7 @@ import builtins
 import os
 from copy import copy
 from dataclasses import dataclass
+from enum import IntEnum
 from hashlib import md5
 from types import EllipsisType
 from typing import (
@@ -1897,20 +1898,6 @@ class FuncSignature(UniNode):
         self.return_type = return_type
         UniNode.__init__(self, kid=kid)
 
-    @property
-    # fmt: off
-    def args_pp(self) -> str:
-        arg_detail = "----Function Parameters- ----\n"
-        arg_detail += f"\tposonly: {"\n\t\t".join(str(param.unparse()) for param in self.posonly_params)}\n"
-        arg_detail += f"\tparams:  {"\n\t\t".join(str(arg.unparse()) for arg in self.params)} \n"
-        arg_detail += f"\tvarargs: {self.varargs.unparse() if self.varargs else None}\n"
-        arg_detail += f"\tkwonlyargs: {"\n\t\t\t".join(
-            str(keyword_param.unparse()) for keyword_param in self.kwonlyargs
-        )}\n"
-        arg_detail += f"\tkwargs: {self.kwargs.unparse() if self.kwargs else 'None'}\n"
-        return arg_detail
-    # fmt: on
-
     def normalize(self, deep: bool = False) -> bool:
         res = True
         is_lambda = self.parent and isinstance(self.parent, LambdaExpr)
@@ -1955,7 +1942,13 @@ class FuncSignature(UniNode):
 
     def get_parameters(self) -> list[ParamVar]:
         """Return all parameters in the declared order."""
-        return self.posonly_params + self.params
+        params = self.posonly_params + self.params
+        if self.varargs:
+            params.append(self.varargs)
+        params += self.kwonlyargs
+        if self.kwargs:
+            params.append(self.kwargs)
+        return params
 
     @property
     def is_static(self) -> bool:
@@ -2013,6 +2006,16 @@ class EventSignature(WalkerStmtOnlyNode):
         return res
 
 
+class ParamKind(IntEnum):
+    """Parameter kinds."""
+
+    POSONLY = 0
+    NORMAL = 1
+    VARARG = 2
+    KWONLY = 3
+    KWARG = 4
+
+
 class ParamVar(AstSymbolNode, AstTypedVarNode):
     """ParamVar node type for Jac Ast."""
 
@@ -2026,6 +2029,7 @@ class ParamVar(AstSymbolNode, AstTypedVarNode):
     ) -> None:
         self.name = name
         self.unpack = unpack
+        self.param_kind = ParamKind.NORMAL
         self.value = value
         UniNode.__init__(self, kid=kid)
         AstSymbolNode.__init__(
@@ -2035,6 +2039,14 @@ class ParamVar(AstSymbolNode, AstTypedVarNode):
             sym_category=SymbolType.VAR,
         )
         AstTypedVarNode.__init__(self, type_tag=type_tag)
+
+    @property
+    def is_vararg(self) -> bool:
+        return bool((self.unpack) and (self.unpack.name == Tok.STAR_MUL.name))
+
+    @property
+    def is_kwargs(self) -> bool:
+        return bool((self.unpack) and (self.unpack.name == Tok.STAR_POW.name))
 
     def normalize(self, deep: bool = True) -> bool:
         res = True

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import ast as py_ast
 import os
-from typing import Optional, Sequence, TYPE_CHECKING, TypeAlias, TypeVar
+from typing import Optional, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.constant import Tokens as Tok
@@ -2099,10 +2099,23 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             kwarg: arg | None
             defaults: list[expr]
         """
-        posonlyargs = [self.convert(arg) for arg in node.posonlyargs]
-        args = [self.convert(arg) for arg in node.args]
+
+        def _apply_kind(params: list, kind: uni.ParamKind) -> list:
+            for param in params:
+                cast(uni.ParamVar, param).param_kind = kind
+            return params
+
+        posonlyargs = _apply_kind(
+            [self.convert(arg) for arg in node.posonlyargs], uni.ParamKind.POSONLY
+        )
+        args = _apply_kind(
+            [self.convert(arg) for arg in node.args], uni.ParamKind.NORMAL
+        )
+
         vararg = self.convert(node.vararg) if node.vararg else None
+
         if vararg and isinstance(vararg, uni.ParamVar):
+            vararg.param_kind = uni.ParamKind.VARARG
             vararg.unpack = uni.Token(
                 orig_src=self.orig_src,
                 name=Tok.STAR_MUL,
@@ -2115,7 +2128,10 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                 pos_end=0,
             )
             vararg.add_kids_left([vararg.unpack])
-        kwonlyargs = [self.convert(arg) for arg in node.kwonlyargs]
+
+        kwonlyargs = _apply_kind(
+            [self.convert(arg) for arg in node.kwonlyargs], uni.ParamKind.KWONLY
+        )
         for i in range(len(kwonlyargs)):
             kwa = kwonlyargs[i]
             kwd = node.kw_defaults[i]
@@ -2129,6 +2145,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
                 kwa.add_kids_right([kwa.value])
         kwarg = self.convert(node.kwarg) if node.kwarg else None
         if kwarg and isinstance(kwarg, uni.ParamVar):
+            kwarg.param_kind = uni.ParamKind.KWARG
             kwarg.unpack = uni.Token(
                 orig_src=self.orig_src,
                 name=Tok.STAR_POW,

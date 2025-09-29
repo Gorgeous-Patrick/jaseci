@@ -49,17 +49,12 @@ class TypeCheckPass(UniPass):
         self._load_builtins_stub_module()
         self._insert_builtin_symbols()
 
-    @property
-    def evaluator(self) -> TypeEvaluator:
-        """Return the type evaluator."""
-        if TypeCheckPass._EVALUATOR is None:
-            assert TypeCheckPass._BUILTINS_MODULE is not None
-            TypeCheckPass._EVALUATOR = TypeEvaluator(
-                builtins_module=TypeCheckPass._BUILTINS_MODULE,
-                program=self.prog,
-                callback=self._add_diagnostic,
-            )
-        return TypeCheckPass._EVALUATOR
+        assert TypeCheckPass._BUILTINS_MODULE is not None
+        self.evaluator = TypeEvaluator(
+            builtins_module=TypeCheckPass._BUILTINS_MODULE,
+            program=self.prog,
+            callback=self._add_diagnostic,
+        )
 
     def _add_diagnostic(self, node: uni.UniNode, message: str, warning: bool) -> None:
         """Add a diagnostic message to the pass."""
