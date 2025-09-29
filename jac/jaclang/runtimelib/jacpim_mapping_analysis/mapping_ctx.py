@@ -1,7 +1,13 @@
 """JacPIM Mapping Phase global context."""
 
+import os
+
 import jaclang.compiler.unitree as uni
 from jaclang.runtimelib.archetype import NodeArchetype, WalkerArchetype
+from jaclang.runtimelib.jacpim_mapping_analysis.data_mapper import (
+    RandomPartitioner,
+    RoundRobinPartitioner,
+)
 from jaclang.runtimelib.jacpim_mapping_analysis.temporal_trace_graph import (
     get_access_pattern_single_walker,
     get_ttg_from_ttt,
@@ -27,6 +33,7 @@ class JacPIMMappingCtx:
 
     mapping: dict[NodeArchetype, int] | None
     ttg: networkx.MultiDiGraph | None
+    partitioning: dict[int, int] | None
 
     @classmethod
     def setter(cls, start_node: NodeArchetype, walker: WalkerArchetype) -> None:
@@ -38,6 +45,16 @@ class JacPIMMappingCtx:
                 start_node, static_ctx.get_networkx(), walker_code
             )
         )
+        cls.partitioning = None
+        mapping_method = os.environ.get("MAPPING")
+        if mapping_method is None:
+            raise RuntimeError("Mapping method not specified")
+        elif mapping_method == "ROUND":
+            cls.partitioning = RoundRobinPartitioner(cls.ttg, start_node)
+        elif mapping_method == "RANDOM":
+            cls.partitioning = RandomPartitioner(cls.ttg, start_node)
+        else:
+            raise RuntimeError("Mapping method undefined")
 
     @classmethod
     def get_ttg(cls) -> networkx.MultiDiGraph:
@@ -45,3 +62,11 @@ class JacPIMMappingCtx:
         if cls.ttg is None:
             raise RuntimeError("TTG is None!")
         return cls.ttg
+
+    @classmethod
+    def get_partitioning(cls) -> dict[int, int]:
+        """Get the partitioning."""
+        if cls.partitioning is None:
+            raise RuntimeError("Partitioning not set.")
+        else:
+            return cls.partitioning
