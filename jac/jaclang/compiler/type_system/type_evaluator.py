@@ -6,6 +6,8 @@ PyrightReference:
     packages/pyright-internal/src/analyzer/typeEvaluatorTypes.ts
 """
 
+import ast as py_ast
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, TYPE_CHECKING, cast
@@ -13,7 +15,10 @@ from typing import Callable, TYPE_CHECKING, cast
 import jaclang.compiler.unitree as uni
 from jaclang.compiler import TOKEN_MAP
 from jaclang.compiler.constant import Tokens as Tok
+from jaclang.compiler.passes.main.pyast_load_pass import PyastBuildPass
+from jaclang.compiler.passes.main.sym_tab_build_pass import SymTabBuildPass
 from jaclang.compiler.type_system import types
+from jaclang.runtimelib.utils import read_file_with_encoding
 
 if TYPE_CHECKING:
     from jaclang.compiler.program import JacProgram
@@ -82,11 +87,18 @@ class MatchArgsToParamsResult:
 class TypeEvaluator:
     """Type evaluator for JacLang."""
 
+    # NOTE: This is done in the binder pass of pyright, however I'm doing this
+    # here, cause this will be the entry point of the type checker and we're not
+    # relying on the binder pass at the moment and we can go back to binder pass
+    # in the future if we needed it.
+    _BUILTINS_STUB_FILE_PATH = os.path.join(
+        os.path.dirname(__file__),
+        "../../vendor/typeshed/stdlib/builtins.pyi",
+    )
+
     def __init__(
         self,
-        builtins_module: uni.Module,
         program: "JacProgram",
-        callback: DiagnosticCallback,
     ) -> None:
         """Initialize the type evaluator with prefetched types.
 
@@ -98,17 +110,68 @@ class TypeEvaluator:
         in some place then it will not be available in the evaluator, So we
         are prefetching the builtins at the constructor level once.
         """
-        self.symbol_resolution_stack: list[SymbolResolutionStackEntry] = []
-        self.builtins_module = builtins_module
         self.program = program
+        self.symbol_resolution_stack: list[SymbolResolutionStackEntry] = []
+        self.builtins_module = self._load_builtins_stub_module()
         self.prefetch = self._prefetch_types()
-        self.callback = callback
+        self.diagnostic_callback: DiagnosticCallback | None = None
+
+    def _load_builtins_stub_module(self) -> uni.Module:
+        """Load and return the builtins stub module."""
+        if not os.path.exists(TypeEvaluator._BUILTINS_STUB_FILE_PATH):
+            raise FileNotFoundError(
+                f"Builtins stub file not found at {TypeEvaluator._BUILTINS_STUB_FILE_PATH}"
+            )
+        file_content = read_file_with_encoding(TypeEvaluator._BUILTINS_STUB_FILE_PATH)
+        uni_source = uni.Source(file_content, TypeEvaluator._BUILTINS_STUB_FILE_PATH)
+        mod = PyastBuildPass(
+            ir_in=uni.PythonModuleAst(
+                py_ast.parse(file_content),
+                orig_src=uni_source,
+            ),
+            prog=self.program,
+        ).ir_out
+        SymTabBuildPass(ir_in=mod, prog=self.program)
+        return mod
+
+    def _get_builtin_type(self, name: str) -> TypeBase:
+        """Return the built-in type with the given name."""
+        if (symbol := self.builtins_module.lookup(name)) is not None:
+            return self.get_type_of_symbol(symbol)
+        return types.UnknownType()
+
+    def _prefetch_types(self) -> "PrefetchedTypes":
+        """Return the prefetched types for the type evaluator."""
+        return PrefetchedTypes(
+            # TODO: Pyright first try load NoneType from typeshed and if it cannot
+            # then it set to unknown type.
+            none_type_class=types.UnknownType(),
+            object_class=self._get_builtin_type("object"),
+            type_class=self._get_builtin_type("type"),
+            # union_type_class=
+            # awaitable_class=
+            # function_class=
+            # method_class=
+            tuple_class=self._get_builtin_type("tuple"),
+            bool_class=self._get_builtin_type("bool"),
+            int_class=self._get_builtin_type("int"),
+            float_class=self._get_builtin_type("float"),
+            str_class=self._get_builtin_type("str"),
+            dict_class=self._get_builtin_type("dict"),
+            # module_type_class=
+            # typed_dict_class=
+            # typed_dict_private_class=
+            # supports_keys_and_get_item_class=
+            # mapping_class=
+            # template_class=
+        )
 
     def add_diagnostic(
         self, node: uni.UniNode, message: str, warning: bool = False
     ) -> None:
         """Add a diagnostic message to the program."""
-        self.callback(node, message, warning)
+        if self.diagnostic_callback:
+            self.diagnostic_callback(node, message, warning)
 
     # -------------------------------------------------------------------------
     # Symbol resolution stack
@@ -448,38 +511,6 @@ class TypeEvaluator:
 
         # TODO: Search base classes and everything else pyright is doing.
         return False
-
-    def _prefetch_types(self) -> "PrefetchedTypes":
-        """Return the prefetched types for the type evaluator."""
-        return PrefetchedTypes(
-            # TODO: Pyright first try load NoneType from typeshed and if it cannot
-            # then it set to unknown type.
-            none_type_class=types.UnknownType(),
-            object_class=self._get_builtin_type("object"),
-            type_class=self._get_builtin_type("type"),
-            # union_type_class=
-            # awaitable_class=
-            # function_class=
-            # method_class=
-            tuple_class=self._get_builtin_type("tuple"),
-            bool_class=self._get_builtin_type("bool"),
-            int_class=self._get_builtin_type("int"),
-            float_class=self._get_builtin_type("float"),
-            str_class=self._get_builtin_type("str"),
-            dict_class=self._get_builtin_type("dict"),
-            # module_type_class=
-            # typed_dict_class=
-            # typed_dict_private_class=
-            # supports_keys_and_get_item_class=
-            # mapping_class=
-            # template_class=
-        )
-
-    def _get_builtin_type(self, name: str) -> TypeBase:
-        """Return the built-in type with the given name."""
-        if (symbol := self.builtins_module.lookup(name)) is not None:
-            return self.get_type_of_symbol(symbol)
-        return types.UnknownType()
 
     # This function is a combination of the bellow pyright functions.
     #  - getDeclaredTypeOfSymbol
