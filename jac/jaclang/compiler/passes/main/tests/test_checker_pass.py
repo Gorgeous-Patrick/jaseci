@@ -318,6 +318,19 @@ class TypeCheckerPassTests(TestCase):
             ^^^^^^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_checker_cat_is_animal(self) -> None:
+        path = self.fixture_abs_path("checker_cat_is_animal.jac")
+        program = JacProgram()
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 1)
+        self._assert_error_pretty_found("""
+            animal_func(cat);        # <-- Ok
+            animal_func(lion);       # <-- Ok
+            animal_func(not_animal); # <-- Error
+                        ^^^^^^^^^^
+        """, program.errors_had[0].pretty_print())
+
     def test_checker_import_missing_module(self) -> None:
         path = self.fixture_abs_path("checker_import_missing_module.jac")
         program = JacProgram()

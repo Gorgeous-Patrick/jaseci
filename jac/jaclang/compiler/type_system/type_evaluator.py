@@ -464,9 +464,6 @@ class TypeEvaluator:
             # NOTE: For now if we don't have the type info, we assume it's compatible.
             # For strict mode we should disallow usage of unknown unless explicitly ignored.
             return True
-        # FIXME: This logic is not valid, just here as a stub.
-        if types.TypeCategory.Unknown in (src_type.category, dest_type.category):
-            return True
 
         if src_type == dest_type:
             return True
@@ -476,8 +473,7 @@ class TypeEvaluator:
             assert isinstance(src_type, types.ClassType)
             return self._assign_class(src_type, dest_type)
 
-        # FIXME: This is temporary.
-        return src_type == dest_type
+        return False
 
     # TODO: This should take an argument list as parameter.
     def get_type_of_magic_method_call(
@@ -507,6 +503,15 @@ class TypeEvaluator:
     ) -> bool:
         """Assign the source class type to the destination class type."""
         if src_type.shared == dest_type.shared:
+            return True
+
+        # Check if src class is a subclass of dest class.
+        for base_cls in src_type.shared.mro:
+            if base_cls.shared == dest_type.shared:
+                return True
+
+        # Integers can be used where floats are expected.
+        if src_type.is_builtin("int") and dest_type.is_builtin("float"):
             return True
 
         # TODO: Search base classes and everything else pyright is doing.
