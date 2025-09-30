@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import fnmatch
 import html
 import inspect
@@ -56,6 +57,7 @@ from jaclang.runtimelib.constructs import (
     WalkerArchetype,
 )
 from jaclang.runtimelib.jacpim_mapping_analysis import JacPIMMappingCtx
+from jaclang.runtimelib.jacpim_perf_measure.jacpim_spawn import jacpim_par_visit
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -1605,13 +1607,11 @@ class JacPIM:
         destinations: list[EdgeArchetype],
     ) -> None:
         """Parallelly visit nodes."""
-        pass
-        # original_task_id = old_walker.__jac__.current_task_id
-        # for _, destination in enumerate(destinations):
-        #     pass
-
-        # JacMachine.spawn(new_walker, destination, task_dependency=original_task_id)
-        # current_task_id_after = old_walker.__jac__.current_task_id
+        for edge in destinations:
+            if edge.target and edge.target.archetype:
+                new_walker_copy = copy.deepcopy(new_walker)
+                new_walker_copy.__jac__.current = edge.target
+                jacpim_par_visit(old_walker, new_walker_copy, edge.target.archetype)
 
 
 class JacMachineInterface(
