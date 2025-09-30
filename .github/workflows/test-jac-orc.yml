@@ -1,0 +1,84 @@
+name: Run tests for jac-orc
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  test-jac-orc:
+    runs-on: ubuntu-latest
+    env:
+      JAC_ORC_YAML: "https://raw.githubusercontent.com/jaseci-labs/jac-orc-manifests/main/jac-orc.yaml"
+      CLONE_PLACEHOLDER: "git clone --depth 1 -b jac-orc https://github.com/Jaseci-Labs/jaseci.git"
+      CLONE_VALUE: "git clone --depth 1 -b ${{ github.head_ref || 'jac-orc'}} https://github.com/Jaseci-Labs/jaseci.git"
+      NAMESPACE_PLACEHOLDER: "# namespace: your_namespace"
+      NAMESPACE_VALUE: "namespace: default"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1
+      - name: Verify Cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+      - name: Deploy JacOrc
+        run: |
+          curl -s "$JAC_ORC_YAML" > jac-orc.yaml
+          sed -i "s#$CLONE_PLACEHOLDER#$CLONE_VALUE#g" jac-orc.yaml
+          sed -i "s|$NAMESPACE_PLACEHOLDER|$NAMESPACE_VALUE|g" jac-orc.yaml
+          kubectl apply -f jac-orc.yaml
+      - name: Verify JacOrc
+        run: |
+          kubectl wait --for=condition=Available deployment/jac-reloader --timeout=3m
+          kubectl wait --for=condition=Available deployment/jac-orc --timeout=3m
+          kubectl port-forward service/jac-orc 8081:80 & sleep 5
+          curl --fail http://127.0.0.1:8081/healthz
+          lsof -t -i tcp:8081 | xargs -r kill
+      - name: Deploy JacCloud
+        run: |
+          kubectl port-forward service/jac-orc 8081:80 & sleep 5
+          curl --fail -X 'POST' 'http://127.0.0.1:8081/deployment' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"module":"jac-cloud","version":"latest","config":{}}'
+          lsof -t -i tcp:8081 | xargs -r kill
+      - name: Verify JacCloud
+        run: |
+          kubectl wait --for=condition=Available deployment/jac-cloud --timeout=3m
+          kubectl port-forward service/jac-cloud 8082:80 & sleep 5
+          curl --fail http://127.0.0.1:8082/healthz
+          curl --fail -X 'POST' 'http://127.0.0.1:8082/user/register' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"email":"user@email.com","password":"12345678"}'
+          curl --fail -X 'POST' 'http://127.0.0.1:8082/user/login' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"email":"user@email.com","password":"12345678"}'
+          lsof -t -i tcp:8082 | xargs -r kill
+      - name: Deploy MongoDB
+        run: |
+          kubectl port-forward service/jac-orc 8081:80 & sleep 5
+          curl --fail -X 'POST' 'http://127.0.0.1:8081/deployment' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"module":"mongodb","version":"latest","config":{}}'
+          curl --fail -X 'POST' 'http://127.0.0.1:8081/deployment' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"module":"jac-cloud","version":"latest","config":{"env-vars":{"DATABASE_HOST":"mongodb+srv://my-user:12345678@jac-mongodb-svc.default.svc.cluster.local/admin?replicaSet=jac-mongodb&ssl=false"}}}'
+          lsof -t -i tcp:8081 | xargs -r kill
+      - name: Verify JacCloud Connected to MongoDB
+        run: |
+          kubectl wait --for=condition=Available deployment/jac-orc-mongodb-operator --timeout=3m
+          kubectl wait --for=condition=Ready pod -l name=jac-orc-mongodb-operator --timeout=3m
+          kubectl wait --for=jsonpath='{.metadata.name}' statefulset/jac-mongodb --timeout=3m
+          kubectl rollout status statefulset/jac-mongodb --timeout=3m
+          kubectl rollout status deployment/jac-cloud --timeout=3m
+          kubectl port-forward service/jac-cloud 8082:80 & sleep 5
+          curl --fail http://127.0.0.1:8082/healthz
+          curl --fail -X 'POST' 'http://127.0.0.1:8082/user/register' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"email":"user@email.com","password":"12345678"}'
+          curl --fail -X 'POST' 'http://127.0.0.1:8082/user/login' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"email":"user@email.com","password":"12345678"}'
+          # register again and should fail
+          curl --fail -s -o /dev/null -X 'POST' 'http://127.0.0.1:8082/user/register' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"email":"user@email.com","password":"12345678"}' && exit 1 || exit 0
+          lsof -t -i tcp:8082 | xargs -r kill
+      - name: Deploy Redis
+        run: |
+          kubectl port-forward service/jac-orc 8081:80 & sleep 5
+          curl --fail -X 'POST' 'http://127.0.0.1:8081/deployment' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"module":"redis","version":"latest","config":{}}'
+          lsof -t -i tcp:8081 | xargs -r kill
+      - name: Verify Redis
+        run: |
+          kubectl wait --for=condition=Available deployment/jac-redis --timeout=3m
+          kubectl wait --for=condition=Ready pod -l pod=jac-redis --timeout=3m
+          lsof -t -i tcp:8082 | xargs -r kill
