@@ -384,6 +384,20 @@ class DocIRGenPass(UniPass):
                 parts.pop()
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
+            elif i == node.condition and isinstance(i, uni.BoolExpr):
+                cond_str = i.gen.doc_ir
+                flat = self.concat([cond_str, self.space()])
+                broken = self.group(
+                    self.concat(
+                        [
+                            self.text("("),
+                            self.indent(self.concat([self.line(), cond_str])),
+                            self.line(),
+                            self.text(")"),
+                        ]
+                    )
+                )
+                parts.append(self.if_break(broken, flat))
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -480,6 +494,7 @@ class DocIRGenPass(UniPass):
                 parts.append(i.gen.doc_ir)
             elif isinstance(i, uni.Token) and i.name == Tok.RPAREN and node.params:
                 in_params = False
+
                 if isinstance(indent_parts[-1], doc.Line):
                     indent_parts.pop()
                 parts.append(
@@ -812,7 +827,6 @@ class DocIRGenPass(UniPass):
         parts: list[doc.DocType] = []
         need_parens = not isinstance(node.parent, uni.AtomUnit)
 
-        parts.append(self.hard_line())
         for i in node.kid:
             if isinstance(i, uni.Expr):
                 parts.append(i.gen.doc_ir)
@@ -841,16 +855,28 @@ class DocIRGenPass(UniPass):
 
     def exit_bool_expr(self, node: uni.BoolExpr) -> None:
         """Generate DocIR for boolean expressions (and/or)."""
+        exprs: list[uni.UniNode] = []
         parts: list[doc.DocType] = []
-        for i in node.kid:
-            if isinstance(i, uni.Token):
-                parts.append(i.gen.doc_ir)
-                parts.append(self.space())
+
+        def __flatten_bool_expr(expr: uni.Expr) -> list[uni.UniNode]:
+            if isinstance(expr, uni.BoolExpr):
+                out: list[uni.UniNode] = []
+                for val in expr.values:
+                    out += __flatten_bool_expr(val)
+                    out.append(expr.op)
+                out.pop()
+                return out
             else:
-                parts.append(i.gen.doc_ir)
-                parts.append(self.line())  # Potential break
+                return [expr]
+
+        exprs = __flatten_bool_expr(node)
+        parts = [exprs[0].gen.doc_ir, self.line()]
+        for i in range(1, len(exprs[1:]), 2):
+            op, expr = exprs[i], exprs[i + 1]
+            parts += [op.gen.doc_ir, self.space(), expr.gen.doc_ir, self.line()]
         parts.pop()
-        node.gen.doc_ir = self.group(self.concat(parts))
+        flat = self.concat(parts)
+        node.gen.doc_ir = self.group(flat)
 
     def exit_unary_expr(self, node: uni.UnaryExpr) -> None:
         """Generate DocIR for unary expressions."""
@@ -1195,7 +1221,7 @@ class DocIRGenPass(UniPass):
             self.concat(
                 [
                     parts[0],
-                    self.indent(self.concat(parts[1:-1])),
+                    self.indent(self.concat([self.tight_line(), *parts[1:-1]])),
                     self.tight_line(),
                     parts[-1],
                 ]
