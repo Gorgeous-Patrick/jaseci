@@ -32,6 +32,63 @@ Here's what you'll build - just **200 lines of code** for a full social media pl
 === "Frontend Preview"
     ![LittleX Frontend](src/front_end.png)
 
+=== "Single User Graph"
+      ```mermaid
+      graph TD
+      %% Root Nodes
+      Root1((Root1)):::root --> P1[Profile]:::profile
+
+      %% Tweets
+      P1 -->|Post| T1(Tweet):::tweet
+      P1 -->|Post| T2(Tweet):::tweet
+
+      %% Comments for P1's Tweet
+      T1 --> C1(Comment):::comment
+      C1 --> C1a(Comment):::comment
+      C1 --> C1b(Comment):::comment
+      ```
+=== "Multiple User Graph"
+      ```mermaid
+      graph TD
+      %% Subgraph 1: Root1
+      subgraph Cluster1[ ]
+            direction TB
+            Root1((Root1)):::root
+            Root1 --> P1[Profile]:::profile
+            P1 -->|Post| T1(Tweet):::tweet
+            P1 -->|Post| T2(Tweet):::tweet
+            T2 --> C4(Comment):::comment
+            Root1 -- Follow --> P2
+            Root1 -- Like --> T3
+      end
+
+      %% Subgraph 2: Root2
+      subgraph Cluster2[ ]
+            direction TB
+            Root2((Root2)):::root
+            Root2 --> P2[Profile]:::profile
+            P2 -->|Post| T3(Tweet):::tweet
+            P2 -->|Post| T4(Tweet):::tweet
+            T3 --> C1(Comment):::comment
+            C1 --> C1a(Comment):::comment
+            C1 --> C1b(Comment):::comment
+            Root2 --> T7(Tweet):::tweet
+            T7 --> C5(Comment):::comment
+            P2 -- Follow --> P3
+      end
+
+      %% Subgraph 3: Root3
+      subgraph Cluster3[ ]
+            direction TB
+            Root3((Root3)):::root
+            Root3 --> P3[Profile]:::profile
+            P3 -->|Post| T5(Tweet):::tweet
+            P3 -->|Post| T6(Tweet):::tweet
+            T5 --> C2(Comment):::comment
+            T6 --> C3(Comment):::comment
+      end
+      ```
+
 === "LittleX.jac"
     ```jac linenums="1"
     --8<-- "docs/learn/examples/littleX/src/littleX.jac"
