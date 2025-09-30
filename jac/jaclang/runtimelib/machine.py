@@ -56,7 +56,6 @@ from jaclang.runtimelib.constructs import (
     WalkerArchetype,
 )
 from jaclang.runtimelib.jacpim_mapping_analysis import JacPIMMappingCtx
-from jaclang.runtimelib.jacpim_mapping_analysis.plot import plot_ttg
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
     all_issubclass,
@@ -1570,12 +1569,33 @@ class JacPIM:
             jacpim_static_analysis.JacPIMStaticCtx()
         )
         static_ctx.setter(JacMachine.get_context(), JacMachine.program)
-        jacpim_static_analysis.plot_one_graph(
-            static_ctx.get_networkx(), static_ctx.get_layout(), "temp.png"
-        )
+        # jacpim_static_analysis.plot_one_graph(
+        #     static_ctx.get_networkx(), static_ctx.get_layout(), "temp.png"
+        # )
         mapping_ctx = JacPIMMappingCtx
         mapping_ctx.setter(start_node, walker)
-        plot_ttg(mapping_ctx.get_ttg(), static_ctx.get_layout(), "temp.png")
+        # plot_ttg(mapping_ctx.get_ttg(), static_ctx.get_layout(), "temp.png")
+
+        # Add JacPIM performance measurement
+        from jaclang.runtimelib.jacpim_perf_measure.jacpim_spawn import (
+            jacpim_spawn,
+            get_jacpim_stats,
+        )
+
+        print("\nStarting JacPIM performance measurement...")
+        jacpim_spawn(walker, start_node, execute_immediately=True)
+
+        # Print performance statistics
+        stats = get_jacpim_stats()
+        print("\n=== JacPIM Performance Statistics ===")
+        print(f"Total iterations: {stats.get('total_iterations', 0)}")
+        print(f"Total walkers executed: {stats.get('total_walkers_executed', 0)}")
+        print(
+            f"Average iteration duration: {stats.get('average_iteration_duration', 0):.4f}s"
+        )
+        print(f"Total DPU migrations: {stats.get('total_dpu_migrations', 0)}")
+        print("DPU usage per iteration:", stats.get("dpu_usage_per_iteration", {}))
+        print("=====================================")
 
     @classmethod
     def par_visit(

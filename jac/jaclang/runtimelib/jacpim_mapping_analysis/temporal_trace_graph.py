@@ -190,7 +190,7 @@ class TTGEdgeAttribute:
 def get_ttg_from_ttt(ttt_node: TemporalTraceTreeNode) -> nx.MultiDiGraph:
     """Generate the Temporal Trace Graph from ttt."""
     # print(get_paths_from_ttt(ttt_node))
-    print_ttt(ttt_node)
+    # print_ttt(ttt_node)
     graph = static_ctx.JacPIMStaticCtx.get_networkx().copy()
     graph.clear_edges()
     ttt_nodes: list[tuple[int, TemporalTraceTreeNode]] = [(0, ttt_node)]

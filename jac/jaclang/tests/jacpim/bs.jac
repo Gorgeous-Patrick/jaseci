@@ -66,7 +66,7 @@ walker bs {
 }
 
 with entry {
-  NUM=50;
+  NUM=1000;
   values = [i for i in range(NUM)];
   data_nodes = [(DataNode(value=values[i], index=i), values[i], values[i]) for i in range(NUM)];
   granularity = 1;
@@ -88,5 +88,5 @@ with entry {
   root ++> data_nodes[0][0];
   walker_instance = data_nodes[0][0] spawn bs(value=5000);
   print("Walker instance created with value 5");
-  JacMachine.jacpim_start(data_nodes[0][0], walker_instance);
+  JacMachine.jacpim_start(data_nodes[0][0], bs(value=5000));
 }

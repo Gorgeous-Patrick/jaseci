@@ -89,6 +89,16 @@ class RoundRobinPartitioner:
         start_node_idx = JacPIMStaticCtx.get_all_nodes().index(start_node)
         self.node_distribution = NodeDistribution()
         self._dfs_round_robin_on_node(self.node_distribution, ttg, start_node_idx, 0)
+        for node_idx in range(len(JacPIMStaticCtx.get_all_nodes())):
+            if not self.node_distribution.node_assigned(node_idx):
+                node_size = get_node_info_from_node_arch(
+                    JacPIMStaticCtx.get_all_nodes()[node_idx]
+                ).node_size_bytes
+                partitions = self.node_distribution.available_partitions(node_size)
+                if len(partitions) == 0:
+                    raise RuntimeError("No available partitions.")
+                partition = partitions[0]
+                self.node_distribution.add_node(node_idx, partition, node_size)
 
     def get_data_partitioning(self) -> dict[int, int]:
         """Retrieve the partitioning."""

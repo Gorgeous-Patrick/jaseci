@@ -50,9 +50,13 @@ class JacPIMMappingCtx:
         if mapping_method is None:
             raise RuntimeError("Mapping method not specified")
         elif mapping_method == "ROUND":
-            cls.partitioning = RoundRobinPartitioner(cls.ttg, start_node)
+            cls.partitioning = RoundRobinPartitioner(
+                cls.ttg, start_node
+            ).get_data_partitioning()
         elif mapping_method == "RANDOM":
-            cls.partitioning = RandomPartitioner(cls.ttg, start_node)
+            cls.partitioning = RandomPartitioner(
+                cls.ttg, start_node
+            ).get_data_partitioning()
         else:
             raise RuntimeError("Mapping method undefined")
 

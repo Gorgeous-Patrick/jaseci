@@ -63,6 +63,5 @@ for i in range(NODE_NUM) {
     }
   }
 }
-wlk = nodes[0] spawn BFS();
-# JacMachine.jacpim_start(nodes[0], BFS());
+JacMachine.jacpim_start(nodes[0], BFS());
 }
