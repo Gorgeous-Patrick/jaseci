@@ -1,0 +1,50 @@
+{% include "dpu_support.h" %}
+{% for node_type in node_types %}
+typedef struct __{{node_type.name}} {
+{{node_type.definition}}
+} {{node_type.name}};
+{% endfor %}
+
+{% for walker_type in walker_types %}
+typedef struct __{{walker_type.name}} {
+{{walker_type.definition}}
+} {{walker_type.name}};
+{% endfor %}
+{% for run_ability_function in run_ability_functions %}
+void {{run_ability_function.full_name()}} ({{run_ability_function.node_type.name}} *node, uint32_t node_id, {{run_ability_function.walker_type.name}}* walker) {
+{{run_ability_function.body}}
+}
+{% endfor %}
+
+inline void mem_init() {
+    node_buffer = mem_alloc({{max_node_size}});
+    walker_buffer = mem_alloc({{max_walker_size}});
+}
+
+int main() {
+    // Kernel
+    // return kernels[DPU_INPUT_ARGUMENTS.kernel]();
+    // Initialize memory
+    uint64_t tid = me();
+    if (tid == 0) {
+        mem_init();
+    }
+    {% for task_execution in taskset_execution %}
+    if (tid == {{loop.index0}}) {
+    get(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
+    {% for walker_execution in task_execution.walker_executions %}
+    get(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}});
+    {{walker_execution.func.full_name()}}(node_buffer, {{walker_execution.node_id}}, walker_buffer);
+    save(node_buffer, {{walker_execution.node_range.ptr}}, {{walker_execution.node_range.size}});
+    {% endfor %}
+    save(walker_buffer, {{task_execution.walker_range.ptr}}, {{task_execution.walker_range.size}});
+    }
+    {% endfor %}
+
+    #ifdef DEBUG
+    printf("Ending.\n");
+    print_container();
+    #endif
+    // mram_write(&sum, (__mram_ptr void*)(DPU_MRAM_HEAP_POINTER), aligned_malloc_size(sizeof(uint32_t)));
+    return 0;
+}
