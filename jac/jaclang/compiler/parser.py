@@ -2417,6 +2417,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             LSQUARE (KW_NODE| KW_EDGE)? expression? (edge_op_ref (filter_compr | expression)?)+ RSQUARE
             """
             self.consume_token(Tok.LSQUARE)
+            is_async = bool(self.match_token(Tok.KW_ASYNC))
             edges_only = bool(self.match_token(Tok.KW_EDGE))
             self.match_token(Tok.KW_NODE)
             valid_chain = []
@@ -2427,6 +2428,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             return uni.EdgeRefTrailer(
                 chain=valid_chain,
                 edges_only=edges_only,
+                is_async=is_async,
                 kid=self.cur_nodes,
             )
 

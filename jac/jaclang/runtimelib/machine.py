@@ -1133,6 +1133,13 @@ class JacBasics:
         return origin
 
     @staticmethod
+    async def arefs(
+        path: DataSpatialPath | NodeArchetype | list[NodeArchetype],
+    ) -> None:
+        """Jac's apply_dir stmt feature."""
+        pass
+
+    @staticmethod
     def filter(
         items: list[Archetype],
         func: Callable[[Archetype], bool],

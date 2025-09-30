@@ -3831,10 +3831,12 @@ class EdgeRefTrailer(Expr):
         self,
         chain: list[Expr | FilterCompr],
         edges_only: bool,
+        is_async: bool,
         kid: Sequence[UniNode],
     ) -> None:
         self.chain = chain
         self.edges_only = edges_only
+        self.is_async = is_async
         UniNode.__init__(self, kid=kid)
         Expr.__init__(self)
 
@@ -3844,6 +3846,8 @@ class EdgeRefTrailer(Expr):
             res = res and expr.normalize(deep)
         new_kid: list[UniNode] = []
         new_kid.append(self.gen_token(Tok.LSQUARE))
+        if self.is_async:
+            new_kid.append(self.gen_token(Tok.KW_ASYNC))
         if self.edges_only:
             new_kid.append(self.gen_token(Tok.KW_EDGE))
         new_kid.extend(self.chain)

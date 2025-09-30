@@ -2725,14 +2725,22 @@ class PyastGenPass(UniPass):
                     keywords=[],
                 )
             )
-
-        pynode = self.sync(
-            ast3.Call(
-                func=self.jaclib_obj("refs"),
-                args=[pynode],
-                keywords=[],
+        if node.is_async:
+            pynode = self.sync(
+                ast3.Call(
+                    func=self.jaclib_obj("arefs"),
+                    args=[pynode],
+                    keywords=[],
+                )
             )
-        )
+        else:
+            pynode = self.sync(
+                ast3.Call(
+                    func=self.jaclib_obj("refs"),
+                    args=[pynode],
+                    keywords=[],
+                )
+            )
 
         node.gen.py_ast = [pynode]
 
