@@ -9,7 +9,7 @@ from typing import Generic, Optional, TYPE_CHECKING, Type, TypeVar
 from jaclang.compiler.codeinfo import CodeLocInfo
 from jaclang.compiler.unitree import UniNode
 from jaclang.settings import settings
-from jaclang.utils.helpers import pretty_print_source_location
+from jaclang.utils.helpers import ANSIColors, pretty_print_source_location
 from jaclang.utils.log import logging
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ class Alert:
         """Return string representation of alert."""
         return self.as_log()
 
-    def as_log(self) -> str:
+    def as_log(self, *, colors: bool = False) -> str:
         """Return the alert as a single line log as opposed to the pretty print."""
         file_path: str = self.loc.mod_path
         if file_path == "":
@@ -47,20 +47,24 @@ class Alert:
 
         line: int = self.loc.first_line
         column: int = self.loc.col_start
-        return f"{file_path}:{line}:{column} {self.msg}"
 
-    def pretty_print(self) -> str:
-        """Pretty pritns the Alert to show the alert with source location."""
+        # TODO: Set if the alert is error or warning and color accordingly.
+        msg = self.msg if not colors else f"{ANSIColors.RED}{self.msg}{ANSIColors.END}"
+        return f"{file_path}:{line}:{column} {msg}"
+
+    def pretty_print(self, *, colors: bool = False) -> str:
+        """Pretty prints the Alert to show the alert with source location."""
         pretty_dump = pretty_print_source_location(
             self.loc.mod_path,
             self.loc.orig_src.code,
             self.loc.first_line,
             self.loc.pos_start,
             self.loc.pos_end,
+            colors=colors,
         )
         if pretty_dump != "":
             pretty_dump = "\n" + pretty_dump
-        return self.as_log() + pretty_dump
+        return self.as_log(colors=colors) + pretty_dump
 
 
 class Transform(ABC, Generic[T, R]):
@@ -115,7 +119,7 @@ class Transform(ABC, Generic[T, R]):
         )
         self.errors_had.append(alrt)
         self.prog.errors_had.append(alrt)
-        self.logger.error(alrt.as_log())
+        # self.logger.error(alrt.as_log())
 
     def log_warning(self, msg: str, node_override: Optional[UniNode] = None) -> None:
         """Pass Error."""
@@ -126,7 +130,7 @@ class Transform(ABC, Generic[T, R]):
         )
         self.warnings_had.append(alrt)
         self.prog.warnings_had.append(alrt)
-        self.logger.warning(alrt.as_log())
+        # self.logger.warning(alrt.as_log())
 
     def log_info(self, msg: str) -> None:
         """Log info."""

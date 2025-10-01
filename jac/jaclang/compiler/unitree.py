@@ -874,6 +874,12 @@ class Module(AstDocNode, UniScopeNode):
         self.src_terminals: list[Token] = terminals
         self.is_raised_from_py: bool = False
 
+        # We continue to parse a module even if there are syntax errors
+        # so that we can report more errors in a single pass and support
+        # features like code completion, lsp, format etc. This flag
+        # indicates if there were syntax errors during parsing.
+        self.has_syntax_errors: bool = False
+
         UniNode.__init__(self, kid=kid)
         AstDocNode.__init__(self, doc=doc)
         UniScopeNode.__init__(self, name=self.name)

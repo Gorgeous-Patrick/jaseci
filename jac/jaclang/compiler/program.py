@@ -127,7 +127,8 @@ class JacProgram:
         self.run_schedule(mod=mod_targ, passes=ir_gen_sched)
         if type_check:
             self.run_schedule(mod=mod_targ, passes=type_check_sched)
-        if not no_cgen:
+        # If the module has syntax errors, we skip code generation.
+        if (not mod_targ.has_syntax_errors) and (not no_cgen):
             if settings.predynamo_pass:
                 py_code_gen.insert(0, PreDynamoPass)
             self.run_schedule(mod=mod_targ, passes=py_code_gen)

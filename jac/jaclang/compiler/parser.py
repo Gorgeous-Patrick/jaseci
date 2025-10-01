@@ -5,12 +5,14 @@ from __future__ import annotations
 import keyword
 import logging
 import os
+import sys
 from typing import Callable, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler import jac_lark as jl
 from jaclang.compiler.constant import EdgeDir, Tokens as Tok
 from jaclang.compiler.passes.main import Transform
+from jaclang.utils.helpers import ANSIColors
 from jaclang.vendor.lark import Lark, Transformer, Tree, logger
 
 if TYPE_CHECKING:
@@ -39,22 +41,17 @@ class JacParser(Transform[uni.Source, uni.Module]):
             tree, comments = JacParser.parse(ir_in.value, on_error=self.error_callback)
             mod = JacParser.TreeToAST(parser=self).transform(tree)
             ir_in.comments = [self.proc_comment(i, mod) for i in comments]
-            if isinstance(mod, uni.Module):
-                self.ir_out = mod
-                return mod
-            else:
+            if not isinstance(mod, uni.Module):
                 raise self.ice()
+            if len(self.errors_had) != 0:
+                mod.has_syntax_errors = True
+                self.report_errors()
+            self.ir_out = mod
+            return mod
         except jl.UnexpectedInput as e:
-            catch_error = uni.EmptyToken()
-            catch_error.orig_src = ir_in
-            catch_error.line_no = e.line
-            catch_error.end_line = e.line
-            catch_error.c_start = e.column
-            catch_error.c_end = e.column + 1
-            catch_error.pos_start = e.pos_in_stream or 0
-            catch_error.pos_end = catch_error.pos_start + 1
+            catch_error = self.error_to_token(e)
+            error_msg = self.error_to_message(e)
 
-            error_msg = "Syntax Error"
             if len(e.args) >= 1 and isinstance(e.args[0], str):
                 error_msg += e.args[0]
             self.log_error(error_msg, node_override=catch_error)
@@ -62,7 +59,12 @@ class JacParser(Transform[uni.Source, uni.Module]):
         except Exception as e:
             raise e
 
-        return uni.Module.make_stub(inject_src=ir_in)
+        # If we reach here, there was a syntax error, mark the module as such
+        # and report errors.
+        self.report_errors()
+        mod = uni.Module.make_stub(inject_src=ir_in)
+        mod.has_syntax_errors = True
+        return mod
 
     @staticmethod
     def proc_comment(token: jl.Token, mod: uni.UniNode) -> uni.CommentToken:
@@ -82,7 +84,91 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
     def error_callback(self, e: jl.UnexpectedInput) -> bool:
         """Handle error."""
+        if isinstance(e, jl.UnexpectedToken):
+
+            # If last token is DOT and we expect a NAME, insert a NAME token
+            last_tok: jl.Token | None = (
+                e.token_history[-1]
+                if e.token_history and len(e.token_history) >= 1
+                else None
+            )
+            if (
+                last_tok
+                and last_tok.type == Tok.DOT.name
+                and (Tok.NAME.name in e.accepts)
+            ):
+                self.log_error("Incomplete member access", self.error_to_token(e))
+                e.interactive_parser.feed_token(
+                    jl.Token(Tok.NAME.name, "recover_name_token")
+                )
+                e.interactive_parser.feed_token(e.token)
+                return True
+
+            # If any of the below token is missing, insert them and continue parsing.
+            missing_tokens = {
+                Tok.COMMA: "comma",
+                Tok.SEMI: "semicollon",
+                Tok.COLON: "colon",
+                Tok.RPAREN: "right parenthesis",
+                Tok.RBRACE: "right brace",
+                Tok.RSQUARE: "right bracket",
+                Tok.RETURN_HINT: "return type hint",
+            }
+            for tok, desc in missing_tokens.items():
+                if tok.name in e.accepts:
+                    self.log_error(f"Missing {desc}", self.error_to_token(e))
+                    e.interactive_parser.feed_token(jl.Token(tok.name, desc))
+                    e.interactive_parser.feed_token(e.token)
+                    return True
+
+            # Ignore unexpected tokens and continue parsing till we reach a known state.
+            self.log_error(
+                f"Unexpected token '{e.token.value}'", self.error_to_token(e)
+            )
+            return True
+
         return False
+
+    def error_to_message(self, e: jl.UnexpectedInput) -> str:
+        """Return an error message based on the exception."""
+        # TODO: Match more specific errors with lark's example based matching.
+        # Reference: https://github.com/lark-parser/lark/blob/master/examples/advanced/error_reporting_lalr.py
+        # e.match_examples()
+        if isinstance(e, jl.UnexpectedToken):
+            return f"Unexpected token '{e.token.value}'"
+        return "Syntax Error"
+
+    def error_to_token(self, e: jl.UnexpectedInput) -> uni.Token:
+        """Convert error to token."""
+        catch_error = uni.EmptyToken()
+        catch_error.orig_src = self.ir_in
+        catch_error.line_no = e.line
+        catch_error.end_line = e.line
+        catch_error.c_start = e.column
+        catch_error.pos_start = e.pos_in_stream or 0
+        if isinstance(e, jl.UnexpectedToken) and e.token:
+            catch_error.c_end = e.token.end_column or (e.column + 1)
+            catch_error.pos_end = e.token.end_pos or (catch_error.pos_start + 1)
+        else:
+            catch_error.c_end = e.column + 1
+            catch_error.pos_end = catch_error.pos_start + 1
+        return catch_error
+
+    def report_errors(self, *, colors: bool = True) -> None:
+        """Report errors to the user."""
+        # TODO: Write a better IO system.
+        # NOTE: Currently it writes all the errors to stderr cause LSP JsonRPC uses stdout for IPC.
+        if not sys.stderr.isatty():
+            # FIXME: If we're outputting to a file (pipe, redirection, etc) other
+            # than a terminal we disable colors however we should be able to force
+            # colors with a configuration.
+            colors = False
+        for alrt in self.errors_had:
+            error_label = (
+                "Error:" if not colors else f"{ANSIColors.RED}Error:{ANSIColors.END}"
+            )
+            print(error_label, end=" ", file=sys.stderr)
+            print(alrt.pretty_print(colors=colors), file=sys.stderr)
 
     @staticmethod
     def _comment_callback(comment: jl.Token) -> None:

@@ -192,6 +192,37 @@ def dump_traceback(e: Exception) -> str:
     return trace_dump
 
 
+# FIXME: Use a proper color library and/or move this somewhere common to jac stack and use it everywhere.
+# Reference: https://gist.github.com/rene-d/9e584a7dd2935d0f461904b9f2950007
+class ANSIColors:
+    """ANSI color codes."""
+
+    BLACK = "\033[0;30m"
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    BROWN = "\033[0;33m"
+    BLUE = "\033[0;34m"
+    PURPLE = "\033[0;35m"
+    CYAN = "\033[0;36m"
+    LIGHT_GRAY = "\033[0;37m"
+    DARK_GRAY = "\033[1;30m"
+    LIGHT_RED = "\033[1;31m"
+    LIGHT_GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
+    LIGHT_BLUE = "\033[1;34m"
+    LIGHT_PURPLE = "\033[1;35m"
+    LIGHT_CYAN = "\033[1;36m"
+    LIGHT_WHITE = "\033[1;37m"
+    BOLD = "\033[1m"
+    FAINT = "\033[2m"
+    ITALIC = "\033[3m"
+    UNDERLINE = "\033[4m"
+    BLINK = "\033[5m"
+    NEGATIVE = "\033[7m"
+    CROSSED = "\033[9m"
+    END = "\033[0m"
+
+
 # TODO: After implementing the TextRange (or simillar named) class to mark a text range
 # refactor the parameter to accept an instace of that text range object.
 def pretty_print_source_location(
@@ -200,6 +231,8 @@ def pretty_print_source_location(
     error_line: int,
     pos_start: int,
     pos_end: int,
+    *,
+    colors: bool = False,
 ) -> str:
     """Pretty print internal method for the pretty_print method."""
     # NOTE: The Line numbers and the column numbers are starts with 1.
@@ -241,7 +274,16 @@ def pretty_print_source_location(
         idx_line_start = idx
         while idx < len(file_source) and file_source[idx] != "\n":
             idx += 1  # Run to the line end.
-        pretty_dump += file_source[idx_line_start:idx]
+
+        if colors and (curr_line == error_line):
+            pretty_dump += (
+                file_source[idx_line_start:pos_start]
+                + f"{ANSIColors.RED}{file_source[pos_start:pos_end]}{ANSIColors.END}"
+                + file_source[pos_end:idx]
+            )
+        else:
+            pretty_dump += file_source[idx_line_start:idx]
+
         pretty_dump += "\n"
 
         if curr_line == error_line:  # Print the current line with indicator.
@@ -252,7 +294,10 @@ def pretty_print_source_location(
                 spaces += "\t" if file_source[idx_pre] == "\t" else " "
 
             err_token_len = pos_end - pos_start
-            pretty_dump += spaces + ("^" * err_token_len) + "\n"
+            underline = "^" * err_token_len
+            if colors:
+                underline = f"{ANSIColors.RED}{underline}{ANSIColors.END}"
+            pretty_dump += spaces + underline + "\n"
 
         if idx == len(file_source):
             break
