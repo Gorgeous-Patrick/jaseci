@@ -43,11 +43,11 @@ node TaskNode {
     has result: CodeResult = CodeResult();
 
     def process_task() {
-        print(f"⚡ Working on: {self.task.name}");
+        print(f"Working on: {self.task.name}");
         self.code = generate_solution(self.task);
         self.feedback = validate_code(self.code, self.task);
         self.status = "success" if self.feedback else "failed";
-        print(f"✅ Completed: {self.task.name}");
+        print(f"Completed: {self.task.name}");
 
         # Create result
         self.result.task_name = self.task.name;
@@ -61,9 +61,9 @@ node SummaryNode {
     has results: list[CodeResult] = [];
 
     def show_summary() {
-        output = f"🎯 Summary ({len(self.results)} tasks):\n\n";
+        output = f"Summary ({len(self.results)} tasks):\n\n";
         for result in self.results {
-            status_icon = "✅" if result.status == "success" else "❌";
+            status_icon = "SUCCESS" if result.status == "success" else "FAILED";
             output += f"{status_icon} {result.task_name}\n";
             if result.code and len(result.code) > 0 {
                 code_preview = result.code[:300];
@@ -89,11 +89,11 @@ walker GeniusAgent {
     has current_task_index: int = 0;
 
     can start with `root entry {
-        print("🚀 Genius Lite - AI Coding Assistant");
+        print("Genius Lite - AI Coding Assistant");
         print("Simple, structured code generation with validation");
         print("=" * 50);
         self.tasks = create_plan(self.request);
-        print(f"📋 Created {len(self.tasks)} tasks");
+        print(f"Created {len(self.tasks)} tasks");
 
         if len(self.tasks) > 0 {
             # Create task nodes and connect them
@@ -140,12 +140,26 @@ walker GeniusAgent {
     }
 }
 
-# Main execution
-with entry {
-    user_request = "Create a Python calculator with basic math operations";
-    print(f"📝 Demo: {user_request}");
-    print("-" * 50);
-    agent = GeniusAgent(request=user_request) spawn root;
-    print("\n🎉 Genius Lite Demo Complete!");
-    print("💡 Features: Task planning, code generation, validation");
+# API walker for frontend interaction
+walker generate_code {
+    has request: str;
+
+    can execute with `root entry {
+        print(f"Processing request: {self.request}");
+        agent = GeniusAgent(request=self.request) spawn root;
+
+        # Return the results
+        report {
+            "status": "success",
+            "tasks": [
+                {
+                    "name": result.task_name,
+                    "code": result.code,
+                    "status": result.status,
+                    "feedback": result.feedback
+                } for result in agent.results
+            ],
+            "total_tasks": len(agent.results)
+        };
+    }
 }

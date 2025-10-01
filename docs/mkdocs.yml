@@ -16,6 +16,9 @@ nav:
       - Jac MCP Conversational Chatbot: "learn/examples/rag_chatbot/Overview.md"
       - RPG game with AI Genarated Maps: "learn/examples/mtp_examples/rpg_game.md"
       - Agentic Fantasy Trading Game: "learn/examples/mtp_examples/fantasy_trading_game.md"
+      - Friendzone Lite: "learn/examples/agentic_ai/friendzone-lite/friendzone-lite.md"
+      - Aider Genius Lite: "learn/examples/agentic_ai/aider-genius-lite/aider-genius-lite.md"
+      - Task Manager Lite: "learn/examples/agentic_ai/task-manager-lite/task-manager-lite.md"
     - Learn Jac Language (WIP):
       - Introduction: "jac_book/index.md"
       - 1. Welcome to Jac: "jac_book/chapter_1.md"

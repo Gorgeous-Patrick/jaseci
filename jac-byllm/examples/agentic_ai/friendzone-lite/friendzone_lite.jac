@@ -1,4 +1,4 @@
-import from mtllm.llm  { Model, Image }
+import from byllm  { Model, Image }
 import from typing { List, Dict, Any }
 import os;
 
@@ -110,20 +110,34 @@ walker update_session {
         } else {
             print("🤖 Assistant: " + response.follow_up_questions);
         }
+
+        # Report session state for frontend
+        report {
+            "summary": here.summary,
+            "when": here.when,
+            "who": here.who,
+            "where": here.where,
+            "what": here.what,
+            "show_summary": here.show_summary,
+            "terminate_conversation": here.terminate_conversation,
+            "follow_up_questions": response.follow_up_questions,
+            "conversation": here.conversation,
+            "image_url": here.image_url
+        };
     }
 }
 
-with entry {
-    clear_terminal();
-    print("🚀 Starting Friendzone Lite...");
-    image_url = input("🌐 Please enter an image URL: ");
-    if image_url == "" {
-        print("❌ No image URL provided. Exiting.");
-        exit(1);
-    }
-    walker_obj = root spawn update_session(image_url=image_url);
-    while not (walker_obj.show_summary and walker_obj.terminate_conversation) {
-        utterance = input("👤 You: ");
-        walker_obj = root spawn update_session(utterance=utterance, image_url=image_url);
-    }
-}
+# with entry {
+#     clear_terminal();
+#     print("🚀 Starting Friendzone Lite...");
+#     image_url = input("🌐 Please enter an image URL: ");
+#     if image_url == "" {
+#         print("❌ No image URL provided. Exiting.");
+#         exit(1);
+#     }
+#     walker_obj = root spawn update_session(image_url=image_url);
+#     while not (walker_obj.show_summary and walker_obj.terminate_conversation) {
+#         utterance = input("👤 You: ");
+#         walker_obj = root spawn update_session(utterance=utterance, image_url=image_url);
+#     }
+# }
