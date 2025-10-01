@@ -1199,7 +1199,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     | (yield_expr | KW_YIELD) SEMI
                     | raise_stmt SEMI
                     | assert_stmt SEMI
-                    | check_stmt SEMI
                     | assignment SEMI
                     | delete_stmt SEMI
                     | report_stmt SEMI
@@ -1475,18 +1474,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
             return uni.AssertStmt(
                 condition=condition,
                 error_msg=error_msg,
-                kid=self.cur_nodes,
-            )
-
-        def check_stmt(self, _: None) -> uni.CheckStmt:
-            """Grammar rule.
-
-            check_stmt: KW_CHECK expression
-            """
-            self.consume_token(Tok.KW_CHECK)
-            target = self.consume(uni.Expr)
-            return uni.CheckStmt(
-                target=target,
                 kid=self.cur_nodes,
             )
 

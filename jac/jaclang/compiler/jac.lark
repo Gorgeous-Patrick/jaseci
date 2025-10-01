@@ -115,7 +115,6 @@ statement: import_stmt
        | (yield_expr | KW_YIELD) SEMI
        | raise_stmt SEMI
        | assert_stmt SEMI
-       | check_stmt SEMI
        | assignment SEMI
        | delete_stmt SEMI
        | report_stmt SEMI
@@ -210,9 +209,6 @@ raise_stmt: KW_RAISE (expression (KW_FROM expression)?)?
 
 // [Heading]: Assert statements.
 assert_stmt: KW_ASSERT expression (COMMA expression)?
-
-// [Heading]: Check statements.
-check_stmt: KW_CHECK expression
 
 // [Heading]: Delete statements.
 delete_stmt: KW_DELETE expression
@@ -525,7 +521,6 @@ KW_TEST: "test"
 KW_IMPL: "impl"
 KW_SEM: "sem"
 KW_ASSERT: "assert"
-KW_CHECK: "check"
 KW_IF: "if"
 KW_ELIF: "elif"
 KW_ELSE: "else"

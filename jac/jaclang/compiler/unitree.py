@@ -2693,31 +2693,6 @@ class AssertStmt(CodeBlockStmt):
         return res
 
 
-class CheckStmt(CodeBlockStmt):
-    """CheckStmt node type for Jac Ast."""
-
-    def __init__(
-        self,
-        target: Expr,
-        kid: Sequence[UniNode],
-    ) -> None:
-        self.target = target
-        UniNode.__init__(self, kid=kid)
-        CodeBlockStmt.__init__(self)
-
-    def normalize(self, deep: bool = False) -> bool:
-        res = True
-        if deep:
-            res = self.target.normalize(deep)
-        new_kid: list[UniNode] = [
-            self.gen_token(Tok.KW_CHECK),
-            self.target,
-            self.gen_token(Tok.SEMI),
-        ]
-        self.set_kids(nodes=new_kid)
-        return res
-
-
 class CtrlStmt(CodeBlockStmt):
     """CtrlStmt node type for Jac Ast."""
 

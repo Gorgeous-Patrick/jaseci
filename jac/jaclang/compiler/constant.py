@@ -178,7 +178,6 @@ class Tokens(str, Enum):
     KW_WAIT = "KW_WAIT"
     KW_TEST = "KW_TEST"
     KW_ASSERT = "KW_ASSERT"
-    KW_CHECK = "KW_CHECK"
     COLON = "COLON"
     PIPE_FWD = "PIPE_FWD"
     PIPE_BKWD = "PIPE_BKWD"

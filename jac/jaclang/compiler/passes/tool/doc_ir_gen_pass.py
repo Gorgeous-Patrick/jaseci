@@ -1300,16 +1300,6 @@ class DocIRGenPass(UniPass):
                 parts.append(self.space())
         node.gen.doc_ir = self.group(self.concat(parts))
 
-    def exit_check_stmt(self, node: uni.CheckStmt) -> None:
-        """Generate DocIR for check statements."""
-        parts: list[doc.DocType] = []
-        for i in node.kid:
-            if isinstance(i, uni.Token) and i.name == Tok.SEMI:
-                parts.pop()
-            parts.append(i.gen.doc_ir)
-            parts.append(self.space())
-        node.gen.doc_ir = self.group(self.concat(parts))
-
     def exit_match_stmt(self, node: uni.MatchStmt) -> None:
         """Generate DocIR for match statements."""
         parts: list[doc.DocType] = []

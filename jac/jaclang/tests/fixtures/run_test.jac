@@ -1,17 +1,17 @@
 glob a = 5, b = 2;
 
 test t1 {
-    check almostEqual(a, 6);
+    assert almostEqual(a, 6);
 }
 
 test t2 {
-    check a != b;
+    assert a != b;
 }
 
 test t3 {
-    check "d" in "abc";
+    assert "d" in "abc";
 }
 
 test t4 {
-    check a - b == 3;
+    assert a - b == 3;
 }

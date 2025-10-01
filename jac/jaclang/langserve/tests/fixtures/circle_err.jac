@@ -59,15 +59,15 @@ print(f"Area of a {c.shape_type.value} with radius {RAD} using class: {c.area()}
 glob expected_area = 78.53981633974483;
 
 test calc_area   {
-    check almostEqual(calculate_area(RAD), expected_area);
+    assert almostEqual(calculate_area(RAD), expected_area);
 }
 
 test circle_area   {
     c = Circle(RAD);
-    check almostEqual(c.area(), expected_area);
+    assert almostEqual(c.area(), expected_area);
 }
 
 test circle_type   {
     c = Circle(RAD);
-    check c.shape_type == ShapeType.CIRCLE;
+    assert c.shape_type == ShapeType.CIRCLE;
 }

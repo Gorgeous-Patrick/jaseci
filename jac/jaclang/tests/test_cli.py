@@ -477,7 +477,7 @@ class JacCliTests(TestCase):
                 f.write(
                     f"""
                 test mytest{{
-                    check 10 == {x};
+                    assert 10 == {x};
                 }}
                 """
                 )
