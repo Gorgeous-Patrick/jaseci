@@ -78,6 +78,8 @@ class RoundRobinPartitioner:
             node_size = get_node_info_from_node_arch(
                 JacPIMStaticCtx.get_all_nodes()[node]
             ).node_size_bytes
+            if node_distribution.node_assigned(node):
+                continue
             partitions = node_distribution.available_partitions(node_size)
             if len(partitions) == 0:
                 raise RuntimeError("No available partitions.")
@@ -116,6 +118,8 @@ class RandomPartitioner:
         self.node_distribution = NodeDistribution()
         # self._dfs_round_robin_on_node(self.node_distribution, ttg, start_node_idx, 0)
         for node in ttg.nodes():
+            if self.node_distribution.node_assigned(node):
+                continue
             node_size = get_node_info_from_node_arch(
                 JacPIMStaticCtx.get_all_nodes()[node]
             ).node_size_bytes

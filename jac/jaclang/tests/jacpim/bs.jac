@@ -41,7 +41,7 @@ walker bs {
     JacMachine.par_visit(self, bs(value=self.value), [-->]);
   }
   can rundown with BranchNode entry {
-    print(here.mid);
+    print(self.value, here.mid);
     if (self.value < here.mid) {
       visit [->:Left:->];
     } else {
@@ -103,6 +103,8 @@ with entry {
   JacMachine.jacpim_init();
   root ++> data_nodes[0][0];
   print("Walker instance created with value 5");
-  JacMachine.jacpim_spawn(bs(value=5000), data_nodes[0][0]);
+  for i in range(10){
+    JacMachine.jacpim_spawn(bs(value=i), data_nodes[0][0]);
+  }
   JacMachine.jacpim_start();
 }
