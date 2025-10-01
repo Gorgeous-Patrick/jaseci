@@ -49,10 +49,10 @@ class JacPIMExecutor:
         self.pending_walkers: List[WalkerArchetype] = []
         self.iteration_history: List[JacPIMIterationInfo] = []
         self.node_to_dpu_mapping: Dict[NodeArchetype, int] = {}
-
-    def initialize_mapping(self, node: NodeArchetype, walker: WalkerArchetype) -> None:
-        """Do nothing."""
-        print("Using existing JacPIMMappingCtx mapping")
+        # Track executions as List[List[List[int]]]
+        # executions[i] = list of walker executions in iteration i
+        # walker_execution = list of DPU IDs (all same DPU) visited sequentially
+        self.executions: List[List[List[int]]] = []
 
     def get_node_dpu(self, node: NodeArchetype) -> int:
         """Get the DPU core ID for a given node using the existing mapping."""
@@ -91,6 +91,9 @@ class JacPIMExecutor:
     def run_iteration(self) -> JacPIMIterationInfo:
         """Execute one iteration of walkers."""
         iteration_info = JacPIMIterationInfo(iteration_number=self.current_iteration)
+        current_execution_walkers: List[List[int]] = (
+            []
+        )  # Walker executions for this iteration
 
         # Move pending walkers to active (up to max_walkers_per_iteration)
         while (
@@ -115,7 +118,12 @@ class JacPIMExecutor:
             start_dpu = self.get_node_dpu(start_node)
 
             # Execute the walker with DPU-aware spawn (stops at DPU boundaries)
-            final_node = self._dpu_aware_spawn_call(walker, start_node, start_dpu)
+            final_node, dpu_sequence = self._dpu_aware_spawn_call(
+                walker, start_node, start_dpu
+            )
+
+            # Add the homogeneous DPU sequence to current execution
+            current_execution_walkers.append(dpu_sequence)
 
             # Record the execution (ensure we have a node for DPU mapping)
             result_node = (
@@ -129,6 +137,9 @@ class JacPIMExecutor:
             if len(walker.__jac__.next) > 0:
                 self.pending_walkers.append(walker)
                 iteration_info.dpu_migrations += 1
+
+        # Store this execution's walker sequences
+        self.executions.append(current_execution_walkers)
 
         # Clear active walkers
         self.active_walkers.clear()
@@ -146,21 +157,13 @@ class JacPIMExecutor:
 
         while self.pending_walkers or self.active_walkers:
             iter_info = self.run_iteration()
-            results.append(
-                {
-                    "iteration": iter_info.iteration_number,
-                    "walkers_count": len(iter_info.walkers_executed),
-                    "duration": iter_info.duration,
-                    "dpu_migrations": iter_info.dpu_migrations,
-                    "dpu_usage": self._get_dpu_usage(iter_info),
-                }
-            )
+            results.append(iter_info)
 
         return {"total_iterations": len(results), "iterations": results}
 
     def _dpu_aware_spawn_call(
         self, walker: WalkerArchetype, node: NodeArchetype, start_dpu: int
-    ) -> NodeArchetype | EdgeArchetype:
+    ) -> tuple[NodeArchetype | EdgeArchetype, List[int]]:
         """DPU-aware spawn call that stops execution at DPU boundaries.
 
         Based on spawn_call but adds DPU boundary detection to preserve walker state.
@@ -171,7 +174,7 @@ class JacPIMExecutor:
             start_dpu: Starting DPU ID
 
         Returns:
-            Final node where walker stopped
+            Tuple of (Final node where walker stopped, List of DPU IDs visited)
         """
         walker_anchor = walker.__jac__
         warch = walker_anchor.archetype
@@ -181,6 +184,7 @@ class JacPIMExecutor:
         walker_anchor.path = []
 
         current_dpu = start_dpu
+        dpu_sequence = [current_dpu]  # Track DPU sequence for this walker execution
 
         # Main traversal loop with DPU boundary detection
         current_loc = node  # Default to starting node
@@ -196,11 +200,15 @@ class JacPIMExecutor:
                     print(f"DPU boundary crossing: DPU {current_dpu} -> DPU {next_dpu}")
                     # Put the node back in walker's next list (preserving walker state!)
                     walker_anchor.next.insert(0, current_loc.__jac__)
-                    return (
+                    final_node = (
                         walker_anchor.path[-1].archetype if walker_anchor.path else node
                     )
+                    return (final_node, dpu_sequence)
 
+                # This should not happen - we already returned on DPU crossing
+                # But keep it here for safety
                 current_dpu = next_dpu
+                dpu_sequence.append(current_dpu)  # Add to sequence
 
             # Same DPU - continue execution (same as spawn_call)
             # walker ability with loc entry
@@ -208,52 +216,52 @@ class JacPIMExecutor:
                 if i.trigger and isinstance(current_loc, i.trigger):
                     i.func(warch, current_loc)
                 if walker_anchor.disengaged:
-                    return current_loc
+                    return (current_loc, dpu_sequence)
 
             # loc ability with any entry
             for i in current_loc._jac_entry_funcs_:
                 if not i.trigger:
                     i.func(current_loc, warch)
                 if walker_anchor.disengaged:
-                    return current_loc
+                    return (current_loc, dpu_sequence)
 
             # loc ability with walker entry
             for i in current_loc._jac_entry_funcs_:
                 if i.trigger and isinstance(warch, i.trigger):
                     i.func(current_loc, warch)
                 if walker_anchor.disengaged:
-                    return current_loc
+                    return (current_loc, dpu_sequence)
 
             # loc ability with walker exit
             for i in current_loc._jac_exit_funcs_:
                 if i.trigger and isinstance(warch, i.trigger):
                     i.func(current_loc, warch)
                 if walker_anchor.disengaged:
-                    return current_loc
+                    return (current_loc, dpu_sequence)
 
             # loc ability with any exit
             for i in current_loc._jac_exit_funcs_:
                 if not i.trigger:
                     i.func(current_loc, warch)
                 if walker_anchor.disengaged:
-                    return current_loc
+                    return (current_loc, dpu_sequence)
 
             # walker ability with loc exit
             for i in warch._jac_exit_funcs_:
                 if i.trigger and isinstance(current_loc, i.trigger):
                     i.func(warch, current_loc)
                 if walker_anchor.disengaged:
-                    return current_loc
+                    return (current_loc, dpu_sequence)
 
         # walker ability with any exit (final cleanup)
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
                 i.func(warch, current_loc)
             if walker_anchor.disengaged:
-                return current_loc
+                return (current_loc, dpu_sequence)
 
         walker_anchor.ignores = []
-        return current_loc
+        return (current_loc, dpu_sequence)
 
     def _get_dpu_usage(self, iteration_info: JacPIMIterationInfo) -> Dict[int, int]:
         """Get DPU usage for an iteration."""
@@ -261,6 +269,24 @@ class JacPIMExecutor:
         for _, _, dpu_id in iteration_info.walkers_executed:
             dpu_usage[dpu_id] = dpu_usage.get(dpu_id, 0) + 1
         return dpu_usage
+
+    def get_executions(self) -> List[List[List[int]]]:
+        """Get the list of executions with homogeneous DPU sequences.
+
+        Returns:
+            List of executions, where each execution is a list of walker executions,
+            and each walker execution is a homogeneous list of DPU IDs.
+        """
+        return self.executions
+
+    def print_executions(self) -> None:
+        """Pretty print the executions structure."""
+        print("\n=== JacPIM Executions (Homogeneous DPU Sequences) ===")
+        for i, execution in enumerate(self.executions):
+            print(f"Execution {i + 1}: {len(execution)} parallel walker(s)")
+            for j, walker_sequence in enumerate(execution):
+                print(f"  Walker {j + 1}: DPU sequence {walker_sequence}")
+        print("=" * 50)
 
 
 # Global executor instance
@@ -281,10 +307,6 @@ def jacpim_spawn(
         Result of walker execution (if execute_immediately=True), otherwise None
     """
     global _executor  # noqa: F824
-
-    # Initialize mapping if first call
-    if not _executor.node_to_dpu_mapping:
-        _executor.initialize_mapping(node, walker)
 
     if execute_immediately:
         # Add walker to executor and run all iterations to handle cross-DPU jumps
@@ -327,6 +349,62 @@ def jacpim_run_batch() -> Dict:
     """
     global _executor  # noqa: F824
     return _executor.run_all_iterations()
+
+
+def jacpim_walker_start_running() -> Dict:
+    """Start running all pending walkers that were queued with execute_immediately=False.
+
+    This puts all pending walkers into active state and runs all iterations
+    until completion, handling DPU boundary crossings.
+
+    Returns:
+        Dictionary with execution results including homogeneous DPU sequences
+    """
+    global _executor  # noqa: F824
+
+    if not _executor.pending_walkers and not _executor.active_walkers:
+        print("No walkers queued for execution")
+        return {"message": "No walkers queued", "executions": []}
+
+    print(f"Starting execution of {len(_executor.pending_walkers)} queued walker(s)...")
+
+    # Run all iterations until no more walkers are pending
+    results = _executor.run_all_iterations()
+
+    # Print the executions structure
+    _executor.print_executions()
+
+    return results
+
+
+def jacpim_queue_status() -> Dict:
+    """Get the current status of queued walkers.
+
+    Returns:
+        Dictionary with queue information
+    """
+    global _executor  # noqa: F824
+
+    return {
+        "active_walkers": len(_executor.active_walkers),
+        "pending_walkers": len(_executor.pending_walkers),
+        "total_queued": len(_executor.active_walkers) + len(_executor.pending_walkers),
+        "iterations_completed": len(_executor.iteration_history),
+    }
+
+
+def jacpim_clear_queue() -> None:
+    """Clear all queued walkers and reset the executor state."""
+    global _executor  # noqa: F824
+
+    _executor.active_walkers.clear()
+    _executor.pending_walkers.clear()
+    _executor.iteration_history.clear()
+    _executor.executions.clear()
+    _executor.current_iteration = 0
+    _executor.node_to_dpu_mapping.clear()
+
+    print("Cleared all queued walkers and reset executor state")
 
 
 def get_jacpim_stats() -> Dict:

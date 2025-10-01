@@ -47,7 +47,7 @@ walker BFS {
 
 with entry {
 nodes = [];
-NODE_NUM = 500;
+NODE_NUM = 50;
 for i in range(NODE_NUM) {
   nodes.append(BFSNode(id = i));
   root ++> nodes[i];

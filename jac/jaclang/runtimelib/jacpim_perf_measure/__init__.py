@@ -5,22 +5,23 @@ runtime information about walker execution across DPU cores.
 """
 
 from .jacpim_spawn import (
-    # jacpim_spawn,
-    # jacpim_par_visit,
-    # jacpim_run_batch,
-    # get_jacpim_stats,
-    # JacPIMExecutor,
     JacPIMExecutor,
     get_jacpim_stats,
+    jacpim_clear_queue,
     jacpim_par_visit,
+    jacpim_queue_status,
     jacpim_run_batch,
     jacpim_spawn,
+    jacpim_walker_start_running,
 )
 
 __all__ = [
-    "jacpim_spawn",
-    "jacpim_par_visit",
-    "jacpim_run_batch",
-    "get_jacpim_stats",
     "JacPIMExecutor",
+    "get_jacpim_stats",
+    "jacpim_clear_queue",
+    "jacpim_par_visit",
+    "jacpim_queue_status",
+    "jacpim_run_batch",
+    "jacpim_spawn",
+    "jacpim_walker_start_running",
 ]

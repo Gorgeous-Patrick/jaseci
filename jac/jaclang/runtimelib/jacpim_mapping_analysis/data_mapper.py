@@ -84,11 +84,14 @@ class RoundRobinPartitioner:
             partition = partitions[offset % len(partitions)]
             node_distribution.add_node(node, partition, node_size)
 
-    def __init__(self, ttg: nx.MultiDiGraph, start_node: NodeArchetype) -> None:
+    def __init__(self, ttg: nx.MultiDiGraph, start_nodes: list[NodeArchetype]) -> None:
         """Get the partitioning done."""
-        start_node_idx = JacPIMStaticCtx.get_all_nodes().index(start_node)
         self.node_distribution = NodeDistribution()
-        self._dfs_round_robin_on_node(self.node_distribution, ttg, start_node_idx, 0)
+        for start_node in start_nodes:
+            start_node_idx = JacPIMStaticCtx.get_all_nodes().index(start_node)
+            self._dfs_round_robin_on_node(
+                self.node_distribution, ttg, start_node_idx, 0
+            )
         for node_idx in range(len(JacPIMStaticCtx.get_all_nodes())):
             if not self.node_distribution.node_assigned(node_idx):
                 node_size = get_node_info_from_node_arch(
@@ -97,7 +100,7 @@ class RoundRobinPartitioner:
                 partitions = self.node_distribution.available_partitions(node_size)
                 if len(partitions) == 0:
                     raise RuntimeError("No available partitions.")
-                partition = partitions[0]
+                partition = random.choice(partitions)
                 self.node_distribution.add_node(node_idx, partition, node_size)
 
     def get_data_partitioning(self) -> dict[int, int]:
@@ -108,7 +111,7 @@ class RoundRobinPartitioner:
 class RandomPartitioner:
     """Random JacPIM Partitioner (baseline)."""
 
-    def __init__(self, ttg: nx.MultiDiGraph, _: NodeArchetype) -> None:
+    def __init__(self, ttg: nx.MultiDiGraph, _: list[NodeArchetype]) -> None:
         """Get the partitioning done."""
         self.node_distribution = NodeDistribution()
         # self._dfs_round_robin_on_node(self.node_distribution, ttg, start_node_idx, 0)

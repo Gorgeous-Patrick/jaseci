@@ -36,14 +36,18 @@ class JacPIMMappingCtx:
     partitioning: dict[int, int] | None
 
     @classmethod
-    def setter(cls, start_node: NodeArchetype, walker: WalkerArchetype) -> None:
+    def setter(
+        cls, nodes_and_walkers: list[tuple[NodeArchetype, WalkerArchetype]]
+    ) -> None:
         """Set all the values in the context."""
         static_ctx = JacPIMStaticCtx
-        walker_code = get_walker_code(walker)
         cls.ttg = get_ttg_from_ttt(
-            get_access_pattern_single_walker(
-                start_node, static_ctx.get_networkx(), walker_code
-            )
+            [
+                get_access_pattern_single_walker(
+                    start_node, static_ctx.get_networkx(), get_walker_code(walker)
+                )
+                for start_node, walker in nodes_and_walkers
+            ]
         )
         cls.partitioning = None
         mapping_method = os.environ.get("MAPPING")
@@ -51,11 +55,11 @@ class JacPIMMappingCtx:
             raise RuntimeError("Mapping method not specified")
         elif mapping_method == "ROUND":
             cls.partitioning = RoundRobinPartitioner(
-                cls.ttg, start_node
+                cls.ttg, [start_node for start_node, _ in nodes_and_walkers]
             ).get_data_partitioning()
         elif mapping_method == "RANDOM":
             cls.partitioning = RandomPartitioner(
-                cls.ttg, start_node
+                cls.ttg, [start_node for start_node, _ in nodes_and_walkers]
             ).get_data_partitioning()
         else:
             raise RuntimeError("Mapping method undefined")

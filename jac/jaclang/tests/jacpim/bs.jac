@@ -3,6 +3,15 @@ import struct;
 edge Left {}
 edge Right {}
 
+node Start {
+  def get_type_def() {
+    return "";
+  }
+  def get_byte_stream() {
+    return struct.pack("<0s", );
+  }
+}
+
 node BranchNode {
   has mid: int;
   def get_type_def() {
@@ -27,6 +36,10 @@ node DataNode {
 
 walker bs {
   has value: int;
+  can run with Start entry {
+    print("Walker started with value %d" % self.value);
+    JacMachine.par_visit(self, bs(value=self.value), [-->]);
+  }
   can rundown with BranchNode entry {
     print(here.mid);
     if (self.value < here.mid) {
@@ -69,6 +82,8 @@ with entry {
   NUM=1000;
   values = [i for i in range(NUM)];
   data_nodes = [(DataNode(value=values[i], index=i), values[i], values[i]) for i in range(NUM)];
+  start_node = Start();
+  
   granularity = 1;
   # print(data_nodes);
   while (len(data_nodes) > 1) {
@@ -85,8 +100,9 @@ with entry {
   data_nodes = new_nodes + data_nodes;
   # print(data_nodes);
   }
+  JacMachine.jacpim_init();
   root ++> data_nodes[0][0];
-  walker_instance = data_nodes[0][0] spawn bs(value=5000);
   print("Walker instance created with value 5");
-  JacMachine.jacpim_start(data_nodes[0][0], bs(value=5000));
+  JacMachine.jacpim_spawn(bs(value=5000), data_nodes[0][0]);
+  JacMachine.jacpim_start();
 }
