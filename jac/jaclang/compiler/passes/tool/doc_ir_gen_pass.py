@@ -839,19 +839,26 @@ class DocIRGenPass(UniPass):
                 parts.append(self.line())
         parts.pop()
 
-        node.gen.doc_ir = self.group(self.concat(parts))
+        flat = self.group(self.concat(parts))
+        parens = self.group(
+            self.concat(
+                [
+                    self.text("("),
+                    self.indent(self.concat([self.tight_line(), flat])),
+                    self.tight_line(),
+                    self.text(")"),
+                ]
+            )
+        )
+        node.gen.doc_ir = flat
 
         if need_parens:
-            node.gen.doc_ir = self.group(
-                self.concat(
-                    [
-                        self.text("("),
-                        self.indent(self.concat([node.gen.doc_ir])),
-                        self.hard_line(),
-                        self.text(")"),
-                    ]
+            if isinstance(node.parent, uni.Assignment):
+                node.gen.doc_ir = self.if_break(
+                    break_contents=parens, flat_contents=flat
                 )
-            )
+            else:
+                node.gen.doc_ir = parens
 
     def exit_bool_expr(self, node: uni.BoolExpr) -> None:
         """Generate DocIR for boolean expressions (and/or)."""
@@ -1217,7 +1224,7 @@ class DocIRGenPass(UniPass):
                 parts.append(self.space())
             prev_item = i
         parts.pop()
-        node.gen.doc_ir = self.group(
+        broken = self.group(
             self.concat(
                 [
                     parts[0],
@@ -1227,6 +1234,13 @@ class DocIRGenPass(UniPass):
                 ]
             )
         )
+        if isinstance(node.parent, uni.Assignment):
+            node.gen.doc_ir = self.if_break(
+                flat_contents=self.group(self.concat(parts[1:-1])),
+                break_contents=broken,
+            )
+        else:
+            node.gen.doc_ir = broken
 
     def exit_expr_as_item(self, node: uni.ExprAsItem) -> None:
         """Generate DocIR for expression as item nodes."""
