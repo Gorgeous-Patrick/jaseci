@@ -2,6 +2,11 @@
 
 import copy
 
+from jaclang.runtimelib.jacpim_mapping_analysis.data_mapper import DPU_NUM
+from jaclang.runtimelib.jacpim_mapping_analysis.mapping_ctx import JacPIMMappingCtx
+from jaclang.runtimelib.jacpim_perf_measure.cpu_run_ctx import JacPIMCPURunCtx
+from jaclang.runtimelib.jacpim_static_analysis.static_ctx import JacPIMStaticCtx
+
 from .upmem_codegen import MemoryRange
 
 
@@ -43,29 +48,31 @@ class DPUMemoryCtx:
 
     def __init__(
         self,
+        metadata_mem_ctx: DPUObjMemoryCtx,
+        container_mem_ctx: DPUObjMemoryCtx,
         node_mem_ctx: DPUObjMemoryCtx,
         walker_mem_ctx: DPUObjMemoryCtx,
-        container_mem_ctx: DPUObjMemoryCtx,
     ) -> None:
         """Initialize to combine all memory contexts."""
+        self.metadata_mem_ctx = metadata_mem_ctx
         self.node_mem_ctx = node_mem_ctx
         self.walker_mem_ctx = walker_mem_ctx
         self.container_mem_ctx = container_mem_ctx
 
+    def get_container_range(self, walker_id: int) -> MemoryRange:
+        """Get the container memory range."""
+        return self.container_mem_ctx.obj_id_to_range[walker_id]
+
     def get_node_range(self, node_id: int) -> MemoryRange:
         """Get the node memory range."""
-        return self.node_mem_ctx.obj_id_to_range[node_id]
+        return self.node_mem_ctx.obj_id_to_range[node_id].add_offset(
+            len(self.container_mem_ctx)
+        )
 
     def get_walker_range(self, walker_id: int) -> MemoryRange:
         """Get the walker memory range."""
         return self.walker_mem_ctx.obj_id_to_range[walker_id].add_offset(
-            len(self.node_mem_ctx)
-        )
-
-    def get_container_range(self, walker_id: int) -> MemoryRange:
-        """Get the cotnainer memory range."""
-        return self.container_mem_ctx.obj_id_to_range[walker_id].add_offset(
-            len(self.node_mem_ctx) + len(self.walker_mem_ctx)
+            len(self.container_mem_ctx) + len(self.node_mem_ctx)
         )
 
     def dump(self) -> bytes:
@@ -79,3 +86,32 @@ class DPUMemoryCtx:
     def clone(self) -> "DPUMemoryCtx":
         """Deep copy the object."""
         return copy.deepcopy(self)
+
+
+def node_snapshot_one_dpu(dpu_id: int) -> DPUObjMemoryCtx:
+    """Create a memory context for node snapshot."""
+    node_mem_ctx = DPUObjMemoryCtx()
+    for node_idx, node in enumerate(JacPIMStaticCtx.get_all_nodes()):
+        if JacPIMMappingCtx.get_partitioning().get(node_idx) != dpu_id:
+            continue
+        node_mem_ctx.download_obj(node_idx, node.get_byte_stream())
+    return node_mem_ctx
+
+
+def node_snapshot_all_dpu() -> list[DPUObjMemoryCtx]:
+    """Create a memory context for node snapshot."""
+    return [node_snapshot_one_dpu(dpu_id) for dpu_id in range(DPU_NUM)]
+
+
+def walker_snapshot_one_dpu(dpu_id: int) -> DPUObjMemoryCtx:
+    """Create a memory context for all active walkers on a DPU."""
+    walker_mem_ctx = DPUObjMemoryCtx()
+    for walker in JacPIMCPURunCtx.get_active_walkers()[dpu_id]:
+        walker_id = JacPIMCPURunCtx.get_all_walkers().index(walker)
+        walker_mem_ctx.download_obj(walker_id, walker.get_byte_stream())
+    return walker_mem_ctx
+
+
+def walker_snapshot_all_dpu() -> list[DPUObjMemoryCtx]:
+    """Create a memory context for all active walkers on all DPUs."""
+    return [walker_snapshot_one_dpu(dpu_id) for dpu_id in range(DPU_NUM)]

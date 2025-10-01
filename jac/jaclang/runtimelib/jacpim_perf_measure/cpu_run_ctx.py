@@ -18,6 +18,7 @@ class JacPIMCPURunCtx:
 
     pending_walkers: list[WalkerArchetype] = []
     active_walkers: list[list[WalkerArchetype]] | None = None
+    all_walkers: list[WalkerArchetype] = []
 
     @classmethod
     def setter(cls) -> None:
@@ -34,6 +35,7 @@ class JacPIMCPURunCtx:
         """Add a walker to the pending list."""
         walker.__jac__.next = [start_node.__jac__]
         cls.pending_walkers.append(walker)
+        cls.all_walkers.append(walker)
 
     @classmethod
     def get_pending_nodes_and_walkers(
@@ -220,3 +222,18 @@ class JacPIMCPURunCtx:
         while cls.has_pending_walkers() or cls.has_active_walkers():
             cls.set_pending_walkers_to_active()
             cls.run_all_active_walkers()
+
+    @classmethod
+    def get_all_active_walkers(cls) -> list[WalkerArchetype]:
+        """Get a flat list of all active walkers across all DPUs."""
+        if cls.active_walkers is None:
+            raise RuntimeError("Active walkers not initialized.")
+        all_active = []
+        for dpu_walkers in cls.active_walkers:
+            all_active.extend(dpu_walkers)
+        return all_active
+
+    @classmethod
+    def get_all_walkers(cls) -> list[WalkerArchetype]:
+        """Get a list of all walkers that have been added to the context."""
+        return cls.all_walkers
