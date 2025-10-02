@@ -84,7 +84,7 @@ nav:
 
 
   - Community Hub:
-    - Roadmap: "communityhub/roadmap.md"
+    - Contributing: "internals/contrib.md"
     - Release Notes: "communityhub/release_notes.md"
     - Breaking Changes: "communityhub/breaking_changes.md"
     - Leaderboard: "communityhub/top_contributors.md"
@@ -96,7 +96,7 @@ nav:
         - "communityhub/fun/p3.md"
       - Content Pieces: "communityhub/content_pieces.md"
     - Internals:
-      - Contributing: "internals/contrib.md"
+      - Roadmap: "communityhub/roadmap.md"
       - Design Docs and Guides:
         - Compiler/Runtime Design: "internals/internals.md"
         - Static Compilation:

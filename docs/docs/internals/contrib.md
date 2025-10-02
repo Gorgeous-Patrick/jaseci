@@ -5,6 +5,8 @@
 To get setup run
 ```bash
 # Install black
+python3 -m venv ~/.jacenv/
+source ~/.jacenv/bin/activate
 pip3 install pre-commit
 pre-commit install
 ```
@@ -34,11 +36,6 @@ This is how we run the docs.
 
 ```bash
 --8<-- "scripts/run_docs.sh"
-```
-
-This is how we kill the docs if it dies for some reason
-```bash
---8<-- "scripts/kill_docs.sh"
 ```
 
 

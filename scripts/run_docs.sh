@@ -1,3 +1,2 @@
-cd docs
-pip install -e .
-python scripts/mkdocs_serve.py
+pip install -e docs
+python docs/scripts/mkdocs_serve.py
