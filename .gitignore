@@ -66,3 +66,4 @@ mydatabase/
 *.log
 .env
 *.png
+input_bins/
