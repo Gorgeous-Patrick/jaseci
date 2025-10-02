@@ -337,9 +337,9 @@ class DPUAllMemoryCtx:
                         edge_num=edge_num,
                     )
                 )
-                cls.dpu_container_ctxs[dpu_id].download_obj(
-                    walker_id, Container(container_objects).get_byte_stream()
-                )
+            cls.dpu_container_ctxs[dpu_id].download_obj(
+                walker_id, Container(container_objects).get_byte_stream()
+            )
 
         return cls.dpu_container_ctxs[dpu_id]
 
