@@ -67,3 +67,4 @@ mydatabase/
 .env
 *.png
 input_bins/
+task.c
