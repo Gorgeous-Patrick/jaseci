@@ -9,6 +9,7 @@ from .upmem_codegen import (
     CodeGenContext,
     FunctionDef,
     TypeDef,
+    gen_code,
 )
 
 
@@ -76,8 +77,8 @@ def context_gen() -> CodeGenContext:
     walker_types = get_walker_types(all_walkers)
     walker_abilities = get_walker_abilities(all_walkers, walker_types[0], node_types)
 
-    max_node_size = max([node.get_size() for node in all_nodes])
-    max_walker_size = max([walker.get_size() for walker in all_walkers])
+    max_node_size = max([len(node.get_byte_stream()) for node in all_nodes])
+    max_walker_size = max([len(walker.get_byte_stream()) for walker in all_walkers])
 
     return CodeGenContext(
         max_node_size=max_node_size,
@@ -86,3 +87,11 @@ def context_gen() -> CodeGenContext:
         walker_types=walker_types,
         run_ability_functions=walker_abilities,
     )
+
+
+def save_codegen_file(file_path: str) -> None:
+    """Save the codegen file to the specified path."""
+    context = context_gen()
+    code = gen_code(context)
+    with open(file_path, "w") as f:
+        f.write(code)

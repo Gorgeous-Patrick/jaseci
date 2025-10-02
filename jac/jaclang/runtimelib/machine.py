@@ -58,6 +58,9 @@ from jaclang.runtimelib.constructs import (
 )
 from jaclang.runtimelib.jacpim_mapping_analysis import JacPIMMappingCtx
 from jaclang.runtimelib.jacpim_perf_measure.cpu_run_ctx import JacPIMCPURunCtx
+from jaclang.runtimelib.jacpim_simulation_runtime.simulation_ctx import (
+    save_codegen_file,
+)
 from jaclang.runtimelib.jacpim_static_analysis.save_dump import save_all_memory_dumps
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
@@ -1591,6 +1594,8 @@ class JacPIM:
 
         JacPIMCPURunCtx.run_until_all_done()
         save_all_memory_dumps()
+        save_codegen_file("task.c")
+
         # plot_ttg(mapping_ctx.get_ttg(), static_ctx.get_layout(), "temp.png")
 
         # Add JacPIM performance measurement

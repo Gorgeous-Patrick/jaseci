@@ -59,7 +59,7 @@ def gen_code(context: CodeGenContext) -> str:
     template_loader = jinja2.FileSystemLoader(searchpath=str(TEMPLATE_PATH.parent))
     template_env = jinja2.Environment(loader=template_loader)
     template = template_env.get_template(TEMPLATE_PATH.name)
-    return template.render(context)
+    return template.render(vars(context))
 
 
 if __name__ == "__main__":

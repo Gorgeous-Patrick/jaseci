@@ -20,6 +20,7 @@ typedef struct __ContainerObject{
 } ContainerObject;
 
 
+{% for node_type in node_types %}
 typedef struct __{{node_type.name}} {
 {{node_type.definition}}
 } {{node_type.name}};
