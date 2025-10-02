@@ -223,8 +223,9 @@ class JacPIMCPURunCtx:
                     # Move to pending list
                     cls.pending_walkers.append(walker)
             # A walker is either done or moved to pending - clear active list
-            active_walkers[dpu_id] = []
         DPUAllMemoryCtx.finish_running()
+        for dpu_id in range(DPU_NUM):
+            active_walkers[dpu_id] = []
 
     @classmethod
     def has_pending_walkers(cls) -> bool:
@@ -411,7 +412,7 @@ class DPUAllMemoryCtx:
         """Record the trace of a walker visiting nodes."""
         if walker_id not in cls.walker_traces:
             cls.walker_traces[walker_id] = []
-        print(f"DEBUG: Recording walker {walker_id} visiting node {node_idx}")
+        # print(f"DEBUG: Recording walker {walker_id} visiting node {node_idx}")
         cls.walker_traces[walker_id].append(node_idx)
 
     @classmethod
