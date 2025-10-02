@@ -67,72 +67,74 @@ with entry {
 `by llm()` delegates execution to an LLM without any extra library code.
 
 
-## Beyond OOP: An Agentic Programming Model
+## Going Beyond OOP with Object Spatial Programming
 
-In addtion to traditional python classes (`class` or Jac's dataclass-like `obj`), Jac programmers can also use node classes (`node`), edge classes (`edge`), and walker classes (`walker`) for a new type of problem solving and agentic programming.
+Traditional OOP with python classes (`class` or Jac's dataclass-like `obj`) that expresses object hierarchy and behavior is fully supported in Jac. Additionally, Jac programmers can also express object relationships with node classes (`node`), edge classes (`edge`), and object interactions with walker classes (`walker`) for richer modeling of problems called Object-Spatial Programing (OSP). This approach can be used where needed and maps nicely to may categories of problems (which happen to include agentic workflows ;-))
 
-Instances of node and edge classes allow for assembling objects in a graph structure to express semantic relationships between objects. This goes beyond only modeling objects in memory as a disconnected soup of instances.
+Instances of node and edge classes allow for assembling objects in a graph structure to express semantic relationships between objects. This goes beyond only modeling objects in memory as a disconnected soup of instances. Walker classes enables to expression of objects interacting with each other through special methods called abilities.
 
-Walker classes inverts the traditional relationship between data and computation. Rather than moving data to computation with parameter passing, walkers enable moving computation to data as they represent computational units that moves through the topology of node and edge objects.
-
-These new constructs gives rise to a new paradigm for problem solving and implementation we call Object-Spatial Programming (OSP).
-
-In this example, nodes represent meaningful entities (like Weights, Cardio Machines), while walkers (agents) traverse these nodes, collect contextual information, and collaborate with an LLM to generate a personalized workout plan.
+In this example, nodes represent meaningful entities (like Libraries and Shelves), while walkers (borrower) traverse these node objects and process them.
 
 ```jac
-import from byllm.llm {Model}
-
-glob llm = Model(model_name="gemini/gemini-2.5-flash");
-
-node Equipment {}
-
-node Weights(Equipment) {
-    has available: bool = False;
-
-    can check with FitnessAgent entry {
-        visitor.gear["weights"] = self.available;
-    }
+node Library {
+    has location: str;
+    can search_shelves with borrower entry;
 }
 
-node Cardio(Equipment) {
-    has machine: str = "treadmill";
-
-    can check with FitnessAgent entry {
-        visitor.gear["cardio"] = self.machine;
-    }
+node Shelf {
+    has category: str;
+    can check_books with borrower entry;
 }
 
-node Trainer {
-    can plan with FitnessAgent entry {
-        visitor.gear["workout"] = visitor.create_workout(visitor.gear);
-    }
+node Book {
+    has title: str;
+    has available: bool;
 }
 
-walker FitnessAgent {
-    has gear: dict = {};
-
-    can start with `root entry {
-        visit [-->(`?Equipment)];
-    }
-
-    """Create a personalized workout plan based on available equipment and space."""
-    def create_workout(gear: dict) -> str by llm();
-}
-
-walker CoachWalker(FitnessAgent) {
-    can get_plan with `root entry {
-        visit [-->(`?Trainer)];
-    }
+walker borrower {
+    has book_needed: str;
+    can find_book with `root entry;
 }
 
 with entry {
-    root ++> Weights();
-    root ++> Cardio();
-    root ++> Trainer();
+    # Building the world is just linking nodes
+    lib1 = root ++> Library("Central Library");
+    lib2 = root ++> Library("Community Library");
 
-    agent = CoachWalker() spawn root;
-    print("Your Workout Plan:");
-    print(agent.gear['workout']);
+    shelf1 = lib1 ++> Shelf("Fiction");
+    shelf2 = lib1 ++> Shelf("Non-Fiction");
+    shelf3 = lib2 ++> Shelf("Science");
+
+    book1 = shelf1 ++> Book("1984", True);
+    book2 = shelf1 ++> Book("Brave New World", False);
+    book3 = shelf2 ++> Book("Sapiens", True);
+    book4 = shelf3 ++> Book("A Brief History of Time", False);
+    book5 = shelf3 ++> Book("The Selfish Gene", True);
+
+    # Send Borrower walking
+    borrower("1984") spawn root;
+}
+
+impl Library.search_shelves {
+    visit [-->(`?Shelf)]; # No loops, just visit
+}
+
+impl Shelf.check_books {
+    found_book = [self -->(`?Book)](
+        ?title == visitor.book_needed, available == True
+    );
+
+    if (found_book) {
+        print(f"Borrowed: {found_book}");
+        print(f"From Shelf: {self.category}");
+        disengage; # Stop traversal cleanly
+    } else {
+        print("Book not available in shelf", self.category);
+    }
+}
+
+impl borrower.find_book {
+    visit [-->(`?Library)];
 }
 ```
 

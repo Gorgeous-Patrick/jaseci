@@ -6,7 +6,7 @@ use_directory_urls: true
 nav:
   - Learn:
     # - Getting Started: "learn/getting_started.md"
-    - Tour of Jac/Jaseci: "learn/introduction.md"
+    - Tour of Jac/Jaseci: "learn/tour.md"
     - Installation: "learn/installation.md"
     - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"
     - Native Superset of Python: "learn/superset_python.md"
@@ -83,7 +83,7 @@ nav:
       - FAQ: "learn/data_spatial/FAQ.md" # faq
 
 
-  - Community Hub:
+  - Contributor Hub:
     - Contributing: "internals/contrib.md"
     - Release Notes: "communityhub/release_notes.md"
     - Breaking Changes: "communityhub/breaking_changes.md"
@@ -231,7 +231,7 @@ plugins:
       video_controls: False
   - redirects:
       redirect_maps:
-        index.md: learn/introduction.md
+        index.md: learn/tour.md
 
 hooks:
   - scripts/handle_jac_compile_data.py
