@@ -1,348 +1,195 @@
-"""Test for Jac language server[VSCE] features"""
+"""Test suite for Jac language server features."""
 
-import os
 import pytest
 
 from lsprotocol.types import (
-    DidOpenTextDocumentParams,
-    TextDocumentItem,
-    DidSaveTextDocumentParams,
-    DidChangeTextDocumentParams,
     DocumentFormattingParams,
     TextEdit,
-    VersionedTextDocumentIdentifier,
     TextDocumentIdentifier,
 )
 from jaclang.langserve.tests.server_test.utils import (
-    create_temp_jac_file,
-    get_code,
-    get_simple_code,
-    create_ls_with_workspace,  # new helper
+    TestFile,
+    LanguageServerTestHelper,
+    create_ls_with_workspace,
+    load_jac_template,
 )
 from jaclang.vendor.pygls.uris import from_fs_path
-from jaclang.vendor.pygls.workspace import Workspace
-from jaclang import JacMachineInterface as _
-from jaclang.langserve.engine import JacLangServer
-from jaclang.langserve.server import did_open, did_save, did_change, formatting
+from jaclang.langserve.server import formatting
 
 
 class TestLangServe:
-    """Test class for Jac language server features."""
-
+    """Test suite for Jac language server features."""
+    
+    CIRCLE_TEMPLATE = "circle_template.jac"
+    GLOB_TEMPLATE = "glob_template.jac"
+    EXPECTED_CIRCLE_TOKEN_COUNT = 340
+    EXPECTED_GLOB_TOKEN_COUNT = 15
+    
     @pytest.mark.asyncio
     async def test_open_valid_file_no_diagnostics(self):
-        """Test opening a Jac file with a syntax error."""
-        ls = JacLangServer()
-
-        code = get_code("")
-        temp_file_path = create_temp_jac_file(code)
-        uri = from_fs_path(temp_file_path)
-        ls.lsp._workspace = Workspace(os.path.dirname(temp_file_path), ls)
-
-        params = DidOpenTextDocumentParams(
-            text_document=TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=1,
-                text=code,
-            )
-        )
-        await did_open(ls, params)
-
-        diagnostics = ls.diagnostics.get(uri, [])
+        """Test opening a valid Jac file produces no diagnostics."""
+        test_file = TestFile.from_template(self.CIRCLE_TEMPLATE)
+        uri, ls = create_ls_with_workspace(test_file.path)
+        test_file.uri = uri
+        helper = LanguageServerTestHelper(ls, test_file)
+        
+        await helper.open_document()
+        helper.assert_no_diagnostics()
+        
         ls.shutdown()
-        assert len(diagnostics) == 0
-
-        os.remove(temp_file_path)
-
+        test_file.cleanup()
+    
     @pytest.mark.asyncio
     async def test_open_with_syntax_error(self):
-        """Test opening a Jac file with a syntax error."""
-        ls = JacLangServer()
-
-        code = get_code("error")
-        temp_file_path = create_temp_jac_file(code)
-        uri = from_fs_path(temp_file_path)
-        ls.lsp._workspace = Workspace(os.path.dirname(temp_file_path), ls)
-
-        params = DidOpenTextDocumentParams(
-            text_document=TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=1,
-                text=code,
-            )
-        )
-        await did_open(ls, params)
-
-        diagnostics = ls.diagnostics.get(uri, [])
+        """Test opening a Jac file with syntax error produces diagnostics."""
+        test_file = TestFile.from_template(self.CIRCLE_TEMPLATE, "error")
+        uri, ls = create_ls_with_workspace(test_file.path)
+        if uri:
+            test_file.uri = uri
+        helper = LanguageServerTestHelper(ls, test_file)
+        
+        await helper.open_document()
+        helper.assert_has_diagnostics(count=1, message_contains="Unexpected token 'error'")
+        
+        diagnostics = helper.get_diagnostics()
+        assert str(diagnostics[0].range) == "65:0-65:5"
+        
         ls.shutdown()
-        assert len(diagnostics) == 1
-        assert "Unexpected token 'error'" in diagnostics[0].message
-        assert str(diagnostics[0].range) == "66:0-66:5"
-
-        os.remove(temp_file_path)
-
+        test_file.cleanup()
+    
     @pytest.mark.asyncio
     async def test_did_open_and_simple_syntax_error(self):
-        """Test diagnostics for a Jac file with a syntax error."""
-        ls = JacLangServer()
-
-        code = get_code("")
-        temp_file_path = create_temp_jac_file(code)
-        uri = from_fs_path(temp_file_path)
-        ls.lsp._workspace = Workspace(os.path.dirname(temp_file_path), ls)
-
-        params = DidOpenTextDocumentParams(
-            text_document=TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=1,
-                text=code,
-            )
+        """Test diagnostics evolution from valid to invalid code."""
+        test_file = TestFile.from_template(self.CIRCLE_TEMPLATE)
+        uri, ls = create_ls_with_workspace(test_file.path)
+        test_file.uri = uri
+        helper = LanguageServerTestHelper(ls, test_file)
+        
+        # Open valid file
+        print("Opening valid file...")
+        await helper.open_document()
+        helper.assert_no_diagnostics()
+        
+        # Introduce syntax error
+        broken_code = load_jac_template(
+            test_file._get_template_path(self.CIRCLE_TEMPLATE), 
+            "error"
         )
-        await did_open(ls, params)
-        diagnostics = ls.diagnostics.get(uri, [])
-        assert isinstance(diagnostics, list)
-        assert len(diagnostics) == 0
-
-        broken_code = get_code("error")
-        with open(temp_file_path, "w") as f:
-            f.write(broken_code)
-        params = DidOpenTextDocumentParams(
-            text_document=TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=1,
-                text=broken_code,
-            )
-        )
-        await did_open(ls, params)
-        diagnostics = ls.diagnostics.get(uri, [])
-        assert isinstance(diagnostics, list)
-        assert len(diagnostics) == 1
-
-        sem_tokens = ls.get_semantic_tokens(uri)
+        await helper.change_document(broken_code)
+        helper.assert_has_diagnostics(count=1)
+        helper.assert_semantic_tokens_count(self.EXPECTED_CIRCLE_TOKEN_COUNT)
+        
         ls.shutdown()
-        assert hasattr(sem_tokens, "data")
-        assert isinstance(sem_tokens.data, list)
-        assert len(sem_tokens.data) == 340
-
-        os.remove(temp_file_path)
-
+        test_file.cleanup()
+    
     @pytest.mark.asyncio
     async def test_did_save(self):
-        """Test saving a Jac file triggers diagnostics."""
-        code = get_code("")
-        temp_file_path = create_temp_jac_file(code)
-        uri, ls = create_ls_with_workspace(temp_file_path)
-
-        await did_open(
-            ls,
-            DidOpenTextDocumentParams(
-                text_document=TextDocumentItem(
-                    uri=uri,
-                    language_id="jac",
-                    version=1,
-                    text=code,
-                )
-            ),
+        """Test saving a Jac file triggers appropriate diagnostics."""
+        test_file = TestFile.from_template(self.CIRCLE_TEMPLATE)
+        uri, ls = create_ls_with_workspace(test_file.path)
+        if uri:
+            test_file.uri = uri
+        helper = LanguageServerTestHelper(ls, test_file)
+        
+        await helper.open_document()
+        await helper.save_document()
+        helper.assert_no_diagnostics()
+        
+        # Save with syntax error
+        broken_code = load_jac_template(
+            test_file._get_template_path(self.CIRCLE_TEMPLATE),
+            "error"
         )
-
-        params = DidSaveTextDocumentParams(
-            text_document=TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=2,
-                text=code,
-            )
-        )
-
-        await did_save(ls, params)
-        diagnostics = ls.diagnostics.get(uri, [])
-        assert isinstance(diagnostics, list)
-        assert len(diagnostics) == 0
-
-        # Now simulate a syntax error by updating the workspace and saving
-        broken_code = get_code("error")
-        ls.workspace.put_text_document(
-            TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=3,
-                text=broken_code,
-            )
-        )
-        params = DidSaveTextDocumentParams(
-            text_document=TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=3,
-                text=broken_code,
-            )
-        )
-        await did_save(ls, params)
-        sem_tokens = ls.get_semantic_tokens(uri)
-        # semantic tokens should still be present even if there is a syntax error
-        assert len(sem_tokens.data) == 340
-        diagnostics = ls.diagnostics.get(uri, [])
-        assert isinstance(diagnostics, list)
-        assert len(diagnostics) == 1
-        assert "Unexpected token 'error'" in diagnostics[0].message
-
+        await helper.save_document(broken_code)
+        helper.assert_semantic_tokens_count(self.EXPECTED_CIRCLE_TOKEN_COUNT)
+        helper.assert_has_diagnostics(count=1, message_contains="Unexpected token 'error'")
+        
         ls.shutdown()
-        os.remove(temp_file_path)
-
+        test_file.cleanup()
+    
     @pytest.mark.asyncio
     async def test_did_change(self):
         """Test changing a Jac file triggers diagnostics."""
-        code = get_code("")
-        temp_file_path = create_temp_jac_file(code)
-        uri, ls = create_ls_with_workspace(temp_file_path)
-
-        await did_open(
-            ls,
-            DidOpenTextDocumentParams(
-                text_document=TextDocumentItem(
-                    uri=uri,
-                    language_id="jac",
-                    version=1,
-                    text=code,
-                )
-            ),
-        )
-
-        # No error, should be no diagnostics
-        params = DidChangeTextDocumentParams(
-            text_document=VersionedTextDocumentIdentifier(uri=uri, version=2),
-            content_changes=[{"text": "\n" + code}],
-        )
-        ls.workspace.put_text_document(
-            TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=2,
-                text="\n" + code,
-            )
-        )
-        await did_change(ls, params)
-        diagnostics = ls.diagnostics.get(uri, [])
-        assert isinstance(diagnostics, list)
-        assert len(diagnostics) == 0
-
-        # Now add a syntax error and update workspace
-        # This should trigger diagnostics with a syntax error
-        error_code = "\nerror"
-        params = DidChangeTextDocumentParams(
-            text_document=VersionedTextDocumentIdentifier(uri=uri, version=3),
-            content_changes=[{"text": error_code + code}],
-        )
-        ls.workspace.put_text_document(
-            TextDocumentItem(
-                uri=uri,
-                language_id="jac",
-                version=3,
-                text=error_code + code,
-            )
-        )
-        await did_change(ls, params)
-        sem_tokens = ls.get_semantic_tokens(uri)
-        # semantic tokens should still be present even if there is a syntax error
-        assert len(sem_tokens.data) == 340
-        diagnostics = ls.diagnostics.get(uri, [])
-        assert isinstance(diagnostics, list)
-        assert len(diagnostics) == 1
-        assert "Unexpected token" in diagnostics[0].message
-
+        test_file = TestFile.from_template(self.CIRCLE_TEMPLATE)
+        uri, ls = create_ls_with_workspace(test_file.path)
+        if uri:
+            test_file.uri = uri
+        helper = LanguageServerTestHelper(ls, test_file)
+        
+        await helper.open_document()
+        
+        # Change without error
+        await helper.change_document("\n" + test_file.code)
+        helper.assert_no_diagnostics()
+        
+        # Change with syntax error
+        await helper.change_document("\nerror" + test_file.code)
+        helper.assert_semantic_tokens_count(self.EXPECTED_CIRCLE_TOKEN_COUNT)
+        helper.assert_has_diagnostics(count=1, message_contains="Unexpected token")
+        
         ls.shutdown()
-        os.remove(temp_file_path)
-
+        test_file.cleanup()
+    
     def test_vsce_formatting(self):
-        """Test formatting a Jac file returns edits."""
-        code = get_code("")
-        temp_file_path = create_temp_jac_file(code)
-        uri, ls = create_ls_with_workspace(temp_file_path)
+        """Test formatting a Jac file returns valid edits."""
+        test_file = TestFile.from_template(self.CIRCLE_TEMPLATE)
+        uri, ls = create_ls_with_workspace(test_file.path)
+        
+        from lsprotocol.types import FormattingOptions
+        
         params = DocumentFormattingParams(
-            text_document=TextDocumentIdentifier(uri=uri),
-            options={"tabSize": 4, "insertSpaces": True},
+            text_document=TextDocumentIdentifier(uri=uri or ""),
+            options=FormattingOptions(tab_size=4, insert_spaces=True),
         )
         edits = formatting(ls, params)
+        
         assert isinstance(edits, list)
+        assert len(edits) > 0
         assert isinstance(edits[0], TextEdit)
-        assert (
-            len(edits[0].new_text) > 100
-        )  # it is a random number to check if the text is changed
+        assert len(edits[0].new_text) > 100
+        
         ls.shutdown()
-        os.remove(temp_file_path)
-
+        test_file.cleanup()
+    
     @pytest.mark.asyncio
     async def test_multifile_workspace(self):
         """Test opening multiple Jac files in a workspace."""
-        code1 = get_simple_code("")
-        code2 = get_simple_code("error")
-        temp_file_path1 = create_temp_jac_file(code1)
-        temp_file_path2 = create_temp_jac_file(code2)
-
-        uri1, ls = create_ls_with_workspace(temp_file_path1)
-        uri2 = from_fs_path(temp_file_path2)
-
-        await did_open(
-            ls,
-            DidOpenTextDocumentParams(
-                text_document=TextDocumentItem(
-                    uri=uri1,
-                    language_id="jac",
-                    version=1,
-                    text=code1,
-                )
-            ),
+        file1 = TestFile.from_template(self.GLOB_TEMPLATE)
+        file2 = TestFile.from_template(self.GLOB_TEMPLATE, "error")
+        
+        uri1, ls = create_ls_with_workspace(file1.path)
+        if uri1:
+            file1.uri = uri1
+        file2_uri = from_fs_path(file2.path)
+        if file2_uri:
+            file2.uri = file2_uri
+        
+        helper1 = LanguageServerTestHelper(ls, file1)
+        helper2 = LanguageServerTestHelper(ls, file2)
+        
+        # Open both files
+        await helper1.open_document()
+        await helper2.open_document()
+        
+        # Verify initial state
+        helper1.assert_no_diagnostics()
+        helper2.assert_has_diagnostics(count=1, message_contains="Unexpected token")
+        
+        # Check semantic tokens before change
+        helper1.assert_semantic_tokens_count(self.EXPECTED_GLOB_TOKEN_COUNT)
+        helper2.assert_semantic_tokens_count(self.EXPECTED_GLOB_TOKEN_COUNT)
+        
+        # Change first file
+        changed_code = load_jac_template(
+            file1._get_template_path(self.GLOB_TEMPLATE),
+            "glob x = 90;"
         )
-        await did_open(
-            ls,
-            DidOpenTextDocumentParams(
-                text_document=TextDocumentItem(
-                    uri=uri2,
-                    language_id="jac",
-                    version=1,
-                    text=code2,
-                )
-            ),
-        )
-
-        diagnostics1 = ls.diagnostics.get(uri1, [])
-        diagnostics2 = ls.diagnostics.get(uri2, [])
-        assert len(diagnostics1) == 0
-        assert len(diagnostics2) == 1
-        assert "Unexpected token" in diagnostics2[0].message
-
-        before_sem_tokens_1 = ls.get_semantic_tokens(uri1)
-        before_sem_tokens_2 = ls.get_semantic_tokens(uri2)
-        assert len(before_sem_tokens_1.data) == 15
-        # Since we're doing type checking although it has syntax errors,
-        # the count wont change.
-        assert len(before_sem_tokens_2.data) == 15
-
-        changed_code = get_simple_code("glob x = 90;")
-        ls.workspace.put_text_document(
-            TextDocumentItem(
-                uri=uri1,
-                language_id="jac",
-                version=2,
-                text=changed_code,
-            )
-        )
-        params = DidChangeTextDocumentParams(
-            text_document=VersionedTextDocumentIdentifier(uri=uri1, version=2),
-            content_changes=[{"text": changed_code}],
-        )
-        await did_change(ls, params)
-
-        after_sem_tokens_1 = ls.get_semantic_tokens(uri1)
-        after_sem_tokens_2 = ls.get_semantic_tokens(uri2)
-
-        assert len(after_sem_tokens_1.data) == 20
-        assert len(after_sem_tokens_2.data) == 15
-
+        await helper1.change_document(changed_code)
+        
+        # Verify semantic tokens after change
+        helper1.assert_semantic_tokens_count(20)
+        helper2.assert_semantic_tokens_count(self.EXPECTED_GLOB_TOKEN_COUNT)
+        
         ls.shutdown()
-        os.remove(temp_file_path1)
-        os.remove(temp_file_path2)
+        file1.cleanup()
+        file2.cleanup()
