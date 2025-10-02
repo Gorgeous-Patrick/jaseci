@@ -58,7 +58,6 @@ from jaclang.runtimelib.constructs import (
 )
 from jaclang.runtimelib.jacpim_mapping_analysis import JacPIMMappingCtx
 from jaclang.runtimelib.jacpim_perf_measure.cpu_run_ctx import JacPIMCPURunCtx
-from jaclang.runtimelib.jacpim_perf_measure.jacpim_spawn import jacpim_par_visit
 from jaclang.runtimelib.jacpim_static_analysis.save_dump import save_all_memory_dumps
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
 from jaclang.runtimelib.utils import (
@@ -1618,7 +1617,6 @@ class JacPIM:
     @classmethod
     def par_visit(
         cls,
-        old_walker: WalkerArchetype,
         new_walker: WalkerArchetype,
         destinations: list[EdgeArchetype],
     ) -> None:
@@ -1627,7 +1625,10 @@ class JacPIM:
             if edge.target and edge.target.archetype:
                 new_walker_copy = copy.deepcopy(new_walker)
                 new_walker_copy.__jac__.current = edge.target
-                jacpim_par_visit(old_walker, new_walker_copy, edge.target.archetype)
+                # jacpim_par_visit(old_walker, new_walker_copy, edge.target.archetype)
+                JacPIMCPURunCtx.add_pending_walker(
+                    new_walker_copy, edge.target.archetype
+                )
 
 
 class JacMachineInterface(

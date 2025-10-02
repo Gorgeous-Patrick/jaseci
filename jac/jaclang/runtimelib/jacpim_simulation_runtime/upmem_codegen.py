@@ -41,23 +41,6 @@ class FunctionDef:
 
 
 @dataclass
-class WalkerExecution:
-    """Metadata for code that walker runs on one single node."""
-
-    node_range: MemoryRange
-    node_id: int
-    func: FunctionDef
-
-
-@dataclass
-class TaskletExecution:
-    """Metadata for code that walker runs on a list of nodes."""
-
-    walker_range: MemoryRange
-    walker_container_range: MemoryRange
-
-
-@dataclass
 class CodeGenContext:
     """Metadata for code generation."""
 
@@ -66,7 +49,6 @@ class CodeGenContext:
     node_types: list[TypeDef]
     walker_types: list[TypeDef]
     run_ability_functions: list[FunctionDef]
-    taskset_execution: list[TaskletExecution]
 
 
 TEMPLATE_PATH = Path(__file__).parent / "dpu_template.jinja"
@@ -111,25 +93,6 @@ if __name__ == "__main__":
                 ),
             ),
         ],
-        taskset_execution=[
-            TaskletExecution(
-                walker_range=MemoryRange(ptr=30, size=80),
-                walker_container_range=MemoryRange(ptr=110, size=170),
-            ),
-            TaskletExecution(
-                walker_range=MemoryRange(ptr=30, size=80),
-                walker_container_range=MemoryRange(ptr=110, size=170),
-            ),
-            TaskletExecution(
-                walker_range=MemoryRange(ptr=30, size=80),
-                walker_container_range=MemoryRange(ptr=110, size=170),
-            ),
-            TaskletExecution(
-                walker_range=MemoryRange(ptr=30, size=80),
-                walker_container_range=MemoryRange(ptr=110, size=170),
-            ),
-        ]
-        * 3,
     )
 
     generated_code = gen_code(context)

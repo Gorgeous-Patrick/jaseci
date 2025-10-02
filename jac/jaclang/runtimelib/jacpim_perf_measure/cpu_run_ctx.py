@@ -11,6 +11,7 @@ from jaclang.runtimelib.jacpim_mapping_analysis.data_mapper import DPU_NUM
 from jaclang.runtimelib.jacpim_simulation_runtime.dpu_data_structs import (
     Container,
     ContainerObject,
+    MAX_DPU_THREAD_NUM,
     Metadata,
 )
 from jaclang.runtimelib.jacpim_simulation_runtime.dpu_mem_layout import (
@@ -18,8 +19,6 @@ from jaclang.runtimelib.jacpim_simulation_runtime.dpu_mem_layout import (
     DPUObjMemoryCtx,
 )
 from jaclang.runtimelib.jacpim_static_analysis.static_ctx import JacPIMStaticCtx
-
-MAX_DPU_THREAD_NUM = 12
 
 
 class JacPIMCPURunCtx:

@@ -3,6 +3,8 @@
 import struct
 from dataclasses import dataclass
 
+MAX_DPU_THREAD_NUM = 12
+
 
 @dataclass
 class ContainerObject:
@@ -59,6 +61,7 @@ class Metadata:
             "<QQ", self.extra_mram_space_ptr, self.walker_num
         ) + b"".join(struct.pack("<Q", ptr) for ptr in self.walker_container_ptrs)
 
-    def get_type_def(self) -> str:
+    @classmethod
+    def get_type_def(cls) -> str:
         """Get the C type definition of the metadata object."""
-        return f"uint64_t extra_mram_space; uint64_t walker_num; uint64_t walker_container_ptrs[{self.walker_num}];"
+        return f"uint64_t extra_mram_space; uint64_t walker_num; uint64_t walker_container_ptrs[{MAX_DPU_THREAD_NUM}];"

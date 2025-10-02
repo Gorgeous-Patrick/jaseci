@@ -8,12 +8,9 @@
 
 // #define DEBUG
 
-typedef struct __Mem_Range{
-    uint32_t ptr;
-    uint32_t size;
-    uint64_t ability_type;
-    uint64_t outgoing_edges;
-} Mem_Range;
+typedef struct __ContainerObject{
+uint64_t walker_ptr; uint64_t walker_size; uint64_t node_ptr; uint64_t node_size; uint64_t edge_num;
+} ContainerObject;
 
 void get(void * buf, uint32_t start, uint32_t size) {
     // Read the node from MRAM
@@ -59,12 +56,4 @@ void push_new_element_to_container(uint32_t id) {
         printf("Container buffer overflow, cannot push new element: %u\n", id);
         #endif
     }
-}
-
-void print_container() {
-    printf("Container contents: ");
-    for (uint32_t i = 0; i < container_buffer_size; i++) {
-        printf("%lu ", container_buffer[i]);
-    }
-    printf("\n");
 }
