@@ -49,15 +49,15 @@ class Container:
 class Metadata:
     """Metadata for DPU execution."""
 
-    extra_mram_space: int  # MRAM space unused by objects
+    extra_mram_space_ptr: int  # Pointer to extra MRAM space
     walker_num: int
     walker_container_ptrs: list[int]  # Pointers to each walker's container
 
     def get_byte_stream(self) -> bytes:
         """Get the C type definition of the metadata object."""
-        return struct.pack("<QQ", self.extra_mram_space, self.walker_num) + b"".join(
-            struct.pack("<Q", ptr) for ptr in self.walker_container_ptrs
-        )
+        return struct.pack(
+            "<QQ", self.extra_mram_space_ptr, self.walker_num
+        ) + b"".join(struct.pack("<Q", ptr) for ptr in self.walker_container_ptrs)
 
     def get_type_def(self) -> str:
         """Get the C type definition of the metadata object."""
