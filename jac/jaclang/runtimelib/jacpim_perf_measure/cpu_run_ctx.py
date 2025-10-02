@@ -18,6 +18,13 @@ from jaclang.runtimelib.jacpim_simulation_runtime.dpu_mem_layout import (
     DPUMemoryCtx,
     DPUObjMemoryCtx,
 )
+from jaclang.runtimelib.jacpim_simulation_runtime.upmem_codegen import (
+    CodeGenContext,
+    FunctionDef,
+    TypeDef,
+    gen_code,
+)
+from jaclang.runtimelib.jacpim_static_analysis.info_extract import extract_name
 from jaclang.runtimelib.jacpim_static_analysis.static_ctx import JacPIMStaticCtx
 
 
@@ -27,6 +34,7 @@ class JacPIMCPURunCtx:
     pending_walkers: list[WalkerArchetype] = []
     active_walkers: list[list[WalkerArchetype]] | None = None
     all_walkers: list[WalkerArchetype] = []
+    total_cross_dpu_jumps: int = 0
 
     @classmethod
     def setter(cls) -> None:
@@ -143,6 +151,7 @@ class JacPIMCPURunCtx:
             # DPU BOUNDARY CHECK
             if target_dpu != current_dpu:
                 # Walker wants to cross DPU boundary - stop here
+                cls.total_cross_dpu_jumps += 1
                 return False
 
             # Same DPU - execute one step
@@ -334,6 +343,9 @@ class DPUAllMemoryCtx:
                         node_ptr=cls.dpu_node_ctxs[dpu_id].get_obj_range(node_idx).ptr,
                         node_size=node_size,
                         edge_num=edge_num,
+                        func_call=JacPIMSimulationCtx.index_function_defs(
+                            extract_name(node), extract_name(walker)
+                        ),
                     )
                 )
             cls.dpu_container_ctxs[dpu_id].download_obj(
@@ -435,3 +447,121 @@ class DPUAllMemoryCtx:
         ]
         cls.all_memory_dumps.append(res)
         return res
+
+
+class JacPIMSimulationCtx:
+    """Simulation context for UPMEM codegen."""
+
+    function_defs: list[FunctionDef] | None = None
+
+    @classmethod
+    def get_node_types(cls, all_nodes: list[NodeArchetype]) -> list[TypeDef]:
+        """Extract node types from all nodes."""
+        extracted_nodes: dict[str, str] = {}
+        for node in all_nodes:
+            type_name = extract_name(node)
+            extracted_nodes[type_name] = node.get_type_def()
+        res = [
+            TypeDef(name=name, definition=definition)
+            for name, definition in extracted_nodes.items()
+        ]
+        return res
+
+    @classmethod
+    def get_walker_types(cls, all_walkers: list[WalkerArchetype]) -> list[TypeDef]:
+        """Extract walker types from all walkers."""
+        extracted_walkers: dict[str, str] = {}
+        for walker in all_walkers:
+            type_name = extract_name(walker)
+            extracted_walkers[type_name] = walker.get_type_def()
+        res = [
+            TypeDef(name=name, definition=definition)
+            for name, definition in extracted_walkers.items()
+        ]
+        return res
+
+    @classmethod
+    def get_walker_abilities(
+        cls,
+        walkers: list[WalkerArchetype],
+        walker_type: TypeDef,
+        node_types: list[TypeDef],
+    ) -> list[FunctionDef]:
+        """Extract walker abilities from all walkers."""
+        if cls.function_defs is not None:
+            return cls.function_defs
+        result: list[FunctionDef] = []
+        for walker in walkers:
+            object_methods = [
+                method_name
+                for method_name in dir(walker)
+                if callable(getattr(walker, method_name))
+                and method_name.startswith("get_impl_")
+            ]
+            for object_method in object_methods:
+                name = object_method.split("_")[2]
+                node_type_name = object_method.split("_")[4]
+                node_type_def = [
+                    node_type
+                    for node_type in node_types
+                    if node_type.name == node_type_name
+                ][0]
+                func_def = FunctionDef(
+                    name=name,
+                    body=getattr(walker, object_method)(),
+                    walker_type=walker_type,
+                    node_type=node_type_def,
+                )
+                if func_def not in result:
+                    result.append(func_def)
+        cls.function_defs = result
+        return result
+
+    @classmethod
+    def context_gen(cls) -> CodeGenContext:
+        """Generate the codegen context."""
+        all_nodes = JacPIMStaticCtx.get_all_nodes()
+        all_walkers = JacPIMCPURunCtx.get_all_walkers()
+        node_types = cls.get_node_types(all_nodes)
+        walker_types = cls.get_walker_types(all_walkers)
+        walker_abilities = cls.get_walker_abilities(
+            all_walkers, walker_types[0], node_types
+        )
+
+        max_node_size = max([len(node.get_byte_stream()) for node in all_nodes])
+        max_walker_size = max([len(walker.get_byte_stream()) for walker in all_walkers])
+
+        return CodeGenContext(
+            max_node_size=max_node_size,
+            max_walker_size=max_walker_size,
+            node_types=node_types,
+            walker_types=walker_types,
+            run_ability_functions=walker_abilities,
+            metadata_definition=Metadata.get_type_def(),
+            container_object_definition=ContainerObject.get_type_def(),
+        )
+
+    @classmethod
+    def index_function_defs(cls, node_type: str, walker_type: str) -> int:
+        """Index function definitions by walker type and node type."""
+        if cls.function_defs is None:
+            cls.context_gen()
+        if cls.function_defs is None:
+            raise RuntimeError("Function defs not generated.")
+        for idx, func_def in enumerate(cls.function_defs):
+            if (
+                func_def.node_type.name == node_type
+                and func_def.walker_type.name == walker_type
+            ):
+                return idx
+        raise ValueError(
+            f"Function definition not found for {node_type} and {walker_type}."
+        )
+
+    @classmethod
+    def save_codegen_file(cls, file_path: str) -> None:
+        """Save the codegen file to the specified path."""
+        context = cls.context_gen()
+        code = gen_code(context)
+        with open(file_path, "w") as f:
+            f.write(code)

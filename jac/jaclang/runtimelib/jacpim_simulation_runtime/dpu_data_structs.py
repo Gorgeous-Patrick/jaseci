@@ -15,22 +15,24 @@ class ContainerObject:
     node_ptr: int
     node_size: int
     edge_num: int
+    func_call: int  # Index of the function to call
 
     def get_byte_stream(self) -> bytes:
         """Get the byte stream of the container object."""
         return struct.pack(
-            "<QQQQQ",
+            "<QQQQQQ",
             self.walker_ptr,
             self.walker_size,
             self.node_ptr,
             self.node_size,
             self.edge_num,
+            self.func_call,
         )
 
     @classmethod
     def get_type_def(cls) -> str:
         """Get the C type definition of the container object."""
-        return "uint64_t walker_ptr; uint64_t walker_size; uint64_t node_ptr; uint64_t node_size; uint64_t edge_num;"
+        return "uint64_t walker_ptr; uint64_t walker_size; uint64_t node_ptr; uint64_t node_size; uint64_t edge_num; uint64_t func_call;"  # noqa: E501
 
 
 @dataclass

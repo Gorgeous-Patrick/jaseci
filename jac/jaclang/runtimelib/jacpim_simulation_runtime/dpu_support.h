@@ -11,12 +11,6 @@ void save(void * buf, uint32_t start, uint32_t size) {
 }
 
 
-void run_on_node(uint64_t ability_type, void * node_buffer, void * walker_buffer, uint64_t edge_num);
-
-#define MAX_CONTAINER_BUFFER_SIZE 128
-uint64_t container_buffer[MAX_CONTAINER_BUFFER_SIZE];
-uint64_t container_buffer_size = 0;
-
 void run_thread(uint64_t walker_container_ptr, uint64_t trace_length) {
     ContainerObject container_obj;
     for (uint64_t i = 0; i < trace_length; i++) {
@@ -29,26 +23,14 @@ void run_thread(uint64_t walker_container_ptr, uint64_t trace_length) {
         // Load walker
         get(walker_buffer, container_obj.walker_ptr, container_obj.walker_size);
         // Run on node
-        run_on_node(container_obj.ability_type, node_buffer, walker_buffer, container_obj.edge_num);
+        run_on_node(walker_buffer, node_buffer, container_obj.edge_num, container_obj.func_call);
         // Save walker
         save(walker_buffer, container_obj.walker_ptr, container_obj.walker_size);
         // Save node
         save(node_buffer, container_obj.node_ptr, container_obj.node_size);
     }
 }
-
-void push_new_element_to_container(uint32_t id) {
-    #ifdef DEBUG
-    printf("Pushing new element to container: %u\n", id);
-    #endif
-    if (container_buffer_size < MAX_CONTAINER_BUFFER_SIZE) {
-        container_buffer[container_buffer_size++] = id;
-    } else {
-        #ifdef DEBUG
-        printf("Container buffer overflow, cannot push new element: %u\n", id);
-        #endif
-    }
-}
+BARRIER_INIT(my_barrier, NR_TASKLETS);
 
 int main() {
     uint64_t walker_id = me();
