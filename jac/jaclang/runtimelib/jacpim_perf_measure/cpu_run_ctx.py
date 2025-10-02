@@ -272,6 +272,7 @@ class DPUAllMemoryCtx:
         DPUObjMemoryCtx() for _ in range(DPU_NUM)
     ]
     walker_traces: dict[int, list[int]] = {}
+    all_memory_dumps: list[list[DPUMemoryCtx]] = []
 
     @classmethod
     def node_snapshot_one_dpu(cls, dpu_id: int) -> DPUObjMemoryCtx:
@@ -418,7 +419,7 @@ class DPUAllMemoryCtx:
         """Snapshot containers and metadata for all DPUs."""
         cls.container_snapshot_all_dpu(cls.walker_traces)
         cls.metadata_snapshot_all_dpu()
-        return [
+        res = [
             DPUMemoryCtx(
                 metadata_mem_ctx=cls.dpu_metadata_ctxs[dpu_id],
                 node_mem_ctx=cls.dpu_node_ctxs[dpu_id],
@@ -427,3 +428,5 @@ class DPUAllMemoryCtx:
             ).clone()
             for dpu_id in range(DPU_NUM)
         ]
+        cls.all_memory_dumps.append(res)
+        return res
