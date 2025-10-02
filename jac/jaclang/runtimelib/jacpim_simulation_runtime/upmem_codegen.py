@@ -49,6 +49,8 @@ class CodeGenContext:
     node_types: list[TypeDef]
     walker_types: list[TypeDef]
     run_ability_functions: list[FunctionDef]
+    metadata_definition: str
+    container_object_definition: str
 
 
 TEMPLATE_PATH = Path(__file__).parent / "dpu_template.jinja"
@@ -93,6 +95,8 @@ if __name__ == "__main__":
                 ),
             ),
         ],
+        metadata_definition="/* metadata struct definition */",
+        container_object_definition="/* container object definition */",
     )
 
     generated_code = gen_code(context)

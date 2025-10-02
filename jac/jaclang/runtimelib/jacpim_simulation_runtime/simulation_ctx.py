@@ -2,6 +2,7 @@
 
 from jaclang.runtimelib.constructs import NodeArchetype, WalkerArchetype
 from jaclang.runtimelib.jacpim_perf_measure.cpu_run_ctx import JacPIMCPURunCtx
+from jaclang.runtimelib.jacpim_simulation_runtime.dpu_data_structs import ContainerObject, Metadata
 from jaclang.runtimelib.jacpim_static_analysis.info_extract import extract_name
 from jaclang.runtimelib.jacpim_static_analysis.static_ctx import JacPIMStaticCtx
 
@@ -86,6 +87,8 @@ def context_gen() -> CodeGenContext:
         node_types=node_types,
         walker_types=walker_types,
         run_ability_functions=walker_abilities,
+        metadata_definition=Metadata.get_type_def(),
+        container_object_definition=ContainerObject.get_type_def(),
     )
 
 
