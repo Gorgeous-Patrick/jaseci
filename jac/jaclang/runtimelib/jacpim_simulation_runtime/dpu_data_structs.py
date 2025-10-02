@@ -27,7 +27,8 @@ class ContainerObject:
             self.edge_num,
         )
 
-    def get_type_def(self) -> str:
+    @classmethod
+    def get_type_def(cls) -> str:
         """Get the C type definition of the container object."""
         return "uint64_t walker_ptr; uint64_t walker_size; uint64_t node_ptr; uint64_t node_size; uint64_t edge_num;"
 
@@ -54,14 +55,17 @@ class Metadata:
     extra_mram_space_ptr: int  # Pointer to extra MRAM space
     walker_num: int
     walker_container_ptrs: list[int]  # Pointers to each walker's container
+    trace_lengths: list[int]  # Lengths of each walker's trace
 
     def get_byte_stream(self) -> bytes:
         """Get the C type definition of the metadata object."""
-        return struct.pack(
-            "<QQ", self.extra_mram_space_ptr, self.walker_num
-        ) + b"".join(struct.pack("<Q", ptr) for ptr in self.walker_container_ptrs)
+        return (
+            struct.pack("<QQ", self.extra_mram_space_ptr, self.walker_num)
+            + b"".join(struct.pack("<Q", ptr) for ptr in self.walker_container_ptrs)
+            + b"".join(struct.pack("<Q", length) for length in self.trace_lengths)
+        )
 
     @classmethod
     def get_type_def(cls) -> str:
         """Get the C type definition of the metadata object."""
-        return f"uint64_t extra_mram_space; uint64_t walker_num; uint64_t walker_container_ptrs[{MAX_DPU_THREAD_NUM}];"
+        return f"uint64_t extra_mram_space; uint64_t walker_num; uint64_t walker_container_ptrs[{MAX_DPU_THREAD_NUM}]; uint64_t trace_lengths[{MAX_DPU_THREAD_NUM}];"  # noqa: E501

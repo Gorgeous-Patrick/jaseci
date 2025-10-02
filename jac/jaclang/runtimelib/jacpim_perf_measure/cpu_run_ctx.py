@@ -360,6 +360,7 @@ class DPUAllMemoryCtx:
             walker_num=0,  # to be filled later
             walker_container_ptrs=[],  # to be filled later
             extra_mram_space_ptr=0,  # to be filled later
+            trace_lengths=[],  # to be filled later
         )
         extra_mram_space_ptr = (
             len(metadata.get_byte_stream())
@@ -380,6 +381,10 @@ class DPUAllMemoryCtx:
                 JacPIMCPURunCtx.get_all_walkers().index(walker)
             ).ptr
             for walker in JacPIMCPURunCtx.get_active_walkers()[dpu_id]
+        ]
+        metadata.trace_lengths = [
+            len(cls.walker_traces[JacPIMCPURunCtx.get_all_walkers().index(walker_arch)])
+            for walker_arch in JacPIMCPURunCtx.get_active_walkers()[dpu_id]
         ]
         metadata_mem_ctx = DPUObjMemoryCtx()
         metadata_mem_ctx.download_obj(0, metadata.get_byte_stream())
