@@ -23,18 +23,18 @@ def walrus_example() {
 with entry {
     c = (
         a()
-        if 1
-        and isinstance(a, int)
-        and isinstance(a, int)
-        and isinstance(a, int)
-        and isinstance(a, int)
-        and isinstance(a, int)
+        if 1 and
+        isinstance(a, int) and
+        isinstance(a, int) and
+        isinstance(a, int) and
+        isinstance(a, int) and
+        isinstance(a, int)
         else (
             999
-            if isinstance(a, int)
-            and isinstance(a, int)
-            and isinstance(a, int)
-            and isinstance(4, bool)
+            if isinstance(a, int) and
+            isinstance(a, int) and
+            isinstance(a, int) and
+            isinstance(4, bool)
             else 7
         )
     );
@@ -125,9 +125,9 @@ def func_with_short_params(a: int, b: int) -> None {
 
 with entry {
     if (
-        node_selected
-        and node_selected.find_parent_of_type(uni.Archetype)
-        or node_selected.find_parent_of_type(uni.ImplDef)
+        node_selected and
+        node_selected.find_parent_of_type(uni.Archetype) or
+        node_selected.find_parent_of_type(uni.ImplDef)
     ) {
         self_symbol = [
             lspt.CompletionItem(label='self', kind=lspt.CompletionItemKind.Variable)
@@ -136,8 +136,8 @@ with entry {
         self_symbol = [];
     }
     x = (
-        1222222222
-        and 2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
+        1222222222 and
+        2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
     );
     a = 4 if True else 4;
 }
