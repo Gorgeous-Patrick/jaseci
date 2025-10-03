@@ -9,7 +9,7 @@ import sys
 from typing import Callable, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
-from jaclang.compiler import jac_lark as jl
+from jaclang.compiler import TOKEN_MAP, jac_lark as jl
 from jaclang.compiler.constant import EdgeDir, Tokens as Tok
 from jaclang.compiler.passes.main import Transform
 from jaclang.utils.helpers import ANSIColors
@@ -82,10 +82,39 @@ class JacParser(Transform[uni.Source, uni.Module]):
             kid=[],
         )
 
+    _MISSING_TOKENS = [
+        Tok.SEMI,
+        Tok.COMMA,
+        Tok.COLON,
+        Tok.RPAREN,
+        Tok.RBRACE,
+        Tok.RSQUARE,
+        Tok.RETURN_HINT,
+    ]
+
     def error_callback(self, e: jl.UnexpectedInput) -> bool:
         """Handle error."""
-        if isinstance(e, jl.UnexpectedToken):
+        iparser = e.interactive_parser
 
+        def try_feed_missing_token(iparser: jl.InteractiveParser) -> Tok | None:
+            """Feed a missing token to the parser."""
+            # If any of the below token is missing, insert them and continue parsing.
+            accepts = iparser.accepts()
+            for tok in JacParser._MISSING_TOKENS:
+                if tok.name in accepts:
+                    iparser.feed_token(jl.Token(tok.name, TOKEN_MAP[tok.name]))
+                    return tok
+            return None
+
+        def feed_current_token(iparser: jl.InteractiveParser, tok: jl.Token) -> bool:
+            """Feed the current token to the parser."""
+            while tok.type not in iparser.accepts():
+                if not try_feed_missing_token(iparser):
+                    return False
+            iparser.feed_token(tok)
+            return True
+
+        if isinstance(e, jl.UnexpectedToken):
             # If last token is DOT and we expect a NAME, insert a NAME token
             last_tok: jl.Token | None = (
                 e.token_history[-1]
@@ -98,28 +127,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 and (Tok.NAME.name in e.accepts)
             ):
                 self.log_error("Incomplete member access", self.error_to_token(e))
-                e.interactive_parser.feed_token(
-                    jl.Token(Tok.NAME.name, "recover_name_token")
-                )
-                e.interactive_parser.feed_token(e.token)
-                return True
+                iparser.feed_token(jl.Token(Tok.NAME.name, "recover_name_token"))
+                return feed_current_token(iparser, e.token)
 
-            # If any of the below token is missing, insert them and continue parsing.
-            missing_tokens = {
-                Tok.COMMA: "comma",
-                Tok.SEMI: "semicollon",
-                Tok.COLON: "colon",
-                Tok.RPAREN: "right parenthesis",
-                Tok.RBRACE: "right brace",
-                Tok.RSQUARE: "right bracket",
-                Tok.RETURN_HINT: "return type hint",
-            }
-            for tok, desc in missing_tokens.items():
-                if tok.name in e.accepts:
-                    self.log_error(f"Missing {desc}", self.error_to_token(e))
-                    e.interactive_parser.feed_token(jl.Token(tok.name, desc))
-                    e.interactive_parser.feed_token(e.token)
-                    return True
+            # We're calling try_feed_missing_token twice here because the first missing
+            # will be reported as such and we don't for the consequent missing token.
+            if tk := try_feed_missing_token(iparser):
+                self.log_error(f"Missing {tk.name}", self.error_to_token(e))
+                return feed_current_token(iparser, e.token)
 
             # Ignore unexpected tokens and continue parsing till we reach a known state.
             self.log_error(
