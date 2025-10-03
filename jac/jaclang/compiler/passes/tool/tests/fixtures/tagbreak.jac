@@ -161,3 +161,11 @@ def gen_diagnostics(
         spec = node_selected.parent.parent.abs_path;
     }
 }
+
+
+@decorator
+def x() { }
+
+
+@decorator()
+class KK {}

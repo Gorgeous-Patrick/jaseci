@@ -220,6 +220,8 @@ class DocIRGenPass(UniPass):
                 parts.pop()
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
+            elif not in_body and isinstance(i, uni.Token) and i.name == Tok.DECOR_OP:
+                parts.append(i.gen.doc_ir)
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -257,6 +259,8 @@ class DocIRGenPass(UniPass):
                 parts.pop()
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
+            elif not in_body and isinstance(i, uni.Token) and i.name == Tok.DECOR_OP:
+                parts.append(i.gen.doc_ir)
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
