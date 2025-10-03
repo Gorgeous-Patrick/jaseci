@@ -420,6 +420,21 @@ class DocIRGenPass(UniPass):
                 parts.pop()
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
+            elif i == node.condition and isinstance(i, uni.BoolExpr):
+                cond_str = i.gen.doc_ir
+                flat = self.concat([cond_str, self.space()])
+                broken = self.group(
+                    self.concat(
+                        [
+                            self.text("("),
+                            self.indent(self.concat([self.line(), cond_str])),
+                            self.line(),
+                            self.text(")"),
+                            self.space(),
+                        ]
+                    )
+                )
+                parts.append(self.if_break(broken, flat))
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
