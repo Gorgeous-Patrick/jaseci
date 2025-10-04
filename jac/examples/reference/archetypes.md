@@ -1,4 +1,4 @@
-This example provides a comprehensive overview of Jac's core archetype system, which defines the fundamental building blocks for structuring programs. Jac has five primary archetype types: class, obj, node, edge, and walker, each serving distinct purposes in the language's object-oriented and spatial programming model.
+This example provides a comprehensive overview of Jac's core archetype system, which defines the fundamental building blocks for structuring programs. Jac's Object-Spatial Programming (OSP) model introduces four primary archetypes: obj, node, edge, and walker, each serving distinct purposes in the language's object-spatial programming paradigm. Additionally, Jac supports the traditional `class` keyword for backward compatibility with Python and traditional OOP patterns.
 
 **Helper Function for Demonstration**
 
@@ -10,7 +10,7 @@ Line 11 shows the simplest form: `class Animal {}`. Classes in Jac are similar t
 
 **Object Archetype**
 
-Line 14 introduces `obj Domesticated {}`. Object archetypes (obj) are similar to classes but are specifically designed for Jac's object system. They can be used to create instances and participate in inheritance hierarchies.
+Line 14 introduces `obj Domesticated {}`. Object archetypes (`obj`) are one of the four core OSP archetypes. They provide backward compatibility with traditional OOP concepts while participating in Jac's spatial programming model. Objects can be used to create instances and participate in inheritance hierarchies.
 
 **Node Archetype with Inheritance**
 
@@ -18,11 +18,11 @@ Lines 17-18 demonstrate a node archetype with multiple inheritance and a decorat
 
 **Edge Archetypes**
 
-Lines 21 and 24 show edge archetypes, which represent connections between nodes in the spatial graph. Line 21 shows a basic edge: `edge Relationship {}`. Line 24 demonstrates an edge with an access modifier: `edge :pub Connection {}`, where `:pub` marks the edge as public.
+Lines 21 and 24 show edge archetypes, which represent first-class relationships between nodes in the spatial graph. Unlike traditional OOP where relationships are implementation details (references or foreign keys), OSP elevates relationships to first-class status through edges. Edges can carry their own data, behavior, and computational logic. Line 21 shows a basic edge: `edge Relationship {}`. Line 24 demonstrates an edge with an access modifier: `edge :pub Connection {}`, where `:pub` marks the edge as public.
 
 **Walker Archetypes with Inheritance**
 
-Lines 27-32 demonstrate walker archetypes and inheritance chains. Walkers are special archetypes that traverse the spatial graph:
+Lines 27-32 demonstrate walker archetypes and inheritance chains. Walkers are autonomous computational entities that traverse the node-edge structure, embodying the fundamental paradigm shift in OSP from "data flows to computation" to "computation flows to data." Rather than data being passed to stationary functions, walkers move through the data space (nodes and edges), processing information contextually based on their current location:
 - Line 27: `walker Person(Animal)` - Person inherits from Animal
 - Line 29: `walker Feeder(Person)` - Feeder inherits from Person (and transitively from Animal)
 - Lines 31-32: `walker Zoologist(Feeder)` - Creates a three-level inheritance chain: Zoologist → Feeder → Person → Animal
@@ -56,13 +56,13 @@ This pattern allows for separating interface declarations from implementations, 
 
 **Archetype Comparison**
 
-| Archetype | Keyword | Purpose | Graph Role |
-|-----------|---------|---------|------------|
-| Class | `class` | Traditional OOP classes | None |
-| Object | `obj` | Jac object system types | None |
-| Node | `node` | Graph vertices | Spatial element |
-| Edge | `edge` | Graph connections | Spatial connector |
-| Walker | `walker` | Graph traversal agents | Spatial navigator |
+| Archetype | Keyword | OSP Role | Purpose |
+|-----------|---------|----------|---------|
+| Object | `obj` | Core OSP archetype | Backward compatibility with OOP concepts |
+| Node | `node` | Core OSP archetype | Entities that can be connected via edges and host walkers |
+| Edge | `edge` | Core OSP archetype | First-class relationships that carry data and behavior |
+| Walker | `walker` | Core OSP archetype | Autonomous computation that traverses node-edge structures |
+| Class | `class` | Compatibility layer | Traditional Python/OOP classes (not an OSP archetype) |
 
 **Key Features Demonstrated**
 

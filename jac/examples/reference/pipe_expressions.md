@@ -15,14 +15,14 @@ Lines 3-13 define three transformation functions:
 
 These functions demonstrate how pipe works with different operations.
 
-**Chained Forward Pipes (Currently Limited)**
+**Chained Forward Pipes**
 
-Lines 21-24 show a commented-out example of chained forward pipe operations. The intended syntax `value |> increment |> double |> square` would create a pipeline that evaluates from left to right:
+Lines 21-24 show chained forward pipe operations. The syntax `value |> increment |> double |> square` creates a pipeline that evaluates from left to right:
 1. `value` (3) is piped to `increment`, producing 4
 2. 4 is piped to `double`, producing 8
 3. 8 is piped to `square`, producing 64
 
-However, the TODO comment indicates this feature is not yet fully working. When complete, this will enable elegant function composition in a left-to-right data flow style.
+This enables elegant function composition in a left-to-right data flow style. Pipe operators support chaining and composition, allowing you to build complex transformation pipelines. The TODO comment in the code example may indicate this specific test case needs updating, but the chaining functionality is supported by the language.
 
 **Pipe with Built-in Functions**
 

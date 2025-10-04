@@ -1,4 +1,4 @@
-Visit statements are a core feature of Jac's spatial programming model, controlling how walkers traverse graph structures by specifying which nodes to visit next.
+Visit statements are a core feature of Jac's spatial programming model, controlling how walkers traverse graph structures by specifying which nodes to visit next. They embody the fundamental paradigm shift in Object-Spatial Programming from "data flows to computation" to "computation flows to data"—instead of data being passed to stationary functions, walkers (autonomous computational entities) move through the data space (nodes and edges), processing information contextually based on their current location.
 
 **Basic Visit with Edge Expression**
 

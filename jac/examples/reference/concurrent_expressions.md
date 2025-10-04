@@ -31,6 +31,16 @@ The `add` function (lines 19-25) includes `sleep(2)` calls to simulate long-runn
 3. When `wait` is called, execution blocks until the task completes
 4. If a task has already finished, `wait` returns immediately
 
+**Implementation Details**
+
+Under the hood, Jac's `flow`/`wait` concurrency uses Python's standard `concurrent.futures.ThreadPoolExecutor`:
+- `flow` submits the expression as a callable to a shared `ThreadPoolExecutor` and returns a `Future`-like handle
+- `wait` calls the underlying future's `.result()` to retrieve the value
+- The thread pool is shared across the entire program with a default size based on CPU count
+- Exception propagation works naturally—if the background computation raises an exception, `wait` re-raises it in the calling thread
+- Best suited for I/O-bound or mixed workloads; CPU-bound speedups are subject to Python's Global Interpreter Lock (GIL) like ordinary threads
+- This is **thread-based** concurrency, distinct from Python's event-loop based `async`/`await` model
+
 **Node and Walker Concurrency**
 
 Lines 5-17 define a node A with an `entry` ability and walker B. Line 29 shows that `flow` works with walker-node spawning, enabling concurrent graph traversal and node processing.
@@ -39,8 +49,15 @@ Lines 5-17 define a node A with an `entry` ability and walker B. Line 29 shows t
 
 Concurrent expressions allow:
 - Parallel I/O operations (network requests, file I/O)
-- CPU-bound task distribution
 - Improved responsiveness by not blocking on long-running operations
 - Explicit control over when to wait for results
+- Expression-level concurrency that composes naturally with other Jac features
+- Parallel map patterns through list comprehensions with `flow`/`wait`
 
-The `flow`/`wait` pattern is similar to async/await in other languages but uses different keywords that emphasize data flow semantics.
+**Comparison with async/await**
+
+While similar in concept to async/await in other languages, `flow`/`wait` differs in important ways:
+- `flow`/`wait` is **thread-based**, using `ThreadPoolExecutor`
+- `async`/`await` is **event-loop based**, requiring special async functions
+- You can mix both when appropriate: use `flow` for blocking I/O or CPU-bound work; use `async`/`await` for event-driven I/O
+- `flow`/`wait` works anywhere expressions are valid, including comprehensions and argument lists

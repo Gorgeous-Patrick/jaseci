@@ -26,7 +26,15 @@ The `visitor` reference (line 51) refers to the walker currently executing. It's
 
 **root - Root Node Reference**
 
-The `root` reference (line 54) refers to the root node of the graph. It's available in spatial contexts and provides a way to access the graph's entry point. Lines 82-83 note that `root` is available in spatial/graph contexts. While commented out in this example, line 86 shows typical usage: `root ++> loc1` creates an edge from the root node to another node.
+The `root` reference represents one of Jac's most powerful abstractions: a globally accessible node that serves as a persistent anchor for your application's topological space. The root node (line 54) and everything connected to it automatically persists across program runs. This persistence-by-reachability model means that if something is connected to root, it persists; if disconnected, it can be garbage collected.
+
+Key aspects of the `root` keyword:
+- **Automatic Persistence**: Any node reachable from root through edges becomes part of the persistent subgraph
+- **Multi-User Isolation**: Each user has their own distinct root node, creating automatic isolation between user contexts
+- **Scale-Agnostic**: The same code works for single-user and multi-million-user applications
+- **Global Accessibility**: Available anywhere in spatial/graph contexts through the `root` keyword
+
+Line 86 shows typical usage: `root ++> loc1` creates an edge from the root node to another node, making `loc1` persistent. This eliminates the need for explicit save/load operations, database connections, or serialization code—persistence becomes a property of connectivity rather than explicit operations.
 
 **Special Reference Availability**
 
