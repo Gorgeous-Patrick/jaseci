@@ -1,3 +1,5 @@
+# Match class patterns - Pattern matching in match statements
+
 obj Point {
     has x: float,
         y: float;

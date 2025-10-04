@@ -64,7 +64,6 @@ TOKEN_AST_MAP: dict[Tok, type[ast3.AST]] = {
     Tok.MINUS: ast3.Sub,
     Tok.SUB_EQ: ast3.Sub,
     Tok.BW_NOT: ast3.Invert,
-    Tok.BW_NOT_EQ: ast3.Invert,
     Tok.NOT: ast3.Not,
     Tok.EQ: ast3.NotEq,
     Tok.EE: ast3.Eq,

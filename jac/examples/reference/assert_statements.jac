@@ -1,4 +1,7 @@
+# Assert statements - Runtime assertions for testing and validation
+
 def foo(value: int) {
+    # Assert with custom message
     assert value > 0 , "Value must be positive";
 }
 
@@ -10,9 +13,9 @@ with entry {
     }
 }
 
-
 glob a = 5, b = 2;
 
+# Tests using assertions
 test test1 {
     assert almostEqual(a, 6);
 }

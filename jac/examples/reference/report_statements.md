@@ -1,229 +1,57 @@
-Report statements provide a mechanism for walkers to communicate results back to their spawning context. This feature is essential for extracting information from graph traversals and object-spatial computations.
+Report statements are a special feature of Jac's walker-based programming model, used to return data from walker executions back to the caller without terminating the walker's traversal.
 
-#### Syntax
+**Basic Report Syntax**
 
-```jac
-report expression;
-```
+Line 8 demonstrates the simplest report statement: `report "Processing started";`. The `report` keyword is followed by an expression whose value is returned to the caller. Unlike `return` statements which exit the function, `report` statements send data back while allowing the walker to continue executing.
 
-#### Purpose
+**Reporting Different Expression Types**
 
-Report statements allow walkers to:
-- Return computed results from traversals
-- Aggregate data collected across multiple nodes
-- Communicate findings to the calling context
-- Build up results incrementally during traversal
+The example shows reporting various types of values:
+- **String literal** (line 8): `report "Processing started";` sends a simple string message
+- **Arithmetic expression** (line 11): `report 42 * 2;` evaluates the expression and reports the result (84)
+- **Variable value** (line 14): `report self.collected;` reports the value of an instance attribute
+- **Complex expression** (line 17): `report {"status": "complete", "count": len(self.collected)};` reports a dictionary with computed values
 
-#### Basic Usage
+**Report vs Return**
 
-```jac
-walker DataCollector {
-    can collect with entry {
-        # Report individual node data
-        report here.data;
-        
-        # Continue traversal
-        visit [-->];
-    }
-}
+The key difference between `report` and `return`:
 
-# Spawn walker and collect reports
-with entry {
-    results = spawn DataCollector();
-    # results contains all reported values
-}
-```
+| Feature | `report` | `return` |
+|---------|----------|----------|
+| Terminates function | No | Yes |
+| Can be called multiple times | Yes | No |
+| Available in | Walkers (primarily) | All functions/methods |
+| Use case | Send data during traversal | Exit and return value |
 
-#### Multiple Reports
+**Walker Context**
 
-Walkers can report multiple times during traversal:
+Report statements are primarily used in walker contexts (lines 3-19). As line 22 notes, reports are typically used in walker contexts. When a walker executes, each `report` statement sends a value back to the code that spawned the walker, allowing the walker to communicate results incrementally as it traverses the graph.
 
-```jac
-walker PathFinder {
-    has max_depth: int = 3;
-    has depth: int = 0;
-    
-    can explore with entry {
-        if self.depth >= self.max_depth {
-            return;
-        }
-        
-        # Report current path node
-        report {
-            "node": here,
-            "depth": self.depth,
-            "value": here.value
-        };
-        
-        # Explore deeper
-        self.depth += 1;
-        visit [-->];
-        self.depth -= 1;
-    }
-}
-```
+**Multiple Reports**
 
-#### Aggregating Results
+Lines 6-18 show a walker ability that contains multiple report statements. All of these will execute in sequence, each sending their respective values back to the caller. This allows a walker to report multiple pieces of information during a single traversal without stopping execution.
 
-Common pattern for collecting data:
+**Execution Semantics**
 
-```jac
-walker Aggregator {
-    has total: float = 0.0;
-    has count: int = 0;
-    
-    can aggregate with entry {
-        # Process current node
-        self.total += here.value;
-        self.count += 1;
-        
-        # Visit children
-        visit [-->];
-    }
-    
-    can aggregate with exit {
-        # Report final aggregation
-        if self.count > 0 {
-            report {
-                "average": self.total / self.count,
-                "total": self.total,
-                "count": self.count
-            };
-        }
-    }
-}
-```
+When `w spawn root;` executes on line 24:
+1. The walker is created and begins traversal
+2. Line 8's report sends `"Processing started"` to the caller
+3. Line 11's report sends `84` to the caller
+4. Line 14's report sends the `collected` list to the caller
+5. Line 17's report sends the status dictionary to the caller
+6. The walker continues or completes its traversal
 
-#### Conditional Reporting
+The caller can collect all these reported values, though the specific mechanism for accessing them depends on the Jac runtime's API.
 
-Report based on conditions:
+**Use Cases**
 
-```jac
-walker SearchWalker {
-    has target: str;
-    
-    can search with entry {
-        # Report only matching nodes
-        if here.name == self.target {
-            report {
-                "found": here,
-                "path": self.path,
-                "properties": here.to_dict()
-            };
-        }
-        
-        # Continue search
-        visit [-->];
-    }
-}
-```
+Report statements are particularly useful for:
+- Streaming results from graph traversals
+- Collecting data from multiple nodes during a walk
+- Providing progress updates during long-running traversals
+- Returning multiple related pieces of information from a single walker execution
+- Implementing data collection or aggregation patterns across graph structures
 
-#### Report vs Return
+**Distinction from Print**
 
-Key differences:
-- `report`: Accumulates values, continues execution
-- `return`: Exits current ability immediately
-
-```jac
-walker Finder {
-    can find with entry {
-        if here.is_target {
-            report here;  # Add to results
-            return;       # Stop searching this branch
-        }
-        visit [-->];
-    }
-}
-```
-
-#### Integration with Object-Spatial
-
-Reports work seamlessly with graph traversal:
-
-```jac
-node DataNode {
-    has id: str;
-    has value: float;
-    has category: str;
-}
-
-walker Analyzer {
-    has category_filter: str;
-    
-    can analyze with entry {
-        # Filter and report
-        if here.category == self.category_filter {
-            report {
-                "id": here.id,
-                "value": here.value,
-                "connections": len([-->])
-            };
-        }
-        
-        # Traverse to connected nodes
-        visit [-->(?.category == self.category_filter)];
-    }
-}
-
-# Usage
-with entry {
-    results = spawn Analyzer(category_filter="important") on root;
-    print(f"Found {len(results)} matching nodes");
-}
-```
-
-#### Advanced Patterns
-
-##### Path Tracking
-```jac
-walker PathTracker {
-    has path: list = [];
-    
-    can track with entry {
-        self.path.append(here);
-        
-        # Report complete paths at leaves
-        if len([-->]) == 0 {
-            report self.path.copy();
-        }
-        
-        visit [-->];
-    }
-    
-    can track with exit {
-        self.path.pop();
-    }
-}
-```
-
-##### Hierarchical Aggregation
-```jac
-walker TreeAggregator {
-    can aggregate with entry {
-        # Visit children first
-        visit [-->];
-    }
-    
-    can aggregate with exit {
-        # Aggregate after processing children
-        child_sum = sum([child.value for child in [-->]]);
-        total = here.value + child_sum;
-        
-        report {
-            "node": here,
-            "node_value": here.value,
-            "subtree_total": total
-        };
-    }
-}
-```
-
-#### Best Practices
-
-1. **Report Meaningful Data**: Include context with reported values
-2. **Use Structured Reports**: Return dictionaries for complex data
-3. **Consider Memory**: Large traversals with many reports can accumulate
-4. **Report Early**: Don't wait until the end if intermediate results matter
-5. **Combine with Disengage**: Use `disengage` after critical reports
-
-Report statements are fundamental to the walker pattern in Jac, enabling elegant extraction of information from graph structures while maintaining clean separation between traversal logic and result collection.
+While `print` outputs to the console, `report` sends structured data back to the calling code. Report values can be captured, processed, and used programmatically, making them suitable for building APIs and data processing pipelines with walkers.

@@ -1,46 +1,32 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _
+from jaclang import JacMachineInterface as _jl
 
+class Creator(_jl.Walker):
 
-class Creator(_.Walker):
-
-    @_.entry
-    def create(self, here: _.Root) -> None:
+    @_jl.entry
+    @_jl.impl_patch_filename('object_spatial_references.jac')
+    def create(self, here: _jl.Root) -> None:
         end = here
         i = 0
         while i < 3:
-            _.connect(end, (end := node_a(val=i)))
+            _jl.connect(left=end, right=(end := node_a(val=i)))
             i += 1
+        _jl.connect(left=end, right=(end := node_a(val=i + 10)), edge=connector, conn_assign=(('value',), (i,)))
+        _jl.connect(left=(end := node_a(val=i + 10)), right=_jl.root(), edge=connector, conn_assign=(('value',), (i,)))
+        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-        _.connect(
-            end,
-            (end := node_a(val=i + 10)),
-            edge=connector,
-            conn_assign=(("value",), (i,)),
-        )
-        _.connect(
-            (end := node_a(val=i + 10)),
-            _.root(),
-            edge=connector,
-            conn_assign=(("value",), (i,)),
-        )
-        _.visit(self, _.refs(here))
-
-
-class node_a(_.Node):
+class node_a(_jl.Node):
     val: int
 
-    @_.entry
-    def make_something(self, here: Creator) -> None:
+    @_jl.entry
+    @_jl.impl_patch_filename('object_spatial_references.jac')
+    def make_something(self, visitor: Creator) -> None:
         i = 0
         while i < 5:
-            print(f"wlecome to {self}")
+            print(f'wlecome to {self}')
             i += 1
 
-
-class connector(_.Edge):
+class connector(_jl.Edge):
     value: int = 10
-
-
-_.spawn(_.root(), Creator())
+_jl.spawn(_jl.root(), Creator())

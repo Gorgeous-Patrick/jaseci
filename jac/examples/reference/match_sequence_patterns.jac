@@ -1,3 +1,5 @@
+# Match sequence patterns - Pattern matching in match statements
+
 with entry {
     data = [1, 2, 3];
     match data {

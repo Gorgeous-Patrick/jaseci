@@ -1,37 +1,74 @@
-Atomic expressions in Jac represent the most basic building blocks of expressions - the fundamental units that cannot be broken down further. These include literals, references, collections, and other primary elements that form the foundation of more complex expressions.
+Atoms are the most fundamental building blocks of Jac expressions, representing literals, names, and basic value constructs.
 
-**Atomic Expression Types**
+**String Literals**
 
-Atomic expressions in Jac include:
+Lines 12-13 demonstrate basic string literals using double quotes: `a = "abcde...."`. Strings can contain any sequence of characters.
 
-1. **Named References**: Variable names and identifiers (`a`, `x`, `list1`)
-2. **Literals**: Direct values embedded in code
-   - String literals: `"abcde...."`, `"aaa"`
-   - Boolean literals: `True`, `False`
-   - Numeric literals in various bases:
-     - Binary: `bin(12)` (though this is a function call)
-     - Hexadecimal: `hex(78)` (though this is a function call)
-3. **Collections**: 
-   - Lists: `[2, 3, 4, 5]`
-   - Tuples: `(3, 4, 5)`
-4. **F-strings**: Template strings with embedded expressions (`f"b{aa}bbcc"`)
-5. **Parenthesized Expressions**: Expressions wrapped in parentheses for grouping
-6. **Type References**: References to type objects using the backtick operator (`)
+Lines 79-80 show multistring concatenation where adjacent string literals are automatically concatenated: `"Hello " "World"` becomes `"Hello World"`.
 
-**Implementation Blocks**
+Lines 83-85 demonstrate f-strings (formatted string literals) using the `f` prefix: `f"Hello {name}"`. Expressions within curly braces are evaluated and inserted into the string. Line 5 shows a more complex f-string embedded within an impl block.
 
-The code example demonstrates the use of `impl` blocks, which can contain atomic expressions as initialization values. The `impl x` block shows how atomic expressions can be used within implementation contexts.
+**Boolean Literals**
 
-**Global Variables**
+Lines 16-18 show the two boolean literals: `True` and `False`. These are case-sensitive keywords representing boolean values.
 
-Atomic expressions are commonly used in global variable declarations, as shown with `glob c = (3, 4, 5), list1 = [2, 3, 4, 5]` where tuples and lists serve as atomic collection expressions.
+**None Literal**
 
-**String Concatenation and F-strings**
+Lines 21-22 demonstrate the `None` literal, which represents the absence of a value (similar to null in other languages).
 
-Jac supports string concatenation using the `+` operator and f-string interpolation where expressions can be embedded within strings using curly braces (`{}`). The example shows `"aaa" + f"b{aa}bbcc"` combining a regular string with an f-string.
+**Integer Literals**
 
-**Enumeration Access**
+Jac supports multiple integer literal formats:
 
-The example also demonstrates atomic access to enumeration values using dot notation (`x.y.value`), showing how atomic expressions can chain together to access nested properties.
+| Format | Prefix | Example | Line | Decimal Value |
+|--------|--------|---------|------|---------------|
+| Decimal | None | `42` | 25 | 42 |
+| Binary | `0b` | `0b1100` | 29 | 12 |
+| Octal | `0o` | `0o755` | 33 | 493 |
+| Hexadecimal | `0x` | `0xFF` | 37 | 255 |
 
-Atomic expressions serve as the fundamental building blocks that combine with operators and control structures to create more complex Jac programs. Understanding these basic elements is essential for writing any Jac code.
+All integer formats are case-insensitive for their prefixes (e.g., `0xFF` and `0xff` are equivalent).
+
+**Float Literals**
+
+Lines 41-43 demonstrate floating-point literals:
+- Standard decimal notation: `3.14`
+- Scientific notation: `1.5e10` represents 1.5 × 10¹⁰
+
+**Ellipsis Literal**
+
+Lines 46-47 show the ellipsis literal `...`, which is used in various contexts like slice notation or as a placeholder value.
+
+**Parenthesized Expressions**
+
+Lines 50-51 demonstrate that any expression can be wrapped in parentheses to control evaluation order: `(5 + 3) * 2`. The parentheses ensure addition occurs before multiplication.
+
+Lines 54-56 (commented) show that yield expressions can be parenthesized when used in certain contexts.
+
+**Named References**
+
+Lines 59-60 show simple variable references. A name like `variable_name` refers to the value bound to that variable.
+
+**Type References**
+
+Lines 63-65 (commented) mention type references using backtick notation like `` `str `` and `` `int ``, though this syntax may be implementation-specific.
+
+Lines 68-70 show that builtin type names can be used as values: `string_type = str` assigns the type object itself to a variable.
+
+**Collection Literals**
+
+Lines 73-76 demonstrate collection literals:
+- Tuple: `(1, 2, 3)` - immutable sequence
+- List: `[1, 2, 3]` - mutable sequence
+- Dictionary: `{"key": "value"}` - key-value mapping
+- Set: `{1, 2, 3}` - unordered collection of unique values
+
+Line 8 shows global collection definitions.
+
+**Impl Blocks with Atoms**
+
+Lines 3-6 show an `impl` block that can contain atom expressions, including computed f-string values.
+
+**Enum Usage**
+
+Lines 87-88 demonstrate enum declaration and accessing enum member values using dot notation: `x.y.value`.

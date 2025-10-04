@@ -1,3 +1,5 @@
+# Semstrings - Semantic strings for LLM-based functions
+
 import from byllm { Model }
 
 glob llm = Model(
@@ -5,10 +7,10 @@ glob llm = Model(
     outputs=["R8@jL3pQ"],
 );
 
-
+# Function defined by LLM using 'by llm()'
 def generate_password()  -> str by llm();
 
-
+# Semantic string defines function behavior for LLM
 sem generate_password= """\
 Generates and returns password that:
 - contain at least 8 characters
@@ -17,7 +19,6 @@ Generates and returns password that:
 - contain at least one digit
 - contain at least one special character
 """;
-
 
 with entry {
     password = generate_password();

@@ -1,238 +1,45 @@
-Archetype bodies define the internal structure and behavior of Jac's specialized class constructs. These bodies contain member declarations, abilities, and implementation details that enable both traditional object-oriented programming and object-spatial computation patterns.
+Archetype bodies in Jac define the internal structure and behavior of objects, classes, nodes, edges, and walkers. The body can contain various member statements that define data fields, methods, nested types, and initialization logic.
 
-#### Member Declaration Syntax
+**Member Docstrings**
 
-Archetype members are declared using the `has` keyword with mandatory type annotations:
+Line 3-4 demonstrate that docstrings can be placed before archetype definitions. The string literal "This is a member docstring" serves as documentation for the Car archetype.
 
-```jac
-obj Vehicle {
-    has make: str;
-    has model: str;
-    has year: int;
-    static has wheels: int = 4;
-}
-```
+**Has Statements**
 
-The `has` keyword establishes instance variables with explicit type constraints, while `static has` creates class-level variables shared across all instances.
+The `has` keyword declares instance-level data fields (attributes) for an archetype:
 
-#### Instance and Static Members
+- Lines 9-11: Basic `has` statement with type annotations. Multiple fields can be declared in a single statement, separated by commas and terminated with a semicolon. Here `make`, `model`, and `year` are declared as instance attributes.
+- Line 14: The `static has` declaration creates class-level attributes shared across all instances. The `wheels` attribute is set to 4 for all Car instances.
+- Line 17: Has statements support access tags using the colon prefix syntax (`:priv`). This marks `internal_id` as a private field with a default value.
+- Line 23: The `by postinit` clause indicates that the field will be initialized in the `postinit` method rather than at declaration time.
 
-**Instance Members**: Declared with `has`, these variables belong to individual archetype instances and maintain separate state for each object.
+**Let Statements**
 
-**Static Members**: Declared with `static has`, these variables belong to the archetype class itself and are shared across all instances, providing class-level data storage.
+Line 20 shows the `let` keyword as an alternative to `has`. While semantically similar to `has`, `let` is typically used to emphasize immutability or constant-like behavior, though the actual semantics depend on the implementation.
 
-#### Ability Definitions
+**Postinit Method**
 
-Abilities within archetype bodies define both traditional methods and object-spatial behaviors:
+Lines 25-27 define a special `postinit` method that executes after the object is constructed. This is where fields declared with `by postinit` must be initialized. The method has access to `self` and can perform any setup logic.
 
-```jac
-obj DataProcessor {
-    has data: list;
-    
-    can process_data(self) -> dict {
-        # Traditional method implementation
-        return {"processed": len(self.data), "status": "complete"};
-    }
-    
-    can validate with entry {
-        # Data spatial ability triggered by events
-        if (not self.data) {
-            raise ValueError("No data to process");
-        }
-    }
-}
-```
+**Instance and Static Methods**
 
-#### Access Control Modifiers
+Archetype bodies can contain method definitions:
 
-Archetype bodies support access control for encapsulation:
+- Lines 30-32: A regular instance method `display_car_info` that uses `self` to access instance attributes.
+- Lines 34-36: A `static def` creates a class method that doesn't receive a `self` parameter. It accesses the class-level `wheels` attribute via `Car.wheels`.
 
-```jac
-obj SecureContainer {
-    has :pub public_data: str;
-    has :priv private_data: str;
-    has :protect protected_data: str;
-    
-    can :pub get_public_info(self) -> str {
-        return self.public_data;
-    }
-    
-    can :priv internal_process(self) {
-        # Private method for internal use
-        self.protected_data = "processed";
-    }
-}
-```
+**Inline Python Code**
 
-Access modifiers (`:pub`, `:priv`, `:protect`) control visibility and access patterns across module boundaries.
+Lines 39-42 demonstrate embedding raw Python code within a Jac archetype using the `::py::` delimiters. Code between these markers is treated as native Python and can define Python-specific methods or logic.
 
-#### Object-Spatial Archetype Bodies
+**Nested Archetypes**
 
-Data spatial archetypes include specialized members and abilities:
+Lines 45-47 show that archetypes can be nested within other archetypes. The `Engine` class is defined inside the `Car` object, creating a logical grouping of related types.
 
-```jac
-node DataNode {
-    has data: dict;
-    has processed: bool = false;
-    has connections: int = 0;
-    
-    can process_incoming with visitor entry {
-        # Triggered when walker enters this node
-        print(f"Processing visitor {visitor.id} at node {self.id}");
-        self.processed = true;
-        visitor.record_visit(self);
-    }
-    
-    can cleanup with visitor exit {
-        # Triggered when walker leaves this node
-        self.connections += 1;
-        print(f"Visitor departed, total connections: {self.connections}");
-    }
-}
+**Member-Level Entry Points**
 
-walker DataCollector {
-    has collected: list = [];
-    has visit_count: int = 0;
-    
-    can collect with DataNode entry {
-        # Triggered when entering DataNode instances
-        self.collected.append(here.data);
-        self.visit_count += 1;
-    }
-    
-    can record_visit(self, node: DataNode) {
-        # Traditional method callable by nodes
-        print(f"Recorded visit to node {node.id}");
-    }
-}
+Lines 50-52 demonstrate that `with entry` blocks can appear within archetype bodies, not just at module level. This entry code executes when certain conditions are met (implementation-specific).
 
-edge DataFlow(DataNode, DataNode) {
-    has flow_rate: float;
-    has capacity: int;
-    
-    can regulate_flow with visitor entry {
-        # Triggered when walker traverses this edge
-        if (visitor.data_size > self.capacity) {
-            visitor.compress_data();
-        }
-    }
-}
-```
+**Instantiation and Usage**
 
-#### Constructor Patterns
-
-Archetype bodies can include initialization logic:
-
-```jac
-obj ConfigurableProcessor {
-    has config: dict;
-    has initialized: bool = false;
-    
-    can init(self, config_data: dict) {
-        # Constructor-like initialization
-        self.config = config_data;
-        self.initialized = true;
-        self.validate_config();
-    }
-    
-    can validate_config(self) {
-        # Private validation method
-        required_keys = ["input_format", "output_format"];
-        for key in required_keys {
-            if (key not in self.config) {
-                raise ValueError(f"Missing required config: {key}");
-            }
-        }
-    }
-}
-```
-
-#### Method Overriding and Inheritance
-
-Archetype bodies support inheritance patterns:
-
-```jac
-obj BaseProcessor {
-    has name: str;
-    
-    can process(self, data: any) -> any {
-        # Base implementation
-        return data;
-    }
-    
-    can get_info(self) -> str {
-        return f"Processor: {self.name}";
-    }
-}
-
-obj AdvancedProcessor(BaseProcessor) {
-    has advanced_features: list;
-    
-    can process(self, data: any) -> any {
-        # Override base implementation
-        enhanced_data = self.enhance_data(data);
-        return super().process(enhanced_data);
-    }
-    
-    can enhance_data(self, data: any) -> any {
-        # Additional processing logic
-        return {"enhanced": data, "features": self.advanced_features};
-    }
-}
-```
-
-#### Integration with Implementation Blocks
-
-Archetype bodies can be separated from their implementations:
-
-```jac
-obj Calculator {
-    has precision: int = 2;
-    
-    # Method declarations
-    can add(self, a: float, b: float) -> float;
-    can multiply(self, a: float, b: float) -> float;
-}
-
-impl Calculator {
-    can add(self, a: float, b: float) -> float {
-        result = a + b;
-        return round(result, self.precision);
-    }
-    
-    can multiply(self, a: float, b: float) -> float {
-        result = a * b;
-        return round(result, self.precision);
-    }
-}
-```
-
-#### Documentation and Metadata
-
-Archetype bodies can include documentation strings:
-
-```jac
-obj DocumentedClass {
-    """
-    A well-documented archetype that demonstrates
-    proper documentation practices in Jac.
-    """
-    
-    has value: int;
-    
-    can get_value(self) -> int {
-        """Returns the current value."""
-        return self.value;
-    }
-    
-    can set_value(self, new_value: int) {
-        """Sets a new value with validation."""
-        if (new_value < 0) {
-            raise ValueError("Value must be non-negative");
-        }
-        self.value = new_value;
-    }
-}
-```
-
-Archetype bodies provide the structural foundation for Jac's object-oriented and object-spatial programming capabilities, enabling developers to create sophisticated, well-encapsulated components that support both traditional programming patterns and innovative topological computation models.
+Lines 56-58 show how to instantiate the Car archetype and call its methods. The constructor accepts positional arguments for the declared fields, and methods are called using dot notation.

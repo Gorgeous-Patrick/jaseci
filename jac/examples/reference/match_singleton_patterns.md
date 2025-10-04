@@ -1,115 +1,27 @@
-Match singleton patterns in Jac enable matching against singleton values including `None`, `True`, and `False`. These patterns are essential for handling null values and boolean states in pattern matching.
+Singleton patterns match against special constant values that have unique identities in the language: `True`, `False`, and `None`.
 
-#### Singleton Pattern Syntax
+**Singleton Pattern Matching**
 
-```jac
-match value {
-    case None {
-        handle_null_case();
-    }
-    case True {
-        handle_true_case();
-    }
-    case False {
-        handle_false_case();
-    }
-}
-```
+Lines 8 and 10 demonstrate singleton patterns. Line 8 uses `case True:` to match the boolean singleton `True`, and line 10 uses `case None:` to match the `None` singleton. These patterns check for identity (using the `is` operator semantics) rather than equality.
 
-#### None Pattern Matching
+**Identity vs Equality**
 
-```jac
-match optional_user {
-    case None {
-        redirect_to_login();
-    }
-    case user {
-        proceed_with_user(user);
-    }
-}
-```
+Singleton patterns are special because they match based on identity, not just value equality. While `True == 1` evaluates to `True` in Python-like languages, the singleton pattern `case True:` will only match the actual `True` boolean value, not the integer `1`. This ensures type-safe matching.
 
-#### Boolean Pattern Matching
+**The Three Singletons**
 
-```jac
-match user.is_authenticated() {
-    case True {
-        grant_access();
-    }
-    case False {
-        deny_access();
-    }
-}
-```
+Jac recognizes three singleton values that can be used in singleton patterns:
+- `True`: The boolean true value
+- `False`: The boolean false value
+- `None`: The null/nothing value
 
-#### Object-Spatial Integration
+**Example Behavior**
 
-```jac
-walker ValidationWalker {
-    can validate_node with entry {
-        match here.data {
-            case None {
-                report f"Node {here.id} has no data";
-                return;
-            }
-            case data {
-                match data.is_valid() {
-                    case True {
-                        visit [-->];
-                    }
-                    case False {
-                        report f"Invalid data at {here.id}";
-                    }
-                }
-            }
-        }
-    }
-}
-```
+In this example, line 5 matches against `True` (not the variable `data` which is also `True`). Since the match expression evaluates to `True`, the pattern on line 8 matches and line 9 executes, printing `"Matched the singleton True."`. If the match expression were `None`, line 10's pattern would match instead, executing line 11.
 
-#### Complex Singleton Usage
+**Common Use Cases**
 
-**Nested matching:**
-```jac
-match session.get("user") {
-    case None {
-        match session.get("guest_allowed") {
-            case True { create_guest_session(); }
-            case False { reject_session(); }
-        }
-    }
-    case user_data {
-        create_user_session(user_data);
-    }
-}
-```
-
-**With guards:**
-```jac
-match database_connection {
-    case None if retry_count < max_retries {
-        attempt_reconnection();
-    }
-    case None {
-        fail_with_error("Database unavailable");
-    }
-    case connection {
-        proceed_with_query(connection);
-    }
-}
-```
-
-#### Performance Considerations
-
-- Uses fast identity checks for singletons
-- No object creation overhead
-- Optimized by compiler for common patterns
-
-#### Best Practices
-
-1. Always handle None cases explicitly
-2. Use singleton patterns for explicit boolean logic
-3. Combine with guards for complex conditions
-4. Prefer singleton patterns over boolean expressions in match statements
-
-Singleton patterns provide essential building blocks for robust pattern matching, enabling clean handling of null values and boolean states while maintaining type safety.
+Singleton patterns are commonly used for:
+- Checking if optional values are `None`
+- Handling boolean flags in configuration or state machines
+- Distinguishing between boolean values and other truthy/falsy values

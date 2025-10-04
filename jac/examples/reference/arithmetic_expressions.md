@@ -1,31 +1,58 @@
-Jac supports a comprehensive set of arithmetic operations that follow the standard mathematical precedence rules. The arithmetic expression system in Jac is designed to be intuitive and consistent with mathematical conventions while maintaining compatibility with Python's arithmetic operations.
+Arithmetic expressions in Jac follow standard mathematical operator precedence and associativity rules, supporting a comprehensive set of numeric operations.
 
-**Basic Arithmetic Operators**
+**Basic Binary Operators**
 
-The fundamental arithmetic operators available in Jac are:
+Jac supports the standard arithmetic operators with the following precedence (from highest to lowest):
 
-- **Addition (`+`)**: Adds two operands
-- **Subtraction (`-`)**: Subtracts the right operand from the left operand  
-- **Multiplication (`*`)**: Multiplies two operands
-- **Division (`/`)**: Performs floating-point division
-- **Floor Division (`//`)**: Performs division and returns the floor of the result
-- **Modulo (`%`)**: Returns the remainder of division
-- **Exponentiation (`**`)**: Raises the left operand to the power of the right operand
+| Operator | Description | Example (lines) |
+|----------|-------------|-----------------|
+| `**` | Exponentiation | Line 11 |
+| `*` | Multiplication | Line 7 |
+| `/` | Division (float result) | Line 8 |
+| `//` | Floor division (integer result) | Lines 9, 40 |
+| `%` | Modulo (remainder) | Lines 10, 41 |
+| `+` | Addition | Line 12 |
+| `-` | Subtraction | Line 13 |
 
-**Operator Precedence**
+Lines 7-13 demonstrate each basic arithmetic operation in isolation. Note that division `/` always produces a float result, while floor division `//` produces an integer by truncating toward negative infinity.
 
-Jac follows the standard mathematical order of operations (PEMDAS/BODMAS):
+**Operator Precedence and Grouping**
 
-1. Parentheses `()` - highest precedence
-2. Exponentiation `**` 
-3. Unary plus/minus `+x`, `-x`
-4. Multiplication `*`, Division `/`, Floor Division `//`, Modulo `%`
-5. Addition `+`, Subtraction `-` - lowest precedence
+Line 16 shows how parentheses override default precedence: `(9 + 2) * 9 - 2`. Without parentheses, multiplication would execute before addition. The expression evaluates as `11 * 9 - 2 = 97`.
 
-**Expression Combinations**
+Line 32 demonstrates a complex expression with mixed operators: `2 + 3 * 4 ** 2 - 10 / 2`. Following precedence rules:
+1. Exponentiation first: `4 ** 2 = 16`
+2. Multiplication and division: `3 * 16 = 48` and `10 / 2 = 5.0`
+3. Addition and subtraction: `2 + 48 - 5.0 = 45.0`
 
-Complex arithmetic expressions can be constructed by combining multiple operators and operands. Parentheses can be used to override the default precedence and create more complex calculations.
+**Unary Operators**
 
-The provided code example demonstrates all basic arithmetic operations including multiplication (`7 * 2`), division (`15 / 3`), floor division (`15 // 3`), modulo (`17 % 5`), exponentiation (`2 ** 3`), and a combination expression with parentheses to control evaluation order (`(9 + 2) * 9 - 2`).
+Lines 19-22 demonstrate unary prefix operators:
 
-These arithmetic expressions form the foundation for mathematical computations in Jac programs and can be used in variable assignments, function arguments, and conditional statements.
+- `+x` (line 20): Unary plus, returns the numeric value unchanged
+- `-x` (line 21): Unary minus, negates the value
+- `~x` (line 22): Bitwise NOT, inverts all bits in the integer representation
+
+These unary operators have higher precedence than binary operators.
+
+**Exponentiation Associativity**
+
+Line 25 highlights that exponentiation is right-associative: `2 ** 3 ** 2` evaluates as `2 ** (3 ** 2) = 2 ** 9 = 512`, not `(2 ** 3) ** 2 = 8 ** 2 = 64`.
+
+**Matrix Multiplication**
+
+Lines 27-29 mention the matrix multiplication operator `@`, though it requires matrix types and isn't demonstrated with executable code. This operator has the same precedence as regular multiplication.
+
+**Chained Operations**
+
+Lines 36-37 show that operators of the same precedence are left-associative:
+- `100 - 50 + 25` evaluates as `(100 - 50) + 25 = 75`
+- `2 * 3 * 4` evaluates as `(2 * 3) * 4 = 24`
+
+**Floor Division and Modulo**
+
+Lines 40-41 demonstrate the relationship between floor division and modulo:
+- `17 // 5 = 3` (quotient)
+- `17 % 5 = 2` (remainder)
+
+Together they satisfy: `17 = 5 * 3 + 2`

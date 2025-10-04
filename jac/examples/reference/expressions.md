@@ -1,61 +1,65 @@
-Expressions in Jac form the computational backbone of the language, providing a rich hierarchy of operations that combine values, variables, and function calls into meaningful computations. Jac's expression system extends Python's familiar syntax while adding unique features for object-spatial programming and enhanced type safety.
+This example demonstrates ternary conditional expressions in Jac, which provide inline conditional logic for selecting between two values based on a boolean condition.
 
-#### Expression Hierarchy
+**Basic Ternary Expression**
 
-Jac expressions follow a well-defined precedence hierarchy:
+Line 5 shows the ternary syntax: `x = 1 if 5 / 2 == 1 else 2`. The format is:
 
-1. **Conditional expressions**: Ternary conditional operations
-2. **Lambda expressions**: Anonymous function definitions
-3. **Concurrent expressions**: Flow and wait operations
-4. **Walrus assignments**: Named expressions with `:=`
-5. **Pipe expressions**: Forward and backward piping
-6. **Bitwise operations**: Bit manipulation operations
-7. **Logical operations**: Boolean logic and comparisons
-8. **Arithmetic operations**: Mathematical computations
-9. **Connect expressions**: Data spatial connections
-10. **Atomic expressions**: Basic values and references
+`value_if_true if condition else value_if_false`
 
-#### Basic Expression Types
+This evaluates:
+- The condition `5 / 2 == 1` (false, since 5 / 2 = 2.5)
+- Returns the `else` value: 2
+- Assigns 2 to x
 
-```jac
-42                    # Integer literal
-"hello world"        # String literal
-user_name            # Variable reference
-calculate(x, y)      # Function call
-result = value if condition else alternative;  # Conditional expression
-```
+**Practical Ternary Usage**
 
-#### Object-Spatial Expression Integration
+Lines 9-11 show a common pattern for conditional assignment:
+- `age = 20`
+- `status = "adult" if age >= 18 else "minor"`
+- Since age >= 18 is true, status becomes "adult"
 
-Expressions integrate seamlessly with object-spatial constructs:
+This is more concise than an if-else statement when you just need to pick between two values.
 
-```jac
-walker DataProcessor {
-    can analyze with entry {
-        neighbors = [-->];
-        connected_count = len(neighbors);
-        next_node = neighbors[0] if neighbors else None;
-        
-        if connected_count > threshold {
-            visit neighbors.filter(lambda n: Node : n.is_active());
-        }
-    }
-}
-```
+**Nested Ternary Expressions**
 
-#### Type-Safe Expression Evaluation
+Lines 14-16 demonstrate nesting ternaries for multiple conditions:
 
-```jac
-let count: int = items.length();
-let ratio: float = total / count;
-let is_valid: bool = (count > 0) and (ratio < 1.0);
-```
+`grade = "A" if score >= 90 else ("B" if score >= 80 else "C")`
 
-#### Performance Considerations
+This evaluates left-to-right:
+1. If score >= 90: return "A"
+2. Else if score >= 80: return "B"
+3. Else: return "C"
 
-- Left-to-right evaluation for same precedence operations
-- Short-circuit evaluation for logical operators
-- Constant folding for literal expressions
-- Type specialization for performance
+With score = 85, this returns "B".
 
-Expressions provide the foundation for all computational operations in Jac, supporting both traditional programming patterns and object-spatial algorithms while maintaining type safety and performance optimization.
+Note: Nested ternaries can become hard to read. For more than 2-3 conditions, traditional if-elif-else statements are clearer.
+
+**Ternary with Function Calls**
+
+Lines 19-20 show that any expression works in ternary branches:
+
+`value = max(10, 20) if True else min(10, 20)`
+
+Since the condition is True, this calls `max(10, 20)` and assigns 20 to value. The `min()` call never executes - ternaries evaluate only the selected branch.
+
+**Ternary vs If-Statement**
+
+Ternaries are best for:
+- Simple conditional assignments
+- Inline conditional values in expressions
+- Reducing code verbosity for binary choices
+
+Use if-statements when:
+- You need multiple statements per branch
+- Conditions are complex
+- Readability would suffer from nesting
+
+**Evaluation Order**
+
+The ternary operator evaluates:
+1. The condition
+2. Only the selected branch (lazy evaluation)
+3. Returns the branch's value
+
+This means side effects only occur in the executed branch.

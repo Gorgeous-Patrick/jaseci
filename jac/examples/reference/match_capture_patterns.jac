@@ -1,3 +1,5 @@
+# Match capture patterns - Pattern matching in match statements
+
 with entry {
     day = " sunday";
     match day {

@@ -1,47 +1,28 @@
-Atomic expressions in Jac represent the most fundamental and indivisible units of expression evaluation. They serve as building blocks for more complex expressions and include literals, identifiers, and other primary expression forms.
+Atomic expressions in Jac feature the atomic forward pipe operator `:>`, which enables clean, left-to-right function composition by passing values directly to functions.
 
-**Atomic Pipe Forward Expressions**
+**Atomic Forward Pipe Operator**
 
-The example demonstrates atomic pipe forward operations using the `:>` operator, which enables a functional programming style by passing values through a chain of operations:
+The `:>` operator takes the value on its left and passes it as an argument to the function on its right. This creates a more readable flow when chaining operations.
 
-```jac
-"Hello world!" :> print;
-```
+Line 5 demonstrates the basic usage: `"Hello world!" :> print`. This is equivalent to `print("Hello world!")`, but the pipe syntax emphasizes the data flow from left to right.
 
-This expression takes the string literal `"Hello world!"` and pipes it forward to the `print` function, equivalent to calling `print("Hello world!")`.
+**Chained Atomic Pipes**
 
-**Chained Atomic Operations**
+Line 8 shows multiple pipes chained together: `"Welcome" :> type :> print`. This expression:
+1. Takes the string `"Welcome"`
+2. Passes it to `type()`, which returns the string's type object
+3. Passes that type object to `print()`
 
-Atomic expressions can be chained together for more complex operations:
+The left-to-right flow makes the sequence of transformations easier to read than nested function calls like `print(type("Welcome"))`.
 
-```jac
-"Welcome" :> type :> print;
-```
+**Atomic Pipes with Lambdas**
 
-This chains multiple operations:
-1. Start with the string `"Welcome"`
-2. Pipe it to `type` function to get the type information
-3. Pipe the result to `print` to display it
+Lines 11-12 demonstrate using atomic pipes with lambda expressions:
+`result = 5 :> (lambda x: int : x * 2) :> (lambda x: int : x + 10)`
 
-**Benefits of Atomic Pipe Expressions**
+This chains operations:
+1. Start with value `5`
+2. Pass to first lambda which doubles it: `5 * 2 = 10`
+3. Pass result to second lambda which adds 10: `10 + 10 = 20`
 
-- **Readability**: Left-to-right reading flow that matches natural language
-- **Composition**: Easy chaining of operations without nested function calls
-- **Functional style**: Enables pipeline-based programming patterns
-- **Clarity**: Makes data flow explicit and easy to follow
-
-**Comparison with Traditional Syntax**
-
-Traditional nested function calls:
-```jac
-print(type("Welcome"));
-```
-
-Atomic pipe forward style:
-```jac
-"Welcome" :> type :> print;
-```
-
-The pipe forward syntax eliminates the need to read expressions from inside-out, making code more intuitive and maintainable.
-
-Atomic expressions form the foundation of Jac's expression system, enabling both traditional and functional programming paradigms while maintaining clear, readable code structure.
+The atomic pipe operator is particularly useful for creating data transformation pipelines where the flow of data is more important than the traditional function call syntax. It's called "atomic" because it passes the entire value as a single unit to the next function in the chain.

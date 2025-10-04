@@ -1102,6 +1102,7 @@ class JacBasics:
         if custom:
             ctx.custom = expr
         else:
+            print(expr)
             ctx.reports.append(expr)
 
     @staticmethod

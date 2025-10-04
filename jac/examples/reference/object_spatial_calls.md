@@ -1,56 +1,34 @@
-Data spatial calls represent specialized operators that enable computation to move through topological structures rather than data moving to computation. These operators fundamentally invert traditional programming paradigms by activating computational entities within graph structures and enabling fluid data transformations.
+Object spatial calls are special invocation operators that spawn and execute walkers on nodes in the graph with different traversal semantics.
 
-#### Spawn Operator (`spawn`)
+**Walker and Node Setup**
 
-The spawn operator activates a walker within the topological structure, transitioning it from an inactive object to an active computational entity positioned at a specific location:
+Lines 3-16 define a walker `Creator` and a node type `node_1`. The walker has an entry ability `func2` (line 4) that triggers when visiting the root node. The node has an ability `func_1` (line 10) that executes when a `Creator` walker visits it. Line 13-16 implements `func_1` to print the current node and continue traversal using `visit [-->]`.
 
-```jac
-walker_instance spawn node_location;
-walker_instance spawn edge_location;
-walker_instance spawn path_collection;
-```
+**Graph Construction**
 
-When spawning occurs, the walker transitions from standard object state to active data spatial participant. The spawn operation places the walker at the specified location and triggers all relevant entry abilities, initiating the distributed computation model where both the walker and the location can respond to the interaction.
+Lines 18-24 implement the walker's `func2` ability, which constructs a linked chain of nodes. Line 19 captures the current node in `end`. Lines 20-22 create a loop that generates 5 nodes, each connected to the previous one using `++>` (the connect and assign pattern). Each iteration creates a new `node_1`, assigns it to `end`, and connects the previous `end` to the new node.
 
-#### Pipe Operators
+**Spatial Call Operator :> (Depth-First)**
 
-Jac provides two pipe operators that enable functional-style data flow and method chaining:
+Line 27 demonstrates the `:>` operator: `root spawn :> Creator`. This operator spawns a walker and executes it depth-first on the graph. The walker starts at the root node and follows edges in a depth-first manner, visiting child nodes completely before siblings. This means when the walker encounters the chain of nodes created in `func2`, it will traverse all the way to the end of the chain before backtracking.
 
-**Standard Pipe Forward (`|>`)**: Enables left-to-right data flow with normal operator precedence, allowing values to flow through transformation chains without nested function calls.
+**Spatial Call Operator |> (Breadth-First)**
 
-**Atomic Pipe Forward (`:>`)**: Provides higher precedence piping for tighter binding in complex expressions, ensuring predictable evaluation order in sophisticated data transformations.
+Line 28 demonstrates the `|>` operator: `root spawn |> Creator`. This operator spawns a walker and executes it breadth-first on the graph. The walker visits nodes level-by-level, processing all nodes at the current depth before moving to the next depth level. For the chain of nodes, this means the walker visits each level of the graph structure in order of distance from the root.
 
-```jac
-# Standard piping for data transformation
-data |> normalize |> validate |> process;
+**Traversal Semantics Comparison**
 
-# Atomic piping for method chaining
-node :> get_neighbors :> filter_by_type :> collect;
-```
+The two spatial call operators provide different graph traversal strategies:
 
-#### Asynchronous Operations
+| Operator | Traversal | Use Case |
+|----------|-----------|----------|
+| `:>` | Depth-first | Exploring paths to their end, recursive structures |
+| `|>` | Breadth-first | Level-order processing, shortest paths |
 
-The `await` operator synchronizes with asynchronous walker operations and concurrent graph traversals, ensuring proper execution ordering when walkers operate in parallel or when graph operations require coordination across distributed computational entities.
+**spawn Keyword**
 
-#### Integration with Data Spatial Model
+The `spawn` keyword (lines 27-28) creates and launches a walker instance. When combined with spatial call operators, it determines how the walker traverses the graph. The syntax `node spawn operator Walker` spawns a walker at the specified node and begins traversal according to the operator's semantics.
 
-These operators work seamlessly within the data spatial programming paradigm:
+**visit Statement**
 
-```jac
-walker GraphProcessor {
-    can analyze with entry {
-        # Spawn child walkers on filtered paths
-        child_walker spawn (here --> [node::has_data]);
-        
-        # Transform data using pipes
-        result = here.data |> clean :> analyze |> summarize;
-        
-        # Continue traversal based on results
-        if (result.score > threshold) {
-            visit here.neighbors;
-        }
-    }
-}
-```
-
-Data spatial calls embody the core principle of computation moving to data, enabling walkers to activate distributed computational behaviors throughout the topological structure while maintaining clean, expressive syntax for complex graph operations.
+Lines 15 and 23 use `visit [-->]`, which tells the walker to continue visiting all outgoing edges from the current node. The `[-->]` edge expression selects all edges going out from the current node, and `visit` triggers the walker to traverse to the nodes at the other end of those edges.

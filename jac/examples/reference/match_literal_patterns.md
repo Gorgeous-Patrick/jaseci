@@ -1,113 +1,20 @@
-Match literal patterns in Jac enable direct matching against constant values including numbers, strings, and other literal expressions. These patterns provide the foundation for value-based pattern matching in match statements.
+Literal patterns are the simplest form of pattern matching, allowing you to match against specific constant values like numbers, strings, or booleans.
 
-#### Basic Literal Pattern Syntax
+**Basic Literal Matching**
 
-```jac
-match value {
-    case 42 {
-        print("The answer to everything");
-    }
-    case "hello" {
-        print("Greeting detected");
-    }
-    case 3.14159 {
-        print("Pi approximation");
-    }
-    case true {
-        handle_true_case();
-    }
-    case None {
-        handle_null_case();
-    }
-}
-```
+Lines 6 and 8 demonstrate literal patterns matching against integer values. The match statement on line 5 evaluates the expression `num` and compares it against each case's literal pattern. Line 6 contains the pattern `case 89:`, which matches when `num` equals exactly `89`. Since `num` is set to `89` on line 4, this case matches and executes line 7, printing `"Correct"`.
 
-#### Supported Literal Types
+**Match Evaluation Order**
 
-**Numeric literals:**
-```jac
-match status_code {
-    case 200 { handle_success(); }
-    case 404 { handle_not_found(); }
-    case 500 { handle_server_error(); }
-}
-```
+Match statements evaluate cases sequentially from top to bottom and execute the first matching case. Once a match is found, no further cases are evaluated. In this example, if `num` were `8`, the first case (line 6) would not match, but the second case (line 8) would match and execute line 9.
 
-**String literals:**
-```jac
-match command {
-    case "start" { start_process(); }
-    case "stop" { stop_process(); }
-    case "status" { show_status(); }
-}
-```
+**Literal Types**
 
-**Different numeric bases:**
-```jac
-match flag_value {
-    case 0xFF { handle_max_value(); }      # Hexadecimal
-    case 0b1010 { handle_binary(); }       # Binary
-    case 0o755 { handle_permissions(); }   # Octal
-}
-```
+Literal patterns can match various constant types:
+- **Integers**: `case 89:`, `case 0:`, `case -5:`
+- **Floats**: `case 3.14:`, `case -0.5:`
+- **Strings**: `case "hello":`, `case 'world':`
+- **Booleans**: `case True:`, `case False:`
+- **None**: `case None:`
 
-#### Object-Spatial Pattern Matching
-
-```jac
-walker StatusChecker {
-    can check_node with entry {
-        match here.status {
-            case "active" {
-                visit [-->];
-            }
-            case "inactive" {
-                skip;
-            }
-            case "error" {
-                report f"Error node: {here.id}";
-            }
-        }
-    }
-}
-```
-
-#### Complex Literal Matching
-
-**Combining with guards:**
-```jac
-match user_input {
-    case "admin" if user.has_admin_rights() {
-        enter_admin_mode();
-    }
-    case "guest" {
-        enter_guest_mode();
-    }
-}
-```
-
-**Multiple literals:**
-```jac
-match error_code {
-    case 400 | 401 | 403 {
-        handle_client_error(error_code);
-    }
-    case 500 | 502 | 503 {
-        handle_server_error(error_code);
-    }
-}
-```
-
-#### Performance Considerations
-
-- Literal patterns use efficient direct comparison
-- Compiler may optimize multiple literals into jump tables
-- Place most common cases first for better performance
-
-#### Best Practices
-
-1. Use meaningful literal values
-2. Group related cases together
-3. Consider using named constants for magic numbers
-4. Combine with guards for complex conditions
-
-Literal patterns provide a clean, efficient way to handle value-based branching in Jac programs, supporting both simple conditional logic and complex state-based processing. 
+The value being matched must be equal to the literal value using value equality (similar to the `==` operator). For numbers, this means the numeric value must match. For strings, the string contents must be identical.

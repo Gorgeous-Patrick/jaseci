@@ -1,44 +1,32 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _
+from jaclang import JacMachineInterface as _jl
 
-
-class node_a(_.Node):
+class node_a(_jl.Node):
     value: int
 
+class Creator(_jl.Walker):
 
-class Creator(_.Walker):
-
-    @_.entry
-    @_.impl_patch_filename("examples/reference/connect_expressions.jac")
-    def create(self, here: _.Root) -> None:
+    @_jl.entry
+    @_jl.impl_patch_filename('connect_expressions.jac')
+    def create(self, here: _jl.Root) -> None:
         end = here
         i = 0
         while i < 7:
             if i % 2 == 0:
-                _.connect(end, (end := node_a(value=i)))
+                _jl.connect(left=end, right=(end := node_a(value=i)))
             else:
-                _.connect(
-                    end,
-                    (end := node_a(value=i + 10)),
-                    edge=MyEdge,
-                    conn_assign=(("val",), (i,)),
-                )
+                _jl.connect(left=end, right=(end := node_a(value=i + 10)), edge=MyEdge, conn_assign=(('val',), (i,)))
             i += 1
 
-    @_.entry
-    @_.impl_patch_filename("examples/reference/connect_expressions.jac")
-    def travel(self, here: _.Root | node_a) -> None:
-        for i in _.refs(
-            _.Path(here)._out(edge=lambda i: isinstance(i, MyEdge) and i.val <= 6)
-        ):
+    @_jl.entry
+    @_jl.impl_patch_filename('connect_expressions.jac')
+    def travel(self, here: _jl.Root | node_a) -> None:
+        for i in _jl.refs(_jl.Path(here)._out(edge=lambda i: isinstance(i, MyEdge) and i.val <= 6)):
             print(i.value)
-        _.visit(self, _.refs(_.Path(here)._out()))
+        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-
-class MyEdge(_.Edge):
+class MyEdge(_jl.Edge):
     val: int = 5
-
-
-if __name__ == "__main__":
-    _.spawn(_.root(), Creator())
+if __name__ == '__main__':
+    _jl.spawn(_jl.root(), Creator())

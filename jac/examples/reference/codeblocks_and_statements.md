@@ -1,81 +1,38 @@
-Code blocks and statements form the structural foundation of Jac programs, organizing executable code into logical units and providing the syntactic framework for all program operations.
+Code blocks in Jac are sequences of statements enclosed in curly braces `{}`. They provide structure for organizing code within functions, control flow constructs, and entry points.
 
-#### Code Block Structure
+**Code Block Structure**
 
-Code blocks use curly brace delimiters to group related statements into executable units:
+Lines 3-20 show an entry code block that contains multiple statements. Code blocks use curly brace syntax `{ ... }` and can contain any valid statements.
 
-```jac
-{
-    statement1;
-    statement2;
-    nested_block {
-        inner_statement;
-    }
-}
-```
+**Expression Statements**
 
-Code blocks establish scope boundaries for variables and provide organizational structure for complex operations. They can be nested arbitrarily deep, enabling hierarchical program organization.
+Line 5 demonstrates an expression statement: `print("Welcome to the world of Jaseci!");`. Any expression followed by a semicolon becomes a statement. The expression is evaluated for its side effects (in this case, printing output).
 
-#### Statement Categories
+**Nested Definitions**
 
-Jac supports several categories of statements that serve different purposes:
+Lines 8-10 show that function definitions can appear inside code blocks. The `add` function is defined within the entry block's scope:
 
-**Declaration Statements**: Define functions, variables, and archetypes within the current scope, establishing named entities that can be referenced by subsequent code.
+`def add(x: int, y: int) -> int { return (x + y); }`
 
-**Expression Statements**: Execute expressions for their side effects, including function calls, assignments, and object-spatial operations.
+Functions defined inside blocks have local scope relative to that block.
 
-**Control Flow Statements**: Direct program execution through conditionals, loops, and exception handling constructs.
+**Function Calls as Statements**
 
-**Object-Spatial Statements**: Control walker movement and graph traversal operations, including visit, ignore, and disengage statements.
+Line 13 shows a function call as an expression statement: `print(add(10, 89));`. The function is called, its result is passed to `print`, and the expression completes.
 
-#### Statement Termination
+**Statement Types**
 
-Most statements require semicolon termination to establish clear boundaries between executable units:
+Lines 16-19 demonstrate that code blocks can contain different statement types:
 
-```jac
-let value = compute_result();
-print(value);
-visit next_node;
-```
+- **Assignment statement** (line 16): `x = 42;` binds a value to a variable
+- **Control flow statement** (lines 17-19): `if x > 0 { print("Positive"); }` contains a nested code block
 
-Control structures and block statements typically do not require semicolons as their block structure provides natural termination.
+**Semicolons**
 
-#### Scope and Visibility
+Jac requires semicolons to terminate most statements. This explicit termination allows the parser to distinguish between statement boundaries and enables more flexible formatting.
 
-Code blocks create lexical scopes where variables and functions defined within the block are accessible to nested blocks but not to parent scopes:
+**Nested Code Blocks**
 
-```jac
-with entry {
-    let local_var = "accessible within this block";
-    
-    def helper_function() {
-        # Can access local_var from enclosing scope
-        return local_var.upper();
-    }
-    
-    print(helper_function());
-}
-# local_var and helper_function not accessible here
-```
+The if statement on lines 17-19 contains its own code block. Code blocks can be nested arbitrarily deep, with each level creating a new scope for local variables (though the specifics of scoping rules depend on the statement type).
 
-#### Integration with Object-Spatial Constructs
-
-Code blocks work seamlessly with object-spatial programming constructs, providing structured contexts for walker abilities and node operations:
-
-```jac
-walker Processor {
-    can process with entry {
-        # Code block within ability
-        let result = analyze_data(here.data);
-        
-        if (result.is_valid) {
-            visit here.neighbors;
-        } else {
-            report "Invalid data at node";
-            disengage;
-        }
-    }
-}
-```
-
-Code blocks provide the essential organizational structure that enables clear, maintainable Jac programs while supporting both traditional programming patterns and object-spatial computation models.
+Code blocks are the fundamental organizational unit in Jac, grouping related statements and defining scope boundaries for variables and functions.

@@ -1,55 +1,39 @@
-Global variables provide module-level data storage that persists throughout program execution and can be accessed across different scopes within a Jac program. Jac offers two declaration keywords with distinct semantic meanings and access control capabilities.
+Global variables in Jac are module-level declarations that can have access control tags specifying visibility and mutability.
 
-#### Declaration Keywords
+**Let with Access Tags**
 
-**`let` Keyword**: Declares module-level variables with lexical scoping semantics, suitable for configuration values and module-local state that may be reassigned during execution.
+Line 4 shows `let:priv a = 5` - a private module-level variable using `let`. The `:priv` tag restricts access to the current module.
 
-**`glob` Keyword**: Explicitly declares global variables with program-wide scope, emphasizing their global nature and intended use for shared state across multiple modules or components.
+**Global with Access Tags**
 
-#### Access Control Modifiers
+Lines 7, 10, 13 demonstrate `glob` declarations with different access levels:
+- Line 7: `glob:pub X = 10` - public, accessible from other modules
+- Line 10: `glob:protect y = 15` - protected access
+- Line 13: `glob z = 20` - no access tag, uses default visibility
 
-Jac provides three access control levels for global variables:
+**Access Tag Semantics**
 
-- **`:priv`**: Private to the current module, preventing external access
-- **`:pub`**: Publicly accessible from other modules and external code
-- **`:protect`**: Protected access with limited external visibility
+| Access Tag | Visibility | Example |
+|------------|------------|---------|
+| `:priv` | Private to module | Line 4 |
+| `:pub` | Public, exportable | Line 7 |
+| `:protect` | Protected access | Line 10 |
+| (none) | Default visibility | Line 13 |
 
-When no access modifier is specified, variables default to module-level visibility with standard scoping rules.
+**Object Declarations with Access**
 
-#### Syntax and Usage
+Line 16 shows `obj:priv Myobj{}` - a private object definition. Access tags apply to any module-level declaration, not just variables.
 
-```jac
-let:priv config_value = "development";
-glob:pub shared_counter = 0;
-glob:protect system_state = "initialized";
-glob default_timeout = 30;
-```
+**Entry Point**
 
-#### Integration with Entry Points
+Line 18 shows `with entry:__main__` - conditional execution only when the module is run directly (not imported). Line 19 accesses all the declared globals.
 
-Global variables integrate seamlessly with entry blocks and named execution contexts:
+**Global vs Let**
 
-```jac
-let:priv module_data = initialize_data();
-glob:pub api_version = "2.1";
+Both `glob` and `let` create module-level variables:
+- `glob` explicitly declares global scope
+- `let` can also be used at module level with similar semantics
+- Both support access tags
+- Choice between them is often stylistic, though `glob` more clearly indicates module-wide scope
 
-with entry:main {
-    print(f"Module data: {module_data}");
-    print(f"API Version: {api_version}");
-    
-    # Global variables remain accessible throughout execution
-    process_with_globals();
-}
-```
-
-#### Common Usage Patterns
-
-**Configuration Management**: Global variables provide centralized configuration storage accessible across the entire program without parameter passing.
-
-**Shared State**: Multiple components can access and modify shared program state through globally accessible variables.
-
-**Module Interfaces**: Public global variables create clean interfaces between modules, exposing necessary data while maintaining encapsulation through access controls.
-
-**System Constants**: Global variables store system-wide constants and settings that remain consistent throughout program execution.
-
-Global variables complement Jac's object-spatial programming model by providing persistent state that walkers and other computational entities can access during graph traversal and distributed computation operations.
+Access tags enable encapsulation and API control at the module level, allowing developers to specify which elements are part of the public interface versus internal implementation details.

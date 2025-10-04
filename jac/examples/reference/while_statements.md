@@ -1,309 +1,39 @@
-While statements in Jac provide iterative execution based on conditional expressions, enabling loops that continue as long as a specified condition remains true. The while loop syntax offers a fundamental control structure for implementing algorithms that require repeated execution with dynamic termination conditions.
+This example demonstrates the while loop construct in Jac, including basic iteration, the else clause for normal completion, and interaction with control flow statements.
 
-**Basic While Loop Syntax**
+**Basic While Loop**
 
-While statements follow this pattern from the grammar:
-```jac
-while condition {
-    # code block
-}
-```
+Lines 5-9 show the fundamental while loop syntax. The loop continues executing as long as the condition `x < 5` evaluates to true. Line 8 increments `x` by 1 in each iteration. This loop will print 0, 1, 2, 3, 4 before the condition becomes false and the loop exits. Unlike for loops, while loops require manual management of the loop variable.
 
-**Example Implementation**
+**While with Else Clause**
 
-The provided example demonstrates a basic counting loop:
-```jac
-i = 1;
-while i < 6 {
-    print(i);
-    i += 1;
-}
-```
+Lines 12-18 demonstrate the while-else construct, similar to the for-else pattern. The else block on lines 16-17 executes when the loop condition becomes false naturally (i.e., when `count` reaches 3 and the condition `count < 3` evaluates to false). The else clause will print "While loop completed normally" after printing "Count: 0", "Count: 1", and "Count: 2".
 
-**Execution flow:**
-1. Initialize counter variable `i = 1`
-2. Check condition `i < 6` (true, so enter loop)
-3. Execute loop body: print `i` and increment `i`
-4. Check condition again with new value
-5. Repeat until condition becomes false
-6. Exit loop when `i` reaches 6
+**While with Break**
 
-**Key Components**
+Lines 21-30 illustrate how the `break` statement affects the else clause. When `break` is executed on line 24 (when `i == 5`), the loop terminates immediately and jumps past both the remaining loop body and the else clause. The else block on lines 28-29 is skipped entirely. This behavior makes the else clause useful for distinguishing between normal loop completion and early termination.
 
-**Condition Expression**
-- Evaluated before each iteration
-- Must be a boolean expression or evaluable to boolean
-- Loop continues while condition is true
-- Loop exits when condition becomes false
+**Control Flow Semantics**
 
-**Code Block**
-- Enclosed in curly braces `{}`
-- Contains statements to execute repeatedly
-- Should modify variables that affect the condition to avoid infinite loops
-- Can contain any valid Jac statements
-
-**Loop Control Variables**
-
-While loops typically require explicit management of control variables:
-
-**Counter-Based Loops**
-```jac
-count = 0;
-while count < 10 {
-    process_item(count);
-    count += 1;  # Manual increment required
-}
-```
-
-**Condition-Based Loops**
-```jac
-while not finished {
-    result = perform_task();
-    finished = result.is_complete;
-}
-```
-
-**Iterator-Based Loops**
-```jac
-index = 0;
-while index < array.length {
-    process(array[index]);
-    index += 1;
-}
-```
-
-**Common While Loop Patterns**
-
-**Input Processing**
-```jac
-user_input = get_input();
-while user_input != "quit" {
-    process_command(user_input);
-    user_input = get_input();
-}
-```
-
-**Search Operations**
-```jac
-found = false;
-index = 0;
-while index < data.length and not found {
-    if data[index] == target {
-        found = true;
-    } else {
-        index += 1;
-    }
-}
-```
-
-**Convergence Algorithms**
-```jac
-error = calculate_error();
-iteration = 0;
-while error > tolerance and iteration < max_iterations {
-    update_parameters();
-    error = calculate_error();
-    iteration += 1;
-}
-```
-
-**Infinite Loop Prevention**
-
-While loops require careful design to avoid infinite loops:
-
-**Loop Guards**
-```jac
-attempts = 0;
-max_attempts = 100;
-while condition and attempts < max_attempts {
-    # loop body
-    attempts += 1;
-}
-```
-
-**Progress Verification**
-```jac
-previous_value = initial_value;
-while not converged {
-    current_value = compute_next();
-    if current_value == previous_value {
-        break;  # Prevent infinite loop
-    }
-    previous_value = current_value;
-}
-```
-
-**Integration with Control Statements**
-
-While loops work with control flow statements:
-
-**Break Statement**
-```jac
-while true {
-    input = get_input();
-    if input == "exit" {
-        break;  # Exit loop immediately
-    }
-    process(input);
-}
-```
-
-**Continue Statement**
-```jac
-i = 0;
-while i < 10 {
-    i += 1;
-    if i % 2 == 0 {
-        continue;  # Skip even numbers
-    }
-    print(i);
-}
-```
-
-**Nested While Loops**
-
-While loops can be nested for complex iteration patterns:
-
-```jac
-row = 0;
-while row < height {
-    col = 0;
-    while col < width {
-        process_cell(row, col);
-        col += 1;
-    }
-    row += 1;
-}
-```
-
-**Object-Spatial Integration**
-
-While loops work within object-spatial contexts:
-
-**Walker State Loops**
-```jac
-walker Processor {
-    can process with `node entry {
-        attempts = 0;
-        while not here.is_processed and attempts < 3 {
-            here.attempt_processing();
-            attempts += 1;
-        }
-        if here.is_processed {
-            visit [-->];
-        }
-    }
-}
-```
-
-**Node Processing Loops**
-```jac
-node BatchProcessor {
-    can process_batch with Worker entry {
-        batch_index = 0;
-        while batch_index < self.batch_size {
-            self.process_item(batch_index);
-            batch_index += 1;
-        }
-    }
-}
-```
-
-**Collection Processing**
-
-While loops for manual collection iteration:
-
-**Array Processing**
-```jac
-index = 0;
-while index < items.length {
-    item = items[index];
-    if item.needs_processing {
-        process(item);
-    }
-    index += 1;
-}
-```
-
-**Dynamic Collections**
-```jac
-while queue.has_items() {
-    item = queue.dequeue();
-    result = process(item);
-    if result.creates_new_items {
-        queue.enqueue_all(result.new_items);
-    }
-}
-```
-
-**Performance Considerations**
-
-**Condition Evaluation**
-- Condition is evaluated before every iteration
-- Complex conditions can impact performance
-- Consider caching expensive calculations
-
-**Loop Optimization**
-```jac
-# Less efficient
-while expensive_function() < threshold {
-    # loop body
-}
-
-# More efficient
-limit = expensive_function();
-while counter < limit {
-    # loop body
-    counter += 1;
-}
-```
-
-**Memory Usage**
-- Variables declared inside loops are recreated each iteration
-- Consider declaring outside loop when appropriate
+The while loop evaluates its condition before each iteration:
+1. The condition is checked
+2. If true, the loop body executes
+3. After the body completes, control returns to step 1
+4. If false, control moves to the else clause (if present) or continues after the loop
+5. If `break` is encountered, the loop and else clause are both skipped
 
 **Comparison with For Loops**
 
-**While loops are preferred when:**
-- Termination condition is complex or dynamic
-- Number of iterations is unknown in advance
-- Loop control requires custom logic
+| Feature | While Loop | For Loop |
+|---------|------------|----------|
+| Condition check | Explicit boolean expression | Implicit iteration completion |
+| Counter management | Manual | Automatic |
+| Use case | Condition-based loops | Collection/range iteration |
+| Else clause | Executes on normal completion | Executes on normal completion |
+| Break behavior | Skips else clause | Skips else clause |
 
-**For loops are preferred when:**
-- Iterating over collections
-- Counter-based iteration with known bounds
-- Standard increment/decrement patterns
+**Common Patterns**
 
-**Error Handling in While Loops**
-
-```jac
-while has_work() {
-    try {
-        task = get_next_task();
-        task.execute();
-    } except TaskError as e {
-        log_error(e);
-        continue;  # Skip failed task, continue with next
-    } except CriticalError as e {
-        log_critical(e);
-        break;     # Exit loop on critical error
-    }
-}
-```
-
-**Best Practices**
-
-1. **Always modify loop variables**: Ensure the condition can eventually become false
-2. **Use meaningful conditions**: Make loop termination logic clear
-3. **Avoid complex conditions**: Keep conditions simple and readable
-4. **Include safety guards**: Prevent infinite loops with counters or timeouts
-5. **Consider alternatives**: Use for loops when appropriate for better readability
-
-**Common Pitfalls**
-
-1. **Infinite loops**: Forgetting to modify condition variables
-2. **Off-by-one errors**: Incorrect boundary conditions
-3. **Uninitialized variables**: Using undefined variables in conditions
-4. **Side effects**: Unexpected condition changes from function calls
-
-While statements in Jac provide essential iterative control for scenarios requiring dynamic loop termination. They complement for loops by handling cases where the number of iterations is not predetermined, making them valuable for algorithms involving search, convergence, and event-driven processing.
+- Use while loops when the number of iterations is not known in advance
+- Use for loops when iterating over collections or known ranges
+- The else clause is useful for search loops where you want to know if a condition was ever met
+- Always ensure the loop condition will eventually become false to avoid infinite loops

@@ -1,3 +1,5 @@
+# Object spatial calls - Graph traversal and spatial operations
+
 walker Creator {
     can func2 with `root entry;
 }

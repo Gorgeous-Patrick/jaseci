@@ -1,61 +1,67 @@
-Bitwise expressions in Jac provide low-level bit manipulation operations that work directly on the binary representation of integer values. These operations are essential for systems programming, data encoding, optimization algorithms, and working with binary data formats.
+Bitwise expressions perform operations on the binary representations of integers, manipulating individual bits using logical operations and shift operators.
 
-**Bitwise Operators**
+**Bitwise AND (&)**
 
-Jac supports all standard bitwise operators:
+Line 7 demonstrates the bitwise AND operator: `5 & 3`. This performs a logical AND on each bit position:
+- 5 in binary: 101
+- 3 in binary: 011
+- Result: 001 (decimal 1)
 
-- **AND (`&`)**: Performs bitwise AND operation between two operands
-- **OR (`|`)**: Performs bitwise OR operation between two operands  
-- **XOR (`^`)**: Performs bitwise exclusive OR operation between two operands
-- **NOT (`~`)**: Performs bitwise complement (NOT) operation on a single operand
-- **Left Shift (`<<`)**: Shifts bits to the left by specified positions
-- **Right Shift (`>>`)**: Shifts bits to the right by specified positions
+Each bit in the result is 1 only if both corresponding bits in the operands are 1.
 
-**Operator Semantics**
+**Bitwise OR (|)**
 
-**Bitwise AND (`&`)**
-- Returns 1 for each bit position where both operands have 1
-- Example: `5 & 3` → `101 & 011` = `001` = 1
+Line 10 shows the bitwise OR operator: `5 | 3`. This performs a logical OR on each bit position:
+- 5 in binary: 101
+- 3 in binary: 011
+- Result: 111 (decimal 7)
 
-**Bitwise OR (`|`)**  
-- Returns 1 for each bit position where at least one operand has 1
-- Example: `5 | 3` → `101 | 011` = `111` = 7
+Each bit in the result is 1 if either corresponding bit in the operands is 1.
 
-**Bitwise XOR (`^`)**
-- Returns 1 for each bit position where operands differ
-- Example: `5 ^ 3` → `101 ^ 011` = `110` = 6
+**Bitwise XOR (^)**
 
-**Bitwise NOT (`~`)**
-- Inverts all bits (1 becomes 0, 0 becomes 1)
-- Example: `~5` → `~101` = `...11111010` (two's complement representation)
+Line 13 demonstrates the bitwise XOR (exclusive OR) operator: `5 ^ 3`:
+- 5 in binary: 101
+- 3 in binary: 011
+- Result: 110 (decimal 6)
 
-**Left Shift (`<<`)**
-- Shifts bits left, filling with zeros from the right
-- Example: `5 << 1` → `101 << 1` = `1010` = 10
+Each bit in the result is 1 only if the corresponding bits in the operands are different.
 
-**Right Shift (`>>`)**
-- Shifts bits right, behavior depends on sign (arithmetic shift)
-- Example: `5 >> 1` → `101 >> 1` = `10` = 2
+**Bitwise NOT (~)**
+
+Line 16 shows the bitwise NOT operator: `~5`. This inverts all bits in the binary representation:
+- 5 in binary: 101
+- Result: -6 (due to two's complement representation)
+
+In two's complement arithmetic, `~x` equals `-(x + 1)`.
+
+**Left Shift (<<)**
+
+Line 19 demonstrates left shift: `5 << 1`. This shifts all bits one position to the left, filling with zeros:
+- 5 in binary: 101
+- After shift: 1010 (decimal 10)
+
+Left shifting by n positions is equivalent to multiplying by 2^n.
+
+**Right Shift (>>)**
+
+Line 22 shows right shift: `5 >> 1`. This shifts all bits one position to the right:
+- 5 in binary: 101
+- After shift: 10 (decimal 2)
+
+Right shifting by n positions is equivalent to integer division by 2^n.
 
 **Operator Precedence**
 
-Bitwise operators follow this precedence order (highest to lowest):
-1. Bitwise NOT (`~`)
-2. Shift operators (`<<`, `>>`)
-3. Bitwise AND (`&`)
-4. Bitwise XOR (`^`)
-5. Bitwise OR (`|`)
+Lines 25-26 show that bitwise operations can be combined with parentheses to control precedence: `(8 | 4) & 12`. The OR operation executes first due to parentheses, then AND is applied to the result.
 
-**Common Use Cases**
+**Bitwise Operations with Variables**
 
-Bitwise operations are commonly used for:
+Lines 29-33 demonstrate using bitwise operators with variables:
+- `a = 15` (binary: 1111)
+- `b = 7` (binary: 0111)
+- `a & b = 7` (binary: 0111)
+- `a | b = 15` (binary: 1111)
+- `a ^ b = 8` (binary: 1000)
 
-- **Flags and masks**: Setting, clearing, and checking individual bits
-- **Performance optimization**: Fast multiplication/division by powers of 2 using shifts
-- **Data compression**: Bit packing and unpacking
-- **Cryptography**: XOR operations for encryption algorithms
-- **Hardware interfacing**: Direct bit manipulation for embedded systems
-
-The provided code example demonstrates all bitwise operators with operands 5 and 3, showing practical usage of each operation and their results.
-
-Understanding bitwise expressions is crucial for low-level programming tasks and optimizations in Jac applications.
+Bitwise operations are commonly used for flag manipulation, optimization, cryptography, and low-level data processing.

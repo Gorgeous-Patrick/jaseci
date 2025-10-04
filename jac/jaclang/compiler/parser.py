@@ -1705,15 +1705,18 @@ class JacParser(Transform[uni.Source, uni.Module]):
             lambda_expr: KW_LAMBDA func_decl_params? (RETURN_HINT expression)? COLON expression
             """
             return_type: uni.Expr | None = None
+            return_hint_tok: uni.Token | None = None
             sig_kid: list[uni.UniNode] = []
             self.consume_token(Tok.KW_LAMBDA)
             params = self.match(list)
-            if self.match_token(Tok.RETURN_HINT):
+            if return_hint_tok := self.match_token(Tok.RETURN_HINT):
                 return_type = self.consume(uni.Expr)
             self.consume_token(Tok.COLON)
             body = self.consume(uni.Expr)
             if params:
                 sig_kid.extend(params)
+            if return_hint_tok:
+                sig_kid.append(return_hint_tok)
             if return_type:
                 sig_kid.append(return_type)
             signature = (
@@ -1731,7 +1734,11 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 if params or return_type
                 else None
             )
-            new_kid = [i for i in self.cur_nodes if i != params and i != return_type]
+            new_kid = [
+                i
+                for i in self.cur_nodes
+                if i != params and i != return_type and i != return_hint_tok
+            ]
             new_kid.insert(1, signature) if signature else None
             return uni.LambdaExpr(
                 signature=signature,
@@ -1991,7 +1998,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
             aug_op: RSHIFT_EQ
                    | LSHIFT_EQ
-                   | BW_NOT_EQ
                    | BW_XOR_EQ
                    | BW_OR_EQ
                    | BW_AND_EQ
@@ -2188,10 +2194,22 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
             fstring: FSTR_START fstr_parts FSTR_END
                 | FSTR_SQ_START fstr_sq_parts FSTR_SQ_END
+                | FSTR_TRIPLE_START fstr_triple_parts FSTR_TRIPLE_END
+                | FSTR_SQ_TRIPLE_START fstr_sq_triple_parts FSTR_SQ_TRIPLE_END
             """
-            self.match_token(Tok.FSTR_START) or self.consume_token(Tok.FSTR_SQ_START)
+            (
+                self.match_token(Tok.FSTR_TRIPLE_START)
+                or self.match_token(Tok.FSTR_SQ_TRIPLE_START)
+                or self.match_token(Tok.FSTR_START)
+                or self.consume_token(Tok.FSTR_SQ_START)
+            )
             target = self.match(list)
-            self.match_token(Tok.FSTR_END) or self.consume_token(Tok.FSTR_SQ_END)
+            (
+                self.match_token(Tok.FSTR_TRIPLE_END)
+                or self.match_token(Tok.FSTR_SQ_TRIPLE_END)
+                or self.match_token(Tok.FSTR_END)
+                or self.consume_token(Tok.FSTR_SQ_END)
+            )
             return uni.FString(
                 parts=(
                     self.extract_from_list(target, (uni.String, uni.ExprStmt))
@@ -2224,6 +2242,44 @@ class JacParser(Transform[uni.Source, uni.Module]):
             """Grammar rule.
 
             fstr_sq_parts: (FSTR_SQ_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
+            """
+            valid_parts: list[uni.UniNode] = [
+                (
+                    i
+                    if isinstance(i, uni.String)
+                    else (
+                        uni.ExprStmt(expr=i, in_fstring=True, kid=[i])
+                        if isinstance(i, uni.Expr)
+                        else i
+                    )
+                )
+                for i in self.cur_nodes
+            ]
+            return valid_parts
+
+        def fstr_triple_parts(self, _: None) -> list[uni.UniNode]:
+            """Grammar rule.
+
+            fstr_triple_parts: (FSTR_TRIPLE_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
+            """
+            valid_parts: list[uni.UniNode] = [
+                (
+                    i
+                    if isinstance(i, uni.String)
+                    else (
+                        uni.ExprStmt(expr=i, in_fstring=True, kid=[i])
+                        if isinstance(i, uni.Expr)
+                        else i
+                    )
+                )
+                for i in self.cur_nodes
+            ]
+            return valid_parts
+
+        def fstr_sq_triple_parts(self, _: None) -> list[uni.UniNode]:
+            """Grammar rule.
+
+            fstr_sq_triple_parts: (FSTR_SQ_TRIPLE_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
             """
             valid_parts: list[uni.UniNode] = [
                 (
@@ -3052,6 +3108,8 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 Tok.FSTR_BESC,
                 Tok.FSTR_PIECE,
                 Tok.FSTR_SQ_PIECE,
+                Tok.FSTR_TRIPLE_PIECE,
+                Tok.FSTR_SQ_TRIPLE_PIECE,
             ]:
                 ret_type = uni.String
                 if token.type == Tok.FSTR_BESC:

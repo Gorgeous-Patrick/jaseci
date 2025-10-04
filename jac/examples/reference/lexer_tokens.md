@@ -1,98 +1,41 @@
-Lexer tokens in Jac define the fundamental building blocks that the lexical analyzer recognizes when parsing source code. These tokens represent the smallest meaningful units of the language.
+Lexer tokens for builtin types are keywords in Jac that represent fundamental data types, used primarily in type annotations.
 
-#### Token Categories
+**Builtin Type Keywords**
 
-**Built-in type tokens:**
-```jac
-str int float list tuple set dict bool bytes any type
-```
+Lines 7-14 demonstrate the builtin type keywords used as type annotations:
 
-**Declaration keywords:**
-```jac
-let has can def class obj node edge walker enum impl
-```
+| Keyword | Type | Example Value |
+|---------|------|---------------|
+| `str` | String | "string" |
+| `int` | Integer | 42 |
+| `float` | Float | 3.14 |
+| `list` | List | [1, 2, 3] |
+| `tuple` | Tuple | (1, 2) |
+| `set` | Set | {1, 2} |
+| `dict` | Dictionary | {"key": "value"} |
+| `bool` | Boolean | True |
 
-**Control flow keywords:**
-```jac
-if elif else for while match case try except finally
-```
+**Type Annotation Syntax**
 
-**Data spatial keywords:**
-```jac
-visit spawn ignore disengage here visitor entry exit
-```
+The pattern is `variable: type = value`:
+- `x: str = "string"` - declares x as a string
+- `y: int = 42` - declares y as an integer
+- And so on for each type
 
-#### Operator Tokens
+**Lexer Treatment**
 
-**Arithmetic operators:**
-```jac
-+ - * / // % ** @
-```
+These keywords are tokenized specially by the lexer so they can serve dual purposes:
+1. As type annotations (compile-time type information)
+2. As runtime type objects (when used as values)
 
-**Comparison operators:**
-```jac
-== != < <= > >= is in
-```
+**Usage Context**
 
-**Assignment operators:**
-```jac
-= := += -= *= /= //= %= **= @=
-```
+These tokens appear in:
+- Variable declarations (lines 7-14)
+- Function parameter annotations
+- Function return type annotations
+- Class attribute declarations
 
-**Data spatial operators:**
-```jac
---> <-- <--> ++> <++ <++>  # Navigation and connection
-|> <| :> <: .> <.          # Pipe operators
-```
+**Note**
 
-#### Literal Tokens
-
-```jac
-42          # Integer
-3.14159     # Float
-"hello"     # String
-True False  # Boolean
-None        # Null
-```
-
-#### Special Reference Tokens
-
-```jac
-init postinit here visitor self super root
-```
-
-#### Delimiter Tokens
-
-```jac
-( ) [ ] { }     # Grouping
-; : , . ... ?   # Punctuation
-->              # Return type hint
-```
-
-#### Comment Tokens
-
-Single-line comments begin with `#` and extend to the end of the line.  Jac also
-supports multiline comments delimited by `#*` and `*#`:
-
-```jac
-# This is a line comment
-#*
-This entire block is ignored by the compiler.
-*#
-```
-
-#### Identifier Rules
-
-- Case-sensitive token recognition
-- Keywords take precedence over identifiers
-- Escaped identifiers: `<>reserved_word`
-
-#### Lexical Analysis Process
-
-1. Character stream processing
-2. Token recognition using longest match
-3. Token classification and value assignment
-4. Error reporting with position information
-5. Token stream generation for parser
-
-Understanding lexer tokens is fundamental to writing correct Jac code, as these tokens form the basic vocabulary for the language parser.
+Line 18 points to `builtin_types.jac` for more comprehensive examples of type usage. This file focuses specifically on the lexer-level recognition of these keywords as special tokens representing the builtin type system.

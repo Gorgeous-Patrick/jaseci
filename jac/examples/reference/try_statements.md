@@ -1,260 +1,72 @@
-Try statements provide exception handling mechanisms in Jac, enabling robust error management and graceful recovery from runtime errors. This construct supports structured exception handling with try, except, else, and finally blocks.
+Try statements provide structured exception handling, allowing you to catch and handle errors gracefully instead of letting them crash your program.
 
-#### Syntax
+**Basic Try-Except Structure**
 
-```jac
-try {
-    # code that may raise exceptions
-} except ExceptionType as e {
-    # handle specific exception
-} except {
-    # handle any exception
-} else {
-    # executed if no exception occurs
-} finally {
-    # always executed
-}
-```
+Lines 5-9 demonstrate the fundamental try-except syntax. The `try` block (lines 5-6) contains code that might raise an exception. If an exception occurs, execution jumps to the matching `except` block (lines 7-9). Line 7 shows `except Exception as e`, which catches any exception of type `Exception` (or its subclasses) and binds it to the variable `e` for use in the handler.
 
-#### Basic Exception Handling
+In this example, line 6 attempts division by zero, which raises a `ZeroDivisionError`. Since `ZeroDivisionError` is a subclass of `Exception`, it's caught and line 8 prints the exception object.
 
-```jac
-try {
-    result = risky_operation();
-    process(result);
-} except ValueError as e {
-    print(f"Invalid value: {e}");
-} except IOError {
-    print("IO operation failed");
-}
-```
+**Multiple Except Clauses**
 
-#### Multiple Exception Types
+Lines 12-20 demonstrate handling different exception types with multiple except clauses. The try block (lines 12-13) attempts to convert a string to an integer, which raises a `ValueError`.
 
-Handle different exceptions with specific responses:
+The except clauses are evaluated in order:
+- Line 14 catches `ValueError` and binds it to `ve`
+- Line 16 catches `TypeError` and binds it to `te`
+- Line 18 catches any other `Exception` and binds it to `e`
 
-```jac
-walker DataProcessor {
-    can process with entry {
-        try {
-            data = here.load_data();
-            validated = validate(data);
-            here.result = transform(validated);
-        } except FileNotFoundError as e {
-            report {"error": "missing_data", "node": here};
-        } except ValidationError as e {
-            report {"error": "invalid_data", "details": str(e)};
-        } except Exception as e {
-            report {"error": "unexpected", "type": type(e).__name__};
-        }
-    }
-}
-```
+When an exception is raised, Jac checks each except clause in order and executes the first one that matches the exception type. In this case, since `int("not a number")` raises `ValueError`, line 14's handler matches and executes line 15.
 
-#### Else Clause
+**Try-Except-Else**
 
-Execute code only when no exceptions occur:
+Lines 23-29 demonstrate the `else` clause, which executes only if no exception was raised in the try block. Line 24 performs division that succeeds, so no exception occurs. Because the try block completes successfully, the else block (lines 27-28) executes and prints the result.
 
-```jac
-can safe_divide(a: float, b: float) -> float {
-    try {
-        result = a / b;
-    } except ZeroDivisionError {
-        print("Division by zero!");
-        return 0.0;
-    } else {
-        print(f"Successfully computed {a}/{b} = {result}");
-        return result;
-    }
-}
-```
+The else clause is useful for:
+- Code that should only run if the try block succeeded
+- Distinguishing between setup (try) and success handling (else)
+- Keeping exception-prone code in the try block while putting other code in else
 
-#### Finally Clause
+**Try-Finally**
 
-Guarantee cleanup code execution:
+Lines 32-39 demonstrate the `finally` clause, which always executes regardless of whether an exception occurred. The finally block (lines 37-38) runs after the try block and any except handlers, even if an exception occurred or was handled.
 
-```jac
-can process_file(filename: str) -> dict {
-    file_handle = None;
-    try {
-        file_handle = open_file(filename);
-        data = parse_data(file_handle);
-        return process(data);
-    } except IOError as e {
-        log_error(f"File operation failed: {e}");
-        return {};
-    } finally {
-        if file_handle {
-            file_handle.close();
-            print("File handle closed");
-        }
-    }
-}
-```
+Finally clauses are essential for:
+- Cleanup operations (closing files, releasing resources)
+- Ensuring critical code runs no matter what
+- Logging or auditing that must happen regardless of errors
 
-#### Graph Operations Error Handling
+In this example, line 38 always prints, whether or not a file operation would have succeeded.
 
-Robust walker traversal:
+**Complete Try-Except-Else-Finally**
 
-```jac
-walker SafeTraverser {
-    has errors: list = [];
-    
-    can traverse with entry {
-        try {
-            # Process current node
-            here.process();
-            
-            # Get next nodes safely
-            next_nodes = [-->];
-            
-            # Visit each node
-            for n in next_nodes {
-                try {
-                    visit n;
-                } except NodeAccessError as e {
-                    self.errors.append({
-                        "source": here,
-                        "target": n,
-                        "error": str(e)
-                    });
-                }
-            }
-        } except ProcessingError as e {
-            report {"failed_node": here, "error": e};
-            # Continue traversal despite error
-        }
-    }
-}
-```
+Lines 42-51 show all four clauses together. The execution order is:
+1. Try block (lines 42-44) attempts the operation
+2. If exception: matching except block (lines 45-46)
+3. If no exception: else block (lines 47-48)
+4. Always: finally block (lines 49-50)
 
-#### Resource Management Pattern
+In this example, no exception occurs (valid list access), so line 44 prints the value, then line 48 in the else block executes, and finally line 50 in the finally block executes.
 
-Using try-finally for resource cleanup:
+**Exception Binding**
 
-```jac
-node DatabaseNode {
-    has connection: any = None;
-    
-    can query(sql: str) -> list {
-        try {
-            self.connection = create_connection();
-            cursor = self.connection.cursor();
-            
-            try {
-                cursor.execute(sql);
-                return cursor.fetchall();
-            } finally {
-                cursor.close();
-            }
-        } except DatabaseError as e {
-            log_error(f"Query failed: {e}");
-            return [];
-        } finally {
-            if self.connection {
-                self.connection.close();
-                self.connection = None;
-            }
-        }
-    }
-}
-```
+The `as variable` syntax (lines 7, 14, 16, 18, 45) binds the exception object to a variable that can be used in the handler. This variable is only available within the except block's scope. If you don't need to examine the exception, you can omit the `as` clause: `except ValueError { ... }`.
 
-#### Nested Try Blocks
+**Exception Hierarchy**
 
-Handle errors at multiple levels:
+When using multiple except clauses, order matters because Python checks them sequentially and uses the first match:
+- More specific exceptions should come before general ones
+- `Exception` catches most exceptions, so it should be last
+- Specific exceptions like `ValueError`, `TypeError` should come first
 
-```jac
-can complex_operation(data: dict) -> any {
-    try {
-        # Outer level - general errors
-        prepared = prepare_data(data);
-        
-        try {
-            # Inner level - specific operation
-            result = critical_process(prepared);
-            return finalize(result);
-        } except CriticalError as e {
-            # Handle critical errors specifically
-            return handle_critical(e);
-        }
-    } except Exception as e {
-        # Catch-all for unexpected errors
-        log_unexpected(e);
-        return default_value();
-    }
-}
-```
+**Bare Except (Currently Unsupported)**
 
-#### Custom Exception Handling
+Lines 53-58 show a commented-out bare except clause that catches any exception without specifying a type. The TODO comment indicates this feature is not yet fully supported in Jac.
 
-Define and handle custom exceptions:
+**Best Practices**
 
-```jac
-class GraphError(Exception) {}
-class NodeNotFoundError(GraphError) {}
-class CycleDetectedError(GraphError) {}
-
-walker GraphValidator {
-    can validate with entry {
-        try {
-            check_node_integrity(here);
-            detect_cycles(here);
-            validate_connections(here);
-        } except NodeNotFoundError as e {
-            report {"error": "missing_node", "details": e};
-        } except CycleDetectedError as e {
-            report {"error": "cycle_found", "nodes": e.cycle_nodes};
-        } except GraphError as e {
-            report {"error": "graph_invalid", "reason": str(e)};
-        }
-    }
-}
-```
-
-#### Best Practices
-
-1. **Specific Exceptions First**: Order except blocks from most to least specific
-2. **Minimal Try Blocks**: Keep try blocks focused on code that may fail
-3. **Always Clean Up**: Use finally for resource cleanup
-4. **Meaningful Error Messages**: Provide context in error handling
-5. **Don't Suppress Errors**: Avoid empty except blocks
-
-#### Integration with Object-Spatial
-
-Exception handling in graph contexts:
-
-```jac
-walker ResilientWalker {
-    has retry_count: int = 3;
-    has failed_nodes: list = [];
-    
-    can process with entry {
-        attempts = 0;
-        
-        while attempts < self.retry_count {
-            try {
-                result = here.complex_operation();
-                report {"success": here, "result": result};
-                break;
-            } except TemporaryError as e {
-                attempts += 1;
-                if attempts >= self.retry_count {
-                    self.failed_nodes.append(here);
-                    report {"failed": here, "attempts": attempts};
-                }
-                wait_exponential(attempts);
-            } except PermanentError as e {
-                self.failed_nodes.append(here);
-                report {"permanent_failure": here, "error": e};
-                break;
-            }
-        }
-        
-        # Continue traversal regardless of errors
-        visit [-->];
-    }
-}
-```
-
-Try statements in Jac provide comprehensive error handling capabilities, essential for building robust applications that gracefully handle failures while maintaining system stability.
+The examples demonstrate several exception handling best practices:
+- Catch specific exceptions rather than using broad catches
+- Use else for code that should only run on success
+- Use finally for cleanup that must always occur
+- Combine all clauses when you need complete error handling
+- Bind exceptions to variables when you need to examine them

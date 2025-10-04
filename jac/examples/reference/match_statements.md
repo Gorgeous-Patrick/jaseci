@@ -1,144 +1,33 @@
-Match statements provide powerful pattern matching capabilities in Jac, enabling elegant handling of complex data structures and control flow based on value patterns. This feature supports structural pattern matching similar to modern programming languages.
+Match statements provide a powerful pattern matching construct for handling different data structures and values in a declarative way. They offer a more expressive alternative to chains of if-elif-else statements.
 
-#### Syntax
+**Basic Match Structure**
 
-```jac
-match expression {
-    case pattern: 
-        # statements
-    case pattern if condition:
-        # guarded pattern statements
-}
-```
+Lines 7-12 show the fundamental structure of a match statement. The `match` keyword on line 7 is followed by an expression to match against (`a` in this case). The body contains one or more `case` clauses, each with a pattern and associated code. The match statement evaluates the expression once, then checks each case pattern in order until one matches.
 
-#### Pattern Types
+Line 8 demonstrates a literal pattern `case 7:`, which matches when `a` equals `7`. Since `a` is `8`, this case doesn't match. Line 10 shows the wildcard pattern `case _:`, which matches any value and serves as a default case, executing line 11.
 
-##### Literal Patterns
-Match specific literal values:
-```jac
-match value {
-    case 42:
-        print("The answer");
-    case 3.14:
-        print("Pi approximation");
-    case "hello":
-        print("Greeting");
-}
-```
+**Guard Clauses**
 
-##### Capture Patterns
-Bind matched values to variables:
-```jac
-match data {
-    case x:
-        print(f"Captured: {x}");
-}
-```
+Lines 15-23 demonstrate match statements with guard clauses using the `if` keyword. A guard clause is a boolean condition that must be true for the pattern to match. Line 17 shows `case x if x < 10:`, which binds the matched value to `x` and then checks if `x < 10`. This provides additional filtering beyond just pattern structure.
 
-##### Sequence Patterns
-Match lists and tuples:
-```jac
-match point {
-    case [x, y]:
-        print(f"2D point: ({x}, {y})");
-    case [x, y, z]:
-        print(f"3D point: ({x}, {y}, {z})");
-    case [first, *rest]:
-        print(f"First: {first}, Rest: {rest}");
-}
-```
+Guard clauses are evaluated only after the pattern matches successfully. The variable bound in the pattern (in this case `x`) is available in the guard condition. Multiple cases can have guard clauses, and they are evaluated in order. In this example, since `value` is `15`, line 17's guard fails but line 19's guard `x < 20` succeeds, executing line 20.
 
-##### Mapping Patterns
-Match dictionary structures:
-```jac
-match config {
-    case {"host": host, "port": port}:
-        connect(host, port);
-    case {"url": url, **options}:
-        connect_url(url, options);
-}
-```
+**Multiple Statements in Case Bodies**
 
-##### Class Patterns
-Match object instances and extract attributes:
-```jac
-match shape {
-    case Circle(radius=r):
-        print(f"Circle area: {3.14 * r * r}");
-    case Rectangle(width=w, height=h):
-        print(f"Rectangle area: {w * h}");
-}
-```
+Lines 26-39 show that case bodies can contain multiple statements. Unlike some languages that require explicit fall-through prevention, Jac's match statements automatically exit after executing a matching case's body. Lines 28-31 demonstrate this with three statements executed when the pattern matches: two print statements and a variable assignment. There's no need for a `break` statement - execution continues after the entire match block.
 
-##### OR Patterns
-Match multiple patterns:
-```jac
-match command {
-    case "quit" | "exit" | "q":
-        terminate();
-    case "help" | "h" | "?":
-        show_help();
-}
-```
+**Complex Patterns with Sequences**
 
-##### AS Patterns
-Bind the entire match while matching pattern:
-```jac
-match data {
-    case [x, y] as point:
-        print(f"Point {point} has coordinates {x}, {y}");
-}
-```
+Lines 42-55 demonstrate matching against sequence patterns of different lengths. Line 47 matches a single-element list with `case [x]:`, capturing the element in variable `x`. Line 49 matches a two-element list with `case [x, y]:`, and line 51 matches a three-element list with `case [x, y, z]:`. Each pattern extracts the elements into named variables that can be used in the case body.
 
-#### Guard Conditions
+Since `data` is `[1, 2, 3]` on line 42, the pattern on line 51 matches and executes line 52, printing `"Three elements: 1, 2, 3"`. The comment on lines 44-46 notes a current limitation with empty list patterns.
 
-Add conditions to patterns:
-```jac
-match user {
-    case {"age": age, "role": role} if age >= 18:
-        grant_access(role);
-    case {"age": age} if age < 18:
-        deny_access("Too young");
-}
-```
+**Match Semantics**
 
-#### Singleton Patterns
-
-Match None and boolean values:
-```jac
-match result {
-    case None:
-        print("No result");
-    case True:
-        print("Success");
-    case False:
-        print("Failure");
-}
-```
-
-#### Practical Example
-
-```jac
-node RequestHandler {
-    can handle(request: dict) {
-        match request {
-            case {"method": "GET", "path": path}:
-                self.handle_get(path);
-            
-            case {"method": "POST", "path": path, "body": body}:
-                self.handle_post(path, body);
-            
-            case {"method": "DELETE", "path": path} if self.can_delete():
-                self.handle_delete(path);
-            
-            case {"method": method}:
-                self.error(f"Unsupported method: {method}");
-            
-            case _:
-                self.error("Invalid request format");
-        }
-    }
-}
-```
-
-Match statements in Jac provide a declarative way to handle complex conditional logic, making code more readable and maintainable while reducing the need for nested if-elif chains.
+Key semantic points about match statements:
+- Patterns are evaluated sequentially from top to bottom
+- Only the first matching case executes
+- After a case executes, control flow exits the match statement
+- The wildcard pattern `_` matches anything and is typically used as the last case
+- Variables bound in patterns are only available within their case body
+- Guard clauses provide additional boolean filtering after pattern matching

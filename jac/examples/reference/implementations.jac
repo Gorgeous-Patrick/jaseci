@@ -1,17 +1,23 @@
+# Implementations - Forward declarations and implementations
+
+# Forward declarations
 def foo -> str;
 
 obj vehicle;
 
-enum Size; #implementations
+enum Size;
 
+# Implementation of function
 impl foo -> str {
     return ("Hello");
 }
 
+# Implementation of object
 impl vehicle  {
     has name: str = "Car";
 }
 
+# Implementation of enum
 impl Size {
     Small=1,
     Medium=2,

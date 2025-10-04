@@ -1,27 +1,46 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _
+from jaclang import JacMachineInterface as _jl
 
+class Visitor(_jl.Walker):
 
-class Visitor(_.Walker):
+    @_jl.entry
+    def travel(self, here: _jl.Root) -> None:
+        if not _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit())):
+            _jl.visit(self, _jl.root())
+            _jl.disengage(self)
+            return
 
-    @_.entry
-    def travel(self, here: _.Root) -> None:
-        if not _.visit(self, _.refs(here)):
-            _.visit(self, _.root())
-            return _.disengage()
+class TypedVisitor(_jl.Walker):
 
+    @_jl.entry
+    def explore(self, here: _jl.Root) -> None:
+        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-class item(_.Node):
+class ConditionalVisitor(_jl.Walker):
+    count: int = 0
 
-    @_.entry
-    def speak(self, here: Visitor) -> None:
-        print("Hey There!!!")
+    @_jl.entry
+    def check(self, here: _jl.Root) -> None:
+        _jl.visit(self, _jl.root())
+        if self.count < 5:
+            _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
+            self.count += 1
 
+class item(_jl.Node):
 
+    @_jl.entry
+    def speak(self, visitor: Visitor) -> None:
+        print('Hey There!!!')
+
+class Person(_jl.Node):
+    name: str
+
+    @_jl.entry
+    def greet(self, visitor: TypedVisitor) -> None:
+        print(f'Hello from {self.name}')
 i = 0
 while i < 5:
-    _.connect(_.root(), item())
+    _jl.connect(left=_jl.root(), right=item())
     i += 1
-
-_.spawn(_.root(), Visitor())
+_jl.spawn(_jl.root(), Visitor())

@@ -1,72 +1,69 @@
-#### Filter comprehension
+Jac provides two special comprehension syntaxes that extend Python-style comprehensions: filter comprehensions and assign comprehensions. These operate on collections of objects to filter or modify them.
 
-Special comprehensions provide concise, chainable operations on collections. Two common forms are filtering and bulk-setting fields across all elements.
+**Filter Comprehension Syntax**
 
-- **Filter comprehension**: Selects elements that satisfy all predicates.
-  - Syntax: `collection(?predicate1, predicate2, ...)`
-  - Predicates are boolean expressions evaluated against each element (you can reference fields directly, e.g., `x`, or with `?x`).
-  - Returns a new collection containing only matching elements, preserving order.
+Line 20 demonstrates filter comprehension using the `?` operator: `apple(?x >= 0, x <= 15)`. This syntax filters a collection based on conditions applied to object attributes.
 
-Example:
+The general form is `collection(?condition1, condition2, ...)` where:
+- `collection` is a list, set, or other iterable of objects
+- `?` indicates a filter operation
+- Conditions are comma-separated expressions evaluated against each object's attributes
+- Each condition references attributes directly (like `x >= 0` where `x` is an attribute)
 
-```jac
-import random;
+In this example, the filter checks if objects in `apple` have `x` attributes between 0 and 15 (inclusive). Since all `TestObj` instances are created with `random.randint(0, 15)` on line 6, all objects satisfy these conditions, so the filtered result equals the original list.
 
-obj TestObj {
-    has x: int = random.randint(0, 15),
-        y: int = random.randint(0, 15),
-        z: int = random.randint(0, 15);
-}
+**Filter Comprehension Semantics**
 
-with entry {
-    random.seed(42);
-    apple = [];
-    for i=0 to i<100 by i+=1  {
-        apple.append(TestObj());
-    }
+The filter comprehension evaluates each condition for every object in the collection:
+1. For each object, check if all conditions are true
+2. Include the object in the result if all conditions pass
+3. Return a new collection containing only matching objects
 
-    # check if all apple's x are random between 0 and 15
-    print(apple(?x >= 0, x <= 15) == apple);
-}
-```
+Multiple conditions are combined with AND logic - all conditions must be true for an object to be included.
 
-Output:
+**Assign Comprehension Syntax**
 
-```text
-True
-```
+Line 34 demonstrates assign comprehension using the `=` prefix: `[x, y](=apple=5, banana=7)`. This syntax assigns values to attributes across multiple objects in a collection.
 
-#### Assign (bulk-assign) comprehension
+The general form is `collection(=attr1=val1, attr2=val2, ...)` where:
+- `collection` is a list or other iterable of objects
+- `=` prefix indicates an assign operation
+- Attribute assignments are comma-separated in the form `attr=value`
+- All objects in the collection have the specified attributes set to the given values
 
-Setter comprehension applies field assignments to each element and returns the (same) collection reference. This is useful for bulk updates.
+In this example, both `x` and `y` (instances of `MyObj`) have their `apple` attribute set to `5` and `banana` attribute set to `7`. The comprehension returns the modified collection, which is assigned to `mvar`.
 
-- **Setter comprehension**: Mutates all elements in-place.
-  - Syntax: `collection(=field1=value1, field2=value2, ...)`
-  - Each assignment is applied to every element in the collection.
+**Assign Comprehension Semantics**
 
-Example:
+The assign comprehension modifies objects in place:
+1. For each object in the collection
+2. Set each specified attribute to its corresponding value
+3. Return the collection (now containing modified objects)
 
-```jac
-obj MyObj {
-    has apple: int = 0,
-        banana: int = 0;
-}
+This is a mutating operation - the original objects are modified, not copies.
 
-with entry {
-    x = MyObj();
-    y = MyObj();
-    mvar = [x, y](=apple=5, banana=7);
-    print(mvar);
-}
-```
+**Object Setup**
 
-Output:
+Lines 5-9 define `TestObj` with three integer attributes (`x`, `y`, `z`), each initialized with a random value between 0 and 15. Lines 14-16 create 100 instances of `TestObj` and append them to the `apple` list, providing test data for the filter comprehension.
 
-```text
-[MyObj(apple=5, banana=7), MyObj(apple=5, banana=7)]
-```
+Lines 23-26 define `MyObj` with two integer attributes (`apple` and `banana`), both defaulting to 0. Lines 29-30 create two instances that will be modified by the assign comprehension.
 
-Notes:
-- **Multiple predicates** in filters are combined with logical AND.
-- **Setter comprehension** returns the collection after mutation, enabling chaining with subsequent operations if desired.
+**Combining Comprehensions**
 
+While not shown in this example, filter and assign comprehensions can be chained or combined:
+- Filter then assign: `collection(?condition)(=attr=value)` - filter objects, then modify survivors
+- Multiple filters: `collection(?cond1)(?cond2)` - apply successive filters
+
+**Use Cases**
+
+**Filter comprehensions** are useful for:
+- Finding objects matching specific criteria in graph traversals
+- Selecting nodes or edges based on attribute values
+- Data filtering in walker operations
+
+**Assign comprehensions** are useful for:
+- Bulk updates to object attributes
+- Initializing or resetting state across collections
+- Modifying graph node or edge properties en masse
+
+These comprehensions provide concise syntax for common operations on object collections, particularly useful in Jac's data-spatial programming model.

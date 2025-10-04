@@ -1,25 +1,23 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _
+from jaclang import JacMachineInterface as _jl
 
+class Adder(_jl.Walker):
 
-class Adder(_.Walker):
+    @_jl.entry
+    @_jl.impl_patch_filename('object_spatial_spawn_expressions.jac')
+    def do(self, here: _jl.Root) -> None:
+        _jl.connect(left=here, right=node_a())
+        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_.entry
-    def do(self, here: _.Root) -> None:
-        _.connect(here, node_a())
-        _.visit(self, _.refs(here))
-
-
-class node_a(_.Node):
+class node_a(_jl.Node):
     x: int = 0
     y: int = 0
 
-    @_.entry
-    def add(self, here: Adder) -> None:
+    @_jl.entry
+    @_jl.impl_patch_filename('object_spatial_spawn_expressions.jac')
+    def add(self, visitor: Adder) -> None:
         self.x = 550
         self.y = 450
         print(int(self.x) + int(self.y))
-
-
-_.spawn(Adder(), _.root())
+_jl.spawn(Adder(), _jl.root())

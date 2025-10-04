@@ -1,63 +1,34 @@
-Atomic pipe back expressions in Jac provide an alternative directional flow for data processing using the `<:` operator. This feature complements the pipe forward operator (`:>`) by enabling right-to-left data flow, offering flexibility in expression composition and readability.
+Atomic pipe back expressions use the `<:` operator to create right-to-left data flow, providing an alternative to the forward pipe that can be more natural in certain contexts.
 
-**Atomic Pipe Back Syntax**
+**Atomic Backward Pipe Operator**
 
-The pipe back operator `<:` takes data from the right side and passes it to the function or expression on the left side:
+The `<:` operator takes the value on its right and passes it as an argument to the function on its left. This is the reverse of the forward pipe `:>`.
 
-```jac
-print <: "Hello world!";
-```
+Line 5 demonstrates basic usage: `print <: "Hello world!"`. This is equivalent to `print("Hello world!")`, but reads right-to-left. The data source is on the right, flowing backward to the function on the left.
 
-This expression takes the string `"Hello world!"` and pipes it back to the `print` function, equivalent to calling `print("Hello world!")`.
+**Mixed Pipe Directions**
 
-**Mixed Directional Piping**
+Line 12 shows a complex expression combining both pipe operators:
+`c = len <: a + b :> len`
 
-Jac allows combining pipe forward (`:>`) and pipe back (`<:`) operators in the same expression for flexible data flow:
+Breaking this down:
+1. `a + b` concatenates the two lists
+2. `:> len` pipes the concatenated list forward to `len()`, getting the length
+3. `len <:` pipes that length value backward to another `len()` call
 
-```jac
-c = len <: a + b :> len;
-```
+However, the second `len()` receives an integer (the first length), so this would actually cause an error. The example demonstrates syntax rather than correct semantics.
 
-This complex expression demonstrates:
-1. `a + b` - concatenates two lists
-2. `:> len` - pipes the result forward to `len` function  
-3. `len <:` - pipes the length result back to another `len` function call
+**Backward Pipe with Lambda**
 
-**Comparison of Pipe Directions**
+Lines 16-17 show the backward pipe with a lambda expression:
+`result = (lambda x:int : x * 3) <: 10`
 
-**Pipe Forward (`:>`)** - Left to right flow:
-```jac
-data :> function1 :> function2;
-```
+This passes `10` backward to the lambda function, which multiplies it by 3, resulting in `30`. This is equivalent to `(lambda x:int : x * 3)(10)`.
 
-**Pipe Back (`<:`)** - Right to left flow:
-```jac
-function2 <: function1 <: data;
-```
+**Choosing Pipe Direction**
 
-**Mixed Flow** - Combining directions:
-```jac
-result = function1 <: data :> function2;
-```
+The choice between forward `:>` and backward `<:` pipes is often stylistic:
+- Forward pipes `value :> function` emphasize data flowing through transformations
+- Backward pipes `function <: value` can feel more natural when the function is the focus
 
-**Use Cases for Pipe Back**
-
-Pipe back expressions are particularly useful when:
-
-- **Function-first thinking**: When you want to emphasize the operation before the data
-- **Complex compositions**: Building expressions that read more naturally with mixed flow
-- **Code organization**: Structuring expressions to match logical thinking patterns
-- **Readability preferences**: Some algorithms express more clearly with backward flow
-
-**Expression Evaluation**
-
-Despite the directional syntax, evaluation follows standard precedence rules. The pipe operators provide syntactic convenience while maintaining logical evaluation order.
-
-**Benefits**
-
-- **Flexibility**: Choose the most readable direction for data flow
-- **Composition**: Mix directions for optimal expression clarity
-- **Expressiveness**: Match syntax to problem domain thinking patterns
-- **Consistency**: Maintain functional programming patterns with directional choice
-
-Atomic pipe back expressions enhance Jac's functional programming capabilities by providing bidirectional data flow options that improve code readability and expressiveness.
+Both operators create the same function application but offer different ways to express the relationship between data and operations. The "atomic" designation indicates these operators work with complete values rather than partial application.

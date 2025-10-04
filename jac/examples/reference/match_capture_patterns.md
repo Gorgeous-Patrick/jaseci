@@ -1,108 +1,11 @@
-Match capture patterns in Jac enable binding values to variables during pattern matching, allowing programs to extract and use matched values within case blocks. Capture patterns provide the foundation for destructuring complex data structures.
+Capture patterns in Jac's match statements allow you to bind values to variables during pattern matching. The most common capture pattern is the wildcard pattern `_`, which matches any value without binding it.
 
-#### Basic Capture Syntax
+**Wildcard Pattern**
 
-```jac
-match user_input {
-    case username {
-        # 'username' now contains the matched value
-        print(f"Hello, {username}!");
-    }
-}
-```
+Line 8 demonstrates the wildcard capture pattern using `case _:`. The underscore `_` is a special pattern that matches any value, serving as a catch-all case when no other patterns match. In this example, since `day` contains `" sunday"` (with a leading space), it doesn't match the literal string `"monday"` on line 6, so execution falls through to the wildcard pattern on line 8, which prints `"other"`.
 
-#### Capture with Guards
+The wildcard pattern is typically used as the last case in a match statement to handle all unmatched values, similar to a `default` case in switch statements from other languages. It ensures that the match statement always has a case that executes, preventing the match from silently doing nothing.
 
-```jac
-match temperature {
-    case temp if temp > 100 {
-        handle_overheating(temp);
-    }
-    case temp if temp < 0 {
-        handle_freezing(temp);
-    }
-    case temp {
-        normal_operation(temp);
-    }
-}
-```
+**Capture Semantics**
 
-#### Object-Spatial Integration
-
-```jac
-walker PatternProcessor {
-    can process_node with entry {
-        match here.node_type {
-            case "data" {
-                # Capture and process data nodes
-                visit [-->];
-            }
-            case node_type {
-                # Capture unknown node types
-                log_unknown_type(node_type, here);
-            }
-        }
-    }
-}
-```
-
-#### Complex Structure Capture
-
-**Sequence patterns:**
-```jac
-match coordinates {
-    case [x, y] {
-        distance = (x**2 + y**2)**0.5;
-        return distance;
-    }
-    case coords {
-        # Capture any other format
-        return None;
-    }
-}
-```
-
-**Dictionary patterns:**
-```jac
-match config_data {
-    case {"type": config_type, "settings": settings} {
-        apply_settings(settings);
-    }
-    case config {
-        apply_default_config(config);
-    }
-}
-```
-
-#### Multiple Capture Patterns
-
-```jac
-match response {
-    case {"success": True, "data": result} {
-        return result;
-    }
-    case {"success": False, "error": error_msg} {
-        handle_error(error_msg);
-        return None;
-    }
-    case response_data {
-        log_unexpected_response(response_data);
-        return None;
-    }
-}
-```
-
-#### Scope and Performance
-
-- Captured variables are scoped to their case blocks
-- Variables reference original matched values (no copying)
-- No performance penalty for simple captures
-
-#### Best Practices
-
-1. Use meaningful variable names for captured values
-2. Remember that captured variables are case-scoped
-3. Combine captures with guards for complex conditions
-4. Always include a capture pattern for unmatched cases
-
-Capture patterns provide essential functionality for extracting and working with matched values in Jac's pattern matching system, enabling elegant data destructuring in both traditional and object-spatial programming contexts.
+Unlike named capture patterns that bind matched values to variables, the wildcard `_` discards the matched value without creating any binding. This is useful when you want to match any remaining cases but don't need to use the actual value in the case body.

@@ -1315,9 +1315,11 @@ class JacLanguageTests(TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         sys.stderr = captured_output
-        cli.run(self.fixture_abs_path("here_usage_error.jac"))
+        with self.assertRaises(SystemExit) as cm:
+            cli.run(self.fixture_abs_path("here_usage_error.jac"))
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
+        self.assertEqual(cm.exception.code, 1)
         stdout_value = captured_output.getvalue()
         self.assertIn("'here' is not defined", stdout_value)
 

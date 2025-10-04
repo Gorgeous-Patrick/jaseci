@@ -8,7 +8,6 @@ try:
     foo(-5)
 except AssertionError as e:
     print('Asserted:', e)
-    
 a = 5
 b = 2
 

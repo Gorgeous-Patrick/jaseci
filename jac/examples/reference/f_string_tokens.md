@@ -1,92 +1,83 @@
-F-string tokens in Jac provide formatted string literals with embedded expressions, enabling dynamic string construction with type-safe expression evaluation. F-strings offer a readable and efficient way to create formatted text.
+F-strings (formatted string literals) in Jac provide powerful string interpolation, allowing embedded expressions and values within string literals using the `f` prefix.
 
-#### Basic F-String Syntax
+**Basic F-String Syntax**
 
-```jac
-name = "Alice";
-age = 30;
-message = f"Hello, {name}! You are {age} years old.";
-```
+Lines 7-8 show basic interpolation: `f"Hello {x} {y} {{This is an escaped curly brace}}"`.
+- The `f` prefix marks the string as formatted
+- `{x}` and `{y}` evaluate variables and insert their values
+- `{{` and `}}` create literal curly braces (escaped)
 
-#### Expression Embedding
+**Single vs Double Quotes**
 
-F-strings can embed any valid Jac expression:
+Line 11 demonstrates that f-strings work with single quotes: `f'Single quoted: {x} and {y}'`. Both quote styles support the same interpolation features.
 
-```jac
-# Variables and arithmetic
-width = 10;
-height = 5;
-area_text = f"Area: {width * height} square units";
+**Complex Expressions**
 
-# Function calls
-import math;
-radius = 7.5;
-circle_info = f"Circle area: {math.pi * radius ** 2:.2f}";
+Lines 14-15 show dictionary access within f-strings:
+`f"Hello, {person['name']}! You're {person['age']} years old."`
 
-# Method calls
-text = "hello world";
-formatted = f"Uppercase: {text.upper()}, Length: {len(text)}";
-```
+Any valid expression works inside `{}`, including dictionary lookups, function calls, and arithmetic.
 
-#### Format Specifications
+**Escaped Braces**
 
-```jac
-value = 3.14159;
-formatted = f"Pi: {value:.2f}";        # 2 decimal places
-scientific = f"Value: {value:.2e}";    # Scientific notation
+Line 18 shows doubling braces to create literals:
+- `{{{{` produces `{{`
+- `}}}}` produces `}}`
 
-number = 255;
-binary = f"Binary: {number:b}";        # Binary representation
-hex_val = f"Hex: {number:x}";          # Hexadecimal
-```
+This is necessary when you want literal curly braces in the output.
 
-#### Object-Spatial Integration
+**Arithmetic in F-Strings**
 
-```jac
-walker ReportGenerator {
-    can generate_report with entry {
-        node_info = f"Node {here.id}: value={here.value}, neighbors={len([-->])}";
-        print(node_info);
-        
-        visit [-->];
-    }
-}
-```
+Line 21 demonstrates embedded calculations: `f"Calculation: {5 + 3} = {5 + 3}"`. Each `{...}` evaluates independently, so the expression is computed twice.
 
-#### Multi-Line F-Strings
+**Method Calls**
 
-```jac
-user = {"name": "Alice", "email": "alice@example.com"};
-report = f"""
-User Report:
-Name: {user['name']}
-Email: {user['email']}
-Status: {'Active' if user.get('active', True) else 'Inactive'}
-""";
-```
+Lines 24-25 show calling methods on objects: `f"Uppercase: {text.upper()}"`. The method executes and its return value is interpolated into the string.
 
-#### Complex Expressions
+**Conditional Expressions**
 
-```jac
-# Conditional expressions
-score = 85;
-grade = f"Grade: {('A' if score >= 90 else 'B' if score >= 80 else 'C')}";
+Lines 28-29 use ternary expressions: `f"Status: {('Adult' if age >= 18 else 'Minor')}"`. Complex expressions should be parenthesized for clarity.
 
-# Safe null handling
-safe = f"Name: {user.name if user else 'Unknown'}";
-```
+**Multi-Line F-Strings**
 
-#### Performance Considerations
+Lines 32-39 demonstrate triple-quoted f-strings:
 
-- Compile-time expression parsing
-- Efficient concatenation without multiple string operations
-- Type-aware formatting optimization
+`f"""
+Name: {name}
+Score: {score}
+Grade: {('A' if score >= 90 else 'B')}
+"""`
 
-#### Best Practices
+Multi-line f-strings preserve formatting and indentation, useful for templates or formatted output.
 
-1. Keep expressions simple within f-strings
-2. Use format specifications for consistent output
-3. Handle None values with conditional expressions
-4. Break complex f-strings into multiple lines when needed
+**Escape Sequences**
 
-F-strings provide a powerful and efficient mechanism for string formatting in Jac, supporting both simple variable interpolation and complex expression evaluation while maintaining type safety.
+Lines 42-45 review standard escape sequences that work in both regular and f-strings:
+- `\n`: newline
+- `\r`: carriage return
+- `\t`: tab
+- `\f`: form feed
+
+**F-String with String Methods**
+
+Lines 48-49 show combining f-strings with string methods:
+`f"{'\n'.join(words)}"` calls `join()` on a newline character, demonstrating that f-string expressions can contain any string operations.
+
+**Nested F-Strings**
+
+Lines 52-53 show f-strings within f-strings: `f"Value is {f'{value}'}"`
+
+While technically possible, nested f-strings are rarely necessary and can reduce readability.
+
+**Format Specifiers** (commented)
+
+Lines 56-57 mention format specifiers like `{pi:.2f}` for controlling number formatting. These may be implementation-specific but follow Python's format specification mini-language for controlling width, precision, and alignment.
+
+**Advantages of F-Strings**
+
+F-strings provide:
+- Clear, readable string interpolation
+- Full expression evaluation
+- Better performance than string concatenation
+- Type conversion happens automatically
+- Inline computation without temporary variables

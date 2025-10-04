@@ -1,28 +1,23 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _
+from jaclang import JacMachineInterface as _jl
 
+class Visitor(_jl.Walker):
 
-class Visitor(_.Walker):
+    @_jl.entry
+    def travel(self, here: _jl.Root) -> None:
+        if not _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit())):
+            _jl.visit(self, _jl.root())
 
-    @_.entry
-    def travel(self, here: _.Root) -> None:
-        if not _.visit(self, _.refs(here)):
-            _.visit(self, _.root())
+class item(_jl.Node):
 
-
-class item(_.Node):
-
-    @_.entry
-    def speak(self, here: Visitor) -> None:
-        print("Hey There!!!")
-        return _.disengage(here)
-
-
+    @_jl.entry
+    def speak(self, visitor: Visitor) -> None:
+        print('Hey There!!!')
+        _jl.disengage(visitor)
+        return
 i = 0
-
 while i < 5:
-    _.connect(_.root(), item())
+    _jl.connect(left=_jl.root(), right=item())
     i += 1
-
-_.spawn(_.root(), Visitor())
+_jl.spawn(_jl.root(), Visitor())

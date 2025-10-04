@@ -1,386 +1,73 @@
-Yield statements in Jac provide the foundation for generator functions and iterative computation patterns. These statements enable functions to produce sequences of values on-demand rather than computing and returning entire collections at once, supporting memory-efficient iteration and lazy evaluation.
+Yield statements transform a regular function into a generator, enabling lazy evaluation and efficient iteration over sequences that would be expensive or impossible to compute all at once.
 
-**Basic Yield Statement Syntax**
+**Basic Yield Statement**
 
-Yield statements follow this pattern from the grammar:
-```jac
-yield expression;     # Yield a value
-yield;               # Yield nothing (None/null)
-yield from iterable; # Yield all values from another iterable
-```
+Lines 3-8 demonstrate the fundamental yield syntax. Instead of returning a single value and terminating, the function yields multiple values one at a time. Lines 4-7 show four yield statements:
+- Line 4: `yield "Hello";` - yields a string
+- Line 5: `yield 91;` - yields an integer
+- Line 6: `yield "Good Bye";` - yields another string
+- Line 7: `yield ;` - yields without an expression, producing `None`
 
-**Generator Function Example**
+When `myFunc()` is called on line 32, it doesn't execute the function body immediately. Instead, it returns a generator object. The function body executes incrementally as values are requested through iteration (lines 33-35).
 
-The provided example demonstrates a generator function that yields multiple values:
-```jac
-def myFunc {
-    yield "Hello";
-    yield 91;
-    yield "Good Bye";
-    yield;
-}
-```
+**Generator Iteration**
 
-**Key aspects:**
-- **No return type**: Generator functions don't specify return types like regular functions
-- **Multiple yields**: Function can yield different values at different points
-- **Mixed types**: Can yield different types (string, int, null)
-- **Execution suspension**: Function pauses at each yield and resumes when next value is requested
+Lines 32-35 show how to consume a generator using a for loop. Line 32 creates the generator object `x`, and lines 33-35 iterate over it. Each iteration:
+1. Resumes the generator function from where it last yielded
+2. Executes until the next yield statement
+3. Returns the yielded value
+4. Suspends execution, preserving local state
 
-**Generator Consumption**
+This prints: `Hello`, `91`, `Good Bye`, `None` (each on a separate line).
 
-Generators are consumed through iteration:
-```jac
-x = myFunc();        # Creates generator object
-for z in x {         # Iterates through yielded values
-    print(z);        # Prints: "Hello", 91, "Good Bye", None
-}
-```
+**Yield in Loops**
 
-**Execution flow:**
-1. `myFunc()` returns a generator object (doesn't execute function body yet)
-2. First iteration calls generator, executes until first `yield "Hello"`
-3. Second iteration resumes after first yield, executes until `yield 91`
-4. Process continues until all yields are exhausted
-5. Generator automatically raises StopIteration when function ends
+Lines 10-14 demonstrate yielding values in a loop, a common pattern for generating sequences. The function yields each number from 0 to n-1. This is memory-efficient because values are generated one at a time rather than building a complete list.
 
-**Yield Expression Types**
+**Yield From**
 
-**Value Yields**
-```jac
-def number_generator {
-    yield 1;
-    yield 2;
-    yield 3;
-}
-```
+Lines 16-20 demonstrate the `yield from` statement, which delegates to another generator or iterable. Line 18 shows `yield from number_generator(3);`, which yields all values produced by `number_generator(3)` (0, 1, 2). Line 19 shows `yield from ["a", "b", "c"];`, which yields each element from the list.
 
-**Expression Yields**
-```jac
-def calculated_values(base: int) {
-    yield base * 2;
-    yield base ** 2;
-    yield base + 10;
-}
-```
+`yield from` is equivalent to a loop that yields each value from the sub-generator, but it's more concise and efficient. Lines 37-42 consume this generator, printing: 0, 1, 2, a, b, c.
 
-**Variable Yields**
-```jac
-def data_generator {
-    items = ["a", "b", "c"];
-    for item in items {
-        yield item;
-    }
-}
-```
+**Conditional Yield**
 
-**Empty Yields**
-```jac
-def sparse_generator {
-    yield 1;
-    yield;        # Yields None/null
-    yield 3;
-}
-```
+Lines 22-28 show yielding based on conditions. The function iterates through items but only yields those that satisfy a condition (even numbers in this case). Line 24 checks `if item % 2 == 0` before yielding. This pattern enables selective generation, filtering values during iteration rather than pre-filtering.
 
-**Yield From Statement**
+Lines 44-49 demonstrate this, yielding only even numbers from the input list: 2, 4, 6.
 
-The `yield from` syntax delegates to another iterable:
+**Generator Characteristics**
 
-**Generator Delegation**
-```jac
-def sub_generator {
-    yield 1;
-    yield 2;
-}
+Generators have several important properties:
+- **Lazy evaluation**: Values are computed only when requested
+- **State preservation**: Local variables and execution position are maintained between yields
+- **Memory efficiency**: Only one value exists in memory at a time
+- **One-time iteration**: Once exhausted, a generator cannot be reused (must create a new one)
 
-def main_generator {
-    yield 0;
-    yield from sub_generator();  # Yields 1, then 2
-    yield 3;
-}
-# Result sequence: 0, 1, 2, 3
-```
+**Yield vs Return**
 
-**Collection Delegation**
-```jac
-def list_generator {
-    yield from [1, 2, 3];      # Yields each list element
-    yield from "abc";          # Yields each character
-}
-```
+| Feature | `yield` | `return` |
+|---------|---------|----------|
+| Function type | Generator | Regular function |
+| Execution | Pauses and resumes | Terminates |
+| Values produced | Multiple (or infinite) | Single |
+| Memory | One value at a time | All values if returning collection |
+| Reusability | Creates new generator each call | Same result each call |
 
-**Generator State and Memory**
+**Use Cases**
 
-Generators maintain state between yields:
+Yield statements are particularly useful for:
+- **Large datasets**: Processing files or database results line-by-line
+- **Infinite sequences**: Generating unlimited values (e.g., Fibonacci numbers)
+- **Pipeline processing**: Chaining generators for data transformation
+- **Memory optimization**: When you need to iterate but can't fit all values in memory
+- **Lazy computation**: Deferring expensive calculations until needed
 
-**Stateful Generators**
-```jac
-def counter(start: int, end: int) {
-    current = start;
-    while current <= end {
-        yield current;
-        current += 1;           # State persists between yields
-    }
-}
-```
+**Generator Protocol**
 
-**Local Variable Persistence**
-```jac
-def accumulator {
-    total = 0;
-    values = [1, 2, 3, 4, 5];
-    for value in values {
-        total += value;
-        yield total;            # Yields running sum: 1, 3, 6, 10, 15
-    }
-}
-```
+Generators implement the iterator protocol:
+- `__iter__()`: Returns the generator itself
+- `__next__()`: Resumes execution until next yield
+- Raises `StopIteration` when function completes without yielding
 
-**Infinite Generators**
-
-Generators can produce infinite sequences:
-
-**Infinite Counter**
-```jac
-def infinite_counter(start: int) {
-    current = start;
-    while true {
-        yield current;
-        current += 1;
-    }
-}
-```
-
-**Fibonacci Generator**
-```jac
-def fibonacci {
-    a, b = 0, 1;
-    while true {
-        yield a;
-        a, b = b, a + b;
-    }
-}
-```
-
-**Generator Patterns**
-
-**Data Processing Pipeline**
-```jac
-def process_data(raw_data: list) {
-    for item in raw_data {
-        if item.is_valid {
-            processed = item.transform();
-            yield processed;
-        }
-    }
-}
-```
-
-**Batch Processing**
-```jac
-def batch_generator(data: list, batch_size: int) {
-    batch = [];
-    for item in data {
-        batch.append(item);
-        if len(batch) == batch_size {
-            yield batch;
-            batch = [];
-        }
-    }
-    if len(batch) > 0 {
-        yield batch;  # Final partial batch
-    }
-}
-```
-
-**Resource Management**
-```jac
-def file_line_generator(filename: str) {
-    file = open(filename);
-    try {
-        for line in file {
-            yield line.strip();
-        }
-    } finally {
-        file.close();
-    }
-}
-```
-
-**Generator Expressions vs Generator Functions**
-
-**Generator Function**
-```jac
-def squares {
-    for i in range(10) {
-        yield i * i;
-    }
-}
-```
-
-**Generator Expression** (if supported)
-```jac
-squares = (i * i for i in range(10));
-```
-
-**Integration with Object-Spatial Features**
-
-Generators work within object-spatial contexts:
-
-**Walker Data Generation**
-```jac
-walker DataCollector {
-    can collect_from_nodes with `node entry {
-        for neighbor in [-->] {
-            data = neighbor.extract_data();
-            if data.is_valid {
-                yield data;
-            }
-        }
-    }
-}
-```
-
-**Node Data Streaming**
-```jac
-node DataSource {
-    can stream_data with Reader entry {
-        for chunk in self.data_chunks {
-            yield chunk;
-        }
-    }
-}
-```
-
-**Performance Benefits**
-
-**Memory Efficiency**
-```jac
-# Memory efficient - generates values on demand
-def large_sequence {
-    for i in range(1000000) {
-        yield expensive_computation(i);
-    }
-}
-
-# vs. Memory intensive - creates entire list
-def large_list {
-    return [expensive_computation(i) for i in range(1000000)];
-}
-```
-
-**Lazy Evaluation**
-```jac
-def lazy_processor(data: list) {
-    for item in data {
-        # Computation only happens when value is requested
-        result = expensive_operation(item);
-        yield result;
-    }
-}
-```
-
-**Generator Composition**
-
-**Pipeline Pattern**
-```jac
-def source {
-    for i in range(100) {
-        yield i;
-    }
-}
-
-def filter_even {
-    for value in source() {
-        if value % 2 == 0 {
-            yield value;
-        }
-    }
-}
-
-def transform {
-    for value in filter_even() {
-        yield value * 2;
-    }
-}
-```
-
-**Error Handling in Generators**
-
-```jac
-def safe_generator(data: list) {
-    for item in data {
-        try {
-            result = risky_operation(item);
-            yield result;
-        } except Exception as e {
-            yield error_value(e);
-        }
-    }
-}
-```
-
-**Generator Cleanup**
-
-```jac
-def resource_generator {
-    resource = acquire_resource();
-    try {
-        while resource.has_data() {
-            yield resource.next_item();
-        }
-    } finally {
-        resource.release();  # Cleanup when generator is destroyed
-    }
-}
-```
-
-**Best Practices**
-
-1. **Use for large datasets**: Generators excel with large or infinite sequences
-2. **Document generator behavior**: Clearly specify what values are yielded
-3. **Handle cleanup**: Use try/finally for resource management
-4. **Avoid state mutation**: Be careful with shared mutable state
-5. **Consider composition**: Chain generators for processing pipelines
-
-**Common Patterns**
-
-**Data Transformation**
-```jac
-def transform_records(records: list) {
-    for record in records {
-        transformed = record.transform();
-        if transformed.is_valid {
-            yield transformed;
-        }
-    }
-}
-```
-
-**Event Generation**
-```jac
-def event_stream {
-    while system.is_running {
-        event = system.wait_for_event();
-        yield event;
-    }
-}
-```
-
-**Pagination**
-```jac
-def paginated_data(source: DataSource) {
-    page = 1;
-    while true {
-        data = source.get_page(page);
-        if not data {
-            break;
-        }
-        yield from data;
-        page += 1;
-    }
-}
-```
-
-Yield statements in Jac enable powerful generator-based programming patterns that promote memory efficiency, lazy evaluation, and elegant iteration patterns. They provide a foundation for building data processing pipelines, handling large datasets, and implementing custom iteration protocols that integrate seamlessly with both traditional programming constructs and Jac's object-spatial features.
+This allows generators to be used anywhere an iterable is expected: for loops, list comprehensions, `list()`, `sum()`, etc.

@@ -1,209 +1,58 @@
-Pipe expressions enable functional-style data transformation through left-to-right value flow, eliminating deeply nested function calls and creating readable transformation chains. This feature is particularly powerful in object-spatial contexts where computation flows through topological structures.
+Pipe expressions use the `|>` operator to pass values into functions from left to right, creating a natural data flow syntax.
 
-#### Forward Pipe Operator (`|>`)
+**Basic Forward Pipe Syntax**
 
-The forward pipe operator passes the result of the left expression as the first argument to the right expression:
+Lines 17-19 demonstrate the basic forward pipe operator. Line 18 shows `result = number |> square`, which is equivalent to `result = square(number)`. The `|>` operator takes the value on its left side (`number`, which is 5) and passes it as an argument to the function on its right side (`square`).
 
-```jac
-# Traditional nested approach
-result = process(transform(validate(data)));
+The forward pipe operator creates a left-to-right reading flow that emphasizes data transformation: "number flows into square". This can be more intuitive than traditional function call syntax, especially when chaining multiple transformations.
 
-# Pipe expression approach
-result = data |> validate |> transform |> process;
-```
+**Function Definitions**
 
-This transformation improves readability by matching the natural left-to-right flow of data processing.
+Lines 3-13 define three transformation functions:
+- `square` (line 3): raises input to the power of 2
+- `double` (line 7): multiplies input by 2
+- `increment` (line 11): adds 1 to input
 
-#### Basic Transformation Chains
+These functions demonstrate how pipe works with different operations.
 
-Pipe expressions excel at creating clear data processing pipelines:
+**Chained Forward Pipes (Currently Limited)**
 
-```jac
-# Numeric processing
-processed_numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    |> filter(|x| x % 2 == 0)
-    |> map(|x| x * x)
-    |> sum;
+Lines 21-24 show a commented-out example of chained forward pipe operations. The intended syntax `value |> increment |> double |> square` would create a pipeline that evaluates from left to right:
+1. `value` (3) is piped to `increment`, producing 4
+2. 4 is piped to `double`, producing 8
+3. 8 is piped to `square`, producing 64
 
-# String manipulation
-formatted_message = "  Hello World  "
-    |> strip
-    |> lower
-    |> replace(" ", "_")
-    |> capitalize;
-```
+However, the TODO comment indicates this feature is not yet fully working. When complete, this will enable elegant function composition in a left-to-right data flow style.
 
-#### Method Chaining Integration
+**Pipe with Built-in Functions**
 
-Pipes work seamlessly with object methods and archetype abilities:
+Lines 27-29 demonstrate using pipe with built-in functions. Line 28 shows `total = data |> sum`, which passes the list `[1, 2, 3, 4, 5]` to the `sum` function, producing 15. The pipe operator works with any callable, including built-in functions, not just user-defined functions.
 
-```jac
-obj DataProcessor {
-    def normalize(self, data: list) -> list {
-        max_val = max(data);
-        return [x / max_val for x in data];
-    }
-    
-    def scale(self, data: list, factor: float) -> list {
-        return [x * factor for x in data];
-    }
-    
-    def round_values(self, data: list) -> list {
-        return [round(x, 2) for x in data];
-    }
-}
+**Pipe to Lambda Expressions**
 
-processor = DataProcessor();
-result = raw_measurements
-    |> processor.normalize
-    |> processor.scale(100.0)
-    |> processor.round_values;
-```
+Lines 31-33 demonstrate piping to lambda expressions. Line 32 shows `x = 10 |> (lambda n: int : n * 3)`, which pipes the value 10 into an inline lambda function that multiplies by 3, resulting in 30.
 
-#### Object-Spatial Pipeline Integration
+The lambda must be wrapped in parentheses when used with the pipe operator. This pattern is useful for one-off transformations without defining a separate function, while maintaining the left-to-right data flow style.
 
-Pipe expressions integrate naturally with object-spatial operations:
+**Comparison to Pipe Back**
 
-```jac
-walker GraphAnalyzer {
-    can analyze_network with entry {
-        # Chain spatial operations
-        network_metrics = here
-            |> get_connected_nodes
-            |> filter_by_activity_level
-            |> calculate_centrality_scores
-            |> aggregate_statistics;
-        
-        # Process node data through pipeline
-        processed_data = here.raw_data
-            |> clean_data
-            |> normalize_values
-            |> apply_transformations
-            |> validate_results;
-        
-        # Update node with processed results
-        here.update_metrics(network_metrics);
-        here.set_processed_data(processed_data);
-    }
-}
+The forward pipe operator `|>` is the reverse of the pipe back operator `<|` (covered in pipe_back_expressions.md):
+- Forward pipe: `value |> function` (left to right, data-first)
+- Pipe back: `function <| value` (right to left, function-first)
 
-node DataNode {
-    has raw_data: list;
-    has processed_data: dict;
-    
-    can get_connected_nodes(self) -> list {
-        return [-->] |> map(|edge| edge.target);
-    }
-    
-    can update_metrics(self, metrics: dict) {
-        self.metrics = metrics;
-    }
-}
-```
+**Use Cases**
 
-#### Multi-line Pipeline Formatting
+Forward pipe is particularly useful when:
+- You want to emphasize data flow and transformation
+- You're building a pipeline of operations
+- You prefer left-to-right reading order
+- You're transforming data through multiple steps
+- You're familiar with pipe operators from functional languages (F#, Elixir) or Unix shells
 
-Complex pipelines can span multiple lines for enhanced readability:
+**Advantages**
 
-```jac
-comprehensive_analysis = dataset
-    |> remove_outliers(threshold=2.5)
-    |> apply_feature_engineering(
-        features=["normalized", "scaled", "encoded"],
-        parameters={"scale_factor": 1.0}
-    )
-    |> split_train_test(ratio=0.8)
-    |> train_model(algorithm="random_forest")
-    |> evaluate_performance
-    |> generate_report;
-```
-
-#### Error-Safe Pipelines
-
-Pipe expressions can incorporate error handling and null-safe operations:
-
-```jac
-# Safe pipeline with optional operations
-safe_result = potentially_null_input
-    |> validate_input
-    |> transform_safely
-    |> process_if_valid
-    |> default_on_error("fallback_value");
-
-# Conditional pipeline execution
-conditional_result = data
-    |> (|x| validate(x) if x.needs_validation else x)
-    |> (|x| expensive_operation(x) if x.size > threshold else x)
-    |> finalize_processing;
-```
-
-#### Graph Traversal Pipelines
-
-Pipe expressions excel in graph traversal and analysis scenarios:
-
-```jac
-walker PathOptimizer {
-    can find_optimal_path with entry {
-        optimal_route = here
-            |> get_all_possible_paths
-            |> filter_by_constraints(max_length=10, avoid_cycles=true)
-            |> calculate_path_costs
-            |> sort_by_efficiency
-            |> select_best_path;
-        
-        # Execute the optimal path
-        visit optimal_route;
-    }
-}
-
-walker DataAggregator {
-    has collected_data: list = [];
-    
-    can aggregate_from_network with entry {
-        aggregated_results = [-->*]  # All reachable nodes
-            |> filter(|n| n.has_data())
-            |> map(|n| n.extract_data())
-            |> group_by_category
-            |> calculate_statistics
-            |> format_results;
-        
-        self.collected_data.append(aggregated_results);
-    }
-}
-```
-
-#### Performance Considerations
-
-Pipe expressions maintain efficiency through lazy evaluation and optimization:
-
-```jac
-# Efficient pipeline with early termination
-result = large_dataset
-    |> filter(|item| item.is_relevant())  # Reduces dataset size early
-    |> take(100)                          # Limits processing to first 100
-    |> expensive_transformation           # Only applied to filtered subset
-    |> final_aggregation;
-```
-
-#### Functional Composition Patterns
-
-Pipes enable elegant functional composition:
-
-```jac
-# Reusable transformation functions
-def clean_and_validate(data: list) -> list {
-    return data |> remove_nulls |> validate_format |> normalize_encoding;
-}
-
-def analyze_and_report(data: list) -> dict {
-    return data |> statistical_analysis |> generate_insights |> format_report;
-}
-
-# Composed pipeline
-final_report = raw_input
-    |> clean_and_validate
-    |> apply_business_rules
-    |> analyze_and_report;
-```
-
-Pipe expressions transform complex data processing into intuitive, maintainable code that naturally expresses the flow of computation through both traditional data structures and object-spatial topologies.
+The pipe operator offers several benefits:
+- Improved readability for data transformation sequences
+- Eliminates deeply nested function calls
+- Makes the order of operations explicit
+- Reduces the need for intermediate variables

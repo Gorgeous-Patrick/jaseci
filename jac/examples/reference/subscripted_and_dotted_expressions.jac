@@ -1,3 +1,5 @@
+# Subscripted and dotted expressions - Array/dict access and dot notation
+
 obj Sample {
     has my_list: list = [1, 2, 3],
         my_dict: dict = {"name":"John", "age": 30};

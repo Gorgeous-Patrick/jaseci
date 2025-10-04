@@ -1,163 +1,57 @@
-Jac provides comprehensive assignment operations that extend Python's familiar syntax with enhanced type safety and explicit variable declaration capabilities. These assignment patterns support both traditional programming and object-spatial operations.
+Assignment statements in Jac provide multiple ways to bind values to variables, including simple assignment, type annotations, chained assignments, and augmented assignments.
 
-#### Basic Assignment Operations
+**Basic Assignment**
 
-Standard assignment uses the `=` operator to bind values to variables:
+Lines 5-6 demonstrate simple assignment using the `=` operator: `a = b = 16`. This is a chained assignment where both `a` and `b` receive the value 16. The assignment evaluates right-to-left, so 16 is first assigned to `b`, then that value is assigned to `a`.
 
-```jac
-value = 42;
-name = "example";
-result = calculate_result();
+**Let Assignment**
+
+Lines 9-10 show the `let` keyword for assignment: `let c = 18`. The `let` keyword emphasizes the creation of a new binding. While functionally similar to regular assignment in many contexts, `let` can convey different semantics depending on scope and mutability requirements.
+
+**Type Annotations**
+
+Jac supports optional type annotations on assignments:
+
+- Lines 13-14: `x: int = 42` declares `x` with type `int` and assigns it the value 42
+- Lines 17-19: Type annotation without immediate assignment. `y: str` declares `y` as a string variable, which is then assigned "hello" on the next line
+
+Type annotations serve as documentation and enable type checking, but don't enforce runtime type constraints unless explicitly checked.
+
+**Augmented Assignment Operators**
+
+Augmented assignments combine an operation with assignment. The general form is `var op= value`, which is equivalent to `var = var op value` but potentially more efficient.
+
+| Operator | Operation | Example Line | Meaning |
+|----------|-----------|--------------|---------|
+| `+=` | Add and assign | 32 | `num = num + 5` |
+| `-=` | Subtract and assign | 33 | `num = num - 3` |
+| `*=` | Multiply and assign | 34 | `num = num * 2` |
+| `/=` | Divide and assign | 35 | `num = num / 2` |
+| `%=` | Modulo and assign | 36 | `num = num % 3` |
+| `**=` | Exponentiate and assign | 37 | `num = num ** 2` |
+| `//=` | Floor divide and assign | 28-29 | `c = c // 4` |
+| `&=` | Bitwise AND and assign | 40 | `bits = bits & 7` |
+| `|=` | Bitwise OR and assign | 41 | `bits = bits | 8` |
+| `^=` | Bitwise XOR and assign | 42 | `bits = bits ^ 3` |
+| `<<=` | Left shift and assign | 25-26 | `a = a << 2` |
+| `>>=` | Right shift and assign | 22-23 | `a = a >> 2` |
+| `@=` | Matrix multiply and assign | 45 (commented) | `matrix = matrix @ other` |
+
+Lines 22-42 demonstrate most augmented operators. The sequence on lines 31-37 shows how augmented operators modify `num` through a series of arithmetic operations.
+
+**Chained Assignments**
+
+Line 56 demonstrates multiple chained assignments: `x = y = z = 100`. All three variables are assigned the value 100. This is equivalent to:
+```
+z = 100
+y = 100
+x = 100
 ```
 
-Jac supports chained assignments for assigning the same value to multiple variables:
+**Assignment with Expressions**
 
-```jac
-x = y = z = 0;
-first = second = get_initial_value();
-```
+Lines 60-61 show that the right-hand side of an assignment can be any expression: `result = 5 * (3 + 2)`. The expression is evaluated first (yielding 25), then assigned to `result`.
 
-#### Explicit Variable Declaration
+**Yield Expressions in Assignment**
 
-The `let` keyword provides explicit variable declaration, enhancing code clarity and supporting static analysis:
-
-```jac
-let counter = 0;
-let user_name = "default";
-let processing_complete = false;
-```
-
-Explicit declaration makes variable creation intent clear and helps distinguish between new variable creation and existing variable modification.
-
-#### Typed Assignments
-
-Type annotations provide compile-time type checking and documentation:
-
-```jac
-let count: int = 0;
-let ratio: float = 3.14159;
-let items: list[str] = ["apple", "banana", "cherry"];
-let config: dict[str, any] = {"debug": true, "timeout": 30};
-```
-
-Type annotations enable early error detection and improve code maintainability by making data types explicit.
-
-#### Augmented Assignment Operators
-
-Augmented assignments combine operations with assignment for concise code:
-
-**Arithmetic Operations:**
-```jac
-counter += 1;           # Addition assignment
-balance -= withdrawal;  # Subtraction assignment
-total *= factor;        # Multiplication assignment
-average /= count;       # Division assignment
-result //= divisor;     # Floor division assignment
-remainder %= modulus;   # Modulo assignment
-power **= exponent;     # Exponentiation assignment
-```
-
-**Bitwise Operations:**
-```jac
-flags &= mask;          # Bitwise AND assignment
-options |= new_flag;    # Bitwise OR assignment
-data ^= encryption_key; # Bitwise XOR assignment
-bits <<= shift_amount;  # Left shift assignment
-value >>= shift_count;  # Right shift assignment
-```
-
-**Matrix Operations:**
-```jac
-matrix @= transformation;  # Matrix multiplication assignment
-```
-
-#### Destructuring Assignment
-
-Jac supports destructuring assignment for tuples and collections:
-
-```jac
-let (x, y) = coordinates;
-let (first, *rest) = items;
-let (name=user, age=years) = user_data;
-```
-
-Destructuring enables elegant extraction of values from complex data structures.
-
-#### Object-Spatial Assignment Patterns
-
-Assignments work seamlessly with object-spatial constructs:
-
-```jac
-walker DataCollector {
-    has results: list = [];
-    
-    can collect with entry {
-        # Assign from node data
-        let node_value = here.data;
-        let neighbors = [-->];
-        
-        # Augmented assignment with spatial data
-        self.results += [node_value];
-        
-        # Typed assignment with graph references
-        let connected_nodes: list[node] = neighbors;
-        
-        # Conditional assignment based on spatial context
-        let next_target = neighbors[0] if neighbors else None;
-        if (next_target) {
-            visit next_target;
-        }
-    }
-}
-
-node ProcessingNode {
-    has data: dict;
-    has processed: bool = false;
-    
-    can update_data with visitor entry {
-        # Assignment within node abilities
-        let new_data = visitor.get_processed_data();
-        self.data |= new_data;  # Dictionary merge assignment
-        self.processed = true;
-    }
-}
-```
-
-#### Assignment Expression Evaluation
-
-Jac evaluates assignment expressions with predictable semantics:
-
-```jac
-# Right-to-left evaluation for chained assignments
-a = b = c = expensive_computation();  # computed once
-
-# Left-to-right evaluation for augmented assignments
-matrix[i][j] += calculate_delta(i, j);  # index computed before operation
-```
-
-#### Type Inference and Validation
-
-The compiler performs type inference for untyped assignments while validating typed assignments:
-
-```jac
-let inferred = 42;              # Inferred as int
-let explicit: float = 42;       # Explicit conversion to float
-let validated: str = "text";    # Type validation at compile time
-```
-
-#### Assignment in Control Structures
-
-Assignments integrate with control flow constructs:
-
-```jac
-# Assignment in conditional expressions
-result = value if (temp := get_temperature()) > threshold else default;
-
-# Assignment in loop constructs
-for item in items {
-    let processed = transform(item);
-    results.append(processed);
-}
-```
-
-Assignment operations provide the foundation for variable management in Jac programs, supporting both traditional programming patterns and the unique requirements of object-spatial computation where variables may hold references to nodes, edges, and walker states.
+Lines 48-53 mention that yield expressions can appear on the right side of assignments, though the example is commented out. This would allow capturing values from generator expressions.

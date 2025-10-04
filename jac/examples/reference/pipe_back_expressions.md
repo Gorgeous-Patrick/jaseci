@@ -1,154 +1,49 @@
-Pipe back expressions provide the reverse flow of pipe forward expressions, passing the result of the right expression as the last argument to the left expression. This operator enables different composition patterns that can be more natural for certain operations.
+Pipe back expressions use the `<|` operator to pass values into functions from right to left, providing an alternative to traditional function call syntax.
 
-#### Backward Pipe Operator (`<|`)
+**Basic Pipe Back Syntax**
 
-The backward pipe operator flows data from right to left:
+Lines 17-19 demonstrate the basic pipe back operator. Line 18 shows `result = double <| number`, which is equivalent to `result = double(number)`. The `<|` operator takes the value on its right side (`number`, which is 5) and passes it as an argument to the function on its left side (`double`).
 
-```jac
-# Forward pipe - data flows left to right
-result = data |> process |> format;
+The pipe back operator reverses the typical left-to-right reading order, making it read as "double, taking input from number" rather than "double of number". This can be more intuitive in certain contexts, particularly when emphasizing the data flow from source to transformation.
 
-# Backward pipe - data flows right to left
-result = format <| process <| data;
-```
+**Function Definitions**
 
-#### Use Cases
+Lines 3-13 define three simple transformation functions:
+- `double` (line 3): multiplies input by 2
+- `triple` (line 7): multiplies input by 3
+- `negate` (line 11): returns negative of input
 
-##### Building Processing Pipelines
-```jac
-# Define a processing pipeline right-to-left
-processor = output_formatter
-    <| data_validator  
-    <| input_parser;
+These functions are used to demonstrate how pipe back works with different functions.
 
-# Apply the pipeline
-result = processor(raw_input);
-```
+**Chained Pipe Back (Currently Limited)**
 
-##### Partial Application Patterns
-```jac
-# Create specialized functions
-process_users = save_to_database
-    <| validate_user_data
-    <| normalize_user_fields;
+Lines 21-24 show a commented-out example of chained pipe back operations. The intended syntax `negate <| triple <| double <| value` would evaluate from right to left:
+1. `value` (2) is piped to `double`, producing 4
+2. 4 is piped to `triple`, producing 12
+3. 12 is piped to `negate`, producing -12
 
-# Use the composed function
-process_users(user_list);
-```
+However, the TODO comment indicates this feature is not yet fully working. This would be analogous to function composition, creating a pipeline of transformations.
 
-#### Combining with Forward Pipes
+**Pipe Back with Lambda**
 
-Mix both operators for expressive code:
+Lines 26-28 demonstrate using pipe back with lambda expressions. Line 27 shows `x = (lambda n:int : n * 3) <| 10`, which creates an inline lambda function and immediately applies it to the value 10. The lambda takes an integer `n` and returns `n * 3`, so the result is 30.
 
-```jac
-# Process data then apply formatting
-final_result = formatter <| (
-    raw_data
-    |> clean
-    |> validate
-    |> transform
-);
-```
+This pattern is useful when you need a one-off transformation without defining a separate function. The pipe back syntax makes it clear that 10 is the input being transformed.
 
-#### Graph Operations
+**Pipe Back with Built-in Functions**
 
-In object-spatial contexts:
+Lines 30-32 show using pipe back with built-in functions. Line 31 demonstrates `data = sum <| [1, 2, 3, 4, 5]`, which passes the list to the `sum` function, producing 15. This works with any callable, not just user-defined functions.
 
-```jac
-walker Analyzer {
-    can analyze with entry {
-        # Right-to-left node filtering
-        targets = filter_reachable
-            <| sort_by_priority
-            <| [-->];
-        
-        # Process results left-to-right
-        results = targets
-            |> extract_data
-            |> aggregate;
-    }
-}
-```
+**Comparison to Forward Pipe**
 
-#### Function Composition
+The pipe back operator `<|` is the reverse of the forward pipe operator `|>` (covered in pipe_expressions.md):
+- Forward pipe: `value |> function` (left to right, data-first)
+- Pipe back: `function <| value` (right to left, function-first)
 
-Create reusable processing chains:
+**Use Cases**
 
-```jac
-# Compose validators
-validate_all = validate_format
-    <| validate_range
-    <| validate_type;
-
-# Compose transformers  
-transform_all = final_format
-    <| apply_rules
-    <| normalize;
-
-# Full pipeline
-process = transform_all <| validate_all;
-```
-
-#### Precedence and Grouping
-
-Understanding operator precedence:
-
-```jac
-# Parentheses for clarity
-result = (step3 <| step2) <| step1;
-
-# Mixed operators need careful grouping
-output = final_step <| (
-    input |> first_step |> second_step
-);
-```
-
-#### Common Patterns
-
-##### Builder Pattern
-```jac
-# Build configuration right-to-left
-config = apply_overrides
-    <| set_defaults
-    <| parse_config_file
-    <| "config.json";
-```
-
-##### Middleware Chain
-```jac
-# Web request processing
-handle_request = send_response
-    <| process_business_logic
-    <| authenticate
-    <| parse_request;
-```
-
-##### Data Validation Pipeline
-```jac
-# Validation stages
-validate = report_errors
-    <| check_business_rules
-    <| verify_data_types
-    <| sanitize_input;
-```
-
-#### Best Practices
-
-- **Use `<|` when**: Building processing chains where later stages depend on earlier ones
-- **Use `|>` when**: Transforming data through sequential steps
-- **Mix operators**: When it improves readability
-- **Group with parentheses**: To make precedence explicit
-
-#### Comparison with Forward Pipe
-
-```jac
-# Forward pipe - follows data flow
-processed = data |> step1 |> step2 |> step3;
-
-# Backward pipe - follows dependency order  
-processed = step3 <| step2 <| step1 <| data;
-
-# Both achieve the same result
-```
-
-Pipe back expressions offer an alternative composition style that can be more intuitive when thinking about processing pipelines in terms of dependencies rather than data flow. They complement forward pipes to provide flexible, expressive ways to compose operations in Jac.
+Pipe back is particularly useful when:
+- You want to emphasize the transformation being applied
+- The function name is more important than the data source
+- You're composing functions in a right-to-left style
+- You're familiar with operators like `<|` from functional languages (Haskell, F#, Elm)

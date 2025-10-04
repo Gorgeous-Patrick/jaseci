@@ -1,196 +1,54 @@
-Jac provides two complementary approaches to defining executable code: traditional functions using `def` and object-spatial abilities using `can`. This dual system supports both conventional programming patterns and the unique requirements of computation moving through topological structures.
+Functions and abilities in Jac define callable units of code with various modifiers including access control, abstract declarations, variadic parameters, async support, and walker-specific abilities.
 
-#### Omission of Gratuitous `self`
+**Basic Functions with Type Annotations**
 
-Unlike Python, Jac methods of `obj`, `node`, `edge`, and `walker` do not require a `self` parameter unless it is
-actually used.  Instance methods implicitly receive the current object, reducing
-boilerplate and keeping signatures focused on relevant parameters.
+Lines 5-7 show a function with typed parameters and return type: `def divide(x: float, y: float) -> float`. Lines 10-12 demonstrate a function with only a return type annotation, no parameters.
 
-#### Function Definitions
+**Static Functions with Access Tags**
 
-Traditional functions use the `def` keyword with mandatory type annotations:
+Lines 18-20 show a static function with private access: `static def:priv multiply(a: float, b: float) -> float`. Static functions belong to the class rather than instances.
 
-```jac
-def calculate_distance(x1: float, y1: float, x2: float, y2: float) -> float {
-    return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5;
-}
-```
+**Abstract Methods**
 
-Functions provide explicit parameter passing and return value semantics, making them suitable for stateless computations and utility operations.
+Line 23 shows abstract method declaration: `def substract -> float abs`. The `abs` keyword marks it as abstract - subclasses must implement it.
 
-#### Abilities
+**Forward Declarations**
 
-Abilities represent Jac's distinctive approach to defining behaviors that respond to object-spatial events:
+Lines 26, 29 show function signatures without bodies:
+- Line 26: `def add(number: float, *a: tuple) -> float;` - forward declaration with variadic args
+- Line 29: `def configure(**options: dict) -> dict;` - forward declaration with keyword args
 
-```jac
-walker PathFinder {
-    can explore with node entry {
-        # Ability triggered when walker enters any node
-        print(f"Exploring node: {here.name}");
-        visit [-->];  # Continue to connected nodes
-    }
-    
-    can process with DataNode exit {
-        # Ability triggered when leaving DataNode instances
-        print(f"Finished processing {here.data}");
-    }
-}
-```
+**Variadic Parameters**
 
-Abilities execute implicitly based on spatial events rather than explicit invocation, embodying the object-spatial programming paradigm.
+Line 51 shows `*a: tuple` which collects additional positional arguments into a tuple. Line 29 shows `**options: dict` which collects keyword arguments into a dictionary.
 
-#### Access Control
+**Implementation Blocks**
 
-Both functions and abilities support access modifiers for encapsulation:
+Lines 50-53 show implementing a forward-declared function: `impl Calculator.add` provides the body for the previously declared `add` method.
 
-```jac
-obj Calculator {
-    def :pub add(a: float, b: float) -> float {
-        return a + b;
-    }
-    
-    def :priv internal_compute(data: list) -> float {
-        return sum(data) / len(data);
-    }
-    
-    can :protect validate with entry {
-        # Protected ability for internal validation
-        if (not self.is_valid()) {
-            raise ValueError("Invalid calculator state");
-        }
-    }
-}
-```
+**Inheritance and Overriding**
 
-#### Static Methods
+Lines 43-47 show `Substractor(Calculator)` inheriting from Calculator and implementing the abstract `substract` method.
 
-Static methods operate at the class level without requiring instance context:
+**Walker Abilities**
 
-```jac
-obj MathUtils {
-    static def multiply(a: float, b: float) -> float {
-        return a * b;
-    }
-    
-    static def factorial(n: int) -> int {
-        return 1 if n <= 1 else n * MathUtils.factorial(n - 1);
-    }
-}
-```
+Lines 56-71 demonstrate walker abilities using `can` statements:
+- Lines 58-60: `can initialize with entry` - triggers when walker starts
+- Lines 63-65: `can cleanup with exit` - triggers when walker finishes
+- Abilities define behavior at specific points in walker execution
 
-#### Abstract Declarations
+**Async Functions and Abilities**
 
-Abstract methods define interfaces that must be implemented by subclasses:
+Lines 74-76 show async function: `async def fetch_data(url: str) -> dict`. Lines 80-82 show async ability: `async can process with entry`.
 
-```jac
-obj Shape {
-    def area() -> float abs;
-    def perimeter() -> float abs;
-}
+**Decorators**
 
-obj Rectangle(Shape) {
-    has width: float;
-    has height: float;
-    
-    def area() -> float {
-        return self.width * self.height;
-    }
-    
-    def perimeter() -> float {
-        return 2 * (self.width + self.height);
-    }
-}
-```
+Lines 86-93 demonstrate function decorators: `@logger` is applied to `logged_function`.
 
-#### Implementation Separation
+**Abstract Abilities**
 
-Jac enables separation of declarations from implementations using `impl` blocks:
+Lines 99-101 show abstract walker ability: `can must_implement with entry abs` - subclasses must provide implementation.
 
-```jac
-obj DataProcessor {
-    def process_data(data: list) -> dict;
-}
+**Commented Advanced Features**
 
-impl DataProcessor {
-    def process_data(data: list) -> dict {
-        return {
-            "count": len(data),
-            "sum": sum(data),
-            "average": sum(data) / len(data)
-        };
-    }
-}
-```
-
-#### Object-Spatial Integration
-
-Abilities integrate seamlessly with object-spatial constructs, enabling sophisticated graph algorithms:
-
-```jac
-node DataNode {
-    has data: dict;
-    has processed: bool = false;
-    
-    can validate with visitor entry {
-        # Node ability triggered by walker visits
-        if (not self.data) {
-            visitor.report_error(f"Empty data at {self.id}");
-        }
-    }
-    
-    can mark_complete with visitor exit {
-        # Mark processing complete when walker leaves
-        self.processed = true;
-    }
-}
-
-walker DataValidator {
-    has errors: list = [];
-    
-    can report_error(message: str) {
-        self.errors.append(message);
-    }
-    
-    can validate_graph with entry {
-        # Start validation process
-        visit [-->*];  # Visit all reachable nodes
-    }
-}
-```
-
-#### Parameter Patterns
-
-Functions and abilities support flexible parameter patterns:
-
-```jac
-def flexible_function(required: int, optional: str = "default", *args: tuple, **kwargs: dict) -> any {
-    return {
-        "required": required,
-        "optional": optional,
-        "args": args,
-        "kwargs": kwargs
-    };
-}
-```
-
-#### Asynchronous Operations
-
-Both functions and abilities support asynchronous execution:
-
-```jac
-async def fetch_data(url: str) -> dict {
-    # Asynchronous data fetching
-    response = await http_client.get(url);
-    return response.json();
-}
-
-walker AsyncProcessor {
-    async can process with entry {
-        # Asynchronous ability execution
-        data = await fetch_data(here.data_url);
-        here.update_data(data);
-    }
-}
-```
-
-Functions and abilities together provide a comprehensive system for organizing computational logic that supports both traditional programming patterns and the innovative object-spatial paradigm where computation flows through topological structures.
+Lines 32, 35, 38-40, 68-70, 96 show commented syntax for positional-only parameters (`/`), keyword-only parameters (`*`), override keyword, and expression-based function proxying.

@@ -1,298 +1,75 @@
-Tests in Jac provide built-in support for unit testing and validation of code functionality. The `test` keyword creates test blocks that can be executed to verify program correctness.
+Jac provides built-in support for unit testing through test blocks, allowing you to write tests directly in your source files alongside the code being tested.
 
-#### Syntax
+**Test Block Syntax**
 
-```jac
-test {
-    # test code
-}
+Lines 4-6, 9-11, and 14-16 demonstrate the test block syntax. The general form is:
 
-test "descriptive test name" {
-    # named test code
-}
-```
+`test test_name { assertions and test code }`
 
-#### Basic Testing
+Where:
+- `test` is the keyword that begins a test block
+- `test_name` is the identifier for the test
+- The curly braces contain the test code, typically including assertions
 
-Simple test assertions:
+**Test Blocks**
 
-```jac
-test "basic arithmetic" {
-    assert 2 + 2 == 4;
-    assert 10 - 5 == 5;
-    assert 3 * 4 == 12;
-    assert 15 / 3 == 5;
-}
+Line 4-6 defines `test1`, which uses `assert almostEqual(4.99999, 4.99999);` to check if two floating-point numbers are approximately equal. The `almostEqual` function is useful for comparing floating-point values where exact equality might fail due to precision issues.
 
-test {
-    # Anonymous test
-    x = 10;
-    y = 20;
-    assert x < y;
-    assert x + y == 30;
-}
-```
+Line 9-11 defines `test2`, which uses a simple equality assertion: `assert 5 == 5;`. This verifies that the integer 5 equals itself.
 
-#### Testing Functions
+Line 14-16 defines `test3`, which uses a membership assertion: `assert "e" in "qwerty";`. This verifies that the character "e" exists in the string "qwerty".
 
-Validate function behavior:
+**Assertion Semantics**
 
-```jac
-can calculate_area(radius: float) -> float {
-    return 3.14159 * radius * radius;
-}
+The `assert` statement checks if a condition is true:
+- If the condition is true, execution continues normally
+- If the condition is false, an AssertionError is raised and the test fails
 
-test "area calculation" {
-    assert calculate_area(1.0) == 3.14159;
-    assert calculate_area(2.0) == 12.56636;
-    assert abs(calculate_area(3.0) - 28.27431) < 0.00001;
-}
-```
+Assertions are the primary mechanism for verifying expected behavior in tests. Each test can contain multiple assertions.
 
-#### Testing Objects and Classes
+**Running Tests**
 
-Test object creation and methods:
+Lines 18-26 show how to execute tests programmatically using the `jac test` command. Line 18 uses `with entry:__main__` to ensure this code only runs when the file is executed directly (not when imported).
 
-```jac
-obj Rectangle {
-    has width: float;
-    has height: float;
-    
-    can area -> float {
-        return self.width * self.height;
-    }
-    
-    can perimeter -> float {
-        return 2 * (self.width + self.height);
-    }
-}
+Lines 21-24 use Python's `subprocess.run` to execute the Jac test runner:
+- `["jac", "test", f"{__file__}"]` constructs the command to test the current file
+- `stdout=subprocess.PIPE, stderr=subprocess.PIPE` capture the output
+- `text=True` ensures output is returned as strings
 
-test "rectangle operations" {
-    rect = Rectangle(width=5.0, height=3.0);
-    
-    assert rect.area() == 15.0;
-    assert rect.perimeter() == 16.0;
-    
-    # Test property modification
-    rect.width = 10.0;
-    assert rect.area() == 30.0;
-}
-```
+Line 25 prints the test results from stderr, where test output is typically sent.
 
-#### Testing Graph Operations
+**Test Discovery and Execution**
 
-Test node and edge functionality:
+When `jac test filename.jac` is run:
+1. Jac scans the file for all `test` blocks
+2. Each test block is executed in isolation
+3. Assertions are evaluated
+4. Results are reported (pass/fail for each test)
+5. A summary is provided showing total tests run and any failures
 
-```jac
-node DataNode {
-    has value: int;
-}
+**Test Naming**
 
-edge Connection {
-    has weight: float = 1.0;
-}
+Test names (like `test1`, `test2`, `test3`) should be descriptive. While these examples use simple names, production code typically uses names that describe what is being tested, such as `test_password_validation` or `test_user_creation`.
 
-test "graph construction" {
-    # Create nodes
-    n1 = DataNode(value=10);
-    n2 = DataNode(value=20);
-    n3 = DataNode(value=30);
-    
-    # Connect nodes
-    n1 ++>:Connection:++> n2;
-    n2 ++>:Connection(weight=2.0):++> n3;
-    
-    # Test connections
-    assert len([n1 -->]) == 1;
-    assert len([n2 <--]) == 1;
-    assert len([n2 -->]) == 1;
-    
-    # Test edge properties
-    edge = [n2 -->:Connection:][0];
-    assert edge.weight == 2.0;
-}
-```
+**Test Isolation**
 
-#### Testing Walkers
+Each test block runs independently. If one test fails, the others still execute. This ensures that a single failure doesn't prevent other tests from running.
 
-Verify walker behavior:
+**Use Cases**
 
-```jac
-walker TestWalker {
-    has visited: list = [];
-    
-    can traverse with entry {
-        self.visited.append(here.value);
-        visit [-->];
-    }
-}
+Test blocks are useful for:
+- Unit testing individual functions or methods
+- Verifying object behavior
+- Testing graph operations and walker logic
+- Regression testing to ensure code changes don't break existing functionality
+- Documentation through examples (tests serve as executable specifications)
 
-test "walker traversal" {
-    # Setup graph
-    root = DataNode(value=1);
-    child1 = DataNode(value=2);
-    child2 = DataNode(value=3);
-    
-    root ++> child1;
-    root ++> child2;
-    
-    # Test walker
-    walker = TestWalker();
-    result = walker spawn root;
-    
-    assert 1 in walker.visited;
-    assert 2 in walker.visited;
-    assert 3 in walker.visited;
-    assert len(walker.visited) == 3;
-}
-```
+**Best Practices**
 
-#### Exception Testing
-
-Test error handling:
-
-```jac
-can divide(a: float, b: float) -> float {
-    if b == 0 {
-        raise ZeroDivisionError("Cannot divide by zero");
-    }
-    return a / b;
-}
-
-test "exception handling" {
-    # Test normal operation
-    assert divide(10, 2) == 5;
-    
-    # Test exception
-    error_raised = False;
-    try {
-        divide(10, 0);
-    } except ZeroDivisionError {
-        error_raised = True;
-    }
-    assert error_raised;
-}
-```
-
-#### Parameterized Testing
-
-Test with multiple inputs:
-
-```jac
-test "parameterized validation" {
-    test_cases = [
-        {"input": 0, "expected": "zero"},
-        {"input": 1, "expected": "positive"},
-        {"input": -1, "expected": "negative"}
-    ];
-    
-    for case in test_cases {
-        result = classify_number(case["input"]);
-        assert result == case["expected"];
-    }
-}
-```
-
-#### Setup and Teardown
-
-Organize test environment:
-
-```jac
-test "with setup and cleanup" {
-    # Setup
-    temp_file = create_temp_file();
-    original_state = save_current_state();
-    
-    try {
-        # Test operations
-        write_data(temp_file, "test data");
-        assert file_exists(temp_file);
-        assert read_data(temp_file) == "test data";
-    } finally {
-        # Cleanup
-        delete_file(temp_file);
-        restore_state(original_state);
-    }
-}
-```
-
-#### Testing Async Operations
-
-Test asynchronous code:
-
-```jac
-test "async operations" {
-    async can fetch_data -> str {
-        await simulate_delay(0.1);
-        return "async result";
-    }
-    
-    # Test async function
-    result = await fetch_data();
-    assert result == "async result";
-}
-```
-
-#### Test Organization
-
-Group related tests:
-
-```jac
-# Math operations tests
-test "addition operations" {
-    assert add(2, 3) == 5;
-    assert add(-1, 1) == 0;
-    assert add(0, 0) == 0;
-}
-
-test "multiplication operations" {
-    assert multiply(2, 3) == 6;
-    assert multiply(-2, 3) == -6;
-    assert multiply(0, 5) == 0;
-}
-
-# String operations tests
-test "string manipulation" {
-    assert uppercase("hello") == "HELLO";
-    assert lowercase("WORLD") == "world";
-    assert capitalize("jac") == "Jac";
-}
-```
-
-#### Best Practices
-
-1. **Descriptive Names**: Use clear test names that explain what's being tested
-2. **Single Responsibility**: Each test should verify one specific behavior
-3. **Independent Tests**: Tests shouldn't depend on each other
-4. **Clear Assertions**: Make test expectations obvious
-5. **Test Edge Cases**: Include boundary conditions and error cases
-
-#### Running Tests
-
-Tests can be executed:
-- Individually by name
-- All tests in a module
-- Tests matching a pattern
-- With verbose output for debugging
-
-#### Integration Testing
-
-Test complete workflows:
-
-```jac
-test "end-to-end graph processing" {
-    # Build complex graph
-    graph = build_test_graph();
-    
-    # Run processing walker
-    processor = DataProcessor();
-    results = processor spawn graph.root;
-    
-    # Verify results
-    assert len(results) == expected_count;
-    assert all_nodes_processed(graph);
-    assert results.summary.errors == 0;
-}
-```
-
-Tests in Jac provide a comprehensive framework for validating code correctness, from simple unit tests to complex integration scenarios, ensuring robust and reliable applications.
+Effective tests should:
+- Be independent (not rely on other tests or execution order)
+- Have descriptive names
+- Test one specific behavior or scenario
+- Include meaningful assertions
+- Be fast to execute
+- Cover both normal and edge cases

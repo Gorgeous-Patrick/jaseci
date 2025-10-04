@@ -1,111 +1,70 @@
-Jac provides two distinct tuple syntaxes that serve different programming needs: traditional positional tuples for ordered data and keyword tuples for labeled data structures that integrate seamlessly with pipe operations and object-spatial programming.
+Jac supports both Python-style tuples and a unique named tuple syntax that integrates with the pipe operator for cleaner function calls.
 
-#### Positional Tuples
+**Python-Style Tuples**
 
-Positional tuples follow Python's immutable ordered collection semantics:
+Lines 9-10 demonstrate traditional Python tuple syntax. Line 9 shows `(3, )` - the trailing comma is required for single-element tuples to distinguish them from parenthesized expressions. The expression `(3, ) + (4, )` concatenates two single-element tuples to create `(3, 4)`.
 
-```jac
-coords = (10, 20);
-print(coords[0]);   # → 10
+Line 10 creates a tuple by evaluating expressions: `(val1[0] * val1[1], val1[0] + val1[1])`. Since `val1` is `(3, 4)`, this evaluates to `(12, 7)` where:
+- First element: `3 * 4 = 12`
+- Second element: `3 + 4 = 7`
 
-# Single-element tuples require trailing comma
-singleton = (42,);
-```
+Line 18 shows a simple tuple literal: `(1, 2, 3)` creates a three-element tuple.
 
-Positional tuples support standard sequence operations including slicing, concatenation, and indexing, providing familiar behavior for developers transitioning from Python.
+**Jac Named Tuples with Pipe Operator**
 
-#### Keyword Tuples
+Lines 14-15 demonstrate Jac's named tuple syntax combined with the pipe operator. This syntax allows you to specify argument names inline within tuple syntax, then pipe the tuple to a function.
 
-Keyword tuples are a Jac-specific extension that associates labels with tuple elements, creating self-documenting data structures:
+Line 14: `(second=val2[1], first=val2[0]) |> foo`
+- Creates a named tuple with `second=7` and `first=12`
+- Pipes it to function `foo`, which has parameters `(first: int, second: int)`
+- The named tuple maps to function parameters by name, not position
+- This calls `foo(first=12, second=7)`, printing `12 7`
 
-```jac
-point = (x=3, y=4);
-print(point.x);        # → 3
-print(point["y"]);     # → 4 (index by name)
-```
+Line 15: `(first=val2[0], second=val2[1]) |> foo`
+- Creates a named tuple with `first=12` and `second=7`
+- When piped to `foo`, maps directly to parameters
+- This calls `foo(first=12, second=7)`, printing `12 7`
 
-Each element in a keyword tuple is tagged with a field name that persists at runtime, enabling both dot notation and dictionary-style access patterns.
+**Order Independence**
 
-#### Pipeline Integration
+The key feature of named tuples is that argument order doesn't matter. Notice line 14 specifies `second` before `first`, but because the names are explicit, the function receives the correct values in the correct parameters. Both lines 14 and 15 produce the same output despite different ordering in the tuple.
 
-Keyword tuples integrate naturally with Jac's pipe operators, enabling clean parameter passing without explicit argument lists:
+**Function Definition**
 
-```jac
-walker DataProcessor {
-    can analyze with entry {
-        # Build labeled data tuple and pipe to function
-        (node_id=here.id, data_size=len(here.data), 
-         neighbor_count=len([-->])) |> process_metrics;
-    }
-}
+Lines 3-5 define the target function `foo(first: int, second: int)` that receives the piped named tuples. The function expects two integer parameters and prints them.
 
-def process_metrics(node_id: str, data_size: int, neighbor_count: int) {
-    print(f"Node {node_id}: {data_size} bytes, {neighbor_count} neighbors");
-}
-```
+**Named Tuple Syntax**
 
-This pattern eliminates the need for long parameter lists while maintaining clear semantic meaning.
+The general form of a named tuple is:
+`(name1=value1, name2=value2, ...)`
 
-#### Mixed Tuple Syntax
+When piped to a function:
+`(name1=value1, name2=value2) |> function_name`
 
-Jac allows combining positional and keyword elements within a single tuple, with positional elements required to precede keyword elements:
+This is equivalent to:
+`function_name(name1=value1, name2=value2)`
 
-```jac
-mixed_data = ("header", version=2, timestamp=now());
-```
+**Advantages of Named Tuples with Pipe**
 
-This ordering constraint ensures unambiguous parsing while providing flexibility for complex data structures.
+This syntax provides several benefits:
+- **Clarity**: Argument names are explicit at the call site
+- **Order independence**: Arguments can be in any order
+- **Readability**: The pipe operator creates a clear data flow
+- **Flexibility**: Easy to reorder arguments without changing semantics
 
-#### Destructuring Assignment
+**Comparison**
 
-Both tuple types support destructuring assignment with appropriate syntax:
+| Syntax | Example | Order Matters? |
+|--------|---------|----------------|
+| Positional | `foo(12, 7)` | Yes |
+| Keyword args | `foo(first=12, second=7)` | No |
+| Named tuple pipe | `(first=12, second=7) \|> foo` | No |
 
-```jac
-# Positional destructuring
-let (x, y) = coords;
+**Use Cases**
 
-# Keyword destructuring (order-independent)
-let (y=latitude, x=longitude) = point;
-```
-
-Keyword destructuring matches variables by label rather than position, providing more robust code when tuple structure evolves.
-
-#### Object-Spatial Applications
-
-Tuples integrate effectively with object-spatial programming patterns:
-
-```jac
-node MetricsNode {
-    can compute_stats with visitor entry {
-        # Create labeled metrics tuple
-        stats = (
-            processing_time=self.get_processing_time(),
-            memory_usage=self.get_memory_usage(),
-            throughput=self.calculate_throughput()
-        );
-        
-        # Pass to visitor for aggregation
-        visitor.collect_metrics(stats);
-    }
-}
-
-walker MetricsCollector {
-    has collected_metrics: list = [];
-    
-    can collect_metrics(metrics: tuple) {
-        self.collected_metrics.append(metrics);
-    }
-}
-```
-
-#### Performance and Memory Considerations
-
-Both tuple types are immutable, ensuring thread safety and enabling optimization opportunities. Keyword tuples carry additional metadata for field names but provide enhanced readability and maintainability for complex data structures.
-
-#### Usage Guidelines
-
-**Positional tuples** are ideal for simple ordered data, mathematical coordinates, and compatibility with Python libraries.
-
-**Keyword tuples** excel in heterogeneous data representation, pipeline operations, and scenarios requiring explicit semantic labeling.
-
-The choice between tuple types should reflect the intended use pattern and the importance of self-documenting code structure in the specific application context.
+Named tuples with pipes are particularly useful when:
+- You want to emphasize the data being passed
+- Function calls have many parameters
+- You want to make argument roles explicit
+- You're building data transformation pipelines
+- You prefer functional programming style with clear data flow

@@ -1,3 +1,5 @@
+# Object spatial spawn expressions - Graph traversal and spatial operations
+
 walker Adder {
     can do with `root entry;
 }

@@ -5,6 +5,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jaclang 0.8.9 / jac-cloud 0.2.9 / byllm 0.4.4 (Unreleased)
 
+- **Triple Quoted F-String Support**: Added support for triple quoted f-strings in the language, enabling multi-line formatted strings with embedded expressions (e.g., `f"""Hello {name}"""`).
+
 ## jaclang 0.8.8 / jac-cloud 0.2.8 / byllm 0.4.3
 
 - **Better Syntax Error Messages**: Initial improvements to syntax error diagnostics, providing clearer and more descriptive messages that highlight the location and cause of errors (e.g., `Missing semicolon`).

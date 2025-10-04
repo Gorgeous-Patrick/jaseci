@@ -1,4 +1,5 @@
-#Filter comprehension
+# Special comprehensions - Filter and assign comprehensions
+
 import random;
 
 obj TestObj {
@@ -14,7 +15,8 @@ with entry {
         apple.append(TestObj());
     }
 
-    # check if all apple's x are random between 0 and 15
+    # Filter comprehension - filters objects based on conditions
+    # Syntax: collection(?condition1, condition2, ...)
     print(apple(?x >= 0, x <= 15) == apple);
 }
 
@@ -26,6 +28,9 @@ obj MyObj {
 with entry {
     x = MyObj();
     y = MyObj();
+
+    # Assign comprehension - assigns values to object attributes
+    # Syntax: collection(=attr1=val1, attr2=val2, ...)
     mvar = [x, y](=apple=5, banana=7);
     print(mvar);
 }

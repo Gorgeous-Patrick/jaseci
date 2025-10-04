@@ -1,3 +1,5 @@
+# Match mapping patterns - Pattern matching in match statements
+
 with entry {
     data = {"key1": 1, "key2": 2, "232": 3453};
     match data {

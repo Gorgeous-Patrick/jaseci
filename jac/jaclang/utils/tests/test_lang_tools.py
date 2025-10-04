@@ -134,7 +134,7 @@ class JacAstToolTests(TestCase):
             "|   +-- b",
             "+-- SymTable::ImplDef(impl.x)",
             " SymTable::Enum(x)",
-            "+-- line 19, col 13",
+            "+-- line 87, col 10",
         ]
         for i in check_list:
             self.assertIn(i, out)

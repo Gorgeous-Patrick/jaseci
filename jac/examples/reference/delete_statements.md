@@ -1,250 +1,76 @@
-Delete statements in Jac remove objects, nodes, edges, or properties from memory and graph structures. The `del` keyword provides a unified interface for deletion operations across different contexts.
+The `del` statement removes bindings, deletes collection elements, or removes object attributes, providing explicit memory management and data structure modification.
 
-#### Syntax
+**Deleting List Elements**
 
-```jac
-del expression;
-```
+Lines 5-8 demonstrate deleting a list element by index:
+- `x = [2, 4, 5, 7, 9]` creates a list
+- `del x[3]` removes the element at index 3 (the value 7)
+- Remaining list is `[2, 4, 5, 9]`
+- Subsequent elements shift down to fill the gap
 
-#### Deleting Variables
+**Deleting Variables**
 
-Remove variables from the current scope:
+Lines 11-14 show variable deletion:
+- `y = 100` creates a binding
+- `del y` removes the binding completely
+- Attempting to access `y` afterward raises a `NameError`
+- The variable name no longer exists in the scope
 
-```jac
-# Delete single variable
-x = 10;
-del x;  # x no longer exists
+**Deleting Dictionary Items**
 
-# Delete multiple variables
-a, b, c = 1, 2, 3;
-del a, b, c;
-```
+Lines 17-20 demonstrate dictionary item deletion:
+- `d = {"a": 1, "b": 2, "c": 3}` creates a dictionary
+- `del d["b"]` removes the key-value pair with key "b"
+- Resulting dictionary is `{"a": 1, "c": 3}`
+- Attempting to delete a non-existent key raises a `KeyError`
 
-#### Deleting Object Properties
+**Deleting Object Attributes**
 
-Remove attributes from objects:
+Lines 23-30 show attribute deletion:
+- `MyClass` object has a `value` attribute
+- `del instance.value` removes the attribute from the instance
+- Accessing `instance.value` afterward raises an `AttributeError`
+- The attribute is removed from the object's attribute dictionary
 
-```jac
-obj Person {
-    has name: str;
-    has age: int;
-    has email: str = "";
-}
+**Multiple Deletions**
 
-with entry {
-    p = Person(name="Alice", age=30, email="alice@example.com");
-    
-    # Delete optional property
-    del p.email;
-    
-    # Accessing deleted property may raise error
-}
-```
+Lines 33-36 demonstrate sequential deletions:
+- `del lst[1]` deletes element at index 1
+- After first deletion, indices shift
+- `del lst[2]` deletes what is now at index 2 (originally index 3)
+- Final list has two elements removed
 
-#### Deleting List Elements
+Note: Deleting multiple indices requires care since each deletion shifts subsequent indices.
 
-Remove items from lists by index:
+**Deleting Slices**
 
-```jac
-items = [1, 2, 3, 4, 5];
+Lines 39-41 show slice deletion:
+- `del numbers[2:5]` removes elements at indices 2, 3, and 4
+- Slice syntax `[start:stop]` removes the range [start, stop)
+- Remaining elements shift to fill the gap
+- Original `[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]` becomes `[0, 1, 5, 6, 7, 8, 9]`
 
-# Delete by index
-del items[2];  # items = [1, 2, 4, 5]
+**Del Statement Semantics**
 
-# Delete slice
-del items[1:3];  # items = [1, 5]
+The `del` keyword has different behavior depending on the target:
 
-# Delete with negative index
-del items[-1];  # items = [1]
-```
+| Target Type | Effect | Error if Missing |
+|-------------|--------|------------------|
+| Variable | Remove binding from scope | NameError |
+| List element | Remove and shift elements | IndexError |
+| List slice | Remove range and shift | No error if empty |
+| Dict key | Remove key-value pair | KeyError |
+| Object attribute | Remove attribute | AttributeError |
 
-#### Deleting Dictionary Entries
+**Memory Management**
 
-Remove key-value pairs:
+When `del` removes the last reference to an object, Python's garbage collector can reclaim the memory. However, `del` doesn't directly free memory - it removes references. The object is freed when its reference count reaches zero.
 
-```jac
-data = {"a": 1, "b": 2, "c": 3};
+**Use Cases**
 
-# Delete by key
-del data["b"];  # data = {"a": 1, "c": 3}
-
-# Conditional deletion
-if "c" in data {
-    del data["c"];
-}
-```
-
-#### Deleting Nodes
-
-Remove nodes from the graph structure:
-
-```jac
-node DataNode {
-    has value: any;
-}
-
-walker Cleaner {
-    can clean with entry {
-        # Delete nodes matching criteria
-        for n in [-->] {
-            if n.value is None {
-                del n;  # Node and its edges are removed
-            }
-        }
-    }
-}
-```
-
-#### Deleting Edges
-
-Remove connections between nodes:
-
-```jac
-# Delete specific edge types
-del source_node -->:EdgeType:--> target_node;
-
-# Delete all outgoing edges
-del node [-->];
-
-# Delete filtered edges
-del node [-->(?.weight < threshold)];
-```
-
-#### Graph Operations
-
-Complex deletion patterns:
-
-```jac
-walker GraphPruner {
-    has min_connections: int = 2;
-    
-    can prune with entry {
-        # Delete weakly connected nodes
-        weak_nodes = [];
-        for n in [-->] {
-            if len(n[<-->]) < self.min_connections {
-                weak_nodes.append(n);
-            }
-        }
-        
-        # Delete collected nodes
-        for n in weak_nodes {
-            del n;  # Automatically removes associated edges
-        }
-    }
-}
-```
-
-#### Edge Deletion Patterns
-
-```jac
-node Network {
-    can remove_connection(target: node) {
-        # Delete edge between self and target
-        del self --> target;
-    }
-    
-    can clear_outgoing {
-        # Delete all outgoing edges
-        del self [-->];
-    }
-    
-    can prune_weak_edges(threshold: float) {
-        # Delete edges below threshold
-        del self [-->(?.weight < threshold)];
-    }
-}
-```
-
-#### Cascading Deletions
-
-When nodes are deleted, associated edges are automatically removed:
-
-```jac
-with entry {
-    # Create connected structure
-    a = Node();
-    b = Node();
-    c = Node();
-    
-    a ++> b ++> c;
-    
-    # Deleting b removes edges a->b and b->c
-    del b;
-    
-    # a and c still exist but are disconnected
-}
-```
-
-#### Memory Management
-
-Jac handles cleanup automatically:
-
-```jac
-walker MemoryManager {
-    can cleanup with entry {
-        # Process large data
-        temp_nodes = [];
-        for i in range(1000) {
-            n = DataNode(data=large_object);
-            temp_nodes.append(n);
-        }
-        
-        # Process nodes...
-        
-        # Explicit cleanup
-        for n in temp_nodes {
-            del n;
-        }
-        # Memory is reclaimed
-    }
-}
-```
-
-#### Best Practices
-
-1. **Check Before Delete**: Verify existence before deletion
-2. **Handle Dependencies**: Consider edge deletion when removing nodes  
-3. **Batch Operations**: Group deletions for efficiency
-4. **Clean Up Resources**: Delete temporary nodes/edges after use
-5. **Document Side Effects**: Deletion can affect graph connectivity
-
-#### Common Patterns
-
-##### Filtered Node Deletion
-```jac
-walker FilterDelete {
-    can delete_by_type(type_name: str) {
-        targets = [-->(`type_name)];
-        for t in targets {
-            del t;
-        }
-    }
-}
-```
-
-##### Conditional Edge Removal
-```jac
-can prune_edges(node: node, condition: func) {
-    edges = node[<-->];
-    for e in edges {
-        if condition(e) {
-            del e;
-        }
-    }
-}
-```
-
-##### Safe Deletion
-```jac
-can safe_delete(item: any) -> bool {
-    try {
-        del item;
-        return True;
-    } except {
-        return False;
-    }
-}
-```
-
-Delete statements provide essential cleanup capabilities for managing memory and graph structure integrity in Jac programs. They work seamlessly with the object-spatial model to maintain consistent graph states.
+Common uses for `del`:
+- Removing unwanted collection elements
+- Freeing memory by removing large data structure references
+- Cleaning up temporary variables
+- Removing computed attributes from objects
+- Managing namespace pollution in long functions

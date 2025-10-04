@@ -1,3 +1,5 @@
+# Match singleton patterns - Pattern matching in match statements
+
 with entry {
     data = True;
     match True {

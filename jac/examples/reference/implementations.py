@@ -1,21 +1,20 @@
-from enum import Enum
+from __future__ import annotations
+from jaclang.runtimelib.builtin import *
+from jaclang import JacMachineInterface as _jl
+from enum import Enum, auto
 
+@_jl.impl_patch_filename('implementations.jac')
+def foo() -> str:
+    return 'Hello'
 
-def foo() -> None:
-    return "Hello"
+class vehicle(_jl.Obj):
+    name: str = 'Car'
 
-
-class vehicle:
-    def __init__(self) -> None:
-        self.name = "Car"
-
-
+@_jl.sem('', {'Small': '', 'Medium': '', 'Large': ''})
 class Size(Enum):
     Small = 1
     Medium = 2
     Large = 3
-
-
 car = vehicle()
 print(foo())
 print(car.name)

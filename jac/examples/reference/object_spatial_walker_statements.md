@@ -1,68 +1,22 @@
-Walker statements control the movement and lifecycle of computational entities within topological structures. These statements implement the core data spatial paradigm where computation moves to data through controlled traversal of nodes and edges.
+This example demonstrates the fundamental concept of walker abilities and the special `entry` ability that serves as the walker's entry point when spawned.
 
-#### Visit Statement
+**Walker Declaration and Entry Point**
 
-The visit statement directs a walker to traverse to specified locations within the topological structure:
+Lines 3-9 define a walker named `Visitor` with a single ability called `self_destruct`. The `with entry` clause on line 4 marks this ability as the entry point, which means it will be executed automatically when the walker is spawned. Entry abilities serve as the initialization or main execution logic for a walker.
 
-```jac
-visit expression;
-visit :expression: expression;
-visit expression else { /* fallback code */ }
-```
+**Disengage Statement**
 
-Visit statements add destinations to the walker's traversal queue, enabling dynamic path construction during execution. The walker processes queued destinations sequentially, triggering entry and exit abilities at each location. When visiting edges, both the edge and its appropriate endpoint node are automatically queued to maintain proper traversal flow.
+Line 6 demonstrates the `disengage` statement, which is a control flow statement unique to walkers. When `disengage` is executed, it immediately terminates the walker's execution and destroys the walker instance. Any code after `disengage` in the same ability will not execute. This is why line 5 prints "get's here" but line 7 never executes and doesn't print "but not here".
 
-The optional edge filtering syntax allows walkers to traverse only specific edge types, enabling sophisticated graph navigation patterns. The else clause provides fallback behavior when traversal conditions are not met.
+**Walker Spawning**
 
-#### Ignore Statement
+Lines 11-13 show the module-level entry point using `with entry`. Line 12 demonstrates how to spawn a walker using the `spawn` operation: `root spawn Visitor()`. This spawns an instance of the `Visitor` walker on the `root` node (which is the implicit root of the spatial graph). When spawned, the walker's entry ability (`self_destruct`) is automatically invoked.
 
-The ignore statement excludes specific nodes or edges from traversal consideration:
+**Execution Flow**
 
-```jac
-ignore expression;
-```
-
-This statement prevents walkers from visiting specified locations, effectively creating traversal filters that help optimize pathfinding and implement selective graph exploration strategies. Ignored locations remain in the graph structure but become invisible to the current walker's traversal logic.
-
-#### Disengage Statement
-
-The disengage statement immediately terminates a walker's active traversal:
-
-```jac
-disengage;
-```
-
-When executed, disengage clears the walker's traversal queue and transitions it back to inactive object state. The walker preserves all accumulated data and state from its traversal, making this information available for subsequent processing. This statement enables early termination patterns and conditional traversal completion.
-
-#### Traversal Control Patterns
-
-These statements combine to enable sophisticated traversal algorithms:
-
-```jac
-walker PathFinder {
-    has target: str;
-    has visited: set[node] = set();
-    
-    can search with entry {
-        # Mark current location as visited
-        self.visited.add(here);
-        
-        # Check if target found
-        if (here.name == self.target) {
-            report here;
-            disengage;
-        }
-        
-        # Continue to unvisited neighbors
-        unvisited = [-->] |> filter(|n| n not in self.visited);
-        if (unvisited) {
-            visit unvisited;
-        } else {
-            # Backtrack if no unvisited neighbors
-            disengage;
-        }
-    }
-}
-```
-
-Walker statements embody the fundamental principle of mobile computation, enabling algorithmic behaviors to flow through data structures while maintaining clear separation between computational logic (walkers) and data storage (nodes and edges).
+1. The module entry point executes (line 11-13)
+2. A `Visitor` walker is spawned on the root node
+3. The walker's `self_destruct` entry ability is invoked
+4. "get's here" is printed
+5. `disengage` terminates the walker
+6. "but not here" is never reached
