@@ -392,7 +392,6 @@ set_val: LBRACE expr_list COMMA? RBRACE
 kv_pair: expression COLON expression | STAR_POW expression
 expr_list: (expr_list COMMA)? expression
 
-// [Heading]: Tuples and Jac Tuples.
 tuple_list: expression COMMA expr_list COMMA kw_expr_list COMMA?
           | expression COMMA kw_expr_list COMMA?
           | expression COMMA expr_list COMMA?
