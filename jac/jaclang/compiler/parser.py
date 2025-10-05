@@ -108,9 +108,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
         def feed_current_token(iparser: jl.InteractiveParser, tok: jl.Token) -> bool:
             """Feed the current token to the parser."""
+            max_attempts = 100  # Prevent infinite loops
+            attempts = 0
             while tok.type not in iparser.accepts():
+                if attempts >= max_attempts:
+                    return False  # Give up after too many attempts
                 if not try_feed_missing_token(iparser):
                     return False
+                attempts += 1
             iparser.feed_token(tok)
             return True
 
@@ -2524,7 +2529,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def assignment_list(self, _: None) -> list[uni.UniNode]:
             """Grammar rule.
 
-            assignment_list: (assignment_list COMMA)? (assignment | NAME)
+            assignment_list: (assignment | named_ref) (COMMA (assignment | named_ref))* COMMA?
             """
 
             def name_to_assign(name_consume: uni.NameAtom) -> uni.Assignment:
@@ -2532,15 +2537,23 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     target=[name_consume], value=None, type_tag=None, kid=[name_consume]
                 )
 
-            if self.match(list):
-                self.consume_token(Tok.COMMA)
+            # Match first (assignment | named_ref)
             if self.match(uni.Assignment):
                 pass
             elif name_consume := self.match(uni.NameAtom):
                 self.cur_nodes[self.node_idx - 1] = name_to_assign(name_consume)
             else:
-                assign = self.consume(uni.Assignment)
-                self.cur_nodes[self.node_idx - 1] = assign
+                raise self.ice()
+
+            # Match (COMMA (assignment | named_ref))* COMMA?
+            while self.match_token(Tok.COMMA):
+                if self.match(uni.Assignment):
+                    pass
+                elif name_consume := self.match(uni.NameAtom):
+                    self.cur_nodes[self.node_idx - 1] = name_to_assign(name_consume)
+                else:
+                    break  # trailing comma
+
             return self.flat_cur_nodes
 
         def type_ref(self, kid: list[uni.UniNode]) -> uni.TypeRef:
