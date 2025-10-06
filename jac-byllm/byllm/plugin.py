@@ -13,6 +13,12 @@ class JacMachine:
 
     @staticmethod
     @hookimpl
+    def get_mtir(caller: Callable, args: dict, call_params: dict) -> object:
+        """Call JacLLM and return the result."""
+        return MTIR.factory(caller, args, call_params)
+
+    @staticmethod
+    @hookimpl
     def call_llm(model: Model, mtir: MTIR) -> object:
         """Call JacLLM and return the result."""
         return model.invoke(mtir=mtir)

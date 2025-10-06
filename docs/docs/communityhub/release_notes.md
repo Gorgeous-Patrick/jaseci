@@ -6,6 +6,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 ## jaclang 0.8.9 / jac-cloud 0.2.9 / byllm 0.4.4 (Unreleased)
 
 - **Triple Quoted F-String Support**: Added support for triple quoted f-strings in the language, enabling multi-line formatted strings with embedded expressions (e.g., `f"""Hello {name}"""`).
+- **byLLM Plugin Interface Improved**: Enhanced the byLLM plugin interface with `get_mtir` function hook interface for better integration and extensibility.
 
 ## jaclang 0.8.8 / jac-cloud 0.2.8 / byllm 0.4.3
 

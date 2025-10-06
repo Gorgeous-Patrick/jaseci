@@ -172,15 +172,6 @@ class PyastGenPass(UniPass):
             ),
         )
 
-    def needs_mtllm(self) -> None:
-        """Ensure byLLM is imported only once."""
-        self._add_preamble_once(
-            self.needs_mtllm.__name__,
-            ast3.Import(
-                names=[self.sync(ast3.alias(name="byllm"), jac_node=self.ir_out)]
-            ),
-        )
-
     def needs_enum(self) -> None:
         """Ensure Enum utilities are imported only once."""
         self._add_preamble_once(
@@ -752,23 +743,9 @@ class PyastGenPass(UniPass):
         self, model: ast3.expr, caller: ast3.expr, args: ast3.Dict
     ) -> ast3.Call:
         """Reusable method to codegen call_llm(model, caller, args)."""
-        self.needs_mtllm()
-        mtir_cls_ast = self.sync(
-            ast3.Attribute(
-                value=self.sync(ast3.Name(id="byllm", ctx=ast3.Load())),
-                attr="MTIR",
-                ctx=ast3.Load(),
-            )
-        )
         mtir_ast = self.sync(
             ast3.Call(
-                func=self.sync(
-                    ast3.Attribute(
-                        value=mtir_cls_ast,
-                        attr="factory",
-                        ctx=ast3.Load(),
-                    )
-                ),
+                func=self.jaclib_obj("get_mtir"),
                 args=[],
                 keywords=[
                     self.sync(
