@@ -94,12 +94,19 @@ def auto_generate_refs() -> str:
         os.path.split(os.path.dirname(__file__))[0], "../jaclang/compiler/jac.lark"
     )
     result = extract_headings(file_path)
-    md_str = '# Jac Language Reference\n\n--8<-- "jac/examples/reference/introduction.md"\n\n'
+
+    # Create the reference subdirectory if it doesn't exist
+    docs_ref_dir = os.path.join(
+        os.path.split(os.path.dirname(__file__))[0], "../../docs/docs/learn/jac_ref"
+    )
+    os.makedirs(docs_ref_dir, exist_ok=True)
+
+    # Generate individual markdown files for each section
     for heading, lines in result.items():
         heading = heading.strip()
         heading_snakecase = heading_to_snake(heading)
         content = (
-            f'## {heading}\n**Code Example**\n!!! example "Runnable Example in Jac and JacLib"\n'
+            f'# {heading}\n\n**Code Example**\n!!! example "Runnable Example in Jac and JacLib"\n'
             '    === "Try it!"\n        <div class="code-block">\n'
             "        ```jac\n"
             f'        --8<-- "jac/examples/reference/{heading_snakecase}.jac"\n'
@@ -112,12 +119,21 @@ def auto_generate_refs() -> str:
             '        --8<-- "jac/examples/reference/'
             f'{heading_snakecase}.py"\n        ```\n'
             f'??? info "Jac Grammar Snippet"\n    ```yaml linenums="{lines[0]}"\n    --8<-- '
-            f'"jac/jaclang/compiler/jac.lark:{lines[0]}:{lines[1]}"\n    ```\n'
+            f'"jac/jaclang/compiler/jac.lark:{lines[0]}:{lines[1]}"\n    ```\n\n'
             "**Description**\n\n--8<-- "
             f'"jac/examples/reference/'
             f'{heading_snakecase}.md"\n'
         )
-        md_str += f"{content}\n"
+
+        # Write individual file
+        output_file = os.path.join(docs_ref_dir, f"{heading_snakecase}.md")
+        with open(output_file, "w") as f:
+            f.write(content)
+
+    # Return just the introduction for the main jac_ref.md file
+    md_str = (
+        '# Jac Language Reference\n\n--8<-- "jac/examples/reference/introduction.md"\n'
+    )
     return md_str
 
 
