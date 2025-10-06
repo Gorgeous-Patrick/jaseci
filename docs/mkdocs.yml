@@ -8,10 +8,9 @@ nav:
     # - Getting Started: "learn/getting_started.md"
     - Tour of Jac/Jaseci: "learn/tour.md"
     - Installation: "learn/installation.md"
-    - Jac as Your First Language: "learn/beginners_guide_to_jac.md"
+    - Jac as Your First Programming Language: "learn/beginners_guide_to_jac.md"
     - Native Superset of Python: "learn/superset_python.md"
     - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"
-    - Full Language Specification: "learn/jac_ref.md"
     - Run Jac In Browser: "learn/jac_playground.md"
     - Learn By Example:
       - LittleX (your own twitter): "learn/examples/littleX/tutorial.md"
@@ -82,7 +81,7 @@ nav:
         - "learn/data_spatial/filtering.md" # Filtering
         - "learn/data_spatial/sequence.md"
       - FAQ: "learn/data_spatial/FAQ.md" # faq
-
+  - Full Jac Specification: "learn/jac_ref.md"
 
   - Contributor Hub:
     - Contributing: "internals/contrib.md"

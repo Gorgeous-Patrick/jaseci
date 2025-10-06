@@ -213,11 +213,13 @@ Everything in `.jac` files—no Python files needed.
     ```jac
     """Validation and AI utilities."""
 
-    can validate_title(title: str) -> bool {
+    def validate_title(title: str) -> bool {
         return len(title) > 3;
     }
 
-    can generate_desc(title: str) -> str by llm(incl=input);
+    def generate_desc(title: str) -> str {
+        return f"Task description for: {title}";
+    }
     ```
 
 ---
@@ -233,7 +235,9 @@ Embed Python code directly in `.jac` files using `::py::` blocks—useful for mi
     """Application with inline Python validation."""
     import models;
 
-    can generate_desc(title: str) -> str by llm(incl=input);
+    def generate_desc(title: str) -> str {
+        return f"Task description for: {title}";
+    }
 
     ::py::
     # Legacy Python validation - kept as-is
@@ -294,7 +298,9 @@ Write your app in Jac, import Python utilities from separate `.py` files.
     import models;
     import validators;
 
-    can generate_desc(title: str) -> str by llm(incl=input);
+    def generate_desc(title: str) -> str {
+        return f"Task description for: {title}";
+    }
 
     walker TaskCreator {
         has title: str;
@@ -406,7 +412,9 @@ Python-first application that imports `.jac` modules for graph and AI features.
         }
     }
 
-    can generate_desc(title: str) -> str by llm(incl=input);
+    def generate_desc(title: str) -> str {
+        return f"Task description for: {title}";
+    }
     ```
 
 Python stays familiar, but you get Jac's graph and AI features where needed.
@@ -483,7 +491,7 @@ Jac's relationship with Python isn't about choosing one over the other—it's ab
 
 | Adoption Pattern | Learning Curve | Migration Effort | Feature Access | Risk Level |
 |------------------|---------------|------------------|----------------|------------|
-| Pattern 1: Pure Jac | High | High | 100% Jac features | Low |
+| Pattern 1: Pure Jac | Higher | Higher | 100% Jac features | Low |
 | Pattern 2: Jac + Inline Python | Medium | Low | 100% Jac features | Low |
 | Pattern 3: Mostly Jac | Medium-High | Medium | 100% Jac features | Low |
 | Pattern 4: Mostly Python | Low-Medium | Low | Select Jac features | Low |
