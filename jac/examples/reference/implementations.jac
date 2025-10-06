@@ -5,6 +5,14 @@ def compute(x: int, y: int) -> int;
 obj Vehicle;
 enum Priority;
 
+obj Calculator {
+    has total: float = 0.0;
+    def add(value: float);
+    def subtract(value: float);
+    def multiply(value: float);
+    def get_result -> float;
+}
+
 # Implement function
 impl compute(x: int, y: int) -> int {
     return x + y;
@@ -24,6 +32,23 @@ impl Priority {
     HIGH = 3
 }
 
+# Implement object methods
+impl Calculator.add(value: float) {
+    self.total += value;
+}
+
+impl Calculator.subtract(value: float) {
+    self.total -= value;
+}
+
+impl Calculator.multiply(value: float) {
+    self.total *= value;
+}
+
+impl Calculator.get_result -> float {
+    return self.total;
+}
+
 with entry {
     # Test implementations
     result = compute(5, 3);
@@ -31,5 +56,11 @@ with entry {
     v.accelerate();
     p = Priority.HIGH;
 
+    calc = Calculator();
+    calc.add(10.5);
+    calc.multiply(2.0);
+    calc.subtract(5.0);
+
     print(result, v.name, v.speed, p.value);
+    print("Calculator result:", calc.get_result());
 }

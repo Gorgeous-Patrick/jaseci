@@ -71,6 +71,60 @@ flowchart LR
     I3 --> Ready
 ```
 
+**Separating Implementations Across Files**
+
+One of the most powerful uses of implementation blocks is organizing code across multiple files. This pattern keeps interface declarations in one file while placing implementations in separate files, similar to header/source file separation in C/C++.
+
+=== "main.jac"
+    ```jac
+    obj Calculator {
+        has total: float = 0.0;
+        def add(value: float);
+        def subtract(value: float);
+        def multiply(value: float);
+        def get_result -> float;
+    }
+
+    with entry {
+        calc = Calculator();
+        calc.add(10.5);
+        calc.multiply(2.0);
+        calc.subtract(5.0);
+        print("Result:", calc.get_result());
+    }
+    ```
+
+=== "main.impl.jac"
+    ```jac
+    impl Calculator.add(value: float) {
+        self.total += value;
+    }
+
+    impl Calculator.subtract(value: float) {
+        self.total -= value;
+    }
+
+    impl Calculator.multiply(value: float) {
+        self.total *= value;
+    }
+
+    impl Calculator.get_result -> float {
+        return self.total;
+    }
+    ```
+
+**Running the program:**
+```bash
+jac run main.jac main.impl.jac
+```
+
+The Jac compiler automatically links declarations with their implementations across files. This pattern provides several benefits:
+
+- **Clear API boundaries**: The main file shows the public interface without implementation details
+- **Easier maintenance**: Related implementations can be grouped together
+- **Better collaboration**: Different developers can work on interfaces and implementations separately
+- **Reduced merge conflicts**: Interface changes and implementation changes are isolated
+
 **Common Patterns**
 
 **Separating interface from implementation:**
