@@ -173,6 +173,14 @@ Everything in `.jac` files—no Python files needed.
 
 **When to use:** New projects where you want full Jac features
 
+**Directory Structure:**
+```
+project/
+├── main.jac
+├── models.jac
+└── utils.jac
+```
+
 === "main.jac"
     ```jac
     """Main application."""
@@ -229,6 +237,13 @@ Everything in `.jac` files—no Python files needed.
 Embed Python code directly in `.jac` files using `::py::` blocks—useful for migration or when you need Python-specific libraries.
 
 **When to use:** Migrating Python code incrementally, keeping legacy utilities as-is
+
+**Directory Structure:**
+```
+project/
+├── main.jac
+└── models.jac
+```
 
 === "main.jac"
     ```jac
@@ -291,6 +306,14 @@ Keep tested Python code while adding Jac features—best for incremental migrati
 Write your app in Jac, import Python utilities from separate `.py` files.
 
 **When to use:** Jac-first development with existing Python utilities or shared modules
+
+**Directory Structure:**
+```
+project/
+├── main.jac
+├── models.jac
+└── validators.py
+```
 
 === "main.jac"
     ```jac
@@ -356,6 +379,14 @@ Jac seamlessly imports Python modules—no configuration needed.
 Python-first application that imports `.jac` modules for graph and AI features.
 
 **When to use:** Existing Python projects adding Jac's graph/AI capabilities
+
+**Directory Structure:**
+```
+project/
+├── main.py
+├── validators.py
+└── task_graph.jac
+```
 
 === "main.py"
     ```python
@@ -426,6 +457,13 @@ Python stays familiar, but you get Jac's graph and AI features where needed.
 Pure Python using Jac's runtime as a library—no `.jac` files.
 
 **When to use:** Conservative adoption, teams preferring Python syntax, existing projects
+
+**Directory Structure:**
+```
+project/
+├── main.py
+└── validators.py
+```
 
 === "main.py"
     ```python
