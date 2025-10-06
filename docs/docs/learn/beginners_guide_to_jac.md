@@ -1214,13 +1214,18 @@ Instead of:
 <div class="code-block">
 
 ```jac
-dog1_name = "Buddy";
-dog1_age = 3;
-dog1_breed = "Labrador";
+with entry {
+    dog1_name = "Buddy";
+    dog1_age = 3;
+    dog1_breed = "Labrador";
 
-dog2_name = "Max";
-dog2_age = 5;
-dog2_breed = "Poodle";
+    dog2_name = "Max";
+    dog2_age = 5;
+    dog2_breed = "Poodle";
+
+    print(f"Dog 1: {dog1_name}, {dog1_age}, {dog1_breed}");
+    print(f"Dog 2: {dog2_name}, {dog2_age}, {dog2_breed}");
+}
 ```
 
 </div>
@@ -1229,14 +1234,19 @@ Use:
 <div class="code-block">
 
 ```jac
-class Dog {
+obj Dog {
     has name: str;
     has age: int;
     has breed: str;
 }
 
-dog1 = Dog("Buddy", 3, "Labrador");
-dog2 = Dog("Max", 5, "Poodle");
+with entry {
+    dog1 = Dog(name="Buddy", age=3, breed="Labrador");
+    dog2 = Dog(name="Max", age=5, breed="Poodle");
+
+    print(f"Dog 1: {dog1.name}, {dog1.age}, {dog1.breed}");
+    print(f"Dog 2: {dog2.name}, {dog2.age}, {dog2.breed}");
+}
 ```
 
 </div>
@@ -1541,25 +1551,20 @@ In most languages, you'd do something like this:
 
 ```jac
 # Traditional OOP approach
-class Person {
+obj Person {
     has name: str;
-    has friends: list;  # List of other Person objects
+    has friends: list = [];  # List of other Person objects
 
-    can init(name: str) {
-        self.name = name;
-        self.friends = [];
-    }
-
-    def add_friend(person) {
+    def add_friend(person: object) {
         self.friends.append(person);
         person.friends.append(self);  # Make it mutual
     }
 }
 
 with entry {
-    alice = Person("Alice");
-    bob = Person("Bob");
-    charlie = Person("Charlie");
+    alice = Person(name="Alice");
+    bob = Person(name="Bob");
+    charlie = Person(name="Charlie");
 
     # Create friendships manually
     alice.add_friend(bob);
@@ -2122,15 +2127,38 @@ with entry {
 <div class="code-block">
 
 ```jac
-# Have to manually traverse
-def find_friends(person):
-    friends = []
-    for connection in person.connections:
-        if connection.type == "friend":
-            friends.append(connection.target)
-    return friends
+# Traditional OOP approach - Have to manually traverse
+obj Person {
+    has name: str;
+    has connections: list = [];
+}
 
-# Verbose, imperative, error-prone
+obj Connection {
+    has conn_type: str;
+    has target: object;
+}
+
+def find_friends(person: Person) -> list {
+    friends = [];
+    for connection in person.connections {
+        if connection.conn_type == "friend" {
+            friends.append(connection.target);
+        }
+    }
+    return friends;
+}
+
+with entry {
+    alice = Person(name="Alice");
+    bob = Person(name="Bob");
+
+    conn = Connection(conn_type="friend", target=bob);
+    alice.connections.append(conn);
+
+    friends = find_friends(alice);
+    print(f"Found {len(friends)} friend(s)");
+    # Verbose, imperative, error-prone
+}
 ```
 
 </div>
@@ -2139,14 +2167,37 @@ def find_friends(person):
 <div class="code-block">
 
 ```jac
+# Jac OSP approach - Concise, declarative, type-safe
+node Person {
+    has name: str;
+}
+
+edge Friend {
+}
+
 walker FindFriends {
+    can start with `root entry {
+        visit [-->];
+    }
+
     can find with Person entry {
         report here.name;
         visit [->:Friend:->];
     }
 }
 
-# Concise, declarative, type-safe
+with entry {
+    alice = Person(name="Alice");
+    bob = Person(name="Bob");
+    charlie = Person(name="Charlie");
+
+    root ++> alice;
+    alice +>:Friend:+> bob;
+    alice +>:Friend:+> charlie;
+
+    friends = root spawn FindFriends();
+    print(f"Found friends: {friends}");
+}
 ```
 
 </div>
@@ -2561,17 +2612,14 @@ Now that you have the foundation, here are advanced Jac features to explore:
 
 1. **Pattern Matching**
 
-   <div class="code-block">
+   Pattern matching allows you to check values against patterns and extract data. See the Jac documentation for the latest syntax.
 
-   ```jac
-   match value {
-       case [x, y]: { print(f"Two items: {x}, {y}"); }
-       case {"name": n, "age": a}: { print(f"{n} is {a}"); }
-       case _: { print("Something else"); }
-   }
+   ```python
+   # Pattern matching example (check current Jac docs for syntax)
+   match value:
+       case pattern1: # handle pattern1
+       case pattern2: # handle pattern2
    ```
-
-   </div>
 
 2. **Async/Await** (Concurrent programming)
 
@@ -2699,18 +2747,16 @@ Keep practicing, keep building, and welcome to the world of programming! 🚀
 #* Multi-line
    comment *#
 
-# Statements end with semicolons
-x = 5;
-print(x);
-
-# Blocks use curly braces
-if x > 0 {
-    print("positive");
-}
-
 # Entry point
 with entry {
-    # Your code here
+    # Statements end with semicolons
+    x = 5;
+    print(x);
+
+    # Blocks use curly braces
+    if x > 0 {
+        print("positive");
+    }
 }
 ```
 
@@ -2721,17 +2767,22 @@ with entry {
 <div class="code-block">
 
 ```jac
-# Primitives
-name: str = "Alice";
-age: int = 25;
-height: float = 5.6;
-is_student: bool = True;
+with entry {
+    # Primitives
+    name: str = "Alice";
+    age: int = 25;
+    height: float = 5.6;
+    is_student: bool = True;
 
-# Collections
-numbers: list = [1, 2, 3];
-coords: tuple = (10, 20);
-person: dict = {"name": "Alice", "age": 25};
-unique: set = {1, 2, 3};
+    # Collections
+    numbers: list = [1, 2, 3];
+    coords: tuple = (10, 20);
+    person: dict = {"name": "Alice", "age": 25};
+    unique: set = {1, 2, 3};
+
+    print(f"Name: {name}, Age: {age}");
+    print(f"Numbers: {numbers}");
+}
 ```
 
 </div>
@@ -2741,28 +2792,35 @@ unique: set = {1, 2, 3};
 <div class="code-block">
 
 ```jac
-# If statement
-if condition {
-    # ...
-} elif other_condition {
-    # ...
-} else {
-    # ...
-}
+with entry {
+    # If statement
+    condition = True;
+    other_condition = False;
+    if condition {
+        print("Condition is true");
+    } elif other_condition {
+        print("Other condition is true");
+    } else {
+        print("Neither condition is true");
+    }
 
-# While loop
-while condition {
-    # ...
-}
+    # While loop
+    count = 0;
+    while count < 3 {
+        print(f"Count: {count}");
+        count += 1;
+    }
 
-# For loop (counting)
-for i = 0 to i < 10 by i += 1 {
-    # ...
-}
+    # For loop (counting)
+    for i = 0 to i < 5 by i += 1 {
+        print(f"i: {i}");
+    }
 
-# For loop (iteration)
-for item in collection {
-    # ...
+    # For loop (iteration)
+    collection = ["a", "b", "c"];
+    for item in collection {
+        print(f"Item: {item}");
+    }
 }
 ```
 
@@ -2784,8 +2842,16 @@ def add(x: int, y: int) -> int {
 }
 
 # With default parameters
-def greet(name: str = "friend") {
+def greet_default(name: str = "friend") {
     print(f"Hello, {name}!");
+}
+
+with entry {
+    greet("Alice");
+    result = add(5, 3);
+    print(f"5 + 3 = {result}");
+    greet_default();
+    greet_default("Bob");
 }
 ```
 
@@ -2796,16 +2862,17 @@ def greet(name: str = "friend") {
 <div class="code-block">
 
 ```jac
-class MyClass {
+obj MyClass {
     has property: str;
-
-    can init(value: str) {
-        self.property = value;
-    }
 
     def method {
         print(self.property);
     }
+}
+
+with entry {
+    my_obj = MyClass(property="Hello, World!");
+    my_obj.method();
 }
 ```
 
@@ -2828,21 +2895,33 @@ edge Friend {
 
 # Walker
 walker Greeter {
+    can start with `root entry {
+        visit [-->];
+    }
+
     can greet with Person entry {
         print(f"Hello, {here.name}!");
         visit [-->];
     }
 }
 
-# Connect nodes
-alice ++> bob;                        # Untyped
-alice +>:Friend(since=2020):+> bob;  # Typed
+with entry {
+    # Create nodes
+    alice = Person(name="Alice");
+    bob = Person(name="Bob");
 
-# Query connections
-friends = [alice ->:Friend:->];
+    # Connect nodes
+    root ++> alice;
+    alice ++> bob;                        # Untyped
+    alice +>:Friend(since=2020):+> bob;  # Typed
 
-# Spawn walker
-root spawn Greeter();
+    # Query connections
+    friends = [alice ->:Friend:->];
+    print(f"Alice has {len(friends)} friend(s)");
+
+    # Spawn walker
+    root spawn Greeter();
+}
 ```
 
 </div>
@@ -2852,23 +2931,33 @@ root spawn Greeter();
 <div class="code-block">
 
 ```jac
-# List comprehension
-squares = [x ** 2 for x in range(10)];
+with entry {
+    # List comprehension
+    squares = [x ** 2 for x in range(10)];
+    print(f"Squares: {squares}");
 
-# Dictionary comprehension
-square_dict = {x: x**2 for x in range(5)};
+    # Dictionary comprehension
+    square_dict = {x: x**2 for x in range(5)};
+    print(f"Square dict: {square_dict}");
 
-# String formatting
-message = f"Hello, {name}! You are {age} years old.";
+    # String formatting
+    name = "Alice";
+    age = 25;
+    message = f"Hello, {name}! You are {age} years old.";
+    print(message);
 
-# Ternary operator
-result = "adult" if age >= 18 else "minor";
+    # Ternary operator
+    result = "adult" if age >= 18 else "minor";
+    print(f"Status: {result}");
 
-# Multiple assignment
-x, y = 10, 20;
+    # Multiple assignment using tuples
+    (x, y) = (10, 20);
+    print(f"x={x}, y={y}");
 
-# Swap values
-x, y = y, x;
+    # Swap values
+    (x, y) = (y, x);
+    print(f"After swap: x={x}, y={y}");
+}
 ```
 
 </div>
