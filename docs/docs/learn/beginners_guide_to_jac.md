@@ -44,11 +44,15 @@ Both get you fed, but they work differently! By the end of this guide, you'll un
 
 Every Jac program needs a place to start. We use a special block called `with entry`:
 
+<div class="code-block">
+
 ```jac
 with entry {
     print("Hello, World!");
 }
 ```
+
+</div>
 
 **What's happening here?**
 - `with entry` - This is where your program starts
@@ -59,11 +63,15 @@ with entry {
 
 **Try it yourself:** Change "Hello, World!" to your name!
 
+<div class="code-block">
+
 ```jac
 with entry {
     print("Hello, my name is Alice!");
 }
 ```
+
+</div>
 
 ---
 
@@ -72,6 +80,8 @@ with entry {
 ### 3.1 What is a Variable?
 
 A variable is like a labeled box where you store information. You give it a name, and you can put different things in it.
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -85,6 +95,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Lines starting with `#` are comments** - they're notes for humans, the computer ignores them.
 
 ### 3.2 Types of Data
@@ -92,6 +104,8 @@ with entry {
 Just like in real life, data comes in different types:
 
 #### Text (Strings)
+<div class="code-block">
+
 ```jac
 with entry {
     greeting = "Hello";
@@ -102,9 +116,13 @@ with entry {
 }
 ```
 
+</div>
+
 Strings go inside quotes: `"like this"` or `'like this'`
 
 #### Numbers (Integers)
+<div class="code-block">
+
 ```jac
 with entry {
     apples = 5;
@@ -115,9 +133,13 @@ with entry {
 }
 ```
 
+</div>
+
 Whole numbers with no decimal point.
 
 #### Numbers (Floats)
+<div class="code-block">
+
 ```jac
 with entry {
     temperature = 72.5;
@@ -128,9 +150,13 @@ with entry {
 }
 ```
 
+</div>
+
 Numbers with decimal points.
 
 #### True or False (Booleans)
+<div class="code-block">
+
 ```jac
 with entry {
     is_raining = True;
@@ -140,11 +166,15 @@ with entry {
 }
 ```
 
+</div>
+
 Only two values: `True` or `False` (notice the capital letters!)
 
 ### 3.3 Type Annotations (Recommended!)
 
 You can tell Jac what type of data a variable should hold:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -157,11 +187,15 @@ with entry {
 }
 ```
 
+</div>
+
 **Pro tip:** The `f` before a string lets you insert variables using `{variable_name}`
 
 ### 3.4 Doing Math
 
 You can calculate with numbers:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -185,9 +219,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 3.5 Changing Variables
 
 Variables can change their value:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -206,6 +244,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Common shortcuts:**
 - `x += 5` means `x = x + 5` (add 5)
 - `x -= 3` means `x = x - 3` (subtract 3)
@@ -215,6 +255,8 @@ with entry {
 ### 3.6 Practice Exercise
 
 **Challenge:** Create a program that calculates the area of a rectangle.
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -228,6 +270,8 @@ with entry {
 }
 ```
 
+</div>
+
 ---
 
 ## 4. Making Decisions: Control Flow
@@ -235,6 +279,8 @@ with entry {
 Programs need to make decisions based on conditions. This is where `if`, `elif`, and `else` come in.
 
 ### 4.1 The If Statement
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -245,6 +291,8 @@ with entry {
     }
 }
 ```
+
+</div>
 
 **How it works:**
 - `if age >= 18` - Check if age is greater than or equal to 18
@@ -270,6 +318,8 @@ These let you compare values:
 
 What if you want to do something when the condition is `False`?
 
+<div class="code-block">
+
 ```jac
 with entry {
     temperature = 72;
@@ -282,9 +332,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 4.4 If-Elif-Else
 
 What about multiple conditions?
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -304,6 +358,8 @@ with entry {
 }
 ```
 
+</div>
+
 **How it works:**
 1. Check first `if` - if `True`, run its code and skip the rest
 2. If first is `False`, check first `elif`
@@ -313,6 +369,8 @@ with entry {
 ### 4.5 Combining Conditions
 
 You can combine multiple conditions:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -336,9 +394,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 4.6 Nested Ifs
 
 You can put `if` statements inside other `if` statements:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -357,9 +419,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 4.7 Practice Exercise
 
 **Challenge:** Write a program that checks if someone is a child (0-12), teenager (13-19), adult (20-64), or senior (65+).
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -378,6 +444,8 @@ with entry {
 }
 ```
 
+</div>
+
 ---
 
 ## 5. Repeating Actions: Loops
@@ -387,6 +455,8 @@ Loops let you repeat code multiple times without writing it over and over.
 ### 5.1 The While Loop
 
 Repeat code while a condition is `True`:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -400,6 +470,8 @@ with entry {
     print("Done!");
 }
 ```
+
+</div>
 
 **Output:**
 ```
@@ -417,6 +489,8 @@ Done!
 
 When you know exactly how many times to repeat:
 
+<div class="code-block">
+
 ```jac
 with entry {
     # Count from 0 to 4
@@ -425,6 +499,8 @@ with entry {
     }
 }
 ```
+
+</div>
 
 **Breaking it down:**
 - `i = 0` - Start at 0
@@ -444,6 +520,8 @@ Number: 4
 
 Loop through items in a collection:
 
+<div class="code-block">
+
 ```jac
 with entry {
     # We'll learn about lists soon!
@@ -455,6 +533,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Output:**
 ```
 I like apple
@@ -465,6 +545,8 @@ I like cherry
 ### 5.4 Breaking Out of Loops
 
 Sometimes you want to stop a loop early:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -478,6 +560,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Output:**
 ```
 Found it: 7
@@ -486,6 +570,8 @@ Found it: 7
 ### 5.5 Skipping Iterations
 
 Skip to the next iteration without running the rest of the loop body:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -498,6 +584,8 @@ with entry {
     }
 }
 ```
+
+</div>
 
 **Output:**
 ```
@@ -512,6 +600,8 @@ with entry {
 
 **Challenge 1:** Write a loop that prints all multiples of 3 from 3 to 30.
 
+<div class="code-block">
+
 ```jac
 with entry {
     for i = 3 to i <= 30 by i += 3 {
@@ -520,7 +610,11 @@ with entry {
 }
 ```
 
+</div>
+
 **Challenge 2:** Write a countdown from 10 to 1, then print "Blast off!"
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -533,6 +627,8 @@ with entry {
 }
 ```
 
+</div>
+
 ---
 
 ## 6. Organizing Code: Functions
@@ -540,6 +636,8 @@ with entry {
 Functions are reusable blocks of code that do specific tasks. Think of them as mini-programs within your program.
 
 ### 6.1 Creating Your First Function
+
+<div class="code-block">
 
 ```jac
 # Define the function
@@ -555,6 +653,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Output:**
 ```
 Hello, there!
@@ -565,6 +665,8 @@ Hello, there!
 ### 6.2 Functions with Parameters
 
 Make functions more flexible by giving them inputs:
+
+<div class="code-block">
 
 ```jac
 def greet(name: str) {
@@ -577,6 +679,8 @@ with entry {
     greet("Charlie");
 }
 ```
+
+</div>
 
 **Output:**
 ```
@@ -594,6 +698,8 @@ Hello, Charlie!
 
 Functions can take multiple inputs:
 
+<div class="code-block">
+
 ```jac
 def add(x: int, y: int) {
     sum = x + y;
@@ -606,6 +712,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Output:**
 ```
 5 + 3 = 8
@@ -615,6 +723,8 @@ with entry {
 ### 6.4 Returning Values
 
 Instead of just printing, functions can send values back:
+
+<div class="code-block">
 
 ```jac
 def add(x: int, y: int) -> int {
@@ -631,6 +741,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Breaking it down:**
 - `-> int` - This function returns an integer
 - `return x + y;` - Send this value back to whoever called the function
@@ -639,6 +751,8 @@ with entry {
 ### 6.5 Default Parameters
 
 Give parameters default values:
+
+<div class="code-block">
 
 ```jac
 def greet(name: str = "friend", excited: bool = False) {
@@ -657,6 +771,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Output:**
 ```
 Hello, friend.
@@ -670,6 +786,8 @@ HELLO, Eve!!!
 **1. Avoid Repetition**
 
 Bad:
+<div class="code-block">
+
 ```jac
 with entry {
     print("Welcome!");
@@ -683,7 +801,11 @@ with entry {
 }
 ```
 
+</div>
+
 Good:
+<div class="code-block">
+
 ```jac
 def show_welcome {
     print("Welcome!");
@@ -698,7 +820,11 @@ with entry {
 }
 ```
 
+</div>
+
 **2. Break Down Complex Problems**
+
+<div class="code-block">
 
 ```jac
 def calculate_area(width: float, height: float) -> float {
@@ -723,9 +849,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 6.7 Practice Exercises
 
 **Challenge 1:** Write a function that checks if a number is even.
+
+<div class="code-block">
 
 ```jac
 def is_even(num: int) -> bool {
@@ -738,7 +868,11 @@ with entry {
 }
 ```
 
+</div>
+
 **Challenge 2:** Write a function that finds the maximum of two numbers.
+
+<div class="code-block">
 
 ```jac
 def max(a: int, b: int) -> int {
@@ -755,6 +889,8 @@ with entry {
 }
 ```
 
+</div>
+
 ---
 
 ## 7. Collections: Working with Multiple Values
@@ -765,6 +901,8 @@ So far, we've stored single values in variables. But what if you want to store m
 
 Lists hold multiple values in order:
 
+<div class="code-block">
+
 ```jac
 with entry {
     # Create a list
@@ -774,9 +912,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.2 Accessing List Items
 
 Each item has an index (position), starting at 0:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -792,6 +934,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Visual:**
 ```
 Index:     0        1         2        3
@@ -802,6 +946,8 @@ fruits = │apple │ banana  │ cherry │ date │
 ```
 
 ### 7.3 Modifying Lists
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -829,7 +975,11 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.4 List Operations
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -853,7 +1003,11 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.5 Looping Through Lists
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -871,9 +1025,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.6 List Slicing
 
 Get a portion of a list:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -893,9 +1051,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.7 Dictionaries - Key-Value Pairs
 
 Dictionaries store data as key-value pairs:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -918,7 +1080,11 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.8 Looping Through Dictionaries
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -935,9 +1101,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.9 Tuples - Immutable Lists
 
 Tuples are like lists, but they can't be changed after creation:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -957,9 +1127,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.10 List Comprehensions - Powerful Shortcuts
 
 Create lists in one line:
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -980,11 +1154,15 @@ with entry {
 }
 ```
 
+</div>
+
 ### 7.11 Practice Exercises
 
 **Challenge 1:** Create a list of your 5 favorite foods and print each one.
 
 **Challenge 2:** Create a dictionary of 3 people with their ages, then print the oldest person.
+
+<div class="code-block">
 
 ```jac
 with entry {
@@ -1004,6 +1182,8 @@ with entry {
 }
 ```
 
+</div>
+
 ---
 
 ## 8. Grouping Things: Classes and Objects
@@ -1019,6 +1199,8 @@ Think of a class as a blueprint for creating objects.
 - **Object**: An actual car (a specific instance)
 
 ### 8.2 Creating Your First Class
+
+<div class="code-block">
 
 ```jac
 # Define the class (blueprint)
@@ -1049,6 +1231,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Breaking it down:**
 - `class Dog` - Define a new type called Dog
 - `has name: str` - Every Dog has a name (property/attribute)
@@ -1059,6 +1243,8 @@ with entry {
 ### 8.3 Constructors - Setting Initial Values
 
 Use `can init` to set up new objects:
+
+<div class="code-block">
 
 ```jac
 class Dog {
@@ -1088,11 +1274,15 @@ with entry {
 }
 ```
 
+</div>
+
 ### 8.4 Why Use Classes?
 
 **1. Group Related Data**
 
 Instead of:
+<div class="code-block">
+
 ```jac
 dog1_name = "Buddy";
 dog1_age = 3;
@@ -1103,7 +1293,11 @@ dog2_age = 5;
 dog2_breed = "Poodle";
 ```
 
+</div>
+
 Use:
+<div class="code-block">
+
 ```jac
 class Dog {
     has name: str;
@@ -1115,7 +1309,11 @@ dog1 = Dog("Buddy", 3, "Labrador");
 dog2 = Dog("Max", 5, "Poodle");
 ```
 
+</div>
+
 **2. Bundle Data with Behavior**
+
+<div class="code-block">
 
 ```jac
 class BankAccount {
@@ -1144,9 +1342,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 8.5 Inheritance - Building on Existing Classes
 
 Create specialized versions of classes:
+
+<div class="code-block">
 
 ```jac
 # Base class
@@ -1203,6 +1405,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Inheritance lets you:**
 - Reuse code from parent classes
 - Create specialized versions
@@ -1210,6 +1414,8 @@ with entry {
 - Add new methods to specialized classes
 
 ### 8.6 Real Example: A Simple Game Character
+
+<div class="code-block">
 
 ```jac
 class Character {
@@ -1266,9 +1472,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 8.7 Practice Exercises
 
 **Challenge 1:** Create a `Rectangle` class with width and height, and methods to calculate area and perimeter.
+
+<div class="code-block">
 
 ```jac
 class Rectangle {
@@ -1296,7 +1506,11 @@ with entry {
 }
 ```
 
+</div>
+
 **Challenge 2:** Create a `Student` class with name and a list of grades, plus a method to calculate average grade.
+
+<div class="code-block">
 
 ```jac
 class Student {
@@ -1329,6 +1543,8 @@ with entry {
     print(f"{student.name}'s average: {student.average()}");
 }
 ```
+
+</div>
 
 ---
 
@@ -1410,6 +1626,8 @@ Many real-world problems are naturally graphs:
 
 In most languages, you'd do something like this:
 
+<div class="code-block">
+
 ```jac
 # Traditional OOP approach
 class Person {
@@ -1444,6 +1662,8 @@ with entry {
     }
 }
 ```
+
+</div>
 
 **Problems with this approach:**
 1. **Verbose**: Lots of boilerplate code
@@ -1491,6 +1711,8 @@ Jac introduces three special types:
 
 Nodes are like classes, but they can be connected in a graph:
 
+<div class="code-block">
+
 ```jac
 node Person {
     has name: str;
@@ -1507,11 +1729,15 @@ with entry {
 }
 ```
 
+</div>
+
 **So far, this looks like a class!** The magic happens when we connect them...
 
 ### 10.4 Connecting Nodes - The `++>` Operator
 
 This is where OSP starts to shine:
+
+<div class="code-block">
 
 ```jac
 node Person {
@@ -1532,6 +1758,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Visual representation:**
 ```
     Alice
@@ -1548,6 +1776,8 @@ with entry {
 | `<++` | Backward | `alice <++ bob;` (bob → alice) |
 | `<++>` | Both ways | `alice <++> bob;` (alice ↔ bob) |
 
+<div class="code-block">
+
 ```jac
 with entry {
     alice = Person(name="Alice");
@@ -1558,6 +1788,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Visual:**
 ```
 Alice <----> Bob
@@ -1566,6 +1798,8 @@ Alice <----> Bob
 ### 10.6 Typed Edges - Relationships with Meaning
 
 Not all connections are the same! Edges can have their own type:
+
+<div class="code-block">
 
 ```jac
 node Person {
@@ -1591,6 +1825,8 @@ with entry {
 }
 ```
 
+</div>
+
 **This is revolutionary!** In traditional OOP, relationships are just data in lists. In Jac, relationships are **first-class objects** with their own properties and behavior!
 
 ### 10.7 Walkers - Mobile Computation
@@ -1598,6 +1834,8 @@ with entry {
 Now for the most exciting part: **walkers**!
 
 Walkers are objects that **move through the graph**, visiting nodes and performing actions.
+
+<div class="code-block">
 
 ```jac
 node Person {
@@ -1629,6 +1867,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Output:**
 ```
 Walker starting journey!
@@ -1651,6 +1891,8 @@ Hello, Charlie!
 
 **Abilities are automatic methods** that trigger when certain events happen:
 
+<div class="code-block">
+
 ```jac
 walker MyWalker {
     # Runs when walker spawns at root
@@ -1671,6 +1913,8 @@ walker MyWalker {
 }
 ```
 
+</div>
+
 **Special references in walker abilities:**
 - `here` - The current node being visited
 - `self` - The walker itself
@@ -1679,6 +1923,8 @@ walker MyWalker {
 ### 10.9 The Visit Statement
 
 `visit` tells the walker where to go next:
+
+<div class="code-block">
 
 ```jac
 walker Explorer {
@@ -1693,9 +1939,13 @@ walker Explorer {
 }
 ```
 
+</div>
+
 ### 10.10 Edge References - Querying the Graph
 
 Square brackets `[]` let you query connections:
+
+<div class="code-block">
 
 ```jac
 node Person {
@@ -1729,11 +1979,15 @@ with entry {
 }
 ```
 
+</div>
+
 **Important:** Edge references (with `[]`) **query** the graph. Connection operators (with `++>`) **build** the graph.
 
 ### 10.11 Bidirectional Polymorphism
 
 This is where OSP gets really powerful. **Both nodes and walkers can have abilities for each other!**
+
+<div class="code-block">
 
 ```jac
 node Person {
@@ -1761,6 +2015,8 @@ with entry {
 }
 ```
 
+</div>
+
 **Output:**
 ```
 Visitor says: Hello, Alice!
@@ -1772,6 +2028,8 @@ Alice says: Welcome, visitor!
 ### 10.12 Report Statement - Streaming Results
 
 Unlike `return` (which stops execution), `report` sends values back while the walker continues:
+
+<div class="code-block">
 
 ```jac
 node Person {
@@ -1798,9 +2056,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 10.13 Disengage - Early Exit
 
 Stop the walker immediately:
+
+<div class="code-block">
 
 ```jac
 node Person {
@@ -1835,9 +2097,13 @@ with entry {
 }
 ```
 
+</div>
+
 ### 10.14 Complete OSP Example: Social Network
 
 Let's build a real social network!
+
+<div class="code-block">
 
 ```jac
 # Define our graph structure
@@ -1854,11 +2120,7 @@ edge Friendship {
 
 # Walker to recommend friends
 walker FriendRecommender {
-    has recommendations: list;
-
-    can init {
-        self.recommendations = [];
-    }
+    has recommendations: list = [];
 
     # Start from a user
     can start with User entry {
@@ -1881,12 +2143,7 @@ walker FriendRecommender {
 # Walker to find users by interest
 walker InterestMatcher {
     has target_interest: str;
-    has matches: list;
-
-    can init(interest: str) {
-        self.target_interest = interest;
-        self.matches = [];
-    }
+    has matches: list = [];
 
     can find with User entry {
         if self.target_interest in here.interests {
@@ -1938,15 +2195,19 @@ with entry {
     print(f"Recommendations: {recommender.recommendations}");
 
     # Find users interested in hiking
-    matcher = InterestMatcher("hiking");
+    matcher = InterestMatcher(target_interest="hiking");
     root spawn matcher;
     print(f"Users interested in hiking: {matcher.matches}");
 }
 ```
 
+</div>
+
 ### 10.15 Why OSP is Revolutionary
 
 **Traditional OOP:**
+<div class="code-block">
+
 ```jac
 # Have to manually traverse
 def find_friends(person):
@@ -1959,7 +2220,11 @@ def find_friends(person):
 # Verbose, imperative, error-prone
 ```
 
+</div>
+
 **Jac OSP:**
+<div class="code-block">
+
 ```jac
 walker FindFriends {
     can find with Person entry {
@@ -1970,6 +2235,8 @@ walker FindFriends {
 
 # Concise, declarative, type-safe
 ```
+
+</div>
 
 **OSP advantages:**
 1. **Natural graph representation**: Nodes and edges are first-class
@@ -2001,6 +2268,8 @@ walker FindFriends {
 
 ### 11.1 Example 1: Family Tree
 
+<div class="code-block">
+
 ```jac
 node Person {
     has name: str;
@@ -2013,18 +2282,14 @@ edge Parent {
 
 walker FindAncestors {
     has generations: int = 0;
-    has max_generations: int;
-
-    can init(max_gen: int = 3) {
-        self.max_generations = max_gen;
-    }
+    has max_generations: int = 3;
 
     can explore with Person entry {
         print(f"{'  ' * self.generations}{here.name} (born {here.birth_year})");
 
         if self.generations < self.max_generations {
             # Visit parents
-            parents = [here <-:Parent:-];
+            parents = [here <-:Parent:<-];
             if parents {
                 self.generations += 1;
                 visit parents;
@@ -2051,11 +2316,15 @@ with entry {
     # Find ancestors
     root ++> alice;
     print("Family tree:");
-    root spawn FindAncestors(max_gen=3);
+    root spawn FindAncestors(max_generations=3);
 }
 ```
 
+</div>
+
 ### 11.2 Example 2: Course Prerequisites
+
+<div class="code-block">
 
 ```jac
 node Course {
@@ -2072,10 +2341,6 @@ walker CanTake {
     has completed: list;
     has can_take: bool = True;
 
-    can init(completed_courses: list) {
-        self.completed = completed_courses;
-    }
-
     can check with Course entry {
         # Check prerequisites
         prereqs = [here <-:Prerequisite:-];
@@ -2091,14 +2356,8 @@ walker CanTake {
 
 walker FindPath {
     has target_code: str;
-    has path: list;
-    has visited: set;
-
-    can init(target: str) {
-        self.target_code = target;
-        self.path = [];
-        self.visited = set();
-    }
+    has path: list = [];
+    has visited: set = set();
 
     can explore with Course entry {
         if here.code in self.visited {
@@ -2132,7 +2391,7 @@ with entry {
 
     # Check if student can take CS301
     root ++> cs301;
-    checker = CanTake(["CS101", "CS201", "MATH151"]);
+    checker = CanTake(completed=["CS101", "CS201", "MATH151"]);
     cs301 spawn checker;
 
     if checker.can_take {
@@ -2143,7 +2402,11 @@ with entry {
 }
 ```
 
+</div>
+
 ### 11.3 Example 3: Simple Recommendation System
+
+<div class="code-block">
 
 ```jac
 node Product {
@@ -2163,12 +2426,7 @@ edge Purchased {
 
 walker RecommendProducts {
     has min_rating: int = 4;
-    has recommendations: list;
-
-    can init(min_rating: int = 4) {
-        self.min_rating = min_rating;
-        self.recommendations = [];
-    }
+    has recommendations: list = [];
 
     can start with Customer entry {
         print(f"Finding recommendations for {here.name}...");
@@ -2220,7 +2478,11 @@ with entry {
 }
 ```
 
+</div>
+
 ### 11.4 Example 4: Simple Task Manager with Dependencies
+
+<div class="code-block">
 
 ```jac
 node Task {
@@ -2234,11 +2496,7 @@ edge DependsOn {
 }
 
 walker CheckReady {
-    has ready_tasks: list;
-
-    can init {
-        self.ready_tasks = [];
-    }
+    has ready_tasks: list = [];
 
     can check with Task entry {
         if here.status != "pending" {
@@ -2264,10 +2522,6 @@ walker CheckReady {
 
 walker MarkComplete {
     has task_title: str;
-
-    can init(title: str) {
-        self.task_title = title;
-    }
 
     can mark with Task entry {
         if here.title == self.task_title {
@@ -2307,7 +2561,7 @@ with entry {
     print(f"Ready to work on: {checker.ready_tasks}");
 
     # Complete a task
-    root spawn MarkComplete("Design database schema");
+    root spawn MarkComplete(task_title="Design database schema");
 
     # Check again
     checker2 = CheckReady();
@@ -2315,6 +2569,8 @@ with entry {
     print(f"Now ready: {checker2.ready_tasks}");
 }
 ```
+
+</div>
 
 ---
 
@@ -2365,7 +2621,9 @@ Congratulations! You've learned programming from the ground up using Jac. Here's
 Now that you have the foundation, here are advanced Jac features to explore:
 
 1. **Pattern Matching**
-   ```jac
+   <div class="code-block">
+
+```jac
    match value {
        case [x, y]: { print(f"Two items: {x}, {y}"); }
        case {"name": n, "age": a}: { print(f"{n} is {a}"); }
@@ -2373,42 +2631,64 @@ Now that you have the foundation, here are advanced Jac features to explore:
    }
    ```
 
+</div>
+
 2. **Async/Await** (Concurrent programming)
-   ```jac
+   <div class="code-block">
+
+```jac
    async def fetch_data(url: str) -> str {
        # Asynchronous operation
    }
    ```
 
+</div>
+
 3. **Decorators** (Modify function behavior)
-   ```jac
+   <div class="code-block">
+
+```jac
    @timing
    def expensive_operation {
        # ...
    }
    ```
 
+</div>
+
 4. **Context Managers** (Resource management)
-   ```jac
+   <div class="code-block">
+
+```jac
    with open("file.txt") as file {
        content = file.read();
    }
    ```
 
+</div>
+
 5. **Advanced Edge Filtering**
-   ```jac
+   <div class="code-block">
+
+```jac
    # Multi-hop with complex filters
    results = [here ->:Friend:since > 2020:-> ->:Coworker:->];
    ```
 
+</div>
+
 6. **Semantic Strings** (AI-powered functions)
-   ```jac
+   <div class="code-block">
+
+```jac
    import from byllm { Model }
 
    glob llm = Model(model="gpt-4");
 
    def generate_summary(text: str) -> str by llm();
    ```
+
+</div>
 
 ### Practice Project Ideas
 
@@ -2466,6 +2746,8 @@ Keep practicing, keep building, and welcome to the world of programming! 🚀
 
 ### Basic Syntax
 
+<div class="code-block">
+
 ```jac
 # Comments
 # Single line comment
@@ -2487,7 +2769,11 @@ with entry {
 }
 ```
 
+</div>
+
 ### Data Types
+
+<div class="code-block">
 
 ```jac
 # Primitives
@@ -2503,7 +2789,11 @@ person: dict = {"name": "Alice", "age": 25};
 unique: set = {1, 2, 3};
 ```
 
+</div>
+
 ### Control Flow
+
+<div class="code-block">
 
 ```jac
 # If statement
@@ -2531,7 +2821,11 @@ for item in collection {
 }
 ```
 
+</div>
+
 ### Functions
+
+<div class="code-block">
 
 ```jac
 # Basic function
@@ -2550,7 +2844,11 @@ def greet(name: str = "friend") {
 }
 ```
 
+</div>
+
 ### Classes
+
+<div class="code-block">
 
 ```jac
 class MyClass {
@@ -2566,7 +2864,11 @@ class MyClass {
 }
 ```
 
+</div>
+
 ### Object-Spatial Programming
+
+<div class="code-block">
 
 ```jac
 # Node
@@ -2598,7 +2900,11 @@ friends = [alice ->:Friend:->];
 root spawn Greeter();
 ```
 
+</div>
+
 ### Common Patterns
+
+<div class="code-block">
 
 ```jac
 # List comprehension
@@ -2619,6 +2925,8 @@ x, y = 10, 20;
 # Swap values
 x, y = y, x;
 ```
+
+</div>
 
 ---
 
