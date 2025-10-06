@@ -2,50 +2,74 @@ from __future__ import annotations
 from jaclang.runtimelib.builtin import *
 from jaclang import JacMachineInterface as _jl
 
+class Counter(_jl.Obj):
+    count: int = 0
+
+    def increment(self) -> None:
+        self.count += 1
+        print(self.count)
+
 class Animal(_jl.Obj):
-    species: str
-    sound: str
-
-    def __init__(self, species: str, sound: str) -> None:
-        self.species = species
-        self.sound = sound
-
-class Dog(Animal, _jl.Obj):
-    breed: str
-    trick: str = _jl.field(init=False)
-
-    def __post_init__(self) -> None:
-        self.trick = 'Roll over'
-        print('Postinit called')
 
     def speak(self) -> None:
-        print(f'{self.species} says {self.sound}')
+        print('animal sound')
 
-    def __init__(self, breed: str) -> None:
-        super().__init__(species='Dog', sound='Woof!')
-        self.breed = breed
+class Dog(Animal, _jl.Obj):
 
-class Cat(Animal, _jl.Obj):
+    def speak(self) -> None:
+        super().speak()
+        print('woof')
 
-    def __init__(self, fur_color: str) -> None:
-        super().__init__(species='Cat', sound='Meow!')
-        self.fur_color = fur_color
-
-class Explorer(_jl.Walker):
-
-    @_jl.entry
-    def explore(self, here: _jl.Root) -> None:
-        print(f'Current node (here): {here}')
-        print(f'Current walker (visitor): {visitor}')
-        print(f'Root node: {_jl.root()}')
-        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
-
-class Location(_jl.Node):
+class Task(_jl.Node):
     name: str
 
+class TaskWalker(_jl.Walker):
+
     @_jl.entry
-    def greet(self, visitor: Explorer) -> None:
-        print(f'At location: {here.name}')
-dog = Dog(breed='Labrador')
-cat = Cat(fur_color='Tabby')
-dog.speak()
+    def process(self, here: Task) -> None:
+        print(f'at {here.name}')
+        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
+
+class Interactive(_jl.Node):
+    visitor_name: str = 'none'
+
+    @_jl.entry
+    def track(self, visitor: TaskWalker) -> None:
+        self.visitor_name = visitor.__class__.__name__
+        print(f'visited by {self.visitor_name}')
+
+class RootWalker(_jl.Walker):
+
+    @_jl.entry
+    def start(self, here: _jl.Root) -> None:
+        print(f'at root: {_jl.root()}')
+        print(f'here is root: {here is _jl.root()}')
+        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
+
+    @_jl.entry
+    def at_task(self, here: Task) -> None:
+        print(f'root is: {_jl.root()}')
+
+class Configured(_jl.Obj):
+    value: int
+    doubled: int = 0
+
+    def __init__(self, value: int) -> None:
+        self.value = value
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        self.doubled = self.value * 2
+c = Counter()
+c.increment()
+c.increment()
+d = Dog()
+d.speak()
+task = Task(name='test')
+inter = Interactive()
+_jl.connect(left=_jl.root(), right=task)
+_jl.connect(left=task, right=inter)
+_jl.spawn(_jl.root(), TaskWalker())
+_jl.spawn(_jl.root(), RootWalker())
+cfg = Configured(value=10)
+print(f'value={cfg.value}, doubled={cfg.doubled}')

@@ -1,73 +1,87 @@
-# Raise statements
+# Raise Statements
 
-def foo(value: int) {
-    if value < 0 {
-        raise ValueError("Value must be non-negative");
-    }
+def raise_exception {
+    raise ValueError("error message");
 }
 
-def bar(x: int) {
+def raise_with_expression {
+    x = 10;
+    raise RuntimeError(f"value is {x}");
+}
+
+def raise_from_exception {
     try {
-        result = 10 / x;
+        x = 5 / 0;
     } except ZeroDivisionError as e {
-        # Raise from - chain exceptions
-        raise RuntimeError("Division failed") from e;
+        raise RuntimeError("division failed") from e;
     }
 }
 
-def reraise_example {
+def bare_raise {
     try {
-        raise ValueError("Original error");
+        raise ValueError("original");
     } except ValueError {
-        print("Caught error, re-raising...");
-        # Bare raise - re-raises the current exception
+        print("caught, re-raising");
         raise;
     }
 }
 
-def conditional_raise(value: any) {
-    if value is None {
-        raise ValueError("Value cannot be None");
+def conditional_raise(value: int) {
+    if value < 0 {
+        raise ValueError("must be non-negative");
     }
-    if not isinstance(value, int) {
-        raise TypeError(f"Expected int, got {type(value).__name__}");
+    if value > 100 {
+        raise ValueError("must be <= 100");
     }
-    return value * 2;
 }
 
 with entry {
     # Basic raise
-    try  {
-        foo(-1);
-    } except ValueError as e  {
-        print("Raised:", e);
+    try {
+        raise_exception();
+    } except ValueError as e {
+        print(f"caught: {e}");
+    }
+
+    # Raise with expression
+    try {
+        raise_with_expression();
+    } except RuntimeError as e {
+        print(f"caught: {e}");
     }
 
     # Raise from (exception chaining)
     try {
-        bar(0);
+        raise_from_exception();
     } except RuntimeError as e {
-        print("Runtime error:", e);
-        # print("Caused by:", e.__cause__);
+        print(f"caught: {e}");
     }
 
     # Bare raise (re-raise)
     try {
-        reraise_example();
+        bare_raise();
     } except ValueError as e {
-        print("Re-raised:", e);
+        print(f"re-raised: {e}");
     }
 
     # Conditional raise
     try {
-        conditional_raise(None);
+        conditional_raise(-5);
     } except ValueError as e {
-        print("None value error:", e);
+        print(f"caught: {e}");
     }
 
     try {
-        conditional_raise("not an int");
-    } except TypeError as e {
-        print("Type error:", e);
+        conditional_raise(150);
+    } except ValueError as e {
+        print(f"caught: {e}");
+    }
+
+    # Raise without except
+    try {
+        conditional_raise(50);
+        print("no error");
+    } except ValueError {
+        print("unexpected");
     }
 }

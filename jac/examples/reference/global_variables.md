@@ -1,39 +1,98 @@
-Global variables in Jac are module-level declarations that can have access control tags specifying visibility and mutability.
+**Global Variables in Jac**
 
-**Let with Access Tags**
+Global variables are module-level declarations that can have access control tags specifying visibility and mutability. Jac provides two keywords for global declarations: `let` and `glob`.
 
-Line 4 shows `let:priv a = 5` - a private module-level variable using `let`. The `:priv` tag restricts access to the current module.
+**Let with Access Modifiers**
 
-**Global with Access Tags**
+Lines 4-5 demonstrate `let` declarations with access tags. Line 4: `let:priv` creates a private module-level variable accessible only within the current module.
+Line 5: `let:pub` creates a public module-level variable accessible from other modules.
 
-Lines 7, 10, 13 demonstrate `glob` declarations with different access levels:
-- Line 7: `glob:pub X = 10` - public, accessible from other modules
-- Line 10: `glob:protect y = 15` - protected access
-- Line 13: `glob z = 20` - no access tag, uses default visibility
+**Glob with Access Modifiers**
 
-**Access Tag Semantics**
+Lines 8-9 show `glob` declarations with access control. Line 8: `glob:protect` creates a protected variable with restricted access.
+Line 9: `glob shared_var` creates a global variable with default visibility.
 
-| Access Tag | Visibility | Example |
-|------------|------------|---------|
-| `:priv` | Private to module | Line 4 |
-| `:pub` | Public, exportable | Line 7 |
-| `:protect` | Protected access | Line 10 |
-| (none) | Default visibility | Line 13 |
+**Multiple Variable Declarations**
 
-**Object Declarations with Access**
+Line 12 demonstrates declaring multiple globals in one statement. This comma-separated syntax declares three global variables simultaneously.
 
-Line 16 shows `obj:priv Myobj{}` - a private object definition. Access tags apply to any module-level declaration, not just variables.
+**Typed Global Variables**
 
-**Entry Point**
+Line 15 shows a typed global declaration. The type annotation `: int` specifies that `counter` must be an integer.
 
-Line 18 shows `with entry:__main__` - conditional execution only when the module is run directly (not imported). Line 19 accesses all the declared globals.
+**Access Control Tags**
 
-**Global vs Let**
+| Access Tag | Visibility | Example Line |
+|------------|------------|--------------|
+| `:priv` | Private to module | 4 |
+| `:pub` | Public, exportable | 5 |
+| `:protect` | Protected access | 8 |
+| (none) | Default visibility | 9 |
 
-Both `glob` and `let` create module-level variables:
-- `glob` explicitly declares global scope
-- `let` can also be used at module level with similar semantics
-- Both support access tags
-- Choice between them is often stylistic, though `glob` more clearly indicates module-wide scope
+**Using Global Variables**
 
-Access tags enable encapsulation and API control at the module level, allowing developers to specify which elements are part of the public interface versus internal implementation details.
+Lines 17-19 show accessing all declared globals in an entry block. All module-level globals are accessible within the module's entry blocks and functions.
+
+**Global Variable Declaration Patterns**
+
+```mermaid
+flowchart TD
+    Start([Global Declaration]) --> Type{Access<br/>Modifier?}
+    Type -->|:priv| Private[Private Scope<br/>Module Only]
+    Type -->|:pub| Public[Public Scope<br/>Exportable]
+    Type -->|:protect| Protected[Protected Scope<br/>Limited Access]
+    Type -->|None| Default[Default Scope]
+    Private --> Store[Store in Module<br/>Symbol Table]
+    Public --> Store
+    Protected --> Store
+    Default --> Store
+    Store --> Done([Variable Ready])
+```
+
+**Let vs Glob**
+
+Both `let` and `glob` create module-level variables:
+
+| Keyword | Purpose | Typical Use |
+|---------|---------|-------------|
+| `let` | Module-level variable | Immutable-like semantics (by convention) |
+| `glob` | Explicit global variable | Clearly indicates global scope |
+
+**Choice between them is often stylistic**, though `glob` more explicitly indicates module-wide scope and mutability.
+
+**Access Control in Practice**
+
+**Private variables** (`:priv`):
+- Only accessible within the defining module
+- Cannot be imported by other modules
+- Useful for internal implementation details
+
+**Public variables** (`:pub`):
+- Accessible from other modules
+- Part of the module's public API
+- Can be imported and used externally
+
+**Protected variables** (`:protect`):
+- Accessible to subclasses and related code
+- Limited visibility between private and public
+- Used for semi-internal state
+
+**Common Patterns**
+
+**Configuration constants:**
+
+**Module state:**
+
+**Typed globals:**
+
+**Multiple related globals:**
+
+**Key Points**
+
+1. Both `let` and `glob` create module-level variables
+2. Access tags control visibility across module boundaries
+3. Multiple variables can be declared in one statement
+4. Type annotations are optional but recommended
+5. Private variables encapsulate implementation details
+6. Public variables form the module's API
+7. Default visibility when no access tag is specified

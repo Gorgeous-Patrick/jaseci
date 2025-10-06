@@ -1,17 +1,21 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
-p = print
-p('5 & 3 =', 5 & 3)
-p('5 | 3 =', 5 | 3)
-p('5 ^ 3 =', 5 ^ 3)
-p('~5 =', ~5)
-p('5 << 1 =', 5 << 1)
-p('5 >> 1 =', 5 >> 1)
-result = (8 | 4) & 12
-p('(8 | 4) & 12 =', result)
-a = 15
-b = 7
-p('15 & 7 =', a & b)
-p('15 | 7 =', a | b)
-p('15 ^ 7 =', a ^ b)
+print(5 | 3)
+print(12 | 7)
+print(5 ^ 3)
+print(12 ^ 7)
+print(5 & 3)
+print(12 & 7)
+print(5 << 1)
+print(5 << 2)
+print(10 >> 1)
+print(10 >> 2)
+print(~5)
+print(~0)
+print(~-1)
+print((8 | 4) & 12)
+print(5 ^ 3 & 7)
+print(15 & 7 | 8)
+print(5 << 1 >> 1)
+result = (12 | 5) & (7 ^ 3)
+print(result)

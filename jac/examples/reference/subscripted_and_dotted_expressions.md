@@ -1,70 +1,107 @@
-Subscripted and dotted expressions provide syntax for accessing elements in collections and attributes on objects, forming the foundation of data access in Jac.
+**Subscripted and Dotted Expressions**
 
-**Dotted Expressions (Attribute Access)**
-
-Line 8 demonstrates dotted notation for accessing object attributes: `Sample().my_list` and `Sample().my_dict`. The dot operator `.` accesses an attribute or method on an object. The syntax is `object.attribute`, where:
-- `object` is an expression that evaluates to an object instance
-- `attribute` is the name of the attribute to access
-
-In this example, `Sample()` creates a new instance of the `Sample` class, and `.my_list` accesses its `my_list` attribute.
-
-**Subscripted Expressions (Index/Key Access)**
-
-Line 8 also demonstrates subscript notation for accessing collection elements: `Sample().my_list[2]` and `Sample().my_dict["name"]`. The subscript operator `[...]` accesses an element by index (for sequences) or key (for mappings).
-
-For lists/sequences:
-- `Sample().my_list[2]` accesses the element at index 2 (the third element, since indexing is zero-based)
-- In this case, `my_list` is `[1, 2, 3]`, so `[2]` returns `3`
-
-For dictionaries/mappings:
-- `Sample().my_dict["name"]` accesses the value associated with key `"name"`
-- In this case, `my_dict` is `{"name":"John", "age": 30}`, so `["name"]` returns `"John"`
-
-**Chaining Operations**
-
-Line 8 shows chaining dotted and subscripted expressions: `Sample().my_list[2]` chains object instantiation, attribute access, and subscripting. This chains operations left-to-right:
-1. `Sample()` - Creates an instance
-2. `.my_list` - Accesses the `my_list` attribute
-3. `[2]` - Subscripts into the list
-
-Similarly, `Sample().my_dict["name"]` chains:
-1. `Sample()` - Creates an instance
-2. `.my_dict` - Accesses the `my_dict` attribute
-3. `["name"]` - Subscripts into the dictionary
-
-**Global Tuple Assignment**
-
-Line 8 uses tuple unpacking in a global declaration: `glob (first, second) = (...)`. This declares two global variables:
-- `first` is assigned the value `Sample().my_list[2]` which evaluates to `3`
-- `second` is assigned the value `Sample().my_dict["name"]` which evaluates to `"John"`
+Subscripted and dotted expressions provide syntax for accessing collection elements and object attributes, forming the foundation of data access in Jac.
 
 **Object Definition**
 
-Lines 3-6 define the `Sample` object with two attributes:
-- `my_list`: a list initialized to `[1, 2, 3]`
-- `my_dict`: a dictionary initialized to `{"name":"John", "age": 30}`
+Lines 3-7 define a `Sample` object with three attributes:
+- `items`: a list initialized to `[10, 20, 30, 40, 50]`
+- `data`: a dictionary initialized to `{"name": "Alice", "age": 30}`
+- `value`: an integer initialized to `42`
 
-**Subscript Semantics**
+Line 10 creates an instance of this object for demonstration.
 
-The subscript operator has different semantics depending on the type:
+**Dotted Expressions (Attribute Access)**
 
-| Type | Subscript Behavior | Example |
-|------|-------------------|---------|
-| List | Access by integer index (0-based) | `[1, 2, 3][0]` → `1` |
-| Tuple | Access by integer index (0-based) | `(1, 2, 3)[1]` → `2` |
-| String | Access character by index | `"hello"[0]` → `"h"` |
-| Dictionary | Access by key | `{"a": 1}["a"]` → `1` |
-| Custom objects | Calls `__getitem__` method | Depends on implementation |
+Line 13 demonstrates dot notation: `val = s.value;`
 
-**Dot Operator Semantics**
+The dot operator `.` accesses an attribute on an object:
+- `s` - The object instance
+- `.value` - The attribute name
+- Result: 42
 
-The dot operator accesses:
-- Instance attributes
-- Instance methods
-- Class attributes
-- Properties
-- Any attribute accessible via `__getattribute__` or `__getattr__`
+This is the standard way to access object attributes in Jac.
 
-**Execution**
+**Subscripted Expressions (Index/Key Access)**
 
-When the program runs, line 11 prints the values of `first` and `second`, which are `3` and `"John"` respectively, demonstrating successful attribute access and subscripting operations.
+Lines 16-18 demonstrate subscript notation with square brackets `[...]`:
+
+| Line | Expression | Type | Result |
+|------|------------|------|--------|
+| 16 | `s.items[0]` | List index | 10 (first element) |
+| 17 | `s.items[-1]` | Negative index | 50 (last element) |
+| 18 | `s.data["name"]` | Dictionary key | "Alice" |
+
+For lists, subscripts use zero-based integer indexing. Negative indices count from the end (-1 is the last element).
+
+For dictionaries, subscripts use keys to access associated values.
+
+**Slicing Syntax**
+
+Lines 21-23 demonstrate slice operations on lists:
+
+| Line | Slice | Start | End | Result |
+|------|-------|-------|-----|--------|
+| 21 | `s.items[1:4]` | 1 | 4 | `[20, 30, 40]` (indices 1, 2, 3) |
+| 22 | `s.items[:3]` | 0 | 3 | `[10, 20, 30]` (beginning to index 3) |
+| 23 | `s.items[2:]` | 2 | end | `[30, 40, 50]` (index 2 to end) |
+
+Slice syntax is `[start:end]` where:
+- `start` is inclusive (included in result)
+- `end` is exclusive (not included in result)
+- Omitting `start` defaults to beginning (0)
+- Omitting `end` defaults to end of list
+
+**Chained Access**
+
+Line 26 shows chaining operations: `first_char = s.data["name"][0];`
+
+Execution left-to-right:
+1. `s.data` - Access data attribute (returns dictionary)
+2. `["name"]` - Get value for key "name" (returns "Alice")
+3. `[0]` - Get first character (returns "A")
+
+Chaining allows you to access nested data structures in a single expression.
+
+**Null-Safe Access**
+
+Line 29 demonstrates null-safe access: `safe_val = s?.value;`
+
+The `?.` operator:
+- Accesses the attribute if the object is not None
+- Returns None if the object is None (instead of raising an error)
+- Useful for optional attributes or nullable objects
+
+This prevents `AttributeError` when the object might be None.
+
+**Subscript Type Behaviors**
+
+Different types handle subscripts differently:
+
+| Type | Subscript | Example | Result |
+|------|-----------|---------|--------|
+| List | Integer index | `[10, 20, 30][1]` | `20` |
+| Tuple | Integer index | `(10, 20, 30)[1]` | `20` |
+| String | Integer index | `"hello"[1]` | `"e"` |
+| Dictionary | Key | `{"a": 1}["a"]` | `1` |
+
+Negative indices work for ordered sequences (lists, tuples, strings) but not dictionaries.
+
+**Complete Example Flow**
+
+Line 31 prints all the values extracted in lines 13-29:
+- `val` = 42
+- `item1` = 10
+- `item2` = 50
+- `name` = "Alice"
+- `slice1` = [20, 30, 40]
+- `slice2` = [10, 20, 30]
+- `slice3` = [30, 40, 50]
+- `first_char` = "A"
+- `safe_val` = 42
+
+**Common Patterns**
+
+Combining dot and subscript notation enables powerful data access:
+
+These expressions form the basis for navigating complex data structures in Jac programs.

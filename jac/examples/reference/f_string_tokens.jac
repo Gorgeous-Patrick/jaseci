@@ -1,58 +1,43 @@
-# F-string tokens
+"""F-string tokens: Formatted string literals with interpolation."""
 
 with entry {
-    x = "a";
-    y = 25;
+    x = "World";
+    y = 42;
 
-    # Double-quoted f-string with interpolation
-    print(f"Hello {x} {y} {{This is an escaped curly brace}}");
+    # Double-quoted f-strings
+    print(f"Hello {x}! Number: {y}");
 
-    # Single-quoted f-string
-    print(f'Single quoted: {x} and {y}');
+    # Single-quoted f-strings
+    print(f'Value: {y}');
 
-    # F-string with dictionary access
-    person = {"name":"Jane", "age":25 };
-    print(f"Hello, {person['name']}! You're {person['age']} years old.");
+    # Triple-quoted f-strings
+    msg = f"""
+    Multi-line
+    Value: {y}
+    """;
+    print(msg);
 
-    # F-string with escaped braces (FSTR_BESC)
-    print(f"Escaped braces: {{{{ and }}}}");
+    # Escaped braces {{ }}
+    print(f"Escaped: {{braces}} and value {y}");
 
-    # F-string with expression
-    print(f"Calculation: {5 + 3} = {5 + 3}");
+    # Expressions in f-strings
+    print(f"Math: {5 + 3}, {10 * 2}");
 
-    # F-string with method calls
+    # Method calls
     text = "hello";
-    print(f"Uppercase: {text.upper()}");
+    print(f"Upper: {text.upper()}");
 
-    # F-string with conditional
-    age = 18;
+    # Dictionary access
+    d = {"name": "Alice", "age": 30};
+    print(f"Name: {d['name']}, Age: {d['age']}");
+
+    # Conditionals
+    age = 20;
     print(f"Status: {('Adult' if age >= 18 else 'Minor')}");
 
-    # Multi-line f-string
-    name = "Alice";
-    score = 95;
-    message = f"""
-    Name: {name}
-    Score: {score}
-    Grade: {('A' if score >= 90 else 'B')}
-    """;
-    print(message);
-
-    # F-string with escape sequences
-    print("This is the first line.\n This is the second line.");
-    print("This will not print.\r This will be printed");
-    print("This is \t tabbed.");
-    print("Line 1\fLine 2");
-
-    # F-string with join
-    words = ["Hello", "World!", "I", "am", "a", "Jactastic!"];
-    print(f"{'\n'.join(words)}");
-
     # Nested f-strings
-    value = 42;
-    print(f"Value is {f'{value}'}");
+    val = 100;
+    print(f"Nested: {f'{val}'}");
 
-    # F-string with format specifiers (if supported)
-    pi = 3.14159;
-    # print(f"Pi to 2 decimals: {pi:.2f}");
+    print("Complete");
 }

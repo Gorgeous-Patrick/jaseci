@@ -1717,4 +1717,5 @@ class JacMachine(JacMachineInterface):
         JacMachine.base_path_dir = os.getcwd()
         JacMachine.program = JacProgram()
         JacMachine.pool = ThreadPoolExecutor()
+        JacMachine.exec_ctx.mem.close()
         JacMachine.exec_ctx = ExecutionContext()

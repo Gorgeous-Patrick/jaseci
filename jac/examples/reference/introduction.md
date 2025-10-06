@@ -8,12 +8,6 @@ Jac uses curly braces to delimit code blocks rather than relying on indentation.
 As a result, varying indentation has no effect on execution order.  Developers are
 free to format code as they see fit while still retaining Python-style readability:
 
-```jac
-if condition {
-  do_something();
-      do_other();  # Different indentation but same block
-}
-```
 Consistent formatting is still recommended, but the compiler treats whitespace as
 insignificant when determining program structure.
 
@@ -21,10 +15,3 @@ insignificant when determining program structure.
 
 Single-line comments begin with `#` and extend to the end of the line.  Jac also
 supports multiline comments delimited by `#*` and `*#`:
-
-```jac
-# This is a line comment
-#*
-This entire block is ignored by the compiler.
-*#
-```

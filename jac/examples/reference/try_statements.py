@@ -1,36 +1,50 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
 try:
-    print('Result', 5 / 0)
+    x = 5 / 0
+except Exception:
+    print('caught exception')
+try:
+    x = 5 / 0
 except Exception as e:
-    print(e)
+    print(f'error: {e}')
 try:
     x = int('not a number')
 except ValueError as ve:
-    print('ValueError:', ve)
+    print(f'ValueError: {ve}')
 except TypeError as te:
-    print('TypeError:', te)
+    print(f'TypeError: {te}')
 except Exception as e:
-    print('Other exception:', e)
+    print(f'other: {e}')
 try:
     result = 10 / 2
 except ZeroDivisionError:
-    print('Cannot divide by zero')
+    print('division by zero')
 else:
-    print('Division successful:', result)
+    print(f'success: {result}')
 try:
-    f = None
-except FileNotFoundError:
-    print('File not found')
+    x = 5 / 1
+except Exception:
+    print('error')
 finally:
-    print('Cleanup: finally always runs')
+    print('cleanup')
 try:
     data = [1, 2, 3]
     print(data[1])
 except IndexError as ie:
-    print('Index error:', ie)
+    print(f'index error: {ie}')
 else:
-    print('Access successful')
+    print('access successful')
 finally:
-    print('Cleanup complete')
+    print('done')
+try:
+    print('operation')
+finally:
+    print('always runs')
+try:
+    try:
+        x = 5 / 0
+    except ValueError:
+        print('inner ValueError')
+except Exception as e:
+    print(f'outer caught: {e}')

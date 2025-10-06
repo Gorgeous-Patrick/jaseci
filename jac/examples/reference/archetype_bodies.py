@@ -1,33 +1,34 @@
-"""This is a member docstring"""
+"""Archetype bodies: Member statements (has, static, methods, nested types)."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
 from jaclang import JacMachineInterface as _jl
 
-class Car(_jl.Obj):
-    make: str
-    model: str
+class Vehicle(_jl.Obj):
+    """This is a module-level docstring"""
+    'Member docstring'
+    name: str
     year: int
-    wheels: ClassVar[int] = 4
-    internal_id: str = 'car_123'
-    manufacturer: str = 'Unknown'
+    count: ClassVar[int] = 0
+    public_id: str = 'V123'
+    private_data: int = 0
     config: dict = _jl.field(init=False)
 
     def __post_init__(self) -> None:
-        self.config = {'color': 'white', 'sunroof': False}
+        self.config = {'active': True}
+        Vehicle.count += 1
 
-    def display_car_info(self) -> None:
-        print(f'Car Info: {self.year} {self.make} {self.model}')
+    def display(self) -> str:
+        return f'{self.year} {self.name}'
 
     @staticmethod
-    def get_wheels() -> int:
-        return Car.wheels
+    def get_count() -> int:
+        return Vehicle.count
 
-    def python_method(self):
-        return 'This is Python code'
+    class Part:
+        part_name: str
 
-    class Engine:
-        horsepower: int
-    print('Member-level entry')
-car = Car('Toyota', 'Camry', 2020)
-car.display_car_info()
-print('Number of wheels:', Car.get_wheels())
+    def py_method(self):
+        return 'Python code'
+v1 = Vehicle(name='Car', year=2020)
+v2 = Vehicle(name='Truck', year=2021)
+print(v1.display(), v2.display(), Vehicle.get_count())

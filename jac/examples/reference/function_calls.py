@@ -1,13 +1,15 @@
+"""Function calls: Positional, keyword, and mixed argument patterns."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
 
-def foo(x: int, y: int, z: int) -> None:
+def compute(x: int, y: int, z: int=10) -> tuple:
     return (x * y, y * z)
-a = 5
-output = foo(x=4, y=4 if a % 3 == 2 else 3, z=9)
-print(output)
-result = foo(1, 2, 3)
-print(result)
-mixed = foo(1, y=2, z=3)
-print(mixed)
+
+def variadic(*args: int, **kwargs: int) -> int:
+    return sum(args) + sum(kwargs.values())
+r1 = compute(2, 3, 4)
+r2 = compute(x=5, y=6, z=7)
+r3 = compute(8, y=9, z=10)
+r4 = compute(2, 3)
+r5 = variadic(1, 2, 3, a=4, b=5)
+print(r1, r2, r3, r4, r5)

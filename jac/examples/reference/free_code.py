@@ -1,18 +1,19 @@
+"""Free code: Entry blocks for top-level executable code."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
 from jaclang import JacMachineInterface as _jl
 import math
 
-class circle(_jl.Obj):
-
-    def __init__(self, radius: float) -> None:
-        self.radius = radius
+class Circle(_jl.Obj):
+    radius: float
 
     def area(self) -> float:
-        return math.pi * self.radius * self.radius
+        return math.pi * self.radius ** 2
 
-def foo(n_1: float) -> None:
-    return n_1 ** 2
-print('Hello World!')
-print(foo(7))
-print(int(circle(10).area()))
+def square(n: float) -> float:
+    return n ** 2
+print('Free code execution')
+print(square(7))
+print(int(Circle(radius=10).area()))
+if __name__ == 'custom':
+    print('Named entry point')

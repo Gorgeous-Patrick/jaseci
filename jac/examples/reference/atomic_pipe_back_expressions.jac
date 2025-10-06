@@ -1,18 +1,16 @@
-# Atomic pipe back expressions - Atomic backward pipe operator
+"""Atomic pipe back expressions: Atomic backward pipe operator (<:) for right-to-left flow."""
 
 with entry {
-    # Atomic backward pipe <: (right to left flow)
-    print <: "Hello world!";
+    # Atomic backward pipe <: (higher precedence than <|)
+    print <: "Hello";
 
-    # Complex atomic pipe back example
-    a = [2, 4, 5, 7, 8];
-    b = [4, 8, 9, 13, 20];
-
-    # Chained atomic backward pipes
+    # Mixing forward and backward atomic pipes
+    a = [2, 4, 5];
+    b = [6, 7, 8];
     c = len <: a + b :> len;
-    print(c);
 
     # Backward atomic pipe with lambda
-    result = (lambda x:int : x * 3) <: 10;
-    print("Result:", result);
+    result = (lambda x: int : x * 3) <: 10;
+
+    print(c, result);
 }

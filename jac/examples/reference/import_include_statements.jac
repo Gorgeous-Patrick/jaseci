@@ -1,35 +1,27 @@
-# Import and Include statements
+"""Import/Include statements: Module imports with various patterns."""
 
-# Include statement (includes module directly)
+# Simple imports
 import os;
+import sys, json;
 
 # Import with alias
 import datetime as dt;
 
-# Multiple imports in one statement
-import sys, json, random;
+# Import from with specific items
+import from math { sqrt, pi, log as logarithm }
 
-# Import from with braces and items
-import from math { sqrt as square_root, log, pi }
+# Import from with aliases and trailing comma
+import from collections { defaultdict as ddict, Counter, }
 
-# Import from with trailing comma
-import from collections { defaultdict, Counter, }
-
-# Relative imports with dots (from_path with DOT/ELLIPSIS)
-# import from . { local_module };           # Current package
-# import from .. { parent_module };         # Parent package
-# import from ... { grandparent_module };   # Grandparent package
-
-# Import from with only dots (current package)
-# import from . { utils };
+# Relative imports (when in a package)
+# import from . { sibling_module };
+# import from .. { parent_module };
+# import from ... { grandparent_module };
 
 with entry {
-    for i in range(5) {
-        print(
-            os.getcwd(),
-            square_root(i + 1),
-            int(log(i + 1)),
-            pi
-        );
-    }
+    print(f"CWD: {os.getcwd()}");
+    print(f"Sqrt(16): {sqrt(16)}");
+    print(f"Pi: {pi}");
+    print(f"Log(10): {logarithm(10)}");
+    print(f"Now: {dt.datetime.now().year}");
 }

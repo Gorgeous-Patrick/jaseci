@@ -1,34 +1,40 @@
-# Bitwise expressions - Bitwise operators for binary operations
+# Bitwise Expressions
 
 with entry {
-    p = print;
+    # Bitwise OR
+    print(5 | 3);
+    print(12 | 7);
 
-    # Bitwise AND (&)
-    p("5 & 3 =", 5 & 3);  # 101 & 011 = 001 = 1
+    # Bitwise XOR
+    print(5 ^ 3);
+    print(12 ^ 7);
 
-    # Bitwise OR (|)
-    p("5 | 3 =", 5 | 3);  # 101 | 011 = 111 = 7
+    # Bitwise AND
+    print(5 & 3);
+    print(12 & 7);
 
-    # Bitwise XOR (^)
-    p("5 ^ 3 =", 5 ^ 3);  # 101 ^ 011 = 110 = 6
+    # Left shift
+    print(5 << 1);
+    print(5 << 2);
 
-    # Bitwise NOT (~)
-    p("~5 =", ~5);  # ~101 = -6 (two's complement)
+    # Right shift
+    print(10 >> 1);
+    print(10 >> 2);
 
-    # Left shift (<<)
-    p("5 << 1 =", 5 << 1);  # 101 << 1 = 1010 = 10
-
-    # Right shift (>>)
-    p("5 >> 1 =", 5 >> 1);  # 101 >> 1 = 10 = 2
+    # Bitwise NOT (unary)
+    print(~5);
+    print(~0);
+    print(~-1);
 
     # Combined bitwise operations
-    result = (8 | 4) & 12;
-    p("(8 | 4) & 12 =", result);
+    print((8 | 4) & 12);
+    print(5 ^ 3 & 7);
 
-    # Bitwise operations with variables
-    a = 15;  # 1111
-    b = 7;   # 0111
-    p("15 & 7 =", a & b);
-    p("15 | 7 =", a | b);
-    p("15 ^ 7 =", a ^ b);
+    # Chained operations
+    print(15 & 7 | 8);
+    print(5 << 1 >> 1);
+
+    # Complex expression
+    result = (12 | 5) & (7 ^ 3);
+    print(result);
 }

@@ -1,49 +1,52 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
-x = 'Jaclang '
-
-def outer_func() -> None:
-    global x
-    x = 'Jaclang is '
-    y = 'Awesome'
-    z = 'Language'
-
-    def inner_func() -> tuple[str, str]:
-        nonlocal y
-        y = 'Fantastic'
-        return (x, y)
-    print(x, y)
-    print(inner_func())
+x = 'global x'
 a = 1
 b = 2
-c = 3
 
-def modify_globals() -> None:
+def test_global() -> None:
+    global x
+    x = 'modified global x'
+    print(x)
+
+def test_multiple_globals() -> None:
     global a
     global b
-    global c
     a = 10
     b = 20
-    c = 30
+    print(f'{a} {b}')
 
-def nested_scope() -> None:
-    var1 = 'outer1'
-    var2 = 'outer2'
-    var3 = 'outer3'
+def outer() -> None:
+    y = 'outer y'
 
     def inner() -> None:
-        nonlocal var1
-        nonlocal var2
-        nonlocal var3
-        var1 = 'inner1'
-        var2 = 'inner2'
-        var3 = 'inner3'
-    print('Before inner:', var1, var2, var3)
+        nonlocal y
+        y = 'modified by inner'
+        print(y)
+    print(y)
     inner()
-    print('After inner:', var1, var2, var3)
-outer_func()
-print('Before modify_globals:', a, b, c)
-modify_globals()
-print('After modify_globals:', a, b, c)
-nested_scope()
+    print(y)
+
+def outer_multi() -> None:
+    p = 1
+    q = 2
+    r = 3
+
+    def inner_multi() -> None:
+        nonlocal p
+        nonlocal q
+        nonlocal r
+        p = 10
+        q = 20
+        r = 30
+    print(f'{p} {q} {r}')
+    inner_multi()
+    print(f'{p} {q} {r}')
+print(x)
+test_global()
+print(x)
+print(f'{a} {b}')
+test_multiple_globals()
+print(f'{a} {b}')
+outer()
+outer_multi()

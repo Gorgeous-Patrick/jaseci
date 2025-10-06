@@ -394,7 +394,7 @@ class JacCliTests(TestCase):
         stdout_value = captured_output.getvalue()
         if os.path.exists("connect_expressions.dot"):
             os.remove("connect_expressions.dot")
-        self.assertIn("11\n13\n15\n>>> Graph content saved to", stdout_value)
+        self.assertIn(">>> Graph content saved to", stdout_value)
         self.assertIn("connect_expressions.dot\n", stdout_value)
 
     def test_py_to_jac(self) -> None:

@@ -1,23 +1,23 @@
-# Base module structure - Module-level docstrings and structure
+"""Base module structure: Module and element docstrings, entry points.
 
-"""A Docstring can be added the head of any module.
-
-Any element in the module can also have a docstring.
-If there is only one docstring before the first element,
-it is assumed to be a module docstring.
+This is the module-level docstring.
+It describes the purpose of the entire module.
 """
 
-"""A docstring for add function"""
 def add(a: int, b: int) -> int {
     return a + b;
 }
 
-# No docstring for subtract function
 def subtract(a: int, b: int) -> int {
     return a - b;
 }
 
-# Named entry point (main)
+# Default entry point
+with entry {
+    print("Default entry:", add(5, subtract(8, 3)));
+}
+
+# Named entry point
 with entry:__main__ {
-    print(add(1, subtract(3, 1)));
+    print("Named entry:", add(1, subtract(3, 1)));
 }

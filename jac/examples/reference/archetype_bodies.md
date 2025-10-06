@@ -1,45 +1,116 @@
-Archetype bodies in Jac define the internal structure and behavior of objects, classes, nodes, edges, and walkers. The body can contain various member statements that define data fields, methods, nested types, and initialization logic.
+**Archetype bodies** define the internal structure and behavior of objects, classes, nodes, edges, and walkers. The body enclosed in braces (lines 5-47) contains member statements that specify data fields, methods, nested types, and initialization logic.
 
-**Member Docstrings**
+**Documentation Strings:**
 
-Line 3-4 demonstrate that docstrings can be placed before archetype definitions. The string literal "This is a member docstring" serves as documentation for the Car archetype.
+Lines 1 and 3 show module-level docstrings using triple quotes. Line 6 demonstrates a member docstring - string literals appearing before member statements provide inline documentation for the archetype and its members.
 
-**Has Statements**
+**Has Statements - Declaring Fields:**
 
-The `has` keyword declares instance-level data fields (attributes) for an archetype:
+Lines 9-10 show the `has` keyword declaring instance-level data fields. Each field requires a type annotation using colon syntax (`: type`). Multiple fields can be declared in a single statement separated by commas, terminated by a semicolon.
 
-- Lines 9-11: Basic `has` statement with type annotations. Multiple fields can be declared in a single statement, separated by commas and terminated with a semicolon. Here `make`, `model`, and `year` are declared as instance attributes.
-- Line 14: The `static has` declaration creates class-level attributes shared across all instances. The `wheels` attribute is set to 4 for all Car instances.
-- Line 17: Has statements support access tags using the colon prefix syntax (`:priv`). This marks `internal_id` as a private field with a default value.
-- Line 23: The `by postinit` clause indicates that the field will be initialized in the `postinit` method rather than at declaration time.
+| Declaration Pattern | Example | Meaning |
+|-------------------|---------|---------|
+| Single field | `has name: str;` | One field with type |
+| Multiple fields | `has name: str, year: int;` | Multiple fields, one statement |
+| With default | `has count: int = 0;` | Field with initial value |
+| With access | `has :pub id: str = "V123";` | Field with visibility modifier |
 
-**Let Statements**
+**Static vs Instance Members:**
 
-Line 20 shows the `let` keyword as an alternative to `has`. While semantically similar to `has`, `let` is typically used to emphasize immutability or constant-like behavior, though the actual semantics depend on the implementation.
+Line 13 shows `static has` creating a class-level attribute shared across all instances. Compare:
 
-**Postinit Method**
+- **Instance fields** (lines 9-10): Each object gets its own copy, accessed via `self.name`
+- **Static fields** (line 13): One copy shared by all instances, accessed via `Vehicle.count` (line 24)
 
-Lines 25-27 define a special `postinit` method that executes after the object is constructed. This is where fields declared with `by postinit` must be initialized. The method has access to `self` and can perform any setup logic.
+Line 33 demonstrates `static def` for static methods - no `self` parameter, called on the archetype itself (line 53).
 
-**Instance and Static Methods**
+**Access Modifiers:**
 
-Archetype bodies can contain method definitions:
+Lines 16-17 control member visibility using colon-prefix syntax after `has`:
 
-- Lines 30-32: A regular instance method `display_car_info` that uses `self` to access instance attributes.
-- Lines 34-36: A `static def` creates a class method that doesn't receive a `self` parameter. It accesses the class-level `wheels` attribute via `Car.wheels`.
+- `:pub` - Public (accessible from anywhere)
+- `:priv` - Private (restricted to this archetype)
+- `:prot` - Protected (accessible to subclasses)
 
-**Inline Python Code**
+The modifier appears between `has` and the field name.
 
-Lines 39-42 demonstrate embedding raw Python code within a Jac archetype using the `::py::` delimiters. Code between these markers is treated as native Python and can define Python-specific methods or logic.
+**Postinit Initialization:**
 
-**Nested Archetypes**
+Line 20 shows `by postinit` - defers field initialization to the `postinit` method. The special `postinit` method (lines 22-25) executes after construction but before the object is returned. This enables:
 
-Lines 45-47 show that archetypes can be nested within other archetypes. The `Engine` class is defined inside the `Car` object, creating a logical grouping of related types.
+- Computed field initialization (line 23)
+- Cross-field validation
+- Side effects like registration (line 24 increments static counter)
+- Setup requiring fully initialized state
 
-**Member-Level Entry Points**
+**Methods:**
 
-Lines 50-52 demonstrate that `with entry` blocks can appear within archetype bodies, not just at module level. This entry code executes when certain conditions are met (implementation-specific).
+```mermaid
+graph TD
+    A[Method Types] --> B[Instance Methods]
+    A --> C[Static Methods]
+    B --> D["def name() { ... }"]
+    B --> E["Receives self"]
+    B --> F["Access instance data"]
+    C --> G["static def name() { ... }"]
+    C --> H["No self parameter"]
+    C --> I["Access static data"]
+```
 
-**Instantiation and Usage**
+Line 28 shows an instance method with return type annotation (`-> str`). Line 33 shows a static method returning class-level data.
 
-Lines 56-58 show how to instantiate the Car archetype and call its methods. The constructor accepts positional arguments for the declared fields, and methods are called using dot notation.
+**Nested Archetypes:**
+
+Lines 38-40 demonstrate nesting - a `class Part` defined inside `Vehicle`. This creates logical grouping and namespace organization. Access nested types via parent name: `Vehicle.Part()`.
+
+**Inline Python:**
+
+Lines 43-46 show embedding raw Python code using `::py::` delimiters. Code between markers executes as native Python, allowing:
+- Python-specific methods
+- Direct library usage
+- Performance-critical sections
+- Interop with Python codebases
+
+**Member Statement Categories:**
+
+| Category | Keywords | Lines | Purpose |
+|----------|----------|-------|---------|
+| Data | `has`, `static has` | 9-10, 13, 16-17, 20 | State storage |
+| Behavior | `def`, `static def` | 22-25, 28-30, 33-35 | Operations |
+| Types | `class`, `obj`, etc. | 38-40 | Nested definitions |
+| Interop | `::py::` | 43-46 | Python integration |
+
+**Field Initialization Flow:**
+
+```mermaid
+sequenceDiagram
+    participant C as Constructor
+    participant F as Fields
+    participant P as Postinit
+    participant R as Return
+
+    C->>F: Initialize fields with defaults
+    C->>F: Set constructor arguments
+    F->>P: Call postinit method
+    P->>F: Initialize postinit fields
+    P->>P: Execute setup logic
+    P->>R: Return fully initialized object
+```
+
+Line 50 calls the constructor with `name` and `year`. Fields get values, then `postinit` runs (setting `config` and incrementing `count`), finally the object is returned.
+
+**Type Annotations:**
+
+All fields require type annotations (colon followed by type). Common types include:
+- Primitives: `str`, `int`, `float`, `bool`
+- Collections: `list`, `dict`, `set`, `tuple`
+- Custom: Any archetype name
+- Generic: `list[str]`, `dict[str, int]`
+
+**Usage Patterns:**
+
+Line 50-51 show object creation - constructors accept named arguments matching field declarations. Line 53 demonstrates:
+- Instance method calls: `v1.display()`
+- Static method calls: `Vehicle.get_count()`
+
+The output would be: `2020 Car 2021 Truck 2` (two displays and the count).

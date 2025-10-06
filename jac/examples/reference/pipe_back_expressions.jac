@@ -1,33 +1,23 @@
-# Pipe back expressions
+"""Pipe back expressions: Backward pipe operator (<|) for right-to-left function application."""
 
-def double(x: int) -> int {
-    return (x * 2);
-}
-
-def triple(x: int) -> int {
-    return x * 3;
-}
-
-def negate(x: int) -> int {
-    return -x;
-}
+def double(x: int) -> int { return x * 2; }
+def triple(x: int) -> int { return x * 3; }
+def add_five(x: int) -> int { return x + 5; }
 
 with entry {
-    # Basic backward pipe
-    number = 5;
-    result = double <| number;
-    print(result);
-
-    # TODO: Fix Chained backward pipes (right to left evaluation)
-    # value = 2;
-    # chained = negate <| triple <| double <| value;
-    # print(f"2 <- double <- triple <- negate = {chained}");
+    # Basic backward pipe: function <| value
+    result1 = double <| 5;
+    result2 = add_five <| 10;
 
     # Backward pipe with lambda
-    x = (lambda n:int : n * 3) <| 10;
-    print(x);
+    result3 = (lambda n: int : n * 3) <| 10;
 
-    # Backward pipe to function calls
-    data = sum <| [1, 2, 3, 4, 5];
-    print(f"Sum: {data}");
+    # Backward pipe with built-in functions
+    total = sum <| [1, 2, 3, 4, 5];
+
+    # Multiple operations (separate statements)
+    temp = double <| 2;
+    result4 = triple <| temp;
+
+    print(result1, result2, result3, total, result4);
 }

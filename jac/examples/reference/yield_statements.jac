@@ -1,22 +1,30 @@
-# Yield statements
+# Yield Statements
 
-def myFunc {
-    yield "Hello";
-    yield 91;
-    yield "Good Bye";
-    yield ;  # Yield without expression (yields None)
+def simple_generator {
+    yield 1;
+    yield 2;
+    yield 3;
 }
 
-def number_generator(n: int) {
+def yield_values {
+    yield "hello";
+    yield 42;
+    yield [1, 2, 3];
+}
+
+def yield_none {
+    yield;
+}
+
+def yield_in_loop(n: int) {
     for i in range(n) {
         yield i;
     }
 }
 
-def yield_from_example {
-    # Yield from another generator (delegates to sub-generator)
-    yield from number_generator(3);
-    yield from ["a", "b", "c"];
+def yield_from_generator {
+    yield from [1, 2, 3];
+    yield from range(4, 7);
 }
 
 def conditional_yield(items: list) {
@@ -27,24 +35,52 @@ def conditional_yield(items: list) {
     }
 }
 
+def yield_with_expression {
+    x = 10;
+    yield x * 2;
+    yield x + 5;
+}
+
 with entry {
-    # Basic yield usage
-    x = myFunc();
-    for z in x {
-        print(z);
+    # Basic yield
+    print("simple_generator:");
+    for val in simple_generator() {
+        print(val);
     }
 
-    # Yield from example
-    print("\nYield from:");
-    gen = yield_from_example();
-    for val in gen {
+    # Yield different types
+    print("yield_values:");
+    for val in yield_values() {
+        print(val);
+    }
+
+    # Yield None
+    print("yield_none:");
+    for val in yield_none() {
+        print(val);
+    }
+
+    # Yield in loop
+    print("yield_in_loop:");
+    for val in yield_in_loop(5) {
+        print(val);
+    }
+
+    # Yield from
+    print("yield_from_generator:");
+    for val in yield_from_generator() {
         print(val);
     }
 
     # Conditional yield
-    print("\nEven numbers:");
-    evens = conditional_yield([1, 2, 3, 4, 5, 6]);
-    for num in evens {
-        print(num);
+    print("conditional_yield:");
+    for val in conditional_yield([1, 2, 3, 4, 5, 6]) {
+        print(val);
+    }
+
+    # Yield with expression
+    print("yield_with_expression:");
+    for val in yield_with_expression() {
+        print(val);
     }
 }

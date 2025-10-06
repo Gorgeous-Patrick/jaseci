@@ -1,7 +1,7 @@
+"""Atomic expressions: Atomic forward pipe operator (:>) for chaining."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
-print('Hello world!')
-print(type('Welcome'))
+print('Hello')
+print(type('Test'))
 result = (lambda x: x + 10)((lambda x: x * 2)(5))
 print(result)

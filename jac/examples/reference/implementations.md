@@ -1,51 +1,90 @@
-Implementation blocks (`impl`) in Jac provide bodies for forward-declared elements, separating interface declarations from their implementations.
+**Implementation Blocks in Jac**
+
+Implementation blocks (`impl`) provide bodies for forward-declared elements, separating interface declarations from their implementations. This pattern enables modular code organization and resolves circular dependencies.
 
 **Forward Declarations**
 
-Lines 4, 6, 8 show forward declarations using semicolons:
-- Line 4: `def foo -> str;` - function signature without body
-- Line 6: `obj vehicle;` - object declaration without members
-- Line 8: `enum Size;` - enum declaration without values
+Lines 4-6 show forward declarations using semicolons to declare signatures without bodies. Line 4: Function signature without implementation
+Line 5: Object declaration without members
+Line 6: Enum declaration without values
 
-Forward declarations allow:
-- Separating interface from implementation
-- Resolving circular dependencies
-- Organizing code with headers and implementations
+Forward declarations establish names and interfaces early, allowing references before full implementation.
 
 **Function Implementation**
 
-Lines 11-13 implement the `foo` function: `impl foo -> str { return ("Hello"); }`. The signature matches the forward declaration, and the `impl` block provides the implementation.
+Lines 9-11 implement the forward-declared function. The `impl` keyword introduces the implementation block. The signature must match the forward declaration exactly.
 
 **Object Implementation**
 
-Lines 16-18 implement the `vehicle` object: `impl vehicle { has name: str = "Car"; }`. The implementation adds the object's members and structure.
+Lines 14-18 implement the forward-declared object. The implementation adds the object's structure: member variables and methods.
 
 **Enum Implementation**
 
-Lines 21-25 implement the `Size` enum: `impl Size { Small=1, Medium=2, Large=3 }`. Enum implementations provide the member names and values.
+Lines 21-25 implement the forward-declared enum. Enum implementations provide member names and their associated values.
 
-**Implementation Pattern**
+**Using Implemented Elements**
 
-The typical pattern is:
-1. Forward declare at the top (interface/signature)
-2. Implement later in the file or separate module
-3. Compile succeeds because signature is known before use
+Lines 27-35 demonstrate using the implemented elements. All elements work normally after implementation, as if they were defined in a single step.
 
-**Usage**
+**Forward Declaration and Implementation Pattern**
 
-Lines 28-31 demonstrate using the implemented elements:
-- `vehicle()` creates an instance
-- `foo()` calls the function
-- `Size.Medium.value` accesses enum member
+```mermaid
+flowchart TD
+    Start([Code Organization]) --> Forward[Forward Declarations<br/>Signatures Only]
+    Forward --> Refs[Can Reference<br/>in Other Code]
+    Refs --> Impl[Implementation Blocks<br/>impl keyword]
+    Impl --> Full[Fully Defined<br/>Elements]
+    Full --> Use[Use in Code]
+```
 
-This separation is useful for:
-- Large codebases with many interdependent types
-- API design where signatures are stable but implementation evolves
-- Generated code where signatures come from one source, implementations from another
+**Use Cases**
 
-**Comparison to Other Languages**
+| Use Case | Benefit | Example |
+|----------|---------|---------|
+| Circular dependencies | Break dependency cycles | Two objects referencing each other |
+| Interface/Implementation separation | Clear API boundaries | Public signatures, private implementations |
+| Large codebases | Organize related code | Headers and implementations in different sections |
+| Code generation | Stable interfaces | Generated signatures, manual implementations |
 
-This pattern is similar to:
-- C/C++ header/source file separation
-- Interface/implementation splitting in various OOP languages
-- Protocol/implementation separation in some functional languages
+**Declaration vs Implementation Comparison**
+
+| Aspect | Forward Declaration | Implementation Block |
+|--------|---------------------|----------------------|
+| Keyword | `def`, `obj`, `enum` | `impl` |
+| Ends with | Semicolon (`;`) | Block (`{ }`) |
+| Contains | Signature only | Full definition |
+| Purpose | Establish interface | Provide functionality |
+| Location | Typically at top | Later in file or separate file |
+
+**Implementation Flow Example**
+
+```mermaid
+flowchart LR
+    FD1[def compute;] --> Ref[Code can reference compute]
+    FD2[obj Vehicle;] --> Ref
+    FD3[enum Priority;] --> Ref
+    Ref --> I1["impl compute with body"]
+    Ref --> I2["impl Vehicle with members"]
+    Ref --> I3["impl Priority with values"]
+    I1 --> Ready[All Elements Ready]
+    I2 --> Ready
+    I3 --> Ready
+```
+
+**Common Patterns**
+
+**Separating interface from implementation:**
+
+**Resolving circular dependencies:**
+
+**Organizing complex types:**
+
+**Key Points**
+
+1. Forward declarations establish names without full definitions
+2. Implementation blocks provide the actual functionality
+3. Signatures must match exactly between declaration and implementation
+4. Useful for circular dependencies and code organization
+5. Similar to header/source separation in C/C++
+6. Elements can be referenced after forward declaration, before implementation
+7. All types (functions, objects, enums) support this pattern

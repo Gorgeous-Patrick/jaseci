@@ -1,30 +1,84 @@
-Jac modules support docstrings and entry points that provide structure and documentation at the module level.
+Jac modules organize code with docstrings for documentation and entry points for execution control.
 
-**Module Docstrings**
+**Module-Level Docstrings**
 
-Lines 3-8 demonstrate a module-level docstring. This is a string literal that appears at the very beginning of a module, before any code elements. It serves as documentation for the entire module and can be accessed programmatically for generating documentation or providing help text.
+Lines 1-5 show the module docstring - a string literal at the very beginning of the file. This triple-quoted string documents what the entire module does. It appears before any code elements (functions, classes, etc.). Module docstrings are used by documentation tools and can be accessed at runtime to provide help text.
 
-The docstring explains: "If there is only one docstring before the first element, it is assumed to be a module docstring." This means the position of the docstring determines its scope - a docstring at the module's start documents the module itself.
+**Function Definitions**
 
-**Function Docstrings**
+Lines 7-13 define two simple functions:
 
-Lines 10-13 show a function with a docstring: `"""A docstring for add function"""` appears immediately before the `add` function definition. This documents the specific function rather than the module.
+| Function | Lines | Purpose |
+|----------|-------|---------|
+| `add` | 7-9 | Adds two integers and returns the result |
+| `subtract` | 11-13 | Subtracts second integer from first |
 
-Docstrings can be attached to any module element (functions, classes, methods, etc.) by placing a string literal immediately before the element definition.
+Both functions use type annotations (`a: int, b: int -> int`) to specify parameter and return types. These functions can be called from within the module or imported by other modules.
 
-**Functions Without Docstrings**
+**Default Entry Point**
 
-Lines 16-18 show a function without a docstring. The `subtract` function is perfectly valid without documentation, though best practices encourage documenting all public APIs.
+Lines 16-18 define the default entry point using `with entry`. This code block executes when the module runs. Let's trace the execution:
 
-**Entry Points**
+```mermaid
+graph LR
+    A[Entry point starts] --> B[subtract 8, 3]
+    B --> C[Result: 5]
+    C --> D[add 5, 5]
+    D --> E[Result: 10]
+    E --> F[Print: Default entry: 10]
+```
 
-Lines 21-23 demonstrate a named entry point using `with entry:__main__`. This syntax creates a conditional entry point that executes only when the module is run as the main program (not when imported).
+The nested call evaluates from inside out:
+1. `subtract(8, 3)` returns 5
+2. `add(5, 5)` returns 10
+3. Prints "Default entry: 10"
 
-The `:__main__` label specifies this is the main entry point. When the module is executed directly, this block runs and calls `print(add(1, subtract(3, 1)))`, which:
-1. Calls `subtract(3, 1)` → returns `2`
-2. Calls `add(1, 2)` → returns `3`
-3. Prints `3`
+**Named Entry Point**
 
-**Entry Point Semantics**
+Lines 21-23 define a named entry point using `with entry:__main__`:
 
-Entry points marked with `:__main__` follow the common pattern from Python and other languages where code only executes when the file is the entry point of the program. This allows modules to contain both reusable library code (the functions) and executable scripts (the entry block) in the same file.
+The `:__main__` label creates a conditional entry point that only executes when the module is run directly as the main program (not when imported by another module).
+
+This pattern is similar to Python's `if __name__ == "__main__":` idiom.
+
+Execution trace:
+1. `subtract(3, 1)` returns 2
+2. `add(1, 2)` returns 3
+3. Prints "Named entry: 3"
+
+**Entry Point Behavior**
+
+```mermaid
+graph TD
+    A[Module Loaded] --> B{How was it loaded?}
+    B -->|Run directly| C[Execute both entry blocks]
+    B -->|Imported| D[Skip :__main__ block]
+    C --> E[Default entry runs]
+    C --> F[:__main__ entry runs]
+    D --> G[Only default entry runs]
+```
+
+When you run the module directly:
+- The default `with entry` block executes
+- The `with entry:__main__` block executes
+
+When you import the module:
+- The default `with entry` block may execute (depending on implementation)
+- The `with entry:__main__` block is skipped
+
+This separation allows you to:
+- Define reusable functions (lines 7-13)
+- Provide examples or tests in the `__main__` block (lines 21-23)
+- Keep library code separate from executable code
+
+**Practical Module Organization**
+
+A typical Jac module structure:
+
+1. Module docstring (lines 1-5)
+2. Imports (not shown in this example)
+3. Function/class definitions (lines 7-13)
+4. Default entry point for module initialization (lines 16-18)
+5. Main entry point for direct execution (lines 21-23)
+
+This structure keeps your code organized: documentation at the top, reusable components in the middle, and execution logic at the bottom.

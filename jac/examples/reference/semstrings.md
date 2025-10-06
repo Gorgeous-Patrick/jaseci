@@ -1,63 +1,101 @@
-Semstrings (semantic strings) are Jac's mechanism for providing semantic annotations and context that enrich the meaning available to AI models. The `sem` keyword bridges the gap between code semantics and AI understanding by allowing developers to provide explicit semantic context that works alongside the implicit meaning extracted from code structure (function names, parameter types, return types).
+**Semstrings - Semantic String Definitions**
+
+Semstrings (semantic strings) provide explicit semantic context for AI models in Jac's meaning-typed programming system. The `sem` keyword allows developers to enrich what AI models understand beyond just code structure.
 
 **LLM Model Setup**
 
-Lines 3-8 set up the LLM model that will implement the function. Line 3 imports the `Model` class from the `byllm` module. Lines 5-8 create a global LLM instance using `glob llm = Model(...)`, specifying the model name as `"mockllm"` and providing mock outputs for testing purposes. In production, this would connect to an actual LLM service.
+Line 3 imports the `Model` class from the `byllm` module. Line 5 creates a global LLM instance using `glob llm = Model(...)`, configuring it with:
+- Model name: `"mockllm"` (for testing; production uses real LLM services)
+- Mock outputs: `["SecureP@ss1"]` (predefined response for testing)
 
-**Function Declaration with by llm()**
+**Delegating Function Implementation to AI**
 
-Line 11 demonstrates delegating a function's implementation to an LLM using the `by llm()` syntax: `def generate_password() -> str by llm();`. The `by` keyword is what handles the actual delegation of implementation to the AI model. Jac automatically extracts semantic meaning from the function's name (`generate_password`), parameter types, return type (`str`), and surrounding context to generate appropriate prompts for the AI model.
+Line 8 demonstrates delegating a function's implementation to an LLM:
 
-The function signature includes:
-- Function name: `generate_password` (provides semantic intent)
-- Return type: `-> str` (helps AI understand expected output format)
-- Implementation directive: `by llm()` delegates implementation to the AI model
+`def generate_password() -> str by llm();`
 
-**Semantic String Definition with sem Keyword**
+Breaking down this declaration:
+- `def generate_password()` - Function name provides semantic intent
+- `-> str` - Return type tells AI to produce a string
+- `by llm()` - Delegates implementation to the AI model
 
-Lines 14-21 use the `sem` keyword to provide additional semantic context that enriches what the AI model knows beyond just the function signature. The syntax is `sem function_name = """description""";`, where:
-- `sem` is the keyword indicating a semantic annotation
-- `generate_password` matches the function name from line 11
-- The triple-quoted string contains explicit requirements and constraints
+The `by` keyword handles delegation to the AI. Jac automatically extracts meaning from the function's name, parameters, and return type to generate appropriate prompts.
 
-The semantic string on lines 14-21 provides detailed requirements for password generation:
-- At least 8 characters long
+**Semantic String Definition**
+
+Lines 11-14 use the `sem` keyword to provide additional semantic context. The syntax pattern is `sem function_name = """description""";` where:
+- `sem` - Keyword indicating a semantic annotation
+- `generate_password` - Matches the function name from line 8
+- Triple-quoted string - Contains explicit requirements and constraints
+
+**Semantic Requirements**
+
+The semantic string specifies detailed password requirements:
+- Minimum 8 characters
 - Contains uppercase letters
 - Contains lowercase letters
 - Contains digits
 - Contains special characters
 
-**How sem and by Work Together**
+These requirements supplement what the AI can infer from just the function name and type.
 
-When `generate_password()` is called on line 24, the following happens:
-1. The `by llm()` clause delegates implementation to the AI model
-2. Jac automatically generates a prompt using the function's name, parameters, and return type
-3. The semantic annotation from `sem generate_password` provides additional context that enriches the AI's understanding
-4. The AI model uses both the implicit semantics (from the code structure) and explicit semantics (from the `sem` annotation) to generate appropriate output
-5. The response is returned as the function's output
+**How Semantic Annotations Work**
+
+```mermaid
+graph LR
+    A[Function Call] --> B[by llm clause]
+    B --> C[Extract Implicit Semantics]
+    C --> D[Function name<br/>Parameters<br/>Return type]
+    B --> E[Extract Explicit Semantics]
+    E --> F[sem annotation]
+    D --> G[Generate AI Prompt]
+    F --> G
+    G --> H[AI Model]
+    H --> I[Generated Response]
+    I --> J[Return Value]
+```
+
+When `generate_password()` is called on line 17:
+1. The `by llm()` clause delegates to the AI model
+2. Jac generates a prompt using implicit semantics (function structure)
+3. The `sem` annotation provides explicit semantic context
+4. The AI uses both to generate appropriate output
+5. The response is returned as the function's result
 
 **Execution**
 
-Line 24 calls the LLM-implemented function like any normal function: `password = generate_password();`. The caller doesn't need to know or care that the function is implemented by an LLM rather than traditional code. Line 25 prints the generated password.
+Line 17 calls the AI-implemented function like any normal function: `pwd = generate_password();`. The caller doesn't need to know the function is implemented by an AI rather than traditional code. Line 18 prints the generated password.
 
-**Use Cases**
+**Use Cases for Semantic Annotations**
 
-The `sem` keyword is particularly useful for:
-- Providing explicit requirements and constraints that supplement function signatures
-- Including examples that serve as few-shot learning data for AI models
-- Clarifying domain-specific terminology or abbreviations (e.g., `sem Person.yod = "Year of Death"`)
-- Documenting behavioral requirements that aren't captured by type signatures alone
-- Adding context about tool usage when integrating external functions with AI models
+| Use Case | Example | Benefit |
+|----------|---------|---------|
+| Requirements specification | Password rules (lines 11-14) | AI understands constraints |
+| Domain terminology | `sem Person.yod = "Year of Death"` | Clarifies abbreviations |
+| Behavioral context | Expected output format | Guides AI generation |
+| Tool usage documentation | External function integration | Helps AI use tools correctly |
+| Few-shot examples | Sample inputs/outputs | Provides learning data |
 
-**Advantages**
+**Advantages of Semantic Annotations**
 
-The semantic annotation approach provides several benefits:
-- **Context-Rich**: Enriches AI understanding beyond what code structure alone provides
-- **Explicit Semantics**: Unlike comments, semantic annotations become part of the program's execution context within the MTP (meaning-typed programming) system
-- **Maintainable**: Natural language descriptions work alongside type annotations to create clear contracts
-- **Flexible**: Works with both the `by` keyword for AI delegation and as standalone documentation
-- **Type-safe**: Complements rather than replaces the type system, ensuring both semantic and structural correctness
+The `sem` keyword approach provides several benefits:
+- **Context-rich**: Enriches AI understanding beyond code structure alone
+- **Explicit semantics**: Unlike comments, becomes part of execution context
+- **Maintainable**: Natural language works alongside type annotations
+- **Flexible**: Works with `by` keyword and as standalone documentation
+- **Type-safe**: Complements rather than replaces the type system
+
+**Implicit vs Explicit Semantics**
+
+| Source | Type | Information |
+|--------|------|-------------|
+| Function name | Implicit | Intent from naming (generate_password) |
+| Parameters | Implicit | Expected inputs and their types |
+| Return type | Implicit | Output format (-> str) |
+| sem annotation | Explicit | Detailed requirements and constraints |
+
+Both implicit and explicit semantics work together to give the AI complete context for generating appropriate outputs.
 
 **Implementation Note**
 
-In this example, `mockllm` is used with predefined outputs (line 7) for testing purposes. In real applications, you would configure an actual LLM model (like GPT, Claude, or other models) to interpret the semantic strings and generate appropriate outputs.
+In this example, `mockllm` (line 5) is configured with predefined outputs for testing. In production applications, you would configure an actual LLM model (GPT, Claude, etc.) to interpret the semantic strings and generate appropriate outputs dynamically.

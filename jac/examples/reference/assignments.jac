@@ -1,62 +1,75 @@
 # Assignments
 
 with entry {
-    # Chain assignment (multiple =)
-    a = b = 16;
-    print(a, b);
-
-    # Let assignment
-    let c = 18;
-    print(c);
-
-    # Type annotation with value
-    x: int = 42;
+    # Simple assignment
+    x = 10;
     print(x);
 
-    # Type annotation without value
-    y: str;
-    y = "hello";
-    print(y);
+    # Chain assignment
+    a = b = c = 20;
+    print(f"{a} {b} {c}");
 
-    # Augmented assignments - all operators
-    a >>= 2;  # Right shift assign
-    print(a);
+    # Let keyword
+    let value = 100;
+    print(value);
 
-    a <<= 2;  # Left shift assign
-    print(a);
+    # Type annotation with value
+    age: int = 25;
+    name: str = "Alice";
+    print(f"{age} {name}");
 
-    c //= 4;  # Floor division assign
-    print(c);
-
-    num = 10;
-    num += 5;   # Add assign
-    num -= 3;   # Subtract assign
-    num *= 2;   # Multiply assign
-    num /= 2;   # Division assign
-    num %= 3;   # Modulo assign
-    num **= 2;  # Power assign
-
-    bits = 15;
-    bits &= 7;   # Bitwise AND assign
-    bits |= 8;   # Bitwise OR assign
-    bits ^= 3;   # Bitwise XOR assign
-
-    # Matrix multiplication assign (if supported)
-    # matrix @= other_matrix;
-
-    # Yield expression on right side of assignment
-    def gen() {
-        yield 1;
-        yield 2;
-    }
-
-    # g = (yield from gen());  # Yield expr in assignment
-
-    # Multiple chain assignments
-    x = y = z = 100;
-    print(x, y, z);
-
-    # Assignment with expression
-    result = 5 * (3 + 2);
+    # Type annotation without initial value
+    result: str;
+    result = "computed";
     print(result);
+
+    # Let with type
+    let count: int = 5;
+    print(count);
+
+    # Augmented arithmetic assignments
+    num = 10;
+    num += 5;
+    num -= 3;
+    num *= 2;
+    num /= 4;
+    num %= 5;
+    num **= 2;
+    num //= 3;
+    print(num);
+
+    # Augmented bitwise assignments
+    bits = 12;
+    bits &= 7;
+    bits |= 3;
+    bits ^= 5;
+    bits <<= 2;
+    bits >>= 1;
+    print(bits);
+
+    # Tuple unpacking
+    (x, y) = (10, 20);
+    print(f"{x} {y}");
+
+    # Swap
+    (x, y) = (y, x);
+    print(f"{x} {y}");
+
+    # List unpacking
+    [p, q, r] = [1, 2, 3];
+    print(f"{p} {q} {r}");
+
+    # Nested unpacking
+    (m, (n, o)) = (5, (6, 7));
+    print(f"{m} {n} {o}");
+
+    # Extended unpacking with *
+    (first, *rest) = [1, 2, 3, 4, 5];
+    print(f"{first} {rest}");
+
+    (head, *middle, tail) = [10, 20, 30, 40, 50];
+    print(f"{head} {middle} {tail}");
+
+    (*beginning, last) = [100, 200, 300];
+    print(f"{beginning} {last}");
 }

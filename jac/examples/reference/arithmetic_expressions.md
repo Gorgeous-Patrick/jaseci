@@ -1,58 +1,89 @@
-Arithmetic expressions in Jac follow standard mathematical operator precedence and associativity rules, supporting a comprehensive set of numeric operations.
+Arithmetic expressions in Jac enable mathematical calculations using standard operators with well-defined precedence and associativity rules.
 
-**Basic Binary Operators**
+**Basic Arithmetic Operations**
 
-Jac supports the standard arithmetic operators with the following precedence (from highest to lowest):
+Jac supports fundamental arithmetic operations that work just like traditional mathematics:
 
-| Operator | Description | Example (lines) |
-|----------|-------------|-----------------|
-| `**` | Exponentiation | Line 11 |
-| `*` | Multiplication | Line 7 |
-| `/` | Division (float result) | Line 8 |
-| `//` | Floor division (integer result) | Lines 9, 40 |
-| `%` | Modulo (remainder) | Lines 10, 41 |
-| `+` | Addition | Line 12 |
-| `-` | Subtraction | Line 13 |
+| Operator | Operation | Example Lines | Description |
+|----------|-----------|---------------|-------------|
+| `+` | Addition | 5 | Adds two numbers together |
+| `-` | Subtraction | 6 | Subtracts the second number from the first |
+| `*` | Multiplication | 9 | Multiplies two numbers |
+| `/` | Division | 10 | Divides and returns a float result |
+| `//` | Floor Division | 11, 39 | Divides and returns integer (rounds down) |
+| `%` | Modulo | 12, 40 | Returns the remainder after division |
+| `**` | Exponentiation | 15-16 | Raises first number to the power of second |
 
-Lines 7-13 demonstrate each basic arithmetic operation in isolation. Note that division `/` always produces a float result, while floor division `//` produces an integer by truncating toward negative infinity.
+Lines 5-6 show addition and subtraction: `10 + 5` produces 15, while `10 - 5` produces 5.
 
-**Operator Precedence and Grouping**
+Lines 9-12 demonstrate multiplication and division operations. Notice that regular division `/` on line 10 produces a float result (2.0), while floor division `//` on line 11 produces an integer (3). The modulo operator `%` on line 12 gives the remainder when dividing 10 by 3, which is 1.
 
-Line 16 shows how parentheses override default precedence: `(9 + 2) * 9 - 2`. Without parentheses, multiplication would execute before addition. The expression evaluates as `11 * 9 - 2 = 97`.
+**Exponentiation and Power Operations**
 
-Line 32 demonstrates a complex expression with mixed operators: `2 + 3 * 4 ** 2 - 10 / 2`. Following precedence rules:
-1. Exponentiation first: `4 ** 2 = 16`
-2. Multiplication and division: `3 * 16 = 48` and `10 / 2 = 5.0`
-3. Addition and subtraction: `2 + 48 - 5.0 = 45.0`
+Lines 15-16 show how exponentiation works. Line 15 calculates `2 ** 3`, which means 2 raised to the power of 3, resulting in 8.
+
+Line 16 demonstrates an important concept: exponentiation is **right-associative**. This means `2 ** 3 ** 2` evaluates as `2 ** (3 ** 2)`, not `(2 ** 3) ** 2`. First it calculates 3 squared (9), then raises 2 to that power (512).
 
 **Unary Operators**
 
-Lines 19-22 demonstrate unary prefix operators:
+Lines 18-22 introduce unary operators that work on a single value:
 
-- `+x` (line 20): Unary plus, returns the numeric value unchanged
-- `-x` (line 21): Unary minus, negates the value
-- `~x` (line 22): Bitwise NOT, inverts all bits in the integer representation
+```mermaid
+graph LR
+    A[x = 5] --> B[+x returns 5]
+    A --> C[-x returns -5]
+    A --> D[~x returns -6]
+```
 
-These unary operators have higher precedence than binary operators.
+- Line 20: Unary plus `+x` returns the value unchanged
+- Line 21: Unary minus `-x` negates the value (5 becomes -5)
+- Line 22: Bitwise NOT `~x` inverts all bits (-6 in two's complement)
 
-**Exponentiation Associativity**
+**Operator Precedence**
 
-Line 25 highlights that exponentiation is right-associative: `2 ** 3 ** 2` evaluates as `2 ** (3 ** 2) = 2 ** 9 = 512`, not `(2 ** 3) ** 2 = 8 ** 2 = 64`.
+Jac follows standard mathematical precedence rules, which determine the order operations are performed:
 
-**Matrix Multiplication**
+| Priority | Operators | Associativity |
+|----------|-----------|---------------|
+| Highest | `**` | Right-to-left |
+| High | `~`, `+`, `-` (unary) | Right-to-left |
+| Medium | `*`, `/`, `//`, `%` | Left-to-right |
+| Low | `+`, `-` (binary) | Left-to-right |
 
-Lines 27-29 mention the matrix multiplication operator `@`, though it requires matrix types and isn't demonstrated with executable code. This operator has the same precedence as regular multiplication.
+Line 25 demonstrates precedence: `2 + 3 * 4` equals 14, not 20, because multiplication happens before addition.
+
+Line 26 shows how parentheses override precedence: `(2 + 3) * 4` equals 20 because the parentheses force addition to happen first.
+
+Lines 27-28 show that operators of the same precedence evaluate left-to-right:
+- `10 - 3 + 2` evaluates as `(10 - 3) + 2 = 9`
+- `10 / 2 * 3` evaluates as `(10 / 2) * 3 = 15.0`
+
+**Complex Expressions**
+
+Line 31 shows a complex expression combining multiple operators. This evaluates in the following order:
+1. `4 ** 2` = 16 (exponentiation first)
+2. `3 * 16` = 48 (multiplication)
+3. `10 / 2` = 5.0 (division)
+4. `2 + 48` = 50 (addition)
+5. `50 - 5.0` = 45.0 (subtraction)
 
 **Chained Operations**
 
-Lines 36-37 show that operators of the same precedence are left-associative:
-- `100 - 50 + 25` evaluates as `(100 - 50) + 25 = 75`
-- `2 * 3 * 4` evaluates as `(2 * 3) * 4 = 24`
+Lines 35-36 demonstrate operations with the same precedence:
+- Line 35: `100 - 50 + 25 - 10` evaluates left-to-right as `((100 - 50) + 25) - 10 = 65`
+- Line 36: `2 * 3 * 4 / 2` evaluates as `((2 * 3) * 4) / 2 = 12.0`
 
-**Floor Division and Modulo**
+**Floor Division and Modulo Relationship**
 
-Lines 40-41 demonstrate the relationship between floor division and modulo:
-- `17 // 5 = 3` (quotient)
-- `17 % 5 = 2` (remainder)
+Lines 39-40 show how floor division and modulo work together:
+- `17 // 5` = 3 (quotient)
+- `17 % 5` = 2 (remainder)
 
-Together they satisfy: `17 = 5 * 3 + 2`
+Together they satisfy the equation: `17 = 5 * 3 + 2`
+
+**Precedence Examples**
+
+Lines 43-45 provide additional precedence demonstrations:
+- Line 43: `2 + 3 * 4` = 14 (multiplication before addition)
+- Line 44: `2 ** 3 * 4` = 32 (exponentiation before multiplication: 8 * 4)
+- Line 45: `10 / 2 + 5` = 10.0 (division before addition: 5.0 + 5)

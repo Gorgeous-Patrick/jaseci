@@ -1,20 +1,19 @@
-# Global variables - Module-level variable declarations
+"""Global variables: Module-level variables with let and glob keywords."""
 
-# Let with private access tag
-let:priv a = 5;
+# Let with access modifiers
+let:priv private_val = 5;
+let:pub public_val = 10;
 
-# Global with public access tag
-glob:pub X = 10;
+# Glob with access modifiers
+glob:protect protected_var = 15;
+glob shared_var = 20;
 
-# Global with protected access tag
-glob:protect y = 15;
+# Multiple variable declarations
+glob x = 1, y = 2, z = 3;
 
-# Global without access tag
-glob z = 20;
+# Typed global
+glob counter: int = 0;
 
-# Private object declaration
-obj:priv Myobj{}
-
-with entry:__main__ {
-    print(a, X, y, z);
+with entry {
+    print(private_val, public_val, protected_var, shared_var, x, y, z, counter);
 }

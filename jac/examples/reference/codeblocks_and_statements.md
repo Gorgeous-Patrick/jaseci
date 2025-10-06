@@ -1,38 +1,118 @@
-Code blocks in Jac are sequences of statements enclosed in curly braces `{}`. They provide structure for organizing code within functions, control flow constructs, and entry points.
+Code blocks organize sequences of statements within curly braces, providing structure for functions, control flow, and entry points.
 
-**Code Block Structure**
+**Entry Point Code Block**
 
-Lines 3-20 show an entry code block that contains multiple statements. Code blocks use curly brace syntax `{ ... }` and can contain any valid statements.
+Lines 3-20 show an entry code block - the starting point when the module executes. The `with entry` construct creates a code block that runs when the program starts. Everything inside the curly braces `{ }` is part of this block.
 
 **Expression Statements**
 
-Line 5 demonstrates an expression statement: `print("Welcome to the world of Jaseci!");`. Any expression followed by a semicolon becomes a statement. The expression is evaluated for its side effects (in this case, printing output).
+Line 5 demonstrates an expression statement. An expression followed by a semicolon becomes a statement. The expression is evaluated for its side effect (in this case, printing output). The semicolon is required to mark the end of the statement.
 
-**Nested Definitions**
+**Function Definitions Inside Blocks**
 
-Lines 8-10 show that function definitions can appear inside code blocks. The `add` function is defined within the entry block's scope:
+Lines 8-10 show that you can define functions inside code blocks. This function is defined within the entry block's scope. The function itself contains its own code block (lines 9-10) with a return statement.
 
-`def add(x: int, y: int) -> int { return (x + y); }`
+**Code Block Structure**
 
-Functions defined inside blocks have local scope relative to that block.
+```mermaid
+graph TD
+    A[Code Block] --> B[Opening Brace]
+    B --> C[Statement 1]
+    C --> D[Statement 2]
+    D --> E[Statement N]
+    E --> F[Closing Brace]
+    G[Nested Block] --> H[Function Block]
+    G --> I[If Block]
+    G --> J[Loop Block]
+```
 
-**Function Calls as Statements**
+Every code block has:
+- Opening brace `{`
+- Zero or more statements
+- Closing brace `}`
 
-Line 13 shows a function call as an expression statement: `print(add(10, 89));`. The function is called, its result is passed to `print`, and the expression completes.
+**Function Call Statements**
 
-**Statement Types**
+Line 13 shows a function call as a statement. The function call `add(10, 89)` is evaluated, its result is passed to `print()`, and then the statement completes. Function calls can be statements when their return value isn't assigned.
 
-Lines 16-19 demonstrate that code blocks can contain different statement types:
+**Multiple Statement Types**
 
-- **Assignment statement** (line 16): `x = 42;` binds a value to a variable
-- **Control flow statement** (lines 17-19): `if x > 0 { print("Positive"); }` contains a nested code block
+Lines 16-19 demonstrate that code blocks can contain various statement types:
 
-**Semicolons**
+| Line | Statement Type | Example |
+|------|----------------|---------|
+| 16 | Assignment | `x = 42;` |
+| 17 | If statement | `if x > 0 { ... }` |
+| 18 | Expression | `print("Positive");` |
 
-Jac requires semicolons to terminate most statements. This explicit termination allows the parser to distinguish between statement boundaries and enables more flexible formatting.
+Line 16 assigns a value to variable `x`. This is an assignment statement that stores 42 in the variable.
+
+Lines 17-19 contain an if statement with its own nested code block. The condition `x > 0` is evaluated, and if true, the nested block executes.
 
 **Nested Code Blocks**
 
-The if statement on lines 17-19 contains its own code block. Code blocks can be nested arbitrarily deep, with each level creating a new scope for local variables (though the specifics of scoping rules depend on the statement type).
+The if statement on lines 17-19 creates a nested structure:
 
-Code blocks are the fundamental organizational unit in Jac, grouping related statements and defining scope boundaries for variables and functions.
+The outer code block (entry block) contains an if statement, which itself contains a code block. Code blocks can nest arbitrarily deep:
+
+```mermaid
+graph LR
+    A[Entry Block] --> B[Statement x = 42]
+    A --> C[If Statement]
+    C --> D[If's Code Block]
+    D --> E[Print Statement]
+```
+
+**Semicolons in Jac**
+
+Jac requires semicolons to terminate most statements:
+- Assignment statements: `x = 42;`
+- Expression statements: `print(...);`
+- Return statements: `return value;`
+
+Semicolons are not used after code blocks themselves:
+- Function definitions: `def foo() { ... }` (no semicolon after `}`)
+- If statements: `if x > 0 { ... }` (no semicolon after `}`)
+- Loops: `while x < 10 { ... }` (no semicolon after `}`)
+
+**Statement Categories**
+
+Code blocks can contain:
+
+| Category | Examples | Purpose |
+|----------|----------|---------|
+| Expression | `print(x);` `x + y;` | Evaluate and use side effects |
+| Assignment | `x = 10;` `y += 5;` | Bind values to variables |
+| Control Flow | `if`, `while`, `for` | Change execution path |
+| Definitions | `def`, `class`, `enum` | Declare new elements |
+| Return | `return value;` | Exit function with value |
+
+**Scope and Code Blocks**
+
+Code blocks create scope boundaries for variables:
+- Variables defined in a block are local to that block
+- Nested blocks can access variables from outer blocks
+- Outer blocks cannot access variables from inner blocks
+
+The function `add` defined on line 8 is scoped to the entry block. Variables `x` and `y` (line 8) are scoped to the function's code block.
+
+**Practical Code Block Usage**
+
+Code blocks serve several purposes:
+
+1. **Grouping**: Related statements stay together
+2. **Scope Control**: Variables have defined lifetimes
+3. **Structure**: Clear visual organization
+4. **Control Flow**: Define what executes conditionally or repeatedly
+
+Every control structure in Jac uses code blocks to define what should execute under certain conditions. The curly brace syntax makes it explicit where blocks begin and end.
+
+**Code Block Best Practices**
+
+- Keep blocks focused on a single purpose
+- Use proper indentation for readability (even though braces define the structure)
+- Avoid deeply nested blocks when possible
+- One statement per line for clarity
+- Always use braces, even for single-statement blocks
+
+Code blocks are fundamental to organizing Jac programs, providing the structure that makes complex logic manageable and understandable.

@@ -1,83 +1,221 @@
-F-strings (formatted string literals) in Jac provide powerful string interpolation, allowing embedded expressions and values within string literals using the `f` prefix.
+**F-String Tokens in Jac**
 
-**Basic F-String Syntax**
+F-strings (formatted string literals) provide powerful string interpolation, allowing you to embed expressions and values directly within string literals using the `f` prefix.
 
-Lines 7-8 show basic interpolation: `f"Hello {x} {y} {{This is an escaped curly brace}}"`.
-- The `f` prefix marks the string as formatted
-- `{x}` and `{y}` evaluate variables and insert their values
-- `{{` and `}}` create literal curly braces (escaped)
+**Basic F-String Syntax (Lines 7-11)**
 
-**Single vs Double Quotes**
+Lines 4-5 define variables for interpolation:
 
-Line 11 demonstrates that f-strings work with single quotes: `f'Single quoted: {x} and {y}'`. Both quote styles support the same interpolation features.
+**Double-quoted f-strings (Line 8)**:
+- `f` prefix marks the string as formatted
+- `{x}` evaluates variable x and inserts "World"
+- `{y}` evaluates variable y and inserts 42
+- Output: "Hello World! Number: 42"
 
-**Complex Expressions**
+**Single-quoted f-strings (Line 11)**:
+- Works with single quotes too
+- Same interpolation behavior
+- Output: "Value: 42"
 
-Lines 14-15 show dictionary access within f-strings:
-`f"Hello, {person['name']}! You're {person['age']} years old."`
+**F-String Components**
 
-Any valid expression works inside `{}`, including dictionary lookups, function calls, and arithmetic.
+| Component | Syntax | Purpose | Example |
+|-----------|--------|---------|---------|
+| Prefix | `f` or `F` | Marks string as formatted | `f"text"` |
+| Braces | `{expression}` | Interpolation placeholder | `{x}`, `{x + 1}` |
+| Escaped braces | `{{` or `}}` | Literal braces | `{{not interpolated}}` |
 
-**Escaped Braces**
+**Triple-Quoted F-Strings (Lines 13-18)**
 
-Line 18 shows doubling braces to create literals:
-- `{{{{` produces `{{`
-- `}}}}` produces `}}`
+Lines 14-17:
+- Triple quotes allow multi-line strings
+- Preserves line breaks and formatting
+- Interpolation works across lines
+- Useful for templates and formatted output
 
-This is necessary when you want literal curly braces in the output.
+**Escaped Braces (Line 21)**
 
-**Arithmetic in F-Strings**
+Line 21: `print(f"Escaped: {{braces}} and value {y}");`
+- `{{` produces literal `{`
+- `}}` produces literal `}`
+- `{y}` still interpolates normally
+- Output: "Escaped: {braces} and value 42"
 
-Line 21 demonstrates embedded calculations: `f"Calculation: {5 + 3} = {5 + 3}"`. Each `{...}` evaluates independently, so the expression is computed twice.
+**Escape Sequence Table**
 
-**Method Calls**
+| Syntax | Output | Use Case |
+|--------|--------|----------|
+| `{x}` | Value of x | Interpolation |
+| `{{` | `{` | Literal left brace |
+| `}}` | `}` | Literal right brace |
+| `{{{{` | `{{` | Escaped pair |
 
-Lines 24-25 show calling methods on objects: `f"Uppercase: {text.upper()}"`. The method executes and its return value is interpolated into the string.
+**Expressions in F-Strings (Line 24)**
 
-**Conditional Expressions**
+Line 24: `print(f"Math: {5 + 3}, {10 * 2}");`
+- Any expression can be inside braces
+- `{5 + 3}` evaluates to 8
+- `{10 * 2}` evaluates to 20
+- Output: "Math: 8, 20"
+- Each expression evaluated independently
 
-Lines 28-29 use ternary expressions: `f"Status: {('Adult' if age >= 18 else 'Minor')}"`. Complex expressions should be parenthesized for clarity.
+**Expression Evaluation Flow**
 
-**Multi-Line F-Strings**
+```mermaid
+graph TD
+    A["f-string with expression"] --> B[Parse string]
+    B --> C[Find expressions in braces]
+    C --> D[Evaluate each expression]
+    D --> E[Convert result to string]
+    E --> F[Insert into final string]
+    F --> G[Return complete string]
 
-Lines 32-39 demonstrate triple-quoted f-strings:
+    style D fill:#2e7d32,stroke:#fff,color:#fff
+    style E fill:#e65100,stroke:#fff,color:#fff
+```
 
-`f"""
-Name: {name}
-Score: {score}
-Grade: {('A' if score >= 90 else 'B')}
-"""`
+**Method Calls (Lines 26-28)**
 
-Multi-line f-strings preserve formatting and indentation, useful for templates or formatted output.
+Lines 27-28:
+- `{text.upper()}` calls method on object
+- Method executes and returns "HELLO"
+- Result interpolated into string
+- Output: "Upper: HELLO"
 
-**Escape Sequences**
+**Dictionary Access (Lines 30-32)**
 
-Lines 42-45 review standard escape sequences that work in both regular and f-strings:
-- `\n`: newline
-- `\r`: carriage return
-- `\t`: tab
-- `\f`: form feed
+Lines 31-32:
+- `{d['name']}` accesses dictionary key
+- Uses quotes inside f-string (different quote types)
+- `{d['age']}` gets age value
+- Output: "Name: Alice, Age: 30"
 
-**F-String with String Methods**
+**Conditionals in F-Strings (Lines 34-36)**
 
-Lines 48-49 show combining f-strings with string methods:
-`f"{'\n'.join(words)}"` calls `join()` on a newline character, demonstrating that f-string expressions can contain any string operations.
+Lines 35-36:
+- Ternary expression inside braces
+- Parentheses for clarity
+- Evaluates to "Adult" (age >= 18)
+- Output: "Status: Adult"
 
-**Nested F-Strings**
+**F-String Expression Types**
 
-Lines 52-53 show f-strings within f-strings: `f"Value is {f'{value}'}"`
+| Expression Type | Example | Result |
+|----------------|---------|--------|
+| Variable | `{x}` | Value of x |
+| Arithmetic | `{5 + 3}` | 8 |
+| Method call | `{text.upper()}` | Uppercase text |
+| Dictionary | `{d['key']}` | Value at key |
+| Conditional | `{a if cond else b}` | a or b based on cond |
+| Function call | `{len(items)}` | Length of items |
 
-While technically possible, nested f-strings are rarely necessary and can reduce readability.
+**Nested F-Strings (Lines 38-40)**
 
-**Format Specifiers** (commented)
+Lines 39-40:
+- F-string inside f-string interpolation
+- Inner f-string evaluated first
+- Result inserted into outer f-string
+- Output: "Nested: 100"
+- Generally avoid - reduces readability
 
-Lines 56-57 mention format specifiers like `{pi:.2f}` for controlling number formatting. These may be implementation-specific but follow Python's format specification mini-language for controlling width, precision, and alignment.
+**Quote Handling in F-Strings**
 
-**Advantages of F-Strings**
+Different quote combinations work:
 
-F-strings provide:
-- Clear, readable string interpolation
-- Full expression evaluation
-- Better performance than string concatenation
-- Type conversion happens automatically
-- Inline computation without temporary variables
+**Complex Expression Examples**
+
+Chained method calls:
+
+List comprehension:
+
+Multiple operations:
+
+Function with arguments:
+
+**Best Practices**
+
+1. **Keep expressions simple**: Complex logic belongs in variables
+2. **Use meaningful variable names**: Makes f-strings readable
+3. **Match quote types**: Use different quotes for outer string and dict keys
+4. **Avoid side effects**: F-string expressions shouldn't modify state
+5. **Consider alternatives**: Very complex formatting might need `.format()` or templates
+
+**F-String Advantages**
+
+| Advantage | Description | Example |
+|-----------|-------------|---------|
+| Readability | Clear, inline interpolation | `f"Hello {name}"` |
+| Conciseness | Less verbose than concatenation | vs `"Hello " + name` |
+| Performance | Faster than % formatting | Optimized at compile time |
+| Flexibility | Any expression allowed | `{func(x, y)}` |
+| Type conversion | Automatic str() conversion | Works with any type |
+
+**Common Patterns**
+
+Debug printing:
+
+Formatted output:
+
+Building messages:
+
+Template strings:
+
+**Performance Notes**
+
+F-strings are:
+- Evaluated at runtime (not compile time for expressions)
+- Faster than `"".format()` and `%` formatting
+- Similar speed to manual concatenation
+- Optimized by Python interpreter
+- No function call overhead
+
+**Comparison with Other Methods**
+
+| Method | Syntax | Readability | Performance |
+|--------|--------|-------------|-------------|
+| F-string | `f"{x} {y}"` | Excellent | Fast |
+| .format() | `"{} {}".format(x, y)` | Good | Slower |
+| % formatting | `"%s %s" % (x, y)` | Fair | Slower |
+| Concatenation | `str(x) + " " + str(y)` | Poor | Fast |
+
+**When to Use F-Strings**
+
+Use f-strings when:
+- Building strings with variable interpolation
+- Creating debug or log messages
+- Formatting output for users
+- Constructing dynamic strings
+- Need inline expression evaluation
+
+Avoid when:
+- String is a constant template used repeatedly (use .format() with template)
+- Internationalization needed (f-strings can't be extracted for translation)
+- Very complex formatting logic (use dedicated template engine)
+
+**Error Handling**
+
+F-string errors occur at different times:
+
+**Syntax errors (parse time)**:
+
+**Runtime errors (execution time)**:
+
+**Type Conversion**
+
+F-strings automatically convert to string:
+- `{42}` → "42"
+- `{[1,2,3]}` → "[1, 2, 3]"
+- `{None}` → "None"
+- Custom objects use `__str__()` or `__repr__()`
+
+Objects without string representation may show:
+
+**Advanced Usage**
+
+While not shown in this basic example, f-strings support:
+- Format specifiers: `{value:.2f}` for decimals
+- Alignment: `{text:>10}` for right-align
+- Sign control: `{num:+}` to always show sign
+- Conversion flags: `{obj!r}` for repr(), `{obj!s}` for str()
+
+These advanced features follow Python's format specification mini-language.

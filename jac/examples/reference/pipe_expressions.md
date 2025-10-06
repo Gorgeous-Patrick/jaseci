@@ -1,58 +1,175 @@
-Pipe expressions use the `|>` operator to pass values into functions from left to right, creating a natural data flow syntax.
+Pipe expressions use the `|>` operator to pass values into functions from left to right, creating a natural data flow syntax that emphasizes transformation pipelines.
+
+**What is the Forward Pipe Operator?**
+
+The forward pipe operator `|>` takes a value on its left and passes it to a function on its right. Think of it as making data flow visible:
+
+- Traditional: `square(5)` - function wraps the value
+- Forward pipe: `5 |> square` - value flows into function
+
+The key advantage is readability, especially when chaining multiple operations.
 
 **Basic Forward Pipe Syntax**
 
-Lines 17-19 demonstrate the basic forward pipe operator. Line 18 shows `result = number |> square`, which is equivalent to `result = square(number)`. The `|>` operator takes the value on its left side (`number`, which is 5) and passes it as an argument to the function on its right side (`square`).
+Line 9 demonstrates the basic form. This breaks down as:
+- `5` is the value on the left
+- `|>` is the forward pipe operator
+- `square` is the function on the right
+- Result: `5 ** 2 = 25`
 
-The forward pipe operator creates a left-to-right reading flow that emphasizes data transformation: "number flows into square". This can be more intuitive than traditional function call syntax, especially when chaining multiple transformations.
+| Traditional Call | Forward Pipe | Result | Line |
+|------------------|--------------|--------|------|
+| `square(5)` | `5 \|> square` | 25 | 9 |
+
+The expression reads naturally left-to-right: "5, pipe to square" or "5 flows into square".
 
 **Function Definitions**
 
-Lines 3-13 define three transformation functions:
-- `square` (line 3): raises input to the power of 2
-- `double` (line 7): multiplies input by 2
-- `increment` (line 11): adds 1 to input
+Lines 3-5 define transformation functions:
 
-These functions demonstrate how pipe works with different operations.
+| Function | Operation | Example | Line |
+|----------|-----------|---------|------|
+| `square(x)` | Raise to power 2 | `square(5) = 25` | 3 |
+| `double(x)` | Multiply by 2 | `double(5) = 10` | 4 |
+| `add_ten(x)` | Add 10 | `add_ten(5) = 15` | 5 |
+
+These demonstrate how pipe works with different operations.
 
 **Chained Forward Pipes**
 
-Lines 21-24 show chained forward pipe operations. The syntax `value |> increment |> double |> square` creates a pipeline that evaluates from left to right:
-1. `value` (3) is piped to `increment`, producing 4
-2. 4 is piped to `double`, producing 8
-3. 8 is piped to `square`, producing 64
+Line 12 demonstrates the real power - chaining multiple operations. This creates a transformation pipeline that evaluates left to right:
 
-This enables elegant function composition in a left-to-right data flow style. Pipe operators support chaining and composition, allowing you to build complex transformation pipelines. The TODO comment in the code example may indicate this specific test case needs updating, but the chaining functionality is supported by the language.
+```mermaid
+graph LR
+    A[3] -->|add_ten| B[13]
+    B -->|double| C[26]
+    C -->|square| D[676]
+
+    style A fill:#2e7d32,stroke:#fff,color:#fff
+    style D fill:#b71c1c,stroke:#fff,color:#fff
+```
+
+Step-by-step execution:
+1. Start with `3`
+2. `3 |> add_ten` = `13` (3 + 10)
+3. `13 |> double` = `26` (13 * 2)
+4. `26 |> square` = `676` (26 ** 2)
+
+Each operation feeds its result to the next, creating a clean left-to-right flow.
+
+**Traditional vs Piped Syntax**
+
+Compare the readability:
+
+**Traditional (nested calls)**:
+Reads inside-out (confusing): "square of double of add_ten of 3"
+
+**Forward pipe (chained)**:
+Reads left-to-right (natural): "3, add ten, double, square"
+
+The piped version eliminates nested parentheses and makes the data flow explicit.
 
 **Pipe with Built-in Functions**
 
-Lines 27-29 demonstrate using pipe with built-in functions. Line 28 shows `total = data |> sum`, which passes the list `[1, 2, 3, 4, 5]` to the `sum` function, producing 15. The pipe operator works with any callable, including built-in functions, not just user-defined functions.
+Line 15 shows using pipe with built-in functions. This pipes a list into the `sum` function, producing 15. The pipe operator works with:
+- User-defined functions (lines 3-5)
+- Built-in functions (line 15)
+- Lambda expressions (line 18)
+- Any callable object
 
 **Pipe to Lambda Expressions**
 
-Lines 31-33 demonstrate piping to lambda expressions. Line 32 shows `x = 10 |> (lambda n: int : n * 3)`, which pipes the value 10 into an inline lambda function that multiplies by 3, resulting in 30.
+Line 18 demonstrates piping to inline lambda functions. This breaks down as:
+- `10` is the input value
+- `|>` pipes it to the lambda
+- `(lambda n: int : n * 3)` multiplies by 3
+- Result: `10 * 3 = 30`
 
-The lambda must be wrapped in parentheses when used with the pipe operator. This pattern is useful for one-off transformations without defining a separate function, while maintaining the left-to-right data flow style.
+The lambda must be wrapped in parentheses when used with pipe. This pattern is useful for one-off transformations in the middle of a pipeline:
 
-**Comparison to Pipe Back**
+**Forward Pipe vs Pipe Back**
 
-The forward pipe operator `|>` is the reverse of the pipe back operator `<|` (covered in pipe_back_expressions.md):
-- Forward pipe: `value |> function` (left to right, data-first)
-- Pipe back: `function <| value` (right to left, function-first)
+Understanding the relationship between the two pipe operators:
 
-**Use Cases**
+| Operator | Direction | Syntax | Reading Style | Example Line |
+|----------|-----------|--------|---------------|--------------|
+| `\|>` (forward) | Left to right | `value \|> function` | Data-first | 9, 12 |
+| `<\|` (backward) | Right to left | `function <\| value` | Function-first | - |
+
+**Forward pipe** (this example):
+
+**Pipe back** (covered in pipe_back_expressions.md):
+
+Both produce the same result, but emphasize different aspects:
+- Forward pipe emphasizes the data and its transformation journey
+- Pipe back emphasizes the function being applied
+
+**When to Use Forward Pipe**
 
 Forward pipe is particularly useful when:
-- You want to emphasize data flow and transformation
-- You're building a pipeline of operations
-- You prefer left-to-right reading order
-- You're transforming data through multiple steps
-- You're familiar with pipe operators from functional languages (F#, Elixir) or Unix shells
 
-**Advantages**
+1. **Chaining transformations**:
+
+2. **Making data flow visible**:
+
+3. **Avoiding nested calls**:
+
+4. **Step-by-step transformations**:
+
+**Practical Examples**
+
+**Example 1: Data processing pipeline**
+
+**Example 2: String manipulation**
+
+**Example 3: Numerical computation**
+
+**Example 4: Mixing functions and lambdas**
+
+**Advantages of Forward Pipe**
 
 The pipe operator offers several benefits:
-- Improved readability for data transformation sequences
-- Eliminates deeply nested function calls
-- Makes the order of operations explicit
-- Reduces the need for intermediate variables
+
+1. **Improved readability**: Data transformations read left-to-right
+2. **Eliminates nesting**: No deeply nested function calls
+3. **Explicit flow**: Makes the order of operations obvious
+4. **Reduces variables**: No need for intermediate temporary variables
+5. **Natural composition**: Easily add or remove transformation steps
+
+**Comparison Table**
+
+| Style | Syntax | Pros | Cons |
+|-------|--------|------|------|
+| Traditional | `f(g(h(x)))` | Familiar | Nested, inside-out reading |
+| Forward pipe | `x \|> h \|> g \|> f` | Left-to-right, clear flow | Less familiar to some |
+| Variables | `a=h(x); b=g(a); f(b)` | Step-by-step | Verbose, many variables |
+
+**Output Demonstration**
+
+Line 20 prints all results:
+- `result1 = 25` (square of 5)
+- `result2 = 676` (3 |> add_ten |> double |> square)
+- `total = 15` (sum of [1,2,3,4,5])
+- `result3 = 30` (10 piped to lambda that triples)
+
+**Relationship to Functional Programming**
+
+The forward pipe operator comes from functional programming languages:
+- **F#**: `|>` operator (direct inspiration)
+- **Elixir**: `|>` operator for pipelines
+- **Unix shells**: `|` for piping command output
+
+Jac brings this pattern to graph-based programming, making data transformations more readable.
+
+**Key Takeaways**
+
+- `|>` passes values from left to right into functions
+- Syntax: `value |> function`
+- Chains naturally: `value |> f1 |> f2 |> f3`
+- Works with user functions, built-ins, and lambdas
+- Emphasizes data flow and transformation pipeline
+- Eliminates nested function calls
+- Makes code more readable and maintainable
+- Complements pipe back (`<|`) which emphasizes functions
+
+The forward pipe operator is a powerful tool for writing clear, maintainable transformation pipelines that read naturally from left to right.

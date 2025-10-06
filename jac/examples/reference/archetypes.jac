@@ -1,59 +1,226 @@
-# Archetypes - Core Jac archetype declarations
+# Archetypes - All 5 types: class, obj, node, edge, walker
 
-def print_base_classes(cls: type) -> type {
-    print(
-        f"Base classes of {cls.__name__}: {[c.__name__ for c in cls.__bases__]}"
-    );
+# Basic class archetype
+class Animal {
+    has species: str = "Unknown";
+    has age: int = 0;
+    def make_sound { print(f"{self.species} makes a sound"); }
+}
+
+# Object archetype
+obj Domesticated {
+    has owner: str = "None";
+    has trained: bool = False;
+    def train {
+        self.trained = True;
+        print(f"Training {self.owner}'s pet");
+    }
+}
+
+obj Mammal { has warm_blooded: bool = True; }
+
+# Node with multiple inheritance
+node Pet(Animal, Domesticated, Mammal) {
+    has name: str = "Unnamed";
+    has favorite_toy: str = "ball";
+    def play { print(f"{self.name} plays with {self.favorite_toy}"); }
+
+    can greet_person with Person entry {
+        print(f"  {self.name} wags tail at {visitor.name}");
+    }
+}
+
+# Edge with public access modifier and method
+edge :pub Relationship {
+    has strength: int = 5;
+    has since: int = 2020;
+    def strengthen {
+        self.strength += 1;
+        print(f"Relationship strengthened to {self.strength}");
+    }
+}
+
+# Edge with walker ability
+edge Ownership {
+    has duration_years: int = 0;
+    can track with OwnershipWalker entry {
+        print(f"  Edge: Ownership duration = {self.duration_years} years");
+        self.duration_years += 1;
+    }
+}
+
+# Walker with inheritance chain (Person -> Caretaker -> Veterinarian)
+walker Person(Animal) {
+    has name: str = "Person";
+    has visited_count: int = 0;
+    can greet with `root entry {
+        print(f"{self.name}: Starting walk from root");
+        visit [-->];
+    }
+    can visit_pet with Pet entry {
+        self.visited_count += 1;
+        print(f"{self.name} visits {here.name}");
+        visit [-->];
+    }
+}
+
+walker Caretaker(Person) {
+    has care_quality: int = 10;
+    can care_for with Pet entry {
+        print(f"{self.name} cares for {here.name} (quality: {self.care_quality})");
+        visit [-->];
+    }
+}
+
+walker Veterinarian(Caretaker) {
+    has specialty: str = "general";
+    can examine with Pet entry {
+        print(f"Dr. {self.name} ({self.specialty}) examines {here.name}");
+        visit [-->];
+    }
+}
+
+# Async walker
+async walker AsyncInspector {
+    has inspected: list = [];
+    async can inspect with `root entry {
+        print("AsyncInspector: starting");
+        visit [-->];
+    }
+    async can check with Pet entry {
+        self.inspected.append(here.name);
+        print(f"  Async checking: {here.name}");
+        visit [-->];
+    }
+}
+
+# Access modifiers: private, public, protected
+obj :priv PrivateConfig { has secret_key: str = "hidden"; }
+obj :pub PublicAPI { has version: str = "1.0"; }
+obj :protect ProtectedResource { has resource_id: int = 0; }
+
+# Forward declarations
+node AnimalNode;
+walker SpecializedWalker;
+edge SpecialEdge;
+
+# Implementation blocks for forward declarations
+impl AnimalNode {
+    has animal_type: str = "wild";
+    has habitat: str = "forest";
+    def describe { print(f"AnimalNode: {self.animal_type} in {self.habitat}"); }
+}
+
+impl SpecializedWalker {
+    has specialization: str = "research";
+    can process with AnimalNode entry {
+        print(f"SpecializedWalker ({self.specialization}): Processing node");
+        disengage;
+    }
+}
+
+impl SpecialEdge {
+    has edge_weight: float = 1.0;
+    def get_weight -> float { return self.edge_weight; }
+}
+
+# Decorators on archetypes
+def print_bases(cls: type) -> type {
+    print(f"Archetype {cls.__name__} bases: {[c.__name__ for c in cls.__bases__]}");
     return cls;
 }
 
-# Class archetype (basic)
-class Animal {}
+def track_creation(cls: type) -> type {
+    print(f"Created archetype: {cls.__name__}");
+    return cls;
+}
 
-# Object archetype (basic)
-obj Domesticated {}
+@print_bases
+@track_creation
+node DecoratedNode(Pet) { has special_attr: str = "decorated"; }
 
-# Node archetype with inheritance and decorator
-@print_base_classes
-node Pet(Animal, Domesticated) {}
-
-# Edge archetype (connects nodes in spatial graphs)
-edge Relationship {}
-
-# Edge with access tag
-edge :pub Connection {}
-
-# Walker archetypes with inheritance
-walker Person(Animal) {}
-
-walker Feeder(Person) {}
-
-@print_base_classes
-walker Zoologist(Feeder) {}
-
-# Async walker
-async walker MyWalker {}
-
-# Archetype with access tags (visibility modifiers)
-obj :priv PrivateObject {}
-obj :pub PublicObject {}
-obj :protect ProtectedObject {}
-
-# Archetype with SEMI (forward declaration)
-class ForwardDeclared;
-node AbstractNode;
-
-impl ForwardDeclared {
-    def info {
-        print("This is a forward-declared class.");
+# Walker for edge abilities
+walker OwnershipWalker {
+    can start with `root entry {
+        print("OwnershipWalker: tracking ownership edges");
+        visit [-->];
+    }
+    can visit_node with Pet entry {
+        print(f"  At pet: {here.name}");
+        visit [edge -->];
     }
 }
 
-impl AbstractNode {
-    def info {
-        print("This is an abstract node.");
-    }
-}
+# ===== Tests =====
+with entry {
+    print("=== 1. Basic Archetypes ===");
+    animal = Animal();
+    animal.species = "Dog";
+    animal.make_sound();
 
-# Async applied to other archetypes (if supported)
-# async obj AsyncObject {}
+    dom = Domesticated();
+    dom.owner = "Alice";
+    dom.trained = True;
+    print(f"Owner: {dom.owner}, Trained: {dom.trained}");
+
+    print("\n=== 2. Multiple Inheritance ===");
+    pet1 = Pet();
+    pet1.name = "Buddy";
+    pet1.species = "Dog";
+    pet1.owner = "Bob";
+    pet1.play();
+    pet1.train();
+    print(f"Warm blooded: {pet1.warm_blooded}");
+
+    print("\n=== 3. Edge Methods ===");
+    rel = Relationship();
+    rel.strength = 8;
+    rel.strengthen();
+
+    print("\n=== 4. Walker Inheritance ===");
+    pet2 = Pet();
+    pet2.name = "Max";
+    pet2.species = "Cat";
+    root ++> pet1 ++> pet2;
+
+    person = Person();
+    person.name = "Alice";
+    person.species = "Human";
+    root spawn person;
+    print(f"Alice visited {person.visited_count} pets");
+
+    vet = Veterinarian();
+    vet.name = "Dr.Smith";
+    vet.specialty = "canine";
+    vet.species = "Human";
+    root spawn vet;
+
+    print("\n=== 5. Edge Abilities ===");
+    owner = Pet();
+    owner.name = "Owner";
+    owned = Pet();
+    owned.name = "Owned";
+    root ++> owner +>: Ownership(duration_years=3) :+> owned;
+    root spawn OwnershipWalker();
+
+    print("\n=== 6. Access Modifiers ===");
+    print(f"Private: {PrivateConfig().secret_key}, Public: {PublicAPI().version}, Protected: {ProtectedResource().resource_id}");
+
+    print("\n=== 7. Forward Declarations ===");
+    animal_node = AnimalNode();
+    animal_node.animal_type = "lion";
+    animal_node.describe();
+    print(f"Edge weight: {SpecialEdge().get_weight()}");
+
+    root ++> animal_node;
+    spec = SpecializedWalker();
+    spec.specialization = "wildlife";
+    animal_node spawn spec;
+
+    print("\n=== 8. Decorators ===");
+    decorated = DecoratedNode();
+    decorated.name = "Deco";
+    print(f"Decorated: {decorated.special_attr}");
+
+    print("\n✓ All features demonstrated!");
+}

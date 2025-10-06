@@ -1,47 +1,57 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
 
-def foo(value: int) -> None:
-    if value < 0:
-        raise ValueError('Value must be non-negative')
+def raise_exception() -> None:
+    raise ValueError('error message')
 
-def bar(x: int) -> None:
+def raise_with_expression() -> None:
+    x = 10
+    raise RuntimeError(f'value is {x}')
+
+def raise_from_exception() -> None:
     try:
-        result = 10 / x
+        x = 5 / 0
     except ZeroDivisionError as e:
-        raise RuntimeError('Division failed') from e
+        raise RuntimeError('division failed') from e
 
-def reraise_example() -> None:
+def bare_raise() -> None:
     try:
-        raise ValueError('Original error')
+        raise ValueError('original')
     except ValueError:
-        print('Caught error, re-raising...')
+        print('caught, re-raising')
         raise
 
-def conditional_raise(value: any) -> None:
-    if value is None:
-        raise ValueError('Value cannot be None')
-    if not isinstance(value, int):
-        raise TypeError(f'Expected int, got {type(value).__name__}')
-    return value * 2
+def conditional_raise(value: int) -> None:
+    if value < 0:
+        raise ValueError('must be non-negative')
+    if value > 100:
+        raise ValueError('must be <= 100')
 try:
-    foo(-1)
+    raise_exception()
 except ValueError as e:
-    print('Raised:', e)
+    print(f'caught: {e}')
 try:
-    bar(0)
+    raise_with_expression()
 except RuntimeError as e:
-    print('Runtime error:', e)
+    print(f'caught: {e}')
 try:
-    reraise_example()
+    raise_from_exception()
+except RuntimeError as e:
+    print(f'caught: {e}')
+try:
+    bare_raise()
 except ValueError as e:
-    print('Re-raised:', e)
+    print(f're-raised: {e}')
 try:
-    conditional_raise(None)
+    conditional_raise(-5)
 except ValueError as e:
-    print('None value error:', e)
+    print(f'caught: {e}')
 try:
-    conditional_raise('not an int')
-except TypeError as e:
-    print('Type error:', e)
+    conditional_raise(150)
+except ValueError as e:
+    print(f'caught: {e}')
+try:
+    conditional_raise(50)
+    print('no error')
+except ValueError:
+    print('unexpected')

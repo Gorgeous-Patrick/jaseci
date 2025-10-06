@@ -1,65 +1,125 @@
-Collection values in Jac support both literal syntax and powerful comprehension expressions for creating and transforming collections.
+**Collection Values in Jac**
 
-**Dict Comprehension**
+Jac provides powerful syntax for creating and manipulating collections including lists, tuples, dictionaries, sets, and comprehensions. This example demonstrates literal notation and comprehension expressions.
 
-Lines 5-6 show dictionary comprehension: `{num: num ** 2 for num in range(1, 6)}`. This creates a dictionary where keys are numbers 1-5 and values are their squares. The syntax is `{key_expr: value_expr for var in iterable}`.
+**Collection Types Overview**
 
-**Set Comprehension**
+| Type | Syntax | Mutable | Ordered | Allows Duplicates |
+|------|--------|---------|---------|-------------------|
+| List | `[1, 2, 3]` | Yes | Yes | Yes |
+| Tuple | `(1, 2, 3)` | No | Yes | Yes |
+| Dictionary | `{"a": 1, "b": 2}` | Yes | Yes (insertion order) | Keys: No, Values: Yes |
+| Set | `{1, 2, 3}` | Yes | No | No |
 
-Lines 9-10 demonstrate set comprehension with a filter: `{num ** 2 for num in range(1, 11) if num % 2 == 0}`. This creates a set of squares of even numbers. The `if` clause filters which elements are included.
+**Literal Syntax (Lines 4-8)**
 
-**Generator Comprehension**
+The example shows basic collection literals:
+- Line 5: `lst = [1, 2, 3]` creates a list
+- Line 6: `tpl = (1, 2, 3)` creates a tuple
+- Line 7: `dct = {"a": 1, "b": 2}` creates a dictionary with string keys
+- Line 8: `st = {1, 2, 3}` creates a set
 
-Lines 13-14 show generator comprehension using parentheses: `(num ** 2 for num in range(1, 6))`. Generators produce values lazily on demand rather than creating the entire collection in memory. Line 14 converts it to a list for printing.
+**Empty Collections (Lines 10-13)**
 
-**List Comprehension**
+Empty collections have special syntax considerations:
+- Line 11: `empty_lst = []` creates an empty list
+- Line 12: `empty_dct = {}` creates an empty dictionary (note: `{}` is dict, not set)
+- Line 13: `empty_tpl = ()` creates an empty tuple
+- For empty sets, use `set()` since `{}` is reserved for dictionaries
 
-Lines 17-18 demonstrate list comprehension: `[num ** 2 for num in range(1, 6) if num != 3]`. Square brackets create a list, and the `if` clause excludes the number 3.
+**List Comprehension (Lines 15-17)**
 
-**Multiple For Clauses**
+List comprehensions provide concise syntax for creating lists from iterables:
 
-Lines 21-22 show nested iteration in comprehensions: `[x * y for x in [1, 2, 3] for y in [10, 20]]`. This produces all combinations of x and y values: [10, 20, 20, 40, 30, 60].
+Line 16: `squares = [x ** 2 for x in range(5)]`
+- Produces `[0, 1, 4, 9, 16]` - squares of numbers 0-4
+- Syntax: `[expression for variable in iterable]`
 
-**Multiple If Clauses**
+Line 17: `filtered = [x for x in range(10) if x % 2 == 0]`
+- Produces `[0, 2, 4, 6, 8]` - only even numbers
+- Syntax: `[expression for variable in iterable if condition]`
 
-Lines 25-26 demonstrate multiple filter conditions: `[x for x in range(20) if x % 2 == 0 if x % 3 == 0]`. Only numbers divisible by both 2 and 3 are included (i.e., multiples of 6).
+**Dictionary Comprehension (Line 20)**
 
-**Async Comprehension**
+Line 20: `dict_comp = {x: x ** 2 for x in range(5)}`
+- Creates `{0: 0, 1: 1, 2: 4, 3: 9, 4: 16}`
+- Syntax: `{key_expr: value_expr for variable in iterable}`
+- Keys and values can be different expressions
 
-Line 29 (commented) mentions async comprehension syntax for asynchronous iteration: `[x async for x in async_generator()]`.
+**Set Comprehension (Line 23)**
 
-**Dictionary Literals**
+Line 23: `set_comp = {x ** 2 for x in range(5)}`
+- Creates `{0, 1, 4, 9, 16}` - a set of squares
+- Syntax: `{expression for variable in iterable}`
+- Automatically removes duplicates
 
-Lines 32-33 show basic dictionary syntax: `{"a": "b", "c": "d"}`. Keys and values are separated by colons, pairs by commas.
+**Generator Comprehension (Line 26)**
 
-**Dictionary Unpacking**
+Line 26: `gen_comp = (x ** 2 for x in range(5))`
+- Uses parentheses instead of brackets
+- Creates a generator that produces values lazily
+- Memory efficient for large datasets - values computed on demand
+- Convert to list with `list(gen_comp)` (shown in line 38)
 
-Lines 36-38 demonstrate dictionary unpacking with `**`: `{**base_dict, "z": 3}`. This spreads all key-value pairs from `base_dict` into the new dictionary and adds a new pair.
+**Comprehension Flow Diagram**
 
-**Set Literals**
+```mermaid
+graph TD
+    A[Iterable] --> B{For each item}
+    B --> C{Filter condition?}
+    C -->|if clause| D{Passes?}
+    C -->|no filter| E[Apply expression]
+    D -->|Yes| E
+    D -->|No| B
+    E --> F[Add to result]
+    F --> B
+    B --> G[Return collection]
+```
 
-Lines 41-42 show set literals: `{"a", "b", "c"}`. Braces with comma-separated values (not key-value pairs) create a set.
+**Multiple Loops (Line 29)**
 
-**Tuple Literals**
+Line 29: `multi = [x * y for x in [1, 2] for y in [3, 4]]`
+- Nested iteration producing all combinations
+- Results: `[1*3, 1*4, 2*3, 2*4]` = `[3, 4, 6, 8]`
+- Outer loop (`x`) runs first, inner loop (`y`) runs for each `x`
 
-Lines 45-46 show tuple literals: `("a", "b", "c")`. Parentheses with comma-separated values create an immutable tuple.
+**Multiple Filters (Line 30)**
 
-**List Literals**
+Line 30: `multi_if = [x for x in range(20) if x % 2 == 0 if x % 3 == 0]`
+- Multiple `if` clauses act as AND conditions
+- Only includes values divisible by both 2 AND 3 (multiples of 6)
+- Results: `[0, 6, 12, 18]`
 
-Lines 49-50 show list literals: `['a', 'b', 'c']`. Square brackets with comma-separated values create a mutable list.
+**Nested Comprehensions (Line 33)**
 
-**Empty Collections**
+Line 33: `matrix = [[i * j for j in range(3)] for i in range(3)]`
+- Creates a 2D matrix (list of lists)
+- Outer comprehension creates rows, inner creates columns
+- Results:
 
-Lines 53-56 demonstrate empty collection syntax:
-- Empty list: `[]`
-- Empty dict: `{}` (note: `{}` creates a dict, not a set)
-- Empty tuple: `()`
-- Empty set: `set()` (must use function call since `{}` is reserved for empty dict)
+**Dictionary Unpacking (Line 36)**
 
-**Trailing Commas**
+Line 36: `merged = {**dct, "c": 3}`
+- Spreads all key-value pairs from `dct` into a new dictionary
+- Adds additional key `"c": 3`
+- If `dct = {"a": 1, "b": 2}`, result is `{"a": 1, "b": 2, "c": 3}`
+- Later values override earlier ones for duplicate keys
 
-Lines 60-63 show that trailing commas are allowed in collection literals: `[1, 2, 3,]`. This is useful for version control as it allows adding items without modifying the previous line.
+**Comprehension Performance Characteristics**
 
-**Nested Comprehensions**
+| Type | Memory | Use Case |
+|------|--------|----------|
+| List `[...]` | Eager (full list in memory) | Need all values, multiple iterations |
+| Generator `(...)` | Lazy (values on demand) | Large datasets, single iteration |
+| Dict `{k:v...}` | Eager | Key-value mappings |
+| Set `{...}` | Eager | Unique values, membership testing |
 
-Lines 66-67 demonstrate nested list comprehensions: `[[i * j for j in range(3)] for i in range(3)]`. This creates a 2D matrix where each element is the product of its row and column indices.
+**Common Patterns**
+
+Transform and filter:
+
+Create lookup tables:
+
+Flatten nested structures:
+
+Matrix operations:

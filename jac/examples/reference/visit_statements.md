@@ -1,89 +1,161 @@
-Visit statements are a core feature of Jac's spatial programming model, controlling how walkers traverse graph structures by specifying which nodes to visit next. They embody the fundamental paradigm shift in Object-Spatial Programming from "data flows to computation" to "computation flows to data"—instead of data being passed to stationary functions, walkers (autonomous computational entities) move through the data space (nodes and edges), processing information contextually based on their current location.
+**Visit Statements**
 
-**Basic Visit with Edge Expression**
+Visit statements are the fundamental mechanism for walker traversal in Jac's Object-Spatial Programming model. They control how walkers move through graph structures, embodying the paradigm shift from "data flows to computation" to "computation flows to data."
 
-Line 19 demonstrates the simplest visit statement: `visit [-->];`. This tells the walker to traverse all outgoing edges from the current node. The `[-->]` is an edge expression that selects all edges going out from the current node. When this executes, the walker will visit each node connected by these edges.
+**Node Definition**
+
+Lines 3-5 define a `Person` node with a `name` attribute. This node type will be used throughout the examples to build a graph structure that walkers can traverse.
+
+**Basic Visit Syntax**
+
+Line 11 demonstrates the simplest visit form: `visit [-->];`
+
+Components:
+- `visit` - Keyword initiating traversal
+- `[-->]` - Edge expression (outgoing edges)
+- `;` - Statement terminator
+
+This tells the walker to visit all nodes reachable via outgoing edges from the current node.
+
+**Walker with Visit**
+
+Lines 8-17 define a walker that demonstrates basic visiting. Line 9 defines an ability that triggers when entering the root node. Line 11 executes the visit statement, queueing connected nodes. Lines 14-16 define an ability that triggers when entering Person nodes, using `here.name` to access the current node's attribute.
 
 **Visit with Else Clause**
 
-Lines 6-9 show a visit statement with an else clause: `visit [-->] else { ... }`. The else clause executes when there are no edges to visit (when the edge expression matches no edges).
+Lines 23-24 demonstrate the else clause. The else block executes when the edge expression matches zero edges. This is useful for:
+- Detecting terminal/leaf nodes
+- Implementing backtracking behavior
+- Handling dead ends in traversal
+- Providing fallback navigation logic
 
-In this example:
-- If `[-->]` finds outgoing edges, the walker visits those nodes
-- If `[-->]` finds no edges (dead end), the else block executes
-- Lines 7-8 visit the root node and then disengage (stop the walker)
+Lines 30-32 show else in a Person ability, detecting when a node has no outgoing edges (leaf node).
 
-This pattern is useful for handling terminal nodes or implementing backtracking behavior.
+**Directional Edge Operators**
 
-**Visit with Direct Node Reference**
+| Expression | Direction | Description |
+|------------|-----------|-------------|
+| `[-->]` | Outgoing | All edges leaving current node |
+| `[<--]` | Incoming | All edges entering current node |
+| `[<-->]` | Bidirectional | All edges in both directions |
 
-Lines 7 and 28 show visiting a specific node: `visit root;`. Instead of an edge expression, you can directly specify a node to visit. This is useful for:
-- Jumping to specific nodes
-- Returning to a known location (like root)
-- Implementing custom traversal patterns
+Line 11 uses `[-->]` for outgoing traversal, the most common pattern.
 
-**Typed Visit Expression (Commented)**
+**Direct Node Visit**
 
-Line 16 shows a commented-out typed visit: `visit :node: [-->];`. The `:node:` syntax would filter the traversal to only visit nodes of a specific type. This allows walkers to selectively visit nodes based on their type, though this example indicates it may not be currently active.
+Lines 37-49 demonstrate visiting a specific node. Line 42 shows `visit self.target;` - instead of an edge expression, this visits the specific node stored in the walker's `target` attribute. Line 106 spawns this walker with `DirectVisit(target=charlie)`, passing the target node as a parameter.
 
-**Conditional Visit**
+**Typed Edge Traversal**
 
-Lines 31-34 demonstrate conditional visiting based on walker state. The visit only occurs if `self.count < 5`:
+Lines 52-59 demonstrate visiting through specific edge types. Line 57 uses `[->:Friend:->]` to traverse only Friend-typed edges. The pattern is:
+- `->` - Outgoing direction indicator
+- `:Friend:` - Edge type filter
+- `->` - Target direction
+
+This allows structural queries: "follow only these types of connections."
+
+**Filtered Edge Traversal**
+
+Lines 62-71 demonstrate edge attribute filtering. Line 69 uses `[->:Colleague:strength > 5:->]` to traverse only Colleague edges where the `strength` attribute exceeds 5. The pattern is:
+- `->:Colleague:` - Edge type
+- `strength > 5` - Attribute filter condition
+- `:->` - Target direction
+
+This combines structural and property-based filtering.
+
+**Multiple Visit Statements**
+
+Lines 74-85 show a walker with multiple visit statements. When this walker executes:
+1. Line 77 visits from root
+2. For each Person reached, lines 80-83 execute
+3. Line 83 visits again from that Person
+4. The process continues recursively
+
+Multiple visits enable complex multi-phase traversal algorithms.
+
+**Visit Execution Flow**
+
+```mermaid
+graph TD
+    A[visit statement] --> B[Evaluate edge/node expression]
+    B --> C{Edge expression?}
+    C -->|Yes| D[Find matching edges]
+    C -->|No| E[Use specific node]
+    D --> F[Get target nodes]
+    E --> F
+    F --> G[Queue nodes for visiting]
+    G --> H[Walker processes queue]
+    H --> I[Entry abilities trigger]
+    I --> J{More to visit?}
+    J -->|Yes| H
+    J -->|No| K[Walker completes]
 ```
-if self.count < 5 {
-    visit [-->];
-    self.count += 1;
-}
-```
 
-This pattern enables:
-- Limiting traversal depth
-- Conditional exploration based on walker state
-- Implementing search algorithms with termination conditions
+**Graph Construction**
 
-**Edge Expressions**
+Lines 88-97 build the graph structure:
 
-Edge expressions specify which edges to follow:
+| Line | Operation | Description |
+|------|-----------|-------------|
+| 93 | `root ++> alice;` | Connect root to Alice |
+| 94 | `alice ++> bob;` | Connect Alice to Bob |
+| 95 | `alice ++> charlie;` | Connect Alice to Charlie |
+| 96 | `alice +>:Friend:+> bob;` | Create Friend edge to Bob |
+| 97 | `alice +>:Colleague(strength=7):+> charlie;` | Create Colleague edge with attributes |
 
-| Expression | Meaning |
-|------------|---------|
-| `[-->]` | All outgoing edges |
-| `[<--]` | All incoming edges |
-| `[<-->]` | All edges (both directions) |
+Lines 99-115 then spawn various walkers to traverse this graph structure using different visit patterns.
 
-These can be combined with type filters and conditions for sophisticated traversal control.
+**Visit Patterns Summary**
 
-**Walker Definition and Abilities**
+| Pattern | Line | Description |
+|---------|------|-------------|
+| Basic outgoing | 11 | `visit [-->];` - Follow all outgoing edges |
+| With else | 23 | `visit [-->] else { ... }` - Handle no edges case |
+| Direct node | 42 | `visit self.target;` - Visit specific node |
+| Typed edges | 57 | `visit [->:Friend:->];` - Filter by edge type |
+| Filtered edges | 69 | `visit [->:Type:attr > val:->];` - Filter by attributes |
+| Multiple visits | 77, 83 | Sequential visit statements |
 
-Lines 3-11 define a walker with an ability that uses visit statements. The `can travel with \`root entry` syntax means this ability executes when the walker enters a root node. The visit statements within control how the walker continues its traversal.
+**The here Reference**
 
-Lines 13-21 define another walker showing the straightforward visit without else clause.
+Throughout the examples, `here` is used to access the current node:
+- Line 16: `here.name` - Access node attribute
+- Line 29: `here.name` - Used in Person ability
+- Line 56: `here.name` - In typed edge walker
+- Line 68: `here.name` - In filtered edge walker
 
-Lines 23-36 define a walker with state (`count`) that uses conditional visiting to control traversal behavior.
+The `here` special reference always points to the node the walker is currently visiting.
 
-**Node Abilities**
+**Complete Traversal Example**
 
-Lines 38-50 define nodes with abilities that execute when walkers visit them. Line 39 shows `can speak with Visitor entry`, meaning this ability triggers when a `Visitor` walker enters an `item` node. These abilities can contain their own logic but don't control the walker's traversal - that's handled by visit statements in the walker.
+Lines 99-115 demonstrate running all the example walkers:
 
-**Graph Setup**
+1. `root spawn BasicVisitor()` - Basic outgoing traversal
+2. `root spawn VisitWithElse()` - Traversal with else handling
+3. `root spawn DirectVisit(target=charlie)` - Direct node visit
+4. `alice spawn TypedVisit()` - Typed edge filtering
+5. `alice spawn FilteredVisit()` - Attribute filtering
+6. `root spawn MultiVisit()` - Multiple visits
 
-Lines 54-56 build a graph structure by creating 5 `item` nodes connected to root. Line 59 spawns the `Visitor` walker, which will traverse this graph according to its visit statements.
+Each demonstrates a different visit pattern on the same graph structure.
 
-**Visit Statement Semantics**
+**Key Characteristics**
 
-When a visit statement executes:
-1. The edge expression is evaluated to find matching edges
-2. For each matching edge, the walker queues a visit to the target node
-3. Node entry abilities execute as nodes are visited
-4. The walker continues until no more visits are queued or it disengages
+Visit statements enable:
+- Declarative graph traversal (specify what to visit, not how)
+- Type-based filtering (visit only certain edge types)
+- Attribute-based filtering (visit based on edge properties)
+- Fallback logic (else clause for dead ends)
+- Direct navigation (visit specific nodes)
+- Complex algorithms (multiple sequential visits)
 
-**Traversal Control**
+**Comparison with Traditional Control Flow**
 
-Visit statements work with other control statements:
-- `disengage` (line 8): stops the walker immediately
-- `if` conditions: control whether visits occur
-- `else` clauses: handle cases where no edges match
+| Traditional | Jac Visit |
+|-------------|-----------|
+| `for node in nodes: process(node)` | `visit [-->]` |
+| Data comes to function | Walker goes to data |
+| Imperative (how to iterate) | Declarative (what to visit) |
+| Manual queueing | Runtime handles traversal |
 
-**Multiple Visits**
-
-A walker can have multiple visit statements in sequence, each potentially visiting different sets of nodes. The walker maintains a queue of pending visits and processes them according to the traversal strategy (depth-first or breadth-first, determined by the spawn operator).
+Visit statements are the foundation of Object-Spatial Programming, making Jac particularly expressive for graph-based computation and spatial queries.

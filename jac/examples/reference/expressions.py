@@ -1,13 +1,12 @@
+"""Expressions: Ternary conditional (if-else) and lambda expressions."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
 x = 1 if 5 / 2 == 1 else 2
-print(x)
-age = 20
-status = 'adult' if age >= 18 else 'minor'
-print(status)
-score = 85
-grade = 'A' if score >= 90 else 'B' if score >= 80 else 'C'
-print(grade)
-value = max(10, 20) if True else min(10, 20)
-print(value)
+status = 'adult' if 20 >= 18 else 'minor'
+grade = 'A' if 85 >= 90 else 'B' if 85 >= 80 else 'C'
+square = lambda x: x ** 2
+add = lambda a, b: a + b
+multiply = lambda x, y: x * y
+get_five = lambda: 5
+abs_val = lambda n: n if n >= 0 else -n
+print(x, status, grade, square(5), add(3, 4), multiply(6, 7), get_five(), abs_val(-10))

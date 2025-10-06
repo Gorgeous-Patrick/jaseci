@@ -1,54 +1,103 @@
-Lambda expressions in Jac create anonymous functions with concise syntax, supporting type annotations, default parameters, and inline logic.
+Lambda expressions in Jac create anonymous functions with a concise syntax, perfect for short function definitions that you need to use inline or pass as arguments.
 
-**Lambda with Type Annotations**
+**What are Lambda Expressions?**
 
-Line 5 shows full lambda syntax: `lambda a: int, b: int -> int : b + a`. Format breakdown:
-- `lambda` keyword
-- Parameters with types: `a: int, b: int`
-- Return type annotation: `-> int`
-- Colon separator: `:`
-- Expression body: `b + a`
+Lambda expressions are a way to create small, unnamed functions without using the full `def` syntax. They're ideal for simple operations that you only need once, like transforming data in a map or filter operation.
 
-**Parameterless Lambda**
+**Basic Lambda Syntax**
 
-Lines 9-10 demonstrate lambda without parameters: `lambda : 5`. Simply returns the value 5 when called.
+The general structure of a lambda expression follows this pattern:
 
-**Lambda Without Return Hint**
+| Component | Description | Required |
+|-----------|-------------|----------|
+| `lambda` keyword | Marks the start of a lambda expression | Yes |
+| Parameters | Input parameters with optional type hints | No |
+| `->` return type | Type hint for the return value | No |
+| `:` separator | Separates signature from body | Yes |
+| Expression | Single expression to evaluate and return | Yes |
 
-Lines 13-14 show lambda without return type: `lambda x: int, y: int : x + y`. Return type annotation is optional.
+**Lambda with Full Type Annotations**
 
-**Return Hint Without Parameters**
+Line 5 shows a lambda with complete type annotations. The expression `lambda a: int, b: int -> int : a + b` defines a function that takes two integer parameters and returns their sum. This is equivalent to:
 
-Lines 17-18 demonstrate return hint without params: `lambda -> int : 42`. Specifies return type but takes no arguments.
+The lambda version is more concise and can be assigned to a variable (line 5) or passed directly as an argument.
+
+**Lambda Without Parameters**
+
+Lines 9-10 demonstrate the simplest form of lambda: one that takes no parameters and just returns a constant value. The syntax `lambda : 42` creates a function that always returns 42 when called.
+
+**Lambda Without Return Type Hints**
+
+Lines 13-14 show that type hints are optional. You can write `lambda x: int, y: int : x * y` without specifying the return type. Jac will infer the return type from the expression.
+
+**Lambda with Only Return Type**
+
+Lines 17-18 demonstrate specifying just the return type without parameters: `lambda -> int : 100`. This is useful when you want to document what the lambda returns even though it takes no inputs.
 
 **Default Parameter Values**
 
-Lines 21-24 show default parameters: `lambda x: int = 2, y: int = 3 : x * y`.
-- Called with no args: uses defaults (2, 3) → 6
-- Called with one arg: `multiply(5)` → 5 * 3 = 15
-- Called with two args: `multiply(5, 10)` → 50
+Lines 21-24 show how lambdas can have default parameter values, just like regular functions:
 
-**Variadic Arguments**
+| Call | Values Used | Result |
+|------|-------------|--------|
+| `power()` (line 22) | x=2, y=3 (defaults) | 8 |
+| `power(5)` (line 23) | x=5, y=3 (y default) | 125 |
+| `power(5, 2)` (line 24) | x=5, y=2 | 25 |
 
-Lines 27-28 note that lambdas don't support `*args` or `**kwargs` - use regular functions instead for variadic parameters.
+**Lambdas as Function Arguments**
 
-**Lambda as Function Argument**
+One of the most common uses for lambdas is passing them as arguments to higher-order functions.
 
-Lines 31-33 show passing lambda to `map`: `map(lambda x: int : x ** 2, numbers)`. This is a common functional programming pattern.
+Lines 27-29 demonstrate using a lambda with the `map` function to square each number in a list. The lambda `lambda x: int : x ** 2` is applied to each element.
 
-**Lambda with Filter**
+Lines 32-33 show using a lambda with `filter` to select only even numbers. The lambda `lambda x: int : x % 2 == 0` returns true for even numbers.
 
-Lines 36-37 demonstrate lambda in `filter`: `filter(lambda x: int : x % 2 == 0, numbers)`. Returns only even numbers.
+**Lambdas with Conditional Expressions**
 
-**Complex Lambda**
+Lines 36-38 demonstrate that the expression body of a lambda can be a conditional (ternary) expression. The lambda `lambda a: int, b: int : a if a > b else b` returns the maximum of two values.
 
-Lines 40-41 show lambda with conditional: `lambda a: int, b: int : a if a > b else b`. The lambda body can be any single expression, including ternaries.
+**Lambda Returning Lambda**
+
+Lines 41-43 show a more advanced pattern: a lambda that returns another lambda. This creates closures where the inner lambda captures variables from the outer lambda. Line 41 creates a function that returns an "adder" function, and line 42 creates a specific adder that adds 5 to its input.
+
+```mermaid
+graph LR
+    A[make_adder(5)] --> B[Returns: lambda y: 5 + y]
+    B --> C[add_five(10)]
+    C --> D[Returns: 15]
+```
+
+**Lambda as Sort Key**
+
+Lines 46-48 demonstrate using a lambda as a key function for sorting. The `sorted` function uses the lambda `lambda s: str : len(s)` to determine the sort order, sorting strings by their length rather than alphabetically.
 
 **Lambda Limitations**
 
-Lambdas are restricted to single expressions - they cannot contain:
-- Multiple statements
-- Assignments (except walrus :=)
-- Control flow statements (if/for/while as statements)
+Important things to know about lambdas in Jac:
 
-For complex logic, use regular `def` functions instead.
+| Feature | Supported in Lambda? |
+|---------|---------------------|
+| Single expression | Yes |
+| Multiple statements | No |
+| Assignments | No (except walrus `:=`) |
+| Type annotations | Yes |
+| Default parameters | Yes |
+| Variadic arguments (`*args`, `**kwargs`) | No |
+| Control flow statements (if/for/while as statements) | No |
+| Conditional expressions (ternary) | Yes |
+
+For complex logic requiring multiple statements or control flow, use regular `def` functions instead.
+
+**When to Use Lambdas**
+
+Use lambdas when you need:
+- Simple, one-line operations
+- Inline function definitions for `map`, `filter`, `sorted`, etc.
+- Callback functions that are used only once
+- Closures with simple logic
+
+Use regular functions when you need:
+- Multiple statements or complex logic
+- Better documentation with docstrings
+- Reusable code that appears in multiple places
+- Variadic arguments or complex parameter handling

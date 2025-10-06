@@ -1,50 +1,59 @@
-# Context managers
+# Context Managers
 
 with entry {
     # Basic with statement with as binding
-    with open(__file__, 'r') as file {}
+    with open(__file__, 'r') as f {
+        print("file opened");
+    }
 
-    # With expression without as
-    # with some_context_manager() {
-    #     print("No binding");
-    # }
+    # Multiple context managers
+    with open(__file__, 'r') as f1, open(__file__, 'r') as f2 {
+        print("multiple files");
+    }
 
-    # Multiple expressions in expr_as_list
-    # with open("file1.txt") as f1, open("file2.txt") as f2 {
-    #     data1 = f1.read();
-    #     data2 = f2.read();
-    # }
-
-    # Async with (for async context managers)
-    # async with async_context_manager() as resource {
-    #     data = await resource.fetch();
-    # }
-
-    # With statement for resource management
-    class Resource {
-        def __enter__(self: Resource) -> Resource {
-            print("Acquiring resource");
+    # With statement without as binding
+    class Printer {
+        def __enter__(self: Printer) -> Printer {
+            print("entering");
             return self;
         }
 
-        def __exit__(
-            self: Resource, 
-            exc_type: `Optional[Type[BaseException]], 
-            exc_val: `Optional[BaseException], 
-            exc_tb: `Optional[`TracebackType]
-            ) -> None {
-            print("Releasing resource");
+        def __exit__(self: Printer, exc_type: object, exc_val: object, exc_tb: object) -> None {
+            print("exiting");
         }
     }
 
-    with Resource() as r {
-        print("Using resource");
+    with Printer() {
+        print("inside");
+    }
+
+    # With as binding
+    with Printer() as p {
+        print("with binding");
     }
 
     # Nested with statements
-    # with context1() as c1 {
-    #     with context2() as c2 {
-    #         print("Nested contexts");
-    #     }
-    # }
+    with Printer() as p1 {
+        with Printer() as p2 {
+            print("nested");
+        }
+    }
+
+    # Async with statement
+    async def test_async_with {
+        class AsyncContext {
+            async def __aenter__(self: AsyncContext) -> AsyncContext {
+                print("async entering");
+                return self;
+            }
+
+            async def __aexit__(self: AsyncContext, exc_type: object, exc_val: object, exc_tb: object) -> None {
+                print("async exiting");
+            }
+        }
+
+        async with AsyncContext() as ac {
+            print("async inside");
+        }
+    }
 }

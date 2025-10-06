@@ -1,39 +1,69 @@
-Assert statements in Jac provide runtime validation and testing capabilities, allowing developers to verify assumptions about program state and create test cases.
+Assert statements validate conditions at runtime, making your code fail fast when assumptions are violated. They're essential for debugging and testing.
 
 **Basic Assert Syntax**
 
-The assert statement has the form `assert <condition> , <optional_message>`. If the condition evaluates to false, an AssertionError is raised with the optional message.
+The simplest form of assert checks if a condition is true. Line 5 shows the basic usage. If the condition is false, an AssertionError is raised. Line 6 prints a confirmation message after the assertion passes.
 
-Line 5 demonstrates a basic assert with a custom error message: `assert value > 0 , "Value must be positive"`. When `foo(-5)` is called on line 10, this assertion fails because `-5 > 0` is false.
+**Assertions with Expressions**
 
-**Exception Handling with Assertions**
+Lines 9-11 demonstrate using expressions in assertions. After setting `x = 10`, line 10 asserts that `x > 5`. Since 10 is indeed greater than 5, the assertion passes and line 11 prints confirmation.
 
-Lines 9-13 show how to catch assertion failures using try-except blocks. The `except AssertionError as e` clause catches the raised exception, and the error message is accessible via the exception object `e`.
+**Assertions with Custom Messages**
 
-**Global Variables in Tests**
+Line 14 shows how to add a descriptive error message to your assertion. The message after the comma appears when the assertion fails, making it easier to understand what went wrong. This is particularly helpful when debugging complex conditions.
 
-Line 16 defines global variables `a = 5` and `b = 2` using the `glob` keyword. These globals are accessible in subsequent test blocks, providing shared state for test cases.
+**Handling Assertion Failures**
 
-**Test Blocks**
+Lines 18-22 demonstrate catching assertion failures with try-except blocks:
 
-Jac provides a dedicated `test` keyword for defining test cases. Each test block has a name and contains assertions:
+| Line | Purpose |
+|------|---------|
+| 18-19 | Try block contains assertion that will fail |
+| 20-21 | Except catches AssertionError and handles it |
 
-- **test1** (lines 19-21): Demonstrates `almostEqual(a, 6)`, which checks if `a` is approximately equal to 6 (within some tolerance). This test will fail since `a = 5`.
+When `assert False` on line 19 executes, it raises an AssertionError. The except block catches this error and prints "assertion failed" instead of crashing the program.
 
-- **test2** (lines 23-25): Asserts `a != b`, verifying that 5 is not equal to 2. This test passes.
+**Capturing Error Messages**
 
-- **test3** (lines 27-29): Asserts `"d" in "abc"`, checking if the substring "d" appears in "abc". This test fails.
+Lines 25-29 show how to access the error message from a failed assertion. The `as e` clause captures the exception object, allowing you to print or log the custom message. This is useful for creating informative error reports.
 
-- **test4** (lines 31-33): Asserts `a - b == 3`, verifying that `5 - 2 == 3`. This test passes.
+**Assertions with Function Calls**
 
-**Testing Semantics**
+Line 32 demonstrates using function calls within assertions. The assertion evaluates the entire expression. First `len([1, 2, 3])` returns 3, then checks if it equals 3. This pattern is common for validating data structures.
 
-Test blocks serve as named units of testing that can be executed independently or as part of a test suite. Unlike regular functions:
-- Tests are declarative and don't require explicit invocation
-- They typically contain multiple assertions
-- They integrate with testing frameworks that can discover and run them automatically
-- Failed assertions within tests are reported with the test name for easy identification
+**Common Assertion Patterns**
 
-**Assertion Functions**
+```mermaid
+graph TD
+    A[Assert Statement] --> B{Condition Type}
+    B -->|Comparison| C[assert x != y]
+    B -->|Membership| D[assert 5 in list]
+    B -->|Identity| E[assert None is None]
+    B -->|Function Result| F[assert len == 3]
+```
 
-The `almostEqual` function (line 20) is a specialized assertion helper for floating-point comparisons, allowing for small numerical differences due to precision limitations. This is essential when comparing computed float values where exact equality is not guaranteed.
+The example demonstrates several assertion patterns:
+
+| Lines | Pattern | Example | Use Case |
+|-------|---------|---------|----------|
+| 36-37 | Inequality | `assert "hello" != "world"` | Verify values differ |
+| 40-41 | Membership | `assert 5 in [1, 2, 3, 4, 5]` | Check list/set contents |
+| 44-45 | Identity | `assert None is None` | Verify object identity |
+| 32-33 | Equality | `assert len([1, 2, 3]) == 3` | Validate computed values |
+
+**When to Use Assertions**
+
+Assertions are perfect for:
+- Validating function preconditions (input requirements)
+- Checking function postconditions (output guarantees)
+- Verifying internal invariants (conditions that should always be true)
+- Writing test cases
+
+**Assertions vs Exceptions**
+
+Unlike regular exceptions, assertions should be used for:
+- Debugging during development
+- Catching programming errors (not user errors)
+- Validating assumptions in your code
+
+For user input validation or expected runtime errors, use regular if statements and raise proper exceptions instead.

@@ -1,89 +1,49 @@
-# Atom - Atomic expressions and literals
+"""Atom: Atomic expressions and literals (strings, numbers, bools, None, types)."""
 
-impl x {
-    aa=67,
-    y="aaa" + f"b{aa}bbcc"
-}
-
-glob c = (3, 4, 5), list1 = [2, 3, 4, 5];
+enum NumEnum { aa = 67, y = 68 }
 
 with entry {
-    # String literals
-    a = "abcde....";
-    print("String:", a);
-
-    # Bool literal
-    b = True;
-    c = False;
-    print("Bool:", b, c);
-
-    # NULL literal
+    # Literals
+    s = "string";
+    b1 = True;
+    b2 = False;
     n = None;
-    print("None:", n);
 
-    # Integer literals
-    decimal = 42;
-    print("Decimal int:", decimal);
-
-    # Binary literal
+    # Integer formats
+    dec = 42;
     binary = 0b1100;
-    print("Binary 0b1100:", binary);
-
-    # Octal literal
     octal = 0o755;
-    print("Octal 0o755:", octal);
+    hexa = 0xFF;
 
-    # Hexadecimal literal
-    hexadecimal = 0xFF;
-    print("Hex 0xFF:", hexadecimal);
+    # Float formats
+    flt = 3.14;
+    sci = 1.5e10;
 
-    # Float literals
-    float_val = 3.14;
-    scientific = 1.5e10;
-    print("Float:", float_val, scientific);
+    # Ellipsis
+    ellip = ...;
 
-    # ELLIPSIS literal
-    ellipsis = ...;
-    print("Ellipsis:", ellipsis);
-
-    # Parenthesized expression
+    # Parenthesized expressions
     result = (5 + 3) * 2;
-    print("Parenthesized:", result);
 
-    # Parenthesized yield expression
-    # def gen() {
-    #     val = (yield 10);
-    # }
+    # Named references
+    var = 100;
 
-    # named_ref standalone
-    variable_name = 100;
-    print("Named ref:", variable_name);
+    # Builtin types as values
+    type1 = str;
+    type2 = int;
 
-    # Type reference with backtick
-    # type_str = `str;
-    # type_int = `int;
-    # print("Type refs:", type_str, type_int);
+    # Collections
+    tpl = (1, 2, 3);
+    lst = [1, 2, 3];
+    dct = {"k": "v"};
+    st = {1, 2, 3};
 
-    # Builtin type as value
-    string_type = str;
-    int_type = int;
-    print("Builtin types:", string_type, int_type);
-
-    # Collections (atom_collection)
-    tuple_val = (1, 2, 3);
-    list_val = [1, 2, 3];
-    dict_val = {"key": "value"};
-    set_val = {1, 2, 3};
-
-    # Multistring (concatenated strings)
-    multistr = "Hello " "World";
-    print("Multistring:", multistr);
+    # Multistring
+    multi = "Hello " "World";
 
     # F-string
     name = "Alice";
     fstr = f"Hello {name}";
-    print("F-string:", fstr);
 
-    enum x;
-    print(x.y.value);
+    print(dec, binary, octal, hexa, flt, sci, multi, fstr, NumEnum.aa.value);
 }

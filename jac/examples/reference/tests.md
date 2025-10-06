@@ -1,75 +1,110 @@
-Jac provides built-in support for unit testing through test blocks, allowing you to write tests directly in your source files alongside the code being tested.
+**Tests - Unit Testing with Test Blocks**
+
+Jac provides built-in support for unit testing through test blocks, allowing you to write tests directly in source files alongside the code being tested.
 
 **Test Block Syntax**
 
-Lines 4-6, 9-11, and 14-16 demonstrate the test block syntax. The general form is:
+The general form is: `test test_name { assertions and test code }`
 
-`test test_name { assertions and test code }`
+Components:
+- `test` - Keyword that begins a test block
+- `test_name` - Identifier for the test
+- Curly braces - Contain test code and assertions
 
-Where:
-- `test` is the keyword that begins a test block
-- `test_name` is the identifier for the test
-- The curly braces contain the test code, typically including assertions
+**Test Examples**
 
-**Test Blocks**
+Lines 4-6 define `test1`. This test uses `almostEqual()` to check if two floating-point numbers are approximately equal. This function is useful for comparing floats where exact equality might fail due to precision issues.
 
-Line 4-6 defines `test1`, which uses `assert almostEqual(4.99999, 4.99999);` to check if two floating-point numbers are approximately equal. The `almostEqual` function is useful for comparing floating-point values where exact equality might fail due to precision issues.
+Lines 9-11 define `test2`. This uses a simple equality assertion to verify that 5 equals itself.
 
-Line 9-11 defines `test2`, which uses a simple equality assertion: `assert 5 == 5;`. This verifies that the integer 5 equals itself.
+Lines 14-16 define `test3`. This uses a membership assertion to verify that the character "e" exists in the string "qwerty".
 
-Line 14-16 defines `test3`, which uses a membership assertion: `assert "e" in "qwerty";`. This verifies that the character "e" exists in the string "qwerty".
+**Assertion Behavior**
 
-**Assertion Semantics**
+| Condition Result | Behavior |
+|------------------|----------|
+| True | Test continues, eventually passes |
+| False | AssertionError raised, test fails |
 
-The `assert` statement checks if a condition is true:
-- If the condition is true, execution continues normally
-- If the condition is false, an AssertionError is raised and the test fails
-
-Assertions are the primary mechanism for verifying expected behavior in tests. Each test can contain multiple assertions.
+Assertions are the primary mechanism for verifying expected behavior. Each test can contain multiple assertions.
 
 **Running Tests**
 
-Lines 18-26 show how to execute tests programmatically using the `jac test` command. Line 18 uses `with entry:__main__` to ensure this code only runs when the file is executed directly (not when imported).
+Lines 18-26 show programmatic test execution. Line 18 uses `with entry:__main__` to ensure code only runs when the file is executed directly (not imported).
 
-Lines 21-24 use Python's `subprocess.run` to execute the Jac test runner:
-- `["jac", "test", f"{__file__}"]` constructs the command to test the current file
-- `stdout=subprocess.PIPE, stderr=subprocess.PIPE` capture the output
-- `text=True` ensures output is returned as strings
+Lines 21-24 use `subprocess.run()` to execute the Jac test runner:
+- `["jac", "test", f"{__file__}"]` - Command to test current file
+- `stdout=subprocess.PIPE, stderr=subprocess.PIPE` - Capture output
+- `text=True` - Return output as strings
 
-Line 25 prints the test results from stderr, where test output is typically sent.
+Line 25 prints the test results from stderr, where test output is sent.
 
 **Test Discovery and Execution**
 
-When `jac test filename.jac` is run:
+```mermaid
+graph TD
+    A[jac test filename.jac] --> B[Scan file for test blocks]
+    B --> C[Execute test1]
+    B --> D[Execute test2]
+    B --> E[Execute test3]
+    C --> F{Assertions pass?}
+    D --> G{Assertions pass?}
+    E --> H{Assertions pass?}
+    F --> I[Report Results]
+    G --> I
+    H --> I
+    I --> J[Display Summary]
+```
+
+When `jac test filename.jac` runs:
 1. Jac scans the file for all `test` blocks
-2. Each test block is executed in isolation
+2. Each test block executes in isolation
 3. Assertions are evaluated
-4. Results are reported (pass/fail for each test)
-5. A summary is provided showing total tests run and any failures
-
-**Test Naming**
-
-Test names (like `test1`, `test2`, `test3`) should be descriptive. While these examples use simple names, production code typically uses names that describe what is being tested, such as `test_password_validation` or `test_user_creation`.
+4. Results are reported (pass/fail per test)
+5. Summary shows total tests and any failures
 
 **Test Isolation**
 
-Each test block runs independently. If one test fails, the others still execute. This ensures that a single failure doesn't prevent other tests from running.
-
-**Use Cases**
-
-Test blocks are useful for:
-- Unit testing individual functions or methods
-- Verifying object behavior
-- Testing graph operations and walker logic
-- Regression testing to ensure code changes don't break existing functionality
-- Documentation through examples (tests serve as executable specifications)
+Each test block runs independently:
+- If one test fails, others still execute
+- Tests don't share state
+- Execution order is not guaranteed
+- A single failure doesn't prevent other tests from running
 
 **Best Practices**
 
 Effective tests should:
-- Be independent (not rely on other tests or execution order)
-- Have descriptive names
-- Test one specific behavior or scenario
-- Include meaningful assertions
-- Be fast to execute
-- Cover both normal and edge cases
+
+| Practice | Description |
+|----------|-------------|
+| Independence | Don't rely on other tests or execution order |
+| Descriptive names | Use names that describe what is tested |
+| Single behavior | Test one specific scenario per test |
+| Meaningful assertions | Verify actual behavior, not trivial truths |
+| Fast execution | Keep tests quick to encourage frequent running |
+| Cover edge cases | Test both normal and boundary conditions |
+
+**Use Cases**
+
+Test blocks are valuable for:
+- Unit testing individual functions or methods
+- Verifying object behavior
+- Testing graph operations and walker logic
+- Regression testing to prevent breaking changes
+- Documentation through executable examples
+
+**Test Naming**
+
+While the examples use simple names (`test1`, `test2`, `test3`), production code should use descriptive names:
+- `test_password_validation` - Clearer than `test1`
+- `test_user_creation` - Describes what is tested
+- `test_edge_traversal` - Indicates the feature
+
+**Integration with Development**
+
+Tests written inline with code:
+- Live alongside the implementation
+- Are easy to discover and maintain
+- Serve as executable documentation
+- Enable test-driven development workflows
+- Provide immediate feedback during development

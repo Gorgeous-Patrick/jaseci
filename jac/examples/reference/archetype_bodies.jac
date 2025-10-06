@@ -1,59 +1,54 @@
-# Archetype bodies - Member statements and structures
+"""Archetype bodies: Member statements (has, static, methods, nested types)."""
 
-# Docstring for member
-"This is a member docstring"
-obj Car {
+"""This is a module-level docstring"""
 
+obj Vehicle {
+    """Member docstring"""
 
     # Has statements with type annotations
-    has make: str,
-        model: str,
+    has name: str,
         year: int;
 
-    # Static has statement
-    static has wheels: int = 4;
+    # Static members
+    static has count: int = 0;
 
-    # Has with access tag
-    has :priv internal_id: str = "car_123";
+    # Access modifiers
+    has :pub public_id: str = "V123";
+    has :priv private_data: int = 0;
 
-    # Let instead of has
-    let manufacturer: str = "Unknown";
-
-    # Has with by postinit
+    # Has with postinit initialization
     has config: dict by postinit;
 
     def postinit {
-        self.config = {"color": "white", "sunroof": False};
+        self.config = {"active": True};
+        Vehicle.count += 1;
     }
 
-    # Methods in body
-    def display_car_info {
-        print(f"Car Info: {self.year} {self.make} {self.model}");
+    # Instance methods
+    def display -> str {
+        return f"{self.year} {self.name}";
     }
 
-    static def get_wheels -> int {
-        return Car.wheels;
+    # Static methods
+    static def get_count -> int {
+        return Vehicle.count;
     }
 
-    # Python code block in member
+    # Nested class
+    class Part {
+        has part_name: str;
+    }
+
+    # Inline Python
     ::py::
-    def python_method(self):
-        return "This is Python code"
+    def py_method(self):
+        return "Python code"
     ::py::
-
-    # Nested archetype
-    class Engine {
-        has horsepower: int;
-    }
-
-    # Free code in member (with entry)
-    with entry {
-        print("Member-level entry");
-    }
 }
 
 with entry {
-    car = Car("Toyota", "Camry", 2020);
-    car.display_car_info();
-    print("Number of wheels:", Car.get_wheels());
+    v1 = Vehicle(name="Car", year=2020);
+    v2 = Vehicle(name="Truck", year=2021);
+
+    print(v1.display(), v2.display(), Vehicle.get_count());
 }

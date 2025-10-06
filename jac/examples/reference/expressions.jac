@@ -1,21 +1,23 @@
-# Expressions - Ternary conditional expressions
+"""Expressions: Ternary conditional (if-else) and lambda expressions."""
 
 with entry {
-    # Ternary expression (condition ? true_value : false_value)
+    # Ternary conditional: expression if condition else expression
     x = 1 if 5 / 2 == 1 else 2;
-    print(x);
+    status = "adult" if 20 >= 18 else "minor";
+    grade = "A" if 85 >= 90 else ("B" if 85 >= 80 else "C");
 
-    # More complex ternary expressions
-    age = 20;
-    status = "adult" if age >= 18 else "minor";
-    print(status);
+    # Lambda expressions: lambda params -> return_type : expression
+    square = lambda x: int : x ** 2;
+    add = lambda a: int, b: int : a + b;
 
-    # Nested ternary
-    score = 85;
-    grade = "A" if score >= 90 else ("B" if score >= 80 else "C");
-    print(grade);
+    # Lambda with full type annotations
+    multiply = lambda x: int, y: int -> int : x * y;
 
-    # Ternary with function calls
-    value = max(10, 20) if True else min(10, 20);
-    print(value);
+    # Lambda without params
+    get_five = lambda : 5;
+
+    # Combining ternary and lambda
+    abs_val = lambda n: int : (n if n >= 0 else -n);
+
+    print(x, status, grade, square(5), add(3, 4), multiply(6, 7), get_five(), abs_val(-10));
 }

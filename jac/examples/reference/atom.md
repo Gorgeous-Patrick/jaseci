@@ -1,74 +1,103 @@
-Atoms are the most fundamental building blocks of Jac expressions, representing literals, names, and basic value constructs.
+Atoms are the fundamental building blocks of expressions - the smallest, indivisible pieces of code that represent values directly.
 
 **String Literals**
 
-Lines 12-13 demonstrate basic string literals using double quotes: `a = "abcde...."`. Strings can contain any sequence of characters.
+Line 7 shows a basic string literal: `s = "string";`. Strings are sequences of characters enclosed in double quotes.
 
-Lines 79-80 show multistring concatenation where adjacent string literals are automatically concatenated: `"Hello " "World"` becomes `"Hello World"`.
+Lines 42-43 demonstrate multistring concatenation. When you place string literals next to each other, Jac automatically concatenates them into a single string "Hello World". This is useful for splitting long strings across multiple lines in your code.
 
-Lines 83-85 demonstrate f-strings (formatted string literals) using the `f` prefix: `f"Hello {name}"`. Expressions within curly braces are evaluated and inserted into the string. Line 5 shows a more complex f-string embedded within an impl block.
+**F-Strings (Formatted Strings)**
+
+Lines 45-46 introduce f-strings for embedding expressions within strings. The `f` prefix before the string makes it a formatted string literal. Expressions inside curly braces `{}` are evaluated and their values are inserted into the string. This creates "Hello Alice".
 
 **Boolean Literals**
 
-Lines 16-18 show the two boolean literals: `True` and `False`. These are case-sensitive keywords representing boolean values.
+Lines 8-9 show the two boolean values. These represent truth values. Note they're capitalized - `True` and `False` are keywords.
 
 **None Literal**
 
-Lines 21-22 demonstrate the `None` literal, which represents the absence of a value (similar to null in other languages).
+Line 10 introduces the None literal. None represents the absence of a value, similar to null in other languages. It's commonly used as a default value or to indicate "no result".
 
-**Integer Literals**
+**Integer Formats**
 
-Jac supports multiple integer literal formats:
+Jac supports multiple ways to write integer literals:
 
-| Format | Prefix | Example | Line | Decimal Value |
-|--------|--------|---------|------|---------------|
-| Decimal | None | `42` | 25 | 42 |
-| Binary | `0b` | `0b1100` | 29 | 12 |
-| Octal | `0o` | `0o755` | 33 | 493 |
-| Hexadecimal | `0x` | `0xFF` | 37 | 255 |
+| Format | Prefix | Example Line | Value | Decimal Equivalent |
+|--------|--------|--------------|-------|-------------------|
+| Decimal | none | 13 | `42` | 42 |
+| Binary | `0b` | 14 | `0b1100` | 12 |
+| Octal | `0o` | 15 | `0o755` | 493 |
+| Hexadecimal | `0x` | 16 | `0xFF` | 255 |
 
-All integer formats are case-insensitive for their prefixes (e.g., `0xFF` and `0xff` are equivalent).
+Line 13 shows standard decimal notation: `dec = 42`.
 
-**Float Literals**
+Line 14 uses binary prefix `0b`: `binary = 0b1100` equals 12 in decimal.
 
-Lines 41-43 demonstrate floating-point literals:
-- Standard decimal notation: `3.14`
-- Scientific notation: `1.5e10` represents 1.5 × 10¹⁰
+Line 15 uses octal prefix `0o`: `octal = 0o755` equals 493 in decimal (commonly used for Unix file permissions).
+
+Line 16 uses hexadecimal prefix `0x`: `hexa = 0xFF` equals 255 in decimal.
+
+**Float Formats**
+
+Lines 19-20 demonstrate floating-point number formats:
+
+```mermaid
+graph LR
+    A[Float Literals] --> B[Standard: 3.14]
+    A --> C[Scientific: 1.5e10]
+    C --> D[Means 1.5 × 10^10]
+```
+
+- Line 19: Standard decimal notation `flt = 3.14`
+- Line 20: Scientific notation `sci = 1.5e10` represents 1.5 × 10^10 (15,000,000,000)
 
 **Ellipsis Literal**
 
-Lines 46-47 show the ellipsis literal `...`, which is used in various contexts like slice notation or as a placeholder value.
+Line 23 shows the ellipsis literal. The `...` (three dots) is a special literal used as a placeholder in various contexts, such as slice notation or to indicate "to be implemented".
 
 **Parenthesized Expressions**
 
-Lines 50-51 demonstrate that any expression can be wrapped in parentheses to control evaluation order: `(5 + 3) * 2`. The parentheses ensure addition occurs before multiplication.
-
-Lines 54-56 (commented) show that yield expressions can be parenthesized when used in certain contexts.
+Line 26 demonstrates using parentheses to group expressions. Parentheses control evaluation order. Without them, this would be `5 + (3 * 2) = 11`. With parentheses, it becomes `(5 + 3) * 2 = 16`.
 
 **Named References**
 
-Lines 59-60 show simple variable references. A name like `variable_name` refers to the value bound to that variable.
+Line 29 shows a simple variable reference. Once a variable has a value, you can use its name to reference that value in expressions.
 
-**Type References**
+**Type Objects as Values**
 
-Lines 63-65 (commented) mention type references using backtick notation like `` `str `` and `` `int ``, though this syntax may be implementation-specific.
-
-Lines 68-70 show that builtin type names can be used as values: `string_type = str` assigns the type object itself to a variable.
+Lines 32-33 demonstrate that types themselves can be values. This assigns the type objects for strings and integers to variables. You can use these to create instances or check types at runtime.
 
 **Collection Literals**
 
-Lines 73-76 demonstrate collection literals:
-- Tuple: `(1, 2, 3)` - immutable sequence
-- List: `[1, 2, 3]` - mutable sequence
-- Dictionary: `{"key": "value"}` - key-value mapping
-- Set: `{1, 2, 3}` - unordered collection of unique values
+Lines 36-39 show the four main collection types:
 
-Line 8 shows global collection definitions.
+| Collection | Syntax | Line | Characteristics |
+|------------|--------|------|-----------------|
+| Tuple | `(1, 2, 3)` | 36 | Immutable, ordered sequence |
+| List | `[1, 2, 3]` | 37 | Mutable, ordered sequence |
+| Dictionary | `{"k": "v"}` | 38 | Mutable key-value mapping |
+| Set | `{1, 2, 3}` | 39 | Mutable, unordered unique values |
 
-**Impl Blocks with Atoms**
+Tuples use parentheses and can't be changed after creation. Lists use square brackets and can be modified. Dictionaries use curly braces with `key: value` pairs. Sets use curly braces with just values (no duplicates allowed).
 
-Lines 3-6 show an `impl` block that can contain atom expressions, including computed f-string values.
+**Enum Member Access**
 
-**Enum Usage**
+Line 48 demonstrates accessing an enum's value. The enum `NumEnum` defined at line 3 has members. You access a member with dot notation (`NumEnum.aa`), then get its numeric value with `.value`. According to line 3, `aa = 67`, so this prints 67.
 
-Lines 87-88 demonstrate enum declaration and accessing enum member values using dot notation: `x.y.value`.
+**Summary of Atomic Values**
+
+```mermaid
+graph TD
+    A[Atoms] --> B[Literals]
+    A --> C[References]
+    B --> D[Numbers: 42, 3.14, 0xFF]
+    B --> E[Strings: 'text', f'Hello']
+    B --> F[Booleans: True, False]
+    B --> G[None]
+    B --> H[Collections: lists, tuples, etc]
+    C --> I[Variables: var]
+    C --> J[Types: str, int]
+    C --> K[Enum members: NumEnum.aa]
+```
+
+Atoms are the foundation of all expressions. You combine them with operators and function calls to build more complex computations, but every expression ultimately breaks down into these atomic pieces.

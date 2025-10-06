@@ -1,41 +1,85 @@
-Lexer tokens for builtin types are keywords in Jac that represent fundamental data types, used primarily in type annotations.
+Builtin type keywords are special tokens in Jac that represent fundamental data types. These keywords are recognized by the lexer and can be used both as type annotations and as runtime type objects.
 
-**Builtin Type Keywords**
+**What are Builtin Type Keywords?**
 
-Lines 7-14 demonstrate the builtin type keywords used as type annotations:
+When you write code in Jac, the lexer (the part of the compiler that reads your code) recognizes certain words as special type keywords. These keywords represent the basic building blocks of data in your programs.
 
-| Keyword | Type | Example Value |
-|---------|------|---------------|
-| `str` | String | "string" |
-| `int` | Integer | 42 |
-| `float` | Float | 3.14 |
-| `list` | List | [1, 2, 3] |
-| `tuple` | Tuple | (1, 2) |
-| `set` | Set | {1, 2} |
-| `dict` | Dictionary | {"key": "value"} |
-| `bool` | Boolean | True |
+**The Eight Builtin Type Keywords**
+
+Lines 7-14 demonstrate all eight builtin type keywords used as type annotations:
+
+| Keyword | Type | Example Value | Line |
+|---------|------|---------------|------|
+| `str` | String (text) | `"string"` | 7 |
+| `int` | Integer (whole number) | `42` | 8 |
+| `float` | Floating-point (decimal) | `3.14` | 9 |
+| `list` | List (ordered collection) | `[1, 2, 3]` | 10 |
+| `tuple` | Tuple (immutable sequence) | `(1, 2)` | 11 |
+| `set` | Set (unique values) | `{1, 2}` | 12 |
+| `dict` | Dictionary (key-value pairs) | `{"key": "value"}` | 13 |
+| `bool` | Boolean (true/false) | `True` | 14 |
 
 **Type Annotation Syntax**
 
-The pattern is `variable: type = value`:
-- `x: str = "string"` - declares x as a string
-- `y: int = 42` - declares y as an integer
-- And so on for each type
+The pattern for declaring a variable with a type annotation is:
 
-**Lexer Treatment**
+For example, line 7 shows `x: str = "string"`, which means:
+- `x` is the variable name
+- `str` is the type annotation (telling Jac this should be a string)
+- `"string"` is the value being assigned
 
-These keywords are tokenized specially by the lexer so they can serve dual purposes:
-1. As type annotations (compile-time type information)
-2. As runtime type objects (when used as values)
+**How the Lexer Treats These Keywords**
 
-**Usage Context**
+Lines 17-18 explain an important detail: these keywords are "tokenized specially" by the lexer. This means the lexer gives them special treatment so they can serve two purposes:
 
-These tokens appear in:
-- Variable declarations (lines 7-14)
-- Function parameter annotations
-- Function return type annotations
-- Class attribute declarations
+```mermaid
+graph TD
+    A[Builtin Type Keyword] --> B[Used as Type Annotation]
+    A --> C[Used as Runtime Type Object]
+    B --> D["Example: x: int = 5"]
+    C --> E["Example: type(x) == int"]
+```
 
-**Note**
+**Purpose 1: Type Annotations**
 
-Line 18 points to `builtin_types.jac` for more comprehensive examples of type usage. This file focuses specifically on the lexer-level recognition of these keywords as special tokens representing the builtin type system.
+Type annotations provide compile-time type information. They tell Jac (and developers reading the code) what type of data a variable should hold:
+
+| Declaration | What It Means |
+|-------------|---------------|
+| `x: str` | x should hold string values |
+| `y: int` | y should hold integer values |
+| `z: float` | z should hold floating-point values |
+
+**Purpose 2: Runtime Type Objects**
+
+The same keywords can also be used at runtime as type objects. For example, you can use them with `type()` checks, type conversions, or as values in your code.
+
+**Where These Keywords Appear**
+
+These builtin type keywords can be used in several contexts:
+
+| Context | Example | Lines |
+|---------|---------|-------|
+| Variable declarations | `x: str = "hello"` | 7-14 |
+| Function parameters | `def greet(name: str) {...}` | - |
+| Return type annotations | `def get_age() -> int {...}` | - |
+| Class attributes | `has name: str` | - |
+
+**Complete Example Breakdown**
+
+Line 16 prints all the variables, demonstrating that:
+- Each variable holds a value of its declared type
+- The type annotations don't prevent the code from running
+- All the builtin types work together in a single program
+
+**Related Information**
+
+Line 18 points to `builtin_types.jac` for more comprehensive examples of how to use these types. This file (`lexer_tokens.jac`) focuses specifically on showing that these are special keywords recognized by the lexer, not just regular identifiers.
+
+**Why Special Tokenization Matters**
+
+By tokenizing these keywords specially, Jac can:
+1. Provide better error messages when types are misused
+2. Enable type checking and inference
+3. Allow these words to be used both as types and values
+4. Reserve these words so they can't be used as variable names in most contexts

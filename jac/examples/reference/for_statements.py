@@ -1,27 +1,45 @@
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
-for i in 'ban':
+for x in [1, 2, 3]:
+    print(x)
+for i in range(5):
     print(i)
-for j in range(1, 3):
-    print(j)
-k = 1
-while k < 3:
-    print(k)
-    k += 1
+i = 0
+while i < 5:
+    print(i)
+    i += 1
+i = 10
+while i > 0:
+    print(i)
+    i -= 1
+i = 0
+while i < 10:
+    print(i)
+    i += 2
 for x in [1, 2, 3]:
     print(x)
 else:
-    print('For loop completed')
-for num in range(10):
-    if num == 5:
+    print('completed')
+for x in range(10):
+    if x == 3:
         break
-    print(num)
+    print(x)
 else:
-    print("Won't print due to break")
-for i in 'ban':
-    for j in range(1, 3):
-        k = 1
-        while k < 3:
-            print(i, j, k)
-            k += 1
+    print('not reached')
+for x in range(5):
+    if x % 2 == 0:
+        continue
+    print(x)
+for i in range(3):
+    for j in range(2):
+        print(f'{i},{j}')
+for char in 'abc':
+    print(char)
+d = {'a': 1, 'b': 2}
+for key in d:
+    print(key)
+for i in ['a', 'b']:
+    j = 0
+    while j < 2:
+        print(f'{i}{j}')
+        j += 1

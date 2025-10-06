@@ -1,61 +1,221 @@
-Connect expressions in Jac provide specialized syntax for creating and traversing graph structures by connecting nodes with edges. These operators are fundamental to Jac's data spatial programming model.
+**Connect Expressions - Graph Edge Creation**
 
-**Node and Edge Definitions**
+Connect expressions are specialized operators for creating edges between nodes in graph structures. These operators are fundamental to Jac's Object-Spatial Programming, providing first-class syntax for spatial relationships.
 
-Lines 3-5 define a node archetype `node_a` with an integer value. Lines 12-14 define an edge archetype `MyEdge` with a value attribute initialized to 5. Nodes and edges are the building blocks of Jac graphs.
+**Connect Operator Types**
 
-**Basic Connect Operator (++>)**
+| Direction | Untyped | Typed | With Attributes |
+|-----------|---------|-------|-----------------|
+| Forward (A → B) | `++>` | `+>:Type:+>` | `+>: Type(...) :+>` |
+| Backward (A ← B) | `<++` | `<+:Type:<+` | `<+: Type(...) :<+` |
+| Bidirectional (A ↔ B) | `<++>` | `<+:Type:+>` | `<+: Type(...) :+>` |
 
-Line 21 demonstrates the simple connection operator: `end ++> (end := node_a(value=i))`. This creates a directed edge from `end` to a newly created node, then assigns that new node back to `end`.
+**Node and Edge Definitions (Lines 4-23)**
 
-The `++>` operator:
-- Creates an edge from the left operand (source node) to the right operand (target node)
-- Uses the default edge type
-- Returns the target node
+The example defines nodes and edges for the graph:
 
-**Typed Connect Operator (+>:Type:attr=val:+>)**
+Lines 4-7: `Person` node with `name` and `age` attributes
+Lines 9-11: `City` node with `name` attribute
+Lines 13-15: `LivesIn` edge with `years` attribute
+Lines 17-19: `Friend` edge with `since` attribute
+Lines 21-23: `Colleague` edge with `department` attribute
 
-Line 24 shows the typed connection syntax: `end +>:MyEdge:val=i:+> (end := node_a(value=i + 10))`.
+**Untyped Connect Operators (Lines 28-41)**
 
-This advanced syntax allows:
-- Specifying the edge type (`:MyEdge:`)
-- Setting edge attributes (`:val=i:`)
-- Creating a connection with custom edge properties
+These create generic edges without specifying an edge type:
 
-The format is: `source +>:EdgeType:attribute=value:+> target`
+**Forward connection (Line 34)**:
+- Arrow points right: alice → bob
+- Line 35 prints confirmation
 
-**Edge Traversal with Filters**
+**Backward connection (Line 37)**:
+- Arrow points left: charlie → bob (not bob → charlie!)
+- Line 38 notes the actual direction
 
-Line 31 demonstrates filtered edge traversal: `for i in [->:MyEdge:val <= 6:->]`. This syntax:
-- `[->:MyEdge:val <= 6:->]` - traverses edges of type MyEdge where val <= 6
-- Returns the target nodes of matching edges
-- Iterates over the results
+**Bidirectional connection (Line 40)**:
+- Creates alice → charlie AND charlie → alice
+- Line 41 confirms both directions created
 
-The edge filter syntax is: `[->:EdgeType:condition:->]` for outgoing edges.
+**Direction Flow Diagram**
 
-**Untyped Traversal**
+```mermaid
+graph LR
+    A[alice] -->|++>| B[bob]
+    C[charlie] -->|<++| B
+    A <-->|<++>| C
 
-Line 34 shows simple traversal: `visit [-->]`. The `[-->]` syntax traverses all outgoing edges regardless of type, visiting all connected nodes.
+    style A fill:#1565c0,stroke:#fff,color:#fff
+    style B fill:#1565c0,stroke:#fff,color:#fff
+    style C fill:#1565c0,stroke:#fff,color:#fff
+```
 
-**Walker Entry Points**
+**Typed Connect Operators (Lines 43-58)**
 
-Lines 7-10 define walker entry points using backtick syntax:
-- `` `root entry `` - triggers on root node
-- `` `root | node_a entry `` - triggers on root OR node_a
+These specify the edge archetype during connection:
 
-These specify which node types activate the walker's abilities.
+**Forward typed (Line 51)**:
+- Creates `LivesIn` edge from diana to nyc
+- Edge type is explicitly `LivesIn`
+- Line 52 shows the syntax
 
-**Graph Building Pattern**
+**Backward typed (Line 54)**:
+- Creates `LivesIn` edge from london to eve (not eve to london!)
+- Line 55 clarifies the actual direction
 
-Lines 18-26 show a common pattern:
-1. Start with a reference node (`end`)
-2. In a loop, create new nodes
-3. Connect them using `++>` or typed connects
-4. Update the reference to the newly created node
-5. This builds a chain or tree structure
+**Bidirectional typed (Line 57)**:
+- Creates `Friend` edges in both directions
+- Both diana → eve and eve → diana are `Friend` type
 
-**Walker-Node Interaction**
+**Edge Attribute Initialization (Lines 60-73)**
 
-Line 38 spawns a walker on the root: `root spawn Creator()`. The walker then executes its entry abilities, building and traversing the graph structure.
+Initialize edge attributes during connection:
 
-Connect expressions make Jac particularly powerful for graph-based algorithms, knowledge graphs, and data spatial computations.
+**Forward with attributes (Line 66)**:
+- Creates `Friend` edge from grace to henry
+- Sets `since` attribute to 2015
+- Line 67 shows the full syntax
+
+**Backward with attributes (Line 69)**:
+- Creates `Friend` edge from iris to henry
+- Edge has `since=2018`
+
+**Bidirectional with attributes (Line 72)**:
+- Creates `Colleague` edges in both directions
+- Both edges have `department="Engineering"`
+
+**Chained Connections (Lines 75-83)**
+
+Connect operators can be chained left-to-right:
+
+Line 82: `jack ++> kate ++> liam ++> mike;`
+- Creates path: jack → kate → liam → mike
+- Evaluates left-to-right
+- Line 83 shows the resulting chain
+
+**Chaining Visualization**
+
+```mermaid
+graph LR
+    J[jack] --> K[kate]
+    K --> L[liam]
+    L --> M[mike]
+```
+
+**Inline Node Creation (Lines 85-92)**
+
+Create nodes directly in connect expressions:
+
+Line 89: `nina ++> Person(name="InlineNode1", age=35);`
+- Creates a new `Person` node inline
+- Immediately connects nina to it
+- No need for intermediate variable
+
+Line 90: `nina +>:Friend:+> Person(name="InlineNode2", age=40);`
+- Inline node creation with typed edge
+
+Line 91: `nina +>: Friend(since=2010) :+> Person(name="InlineNode3", age=45);`
+- Combines inline creation with edge attributes
+
+**Multiple Target Connections (Lines 94-103)**
+
+One node can connect to multiple targets:
+
+Lines 100-102:
+- Oscar connects to three different nodes
+- Creates a hub/star pattern
+- Line 103 confirms all connections
+
+**Hub Pattern Diagram**
+
+```mermaid
+graph TD
+    O[oscar] --> P[paula]
+    O --> Q[quinn]
+    O --> R[Rita]
+```
+
+**Disconnect Operator (Lines 105-108)**
+
+Line 107: `node del [-->] target`
+- Deletes edges from node to target
+- Uses `del` keyword with edge reference syntax
+- Can specify edge type: `node del [->:Type:->] target`
+
+**Connect in Expressions (Lines 110-116)**
+
+Connect expressions return values and integrate with other expressions:
+
+Lines 115-116:
+- Connect can be part of larger expressions
+- Returns a value that can be used in subsequent code
+
+**Edge Traversal Integration (Lines 123-146)**
+
+The example demonstrates how created edges are traversed:
+
+**Building the graph (Lines 133-136)**:
+
+**Traversing edges (Line 140)**:
+- Visits all outgoing edges from current node
+- Uses edge reference syntax (different from connect operators)
+
+**Traversal Flow**
+
+```mermaid
+graph TD
+    Root --> A[Person A]
+    A -->|Friend since=2010| B[Person B]
+    A -->|Colleague Sales| C[Person C]
+    B -->|Friend since=2015| C
+
+    W[Walker] -.->|visit| A
+    W -.->|visit| B
+    W -.->|visit| C
+```
+
+**Connect vs Edge References**
+
+| Aspect | Connect Operators | Edge References |
+|--------|------------------|-----------------|
+| Purpose | CREATE edges | TRAVERSE edges |
+| Examples | `++>`, `+>:Type:+>` | `[-->]`, `[->:Type:->]` |
+| Usage | Graph construction | Visit statements, queries |
+| Action | Imperative (make connection) | Declarative (find connections) |
+| Context | Building graph structure | Navigating graph structure |
+
+**Common Graph Patterns**
+
+Linear chain (line 82):
+
+Star/hub (lines 100-102):
+
+Bidirectional network:
+
+Heterogeneous typed graph (lines 134-136):
+
+**Operator Directionality Guide**
+
+Understanding arrow direction is critical:
+
+| Code | Actual Edge Direction | Memory Aid |
+|------|----------------------|------------|
+| `a ++> b` | a → b | Arrow points to target |
+| `a <++ b` | b → a | Arrow points away, so b → a |
+| `a <++> b` | a ↔ b | Arrows both ways = both edges |
+
+**Best Practices**
+
+1. **Choose typed edges for clarity**: Use `+>:Type:+>` when edge semantics matter
+2. **Initialize attributes during connect**: Cleaner than setting attributes after
+3. **Use backward operators intentionally**: `<++` can improve code readability
+4. **Chain for linear structures**: Paths and sequences benefit from chaining
+5. **Inline creation for temporary nodes**: Reduces variable clutter
+6. **Document edge semantics**: Comment complex graph structures
+
+**Integration with OSP**
+
+Connect expressions work seamlessly with walkers:
+
+Building during traversal:
+
+Conditional connections:

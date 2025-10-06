@@ -1,32 +1,24 @@
+"""Concurrent expressions: Flow (spawn async task) and wait (await result)."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
 from jaclang import JacMachineInterface as _jl
 from time import sleep
 
-class A(_jl.Node):
-    val: int = 0
+def compute(x: int, y: int) -> int:
+    print(f'Computing {x} + {y}')
+    sleep(1)
+    return x + y
 
-    @_jl.entry
-    def do(self, visitor) -> None:
-        print('Started')
-        sleep(2)
-        print(visitor)
-
-class B(_jl.Walker):
-    name: str
-
-def add(x: int, y: int) -> int:
-    print(x)
-    z = x + y
-    sleep(2)
-    print(x)
-    return z
-t1 = _jl.thread_run(lambda: _jl.spawn(A(), B('Hi')))
-task1 = _jl.thread_run(lambda: add(1, 10))
-task2 = _jl.thread_run(lambda: add(2, 11))
-print('All are started')
-res1 = _jl.thread_wait(task1)
-res2 = _jl.thread_wait(task2)
-print('All are done')
-print(res1)
-print(res2)
+def slow_task(n: int) -> int:
+    print(f'Task {n} started')
+    sleep(1)
+    print(f'Task {n} done')
+    return n * 2
+task1 = _jl.thread_run(lambda: compute(5, 10))
+task2 = _jl.thread_run(lambda: compute(3, 7))
+task3 = _jl.thread_run(lambda: slow_task(42))
+print('All tasks started concurrently')
+result1 = _jl.thread_wait(task1)
+result2 = _jl.thread_wait(task2)
+result3 = _jl.thread_wait(task3)
+print(f'Results: {result1}, {result2}, {result3}')

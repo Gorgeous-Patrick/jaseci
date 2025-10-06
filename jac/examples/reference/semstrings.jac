@@ -1,26 +1,19 @@
-# Semstrings - Semantic strings for LLM-based functions
+"""Semstrings: Semantic string definitions for LLM-guided functions."""
 
 import from byllm { Model }
 
-glob llm = Model(
-    model_name="mockllm",
-    outputs=["R8@jL3pQ"],
-);
+glob llm = Model(model_name="mockllm", outputs=["SecureP@ss1"]);
 
-# Function defined by LLM using 'by llm()'
-def generate_password()  -> str by llm();
+# Function implemented by LLM
+def generate_password() -> str by llm();
 
-# Semantic string defines function behavior for LLM
-sem generate_password= """\
-Generates and returns password that:
-- contain at least 8 characters
-- contain at least one uppercase letter
-- contain at least one lowercase letter
-- contain at least one digit
-- contain at least one special character
+# Semantic definition for the LLM
+sem generate_password = """
+Password is at least 8 characters, has one uppercase letter,
+one lowercase letter, one digit, and one special character.
 """;
 
 with entry {
-    password = generate_password();
-    print('Generated password:', password);
+    pwd = generate_password();
+    print(f"Generated: {pwd}");
 }

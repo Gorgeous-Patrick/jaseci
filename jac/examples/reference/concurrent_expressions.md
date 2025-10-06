@@ -1,63 +1,142 @@
-Concurrent expressions in Jac enable asynchronous programming through the `flow` and `wait` keywords, allowing tasks to run concurrently and improving performance for I/O-bound or parallel operations.
+**Concurrent Expressions in Jac**
 
-**Flow Keyword - Starting Concurrent Tasks**
+Jac provides `flow` and `wait` keywords for thread-based concurrency, allowing functions to run in parallel and improving performance for I/O-bound operations.
 
-The `flow` keyword initiates concurrent execution of an expression, immediately returning a task or future object without blocking.
+**Concurrency Keywords**
 
-Line 29 demonstrates using `flow` with walker-node interaction: `t1 = flow A() spawn B("Hi")`. This spawns node A and walker B concurrently, returning a task handle that can be waited on later.
+| Keyword | Purpose | Returns | Blocks |
+|---------|---------|---------|--------|
+| `flow` | Start concurrent execution | Task/Future handle | No |
+| `wait` | Get result from task | Result value | Yes (until complete) |
 
-Lines 32-34 show concurrent function calls:
-- `task1 = flow add(1, 10)` - starts add(1, 10) concurrently
-- `task2 = flow add(2, 11)` - starts add(2, 11) concurrently
-- `print("All are started")` - executes immediately without waiting
+**Flow Keyword - Starting Concurrent Tasks (Lines 19-24)**
 
-Both `add` calls run in parallel. The print statement executes right away because `flow` doesn't block - it returns immediately after scheduling the tasks.
+The `flow` keyword initiates concurrent execution without blocking:
 
-**Wait Keyword - Collecting Results**
+Line 20: `task1 = flow compute(5, 10)`
+- Starts `compute(5, 10)` in a background thread
+- Returns immediately with a task handle
+- Function executes concurrently
 
-The `wait` keyword blocks until a concurrent task completes and returns its result.
+Line 21: `task2 = flow compute(3, 7)`
+- Starts another concurrent task
+- Both tasks run in parallel
 
-Lines 37-38 demonstrate waiting for task completion:
-- `res1 = wait task1` - blocks until task1 finishes, returns its result
-- `res2 = wait task2` - blocks until task2 finishes, returns its result
+Line 22: `task3 = flow slow_task(42)`
+- Third concurrent task
 
-Lines 40-41 print the results after both tasks complete.
+Line 24: `print("All tasks started concurrently")`
+- Executes immediately without waiting for tasks to complete
+- All three tasks are running in the background
 
-**Concurrent Execution Model**
+**Execution Flow Diagram**
 
-The `add` function (lines 19-25) includes `sleep(2)` calls to simulate long-running operations. When called with `flow`:
-1. Both `add` calls start nearly simultaneously
-2. Program continues to line 34 without waiting
-3. When `wait` is called, execution blocks until the task completes
-4. If a task has already finished, `wait` returns immediately
+```mermaid
+sequenceDiagram
+    participant Main as Main Thread
+    participant T1 as Task 1
+    participant T2 as Task 2
+    participant T3 as Task 3
 
-**Implementation Details**
+    Main->>T1: flow compute(5, 10)
+    Note over Main: Returns immediately
+    Main->>T2: flow compute(3, 7)
+    Note over Main: Returns immediately
+    Main->>T3: flow slow_task(42)
+    Note over Main: Returns immediately
+    Main->>Main: print("All tasks started")
 
-Under the hood, Jac's `flow`/`wait` concurrency uses Python's standard `concurrent.futures.ThreadPoolExecutor`:
-- `flow` submits the expression as a callable to a shared `ThreadPoolExecutor` and returns a `Future`-like handle
-- `wait` calls the underlying future's `.result()` to retrieve the value
-- The thread pool is shared across the entire program with a default size based on CPU count
-- Exception propagation works naturally—if the background computation raises an exception, `wait` re-raises it in the calling thread
-- Best suited for I/O-bound or mixed workloads; CPU-bound speedups are subject to Python's Global Interpreter Lock (GIL) like ordinary threads
-- This is **thread-based** concurrency, distinct from Python's event-loop based `async`/`await` model
+    Note over T1,T3: All tasks running concurrently
 
-**Node and Walker Concurrency**
+    Main->>T1: wait task1
+    T1-->>Main: 15
+    Main->>T2: wait task2
+    T2-->>Main: 10
+    Main->>T3: wait task3
+    T3-->>Main: 84
+```
 
-Lines 5-17 define a node A with an `entry` ability and walker B. Line 29 shows that `flow` works with walker-node spawning, enabling concurrent graph traversal and node processing.
+**Wait Keyword - Collecting Results (Lines 26-29)**
 
-**Benefits**
+The `wait` keyword blocks until a task completes and returns its result:
 
-Concurrent expressions allow:
-- Parallel I/O operations (network requests, file I/O)
-- Improved responsiveness by not blocking on long-running operations
-- Explicit control over when to wait for results
-- Expression-level concurrency that composes naturally with other Jac features
-- Parallel map patterns through list comprehensions with `flow`/`wait`
+Line 27: `result1 = wait task1`
+- Pauses execution until `task1` finishes
+- Returns the function's return value (15)
+- If task already finished, returns immediately
 
-**Comparison with async/await**
+Line 28: `result2 = wait task2`
+- Waits for second task (returns 10)
 
-While similar in concept to async/await in other languages, `flow`/`wait` differs in important ways:
-- `flow`/`wait` is **thread-based**, using `ThreadPoolExecutor`
-- `async`/`await` is **event-loop based**, requiring special async functions
-- You can mix both when appropriate: use `flow` for blocking I/O or CPU-bound work; use `async`/`await` for event-driven I/O
-- `flow`/`wait` works anywhere expressions are valid, including comprehensions and argument lists
+Line 29: `result3 = wait task3`
+- Waits for third task (returns 84)
+
+**Function Execution (Lines 5-16)**
+
+The example includes two functions to demonstrate concurrency:
+
+**compute function (Lines 5-9)**:
+- Line 6: Prints message showing which computation is starting
+- Line 7: `sleep(1)` simulates a time-consuming operation (1 second delay)
+- Line 8: Returns the sum of x and y
+
+**slow_task function (Lines 11-16)**:
+- Line 12: Prints task start message
+- Line 13: `sleep(1)` simulates work
+- Line 14: Prints completion message
+- Line 15: Returns n * 2
+
+**Concurrency Model**
+
+Under the hood, Jac's `flow`/`wait` uses Python's `ThreadPoolExecutor`:
+- `flow` submits the callable to a thread pool and returns a Future-like object
+- `wait` calls the future's `.result()` method to retrieve the value
+- Thread pool is shared across the program
+- This is **thread-based**, not event-loop based (different from async/await)
+
+**Performance Characteristics**
+
+| Aspect | Details |
+|--------|---------|
+| Execution | Parallel for I/O-bound tasks |
+| GIL Impact | CPU-bound tasks limited by Python's Global Interpreter Lock |
+| Memory | Each thread has its own stack |
+| Best For | I/O operations, network requests, file operations |
+| Exception Handling | Exceptions propagate through `wait` |
+
+**Timing Analysis**
+
+Without concurrency (sequential):
+
+With concurrency (lines 20-29):
+
+**Common Patterns**
+
+Parallel I/O operations:
+
+Concurrent processing:
+
+Mix of serial and concurrent:
+
+**Comparison: flow/wait vs async/await**
+
+| Feature | flow/wait | async/await |
+|---------|-----------|-------------|
+| Execution Model | Thread-based | Event-loop based |
+| Blocking Operations | Allowed | Requires async versions |
+| Function Definition | Regular functions | Must be `async def` |
+| Concurrency Type | Parallel threads | Cooperative multitasking |
+| GIL Impact | Yes (CPU-bound) | Yes (but better for I/O) |
+| Use Case | Mixed workloads, blocking I/O | Event-driven I/O |
+
+**Best Practices**
+
+1. **Use flow for I/O-bound tasks**: File operations, network requests, database queries
+2. **Wait strategically**: Don't wait immediately after flow - let tasks run first
+3. **Handle exceptions**: Wrap `wait` in try/except if tasks might fail
+4. **Avoid excessive threads**: Too many concurrent tasks can cause overhead
+5. **CPU-bound tasks**: Consider alternatives (multiprocessing) due to GIL limitations
+
+**Exception Handling**
+
+If a flow task raises an exception, `wait` will re-raise it:

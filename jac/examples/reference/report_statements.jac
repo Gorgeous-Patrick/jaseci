@@ -1,26 +1,34 @@
-# Report statements - Used in walker context to return data
+# Report Statements
 
-walker DataCollector {
-    has collected: list = [];
-
+walker Reporter {
     can process with `root entry {
-        # Report single value
-        report "Processing started";
+        # Report literal value
+        report 42;
 
-        # Report expression result
-        report 42 * 2;
+        # Report string
+        report "hello";
+
+        # Report expression
+        report 10 + 20;
 
         # Report variable
-        report self.collected;
+        x = 100;
+        report x;
+
+        # Report list
+        report [1, 2, 3];
+
+        # Report dictionary
+        report {"key": "value", "number": 123};
 
         # Report complex expression
-        report {"status": "complete", "count": len(self.collected)};
+        report {"result": 5 * 10, "status": "ok"};
+
+        disengage;
     }
 }
 
 with entry {
-    # Reports are typically used in walker contexts
-    w = DataCollector();
-    w spawn root;
-    # In actual execution, report statements would return values to caller
+    w = Reporter();
+    root spawn w;
 }

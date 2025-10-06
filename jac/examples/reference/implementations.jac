@@ -1,32 +1,35 @@
-# Implementations - Forward declarations and implementations
+"""Implementations: Forward declarations and impl blocks for deferred definitions."""
 
 # Forward declarations
-def foo -> str;
+def compute(x: int, y: int) -> int;
+obj Vehicle;
+enum Priority;
 
-obj vehicle;
-
-enum Size;
-
-# Implementation of function
-impl foo -> str {
-    return ("Hello");
+# Implement function
+impl compute(x: int, y: int) -> int {
+    return x + y;
 }
 
-# Implementation of object
-impl vehicle  {
+# Implement object
+impl Vehicle {
     has name: str = "Car";
+    has speed: int = 0;
+    def accelerate { self.speed += 10; }
 }
 
-# Implementation of enum
-impl Size {
-    Small=1,
-    Medium=2,
-    Large=3
+# Implement enum
+impl Priority {
+    LOW = 1,
+    MEDIUM = 2,
+    HIGH = 3
 }
 
 with entry {
-    car = vehicle();
-    print(foo());
-    print(car.name);
-    print(Size.Medium.value);
+    # Test implementations
+    result = compute(5, 3);
+    v = Vehicle();
+    v.accelerate();
+    p = Priority.HIGH;
+
+    print(result, v.name, v.speed, p.value);
 }

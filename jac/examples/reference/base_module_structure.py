@@ -1,18 +1,16 @@
-"""A Docstring can be added the head of any module.
+"""Base module structure: Module and element docstrings, entry points.
 
-Any element in the module can also have a docstring.
-If there is only one docstring before the first element,
-it is assumed to be a module docstring.
+This is the module-level docstring.
+It describes the purpose of the entire module.
 """
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
 
 def add(a: int, b: int) -> int:
-    """A docstring for add function"""
     return a + b
 
 def subtract(a: int, b: int) -> int:
     return a - b
+print('Default entry:', add(5, subtract(8, 3)))
 if __name__ == '__main__':
-    print(add(1, subtract(3, 1)))
+    print('Named entry:', add(1, subtract(3, 1)))

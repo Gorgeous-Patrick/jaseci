@@ -1,66 +1,65 @@
-# Global and nonlocal statements
+# Global and Nonlocal Statements
 
-glob x = "Jaclang ";
+glob x = "global x";
+glob a = 1, b = 2;
 
-def outer_func -> None {
+def test_global {
     # Global with single name
     global x;
-
-    x = 'Jaclang is ';
-    y = 'Awesome';
-    z = 'Language';
-
-    def inner_func -> tuple[str, str] {
-        # Nonlocal with single name
-        nonlocal y;
-
-        y = "Fantastic";
-        return (x, y);
-    }
-
-    print(x, y);
-    print(inner_func());
+    x = "modified global x";
+    print(x);
 }
 
-# Multiple names in global statement
-glob a = 1;
-glob b = 2;
-glob c = 3;
-
-def modify_globals {
+def test_multiple_globals {
     # Global with multiple names
-    global a, b, c;
-
+    global a, b;
     a = 10;
     b = 20;
-    c = 30;
+    print(f"{a} {b}");
 }
 
-def nested_scope {
-    var1 = "outer1";
-    var2 = "outer2";
-    var3 = "outer3";
+def outer {
+    y = "outer y";
 
     def inner {
-        # Nonlocal with multiple names
-        nonlocal var1, var2, var3;
-
-        var1 = "inner1";
-        var2 = "inner2";
-        var3 = "inner3";
+        # Nonlocal with single name
+        nonlocal y;
+        y = "modified by inner";
+        print(y);
     }
 
-    print("Before inner:", var1, var2, var3);
+    print(y);
     inner();
-    print("After inner:", var1, var2, var3);
+    print(y);
+}
+
+def outer_multi {
+    p = 1;
+    q = 2;
+    r = 3;
+
+    def inner_multi {
+        # Nonlocal with multiple names
+        nonlocal p, q, r;
+        p = 10;
+        q = 20;
+        r = 30;
+    }
+
+    print(f"{p} {q} {r}");
+    inner_multi();
+    print(f"{p} {q} {r}");
 }
 
 with entry {
-    outer_func();
+    print(x);
+    test_global();
+    print(x);
 
-    print("Before modify_globals:", a, b, c);
-    modify_globals();
-    print("After modify_globals:", a, b, c);
+    print(f"{a} {b}");
+    test_multiple_globals();
+    print(f"{a} {b}");
 
-    nested_scope();
+    outer();
+    outer_multi();
 }

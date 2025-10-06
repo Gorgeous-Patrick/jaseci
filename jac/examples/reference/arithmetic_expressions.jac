@@ -1,42 +1,46 @@
-# Arithmetic expressions
+# Arithmetic Expressions
 
 with entry {
-    p = print;
+    # Addition and subtraction
+    print(10 + 5);
+    print(10 - 5);
 
-    # Basic arithmetic operations
-    p("Multiply:", 7 * 2);
-    p("Division:", 15 / 3);
-    p("Floor division:", 15 // 3);
-    p("Modulo:", 17 % 5);
-    p("Exponentiation:", 2 ** 3);
-    p("Addition:", 9 + 2);
-    p("Subtraction:", 9 - 2);
+    # Multiplication and division
+    print(10 * 5);
+    print(10 / 5);
+    print(10 // 3);
+    print(10 % 3);
+
+    # Exponentiation (power)
+    print(2 ** 3);
+    print(2 ** 3 ** 2);
+
+    # Unary operators
+    x = 5;
+    print(+x);
+    print(-x);
+    print(~x);
 
     # Combined operations
-    p("Combo:", (9 + 2) * 9 - 2);
-
-    # Unary operations (factor)
-    x = 5;
-    p("Unary plus:", +x);
-    p("Unary minus:", -x);
-    p("Bitwise NOT:", ~x);
-
-    # Power precedence
-    p("2 ** 3 ** 2 =", 2 ** 3 ** 2);  # Right associative
-
-    # Matrix multiplication operator @ (DECOR_OP in term)
-    # Note: This requires matrix types
-    # matrix1 @ matrix2
+    print(2 + 3 * 4);
+    print((2 + 3) * 4);
+    print(10 - 3 + 2);
+    print(10 / 2 * 3);
 
     # Complex expression
     result = 2 + 3 * 4 ** 2 - 10 / 2;
-    p("Complex:", result);
+    print(result);
 
-    # Chained arithmetic
-    p("Chain:", 100 - 50 + 25);
-    p("Chain mult:", 2 * 3 * 4);
+    # Chained operations
+    print(100 - 50 + 25 - 10);
+    print(2 * 3 * 4 / 2);
 
-    # Modulo and division together
-    p("17 // 5 =", 17 // 5);
-    p("17 % 5 =", 17 % 5);
+    # Modulo and floor division
+    print(17 // 5);
+    print(17 % 5);
+
+    # Precedence demonstration
+    print(2 + 3 * 4);
+    print(2 ** 3 * 4);
+    print(10 / 2 + 5);
 }

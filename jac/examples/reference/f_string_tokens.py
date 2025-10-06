@@ -1,28 +1,20 @@
+"""F-string tokens: Formatted string literals with interpolation."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
-x = 'a'
-y = 25
-print(f'Hello {x} {y} {{This is an escaped curly brace}}')
-print(f'Single quoted: {x} and {y}')
-person = {'name': 'Jane', 'age': 25}
-print(f"Hello, {person['name']}! You're {person['age']} years old.")
-print('Escaped braces: {{ and }}')
-print(f'Calculation: {5 + 3} = {5 + 3}')
+x = 'World'
+y = 42
+print(f'Hello {x}! Number: {y}')
+print(f'Value: {y}')
+msg = f'\n    Multi-line\n    Value: {y}\n    '
+print(msg)
+print(f'Escaped: {{braces}} and value {y}')
+print(f'Math: {5 + 3}, {10 * 2}')
 text = 'hello'
-print(f'Uppercase: {text.upper()}')
-age = 18
+print(f'Upper: {text.upper()}')
+d = {'name': 'Alice', 'age': 30}
+print(f'Name: {d['name']}, Age: {d['age']}')
+age = 20
 print(f'Status: {('Adult' if age >= 18 else 'Minor')}')
-name = 'Alice'
-score = 95
-message = f'\n    Name: {name}\n    Score: {score}\n    Grade: {('A' if score >= 90 else 'B')}\n    '
-print(message)
-print('This is the first line.\n This is the second line.')
-print('This will not print.\r This will be printed')
-print('This is \t tabbed.')
-print('Line 1\x0cLine 2')
-words = ['Hello', 'World!', 'I', 'am', 'a', 'Jactastic!']
-print(f'{'\n'.join(words)}')
-value = 42
-print(f'Value is {f'{value}'}')
-pi = 3.14159
+val = 100
+print(f'Nested: {f'{val}'}')
+print('Complete')

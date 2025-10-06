@@ -1,64 +1,218 @@
-Enumerations in Jac provide a way to define named constants with associated values, supporting forward declarations, decorators, access control, and embedded code blocks.
+**Enumerations in Jac**
 
-**Forward Declaration with Decorator**
+Enumerations provide type-safe named constants with associated values. Jac enums support integer and string values, Python code blocks for methods, iteration, and seamless integration with Object-Spatial Programming.
 
-Lines 6-7 show enum forward declaration: `@unique enum Color;`. The `@unique` decorator (imported from Python's enum module) ensures all enum values are distinct. The semicolon indicates forward declaration - the enum body comes later.
+**Basic Enum Syntax (Lines 6-16)**
 
-**Enum Implementation**
+Lines 6-10 define an integer enum:
+- Members are named constants with explicit values
+- Access via `Color.RED`, `Color.GREEN`, etc.
+- Trailing commas are allowed and recommended
 
-Lines 10-14 use an `impl` block to define the Color enum's members:
-- RED = 1
-- GREEN = 2
-- BLUE = 3
+Lines 12-16 define a string enum:
+- Values can be strings instead of integers
+- String enums useful for API constants and configuration
 
-This two-step approach (declare then implement) allows decorators to be applied before the body is defined.
+**Enum Value Types**
 
-**Inline Enum Definition with Access Tag**
+| Type | Example | Use Case |
+|------|---------|----------|
+| Integer | `RED = 1` | Numeric codes, priorities |
+| String | `ADMIN = 'admin'` | API values, database fields |
+| Float | `PI = 3.14159` | Constants with decimals |
+| Tuple | `RGB = (255, 0, 0)` | Composite values |
 
-Lines 17-29 demonstrate a complete enum definition with access control:
-- `:protect` is an access tag restricting visibility
-- Members use string values: `'admin'`, `'user'`, `'guest'`
-- The enum body can contain free code (lines 23-28)
+**Accessing Enum Members (Lines 18-21)**
 
-**Free Code in Enum Blocks**
+Line 20: `print(f"Color.RED: {Color.RED.value}, Role.ADMIN: {Role.ADMIN.value}");`
+- `.value` retrieves the enum member's value
+- `.name` retrieves the member's name as a string
+- `Color.RED.value` returns `1`
+- `Color.RED.name` returns `"RED"`
 
-Lines 23-28 show that enum bodies can include executable code:
-- `with entry` block runs when the enum is initialized
-- Functions can be defined within the enum (lines 25-27)
-- These become enum-level methods accessible via `Role.foo()`
+**Forward Declaration with Decorator (Lines 23-36)**
 
-**Trailing Commas**
+Lines 24-25 show forward declaration:
+- Declares enum without defining members
+- Allows applying decorators before implementation
+- `@unique` decorator ensures all values are unique (from Python's enum module)
 
-Lines 32-36 show the Status enum with trailing commas in the assignment list. Trailing commas are allowed and useful for version control, as they let you add new members without modifying existing lines.
+Lines 27-31 implement the enum:
+- `impl` block provides the member definitions
+- Separates declaration from implementation
 
-**Python Code Blocks in Enums**
+**Enum with Access Modifier (Lines 38-48)**
 
-Lines 39-48 demonstrate embedding Python code using `::py::` delimiters:
-- The Priority enum has a custom Python method `get_priority_name`
-- This method has access to `self` and enum member attributes
-- Python code can define methods that integrate with Jac enum functionality
+Lines 39-43:
+- Access modifiers: `:pub`, `:protect`, `:priv`
+- Controls enum visibility across modules
+- `:protect` makes it accessible to submodules
 
-**Accessing Enum Values**
+**Python Code Blocks in Enums (Lines 50-73)**
 
-Line 58 shows two ways to access enum data:
-- `Color.RED.value` accesses the numeric value (1)
-- `Role.foo()` calls the function defined in the enum's free code block
+Lines 51-67 define an enum with methods:
 
-Line 59 demonstrates that enum members can be printed directly: `Status.ACTIVE` displays the enum member.
+**Method features**:
+- Lines 56-67: Python code between `::py::` delimiters
+- Methods have access to `self.value` and `self.name`
+- Can contain any Python logic
+- Called on enum members: `HttpStatus.OK.is_success()`
 
-**Enum Syntax Patterns**
+**Enum Method Flow**
 
-| Pattern | Lines | Purpose |
-|---------|-------|---------|
-| Forward declaration | 6-7 | Apply decorators before body |
-| Impl block | 10-14 | Define enum members separately |
-| Inline with access tag | 17-21 | Control visibility |
-| Free code blocks | 23-28 | Add initialization logic |
-| Python code blocks | 44-47 | Define Python-specific methods |
-| Trailing commas | 32-36 | Version control friendly |
+```mermaid
+graph TD
+    A[HttpStatus.OK] --> B{is_success?}
+    B --> C[Check: 200 <= 200 < 300]
+    C --> D[Returns True]
 
-**Inheritance** (lines 51-55, commented)
+    E[HttpStatus.BAD_REQUEST] --> F{get_category?}
+    F --> G{value < 300?}
+    G -->|No| H{value < 500?}
+    H -->|Yes| I[Returns 'client_error']
 
-The commented section suggests potential support for enum inheritance, allowing enums to extend base classes, though this may be implementation-specific.
+    style D fill:#2e7d32,stroke:#fff,color:#fff
+    style I fill:#e65100,stroke:#fff,color:#fff
+```
 
-Enumerations in Jac are more powerful than simple constants, supporting methods, initialization code, and integration with both Jac and Python semantics.
+**Enum Comparison (Lines 75-98)**
+
+Lines 82-90 define a function using enum comparison:
+- Line 83: Enum members compared with `==`
+- Type-safe comparison prevents invalid values
+- Line 94: `s1 == s2` compares enum instances
+
+**Enum Iteration and Lookup (Lines 100-110)**
+
+**Iteration (Lines 105-107)**:
+- Enums are iterable
+- Iterates in definition order
+- Each iteration yields an enum member
+
+**Lookup methods (Line 109)**:
+- `Color(2)` - lookup by value, returns `Color.GREEN`
+- `Role['ADMIN']` - lookup by name, returns `Role.ADMIN`
+- Raises `ValueError` if value not found
+- Raises `KeyError` if name not found
+
+**Lookup Patterns**
+
+| Method | Syntax | Returns | Error |
+|--------|--------|---------|-------|
+| By value | `Color(2)` | Enum member | ValueError |
+| By name | `Role['ADMIN']` | Enum member | KeyError |
+| Attribute access | `Color.RED` | Enum member | AttributeError |
+
+**Enums in Data Structures (Lines 112-123)**
+
+Lines 116-117 show enums in lists:
+- Enum members can be list elements
+- List comprehension accesses `.name` attribute
+
+Lines 119-122 show enums as dictionary keys:
+- Enum members make excellent dict keys (hashable, unique)
+- Provides type-safe mapping
+
+**Enums in Node Attributes (Lines 125-138)**
+
+Lines 126-130 define a node with enum attributes:
+- Node attributes can be enum-typed
+- Provides type safety for node state
+- Default values from enum members
+
+Lines 134-137 show usage:
+- Initialize with enum members
+- Access both name and value
+
+**Enum State Machine**
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING
+    PENDING --> ACTIVE: approve
+    ACTIVE --> INACTIVE: deactivate
+    INACTIVE --> ACTIVE: reactivate
+    ACTIVE --> [*]
+
+    note right of PENDING: Status.PENDING (0)
+    note right of ACTIVE: Status.ACTIVE (1)
+    note right of INACTIVE: Status.INACTIVE (2)
+```
+
+**Enums in Walker Logic (Lines 140-174)**
+
+Lines 141-161 define a walker that filters by enum:
+- Line 142: Walker has enum-typed attribute
+- Line 151: Compares node's enum attribute to walker's
+- Enables type-safe filtering during graph traversal
+
+Lines 165-173 demonstrate usage:
+- Creates tasks with different priorities
+- Spawns walker that filters for HIGH priority
+- Walker collects matching tasks in `self.matched`
+
+**Enum Integration Flow**
+
+```mermaid
+graph TD
+    A[Define Enum] --> B[Create Node with Enum attribute]
+    B --> C[Instantiate Nodes]
+    C --> D[Create Walker with Enum filter]
+    D --> E[Spawn Walker]
+    E --> F[Walker visits nodes]
+    F --> G{Enum matches?}
+    G -->|Yes| H[Collect result]
+    G -->|No| I[Skip]
+    H --> J[Return results]
+    I --> J
+
+    style A fill:#1565c0,stroke:#fff,color:#fff
+    style G fill:#e65100,stroke:#fff,color:#fff
+    style H fill:#2e7d32,stroke:#fff,color:#fff
+```
+
+**Common Enum Patterns**
+
+**State management**:
+
+**Priority levels**:
+
+**Feature flags**:
+
+**API constants**:
+
+**Best Practices**
+
+1. **Use enums for fixed sets**: Status codes, priorities, states, types
+2. **String values for external APIs**: Use string enums when values leave the system
+3. **Integer values for internal logic**: Use int enums for comparisons and ordering
+4. **Add methods for complex logic**: Encapsulate enum-specific behavior in methods
+5. **Type annotations**: Use enum types in function signatures for type safety
+6. **Avoid magic values**: Replace hardcoded strings/numbers with enums
+
+**Enum vs Constants**
+
+| Feature | Enum | Constants |
+|---------|------|-----------|
+| Type safety | Yes | No |
+| Grouping | Built-in | Manual |
+| Iteration | Yes | No |
+| Reverse lookup | Yes | No |
+| Methods | Yes | No |
+| Namespace | Automatic | Manual |
+
+**When to Use Enums**
+
+Use enums when:
+- Values form a fixed, known set
+- Need type safety and validation
+- Want reverse lookup (value to name)
+- Implementing state machines
+- Defining API or database constants
+- Comparing priority or severity levels
+
+Avoid enums when:
+- Values are dynamic or user-defined
+- Set changes frequently
+- Need arbitrary value types
+- Simple boolean flag suffices
