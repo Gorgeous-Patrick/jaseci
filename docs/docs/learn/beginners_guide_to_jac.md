@@ -473,16 +473,6 @@ with entry {
 
 </div>
 
-**Output:**
-```
-Count is 1
-Count is 2
-Count is 3
-Count is 4
-Count is 5
-Done!
-```
-
 **Warning:** Make sure your condition eventually becomes `False`, or your loop will run forever!
 
 ### 5.2 The For Loop (Counting)
@@ -507,15 +497,6 @@ with entry {
 - `to i < 5` - Continue while i is less than 5
 - `by i += 1` - Add 1 to i each time
 
-**Output:**
-```
-Number: 0
-Number: 1
-Number: 2
-Number: 3
-Number: 4
-```
-
 ### 5.3 The For-In Loop (Iterating)
 
 Loop through items in a collection:
@@ -534,13 +515,6 @@ with entry {
 ```
 
 </div>
-
-**Output:**
-```
-I like apple
-I like banana
-I like cherry
-```
 
 ### 5.4 Breaking Out of Loops
 
@@ -562,11 +536,6 @@ with entry {
 
 </div>
 
-**Output:**
-```
-Found it: 7
-```
-
 ### 5.5 Skipping Iterations
 
 Skip to the next iteration without running the rest of the loop body:
@@ -586,15 +555,6 @@ with entry {
 ```
 
 </div>
-
-**Output:**
-```
-1
-3
-5
-7
-9
-```
 
 ### 5.6 Practice Exercises
 
@@ -655,13 +615,6 @@ with entry {
 
 </div>
 
-**Output:**
-```
-Hello, there!
-Hello, there!
-Hello, there!
-```
-
 ### 6.2 Functions with Parameters
 
 Make functions more flexible by giving them inputs:
@@ -681,13 +634,6 @@ with entry {
 ```
 
 </div>
-
-**Output:**
-```
-Hello, Alice!
-Hello, Bob!
-Hello, Charlie!
-```
 
 **Breaking it down:**
 - `name: str` - This is a **parameter** (input)
@@ -713,12 +659,6 @@ with entry {
 ```
 
 </div>
-
-**Output:**
-```
-5 + 3 = 8
-10 + 20 = 30
-```
 
 ### 6.4 Returning Values
 
@@ -772,14 +712,6 @@ with entry {
 ```
 
 </div>
-
-**Output:**
-```
-Hello, friend.
-Hello, Alice.
-HELLO, Bob!!!
-HELLO, Eve!!!
-```
 
 ### 6.6 Why Use Functions?
 
@@ -937,12 +869,16 @@ with entry {
 </div>
 
 **Visual:**
-```
-Index:     0        1         2        3
-         ┌──────┬─────────┬────────┬──────┐
-fruits = │apple │ banana  │ cherry │ date │
-         └──────┴─────────┴────────┴──────┘
-         -4       -3        -2       -1
+
+```mermaid
+graph LR
+    subgraph "fruits list"
+        A["0: apple<br/>-4"]
+        B["1: banana<br/>-3"]
+        C["2: cherry<br/>-2"]
+        D["3: date<br/>-1"]
+        A --- B --- C --- D
+    end
 ```
 
 ### 7.3 Modifying Lists
@@ -1574,11 +1510,13 @@ A graph is a way to represent things and their relationships.
 - Examples: friendships, roads, links
 
 **Visual Example: A Social Network**
-```
-    Alice ------- Bob
-      |            |
-      |            |
-    Charlie ---- Dana
+
+```mermaid
+graph TD
+    Alice --- Bob
+    Alice --- Charlie
+    Bob --- Dana
+    Charlie --- Dana
 ```
 
 - **Nodes**: Alice, Bob, Charlie, Dana
@@ -1587,16 +1525,22 @@ A graph is a way to represent things and their relationships.
 ### 9.3 Directed vs Undirected Graphs
 
 **Undirected:** Relationship goes both ways
-```
-Alice <----> Bob
-(Alice and Bob are friends - mutual relationship)
+
+```mermaid
+graph LR
+    Alice <--> Bob
 ```
 
+(Alice and Bob are friends - mutual relationship)
+
 **Directed:** Relationship has a direction
+
+```mermaid
+graph LR
+    Alice --> Bob
 ```
-Alice -----> Bob
+
 (Alice follows Bob, but Bob doesn't follow Alice back)
-```
 
 ### 9.4 Why Graphs Matter in Programming
 
@@ -1761,11 +1705,12 @@ with entry {
 </div>
 
 **Visual representation:**
-```
-    Alice
-     / \
-    v   v
-  Bob → Charlie
+
+```mermaid
+graph TD
+    Alice --> Bob
+    Alice --> Charlie
+    Bob --> Charlie
 ```
 
 ### 10.5 Connection Operators
@@ -1791,8 +1736,10 @@ with entry {
 </div>
 
 **Visual:**
-```
-Alice <----> Bob
+
+```mermaid
+graph LR
+    Alice <--> Bob
 ```
 
 ### 10.6 Typed Edges - Relationships with Meaning
@@ -1868,14 +1815,6 @@ with entry {
 ```
 
 </div>
-
-**Output:**
-```
-Walker starting journey!
-Hello, Alice!
-Hello, Bob!
-Hello, Charlie!
-```
 
 **What just happened?**
 1. Walker spawns at `root`
@@ -2016,12 +1955,6 @@ with entry {
 ```
 
 </div>
-
-**Output:**
-```
-Visitor says: Hello, Alice!
-Alice says: Welcome, visitor!
-```
 
 **Both abilities execute!** This is unique to OSP - the interaction is defined from both perspectives.
 
@@ -2621,9 +2554,10 @@ Congratulations! You've learned programming from the ground up using Jac. Here's
 Now that you have the foundation, here are advanced Jac features to explore:
 
 1. **Pattern Matching**
+
    <div class="code-block">
 
-```jac
+   ```jac
    match value {
        case [x, y]: { print(f"Two items: {x}, {y}"); }
        case {"name": n, "age": a}: { print(f"{n} is {a}"); }
@@ -2631,56 +2565,61 @@ Now that you have the foundation, here are advanced Jac features to explore:
    }
    ```
 
-</div>
+   </div>
 
 2. **Async/Await** (Concurrent programming)
+
    <div class="code-block">
 
-```jac
+   ```jac
    async def fetch_data(url: str) -> str {
        # Asynchronous operation
    }
    ```
 
-</div>
+   </div>
 
 3. **Decorators** (Modify function behavior)
+
    <div class="code-block">
 
-```jac
+   ```jac
    @timing
    def expensive_operation {
        # ...
    }
    ```
 
-</div>
+   </div>
 
 4. **Context Managers** (Resource management)
+
    <div class="code-block">
 
-```jac
+   ```jac
    with open("file.txt") as file {
        content = file.read();
    }
    ```
 
-</div>
+   </div>
 
 5. **Advanced Edge Filtering**
+
    <div class="code-block">
 
-```jac
+   ```jac
    # Multi-hop with complex filters
    results = [here ->:Friend:since > 2020:-> ->:Coworker:->];
    ```
 
-</div>
+   </div>
 
 6. **Semantic Strings** (AI-powered functions)
+
    <div class="code-block">
 
-```jac
+   ```jac
    import from byllm { Model }
 
    glob llm = Model(model="gpt-4");
@@ -2688,7 +2627,7 @@ Now that you have the foundation, here are advanced Jac features to explore:
    def generate_summary(text: str) -> str by llm();
    ```
 
-</div>
+   </div>
 
 ### Practice Project Ideas
 
