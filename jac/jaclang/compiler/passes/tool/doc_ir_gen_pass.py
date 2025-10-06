@@ -135,19 +135,45 @@ class DocIRGenPass(UniPass):
     def exit_import(self, node: uni.Import) -> None:
         """Exit import node."""
         parts: list[doc.DocType] = []
+        mod_items: list[doc.DocType] = []
+        is_in_items: bool = False
         for i in node.kid:
             if isinstance(i, uni.Token) and i.name == Tok.COMMA:
-                parts.pop()
-                parts.append(i.gen.doc_ir)
-                parts.append(self.space())
+                if is_in_items:
+                    mod_items.pop()
+                    mod_items.append(i.gen.doc_ir)
+                    mod_items.append(self.line())
+                else:
+                    parts.pop()
+                    parts.append(i.gen.doc_ir)
+                    parts.append(self.line())
             elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
                 parts.pop()
                 parts.append(i.gen.doc_ir)
             elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
+                is_in_items = False
+                mod_items.pop()
+                parts.append(
+                    self.group(
+                        self.concat(
+                            [
+                                self.indent(self.concat([self.line(), *mod_items])),
+                                self.line(),
+                            ]
+                        )
+                    )
+                )
+                parts.append(i.gen.doc_ir)
+            elif isinstance(i, uni.Token) and i.name == Tok.LBRACE:
+                is_in_items = True
                 parts.append(i.gen.doc_ir)
             else:
-                parts.append(i.gen.doc_ir)
-                parts.append(self.space())
+                if is_in_items:
+                    mod_items.append(i.gen.doc_ir)
+                    mod_items.append(self.space())
+                else:
+                    parts.append(i.gen.doc_ir)
+                    parts.append(self.space())
         node.gen.doc_ir = self.group(self.concat(parts))
 
     def exit_module_item(self, node: uni.ModuleItem) -> None:

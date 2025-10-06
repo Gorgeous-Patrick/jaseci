@@ -150,6 +150,14 @@ with entry {
 }
 
 
+import from typing { Any, Awaitable, Callable, Coroutine, Optional, ParamSpec, TypeVar }
+
+import from jaclang.compiler.constant {
+    JacSemTokenModifier as SemTokMod,
+    JacSemTokenType as SemTokType,
+}
+
+
 """Return diagnostics."""
 def gen_diagnostics(
     from_path: str, errors: list[Alert], warnings: list[Alert]
