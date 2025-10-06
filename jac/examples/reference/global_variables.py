@@ -1,4 +1,4 @@
-"""Global variables: Module-level variables with let and glob keywords."""
+"""Global variables: Module-level variables with let keyword."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
 private_val = 5

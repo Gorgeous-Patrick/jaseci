@@ -1,16 +1,16 @@
 **Global Variables in Jac**
 
-Global variables are module-level declarations that can have access control tags specifying visibility and mutability. Jac provides two keywords for global declarations: `let` and `glob`.
+Global variables are module-level declarations that can have access control tags specifying visibility and mutability. Jac uses the `let` keyword for global declarations.
 
 **Let with Access Modifiers**
 
 Lines 4-5 demonstrate `let` declarations with access tags. Line 4: `let:priv` creates a private module-level variable accessible only within the current module.
 Line 5: `let:pub` creates a public module-level variable accessible from other modules.
 
-**Glob with Access Modifiers**
+**Let with Access Modifiers (continued)**
 
-Lines 8-9 show `glob` declarations with access control. Line 8: `glob:protect` creates a protected variable with restricted access.
-Line 9: `glob shared_var` creates a global variable with default visibility.
+Lines 8-9 show more `let` declarations with access control. Line 8: `let:protect` creates a protected variable with restricted access.
+Line 9: `let shared_var` creates a global variable with default visibility.
 
 **Multiple Variable Declarations**
 
@@ -49,16 +49,15 @@ flowchart TD
     Store --> Done([Variable Ready])
 ```
 
-**Let vs Glob**
+**Let for Global Variables**
 
-Both `let` and `glob` create module-level variables:
+The `let` keyword creates module-level variables:
 
 | Keyword | Purpose | Typical Use |
 |---------|---------|-------------|
-| `let` | Module-level variable | Immutable-like semantics (by convention) |
-| `glob` | Explicit global variable | Clearly indicates global scope |
+| `let` | Module-level variable | Global scope with flexible semantics |
 
-**Choice between them is often stylistic**, though `glob` more explicitly indicates module-wide scope and mutability.
+The `let` keyword is used for all module-level variable declarations, clearly indicating module-wide scope.
 
 **Access Control in Practice**
 
@@ -89,7 +88,7 @@ Both `let` and `glob` create module-level variables:
 
 **Key Points**
 
-1. Both `let` and `glob` create module-level variables
+1. The `let` keyword creates module-level variables
 2. Access tags control visibility across module boundaries
 3. Multiple variables can be declared in one statement
 4. Type annotations are optional but recommended
