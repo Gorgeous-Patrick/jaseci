@@ -20,8 +20,32 @@ class Priority(Enum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
+
+class Calculator(_jl.Obj):
+    total: float = 0.0
+
+    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    def add(self, value: float) -> None:
+        self.total += value
+
+    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    def subtract(self, value: float) -> None:
+        self.total -= value
+
+    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    def multiply(self, value: float) -> None:
+        self.total *= value
+
+    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    def get_result(self) -> float:
+        return self.total
 result = compute(5, 3)
 v = Vehicle()
 v.accelerate()
 p = Priority.HIGH
+calc = Calculator()
+calc.add(10.5)
+calc.multiply(2.0)
+calc.subtract(5.0)
 print(result, v.name, v.speed, p.value)
+print('Calculator result:', calc.get_result())
