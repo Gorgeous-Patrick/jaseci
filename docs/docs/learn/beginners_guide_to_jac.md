@@ -1178,20 +1178,14 @@ with entry {
 
 ### 8.3 Constructors - Setting Initial Values
 
-Use `can init` to set up new objects:
+Objects are automatically initialized with their `has` attributes as parameters:
 
 <div class="code-block">
 
 ```jac
-class Dog {
+obj Dog {
     has name: str;
     has age: int;
-
-    # Constructor - runs when object is created
-    can init(name: str, age: int) {
-        self.name = name;
-        self.age = age;
-    }
 
     def bark {
         print(f"{self.name} says Woof!");
@@ -1204,7 +1198,7 @@ class Dog {
 }
 
 with entry {
-    my_dog = Dog("Buddy", 3);
+    my_dog = Dog(name="Buddy", age=3);
     my_dog.bark();
     my_dog.birthday();
 }
@@ -1252,7 +1246,7 @@ dog2 = Dog("Max", 5, "Poodle");
 <div class="code-block">
 
 ```jac
-class BankAccount {
+obj BankAccount {
     has balance: float = 0.0;
 
     def deposit(amount: float) {
@@ -1287,30 +1281,19 @@ Create specialized versions of classes:
 <div class="code-block">
 
 ```jac
-# Base class
-class Animal {
+# Base object
+obj Animal {
     has name: str;
     has age: int;
-
-    can init(name: str, age: int) {
-        self.name = name;
-        self.age = age;
-    }
 
     def speak {
         print(f"{self.name} makes a sound");
     }
 }
 
-# Specialized class
-class Dog(Animal) {  # Dog inherits from Animal
+# Specialized object
+obj Dog(Animal) {  # Dog inherits from Animal
     has breed: str;
-
-    can init(name: str, age: int, breed: str) {
-        # Call parent constructor
-        Animal.init(self, name, age);
-        self.breed = breed;
-    }
 
     # Override parent method
     def speak {
@@ -1323,7 +1306,7 @@ class Dog(Animal) {  # Dog inherits from Animal
     }
 }
 
-class Cat(Animal) {
+obj Cat(Animal) {
     # Override parent method
     def speak {
         print(f"{self.name} meows: Meow!");
@@ -1331,8 +1314,8 @@ class Cat(Animal) {
 }
 
 with entry {
-    dog = Dog("Buddy", 3, "Labrador");
-    cat = Cat("Whiskers", 2);
+    dog = Dog(name="Buddy", age=3, breed="Labrador");
+    cat = Cat(name="Whiskers", age=2);
 
     dog.speak();  # Buddy barks: Woof!
     cat.speak();  # Whiskers meows: Meow!
@@ -1354,16 +1337,12 @@ with entry {
 <div class="code-block">
 
 ```jac
-class Character {
+obj Character {
     has name: str;
     has health: int = 100;
     has strength: int = 10;
 
-    can init(name: str) {
-        self.name = name;
-    }
-
-    def attack(target) {
+    def attack(target: object) {
         damage = self.strength;
         print(f"{self.name} attacks {target.name} for {damage} damage!");
         target.take_damage(damage);
@@ -1379,20 +1358,18 @@ class Character {
     }
 }
 
-class Warrior(Character) {
-    can init(name: str) {
-        Character.init(self, name);
+obj Warrior(Character) {
+    def postinit {
         self.strength = 20;  # Warriors hit harder
     }
 }
 
-class Mage(Character) {
-    can init(name: str) {
-        Character.init(self, name);
+obj Mage(Character) {
+    def postinit {
         self.strength = 15;
     }
 
-    def cast_spell(target) {
+    def cast_spell(target: object) {
         damage = self.strength * 2;  # Spells do double damage
         print(f"{self.name} casts fireball at {target.name} for {damage} damage!");
         target.take_damage(damage);
@@ -1400,8 +1377,8 @@ class Mage(Character) {
 }
 
 with entry {
-    warrior = Warrior("Conan");
-    mage = Mage("Gandalf");
+    warrior = Warrior(name="Conan");
+    mage = Mage(name="Gandalf");
 
     warrior.attack(mage);
     mage.cast_spell(warrior);
@@ -1417,14 +1394,9 @@ with entry {
 <div class="code-block">
 
 ```jac
-class Rectangle {
+obj Rectangle {
     has width: float;
     has height: float;
-
-    can init(width: float, height: float) {
-        self.width = width;
-        self.height = height;
-    }
 
     def area -> float {
         return self.width * self.height;
@@ -1436,7 +1408,7 @@ class Rectangle {
 }
 
 with entry {
-    rect = Rectangle(5.0, 3.0);
+    rect = Rectangle(width=5.0, height=3.0);
     print(f"Area: {rect.area()}");
     print(f"Perimeter: {rect.perimeter()}");
 }
@@ -1449,14 +1421,9 @@ with entry {
 <div class="code-block">
 
 ```jac
-class Student {
+obj Student {
     has name: str;
-    has grades: list;
-
-    can init(name: str) {
-        self.name = name;
-        self.grades = [];
-    }
+    has grades: list = [];
 
     def add_grade(grade: int) {
         self.grades.append(grade);
@@ -1471,7 +1438,7 @@ class Student {
 }
 
 with entry {
-    student = Student("Alice");
+    student = Student(name="Alice");
     student.add_grade(90);
     student.add_grade(85);
     student.add_grade(92);
@@ -2006,6 +1973,10 @@ walker FindPerson {
     has target: str;
     has found: bool = False;
 
+    can start with `root entry {
+        visit [-->];
+    }
+
     can search with Person entry {
         if here.name == self.target {
             print(f"Found {here.name}!");
@@ -2055,8 +2026,12 @@ edge Friendship {
 walker FriendRecommender {
     has recommendations: list = [];
 
+    can start with `root entry {
+        visit [-->];
+    }
+
     # Start from a user
-    can start with User entry {
+    can find_recommendations with User entry {
         print(f"Finding recommendations for {here.username}...");
         # Visit friends of friends (2 hops)
         potential_friends = [here ->:Friendship:-> ->:Friendship:->];
@@ -2070,6 +2045,7 @@ walker FriendRecommender {
                 self.recommendations.append(person.username);
             }
         }
+        disengage;
     }
 }
 
@@ -2077,6 +2053,10 @@ walker FriendRecommender {
 walker InterestMatcher {
     has target_interest: str;
     has matches: list = [];
+
+    can start with `root entry {
+        visit [-->];
+    }
 
     can find with User entry {
         if self.target_interest in here.interests {
@@ -2217,6 +2197,10 @@ walker FindAncestors {
     has generations: int = 0;
     has max_generations: int = 3;
 
+    can start with `root entry {
+        visit [-->];
+    }
+
     can explore with Person entry {
         print(f"{'  ' * self.generations}{here.name} (born {here.birth_year})");
 
@@ -2274,9 +2258,13 @@ walker CanTake {
     has completed: list;
     has can_take: bool = True;
 
+    can start with `root entry {
+        visit [-->];
+    }
+
     can check with Course entry {
         # Check prerequisites
-        prereqs = [here <-:Prerequisite:-];
+        prereqs = [here <-:Prerequisite:<-];
 
         for prereq in prereqs {
             if prereq.code not in self.completed {
@@ -2291,6 +2279,10 @@ walker FindPath {
     has target_code: str;
     has path: list = [];
     has visited: set = set();
+
+    can start with `root entry {
+        visit [-->];
+    }
 
     can explore with Course entry {
         if here.code in self.visited {
@@ -2361,7 +2353,11 @@ walker RecommendProducts {
     has min_rating: int = 4;
     has recommendations: list = [];
 
-    can start with Customer entry {
+    can start with `root entry {
+        visit [-->];
+    }
+
+    can find_recommendations with Customer entry {
         print(f"Finding recommendations for {here.name}...");
 
         # Get highly-rated purchases
@@ -2369,7 +2365,7 @@ walker RecommendProducts {
 
         # For each highly-rated product, find similar products
         for product in purchases {
-            similar = [product <-:Purchased:- ->:Purchased:rating >= self.min_rating:->];
+            similar = [product <-:Purchased:<- ->:Purchased:rating >= self.min_rating:->];
 
             for similar_product in similar {
                 if similar_product not in purchases {
@@ -2378,6 +2374,8 @@ walker RecommendProducts {
                     }
                 }
             }
+        }
+        disengage;
     }
 }
 
@@ -2431,6 +2429,10 @@ edge DependsOn {
 walker CheckReady {
     has ready_tasks: list = [];
 
+    can start with `root entry {
+        visit [-->];
+    }
+
     can check with Task entry {
         if here.status != "pending" {
             return;
@@ -2456,10 +2458,14 @@ walker CheckReady {
 walker MarkComplete {
     has task_title: str;
 
+    can start with `root entry {
+        visit [-->];
+    }
+
     can mark with Task entry {
         if here.title == self.task_title {
             here.status = "complete";
-            print(f"✓ Completed: {here.title}");
+            print(f"Completed: {here.title}");
             disengage;
         }
         visit [-->];
