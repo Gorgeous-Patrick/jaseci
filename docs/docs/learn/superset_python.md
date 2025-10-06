@@ -75,35 +75,52 @@ Notice how Jac's object-oriented features compile to standard Python classes inh
 
 ---
 
-### **Seamless Interoperability: The PEP 302 Import Hook**
+### **Seamless Interoperability: Import Jac Files Like Python Modules**
 
-Jac achieves seamless interoperability with Python through a sophisticated import hook based on [PEP 302](https://peps.python.org/pep-0302/) (New Import Hooks). When you `import jaclang`, it registers a custom `MetaPathFinder` and `Loader` in Python's `sys.meta_path`, enabling Python to discover and compile `.jac` files transparently.
+One of Jac's most powerful features is how effortlessly it integrates with Python. Once you add a single line—`import jaclang`—to your Python code, you can import `.jac` files exactly as you would any Python module. No build steps, no compilation commands, no configuration files.
 
-**How the Import Hook Works:**
+**What This Means for You:**
 
-```mermaid
-graph TD
-    A[Python import statement] --> B{Check sys.meta_path}
-    B --> C[JacMetaImporter.find_spec]
-    C --> D{Search for .jac file}
-    D -->|Found| E[Return ModuleSpec with JacMetaImporter as loader]
-    D -->|Not Found| F[Defer to standard Python import]
-    E --> G[JacMetaImporter.exec_module]
-    G --> H[Compile .jac to Python AST]
-    H --> I[Generate bytecode]
-    I --> J[Execute in module namespace]
-    J --> K[Module ready for use]
+*   **Mix and Match Files Freely:** Write some modules in `.jac` and others in `.py`, then import them interchangeably. Your Python files can import Jac modules, and your Jac files can import Python modules—it just works.
+
+*   **Zero Friction Adoption:** Add Jac to your existing Python project without restructuring your codebase. Keep your Python files as-is, and gradually introduce Jac modules where they add value.
+
+*   **Natural Developer Experience:** Use the same `import` statements you already know. No special syntax, no extra tools—just natural Python imports that happen to work with `.jac` files too.
+
+**Example: Importing Across Languages**
+
+Say you have a Jac module with graph utilities:
+
+```jac
+# graph_tools.jac
+node Task {
+    has name: str;
+    has priority: int;
+}
 ```
 
-The `JacMetaImporter` class implements both `MetaPathFinder` and `Loader` interfaces:
+Import it in Python just like any other module:
 
-1. **Finding Modules:** When Python encounters an import, `find_spec()` searches for `.jac` files in the import path, supporting both single files (`module.jac`) and packages (`module/__init__.jac`).
+```python
+# main.py
+import jaclang  # Enable Jac imports (one-time setup)
+from graph_tools import Task  # Import from .jac file
 
-2. **Loading Modules:** When a `.jac` file is found, `exec_module()` invokes the Jac compiler to transpile the code and execute it within the module's namespace.
+# Use Jac classes in Python naturally
+my_task = Task(name="Deploy", priority=1)
+```
 
-3. **Bidirectional Imports:** The hook allows both `.jac` files to import Python modules and Python files to import `.jac` modules seamlessly.
+It works in reverse too—your Jac files can import Python libraries:
 
-This implementation ensures that mixing Jac and Python requires zero configuration beyond the initial `import jaclang` statement.
+```jac
+# analyzer.jac
+import pandas as pd;
+import numpy as np;
+
+# Use Python libraries directly in Jac code
+```
+
+**How It Works:** Jac leverages Python's [PEP 302](https://peps.python.org/pep-0302/) import hook system to extend Python's native import mechanism. When you `import jaclang`, it registers a custom importer that teaches Python how to find and load `.jac` files. From that point forward, whenever Python encounters an import statement, it automatically checks for `.jac` files alongside `.py` files, compiles them transparently, and loads them into your program—all behind the scenes. This means Jac modules become first-class citizens in your Python environment, indistinguishable from native Python modules.
 
 ---
 
@@ -115,371 +132,342 @@ Jac offers flexible adoption strategies to fit your team's needs, from pure Pyth
 
 | Pattern | Use Case | Jac Content | Python Content | Key Benefits | Example Scenario |
 |---------|----------|-------------|----------------|--------------|------------------|
-| **1. Pure Jac** | New projects, microservices | 100% | 0% | Full Jac language features, modern syntax | Building a new graph-based application from scratch |
-| **2. Mostly Jac** | Jac-first with legacy Python | 80-95% | 5-20% | Jac architecture with existing Python libraries | New service that uses pandas, numpy, or other Python packages |
-| **3. Balanced Mix** | Gradual migration, hybrid teams | 50-50% | 50-50% | Best of both worlds, incremental adoption | Migrating existing Python codebase to Jac module by module |
-| **4. Mostly Python** | Python-first with Jac features | 5-20% | 80-95% | Python codebase with Jac for specific features | Python app using Jac's `by llm` for AI features |
-| **5. Pure Python + Jac Library** | Conservative adoption | 0% | 100% | No new syntax, just Jac runtime capabilities | Existing Python project using decorators for graph features |
+| **1. Pure Jac** | New projects, microservices | 100% | 0% | Full Jac language features, modern syntax | Building a new graph-based application with only `.jac` files |
+| **2. Jac + Inline Python** | Inline Python in Jac files | Mixed (::py:: blocks) | Embedded inline | Gradual migration, use Python syntax when needed | `.jac` files with embedded Python for legacy logic or complex imports |
+| **3. Mostly Jac** | Import Python modules into Jac | 80-95% .jac | 5-20% .py | Jac architecture with existing Python utilities | Project with `.jac` files importing your existing `.py` utility modules |
+| **4. Mostly Python** | Import Jac modules into Python | 5-20% .jac | 80-95% .py | Python codebase with select Jac features | Python project with `.py` files importing specialized `.jac` modules for graphs/AI |
+| **5. Pure Python + Jac Library** | Conservative adoption | 0% | 100% | No new syntax, just Jac runtime capabilities | Pure `.py` project using Jac runtime via imports and decorators |
 
 ```mermaid
 graph LR
-    A[Pure Jac<br/>100% .jac files] --> B[Mostly Jac<br/>80-95% .jac]
-    B --> C[Balanced Mix<br/>50-50%]
-    C --> D[Mostly Python<br/>80-95% .py]
+    A[Pure Jac<br/>100% .jac files] --> B[Jac + Inline Python<br/>::py:: blocks]
+    B --> C[Mostly Jac<br/>import .py files]
+    C --> D[Mostly Python<br/>import .jac files]
     D --> E[Pure Python<br/>+ Jac Library]
 
-    style A fill:#4CAF50
-    style B fill:#8BC34A
-    style C fill:#FFC107
-    style D fill:#FF9800
-    style E fill:#FF5722
+    style A fill:#2d5f3f,stroke:#4CAF50,stroke-width:2px,color:#fff
+    style B fill:#3d4f2d,stroke:#8BC34A,stroke-width:2px,color:#fff
+    style C fill:#5f4d1a,stroke:#FFC107,stroke-width:2px,color:#fff
+    style D fill:#5f3d1a,stroke:#FF9800,stroke-width:2px,color:#fff
+    style E fill:#5f2d2d,stroke:#FF5722,stroke-width:2px,color:#fff
 ```
 
 ---
 
 ### **Pattern Details and Examples**
 
-#### **Pattern 1: Pure Jac - All Jac for Your Python**
+**Example Project:** A simple task manager that stores tasks and generates AI-powered task descriptions.
 
-Write 100% Jac code for new projects. The compiler handles everything, generating optimized Python bytecode.
+**Core Features:**
+- Task storage with graph-based relationships
+- Task validation (title length check)
+- AI-generated task descriptions
 
-**When to use:** New projects, microservices, greenfield development
+Let's see how to build this across all 5 patterns.
 
-```jac
-"""Pure Jac application - graph-based task manager."""
+---
 
-node Task {
-    has title: str;
-    has completed: bool = False;
-}
+#### **Pattern 1: Pure Jac**
 
-edge DependsOn {
-    has priority: int = 1;
-}
+Everything in `.jac` files—no Python files needed.
 
-walker CompleteTask {
-    has task_name: str;
+**When to use:** New projects where you want full Jac features
 
-    can mark_complete with Task entry {
-        if here.title == self.task_name {
-            here.completed = True;
-            print(f"Completed: {here.title}");
+=== "main.jac"
+    ```jac
+    """Main application."""
+    import models, utils;
+
+    walker TaskCreator {
+        has title: str;
+
+        can create with `root entry {
+            if utils.validate_title(self.title) {
+                task = models.Task(title=self.title);
+                here ++> task;
+                desc = utils.generate_desc(self.title);
+                print(f"✓ Created: {task.title}");
+                print(f"  AI: {desc}");
+            } else {
+                print("✗ Title too short!");
+            }
         }
-        visit [-->];
     }
-}
 
-with entry {
-    root ++> Task(title="Design");
-    root ++> Task(title="Implement");
-    CompleteTask(task_name="Design") spawn root;
-}
-```
+    with entry {
+        root spawn TaskCreator(title="Build API");
+    }
+    ```
 
-**Transpiles to:**
+=== "models.jac"
+    ```jac
+    """Task node definition."""
 
-```python
-from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as jl
+    node Task {
+        has title: str;
+        has done: bool = False;
+    }
+    ```
 
-class Task(jl.Node):
-    title: str
-    completed: bool = False
+=== "utils.jac"
+    ```jac
+    """Validation and AI utilities."""
 
-class DependsOn(jl.Edge):
-    priority: int = 1
+    can validate_title(title: str) -> bool {
+        return len(title) > 3;
+    }
 
-class CompleteTask(jl.Walker):
-    task_name: str
-
-    @jl.entry
-    def mark_complete(self, here: Task) -> None:
-        if here.title == self.task_name:
-            here.completed = True
-            print(f"Completed: {here.title}")
-        jl.visit(self, jl.refs(jl.Path(here)._out().visit()))
-
-if __name__ == "__main__":
-    jl.connect(left=jl.root(), right=Task(title="Design"))
-    jl.connect(left=jl.root(), right=Task(title="Implement"))
-    jl.spawn(CompleteTask(task_name="Design"), jl.root())
-```
+    can generate_desc(title: str) -> str by llm(incl=input);
+    ```
 
 ---
 
-#### **Pattern 2: Mostly Jac, Import Legacy Python Modules**
+#### **Pattern 2: Jac + Inline Python**
 
-Use Jac for your application logic while importing existing Python libraries seamlessly.
+Embed Python code directly in `.jac` files using `::py::` blocks—useful for migration or when you need Python-specific libraries.
 
-**When to use:** New Jac projects that need pandas, numpy, Django, FastAPI, or other Python packages
+**When to use:** Migrating Python code incrementally, keeping legacy utilities as-is
 
-```jac
-"""Data analysis with Jac + Python libraries."""
+=== "main.jac"
+    ```jac
+    """Application with inline Python validation."""
+    import models;
 
-import pandas as pd;
-import numpy as np;
+    can generate_desc(title: str) -> str by llm(incl=input);
 
-node DataPoint {
-    has value: float;
-    has category: str;
-}
+    ::py::
+    # Legacy Python validation - kept as-is
+    def validate_title(title):
+        """Complex validation logic from old codebase."""
+        return len(title) > 3 and title.strip() != ""
 
-walker Analyzer {
-    has data: list = [];
+    def get_sample_task():
+        """Helper from legacy code."""
+        return {"title": "Build API"}
+    ::py::
 
-    can collect with DataPoint entry {
-        self.data.append(here.value);
-        visit [-->];
-    }
+    walker TaskCreator {
+        can create with `root entry {
+            # Use inline Python functions
+            task_data = get_sample_task();
 
-    can analyze with DataPoint exit {
-        # Use Python libraries directly
-        df = pd.DataFrame({'values': self.data});
-        mean = np.mean(self.data);
-        print(f"Mean: {mean}, Std: {df['values'].std()}");
-    }
-}
-```
-
-**Transpiles to:**
-
-```python
-from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as jl
-import pandas as pd
-import numpy as np
-
-class DataPoint(jl.Node):
-    value: float
-    category: str
-
-class Analyzer(jl.Walker):
-    data: list = jl.field(factory=lambda: [])
-
-    @jl.entry
-    def collect(self, here: DataPoint) -> None:
-        self.data.append(here.value)
-        jl.visit(self, jl.refs(jl.Path(here)._out().visit()))
-
-    @jl.exit
-    def analyze(self, here: DataPoint) -> None:
-        df = pd.DataFrame({'values': self.data})
-        mean = np.mean(self.data)
-        print(f"Mean: {mean}, Std: {df['values'].std()}")
-```
-
----
-
-#### **Pattern 3: Mix Jac and Python Code**
-
-Import Jac modules into Python files or vice versa. Perfect for gradual migration or team collaboration.
-
-**When to use:** Migrating existing Python codebases, teams with mixed expertise
-
-**Jac module (graph_utils.jac):**
-
-```jac
-"""Reusable graph utilities."""
-
-node Person {
-    has name: str;
-}
-
-walker FindPerson {
-    has target: str;
-    has result: Person | None = None;
-
-    can search with Person entry {
-        if here.name == self.target {
-            self.result = here;
-            disengage;
+            if validate_title(task_data["title"]) {
+                task = models.Task(title=task_data["title"]);
+                here ++> task;
+                desc = generate_desc(task.title);
+                print(f"✓ Created: {task.title}");
+                print(f"  AI: {desc}");
+            } else {
+                print("✗ Title invalid!");
+            }
         }
-        visit [-->];
     }
-}
-```
 
-**Python application (main.py):**
+    with entry {
+        root spawn TaskCreator();
+    }
+    ```
 
-```python
-# Enable Jac imports
-import jaclang
+=== "models.jac"
+    ```jac
+    """Task node definition."""
 
-# Import Jac modules like Python modules
-from graph_utils import Person, FindPerson
-from jaclang import JacMachineInterface as jl
+    node Task {
+        has title: str;
+        has done: bool = False;
+    }
+    ```
 
-def create_social_graph():
-    """Build graph using Jac nodes in Python."""
-    alice = Person(name="Alice")
-    bob = Person(name="Bob")
-
-    jl.connect(left=jl.root(), right=alice)
-    jl.connect(left=alice, right=bob)
-
-    # Use Jac walkers from Python
-    finder = FindPerson(target="Bob")
-    jl.spawn(finder, jl.root())
-
-    if finder.result:
-        print(f"Found: {finder.result.name}")
-
-if __name__ == "__main__":
-    create_social_graph()
-```
+Keep tested Python code while adding Jac features—best for incremental migration.
 
 ---
 
-#### **Pattern 4: Mostly Python, Jac for Just Some Features (e.g., by llm)**
+#### **Pattern 3: Mostly Jac**
 
-Use Jac's unique features like `by llm` in an otherwise Python codebase.
+Write your app in Jac, import Python utilities from separate `.py` files.
 
-**When to use:** Existing Python applications that want AI/LLM integration or data-spatial features
+**When to use:** Jac-first development with existing Python utilities or shared modules
 
-```python
-"""Python application with Jac's by llm feature."""
-from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as jl
-import byllm
-from byllm import Model
+=== "main.jac"
+    ```jac
+    """Main application - imports Python module."""
+    import models;
+    import validators;
 
-# Configure LLM
-llm = Model(model_name='gpt-4', temperature=0.7)
+    can generate_desc(title: str) -> str by llm(incl=input);
 
-@jl.sem("""
-Generate a creative product description for the given product name.
-Include key features and benefits in 2-3 sentences.
-""", {})
-def generate_description(product_name: str) -> str:
-    """AI-powered product description generator."""
-    return jl.call_llm(
-        model=llm(),
-        mtir=byllm.MTIR.factory(
-            caller=generate_description,
-            args={'product_name': product_name},
-            call_params=llm().call_params
-        )
-    )
+    walker TaskCreator {
+        has title: str;
 
-# Regular Python code
-class Product:
-    def __init__(self, name: str, price: float):
-        self.name = name
-        self.price = price
-        self.description = generate_description(name)
+        can create with `root entry {
+            # Call Python module functions
+            if validators.validate_title(self.title) {
+                task = models.Task(title=self.title);
+                here ++> task;
+                desc = generate_desc(task.title);
+                print(f"✓ Created: {task.title}");
+                print(f"  AI: {desc}");
+            } else {
+                print("✗ Title too short!");
+            }
+        }
+    }
 
-    def display(self):
-        print(f"{self.name} (${self.price})")
-        print(f"Description: {self.description}")
+    with entry {
+        root spawn TaskCreator(title="Build API");
+    }
+    ```
 
-if __name__ == "__main__":
-    product = Product("Smart Watch Pro", 299.99)
-    product.display()
-```
+=== "models.jac"
+    ```jac
+    """Task node definition."""
 
----
+    node Task {
+        has title: str;
+        has done: bool = False;
+    }
+    ```
 
-#### **Pattern 5: Pure Python and Jac as a Library (Decorators, Functions, Base Classes)**
+=== "validators.py"
+    ```python
+    """Python validation utilities - shared with other projects."""
 
-Use Jac's runtime capabilities without writing any `.jac` files. Import base classes and decorators to build graph-based applications in pure Python.
+    def validate_title(title: str) -> bool:
+        """Validator used across multiple projects."""
+        return len(title) > 3
 
-**When to use:** Teams uncomfortable with new syntax, existing Python projects, conservative adoption
+    def get_sample_title():
+        """Helper to load sample data."""
+        return "Build API"
+    ```
 
-```python
-"""Pure Python using Jac runtime as a library."""
-from jaclang import JacMachineInterface as jl
-from jaclang.runtimelib.archetype import NodeArchetype, EdgeArchetype, WalkerArchetype
-
-# Define nodes by inheriting from Jac base classes
-class Employee(NodeArchetype):
-    name: str
-    role: str
-
-    def __init__(self, name: str, role: str):
-        super().__init__()
-        self.name = name
-        self.role = role
-
-class ReportsTo(EdgeArchetype):
-    since: int
-
-    def __init__(self, since: int = 2024):
-        super().__init__()
-        self.since = since
-
-# Define walkers with entry decorators
-class OrgChartWalker(WalkerArchetype):
-    def __init__(self):
-        super().__init__()
-        self.depth = 0
-
-    @jl.entry
-    def enter_employee(self, here: Employee) -> None:
-        indent = "  " * self.depth
-        print(f"{indent}{here.name} ({here.role})")
-        self.depth += 1
-        jl.visit(self, jl.refs(jl.Path(here)._out().visit()))
-        self.depth -= 1
-
-# Build and traverse graph using Jac functions
-if __name__ == "__main__":
-    # Create organizational hierarchy
-    ceo = Employee(name="Alice", role="CEO")
-    cto = Employee(name="Bob", role="CTO")
-    dev = Employee(name="Charlie", role="Developer")
-
-    # Connect nodes
-    jl.connect(left=jl.root(), right=ceo)
-    jl.connect(left=ceo, right=cto, edge=ReportsTo(since=2020))
-    jl.connect(left=cto, right=dev, edge=ReportsTo(since=2022))
-
-    # Spawn walker
-    walker = OrgChartWalker()
-    jl.spawn(walker, jl.root())
-```
-
-**Output:**
-```
-Alice (CEO)
-  Bob (CTO)
-    Charlie (Developer)
-```
-
-This pattern provides access to Jac's powerful data-spatial programming model using familiar Python syntax and patterns.
+Jac seamlessly imports Python modules—no configuration needed.
 
 ---
 
-### **Advanced Integration: The Escape Hatch**
+#### **Pattern 4: Mostly Python**
 
-For situations where you need Python-specific syntax or want to gradually migrate a file, you can embed raw Python code directly inside a `.jac` module using the `::py::` directive.
+Python-first application that imports `.jac` modules for graph and AI features.
 
-```jac
-"""Mixing Jac and raw Python in one file."""
+**When to use:** Existing Python projects adding Jac's graph/AI capabilities
 
-node Task {
-    has title: str;
-}
+=== "main.py"
+    ```python
+    """Python application importing Jac modules."""
+    import jaclang  # Enable Jac imports
 
-with entry {
-    task = Task(title="Learn Jac");
-    print(f"Created task: {task.title}");
-}
+    from validators import validate_title
+    from task_graph import Task, TaskCreator, generate_desc
+    from jaclang import JacMachineInterface as jl
 
-::py::
-# This is raw Python code embedded in Jac
-def legacy_function():
-    """Existing Python code that's hard to migrate."""
-    import sys
-    print(f"Python version: {sys.version}")
-    return {"status": "ok"}
+    def create_task(title: str):
+        """Python function using Jac features."""
+        if not validate_title(title):
+            print("✗ Title too short!")
+            return
 
-result = legacy_function()
-print(result)
-::py::
-```
+        # Use Jac walker
+        creator = TaskCreator(title=title)
+        jl.spawn(creator, jl.root())
+
+        # Use Jac's AI
+        desc = generate_desc(title)
+        print(f"  AI: {desc}")
+
+    if __name__ == "__main__":
+        create_task("Build API")
+    ```
+
+=== "validators.py"
+    ```python
+    """Python validation utilities."""
+
+    def validate_title(title: str) -> bool:
+        """Title validator."""
+        return len(title) > 3
+    ```
+
+=== "task_graph.jac"
+    ```jac
+    """Jac module with graph and AI features."""
+
+    node Task {
+        has title: str;
+        has done: bool = False;
+    }
+
+    walker TaskCreator {
+        has title: str;
+
+        can create with `root entry {
+            task = Task(title=self.title);
+            here ++> task;
+            print(f"✓ Created: {task.title}");
+        }
+    }
+
+    can generate_desc(title: str) -> str by llm(incl=input);
+    ```
+
+Python stays familiar, but you get Jac's graph and AI features where needed.
+
+---
+
+#### **Pattern 5: Pure Python + Jac Library**
+
+Pure Python using Jac's runtime as a library—no `.jac` files.
+
+**When to use:** Conservative adoption, teams preferring Python syntax, existing projects
+
+=== "main.py"
+    ```python
+    """Pure Python using Jac runtime."""
+    from jaclang import JacMachineInterface as jl
+    from jaclang.runtimelib.archetype import NodeArchetype, WalkerArchetype
+    from validators import validate_title
+
+    # Define Task node using Jac base class
+    class Task(NodeArchetype):
+        title: str
+        done: bool
+
+        def __init__(self, title: str):
+            super().__init__()
+            self.title = title
+            self.done = False
+
+    # Define walker using Jac decorators
+    class TaskCreator(WalkerArchetype):
+        def __init__(self, title: str):
+            super().__init__()
+            self.title = title
+
+        @jl.entry
+        def create(self, here) -> None:
+            """Entry point - creates task."""
+            if validate_title(self.title):
+                task = Task(title=self.title)
+                jl.connect(here, task)
+                print(f"✓ Created: {task.title}")
+                # Note: AI features require .jac syntax
+            else:
+                print("✗ Title too short!")
+
+    if __name__ == "__main__":
+        creator = TaskCreator(title="Build API")
+        jl.spawn(creator, jl.root())
+    ```
+
+=== "validators.py"
+    ```python
+    """Python validation utilities."""
+
+    def validate_title(title: str) -> bool:
+        """Title validator."""
+        return len(title) > 3
+    ```
+
+Pure Python with graph capabilities—no new syntax, but you get Jac's data-spatial model.
 
 ---
 
@@ -496,8 +484,8 @@ Jac's relationship with Python isn't about choosing one over the other—it's ab
 | Adoption Pattern | Learning Curve | Migration Effort | Feature Access | Risk Level |
 |------------------|---------------|------------------|----------------|------------|
 | Pattern 1: Pure Jac | High | High | 100% Jac features | Low |
-| Pattern 2: Mostly Jac | Medium-High | Medium-High | 95% Jac features | Low |
-| Pattern 3: Balanced Mix | Medium | Medium | Full bidirectional | Medium |
+| Pattern 2: Jac + Inline Python | Medium | Low | 100% Jac features | Low |
+| Pattern 3: Mostly Jac | Medium-High | Medium | 100% Jac features | Low |
 | Pattern 4: Mostly Python | Low-Medium | Low | Select Jac features | Low |
 | Pattern 5: Pure Python + Library | Low | Very Low | Core runtime only | Very Low |
 
