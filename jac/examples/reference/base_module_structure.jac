@@ -23,7 +23,7 @@ impl MyObject {
 }
 
 # 5. Semstring
-sem MyObject.value is "A value stored in MyObject";
+sem MyObject.value = "A value stored in MyObject";
 
 # 6. Ability (function)
 def add(a: int, b: int) -> int {
