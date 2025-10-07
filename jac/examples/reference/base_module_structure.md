@@ -63,19 +63,3 @@ The `::py:: ... ::py::` block embeds pure Python code. This allows seamless Pyth
 
 `test basic_test` defines a unit test that verifies `add(2, 3)` returns 5. Tests can be run with `jac test` command and use assertions to validate behavior.
 
-**Module Organization Pattern**
-
-The standard Jac module structure:
-
-1. Module docstring (documentation)
-2. Import statements (dependencies)
-3. Global variables (module-level state)
-4. Archetype declarations (types/classes)
-5. Implementations (method definitions)
-6. Semstrings (semantic metadata)
-7. Abilities (functions)
-8. Entry points (executable code)
-9. Inline Python (Python interop)
-10. Tests (validation)
-
-This organization separates concerns: types and interfaces first, implementations second, and executable code last. The example provides 100% coverage of all top-level statement types in the `base_module_structure` grammar section.
