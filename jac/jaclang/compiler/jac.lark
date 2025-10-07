@@ -147,7 +147,6 @@ finally_stmt: KW_FINALLY code_block
 match_stmt: KW_MATCH expression LBRACE match_case_block+ RBRACE
 match_case_block: KW_CASE pattern_seq (KW_IF expression)? COLON statement+
 
-// [Heading]: Match patterns.
 pattern_seq: (or_pattern | as_pattern)
 or_pattern: (pattern BW_OR)* pattern
 as_pattern: or_pattern KW_AS NAME
@@ -159,26 +158,14 @@ pattern: literal_pattern
     | mapping_pattern
     | class_pattern
 
-
-// [Heading]: Match literal patterns.
 literal_pattern: (INT | FLOAT | multistring)
-
-// [Heading]: Match singleton patterns.
 singleton_pattern: (NULL | BOOL)
-
-// [Heading]: Match capture patterns.
 capture_pattern: NAME
-
-// [Heading]: Match sequence patterns.
 sequence_pattern: LSQUARE list_inner_pattern (COMMA list_inner_pattern)* RSQUARE
                 | LPAREN list_inner_pattern (COMMA list_inner_pattern)* RPAREN
-
-// [Heading]: Match mapping patterns.
 mapping_pattern: LBRACE (dict_inner_pattern (COMMA dict_inner_pattern)*)? RBRACE
 list_inner_pattern: (pattern_seq | STAR_MUL NAME)
 dict_inner_pattern: (literal_pattern COLON pattern_seq | STAR_POW NAME)
-
-// [Heading]: Match class patterns.
 class_pattern: NAME (DOT NAME)* LPAREN kw_pattern_list? RPAREN
              | NAME (DOT NAME)* LPAREN pattern_list (COMMA kw_pattern_list)? RPAREN
 
@@ -195,7 +182,7 @@ global_ref: GLOBAL_OP name_list
 nonlocal_ref: NONLOCAL_OP name_list
 name_list: (named_ref COMMA)* named_ref
 
-// [Heading]: Object spatial typed context blocks.
+// [Heading]: Typed context blocks (OSP).
 typed_ctx_block: RETURN_HINT expression code_block
 
 // [Heading]: Return statements.
@@ -219,13 +206,9 @@ report_stmt: KW_REPORT expression
 // [Heading]: Control statements.
 ctrl_stmt: KW_SKIP | KW_BREAK | KW_CONTINUE
 
-// [Heading]: Object spatial Walker statements.
+// [Heading]: Walker visit and disengage (OSP).
 spatial_stmt: visit_stmt | disenage_stmt
-
-// [Heading]: Visit statements.
 visit_stmt: KW_VISIT (COLON expression COLON)? expression (else_stmt | SEMI)
-
-// [Heading]: Disengage statements.
 disenage_stmt: KW_DISENGAGE SEMI
 
 // [Heading]: Assignments.

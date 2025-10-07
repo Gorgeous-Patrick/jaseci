@@ -1,4 +1,6 @@
-Object spatial typed context blocks demonstrate how walkers and nodes interact through ability implementations in Jac's spatial programming model. The "typed context" refers to the ability system where behavior is determined by the types of both the walker and the node.
+**Typed Context Blocks (OSP)**
+
+Typed context blocks demonstrate how walkers and nodes interact through ability implementations in Jac's Object Spatial Programming (OSP) model. The "typed context" refers to the ability system where behavior is determined by the types of both the walker and the node.
 
 **What are Typed Context Blocks?**
 

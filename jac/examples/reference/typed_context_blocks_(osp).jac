@@ -1,4 +1,4 @@
-# Object spatial typed context blocks - Graph traversal and spatial operations
+"""Typed context blocks (OSP): Graph traversal and spatial operations."""
 
 walker Producer {
     can produce with `root entry;

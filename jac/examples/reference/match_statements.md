@@ -1,107 +1,391 @@
-Match statements provide a powerful pattern matching construct for handling different data structures and values in a declarative way. They offer a more expressive alternative to chains of if-elif-else statements.
+**Match Statements: Comprehensive Pattern Matching**
+
+Match statements provide a powerful pattern matching construct for handling different data structures and values in a declarative way. They offer a more expressive alternative to chains of if-elif-else statements, supporting multiple pattern types including literals, singletons, captures, sequences, mappings, and class patterns.
 
 **What is Pattern Matching?**
 
-Pattern matching allows you to compare a value against different patterns and execute code based on which pattern matches. Think of it like a more powerful switch statement that can destructure data and apply conditions.
+Pattern matching allows you to compare a value against different patterns and execute code based on which pattern matches. Think of it like a more powerful switch statement that can destructure data, match complex structures, and apply conditions.
 
 **Basic Match Structure**
 
-The fundamental structure is shown in lines 6-13:
-- Line 6: `match x` starts the match statement with the value to check
-- Lines 7-12: Each `case` clause defines a pattern and code to execute
-- Line 11: The wildcard `_` matches any value (like a default case)
-
-| Component | Purpose | Example (Line) |
-|-----------|---------|----------------|
-| `match` keyword | Start pattern matching | Line 6 |
-| Expression | Value to match against | `x` on line 6 |
-| `case` clauses | Patterns to check | Lines 7, 9, 11 |
-| Case body | Code to execute on match | Lines 8, 10, 12 |
-| Wildcard `_` | Default/catch-all pattern | Line 11 |
-
-When a match executes, it evaluates the expression once, then checks each case pattern in order. The first matching pattern executes its body, then control exits the match statement.
-
-**Literal Pattern Matching**
-
-Lines 6-13 demonstrate matching against literal values. Since `x` equals 8, the pattern on line 9 matches and executes line 10, printing "eight". The other patterns don't match.
-
-Lines 54-65 show string pattern matching, where line 55 sets `cmd = "start"`, and line 57-58 match that value.
-
-Lines 67-78 demonstrate integer pattern matching for status codes, where different code values trigger different messages.
-
-**Guard Clauses for Conditional Matching**
-
-Lines 16-24 show how to add conditions using guard clauses:
-- Line 18: `case x if x < 10:` binds the value to `x`, then checks if `x < 10`
-- Line 20: `case x if x < 20:` provides an additional range check
-- The guard (the `if` part) only evaluates if the pattern matches first
+The fundamental structure consists of:
+- `match` keyword followed by an expression to evaluate
+- One or more `case` clauses defining patterns
+- Optional guard clauses using `if` for additional conditions
+- Case bodies containing statements to execute on match
 
 ```mermaid
 flowchart TD
-    A[match value] --> B{Pattern matches?}
-    B -->|No| C[Try next case]
-    B -->|Yes| D{Guard condition true?}
-    D -->|No| C
-    D -->|Yes| E[Execute case body]
-    E --> F[Exit match]
-    C --> G{More cases?}
-    G -->|Yes| B
-    G -->|No| H[No match - error or continue]
+    A[match expression] --> B{Pattern 1 matches?}
+    B -->|Yes| C{Guard condition?}
+    C -->|True| D[Execute case body]
+    C -->|False| E{Pattern 2 matches?}
+    B -->|No| E
+    D --> F[Exit match]
+    E -->|Yes| G{Guard condition?}
+    G -->|True| H[Execute case body]
+    G -->|False| I[Try next case]
+    H --> F
+    E -->|No| I
+    I --> J[Continue to next case or wildcard]
 ```
 
-Since `value` is 15 on line 16, the guard on line 18 fails (15 is not less than 10), but the guard on line 20 succeeds (15 is less than 20), so line 21 executes.
+**Execution Model**
 
-**Multiple Statements in Case Bodies**
-
-Lines 27-39 demonstrate that each case can contain multiple statements:
-- Lines 29-32: Three statements execute when matching "success"
-- No `break` statement is needed - execution automatically exits after a case body completes
-- Each case block is independent
-
-This is different from C-style switch statements that require explicit break statements.
-
-**Sequence Pattern Matching**
-
-Lines 42-52 show destructuring lists by their structure:
-- Line 44: `case [x]:` matches a single-element list, binding the element to `x`
-- Line 46: `case [x, y]:` matches a two-element list
-- Line 48: `case [x, y, z]:` matches a three-element list
-
-| Pattern | Matches | Binds Variables |
-|---------|---------|-----------------|
-| `[x]` | Single element list | `x` = element |
-| `[x, y]` | Two element list | `x` = first, `y` = second |
-| `[x, y, z]` | Three element list | `x`, `y`, `z` = all three |
-| `_` | Any list | None |
-
-Since `data` is `[1, 2, 3]` on line 42, the pattern on line 48 matches, binding x=1, y=2, z=3, and line 49 executes.
-
-**How Match Statements Work**
-
-The execution model follows these rules:
-
-1. **Sequential Evaluation**: Patterns are checked from top to bottom in order
+Match statements follow these rules:
+1. **Sequential Evaluation**: Patterns are checked from top to bottom
 2. **First Match Wins**: Only the first matching case executes
-3. **Automatic Exit**: After executing a case body, control flows out of the match
-4. **Wildcard Default**: The `_` pattern matches anything and is typically last
-5. **Variable Binding**: Variables in patterns are only available within that case body
-6. **Guard Filtering**: Guard clauses provide boolean filtering after pattern matching
+3. **Automatic Exit**: After executing a case body, control exits the match
+4. **Variable Binding**: Variables in patterns are scoped to that case body
+5. **Guard Filtering**: Guards provide boolean filtering after pattern matching
 
-**When to Use Match Statements**
+**Pattern Types Overview**
 
-Match statements are ideal when you need to:
-- Handle different data structures or types differently
-- Destructure collections and extract values
-- Apply conditional logic based on value ranges
-- Write cleaner code than nested if-elif-else chains
-- Make your intent clear about which patterns you're handling
+| Pattern Type | Syntax Example | Matches | Lines |
+|--------------|---------------|---------|-------|
+| Literal | `case 200:` | Exact int/float/string values | 27-35, 39-47, 51-59 |
+| Singleton | `case True:`, `case None:` | Boolean constants and None | 67-72, 76-81 |
+| Capture | `case x:` | Any value, binds to variable | 89-92, 96-101, 105-108 |
+| Wildcard | `case _:` | Any value, no binding | 34, 59, 81 |
+| AS Pattern | `case x as name:` | Capture with explicit naming | 106-108 |
+| Sequence | `case [x, y]:` | Lists/tuples with destructuring | 116-121, 125-128, 132-146, 150-153 |
+| Star Pattern | `case [first, *rest]:` | Variable-length sequences | 133-137, 142-153 |
+| Mapping | `case {"key": val}:` | Dictionaries with key matching | 162-166, 170-173, 177-181, 184-187 |
+| Double-Star | `case {**rest}:` | Remaining dict items | 178-181 |
+| Class | `case Point(x=a, y=b):` | Object types with field matching | 196-198, 202-211, 215-218, 222-225 |
+| OR Pattern | `case 200 \| 201:` | Multiple alternatives | 234-242 |
+| Guard Clause | `case x if x < 10:` | Pattern with condition | 250-257, 261-272 |
+
+---
+
+## LITERAL PATTERNS
+
+Literal patterns match exact values - integers, floats, or strings.
+
+**Integer Literals (lines 25-35)**
+
+The most basic pattern type. Line 25 sets `status_code = 200`, which matches the pattern on line 27, executing line 28 to print "OK". Each case tests for a specific integer value.
+
+**Float Literals (lines 37-47)**
+
+Line 38 sets `pi = 3.14`. The match on line 39 compares this against float literals, matching line 40 and printing "Matched pi".
+
+**String Literals (lines 49-59)**
+
+Line 50 sets `command = "start"`. String matching on lines 51-59 tests against different command strings, matching line 52 and executing line 53.
+
+**Key Points**:
+- Literals match using equality comparison
+- Type must match exactly (no automatic conversion)
+- The wildcard `_` (lines 34, 46, 59) catches unmatched cases
+
+---
+
+## SINGLETON PATTERNS
+
+Singleton patterns match the special values `True`, `False`, and `None`.
+
+**Boolean Singletons (lines 66-72)**
+
+Line 66 sets `flag = True`. The match on line 67 tests against boolean singletons. Since `flag` is `True`, line 68 matches and executes line 69.
+
+Booleans are singletons - there's only one `True` object and one `False` object in the runtime, making identity checking possible.
+
+**None Singleton (lines 75-81)**
+
+Line 75 sets `optional_value = None`. The match on line 76 uses the singleton pattern on line 77 to detect the absence of a value, executing line 78.
+
+**Usage**:
+- Use for optional values and nullable types
+- Common in error handling and default value checks
+- `None` checks are more reliable than equality checks
+
+---
+
+## CAPTURE PATTERNS
+
+Capture patterns bind the matched value to a variable name for use in the case body.
+
+**Basic Capture (lines 88-92)**
+
+Line 88 sets `value = 42`. Line 90 uses `case x:` which matches any value and binds it to `x`. Line 91 then prints this captured value.
+
+**Wildcard Pattern `_` (lines 95-101)**
+
+Line 95 sets `day = "sunday"`. The wildcard on line 99 matches anything but doesn't bind a value - useful when you need a default case but don't need the value itself.
+
+The difference:
+- `case x:` - matches and binds to variable `x`
+- `case _:` - matches but doesn't bind (you can't reference `_`)
+
+**AS Pattern - Explicit Naming (lines 104-108)**
+
+Line 104 sets `number = 100`. Line 106 uses `case x as captured_num:` which first matches the pattern `x` (capturing to `x`), then additionally binds the entire match to `captured_num`. This is useful for nested patterns where you want both the whole and parts.
+
+---
+
+## SEQUENCE PATTERNS
+
+Sequence patterns destructure lists and tuples, extracting individual elements or subsequences.
+
+**Exact Match (lines 115-121)**
+
+Line 115 sets `coords = [1, 2, 3]`. Line 117 uses `case [1, 2, 3]:` to match the exact sequence. Since it matches, line 118 executes.
+
+**Variable Binding (lines 124-128)**
+
+Line 124 sets `point = [10, 20]`. Line 126 uses `case [x, y]:` which matches a two-element list and binds `x=10, y=20`. Line 127 uses these captured values.
+
+**Star Patterns - Rest Capture (lines 131-137)**
+
+Lines 131-137 demonstrate the `*` operator for capturing variable-length subsequences:
+
+Line 131: `numbers = [1, 2, 3, 4, 5]`
+Line 133: `case [first, *middle, last]:`
+- Binds `first=1`
+- Binds `middle=[2, 3, 4]` (all middle elements)
+- Binds `last=5`
+
+This is similar to Python's unpacking but in pattern context.
+
+**Star at Different Positions (lines 140-146)**
+
+Line 140: `data = [100, 200, 300, 400]`
+
+Line 142: `case [*start, 400]:` captures everything except the last element
+- `start = [100, 200, 300]`
+
+Line 144: `case [100, *rest]:` captures everything after the first element
+- `rest = [200, 300, 400]`
+
+**Nested Sequences (lines 149-153)**
+
+Line 149: `matrix = [[1, 2], [3, 4]]`
+Line 151: `case [[a, b], [c, d]]:` matches a 2x2 nested structure
+- Binds `a=1, b=2, c=3, d=4`
+
+This demonstrates pattern matching on arbitrarily nested data structures.
+
+---
+
+## MAPPING PATTERNS
+
+Mapping patterns match dictionaries, allowing key-based destructuring and partial matching.
+
+**Exact Key Match (lines 160-166)**
+
+Line 160: `user = {"name": "Alice", "age": 30}`
+Line 162: `case {"name": "Alice", "age": 30}:` matches when both keys exist with exact values.
+
+Unlike sequence patterns, mapping patterns support **partial matching** - the dict can have extra keys.
+
+**Value Capture (lines 169-173)**
+
+Line 169: `person = {"id": 123, "role": "admin"}`
+Line 171: `case {"id": user_id, "role": user_role}:`
+- Matches if keys exist
+- Binds `user_id=123` and `user_role="admin"`
+
+**Double-Star Rest Capture (lines 176-181)**
+
+Line 176: `config = {"host": "localhost", "port": 8080, "debug": True, "timeout": 30}`
+Line 178: `case {"host": h, "port": p, **rest}:`
+- Binds `h="localhost"`, `p=8080`
+- Captures remaining items in `rest = {"debug": True, "timeout": 30}`
+
+The `**rest` pattern is similar to `**kwargs` in function parameters.
+
+**Nested Mappings (lines 184-187)**
+
+Line 184: `response = {"status": 200, "data": {"name": "Bob", "score": 95}}`
+Line 186: `case {"status": 200, "data": {"name": n, "score": s}}:`
+
+Demonstrates matching nested dictionary structures and extracting deeply-nested values.
+
+---
+
+## CLASS PATTERNS
+
+Class patterns match object instances and destructure their fields.
+
+**Basic Class Pattern (lines 194-198)**
+
+Lines 4-7 define the `Point` class.
+Line 194: `p1 = Point(x=5.0, y=10.0)`
+Line 196: `case Point(x=x_val, y=y_val):`
+- Checks that `p1` is a `Point` instance
+- Binds `x_val=5.0`, `y_val=10.0`
+
+**Value Matching with Classes (lines 201-211)**
+
+Line 201: `origin = Point(x=0.0, y=0.0)`
+
+Multiple cases test for different conditions:
+- Line 203: Matches origin exactly
+- Line 205: Matches any point on y-axis (x must be 0.0, y is captured)
+- Line 207: Matches any point on x-axis (x is captured, y must be 0.0)
+- Line 209: Wildcard for other points
+
+This demonstrates mixing literal values with capture variables in class patterns.
+
+**Nested Class Patterns (lines 214-218)**
+
+Lines 8-11 define the `Circle` class with a `Point` field.
+Line 214: `circle = Circle(center=Point(x=3.0, y=4.0), radius=5.0)`
+Line 216: `case Circle(center=Point(x=cx, y=cy), radius=r):`
+
+This pattern:
+1. Checks `circle` is a `Circle` instance
+2. Extracts the `center` field, checking it's a `Point`
+3. Extracts `x` and `y` from that nested `Point`
+4. Extracts `radius` from the `Circle`
+
+**Class Pattern with AS (lines 221-225)**
+
+Line 221: `rect = Rectangle(width=10.0, height=20.0)`
+Line 223: `case Rectangle(width=w, height=h) as captured_rect:`
+- Binds field values `w=10.0`, `h=20.0`
+- Binds entire object to `captured_rect`
+
+Useful when you need both the object and its fields.
+
+---
+
+## OR PATTERNS
+
+OR patterns allow multiple alternative patterns using the `|` operator.
+
+**Multiple Alternatives (lines 232-242)**
+
+Line 232: `code = 404`
+Line 234: `case 200 | 201 | 204:` matches any success status code
+Line 236: `case 400 | 401 | 403 | 404:` matches client errors
+
+The `|` operator creates an OR pattern - if any alternative matches, the case executes. Since `code` is 404, line 236 matches and line 237 executes.
+
+**Usage**:
+- Group related values into categories
+- Reduce duplication in case clauses
+- Can be used with any pattern type, not just literals
+
+---
+
+## GUARD CLAUSES
+
+Guards add boolean conditions to patterns using the `if` keyword.
+
+**Range Checking (lines 249-257)**
+
+Line 249: `age = 25`
+Line 251: `case x if x < 18:` - pattern `x` captures the value, then checks if `x < 18`
+
+Since `age` is 25:
+- Line 251 matches pattern but fails guard (25 >= 18)
+- Line 253 matches pattern and passes guard (25 < 65)
+- Line 254 executes
+
+**Grading Example (lines 260-272)**
+
+Line 260: `score = 85`
+
+The match implements a grading scale using guards:
+- Line 262: `case s if s >= 90:` for grade A
+- Line 264: `case s if s >= 80:` for grade B (matches since 85 >= 80)
+- Subsequent cases handle lower grades
+
+Guards are evaluated **after** pattern matching succeeds, providing fine-grained filtering.
+
+---
+
+## COMBINED PATTERNS
+
+Complex real-world scenarios often combine multiple pattern types.
+
+**Nested Pattern Combination (lines 279-287)**
+
+Line 279: `shape_data = {"type": "circle", "center": [0, 0], "radius": 10}`
+Line 281: `case {"type": "circle", "center": [x, y], "radius": r}:`
+
+This single pattern combines:
+1. **Mapping pattern**: Matches dictionary structure
+2. **Literal pattern**: Checks `"type"` is `"circle"`
+3. **Sequence pattern**: Destructures `"center"` as `[x, y]`
+4. **Capture pattern**: Binds `x`, `y`, and `r` to variables
+
+**Multiple Statements (lines 290-303)**
+
+Lines 292-295 show that case bodies can contain multiple statements. After matching "success":
+1. Prints success message
+2. Sets status variable
+3. Prints status code
+
+No `break` needed - execution automatically exits after the case body.
+
+---
+
+## WHEN TO USE MATCH STATEMENTS
+
+Match statements excel when you need to:
+
+- **Handle different data types or structures**: Distinguish between different object types or data shapes
+- **Destructure collections**: Extract values from nested lists, tuples, or dictionaries
+- **Apply conditional logic**: Use guards for range checks and complex conditions
+- **Write cleaner code**: Replace verbose if-elif-else chains with declarative patterns
+- **Make intent clear**: Show which patterns you're handling explicitly
 
 **Pattern Matching vs If-Else**
 
-Compare these equivalent approaches:
+Compare these approaches for handling HTTP status codes:
 
-Using if-else (more verbose):
+```jac
+// Using if-else (imperative)
+if code == 200 or code == 201 or code == 204:
+    print("Success");
+elif code == 400 or code == 401 or code == 403 or code == 404:
+    print("Client error");
+elif code == 500 or code == 502 or code == 503:
+    print("Server error");
+else:
+    print("Other code");
 
-Using match (more declarative):
+// Using match (declarative)
+match code {
+    case 200 | 201 | 204:
+        print("Success");
+    case 400 | 401 | 403 | 404:
+        print("Client error");
+    case 500 | 502 | 503:
+        print("Server error");
+    case _:
+        print("Other code");
+}
+```
 
-The match version makes the structure clearer and allows for more complex patterns like list destructuring that would be awkward with if-else.
+The match version is more declarative, making the structure and intent clearer.
+
+---
+
+## PATTERN MATCHING BEST PRACTICES
+
+1. **Order matters**: Place more specific patterns before general ones
+2. **Use wildcards**: Always include a `case _:` as the last case for safety
+3. **Combine patterns**: Use OR patterns to group related cases
+4. **Guard sparingly**: Prefer specific patterns over guards when possible
+5. **Name captures clearly**: Use descriptive variable names in patterns
+6. **Keep cases simple**: If a case body is complex, extract to a function
+7. **Document complex patterns**: Add comments for nested or intricate patterns
+
+**Example of pattern ordering**:
+
+```jac
+match point {
+    case Point(x=0.0, y=0.0):  // Most specific - origin
+        print("Origin");
+    case Point(x=0.0, y=y):     // Specific - y-axis
+        print(f"Y-axis at {y}");
+    case Point(x=x, y=y):       // General - any point
+        print(f"Point at ({x}, {y})");
+}
+```
+
+If you reversed the order, the general pattern would always match first, and the specific cases would never execute.
