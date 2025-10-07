@@ -1,84 +1,81 @@
-Jac modules organize code with docstrings for documentation and entry points for execution control.
+Jac modules organize code using top-level statements including imports, archetypes, implementations, globals, abilities, and entry points. This example demonstrates all top-level statement types.
 
 **Module-Level Docstrings**
 
-Lines 1-5 show the module docstring - a string literal at the very beginning of the file. This triple-quoted string documents what the entire module does. It appears before any code elements (functions, classes, etc.). Module docstrings are used by documentation tools and can be accessed at runtime to provide help text.
+Lines 1-5 show the module docstring - a string literal at the very beginning of the file. This triple-quoted string documents what the entire module does. It appears before any code elements and is used by documentation tools.
 
-**Function Definitions**
+**Top-Level Statements Coverage**
 
-Lines 7-13 define two simple functions:
+This module demonstrates all 9 top-level statement types from the grammar:
 
-| Function | Lines | Purpose |
-|----------|-------|---------|
-| `add` | 7-9 | Adds two integers and returns the result |
-| `subtract` | 11-13 | Subtracts second integer from first |
+| Statement Type | Lines | Example |
+|---------------|-------|---------|
+| Import | 8 | `import math;` |
+| Global Variable | 11 | `let global_value: int = 42;` |
+| Archetype | 14-16 | `obj MyObject { ... }` |
+| Implementation | 19-23 | `impl MyObject { ... }` |
+| Semstring | 26 | `sem MyObject.value = "...";` |
+| Ability (Function) | 29-31 | `def add(a: int, b: int) -> int { ... }` |
+| Free Code (Default Entry) | 34-36 | `with entry { ... }` |
+| Free Code (Named Entry) | 39-41 | `with entry:__main__ { ... }` |
+| Inline Python | 44-47 | `::py:: ... ::py::` |
+| Test | 50-53 | `test basic_test { ... }` |
 
-Both functions use type annotations (`a: int, b: int -> int`) to specify parameter and return types. These functions can be called from within the module or imported by other modules.
+**1. Import Statements (Line 8)**
 
-**Default Entry Point**
+The `import math;` statement makes Python's math module available. Jac supports standard Python imports and Jac-specific imports using `import from module { items }` syntax.
 
-Lines 16-18 define the default entry point using `with entry`. This code block executes when the module runs. Let's trace the execution:
+**2. Global Variables (Line 11)**
 
-```mermaid
-graph LR
-    A[Entry point starts] --> B[subtract 8, 3]
-    B --> C[Result: 5]
-    C --> D[add 5, 5]
-    D --> E[Result: 10]
-    E --> F[Print: Default entry: 10]
-```
+`let global_value: int = 42;` declares a module-level variable using the `let` keyword. Global variables can have access modifiers (`:priv`, `:pub`, `:protect`) and type annotations.
 
-The nested call evaluates from inside out:
-1. `subtract(8, 3)` returns 5
-2. `add(5, 5)` returns 10
-3. Prints "Default entry: 10"
+**3. Archetypes (Lines 14-16)**
 
-**Named Entry Point**
+`obj MyObject` defines an object archetype with a `value` field. Jac has 5 archetype types: `obj`, `class`, `node`, `edge`, and `walker`.
 
-Lines 21-23 define a named entry point using `with entry:__main__`:
+**4. Implementations (Lines 19-23)**
 
-The `:__main__` label creates a conditional entry point that only executes when the module is run directly as the main program (not when imported by another module).
+The `impl MyObject` block adds the `get_value` method to the MyObject archetype. Implementations allow forward declarations and deferred definitions, separating interface from implementation.
 
-This pattern is similar to Python's `if __name__ == "__main__":` idiom.
+**5. Semstrings (Line 26)**
 
-Execution trace:
-1. `subtract(3, 1)` returns 2
-2. `add(1, 2)` returns 3
-3. Prints "Named entry: 3"
+`sem MyObject.value = "..."` attaches semantic documentation to the `value` field. Semstrings guide LLM-based code generation and provide rich semantic context.
 
-**Entry Point Behavior**
+**6. Abilities (Lines 29-31)**
 
-```mermaid
-graph TD
-    A[Module Loaded] --> B{How was it loaded?}
-    B -->|Run directly| C[Execute both entry blocks]
-    B -->|Imported| D[Skip :__main__ block]
-    C --> E[Default entry runs]
-    C --> F[:__main__ entry runs]
-    D --> G[Only default entry runs]
-```
+The `def add` function is a top-level ability that can be called throughout the module. Functions use type annotations and can be defined with `def` or `can` keywords.
 
-When you run the module directly:
-- The default `with entry` block executes
-- The `with entry:__main__` block executes
+**7. Free Code - Entry Points (Lines 34-41)**
 
-When you import the module:
-- The default `with entry` block may execute (depending on implementation)
-- The `with entry:__main__` block is skipped
+Entry points execute when the module runs:
 
-This separation allows you to:
-- Define reusable functions (lines 7-13)
-- Provide examples or tests in the `__main__` block (lines 21-23)
-- Keep library code separate from executable code
+- **Default entry** (`with entry`): Executes when the module runs
+- **Named entry** (`with entry:__main__`): Only executes when run directly (not when imported)
 
-**Practical Module Organization**
+The default entry prints "Default entry: 13" by calling `add(5, 8)`.
+The named entry prints "Named entry: 3" by calling `add(1, 2)`.
 
-A typical Jac module structure:
+**8. Inline Python (Lines 44-47)**
 
-1. Module docstring (lines 1-5)
-2. Imports (not shown in this example)
-3. Function/class definitions (lines 7-13)
-4. Default entry point for module initialization (lines 16-18)
-5. Main entry point for direct execution (lines 21-23)
+The `::py:: ... ::py::` block embeds pure Python code. This allows seamless Python interop - the `python_multiply` function can be called from Jac code.
 
-This structure keeps your code organized: documentation at the top, reusable components in the middle, and execution logic at the bottom.
+**9. Tests (Lines 50-53)**
+
+`test basic_test` defines a unit test that verifies `add(2, 3)` returns 5. Tests can be run with `jac test` command and use assertions to validate behavior.
+
+**Module Organization Pattern**
+
+The standard Jac module structure:
+
+1. Module docstring (documentation)
+2. Import statements (dependencies)
+3. Global variables (module-level state)
+4. Archetype declarations (types/classes)
+5. Implementations (method definitions)
+6. Semstrings (semantic metadata)
+7. Abilities (functions)
+8. Entry points (executable code)
+9. Inline Python (Python interop)
+10. Tests (validation)
+
+This organization separates concerns: types and interfaces first, implementations second, and executable code last. The example provides 100% coverage of all top-level statement types in the `base_module_structure` grammar section.

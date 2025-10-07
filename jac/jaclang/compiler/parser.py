@@ -655,11 +655,12 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def sem_def(self, _: None) -> uni.SemDef:
             """Grammar rule.
 
-            sem_def: KW_SEM dotted_name EQ multistring SEMI
+            sem_def: KW_SEM dotted_name (EQ | KW_IS) STRING SEMI
             """
             self.consume_token(Tok.KW_SEM)
             target = self.extract_from_list(self.consume(list), uni.NameAtom)
-            self.consume_token(Tok.EQ)
+            if not self.match_token(Tok.KW_IS):
+                self.consume_token(Tok.EQ)
             value = self.consume(uni.String)
             self.consume_token(Tok.SEMI)
             return uni.SemDef(
