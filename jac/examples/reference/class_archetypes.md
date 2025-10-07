@@ -14,18 +14,20 @@
 
 The fundamental distinction between `class` and `obj` is their variable semantics:
 
-- **`class`**: Uses traditional Python class semantics. `has` variables with defaults become **class variables** initially, but can be shadowed by instance variables when assigned (e.g., `self.species = "Dog"`). Alternatively, use `init` to create instance variables directly without `has` declarations.
-- **`obj`**: Uses Python dataclass semantics where all `has` variables automatically become **instance variables** with each instance having its own copy. This makes `obj` ideal for data-centric types and spatial programming.
+- **`class`**: Uses traditional Python class semantics. `has` variables with defaults become **class variables** initially, but can be shadowed by instance variables when assigned (e.g., `self.species = "Dog"`). **Methods require explicit `self` parameter** with type annotation (e.g., `def init(self: MyClass, ...)`).
+- **`obj`**: Uses Python dataclass semantics where all `has` variables automatically become **instance variables** with each instance having its own copy. **Methods have implicit `self`** - it doesn't appear in the parameter list.
 
-This difference is critical when choosing between `class` and `obj` - use `class` when you need traditional Python class patterns (class variables, custom `init`), and `obj` when you want dataclass-like behavior with guaranteed instance variables or compatibility with spatial archetypes.
+This difference is critical when choosing between `class` and `obj`:
+- Use **`class`** when you need class variables (shared state), Python-style explicit `self`, and traditional class behavior
+- Use **`obj`** when you need guaranteed instance variables, implicit `self`, or compatibility with spatial archetypes (`node`, `edge`, `walker` also use implicit `self`)
 
 **Basic Archetype Declaration:**
 
-Lines 4-8 show a basic `class` archetype with member variables (`has` statements) and a method (`def`). The `has` keyword declares attributes with type annotations and default values. Methods are traditional functions called explicitly.
+Lines 4-8 show a basic `class` archetype with member variables (`has` statements) and a method (`def`). The `has` keyword declares attributes with type annotations and default values. **In `class` archetypes, these become class variables** shared across all instances initially, but can be shadowed by instance variables when assigned (as demonstrated in lines 169-180).
 
-Lines 11-19 demonstrate a `class` with an `init` constructor following classic Python style. The `init` method is called during instantiation (line 176) and dynamically creates instance attributes (`self.species`, `self.age`, `self.name`) without pre-declaring them with `has`. This shows that `init` can initialize attributes directly, enabling required parameters, validation, and custom initialization logic.
+Lines 11-23 demonstrate a `class` with custom `init` constructor (Python-style with explicit `self`). The `has` declarations (lines 12-14) define class variables (since it's a `class` archetype), and the custom `init` method (lines 16-20) provides initialization logic with explicit `self: ClassicAnimal` parameter and a default parameter for `name`. **Note: In `class`, all methods including `init` require explicit `self` with type annotation**. The `describe` method (line 22) also has `self: ClassicAnimal` parameter.
 
-Lines 26-33 demonstrate an `obj` archetype, which works like a Python dataclass but is compatible with spatial inheritance. Unlike `class`, all `has` variables in `obj` are instance variables, making each object's attributes independent. Objects can be inherited by nodes for hybrid OOP/spatial designs.
+Lines 26-33 demonstrate another `obj` archetype (`Domesticated`), which works like a Python dataclass. All `has` variables in `obj` are instance variables, making each object's attributes independent. Objects can be inherited by nodes for hybrid OOP/spatial designs.
 
 Lines 23-31 show a `node` archetype with multiple inheritance from both `Animal` and `Domesticated` objects, plus `Mammal`. Nodes represent graph vertices and can define both methods and abilities. The `can` keyword (line 28) defines an ability that triggers automatically when a specific walker type visits.
 

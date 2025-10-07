@@ -60,6 +60,9 @@ walker RootWalker {
 }
 
 # init and postinit
+# Note: In 'obj', methods have implicit self (doesn't appear in parameters).
+# In 'class', methods require explicit self with type annotation: def init(self: MyClass, ...)
+# This example uses 'obj' with implicit self.
 obj Configured {
     has value: int;
     has doubled: int = 0;

@@ -6,7 +6,19 @@ Lines 1 and 3 show module-level docstrings using triple quotes. Line 6 demonstra
 
 **Has Statements - Declaring Fields:**
 
-Lines 9-10 show the `has` keyword declaring instance-level data fields. Each field requires a type annotation using colon syntax (`: type`). Multiple fields can be declared in a single statement separated by commas, terminated by a semicolon.
+Lines 9-10 show the `has` keyword declaring data fields. Each field requires a type annotation using colon syntax (`: type`). Multiple fields can be declared in a single statement separated by commas, terminated by a semicolon.
+
+**Important: `class` vs `obj` Behavior:**
+
+The example uses `obj Vehicle` (line 5), where **all `has` fields automatically become instance variables**. In contrast:
+- **In `obj` archetypes**: `has` fields are **instance variables** by default (each instance gets its own copy)
+- **In `class` archetypes**: `has` fields with defaults become **class variables** initially (shared across instances), but can be shadowed when assigned
+
+**Method Self Parameter:**
+- **In `obj` archetypes**: Methods have **implicit `self`** - it doesn't appear in the parameter list (e.g., `def display() -> str { return self.year; }`)
+- **In `class` archetypes**: Methods require **explicit `self` parameter with type annotation** (e.g., `def display(self: MyClass) -> str { return self.year; }`)
+
+See [class_archetypes.md](class_archetypes.md) for detailed explanation
 
 | Declaration Pattern | Example | Meaning |
 |-------------------|---------|---------|
@@ -17,12 +29,12 @@ Lines 9-10 show the `has` keyword declaring instance-level data fields. Each fie
 
 **Static vs Instance Members:**
 
-Line 13 shows `static has` creating a class-level attribute shared across all instances. Compare:
+Line 13 shows `static has` creating a class-level attribute shared across all instances in **both `obj` and `class`**. Compare:
 
-- **Instance fields** (lines 9-10): Each object gets its own copy, accessed via `self.name`
+- **Instance fields** (lines 9-10 in `obj`): Each object gets its own copy, accessed via `self.name`
 - **Static fields** (line 13): One copy shared by all instances, accessed via `Vehicle.count` (line 24)
 
-Line 33 demonstrates `static def` for static methods - no `self` parameter, called on the archetype itself (line 53).
+Line 33 demonstrates `static def` for static methods - no `self` parameter in both `class` and `obj` archetypes. For **instance methods**, `obj` archetypes have implicit `self` while `class` archetypes require explicit `self` with type annotation. Static methods are called on the archetype itself (line 53).
 
 **Access Modifiers:**
 

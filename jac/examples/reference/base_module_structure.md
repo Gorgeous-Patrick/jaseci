@@ -33,6 +33,12 @@ The `import math;` statement makes Python's math module available. Jac supports 
 
 `obj MyObject` defines an object archetype with a `value` field. Jac has 5 archetype types: `obj`, `class`, `node`, `edge`, and `walker`.
 
+**Key distinction**: `obj` vs `class`:
+- **`obj`**: All `has` fields are instance variables (each instance gets its own copy). **Methods have implicit `self`** - it doesn't appear in the parameter list (e.g., `def init(param: str)`). Compatible with spatial archetypes (`node`, `edge`, `walker` also use implicit `self`).
+- **`class`**: `has` fields with defaults become class variables (shared across instances). **Methods require explicit `self` parameter with type annotation** (e.g., `def init(self: MyClass, param: str)`).
+
+See [class_archetypes.md](class_archetypes.md) for detailed examples.
+
 **4. Implementations (Lines 19-23)**
 
 The `impl MyObject` block adds the `get_value` method to the MyObject archetype. Implementations allow forward declarations and deferred definitions, separating interface from implementation.

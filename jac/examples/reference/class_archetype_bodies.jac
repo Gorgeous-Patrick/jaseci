@@ -2,10 +2,14 @@
 
 """This is a module-level docstring"""
 
+# Note: This example uses 'obj' archetype where all 'has' fields are instance variables.
+# In 'class' archetypes, 'has' fields with defaults become class variables (shared).
+# See class_archetypes.jac for class vs obj comparison.
+
 obj Vehicle {
     """Member docstring"""
 
-    # Has statements with type annotations
+    # Has statements with type annotations (instance variables in obj)
     has name: str,
         year: int;
 

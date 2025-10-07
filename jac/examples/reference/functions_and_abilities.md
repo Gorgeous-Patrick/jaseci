@@ -2,6 +2,20 @@
 
 Functions and abilities are the core computational units in Jac. Functions provide traditional callable operations, while abilities enable Object-Spatial Programming (OSP) through event-driven, type-specific dispatch during graph traversal.
 
+**Important: Self Parameter in Methods**
+
+Methods in Jac have different self parameter requirements depending on the archetype type:
+
+| Archetype Type | Self Parameter | Example |
+|----------------|----------------|---------|
+| `class` | **Explicit** with type annotation | `def init(self: MyClass, x: int)` |
+| `obj` | **Implicit** (not in signature) | `def init(x: int)` |
+| `node` | **Implicit** (not in signature) | `def process()` |
+| `edge` | **Implicit** (not in signature) | `def get_weight() -> float` |
+| `walker` | **Implicit** (not in signature) | `can collect(item: str)` |
+
+**Why the difference?** `class` follows traditional Python class semantics for compatibility, while `obj`, `node`, `edge`, and `walker` use Jac's simplified semantics with automatic self handling. Inside method bodies, all methods can access `self` to refer to the current instance, regardless of whether `self` appears in the parameter list. See [class_archetypes.md](class_archetypes.md) for detailed examples.
+
 **Basic Functions**
 
 Lines 6-8 show a function with typed parameters and return type. Lines 11-13 demonstrate a function with only a return type (no parameters):

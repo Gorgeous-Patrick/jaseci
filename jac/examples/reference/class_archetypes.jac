@@ -7,22 +7,26 @@ class Animal {
     def make_sound { print(f"{self.species} makes a sound"); }
 }
 
-# Class with init constructor (classic Python style)
+# Class with init constructor (Python-style with explicit self)
 class ClassicAnimal {
-    def init(species: str, age: int, name: str = "Unnamed") {
+    has species: str;
+    has age: int;
+    has name: str;
+
+    def init(self: ClassicAnimal, species: str, age: int, name: str = "Unnamed") {
         self.species = species;
         self.age = age;
         self.name = name;
     }
 
-    def describe { print(f"{self.name} is a {self.age} year old {self.species}"); }
+    def describe(self: ClassicAnimal) { print(f"{self.name} is a {self.age} year old {self.species}"); }
 }
 
-# Object archetype
+# Object archetype (implicit self in methods)
 obj Domesticated {
     has owner: str = "None";
     has trained: bool = False;
-    def train {
+    def train {  # No self parameter - it's implicit in obj
         self.trained = True;
         print(f"Training {self.owner}'s pet");
     }
@@ -165,10 +169,21 @@ walker OwnershipWalker {
 # ===== Tests =====
 with entry {
     print("=== 1. Basic Archetypes ===");
-    animal = Animal();
-    animal.species = "Dog";
-    animal.make_sound();
 
+    print("\n--- Class Variable Behavior (class archetype) ---");
+    # Demonstrate that has variables with defaults are class variables
+    animal1 = Animal();
+    animal2 = Animal();
+    print(f"Before assignment - animal1.species: {animal1.species}, animal2.species: {animal2.species}");
+    print(f"Class variable Animal.species: {Animal.species}");
+
+    # Assigning to instance creates instance variable that shadows class variable
+    animal1.species = "Dog";
+    print(f"After animal1.species = 'Dog' - animal1.species: {animal1.species}, animal2.species: {animal2.species}");
+    print(f"Class variable Animal.species still: {Animal.species}");
+    animal1.make_sound();
+
+    print("\n--- Init Constructor (class archetype) ---");
     classic = ClassicAnimal("Cat", 3, "Whiskers");
     classic.describe();
     classic2 = ClassicAnimal("Bird", 1);
