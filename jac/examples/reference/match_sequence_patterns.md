@@ -10,9 +10,9 @@ Lines 5-11 demonstrate the most basic sequence pattern - matching an exact seque
 
 ```mermaid
 graph TD
-    A[data = [1,2,3]] --> B{Is it a sequence?}
+    A["data = (1,2,3)"] --> B{Is it a sequence?}
     B -->|Yes| C{Length is 3?}
-    C -->|Yes| D{[0]=1, [1]=2, [2]=3?}
+    C -->|Yes| D{"element 0=1, 1=2, 2=3?"}
     D -->|Yes| E[Match! Execute case]
     B -->|No| F[No match]
     C -->|No| F
@@ -52,8 +52,8 @@ Lines 21-25 introduce the star pattern (`*`) for matching sequences of variable 
 
 ```mermaid
 graph LR
-    A[List: [1,2,3,4,5]] --> B[first = 1]
-    A --> C[middle = [2,3,4]]
+    A["List: 1,2,3,4,5"] --> B[first = 1]
+    A --> C["middle = 2,3,4"]
     A --> D[last = 5]
 ```
 
@@ -84,12 +84,12 @@ Lines 35-39 demonstrate using star pattern with specific values on both ends. Pa
 
 ```mermaid
 graph TD
-    A[values = [10,20,30,40,50]] --> B[Check first = 10]
+    A["values = 10,20,30,40,50"] --> B[Check first = 10]
     A --> C[Check last = 50]
     A --> D[Capture middle in rest]
     B --> E{Both match?}
     C --> E
-    E -->|Yes| F[rest = [20,30,40]]
+    E -->|Yes| F["rest = 20,30,40"]
 ```
 
 | Element | Pattern | Value |
