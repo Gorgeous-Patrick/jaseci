@@ -1,4 +1,4 @@
-# Special comprehensions - Filter and assign comprehensions
+"""Filter and assign comprehensions: Filter and assign comprehension syntax."""
 
 import random;
 

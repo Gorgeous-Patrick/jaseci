@@ -287,19 +287,19 @@ atomic_pipe: (atomic_pipe A_PIPE_FWD)? atomic_pipe_back
 // [Heading]: Pipe back atomic expressions.
 atomic_pipe_back: (atomic_pipe_back A_PIPE_BKWD)? os_spawn
 
-// [Heading]: Object spatial spawn expressions.
+// [Heading]: Spawn expressions (OSP).
 os_spawn: (os_spawn KW_SPAWN)? unpack
 
 // [Heading]: Unpack expressions.
 unpack: STAR_MUL? ref
 
-// [Heading]: References (unused).
+// [Heading]: References (OSP).
 ref: BW_AND? pipe_call
 
-// [Heading]: Object spatial calls.
+// [Heading]: Pipe-style function call.
 pipe_call: (PIPE_FWD | A_PIPE_FWD | KW_SPAWN | KW_AWAIT)? atomic_chain
 
-// [Heading]: Subscripted and dotted expressions.
+// [Heading]: Attributes and Subscript expressions.
 atomic_chain: atomic_chain NULL_OK? (filter_compr | assign_compr | index_slice)
             | atomic_chain NULL_OK? (DOT_BKWD | DOT_FWD | DOT) named_ref
             | (atomic_call | atom | edge_ref_chain)
@@ -319,7 +319,7 @@ param_list: expr_list COMMA kw_expr_list COMMA?
           | kw_expr_list COMMA?
           | expr_list COMMA?
 
-// [Heading]: Atom.
+// [Heading]: Atomic expressions.
 atom: named_ref
     | LPAREN (expression | yield_expr) RPAREN
     | atom_collection
@@ -384,7 +384,7 @@ tuple_list: expression COMMA expr_list COMMA kw_expr_list COMMA?
 kw_expr_list: (kw_expr_list COMMA)? kw_expr
 kw_expr: named_ref EQ expression | STAR_POW expression
 
-// [Heading]: Object-Spatial References.
+// [Heading]: Edge references (OSP).
 edge_ref_chain: LSQUARE KW_ASYNC? (KW_NODE| KW_EDGE)? expression? (edge_op_ref (filter_compr | expression)?)+ RSQUARE
 edge_op_ref: edge_any | edge_from | edge_to
 edge_to: ARROW_R | ARROW_R_P1 typed_filter_compare_list ARROW_R_P2
@@ -396,7 +396,7 @@ connect_to: CARROW_R | CARROW_R_P1 expression (COLON kw_expr_list)? CARROW_R_P2
 connect_from: CARROW_L | CARROW_L_P1 expression (COLON kw_expr_list)? CARROW_L_P2
 connect_any: CARROW_BI | CARROW_L_P1 expression (COLON kw_expr_list)? CARROW_R_P2
 
-// [Heading]: Special Comprehensions.
+// [Heading]: Filter and assign comprehensions.
 filter_compr: LPAREN NULL_OK filter_compare_list RPAREN
             | LPAREN TYPE_OP NULL_OK typed_filter_compare_list RPAREN
 assign_compr: LPAREN EQ kw_expr_list RPAREN

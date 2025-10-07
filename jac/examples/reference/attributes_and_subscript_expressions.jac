@@ -1,4 +1,4 @@
-"""Subscripted and dotted expressions: Index access, slicing, and member access."""
+"""Attributes and Subscript expressions: Index access, slicing, and member access."""
 
 obj Sample {
     has items: list = [10, 20, 30, 40, 50],

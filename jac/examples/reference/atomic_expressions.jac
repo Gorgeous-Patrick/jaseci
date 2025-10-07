@@ -1,4 +1,4 @@
-"""Atom: Atomic expressions and literals (strings, numbers, bools, None, types)."""
+"""Atomic expressions: Atomic expressions and literals (strings, numbers, bools, None, types)."""
 
 enum NumEnum { aa = 67, y = 68 }
 

@@ -1,4 +1,4 @@
-# References with BW_AND operator (&)
+"""References (OSP): Reference operator (&) for pass-by-reference semantics."""
 
 with entry {
     # The & operator creates a reference to a variable

@@ -112,7 +112,7 @@ class JacAstToolTests(TestCase):
         """Testing for sym, sym. AstTool."""
         jac_file = os.path.normpath(
             os.path.join(
-                os.path.dirname(jaclang.__file__), "../examples/reference/atom.jac"
+                os.path.dirname(jaclang.__file__), "../examples/reference/while_statements.jac"
             )
         )
         out = self.tool.ir(["sym", jac_file])
@@ -122,9 +122,9 @@ class JacAstToolTests(TestCase):
         )
         check_list = [
             "########",
-            "# atom #",
+            "# while_statements #",
             "########",
-            "SymTable::Module(atom)",
+            "SymTable::Module(while_statements)",
         ]
         for i in check_list:
             self.assertIn(i, out)

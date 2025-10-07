@@ -1,4 +1,4 @@
-# Object spatial references - Edge reference expressions for graph queries
+"""Edge references (OSP): Edge reference expressions for graph queries."""
 
 # ===== Node and Edge Definitions =====
 node Person {

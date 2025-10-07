@@ -1,4 +1,4 @@
-# Object Spatial Calls - Walker spawn strategies and spatial invocation
+"""Pipe-style function call: Pipe-style function invocation."""
 
 # ===== Part 1: Node and Walker Setup =====
 node Task {

@@ -1,4 +1,4 @@
-"""Object spatial spawn expressions: Walker instantiation with spawn operator."""
+"""Spawn expressions (OSP): Walker instantiation with spawn operator."""
 
 walker Counter {
     can count with `root entry;

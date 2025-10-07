@@ -1,4 +1,6 @@
-Object spatial spawn expressions provide an alternative syntax for spawning walkers, with the walker instance specified before the spawn keyword rather than after.
+**Spawn Expressions (OSP)**
+
+Spawn expressions provide an alternative syntax for spawning walkers, with the walker instance specified before the spawn keyword rather than after.
 
 **What are Spawn Expressions?**
 
