@@ -294,10 +294,11 @@ os_spawn: (os_spawn KW_SPAWN)? unpack
 unpack: STAR_MUL? ref
 
 // [Heading]: References (OSP).
-ref: BW_AND? pipe_call
+ref: BW_AND? await_expr
 
 // [Heading]: Pipe-style function call.
-pipe_call: (PIPE_FWD | A_PIPE_FWD | KW_SPAWN | KW_AWAIT)? atomic_chain
+await_expr: KW_AWAIT? pipe_call
+pipe_call: (PIPE_FWD | A_PIPE_FWD | KW_SPAWN)? atomic_chain
 
 // [Heading]: Attributes and Subscript expressions.
 atomic_chain: atomic_chain NULL_OK? (filter_compr | assign_compr | index_slice)

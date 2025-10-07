@@ -1978,25 +1978,31 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 )
             return self._binary_expr_unwind(self.cur_nodes)
 
+        def await_expr(self, _: None) -> uni.Expr:
+            """Grammar rule.
+
+            await_expr: KW_AWAIT? pipe_call
+            """
+            if self.match_token(Tok.KW_AWAIT):
+                operand = self.consume(uni.Expr)
+                return uni.AwaitExpr(
+                    target=operand,
+                    kid=self.cur_nodes,
+                )
+            return self._binary_expr_unwind(self.cur_nodes)
+
         def pipe_call(self, _: None) -> uni.Expr:
             """Grammar rule.
 
-            pipe_call: (PIPE_FWD | A_PIPE_FWD | KW_SPAWN | KW_AWAIT)? atomic_chain
+            pipe_call: (PIPE_FWD | A_PIPE_FWD | KW_SPAWN)? atomic_chain
             """
-            if len(self.cur_nodes) == 2:
-                if self.match_token(Tok.KW_AWAIT):
-                    target = self.consume(uni.Expr)
-                    return uni.AwaitExpr(
-                        target=target,
-                        kid=self.cur_nodes,
-                    )
-                elif op := self.match(uni.Token):
-                    operand = self.consume(uni.Expr)
-                    return uni.UnaryExpr(
-                        op=op,
-                        operand=operand,
-                        kid=self.cur_nodes,
-                    )
+            if len(self.cur_nodes) == 2 and (op := self.match(uni.Token)):
+                operand = self.consume(uni.Expr)
+                return uni.UnaryExpr(
+                    op=op,
+                    operand=operand,
+                    kid=self.cur_nodes,
+                )
             return self._binary_expr_unwind(self.cur_nodes)
 
         def aug_op(self, _: None) -> uni.Token:
