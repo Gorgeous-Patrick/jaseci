@@ -74,6 +74,26 @@ The `?.` operator:
 
 This prevents `AttributeError` when the object might be None.
 
+**More Null-Safe Access Examples**
+
+Lines 31-46 provide additional null-safe access scenarios:
+
+| Lines | Example | Description | Result |
+|-------|---------|-------------|--------|
+| 32-33 | `optional_obj = None;`<br>`null_safe1 = optional_obj?.value;` | Null-safe on None object | `None` (no error) |
+| 34 | `null_safe2 = optional_obj?.items;` | Accessing different attribute | `None` (no error) |
+| 37-38 | `obj_with_data = Sample();`<br>`nested_val = obj_with_data?.data;` | Null-safe on valid object | `{"name": "Alice", "age": 30}` |
+| 41-42 | `another_none = None;`<br>`safe_chain = another_none?.value?.items;` | Chained null-safe operators | `None` (stops at first `?`) |
+| 45-46 | `valid_obj = Sample();`<br>`safe_on_valid = valid_obj?.items;` | Null-safe returns value when valid | `[10, 20, 30, 40, 50]` |
+
+**Chained Null-Safe Behavior**
+
+When using multiple `?.` operators in a chain (line 42):
+- Evaluation proceeds left-to-right
+- If any object in the chain is None, the entire expression returns None
+- No error is raised; execution continues safely
+- Example: `another_none?.value?.items` returns None because `another_none` is None
+
 **Subscript Type Behaviors**
 
 Different types handle subscripts differently:
@@ -89,7 +109,9 @@ Negative indices work for ordered sequences (lists, tuples, strings) but not dic
 
 **Complete Example Flow**
 
-Line 31 prints all the values extracted in lines 13-29:
+Lines 48-49 print all the values extracted throughout the example:
+
+First print statement (line 48):
 - `val` = 42
 - `item1` = 10
 - `item2` = 50
@@ -99,6 +121,13 @@ Line 31 prints all the values extracted in lines 13-29:
 - `slice3` = [30, 40, 50]
 - `first_char` = "A"
 - `safe_val` = 42
+
+Second print statement (line 49) - Null-safe examples:
+- `null_safe1` = None (accessing `.value` on None)
+- `null_safe2` = None (accessing `.items` on None)
+- `nested_val` = {"name": "Alice", "age": 30} (safe access on valid object)
+- `safe_chain` = None (chained null-safe stops at first None)
+- `safe_on_valid` = [10, 20, 30, 40, 50] (null-safe on valid object)
 
 **Common Patterns**
 

@@ -15,3 +15,10 @@ insignificant when determining program structure.
 
 Single-line comments begin with `#` and extend to the end of the line.  Jac also
 supports multiline comments delimited by `#*` and `*#`:
+
+**Complete Language**
+
+??? info "Full Jac Language Grammar"
+    ```yaml
+    --8<-- "jac/jaclang/compiler/jac.lark"
+    ```
