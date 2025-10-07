@@ -289,7 +289,7 @@ plugins:
       video_controls: False
   - redirects:
       redirect_maps:
-        index.md: learn/tour.md
+        index.md: learn/installation.md
 
 hooks:
   - scripts/handle_jac_compile_data.py

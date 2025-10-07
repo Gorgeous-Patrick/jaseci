@@ -1696,6 +1696,10 @@ graph TD
 <div class="code-block">
 
 ```jac
+node Person {
+    has name: str;
+}
+
 with entry {
     alice = Person(name="Alice");
     bob = Person(name="Bob");
