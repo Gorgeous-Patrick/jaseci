@@ -1,150 +1,212 @@
 **Typed Context Blocks (OSP)**
 
-Typed context blocks demonstrate how walkers and nodes interact through ability implementations in Jac's Object Spatial Programming (OSP) model. The "typed context" refers to the ability system where behavior is determined by the types of both the walker and the node.
+Typed context blocks are a powerful feature in Jac's Object-Spatial Programming (OSP) model that allow conditional code execution based on the runtime type of nodes or walkers. They enable polymorphic behavior where a single ability can handle multiple types differently.
 
-**What are Typed Context Blocks?**
+**Syntax**
 
-Typed context blocks are ability implementations that execute based on matching types. When a walker visits a node, the runtime looks for matching abilities based on:
-- The walker's type (e.g., `Producer`)
-- The node's type (e.g., `Product`)
-- The interaction type (e.g., `entry` for when walker enters the node)
+The syntax uses the `->` operator followed by a type name and a code block:
 
-This creates a dispatch system where the right code runs automatically based on the types involved.
+`-> TypeName { #* code *# }`
 
-**Walker Definition with Entry Ability**
+The code inside executes **only if** the runtime type matches.
 
-Lines 3-5 define the walker:
-- Line 3: `walker Producer` declares the walker type
-- Line 4: `can produce with root entry;` declares an ability named `produce`
-- The `with root entry` clause means this ability triggers when the walker is at a root node
+**Two Use Cases**
 
-The backtick syntax `\`root` specifies this is an entry ability for root nodes - it executes automatically when the walker spawns on or visits the root.
+Typed context blocks work in two contexts:
 
-**Node Definition with Entry Ability**
+1. **In Walker Abilities** (lines 55-95): Check the type of `here` (the current node)
+2. **In Node Abilities** (lines 96-117): Check the type of `visitor` (the current walker)
 
-Lines 7-11 define the node:
-- Line 7: `node Product` declares the node type
-- Line 8: `has number: int;` defines a number attribute
-- Line 10: `can make with Producer entry;` declares an ability named `make`
-- The `with Producer entry` clause means this ability triggers when a Producer walker visits
+**Two Approaches: Inheritance vs. Tuple**
 
-**Ability Matching Table**
+Lines 4-23 define an inheritance hierarchy:
 
-| Ability | Defined On | Triggers When | Implementation Lines |
-|---------|-----------|---------------|----------------------|
-| `produce` | Producer walker | Walker at root node | 13-19 |
-| `make` | Product node | Producer visits Product | 21-24 |
+```
+Product (base)
+├── Media (intermediate)
+│   ├── Book (leaf)
+│   └── Magazine (leaf)
+└── Electronics (leaf)
+```
 
-The runtime automatically calls the right ability based on these type matches.
+**Approach 1: Base Type with Inheritance (Lines 55-76)**
 
-**Walker Ability Implementation**
+Use a base type in the ability signature to accept ALL subtypes. See line 55: the ability signature is `with Product entry`, which means it triggers for Product AND all its subtypes (Book, Magazine, Electronics).
 
-Lines 13-19 implement the walker's `produce` ability:
+Lines 59-71 show typed context blocks that differentiate between specific subtypes:
+- Line 59: `-> Book` executes ONLY if here is a Book
+- Line 64: `-> Magazine` executes ONLY if here is a Magazine
+- Line 69: `-> Electronics` executes ONLY if here is Electronics
+
+**Approach 2: Tuple of Specific Types (Lines 80-95)**
+
+Use parentheses to list only the specific types that should trigger the ability. See line 80: the ability signature is `with (Book, Magazine) entry`, which means it triggers ONLY for Book and Magazine (NOT Electronics).
+
+Lines 84-92 show typed context blocks differentiating the tuple members:
+- Line 84: `-> Book` provides Book-specific discount logic
+- Line 89: `-> Magazine` provides Magazine-specific discount logic
+
+**Key Difference:**
+- `with Product entry`: Electronics WILL trigger (inherits from Product)
+- `with (Book, Magazine) entry`: Electronics will NOT trigger (not in tuple)
+
+**Node Abilities with Inheritance Chains**
+
+Lines 25-37 define a customer inheritance hierarchy:
+
+```
+Customer (base)
+├── RegularCustomer (subtype)
+└── VIPCustomer (subtype)
+```
+
+Lines 96-117 show the same pattern for `visitor` types. The ability signature at line 98 is `with Customer entry`, accepting the base type Customer, so ALL subtypes trigger this ability.
+
+Lines 101-115 show typed context blocks for specific customer types:
+- Lines 101-103: `-> RegularCustomer` handles regular customers
+- Lines 106-111: `-> VIPCustomer` handles VIP customers with discount calculation
+- Lines 114-116: `-> Customer` handles all Customers (including subtypes)
+
+**The Key Difference:**
+- In walker abilities: Typed context blocks check `here` (the node type)
+- In node abilities: Typed context blocks check `visitor` (the walker type)
+- Both use the same inheritance matching behavior
+
+**Execution Flow**
+
+When the walker visits a node:
 
 ```mermaid
 graph TD
-    A[Walker at root] --> B[Set end = here root]
-    B --> C[Loop 3 times]
-    C --> D[Create Product node]
-    D --> E[Connect to end]
-    E --> F[Update end to new node]
-    F --> G{More iterations?}
-    G -->|Yes| D
-    G -->|No| H[visit all outgoing]
+    A[Walker visits Node] --> B{Ability matches?}
+    B -->|Yes| C[Execute ability]
+    B -->|No| D[Skip]
+    C --> E{Type context matches?}
+    E -->|Yes| F[Execute typed block]
+    E -->|No| G[Skip block]
+    F --> H[Continue]
+    G --> H
 ```
 
-Line 14 initializes `end` to `here` (the current node, which is root initially).
+**Demo 1: Shopping Cart (Lines 44-96)**
 
-Lines 15-17 loop three times (i=0, 1, 2):
-- Line 16: `end ++> (end := Product(number=i + 1))` does two things:
-  1. Creates a new Product node: `Product(number=i + 1)`
-  2. Connects `end` to the new node: `end ++>`
-  3. Assigns the new node back to `end`: `end :=`
+The `ShoppingCart` walker demonstrates BOTH approaches:
 
-This creates a chain: root -> Product(1) -> Product(2) -> Product(3)
+1. **Lines 44-51**: Creates inventory (Book, Magazine, Electronics - all inherit from Product)
 
-Line 18: `visit [-->]` queues all outgoing nodes for visiting, so the walker will visit each Product in the chain.
+2. **Lines 55-76**: `process_item` ability - **Inheritance approach**
+   - Signature: `with Product entry`
+   - Triggers for ALL Product subtypes (Book, Magazine, Electronics)
+   - Typed context blocks differentiate: `-> Book`, `-> Magazine`, `-> Electronics`
 
-**Node Ability Implementation**
+3. **Lines 80-95**: `apply_discount` ability - **Tuple approach**
+   - Signature: `with (Book, Magazine) entry`
+   - Triggers ONLY for Book and Magazine (NOT Electronics)
+   - Typed context blocks differentiate: `-> Book`, `-> Magazine`
 
-Lines 21-24 implement the node's `make` ability:
-- Line 22: Prints a message including `self` (the current node instance)
-- Line 23: Calls `visit [-->]` to continue traversal to any outgoing nodes
+**Output shows:**
+- `[Inheritance]` appears for all 3 products (base type accepts all)
+- `[Tuple]` appears only for Book and Magazine (explicit types only)
 
-When the Producer walker visits a Product node, this ability executes automatically because the types match (Producer visiting Product).
+**Demo 2: Checkout (Lines 98-117)**
 
-**The Execution Flow**
+The `Checkout` node demonstrates typed context blocks for handling different customer types:
 
-When `root spawn Producer()` executes on line 27:
+1. **Lines 98-117**: Single ability with three typed context blocks
+2. **Lines 101-103**: `-> RegularCustomer` block handles regular customers
+3. **Lines 106-111**: `-> VIPCustomer` block applies VIP discount
+4. **Lines 114-116**: `-> Customer` block handles base customer type
 
-1. **Walker spawns**: Producer walker created and starts at root
-2. **Walker's root entry**: `produce` ability executes (lines 13-19)
-3. **Graph construction**: Chain of 3 Product nodes created
-4. **Visit queue**: All outgoing nodes (the Product chain) queued
-5. **Visit Product(1)**: Walker visits first Product
-6. **Node's entry**: `make` ability executes (lines 21-24), prints message
-7. **Continue chain**: `visit [-->]` queues Product(2)
-8. **Visit Product(2)**: `make` executes, prints message, queues Product(3)
-9. **Visit Product(3)**: `make` executes, prints message
-10. **Complete**: No more nodes in queue, walker completes
+When different walkers visit the checkout node:
+- `Customer` walker → triggers Customer block
+- `RegularCustomer` walker → triggers RegularCustomer AND Customer blocks
+- `VIPCustomer` walker → triggers VIPCustomer AND Customer blocks
 
-**Why "Typed Context" Matters**
+**Why Use Typed Context Blocks?**
 
-The ability system creates typed contexts:
+**1. Polymorphic Handling**
 
-```mermaid
-graph LR
-    W[Walker Type: Producer] -->|visits| N[Node Type: Product]
-    W -->|triggers| WA[Walker Ability: produce]
-    N -->|triggers| NA[Node Ability: make]
+Handle multiple types in a single ability without explicit if-statements. Compare line 175-183 (without typed context blocks) versus line 186-189 (with typed context blocks) - the latter is cleaner and more declarative.
 
-    style W fill:#2e7d32,stroke:#fff,color:#fff
-    style N fill:#283593,stroke:#fff,color:#fff
-```
+**2. Type Safety**
 
-The context is "typed" because:
-- `produce` only runs when Producer is at root (walker type + node type)
-- `make` only runs when Producer visits Product (walker type + node type)
+The compiler knows the exact type inside the block, providing better type checking and autocomplete.
 
-If you had a different walker type (e.g., `Consumer`), the `make` ability wouldn't trigger unless it was also declared `with Consumer entry`.
+**3. Extensibility**
 
-**Multiple Entry Abilities**
+Add new typed context blocks without modifying existing code. See lines 199-204 for an example of adding a new Furniture type.
 
-You can have multiple abilities for different type combinations:
+**4. Separation of Concerns**
 
-Each ability executes only when the matching walker type visits.
+Each type's logic is isolated in its own block, improving readability.
 
-**Entry vs Exit Abilities**
+**Relationship to Abilities**
 
-While this example only shows `entry` abilities, you can also define `exit` abilities:
+Typed context blocks complement the ability system:
 
-| Ability Type | When It Executes | Example |
-|--------------|------------------|---------|
-| `entry` | When walker enters node | `with Producer entry` |
-| `exit` | When walker leaves node | `with Producer exit` |
+| Feature | Purpose | Example |
+|---------|---------|---------|
+| **Ability signature** | Declares when ability triggers | `with Book entry` |
+| **Typed context block** | Provides type-specific logic | `-> Book { }` |
 
-Entry abilities (like lines 4, 10) run when visiting begins. Exit abilities run when the walker finishes processing that node.
+You can combine them as shown in lines 55-76 (general ability with typed blocks) or use more specific ability signatures as shown in line 80.
 
-**Polymorphic Spatial Programming**
+**Multiple Typed Context Blocks**
 
-The typed context system enables polymorphic behavior:
+You can have multiple typed context blocks in a single ability (see lines 98-117 for example). Code outside the blocks runs for all types, while each typed context block runs only when its type matches.
 
-The same node type can respond differently to different walker types, creating flexible, extensible systems.
+**Inheritance and Type Hierarchy**
+
+Typed context blocks work seamlessly with inheritance. Lines 4-23 define the Product hierarchy.
+
+**Two Ways to Handle Subtypes:**
+
+**1. Base Type in Ability Signature**
+
+Line 55 shows `with Product entry` - this triggers for Product AND all subtypes (Book, Magazine, Electronics).
+
+**2. Tuple of Specific Types**
+
+Line 80 shows `with (Book, Magazine) entry` - this triggers ONLY for the listed types.
+
+**Typed Context Block Matching:**
+
+A typed context block `-> Product` matches Product and all its subtypes (Book, Electronics, etc.), while `-> Book` only matches Book specifically. This is why in the output you see multiple blocks executing for a single node visit.
+
+**Best Practice:** Check most specific types first if you have multiple blocks, as shown in lines 59-71 where specific types (Book, Magazine, Electronics) are checked before any generic Product handling.
+
+**When to Use Typed Context Blocks**
+
+**Use when:**
+- A single ability needs to handle multiple types differently
+- You want type-specific logic within a general ability
+- Adding new types should be easy (extensibility)
+- You want cleaner code than nested if-statements
+
+**Don't use when:**
+- Only handling one type (just use normal ability signature)
+- Logic is the same for all types (no need for type checking)
+- Types are unrelated and should have completely separate abilities
 
 **Key Insights**
 
-1. **Type-based dispatch**: Abilities execute based on matching walker and node types
-2. **Automatic invocation**: No manual method calls needed - the runtime handles it
-3. **Bidirectional behavior**: Both walkers and nodes can have abilities
-4. **Decoupled logic**: Walker logic and node logic are separate but coordinate through abilities
-5. **Extensible**: Add new walker types or node types without modifying existing code
+1. **Dual context**: Check `here` in walker abilities, `visitor` in node abilities
+2. **Runtime dispatch**: Type checking happens at runtime based on actual instance types
+3. **Optional execution**: Blocks only execute when types match, silently skip otherwise
+4. **Complements abilities**: Work together with ability signatures for powerful dispatch
+5. **Type-safe**: Compiler understands the type inside the block
+6. **Inheritance aware**: Blocks match base types and all derived types
 
-**Relationship to Other Concepts**
+**Comparison to Traditional OOP**
 
-Typed context blocks work together with:
-- **Special references**: `self`, `here`, `visitor` are available in abilities
-- **Visit statements**: `visit [-->]` controls which nodes the walker processes next
-- **Spawn expressions**: `root spawn Producer()` starts the type matching process
-- **Edge references**: `[-->]` finds nodes to visit
+In traditional OOP, you might use:
+- **Method overloading** (compile-time): Different methods for different parameter types
+- **Visitor pattern** (runtime): Double dispatch for type-specific behavior
+- **Type checking** (runtime): `isinstance()` checks with if-statements
 
-The typed context system is central to Object-Spatial Programming - it lets you define what happens when computation (walkers) meets data (nodes) based on their types.
+Typed context blocks provide:
+- **Spatial dispatch**: Combines where (node/walker) with what (type)
+- **Declarative syntax**: Clear, readable type-specific blocks
+- **Bidirectional**: Both nodes and walkers can type-check each other
+
+This is unique to Jac's Object-Spatial Programming model, where computation (walkers) moves through data (nodes/edges), and both can respond based on each other's types.

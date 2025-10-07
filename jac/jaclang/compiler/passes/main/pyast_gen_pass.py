@@ -1207,8 +1207,29 @@ class PyastGenPass(UniPass):
         ]
 
     def exit_typed_ctx_block(self, node: uni.TypedCtxBlock) -> None:
-        # TODO: Come back
-        pass
+        loc = self.sync(
+            ast3.Name(id=Con.HERE.value, ctx=ast3.Load())
+            if node.from_walker
+            else ast3.Name(id=Con.VISITOR.value, ctx=ast3.Load())
+        )
+        node.gen.py_ast = [
+            self.sync(
+                ast3.If(
+                    test=self.sync(
+                        ast3.Call(
+                            func=self.sync(ast3.Name(id="isinstance", ctx=ast3.Load())),
+                            args=[
+                                loc,
+                                cast(ast3.expr, node.type_ctx.gen.py_ast[0]),
+                            ],
+                            keywords=[],
+                        )
+                    ),
+                    body=cast(list[ast3.stmt], self.resolve_stmt_block(node.body)),
+                    orelse=[],
+                )
+            )
+        ]
 
     def exit_if_stmt(self, node: uni.IfStmt) -> None:
         node.gen.py_ast = [

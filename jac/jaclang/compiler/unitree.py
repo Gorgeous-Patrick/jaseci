@@ -2167,7 +2167,7 @@ class HasVar(AstSymbolNode, AstTypedVarNode):
         return res
 
 
-class TypedCtxBlock(CodeBlockStmt, UniScopeNode):
+class TypedCtxBlock(CodeBlockStmt, WalkerStmtOnlyNode, UniScopeNode):
     """TypedCtxBlock node type for Jac Ast."""
 
     def __init__(
@@ -2181,6 +2181,7 @@ class TypedCtxBlock(CodeBlockStmt, UniScopeNode):
         UniNode.__init__(self, kid=kid)
         UniScopeNode.__init__(self, name=f"{self.__class__.__name__}")
         CodeBlockStmt.__init__(self)
+        WalkerStmtOnlyNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
