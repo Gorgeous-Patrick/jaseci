@@ -85,7 +85,7 @@ sem_def: KW_SEM dotted_name (EQ | KW_IS) STRING SEMI
 global_var: (KW_LET | KW_GLOBAL) access_tag? assignment_list SEMI
 assignment_list: (assignment | named_ref) (COMMA (assignment | named_ref))* COMMA?
 
-// [Heading]: Free code.
+// [Heading]: With entry blocks.
 free_code: KW_WITH KW_ENTRY (COLON NAME)? code_block
 
 // [Heading]: Inline python.

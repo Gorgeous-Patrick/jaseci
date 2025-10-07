@@ -1,6 +1,6 @@
-**Free Code and Entry Points**
+**With Entry Blocks**
 
-Free code refers to executable code blocks at the module level, primarily using the `with entry` construct. This allows code to run when a module is loaded or executed directly.
+Entry blocks refer to executable code blocks at the module level, primarily using the `with entry` construct. This allows code to run when a module is loaded or executed directly.
 
 **Module Organization**
 
@@ -30,7 +30,7 @@ Lines 12-14 define a standalone function `square` that returns `n ** 2`. This fu
 
 **Entry Block (Main Execution)**
 
-Lines 17-21 demonstrate the `with entry` block, which executes when the module runs. Line 18: `print("Free code execution")` - Executes unconditionally
+Lines 17-21 demonstrate the `with entry` block, which executes when the module runs. Line 18: `print("Entry block execution")` - Executes unconditionally
 
 Line 19: `print(square(7))` - Calls the square function with 7, printing 49
 

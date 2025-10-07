@@ -1,4 +1,4 @@
-"""Free code: Entry blocks for top-level executable code."""
+"""With entry blocks: Entry blocks for top-level executable code."""
 from __future__ import annotations
 from jaclang.runtimelib.builtin import *
 from jaclang import JacMachineInterface as _jl
@@ -12,7 +12,7 @@ class Circle(_jl.Obj):
 
 def square(n: float) -> float:
     return n ** 2
-print('Free code execution')
+print('Entry block execution')
 print(square(7))
 print(int(Circle(radius=10).area()))
 if __name__ == '__main__':

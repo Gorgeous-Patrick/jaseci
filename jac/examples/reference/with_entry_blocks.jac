@@ -1,4 +1,4 @@
-"""Free code: Entry blocks for top-level executable code."""
+"""With entry blocks: Entry blocks for top-level executable code."""
 
 import math;
 
@@ -15,7 +15,7 @@ def square(n: float) -> float {
 
 # Main entry point
 with entry {
-    print("Free code execution");
+    print("Entry block execution");
     print(square(7));
     print(int(Circle(radius=10).area()));
 }

@@ -92,7 +92,7 @@ nav:
     - Implementations: "learn/jac_ref/implementations.md"
     - Semstrings: "learn/jac_ref/semstrings.md"
     - Global variables: "learn/jac_ref/global_variables.md"
-    - Free code: "learn/jac_ref/free_code.md"
+    - With entry blocks: "learn/jac_ref/with_entry_blocks.md"
     - Inline python: "learn/jac_ref/inline_python.md"
     - Tests: "learn/jac_ref/tests.md"
     - Codeblocks and Statements: "learn/jac_ref/codeblocks_and_statements.md"
