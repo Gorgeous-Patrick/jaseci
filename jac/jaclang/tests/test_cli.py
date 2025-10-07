@@ -389,13 +389,13 @@ class JacCliTests(TestCase):
         """Test for graph CLI cmd."""
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        cli.dot(f"{self.examples_abs_path('reference/connect_expressions.jac')}")
+        cli.dot(f"{self.examples_abs_path('reference/connect_expressions_(osp).jac')}")
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
-        if os.path.exists("connect_expressions.dot"):
-            os.remove("connect_expressions.dot")
+        if os.path.exists("connect_expressions_(osp).dot"):
+            os.remove("connect_expressions_(osp).dot")
         self.assertIn(">>> Graph content saved to", stdout_value)
-        self.assertIn("connect_expressions.dot\n", stdout_value)
+        self.assertIn("connect_expressions_(osp).dot\n", stdout_value)
 
     def test_py_to_jac(self) -> None:
         """Test for graph CLI cmd."""

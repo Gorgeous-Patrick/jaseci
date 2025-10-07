@@ -1,3 +1,5 @@
+**Pipe Atomic Expressions**
+
 The atomic forward pipe operator `:>` enables elegant data pipelines by passing values from left to right through a series of transformations.
 
 **Basic Atomic Pipe Syntax**

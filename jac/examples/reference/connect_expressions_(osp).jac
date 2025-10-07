@@ -1,4 +1,4 @@
-# Connect expressions - Graph edge creation and connection operators
+"""Connect expressions (OSP): Graph edge creation and connection operators."""
 
 # ===== Node and Edge Definitions =====
 node Person {

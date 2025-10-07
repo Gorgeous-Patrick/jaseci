@@ -278,13 +278,13 @@ term: (term (MOD | DIV | FLOOR_DIV | STAR_MUL | DECOR_OP))? power
 power: (power STAR_POW)? factor
 factor: (BW_NOT | MINUS | PLUS) factor | connect
 
-// [Heading]: Connect expressions.
+// [Heading]: Connect expressions (OSP).
 connect: (connect (connect_op | disconnect_op))? atomic_pipe
 
-// [Heading]: Atomic expressions.
+// [Heading]: Pipe atomic expressions.
 atomic_pipe: (atomic_pipe A_PIPE_FWD)? atomic_pipe_back
 
-// [Heading]: Atomic pipe back expressions.
+// [Heading]: Pipe back atomic expressions.
 atomic_pipe_back: (atomic_pipe_back A_PIPE_BKWD)? os_spawn
 
 // [Heading]: Object spatial spawn expressions.

@@ -1,4 +1,4 @@
-"""Atomic pipe back expressions: Atomic backward pipe operator (<:) for right-to-left flow."""
+"""Pipe back atomic expressions: Atomic backward pipe operator (<:) for right-to-left flow."""
 
 with entry {
     # Atomic backward pipe <: (higher precedence than <|)

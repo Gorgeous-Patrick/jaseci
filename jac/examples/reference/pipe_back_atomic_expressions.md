@@ -1,3 +1,5 @@
+**Pipe Back Atomic Expressions**
+
 The atomic backward pipe operator `<:` provides right-to-left data flow, offering an alternative perspective for function application.
 
 **Basic Backward Pipe Syntax**

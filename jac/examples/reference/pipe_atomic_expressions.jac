@@ -1,4 +1,4 @@
-"""Atomic expressions: Atomic forward pipe operator (:>) for chaining."""
+"""Pipe atomic expressions: Atomic forward pipe operator (:>) for chaining."""
 
 with entry {
     # Atomic forward pipe :> (higher precedence than |>)

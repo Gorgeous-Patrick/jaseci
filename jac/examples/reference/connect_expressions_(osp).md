@@ -1,6 +1,6 @@
-**Connect Expressions - Graph Edge Creation**
+**Connect Expressions (OSP)**
 
-Connect expressions are specialized operators for creating edges between nodes in graph structures. These operators are fundamental to Jac's Object-Spatial Programming, providing first-class syntax for spatial relationships.
+Connect expressions are specialized operators for creating edges between nodes in graph structures. These operators are fundamental to Jac's Object-Spatial Programming (OSP), providing first-class syntax for spatial relationships.
 
 **Connect Operator Types**
 
