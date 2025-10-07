@@ -42,9 +42,12 @@ Line 20: `print(int(Circle(radius=10).area()))` - Demonstrates chained operation
 
 **Named Entry Points**
 
-Lines 24-26 show a named entry point using `with entry:custom`:
+Lines 24-26 show the `__main__` entry point using `with entry:__main__`:
 
-Named entry points allow conditional or selective execution. The `:custom` label can be used to execute this block specifically.
+The `__main__` entry point only executes when the module is run directly (not when imported). This is similar to Python's `if __name__ == "__main__":` pattern and is useful for:
+- Command-line scripts that can also be imported as libraries
+- Test code that shouldn't run during imports
+- Module demonstrations and examples
 
 **Entry Point Semantics**
 

@@ -15,5 +15,5 @@ def square(n: float) -> float:
 print('Free code execution')
 print(square(7))
 print(int(Circle(radius=10).area()))
-if __name__ == 'custom':
-    print('Named entry point')
+if __name__ == '__main__':
+    print('Main entry point (only when run directly)')

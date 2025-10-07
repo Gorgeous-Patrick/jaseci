@@ -20,7 +20,7 @@ with entry {
     print(int(Circle(radius=10).area()));
 }
 
-# Named entry point
-with entry:custom {
-    print("Named entry point");
+# Named entry point - only runs when executed as main program
+with entry:__main__ {
+    print("Main entry point (only when run directly)");
 }
