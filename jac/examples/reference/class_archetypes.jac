@@ -7,6 +7,17 @@ class Animal {
     def make_sound { print(f"{self.species} makes a sound"); }
 }
 
+# Class with init constructor (classic Python style)
+class ClassicAnimal {
+    def init(species: str, age: int, name: str = "Unnamed") {
+        self.species = species;
+        self.age = age;
+        self.name = name;
+    }
+
+    def describe { print(f"{self.name} is a {self.age} year old {self.species}"); }
+}
+
 # Object archetype
 obj Domesticated {
     has owner: str = "None";
@@ -157,6 +168,11 @@ with entry {
     animal = Animal();
     animal.species = "Dog";
     animal.make_sound();
+
+    classic = ClassicAnimal("Cat", 3, "Whiskers");
+    classic.describe();
+    classic2 = ClassicAnimal("Bird", 1);
+    classic2.describe();
 
     dom = Domesticated();
     dom.owner = "Alice";

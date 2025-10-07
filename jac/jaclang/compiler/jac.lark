@@ -28,7 +28,7 @@ import_items: (import_item COMMA)* import_item COMMA?
 import_item: named_ref (KW_AS NAME)?
 dotted_name: named_ref (DOT named_ref)*
 
-// [Heading]: Archetypes.
+// [Heading]: Class Archetypes.
 archetype: decorators? KW_ASYNC? archetype_decl
          | enum
 
@@ -44,7 +44,7 @@ arch_type: KW_WALKER
           | KW_NODE
           | KW_CLASS
 
-// [Heading]: Archetype bodies.
+// [Heading]: Class Archetype bodies.
 member_block: LBRACE member_stmt* RBRACE
 member_stmt: STRING? (py_code_block | ability | archetype | impl_def | has_stmt | free_code)
 has_stmt: KW_STATIC? (KW_LET | KW_HAS) access_tag? has_assign_list SEMI

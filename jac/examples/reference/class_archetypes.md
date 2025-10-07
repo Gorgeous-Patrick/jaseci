@@ -10,11 +10,22 @@
 | `edge` | Graph relationships | Yes | First-class connections with state and behavior |
 | `walker` | Mobile computation | Yes | Traversal logic that flows to data |
 
+**Key Difference: `class` vs `obj`**
+
+The fundamental distinction between `class` and `obj` is their variable semantics:
+
+- **`class`**: Uses traditional Python class semantics. `has` variables with defaults become **class variables** initially, but can be shadowed by instance variables when assigned (e.g., `self.species = "Dog"`). Alternatively, use `init` to create instance variables directly without `has` declarations.
+- **`obj`**: Uses Python dataclass semantics where all `has` variables automatically become **instance variables** with each instance having its own copy. This makes `obj` ideal for data-centric types and spatial programming.
+
+This difference is critical when choosing between `class` and `obj` - use `class` when you need traditional Python class patterns (class variables, custom `init`), and `obj` when you want dataclass-like behavior with guaranteed instance variables or compatibility with spatial archetypes.
+
 **Basic Archetype Declaration:**
 
 Lines 4-8 show a basic `class` archetype with member variables (`has` statements) and a method (`def`). The `has` keyword declares attributes with type annotations and default values. Methods are traditional functions called explicitly.
 
-Lines 11-18 demonstrate an `obj` archetype, which works like a class but is compatible with spatial inheritance. Objects can be inherited by nodes for hybrid OOP/spatial designs.
+Lines 11-19 demonstrate a `class` with an `init` constructor following classic Python style. The `init` method is called during instantiation (line 176) and dynamically creates instance attributes (`self.species`, `self.age`, `self.name`) without pre-declaring them with `has`. This shows that `init` can initialize attributes directly, enabling required parameters, validation, and custom initialization logic.
+
+Lines 26-33 demonstrate an `obj` archetype, which works like a Python dataclass but is compatible with spatial inheritance. Unlike `class`, all `has` variables in `obj` are instance variables, making each object's attributes independent. Objects can be inherited by nodes for hybrid OOP/spatial designs.
 
 Lines 23-31 show a `node` archetype with multiple inheritance from both `Animal` and `Domesticated` objects, plus `Mammal`. Nodes represent graph vertices and can define both methods and abilities. The `can` keyword (line 28) defines an ability that triggers automatically when a specific walker type visits.
 
