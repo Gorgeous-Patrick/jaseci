@@ -16,6 +16,20 @@ Methods in Jac have different self parameter requirements depending on the arche
 
 **Why the difference?** `class` follows traditional Python class semantics for compatibility, while `obj`, `node`, `edge`, and `walker` use Jac's simplified semantics with automatic self handling. Inside method bodies, all methods can access `self` to refer to the current instance, regardless of whether `self` appears in the parameter list. See [class_archetypes.md](class_archetypes.md) for detailed examples.
 
+**Optional Parentheses for No-Parameter Methods**
+
+When defining methods or functions with **no parameters**, the `()` are **optional** in Jac:
+
+```jac
+# With parentheses (traditional)
+def increment() { self.count += 1; }
+
+# Without parentheses (Jac style)
+def increment { self.count += 1; }
+```
+
+Both are valid. When **calling** the method, parentheses are still required: `obj.increment()`. This syntactic sugar makes method definitions cleaner and more readable.
+
 **Basic Functions**
 
 Lines 6-8 show a function with typed parameters and return type. Lines 11-13 demonstrate a function with only a return type (no parameters):

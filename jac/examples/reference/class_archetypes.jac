@@ -1,18 +1,8 @@
 # Archetypes - All 5 types: class, obj, node, edge, walker
 
-# Basic class archetype
-class Animal {
-    has species: str = "Unknown";
-    has age: int = 0;
-    def make_sound { print(f"{self.species} makes a sound"); }
-}
-
 # Class with init constructor (Python-style with explicit self)
+# Note: No 'has' declarations - init creates instance variables directly
 class ClassicAnimal {
-    has species: str;
-    has age: int;
-    has name: str;
-
     def init(self: ClassicAnimal, species: str, age: int, name: str = "Unnamed") {
         self.species = species;
         self.age = age;
@@ -20,6 +10,13 @@ class ClassicAnimal {
     }
 
     def describe(self: ClassicAnimal) { print(f"{self.name} is a {self.age} year old {self.species}"); }
+}
+
+# Object archetype with has declarations (implicit self in methods)
+obj Animal {
+    has species: str = "Unknown";
+    has age: int = 0;
+    def make_sound { print(f"{self.species} makes a sound"); }
 }
 
 # Object archetype (implicit self in methods)
@@ -170,24 +167,23 @@ walker OwnershipWalker {
 with entry {
     print("=== 1. Basic Archetypes ===");
 
-    print("\n--- Class Variable Behavior (class archetype) ---");
-    # Demonstrate that has variables with defaults are class variables
-    animal1 = Animal();
-    animal2 = Animal();
-    print(f"Before assignment - animal1.species: {animal1.species}, animal2.species: {animal2.species}");
-    print(f"Class variable Animal.species: {Animal.species}");
-
-    # Assigning to instance creates instance variable that shadows class variable
-    animal1.species = "Dog";
-    print(f"After animal1.species = 'Dog' - animal1.species: {animal1.species}, animal2.species: {animal2.species}");
-    print(f"Class variable Animal.species still: {Animal.species}");
-    animal1.make_sound();
-
-    print("\n--- Init Constructor (class archetype) ---");
+    print("\n--- Class with Init Constructor (Python-style explicit self) ---");
     classic = ClassicAnimal("Cat", 3, "Whiskers");
     classic.describe();
     classic2 = ClassicAnimal("Bird", 1);
     classic2.describe();
+
+    print("\n--- Object with Has Declarations (implicit self) ---");
+    # Demonstrate that obj has variables are instance variables (not class variables)
+    animal1 = Animal();
+    animal2 = Animal();
+    print(f"Before assignment - animal1.species: {animal1.species}, animal2.species: {animal2.species}");
+
+    # Assigning to obj instance variable
+    animal1.species = "Dog";
+    print(f"After animal1.species = 'Dog' - animal1.species: {animal1.species}, animal2.species: {animal2.species}");
+    print("Note: Each obj instance has its own copy of the variable");
+    animal1.make_sound();
 
     dom = Domesticated();
     dom.owner = "Alice";

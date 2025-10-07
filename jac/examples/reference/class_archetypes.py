@@ -2,17 +2,7 @@ from __future__ import annotations
 from jaclang.runtimelib.builtin import *
 from jaclang import JacMachineInterface as _jl
 
-class Animal:
-    species: str = 'Unknown'
-    age: int = 0
-
-    def make_sound(self) -> None:
-        print(f'{self.species} makes a sound')
-
 class ClassicAnimal:
-    species: str
-    age: int
-    name: str
 
     def __init__(self: ClassicAnimal, species: str, age: int, name: str='Unnamed') -> None:
         self.species = species
@@ -21,6 +11,13 @@ class ClassicAnimal:
 
     def describe(self: ClassicAnimal) -> None:
         print(f'{self.name} is a {self.age} year old {self.species}')
+
+class Animal(_jl.Obj):
+    species: str = 'Unknown'
+    age: int = 0
+
+    def make_sound(self) -> None:
+        print(f'{self.species} makes a sound')
 
 class Domesticated(_jl.Obj):
     owner: str = 'None'
@@ -162,20 +159,19 @@ class OwnershipWalker(_jl.Walker):
         print(f'  At pet: {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().edge().visit()))
 print('=== 1. Basic Archetypes ===')
-print('\n--- Class Variable Behavior (class archetype) ---')
-animal1 = Animal()
-animal2 = Animal()
-print(f'Before assignment - animal1.species: {animal1.species}, animal2.species: {animal2.species}')
-print(f'Class variable Animal.species: {Animal.species}')
-animal1.species = 'Dog'
-print(f"After animal1.species = 'Dog' - animal1.species: {animal1.species}, animal2.species: {animal2.species}")
-print(f'Class variable Animal.species still: {Animal.species}')
-animal1.make_sound()
-print('\n--- Init Constructor (class archetype) ---')
+print('\n--- Class with Init Constructor (Python-style explicit self) ---')
 classic = ClassicAnimal('Cat', 3, 'Whiskers')
 classic.describe()
 classic2 = ClassicAnimal('Bird', 1)
 classic2.describe()
+print('\n--- Object with Has Declarations (implicit self) ---')
+animal1 = Animal()
+animal2 = Animal()
+print(f'Before assignment - animal1.species: {animal1.species}, animal2.species: {animal2.species}')
+animal1.species = 'Dog'
+print(f"After animal1.species = 'Dog' - animal1.species: {animal1.species}, animal2.species: {animal2.species}")
+print('Note: Each obj instance has its own copy of the variable')
+animal1.make_sound()
 dom = Domesticated()
 dom.owner = 'Alice'
 dom.trained = True
