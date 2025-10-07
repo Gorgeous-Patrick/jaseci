@@ -134,44 +134,7 @@ Hello, Jac World!
 
 If you see this information, you have installed Jac successfully! You're ready to write your first program.
 
-## Entry Blocks and Basic Execution
----
-The `with entry` block is Jac's equivalent to Python's `if __name__ == "__main__":` - it defines where program execution begins. Any code inside this block is executed when you run the file.
 
-### Single Entry Blocks
-```jac
-# Entry block - program starts here
-with entry {
-    print("Hello single entry block!");
-}
-```
-<br />
-
-### Multiple Entry Blocks
-
-Jac allows multiple entry blocks that execute in order:
-
-```jac
-# First entry block
-with entry {
-    print("Hello first entry block!");
-}
-
-# Second entry block
-with entry {
-    print("Hello second entry block!");
-}
-
-# Third entry block
-with entry {
-    print("Hello third entry block!");
-}
-```
-<br />
-
-You have now successfully set up your development environment, written your first Jac program, and learned how the with entry block works.
-
-From here, you can continue your journey in a way that best suits your learning style. You can go through the Learn Jac Language section for in-depth knowledge or learn using our hands-on Examples.
 
 ## Next Steps
 
