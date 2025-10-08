@@ -175,7 +175,6 @@ class TypeCheckerPassTests(TestCase):
         """, program.errors_had[0].pretty_print())
 
     def test_param_arg_match(self) -> None:
-        path = self.fixture_abs_path("checker_param_types.jac")
         program = JacProgram()
         path = self.fixture_abs_path("checker_arg_param_match.jac")
         mod = program.compile(path)

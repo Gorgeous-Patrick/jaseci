@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast as py_ast
 import marshal
 import types
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.parser import JacParser
@@ -32,10 +32,12 @@ from jaclang.compiler.passes.tool import (
     FuseCommentsPass,
     JacFormatPass,
 )
-from jaclang.compiler.type_system.type_evaluator import TypeEvaluator
 from jaclang.runtimelib.utils import read_file_with_encoding
 from jaclang.settings import settings
 from jaclang.utils.log import logging
+
+if TYPE_CHECKING:
+    from jaclang.compiler.type_system.type_evaluator import TypeEvaluator
 
 
 logger = logging.getLogger(__name__)
@@ -71,6 +73,8 @@ class JacProgram:
 
     def get_type_evaluator(self) -> TypeEvaluator:
         """Return the type evaluator."""
+        from jaclang.compiler.type_system.type_evaluator import TypeEvaluator
+
         if not self.type_evaluator:
             self.type_evaluator = TypeEvaluator(program=self)
         return self.type_evaluator
