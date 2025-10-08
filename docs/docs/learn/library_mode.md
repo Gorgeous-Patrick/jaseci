@@ -5,6 +5,7 @@
 Every Jac program can be expressed as pure Python code using Jac's library mode. This means you get **100% of Jac's object-spatial programming capabilities** in regular Python syntax—no new language to learn, just powerful libraries to import.
 
 Library mode is perfect for:
+
 - **Python-first teams** wanting to adopt Jac gradually
 - **Existing Python codebases** that need graph-based features
 - **Understanding Jac's internals** by seeing the Python equivalent
@@ -13,6 +14,7 @@ Library mode is perfect for:
 ### **Turn any Jac code example you see to Pure Python**
 
 When you run `jac jac2lib myfile.jac`, Jac generates clean Python code that:
+
 1. Imports from `jaclang.lib` instead of using aliased imports
 2. Uses direct function calls like `spawn()` and `visit()` instead of `_jl.spawn()`
 3. Produces readable, maintainable code suitable for library distribution
@@ -855,10 +857,10 @@ from jaclang.lib import *
 
 Library mode demonstrates that **Jac is Python**—just with powerful abstractions for object-spatial programming. You get:
 
-✅ **100% Feature Parity**: Everything Jac can do, library mode can do
-✅ **Clean Python**: No magic, just classes, decorators, and functions
-✅ **Full IDE Support**: Type hints, autocomplete, and debugging work perfectly
-✅ **Easy Integration**: Drop into any Python project without friction
-✅ **Readable Output**: Generated code is maintainable and understandable
+- ✅ **100% Feature Parity**: Everything Jac can do, library mode can do
+- ✅ **Clean Python**: No magic, just classes, decorators, and functions
+- ✅ **Full IDE Support**: Type hints, autocomplete, and debugging work perfectly
+- ✅ **Easy Integration**: Drop into any Python project without friction
+- ✅ **Readable Output**: Generated code is maintainable and understandable
 
 Whether you write `.jac` files or use library mode directly, you're writing Python with superpowers for graph-based, AI-native applications.
