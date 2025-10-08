@@ -1189,7 +1189,7 @@ class PyastGenPass(UniPass):
         elif is_static_var:
             annotation = self.sync(
                 ast3.Subscript(
-                    value=self.sync(ast3.Name(id="ClassVar", ctx=ast3.Load())),
+                    value=self.builtin_name("ClassVar"),
                     slice=cast(ast3.expr, annotation),
                     ctx=ast3.Load(),
                 )
