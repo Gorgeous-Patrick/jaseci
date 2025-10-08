@@ -447,7 +447,7 @@ class DocIRGenPass(UniPass):
                         ]
                     )
                 )
-                parts.append(self.if_break(broken, flat))
+                parts.append(self.group(self.if_break(broken, flat)))
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -1326,7 +1326,9 @@ class DocIRGenPass(UniPass):
                 ]
             )
         )
-        if isinstance(node.parent, uni.Assignment):
+        if isinstance(node.parent, (uni.Assignment)) or (
+            isinstance(node.parent, uni.IfStmt) and isinstance(node.value, uni.BoolExpr)
+        ):
             node.gen.doc_ir = self.if_break(
                 flat_contents=self.group(self.concat(parts[1:-1])),
                 break_contents=broken,
