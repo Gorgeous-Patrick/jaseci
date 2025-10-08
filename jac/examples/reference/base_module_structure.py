@@ -4,13 +4,12 @@ This is the module-level docstring.
 It describes the purpose of the entire module.
 """
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Obj, jac_test, sem
 import math
 global_value: int = 42
 
-@_jl.sem('', {'value': 'A value stored in MyObject'})
-class MyObject(_jl.Obj):
+@sem('', {'value': 'A value stored in MyObject'})
+class MyObject(Obj):
     value: int = 0
 
 def add(a: int, b: int) -> int:
@@ -22,7 +21,7 @@ if __name__ == '__main__':
 def python_multiply(x, y):
     return x * y
 
-@_jl.jac_test
+@jac_test
 def test_basic_test(_check) -> None:
     result = add(2, 3)
     _check.assertEqual(result, 5)

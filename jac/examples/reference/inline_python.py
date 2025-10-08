@@ -1,6 +1,5 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Node, Obj, field
 
 def python_hello():
     return 'Hello from Python!'
@@ -11,8 +10,8 @@ print('=== 1. Basic Python Block ===')
 print(python_hello())
 print(f'Python add: {python_add(10, 20)}')
 
-class DataProcessor(_jl.Obj):
-    data: list = _jl.field(factory=lambda: [])
+class DataProcessor(Obj):
+    data: list = field(factory=lambda: [])
 
     def process(self):
         """Process data using Python libraries."""
@@ -65,9 +64,9 @@ math_result = math_operations(16)
 log_val = round(math_result['log'], 2)
 print(f'Math: sqrt={math_result['sqrt']}, log={log_val}')
 
-class MathNode(_jl.Node):
+class MathNode(Node):
     value: float = 0.0
-    computed: dict = _jl.field(factory=lambda: {})
+    computed: dict = field(factory=lambda: {})
 
     def compute_all(self):
         """Compute various mathematical properties."""
@@ -81,7 +80,7 @@ results = math_node.compute_all()
 print(f'Node value: {math_node.value}')
 print(f'Computed: square={results['square']}, cube={results['cube']}')
 
-class Counter(_jl.Obj):
+class Counter(Obj):
     count: int = 0
 
     def increment(self, by=1):
@@ -100,8 +99,8 @@ print(f'Counter after increments: {counter.count}')
 counter.reset()
 print(f'Counter after reset: {counter.count}')
 
-class Calculator(_jl.Obj):
-    history: list = _jl.field(factory=lambda: [])
+class Calculator(Obj):
+    history: list = field(factory=lambda: [])
 
     def add_jac(self, value: int) -> None:
         self.history.append(value)

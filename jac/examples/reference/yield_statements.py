@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 
 def simple_generator() -> None:
     yield 1

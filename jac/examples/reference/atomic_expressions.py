@@ -1,10 +1,7 @@
-"""Atom: Atomic expressions and literals (strings, numbers, bools, None, types)."""
+"""Atomic expressions: Atomic expressions and literals (strings, numbers, bools, None, types)."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 from enum import Enum, auto
-from jaclang import JacMachineInterface as _jl
 
-@_jl.sem('', {'aa': '', 'y': ''})
 class NumEnum(Enum):
     aa = 67
     y = 68

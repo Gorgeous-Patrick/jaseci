@@ -1,6 +1,5 @@
 """Pipe back expressions: Backward pipe operator (<|) for right-to-left function application."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 
 def double(x: int) -> int:
     return x * 2

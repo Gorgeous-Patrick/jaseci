@@ -1563,7 +1563,7 @@ class JacLanguageTests(TestCase):
 
         # Get actual builtins from the module (excluding private members)
         actual_builtins = {
-            name for name in dir(builtin_module)
+            name for name in builtin_module.__all__
             if not name.startswith('_')
         }
 

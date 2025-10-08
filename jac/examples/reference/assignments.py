@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 x = 10
 print(x)
 a = b = c = 20

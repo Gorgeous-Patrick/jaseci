@@ -1,6 +1,5 @@
 """Unpack expressions: Unpacking with * (iterable) and ** (mapping)."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 
 def compute(a: int, b: int, c: int, d: int) -> int:
     return a + b + c + d

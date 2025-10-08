@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 try:
     x = 5 / 0
 except Exception:

@@ -1,22 +1,17 @@
-"""Jac Library - Auto-generated function interface."""
-
-import inspect
+"""Jac Library - User-friendly interface for library mode."""
 
 from jaclang.runtimelib.machine import JacMachineInterface
 
-# Automatically expose all static methods from JacMachineInterface as module-level functions
-__all__ = []
+# Automatically expose all public attributes from JacMachineInterface
+# This includes archetype classes (Obj, Node, Edge, Walker, Root, Path) and all methods
+_jac_interface_attrs = {
+    name: getattr(JacMachineInterface, name)
+    for name in dir(JacMachineInterface)
+    if not name.startswith("_")
+}
 
-for name, method in inspect.getmembers(JacMachineInterface, predicate=inspect.ismethod):
-    if not name.startswith("_"):  # Skip private methods
-        globals()[name] = method
-        __all__.append(name)
+# Add to module globals
+globals().update(_jac_interface_attrs)
 
-for name, _ in inspect.getmembers(JacMachineInterface, predicate=inspect.isfunction):
-    if not name.startswith("_") and name not in globals():
-        globals()[name] = getattr(JacMachineInterface, name)
-        if name not in __all__:
-            __all__.append(name)
-
-# Sort __all__ for cleaner output
-__all__.sort()
+# Build __all__ with all JacMachineInterface exports
+__all__ = sorted(_jac_interface_attrs.keys())

@@ -1,6 +1,5 @@
 """Collection values: Lists, tuples, dicts, sets, and comprehensions."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 lst = [1, 2, 3]
 tpl = (1, 2, 3)
 dct = {'a': 1, 'b': 2}

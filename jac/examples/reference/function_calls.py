@@ -1,6 +1,5 @@
 """Function calls: Positional, keyword, and mixed argument patterns."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 
 def compute(x: int, y: int, z: int=10) -> tuple:
     return (x * y, y * z)

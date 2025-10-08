@@ -1,42 +1,40 @@
 """Implementations: Forward declarations and impl blocks for deferred definitions."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
 from enum import Enum, auto
+from jaclang.lib import Obj, impl_patch_filename
 
-@_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+@impl_patch_filename('implementations.jac')
 def compute(x: int, y: int) -> int:
     return x + y
 
-class Vehicle(_jl.Obj):
+class Vehicle(Obj):
     name: str = 'Car'
     speed: int = 0
 
     def accelerate(self) -> None:
         self.speed += 10
 
-@_jl.sem('', {'LOW': '', 'MEDIUM': '', 'HIGH': ''})
 class Priority(Enum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
 
-class Calculator(_jl.Obj):
+class Calculator(Obj):
     total: float = 0.0
 
-    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    @impl_patch_filename('implementations.jac')
     def add(self, value: float) -> None:
         self.total += value
 
-    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    @impl_patch_filename('implementations.jac')
     def subtract(self, value: float) -> None:
         self.total -= value
 
-    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    @impl_patch_filename('implementations.jac')
     def multiply(self, value: float) -> None:
         self.total *= value
 
-    @_jl.impl_patch_filename('/home/ninja/jaseci/jac/examples/reference/implementations.jac')
+    @impl_patch_filename('implementations.jac')
     def get_result(self) -> float:
         return self.total
 result = compute(5, 3)

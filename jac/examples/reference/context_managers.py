@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 with open(__file__, 'r') as f:
     print('file opened')
 with open(__file__, 'r') as f1, open(__file__, 'r') as f2:

@@ -1,6 +1,5 @@
 """Pipe expressions: Forward pipe operator (|>) for function chaining."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 
 def square(x: int) -> int:
     return x ** 2

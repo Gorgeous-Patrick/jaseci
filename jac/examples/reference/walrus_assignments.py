@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 if (x := 10) > 5:
     print(f'x = {x}')
 i = 0

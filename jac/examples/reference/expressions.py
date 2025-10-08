@@ -1,6 +1,5 @@
 """Expressions: Ternary conditional (if-else) and lambda expressions."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 x = 1 if 5 / 2 == 1 else 2
 status = 'adult' if 20 >= 18 else 'minor'
 grade = 'A' if 85 >= 90 else 'B' if 85 >= 80 else 'C'

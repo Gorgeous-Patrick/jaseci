@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 x: str = 'string'
 y: int = 42
 z: float = 3.14

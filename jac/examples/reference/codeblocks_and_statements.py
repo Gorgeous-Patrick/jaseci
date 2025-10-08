@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 print('Welcome to the world of Jaseci!')
 
 def add(x: int, y: int) -> int:

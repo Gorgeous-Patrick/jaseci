@@ -1,9 +1,8 @@
 """Archetype bodies: Member statements (has, static, methods, nested types)."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Obj, field
 
-class Vehicle(_jl.Obj):
+class Vehicle(Obj):
     """This is a module-level docstring"""
     'Member docstring'
     name: str
@@ -11,7 +10,7 @@ class Vehicle(_jl.Obj):
     count: ClassVar[int] = 0
     public_id: str = 'V123'
     private_data: int = 0
-    config: dict = _jl.field(init=False)
+    config: dict = field(init=False)
 
     def __post_init__(self) -> None:
         self.config = {'active': True}

@@ -94,27 +94,20 @@ class PyastGenPass(UniPass):
     # Builtins that should be imported from jaclang.runtimelib.builtin
     KNOWN_BUILTINS = {
         "abstractmethod",
+        "ClassVar",
         "override",
+        "printgraph",
         "jid",
         "jobj",
-        "allroots",
         "grant",
         "revoke",
+        "allroots",
         "save",
         "commit",
-        "printgraph",
-        "collect_node_connections",
-        "AccessLevelEnum",
-        "ConnectPerm",
         "NoPerm",
         "ReadPerm",
+        "ConnectPerm",
         "WritePerm",
-        "Jac",
-        "NodeArchetype",
-        "ClassVar",
-        "Optional",
-        "annotations",
-        "json",
     }
 
     def before_pass(self) -> None:
@@ -2278,7 +2271,7 @@ class PyastGenPass(UniPass):
             node.gen.py_ast = [
                 self.sync(
                     ast3.Call(
-                        func=self.sync(ast3.Name(id="jobj", ctx=ast3.Load())),
+                        func=self.builtin_name("jobj"),
                         args=[],
                         keywords=[
                             self.sync(

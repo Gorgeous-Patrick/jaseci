@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 
 def raise_exception() -> None:
     raise ValueError('error message')

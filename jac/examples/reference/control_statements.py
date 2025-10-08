@@ -1,6 +1,5 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Walker, on_entry
 for i in range(10):
     if i > 3:
         break
@@ -22,9 +21,9 @@ while n < 5:
         continue
     print(n)
 
-class SkipWalker(_jl.Walker):
+class SkipWalker(Walker):
 
-    @_jl.on_entry
+    @on_entry
     def process(self, here) -> None:
         return
 for x in range(3):

@@ -1,17 +1,16 @@
 """Match statements: Pattern matching with all pattern types."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Obj
 
-class Point(_jl.Obj):
+class Point(Obj):
     x: float
     y: float
 
-class Circle(_jl.Obj):
+class Circle(Obj):
     center: Point
     radius: float
 
-class Rectangle(_jl.Obj):
+class Rectangle(Obj):
     width: float
     height: float
 status_code = 200

@@ -1,11 +1,10 @@
-"""Subscripted and dotted expressions: Index access, slicing, and member access."""
+"""Attributes and Subscript expressions: Index access, slicing, and member access."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Obj, field
 
-class Sample(_jl.Obj):
-    items: list = _jl.field(factory=lambda: [10, 20, 30, 40, 50])
-    data: dict = _jl.field(factory=lambda: {'name': 'Alice', 'age': 30})
+class Sample(Obj):
+    items: list = field(factory=lambda: [10, 20, 30, 40, 50])
+    data: dict = field(factory=lambda: {'name': 'Alice', 'age': 30})
     value: int = 42
 s = Sample()
 val = s.value

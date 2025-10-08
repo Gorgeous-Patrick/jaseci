@@ -1,16 +1,13 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 from enum import Enum, auto
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Node, Path, Root, Walker, build_edge, connect, field, on_entry, on_exit, refs, root, spawn, visit
 from enum import unique
 
-@_jl.sem('', {'RED': '', 'GREEN': '', 'BLUE': ''})
 class Color(Enum):
     RED = 1
     GREEN = 2
     BLUE = 3
 
-@_jl.sem('', {'ADMIN': '', 'USER': '', 'GUEST': ''})
 class Role(Enum):
     ADMIN = 'admin'
     USER = 'user'
@@ -19,7 +16,6 @@ print('=== 1. Basic Enums (Integer & String Values) ===')
 print(f'  Color.RED: {Color.RED.value}, Role.ADMIN: {Role.ADMIN.value}')
 
 @unique
-@_jl.sem('', {'LOW': '', 'MEDIUM': '', 'HIGH': ''})
 class Priority(Enum):
     LOW = 1
     MEDIUM = 2
@@ -27,7 +23,6 @@ class Priority(Enum):
 print('\n=== 2. Forward Declaration with @unique Decorator ===')
 print(f'  Priority.HIGH: {Priority.HIGH.value}')
 
-@_jl.sem('', {'READ': '', 'WRITE': '', 'EXECUTE': ''})
 class Permission(Enum):
     READ = 'read'
     WRITE = 'write'
@@ -35,7 +30,6 @@ class Permission(Enum):
 print('\n=== 3. Enum with Access Modifier ===')
 print(f'  Permission.WRITE: {Permission.WRITE.value}')
 
-@_jl.sem('', {'OK': '', 'BAD_REQUEST': '', 'SERVER_ERROR': ''})
 class HttpStatus(Enum):
     OK = 200
     BAD_REQUEST = 400
@@ -54,7 +48,6 @@ print('\n=== 4. Enum with Python Code Block (Methods) ===')
 print(f'  {HttpStatus.OK.name}: {HttpStatus.OK.get_category()}, is_success: {HttpStatus.OK.is_success()}')
 print(f'  {HttpStatus.BAD_REQUEST.name}: {HttpStatus.BAD_REQUEST.get_category()}')
 
-@_jl.sem('', {'PENDING': '', 'ACTIVE': '', 'INACTIVE': ''})
 class Status(Enum):
     PENDING = 0
     ACTIVE = 1
@@ -84,41 +77,41 @@ role_perms = {Role.ADMIN: 'Full', Role.USER: 'Limited', Role.GUEST: 'Read'}
 for item in role_perms.items():
     print(f'  Dict: {item[0].name} = {item[1]}')
 
-class Task(_jl.Node):
+class Task(Node):
     title: str = 'Task'
-    priority: Priority = _jl.field(factory=lambda: Priority.MEDIUM)
-    status: Status = _jl.field(factory=lambda: Status.PENDING)
+    priority: Priority = field(factory=lambda: Priority.MEDIUM)
+    status: Status = field(factory=lambda: Status.PENDING)
 print('\n=== 8. Enum in Node Attributes (OSP) ===')
 task = Task(title='Build feature', priority=Priority.HIGH, status=Status.ACTIVE)
 print(f'  Task: {task.title}')
 print(f'  Priority: {task.priority.name} ({task.priority.value})')
 print(f'  Status: {task.status.name}')
 
-class TaskFilter(_jl.Walker):
-    target_priority: Priority = _jl.field(factory=lambda: Priority.HIGH)
-    matched: list = _jl.field(factory=lambda: [])
+class TaskFilter(Walker):
+    target_priority: Priority = field(factory=lambda: Priority.HIGH)
+    matched: list = field(factory=lambda: [])
 
-    @_jl.on_entry
-    def traverse(self, here: _jl.Root) -> None:
-        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
+    @on_entry
+    def traverse(self, here: Root) -> None:
+        visit(self, refs(Path(here)._out().visit()))
 
-    @_jl.on_entry
+    @on_entry
     def filter(self, here: Task) -> None:
         print(f'    Checking task: {here.title}, priority={here.priority.name}')
         if here.priority == self.target_priority:
             self.matched.append(here.title)
             print('      Matched!')
-        _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
+        visit(self, refs(Path(here)._out().visit()))
 
-    @_jl.on_exit
+    @on_exit
     def report(self, here) -> None:
         print(f'  Found {len(self.matched)} tasks: {self.matched}')
 print('\n=== 9. Enum in Walker Logic (OSP) ===')
 task1 = Task(title='Critical Bug', priority=Priority.HIGH)
 task2 = Task(title='Documentation', priority=Priority.LOW)
 task3 = Task(title='Security Patch', priority=Priority.HIGH)
-_jl.connect(left=_jl.root(), right=task1)
-_jl.connect(left=_jl.root(), right=task2)
-_jl.connect(left=_jl.root(), right=task3)
-_jl.spawn(_jl.root(), TaskFilter(target_priority=Priority.HIGH))
+connect(left=root(), right=task1)
+connect(left=root(), right=task2)
+connect(left=root(), right=task3)
+spawn(root(), TaskFilter(target_priority=Priority.HIGH))
 print('\n✓ Enumerations demonstrated!')

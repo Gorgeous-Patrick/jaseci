@@ -45,8 +45,7 @@ with entry {
 ```python
 """Functions in Jac."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as jl
+from jaclang.lib import Obj
 
 def factorial(n: int) -> int:
     if n == 0:
@@ -54,24 +53,19 @@ def factorial(n: int) -> int:
     else:
         return n * factorial(n - 1)
 
-class Person(jl.Obj):
+class Person(Obj):
     name: str
     age: int
-
-    def __init__(self, name: str, age: int) -> None:
-        self.name = name
-        self.age = age
 
     def greet(self) -> None:
         print(f"Hello, my name is {self.name} and I'm {self.age} years old.")
 
-if __name__ == "__main__":
-    person = Person("John", 42)
-    person.greet()
-    print(f"5! = {factorial(5)}")
+person = Person('John', 42)
+person.greet()
+print(f'5! = {factorial(5)}')
 ```
 
-Notice how Jac's object-oriented features compile to standard Python classes inheriting from `jl.Obj` (Jac's base object archetype), and the `with entry` block becomes Python's `if __name__ == "__main__"` pattern.
+Notice how Jac's object-oriented features compile to standard Python classes inheriting from `Obj` (Jac's base object archetype), with clean imports from `jaclang.lib`.
 
 ---
 
@@ -395,7 +389,7 @@ project/
 
     from validators import validate_title
     from task_graph import Task, TaskCreator, generate_desc
-    from jaclang import JacMachineInterface as jl
+    from jaclang.lib import spawn, root
 
     def create_task(title: str):
         """Python function using Jac features."""
@@ -405,7 +399,7 @@ project/
 
         # Use Jac walker
         creator = TaskCreator(title=title)
-        jl.spawn(creator, jl.root())
+        spawn(creator, root())
 
         # Use Jac's AI
         desc = generate_desc(title)
@@ -468,12 +462,11 @@ project/
 === "main.py"
     ```python
     """Pure Python using Jac runtime."""
-    from jaclang import JacMachineInterface as jl
-    from jaclang.runtimelib.archetype import NodeArchetype, WalkerArchetype
+    from jaclang.lib import Node, Walker, on_entry, connect, spawn, root
     from validators import validate_title
 
     # Define Task node using Jac base class
-    class Task(NodeArchetype):
+    class Task(Node):
         title: str
         done: bool
 
@@ -483,17 +476,17 @@ project/
             self.done = False
 
     # Define walker using Jac decorators
-    class TaskCreator(WalkerArchetype):
+    class TaskCreator(Walker):
         def __init__(self, title: str):
             super().__init__()
             self.title = title
 
-        @jl.entry
+        @on_entry
         def create(self, here) -> None:
             """Entry point - creates task."""
             if validate_title(self.title):
                 task = Task(title=self.title)
-                jl.connect(here, task)
+                connect(here, task)
                 print(f"✓ Created: {task.title}")
                 # Note: AI features require .jac syntax
             else:
@@ -501,7 +494,7 @@ project/
 
     if __name__ == "__main__":
         creator = TaskCreator(title="Build API")
-        jl.spawn(creator, jl.root())
+        spawn(creator, root())
     ```
 
 === "validators.py"

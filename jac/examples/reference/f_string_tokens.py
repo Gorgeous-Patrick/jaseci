@@ -1,6 +1,5 @@
 """F-string tokens: Formatted string literals with interpolation."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 x = 'World'
 y = 42
 print(f'Hello {x}! Number: {y}')

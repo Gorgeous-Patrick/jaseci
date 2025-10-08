@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 add = lambda a, b: a + b
 print(add(5, 3))
 get_value = lambda: 42

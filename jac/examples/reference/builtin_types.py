@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 s: str = 'hello'
 print(s)
 i: int = 42

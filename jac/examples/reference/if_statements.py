@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 x = 10
 if x > 5:
     print('x is greater than 5')

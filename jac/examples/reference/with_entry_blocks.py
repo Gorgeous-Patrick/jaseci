@@ -1,10 +1,9 @@
 """With entry blocks: Entry blocks for top-level executable code."""
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
-from jaclang import JacMachineInterface as _jl
+from jaclang.lib import Obj
 import math
 
-class Circle(_jl.Obj):
+class Circle(Obj):
     radius: float
 
     def area(self) -> float:

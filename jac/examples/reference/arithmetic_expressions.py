@@ -1,5 +1,4 @@
 from __future__ import annotations
-from jaclang.runtimelib.builtin import *
 print(10 + 5)
 print(10 - 5)
 print(10 * 5)
