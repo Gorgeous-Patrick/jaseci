@@ -8,6 +8,7 @@ nav:
     # - Getting Started: "learn/getting_started.md"
     - Installation: "learn/installation.md"
     - Native Superset of Python: "learn/superset_python.md"
+    - Jac Library in Pure Python: "learn/library_mode.md"
     - Tour of Jac/Jaseci: "learn/tour.md"
     - Jac as Your First Programming Language: "learn/beginners_guide_to_jac.md"
     - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"

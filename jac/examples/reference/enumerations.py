@@ -93,7 +93,7 @@ class TaskFilter(Walker):
 
     @on_entry
     def traverse(self, here: Root) -> None:
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
     @on_entry
     def filter(self, here: Task) -> None:
@@ -101,7 +101,7 @@ class TaskFilter(Walker):
         if here.priority == self.target_priority:
             self.matched.append(here.title)
             print('      Matched!')
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
     @on_exit
     def report(self, here) -> None:

@@ -138,19 +138,19 @@ class DataSpatialPath:
         )
         return self
 
-    def _out(
+    def edge_out(
         self, edge: DataSpatialFilter = None, node: DataSpatialFilter = None
     ) -> DataSpatialPath:
         """Override greater than function."""
         return self.append(EdgeDir.OUT, edge, node)
 
-    def _in(
+    def edge_in(
         self, edge: DataSpatialFilter = None, node: DataSpatialFilter = None
     ) -> DataSpatialPath:
         """Override greater than function."""
         return self.append(EdgeDir.IN, edge, node)
 
-    def _any(
+    def edge_any(
         self, edge: DataSpatialFilter = None, node: DataSpatialFilter = None
     ) -> DataSpatialPath:
         """Override greater than function."""

@@ -2750,7 +2750,7 @@ class PyastGenPass(UniPass):
                     func=self.sync(
                         ast3.Attribute(
                             value=pynode,
-                            attr=f"_{cur.edge_dir.name.lower()}",
+                            attr=f"edge_{cur.edge_dir.name.lower()}",
                             ctx=ast3.Load(),
                         )
                     ),

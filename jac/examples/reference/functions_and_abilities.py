@@ -115,19 +115,19 @@ class TypedWalker(Walker):
     @on_entry
     def start(self, here: Root) -> None:
         print('TypedWalker: Starting at root')
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
     @on_entry
     def handle_person(self, here: Person) -> None:
         self.people_visited += 1
         print(f'  Visiting person: {here.name}, age {here.age}')
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
     @on_entry
     def handle_city(self, here: City) -> None:
         self.cities_visited += 1
         print(f'  Visiting city: {here.name}, pop {here.population}')
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
     @on_exit
     def report(self, here) -> None:
@@ -149,7 +149,7 @@ class MultiAbilityWalker(Walker):
 
     @on_entry
     def start(self, here: Root) -> None:
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
 class InteractivePerson(Node):
     name: str
@@ -174,7 +174,7 @@ class AsyncWalker(Walker):
     @on_entry
     async def handle(self, here: Person) -> None:
         print(f'AsyncWalker: async handling {here.name}')
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
 class AbstractWalker(Walker):
 
@@ -214,11 +214,11 @@ class ControlFlowWalker(Walker):
             disengage(self)
             return
         self.current_depth += 1
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
     @on_entry
     def start(self, here: Root) -> None:
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 print('=== 1. Basic Functions ===')
 math = BasicMath()
 print(f'add(5, 3) = {math.add(5, 3)}')

@@ -9,7 +9,7 @@ class Counter(Walker):
     def count(self, here: Root) -> None:
         connect(left=here, right=NumberNode(value=10))
         connect(left=here, right=NumberNode(value=20))
-        visit(self, refs(Path(here)._out().visit()))
+        visit(self, refs(Path(here).edge_out().visit()))
 
 class NumberNode(Node):
     value: int = 0
