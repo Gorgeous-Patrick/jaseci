@@ -69,13 +69,13 @@ class AnchorReport:
     context: dict[str, Any]
 
 
-DataSpatialFilter: TypeAlias = (
+ObjectSpatialFilter: TypeAlias = (
     Callable[["Archetype"], bool] | "Archetype" | list["Archetype"] | None
 )
 
 
 @dataclass(eq=False, repr=False)
-class DataSpatialDestination:
+class ObjectSpatialDestination:
     """Object-Spatial Destination."""
 
     direction: EdgeDir
@@ -92,18 +92,18 @@ class DataSpatialDestination:
 
 
 @dataclass(eq=False, repr=False)
-class DataSpatialPath:
+class ObjectSpatialPath:
     """Object-Spatial Path."""
 
     origin: list[NodeArchetype]
-    destinations: list[DataSpatialDestination]
+    destinations: list[ObjectSpatialDestination]
     edge_only: bool
     from_visit: bool
 
     def __init__(
         self,
         origin: NodeArchetype | list[NodeArchetype],
-        destinations: list[DataSpatialDestination] | None = None,
+        destinations: list[ObjectSpatialDestination] | None = None,
     ) -> None:
         """Override Init."""
         if not isinstance(origin, list):
@@ -115,7 +115,7 @@ class DataSpatialPath:
 
     def convert(
         self,
-        filter: DataSpatialFilter,
+        filter: ObjectSpatialFilter,
     ) -> Callable[["Archetype"], bool] | None:
         """Convert filter."""
         if not filter:
@@ -129,44 +129,44 @@ class DataSpatialPath:
     def append(
         self,
         direction: EdgeDir,
-        edge: DataSpatialFilter,
-        node: DataSpatialFilter,
-    ) -> DataSpatialPath:
+        edge: ObjectSpatialFilter,
+        node: ObjectSpatialFilter,
+    ) -> ObjectSpatialPath:
         """Append destination."""
         self.destinations.append(
-            DataSpatialDestination(direction, self.convert(edge), self.convert(node))
+            ObjectSpatialDestination(direction, self.convert(edge), self.convert(node))
         )
         return self
 
     def edge_out(
-        self, edge: DataSpatialFilter = None, node: DataSpatialFilter = None
-    ) -> DataSpatialPath:
+        self, edge: ObjectSpatialFilter = None, node: ObjectSpatialFilter = None
+    ) -> ObjectSpatialPath:
         """Override greater than function."""
         return self.append(EdgeDir.OUT, edge, node)
 
     def edge_in(
-        self, edge: DataSpatialFilter = None, node: DataSpatialFilter = None
-    ) -> DataSpatialPath:
+        self, edge: ObjectSpatialFilter = None, node: ObjectSpatialFilter = None
+    ) -> ObjectSpatialPath:
         """Override greater than function."""
         return self.append(EdgeDir.IN, edge, node)
 
     def edge_any(
-        self, edge: DataSpatialFilter = None, node: DataSpatialFilter = None
-    ) -> DataSpatialPath:
+        self, edge: ObjectSpatialFilter = None, node: ObjectSpatialFilter = None
+    ) -> ObjectSpatialPath:
         """Override greater than function."""
         return self.append(EdgeDir.ANY, edge, node)
 
-    def edge(self) -> DataSpatialPath:
+    def edge(self) -> ObjectSpatialPath:
         """Set edge only."""
         self.edge_only = True
         return self
 
-    def visit(self) -> DataSpatialPath:
+    def visit(self) -> ObjectSpatialPath:
         """Set from visit."""
         self.from_visit = True
         return self
 
-    def repr_builder(self, repr: str, dest: DataSpatialDestination, mark: str) -> str:
+    def repr_builder(self, repr: str, dest: ObjectSpatialDestination, mark: str) -> str:
         """Repr builder."""
         repr += mark
         repr += f' (edge{" filter" if dest.edge else ""}) '
@@ -361,8 +361,8 @@ class ObjectAnchor(Anchor):
 class Archetype:
     """Archetype Protocol."""
 
-    _jac_entry_funcs_: ClassVar[list[DataSpatialFunction]] = []
-    _jac_exit_funcs_: ClassVar[list[DataSpatialFunction]] = []
+    _jac_entry_funcs_: ClassVar[list[ObjectSpatialFunction]] = []
+    _jac_exit_funcs_: ClassVar[list[ObjectSpatialFunction]] = []
 
     @cached_property
     def __jac__(self) -> Anchor:
@@ -454,7 +454,7 @@ class Root(NodeArchetype):
 
 
 @dataclass(eq=False)
-class DataSpatialFunction:
+class ObjectSpatialFunction:
     """Object-Spatial Function."""
 
     name: str

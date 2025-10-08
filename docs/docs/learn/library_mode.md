@@ -2,7 +2,7 @@
 
 ## **Introduction**
 
-Every Jac program can be expressed as pure Python code using Jac's library mode. This means you get **100% of Jac's data-spatial programming capabilities** in regular Python syntax—no new language to learn, just powerful libraries to import.
+Every Jac program can be expressed as pure Python code using Jac's library mode. This means you get **100% of Jac's object-spatial programming capabilities** in regular Python syntax—no new language to learn, just powerful libraries to import.
 
 Library mode is perfect for:
 - **Python-first teams** wanting to adopt Jac gradually
@@ -21,7 +21,7 @@ When you run `jac jac2lib myfile.jac`, Jac generates clean Python code that:
 
 ## **The Friends Network Example**
 
-Let's walk through a complete example that demonstrates Jac's data-spatial programming in library mode.
+Let's walk through a complete example that demonstrates Jac's object-spatial programming in library mode.
 
 ### **The Jac Code**
 
@@ -436,7 +436,7 @@ perm_revoke(node, user, "write")
 | `Edge` | Graph edge archetype | `class MyEdge(Edge):` |
 | `Walker` | Graph traversal agent | `class MyWalker(Walker):` |
 | `Root` | Root node type | Entry point for graphs |
-| `Path` | Data-spatial path builder | `Path(node).edge_out()` |
+| `Path` | Object-spatial path builder | `Path(node).edge_out()` |
 
 ### **Decorators**
 
@@ -462,14 +462,14 @@ perm_revoke(node, user, "write")
 | `spawn(walker, node)` | Start walker at node | `walker`: Walker instance<br>`node`: Starting node |
 | `visit(walker, nodes)` | Visit specified nodes | `walker`: Walker instance<br>`nodes`: Node references |
 | `disengage(walker)` | Stop walker traversal | `walker`: Walker to stop |
-| `refs(path)` | Convert path to references | `path`: DataSpatialPath |
-| `arefs(path)` | Async path references | `path`: DataSpatialPath |
+| `refs(path)` | Convert path to references | `path`: ObjectSpatialPath |
+| `arefs(path)` | Async path references | `path`: ObjectSpatialPath |
 
 ### **Path Building**
 
 | Method | Description | Returns |
 |--------|-------------|---------|
-| `Path(node)` | Create path from node | DataSpatialPath |
+| `Path(node)` | Create path from node | ObjectSpatialPath |
 | `.edge_out(edge, node)` | Filter outgoing edges | Self (chainable) |
 | `.edge_in(edge, node)` | Filter incoming edges | Self (chainable) |
 | `.edge_any(edge, node)` | Filter any direction | Self (chainable) |
@@ -613,7 +613,7 @@ from jaclang.lib import *
 
 ## **Summary**
 
-Library mode demonstrates that **Jac is Python**—just with powerful abstractions for data-spatial programming. You get:
+Library mode demonstrates that **Jac is Python**—just with powerful abstractions for object-spatial programming. You get:
 
 ✅ **100% Feature Parity**: Everything Jac can do, library mode can do
 ✅ **Clean Python**: No magic, just classes, decorators, and functions

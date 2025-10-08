@@ -34,10 +34,10 @@ from uuid import UUID
 from jaclang.compiler.constant import Constants as Con, EdgeDir, colors
 from jaclang.compiler.program import JacProgram
 from jaclang.runtimelib.archetype import (
-    DataSpatialDestination,
-    DataSpatialFunction,
-    DataSpatialPath,
     GenericEdge as _GenericEdge,
+    ObjectSpatialDestination,
+    ObjectSpatialFunction,
+    ObjectSpatialPath,
     Root as _Root,
 )
 from jaclang.runtimelib.constructs import (
@@ -267,7 +267,7 @@ class JacNode:
 
     @staticmethod
     def get_edges(
-        origin: list[NodeArchetype], destination: DataSpatialDestination
+        origin: list[NodeArchetype], destination: ObjectSpatialDestination
     ) -> list[EdgeArchetype]:
         """Get edges connected to this node."""
         edges: OrderedDict[EdgeAnchor, EdgeArchetype] = OrderedDict()
@@ -300,7 +300,7 @@ class JacNode:
     @staticmethod
     def get_edges_with_node(
         origin: list[NodeArchetype],
-        destination: DataSpatialDestination,
+        destination: ObjectSpatialDestination,
         from_visit: bool = False,
     ) -> list[EdgeArchetype | NodeArchetype]:
         """Get edges connected to this node and the node."""
@@ -337,7 +337,7 @@ class JacNode:
 
     @staticmethod
     def edges_to_nodes(
-        origin: list[NodeArchetype], destination: DataSpatialDestination
+        origin: list[NodeArchetype], destination: ObjectSpatialDestination
     ) -> list[NodeArchetype]:
         """Get set of nodes connected to this node."""
         nodes: OrderedDict[NodeAnchor, NodeArchetype] = OrderedDict()
@@ -688,7 +688,7 @@ class JacClassReferences:
 
     TYPE_CHECKING: bool = TYPE_CHECKING
     EdgeDir: TypeAlias = EdgeDir
-    DSFunc: TypeAlias = DataSpatialFunction
+    DSFunc: TypeAlias = ObjectSpatialFunction
 
     Obj: TypeAlias = Archetype
     Node: TypeAlias = NodeArchetype
@@ -698,7 +698,7 @@ class JacClassReferences:
     Root: TypeAlias = _Root
     GenericEdge: TypeAlias = _GenericEdge
 
-    Path: TypeAlias = DataSpatialPath
+    Path: TypeAlias = ObjectSpatialPath
 
 
 class JacBuiltin:
@@ -1077,13 +1077,13 @@ class JacBasics:
 
     @staticmethod
     def refs(
-        path: DataSpatialPath | NodeArchetype | list[NodeArchetype],
+        path: ObjectSpatialPath | NodeArchetype | list[NodeArchetype],
     ) -> (
         list[NodeArchetype] | list[EdgeArchetype] | list[NodeArchetype | EdgeArchetype]
     ):
         """Jac's apply_dir stmt feature."""
-        if not isinstance(path, DataSpatialPath):
-            path = DataSpatialPath(path, [DataSpatialDestination(EdgeDir.OUT)])
+        if not isinstance(path, ObjectSpatialPath):
+            path = ObjectSpatialPath(path, [ObjectSpatialDestination(EdgeDir.OUT)])
 
         origin = path.origin
 
@@ -1105,7 +1105,7 @@ class JacBasics:
 
     @staticmethod
     async def arefs(
-        path: DataSpatialPath | NodeArchetype | list[NodeArchetype],
+        path: ObjectSpatialPath | NodeArchetype | list[NodeArchetype],
     ) -> None:
         """Jac's apply_dir stmt feature."""
         pass
