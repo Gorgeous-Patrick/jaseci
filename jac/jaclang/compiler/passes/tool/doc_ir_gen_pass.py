@@ -1640,14 +1640,6 @@ class DocIRGenPass(UniPass):
             and isinstance(node.parent, uni.FString)
         )
 
-        if "\n" in node.value:
-            lines = node.value.split("\n")
-            parts: list[doc.DocType] = [self.text(lines[0])]
-            for line in lines[1:]:
-                parts.append(self.hard_line())
-                parts.append(self.text(line.lstrip()))
-            node.gen.doc_ir = self.group(self.concat(parts))
-            return
         if is_escaped_curly:
             node.gen.doc_ir = self.concat(
                 [self.text(node.value), self.text(node.value)]

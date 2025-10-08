@@ -38,10 +38,8 @@ with entry {
             else 7
         )
     );
-    print(
-        """This is a long
-        line of code."""
-    );
+    print("""This is a long
+        line of code.""");
 }
 
 
@@ -231,5 +229,15 @@ class foo {
             );
             return f" 'Function: ' {func_name} '(' {params} ')' ";
         }
+    }
+}
+
+
+class HH {
+    def test()  -> Optional[str] {
+        a = """!
+hello
+hru
+""";
     }
 }
