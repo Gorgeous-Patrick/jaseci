@@ -9,12 +9,12 @@ class Task(_jl.Node):
 class SimpleWalker(_jl.Walker):
     visited_names: list = _jl.field(factory=lambda: [])
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print('SimpleWalker: Starting at root')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here: Task) -> None:
         self.visited_names.append(here.name)
         print(f'  Processing: {here.name} (priority {here.priority})')
@@ -22,12 +22,12 @@ class SimpleWalker(_jl.Walker):
 
 class BasicSpawn(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print('BasicSpawn: started at root')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def handle_task(self, here: Task) -> None:
         print(f'  BasicSpawn at: {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
@@ -35,12 +35,12 @@ class BasicSpawn(_jl.Walker):
 class DepthFirst(_jl.Walker):
     depth: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print('DepthFirst: root')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here: Task) -> None:
         self.depth += 1
         print(f'  Depth-first [{self.depth}]: {here.name}')
@@ -49,12 +49,12 @@ class DepthFirst(_jl.Walker):
 class BreadthFirst(_jl.Walker):
     order: list = _jl.field(factory=lambda: [])
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print('BreadthFirst: root')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here: Task) -> None:
         self.order.append(here.name)
         print(f'  Breadth-first: {here.name}')
@@ -64,11 +64,11 @@ class DataCollector(_jl.Walker):
     collected: list = _jl.field(factory=lambda: [])
     sum: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def collect(self, here: Task) -> None:
         self.collected.append(here.name)
         self.sum += here.priority
@@ -76,11 +76,11 @@ class DataCollector(_jl.Walker):
 
 class NodeSpawner(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here: Task) -> None:
         print(f'  At {here.name}')
         if here.name == 'Task2':
@@ -90,12 +90,12 @@ class NodeSpawner(_jl.Walker):
 
 class SubWalker(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: Task) -> None:
         print(f'    SubWalker started at: {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def handle(self, here: Task) -> None:
         print(f'      SubWalker processing: {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
@@ -105,12 +105,12 @@ class ConstructedWalker(_jl.Walker):
     max_visits: int = 5
     visits: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print(f"ConstructedWalker '{self.label}' starting")
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here: Task) -> None:
         self.visits += 1
         print(f'  [{self.label}] Visit {self.visits}: {here.name}')
@@ -123,11 +123,11 @@ class ConstructedWalker(_jl.Walker):
 class Counter(_jl.Walker):
     total: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def count_task(self, here: Task) -> None:
         self.total += 1
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
@@ -136,11 +136,11 @@ class Analyzer(_jl.Walker):
     high_priority: int = 0
     low_priority: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def analyze(self, here: Task) -> None:
         if here.priority > 5:
             self.high_priority += 1
@@ -150,7 +150,7 @@ class Analyzer(_jl.Walker):
 
 class SyntaxDemo(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print('SyntaxDemo: Demonstrating all spawn syntaxes')
 print('=== 1. Building Test Graph ===')

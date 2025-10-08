@@ -25,7 +25,7 @@ class Task(_jl.Node):
 
 class TaskWalker(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here: Task) -> None:
         print(f'at {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
@@ -33,20 +33,20 @@ class TaskWalker(_jl.Walker):
 class Interactive(_jl.Node):
     visitor_name: str = 'none'
 
-    @_jl.entry
+    @_jl.on_entry
     def track(self, visitor: TaskWalker) -> None:
         self.visitor_name = visitor.__class__.__name__
         print(f'visited by {self.visitor_name}')
 
 class RootWalker(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print(f'at root: {_jl.root()}')
         print(f'here is root: {here is _jl.root()}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def at_task(self, here: Task) -> None:
         print(f'root is: {_jl.root()}')
 

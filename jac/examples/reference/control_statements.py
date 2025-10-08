@@ -24,7 +24,7 @@ while n < 5:
 
 class SkipWalker(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here) -> None:
         return
 for x in range(3):

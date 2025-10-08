@@ -33,14 +33,14 @@ class ShoppingCart(_jl.Walker):
     items_count: int = 0
     total: float = 0.0
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         _jl.connect(left=_jl.root(), right=Book(title='Jac Programming', author='John Doe', price=29.99))
         _jl.connect(left=_jl.root(), right=Magazine(title='Tech Today', issue=42, price=5.99))
         _jl.connect(left=_jl.root(), right=Electronics(name='Laptop', price=999.99, warranty_years=2))
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def process_item(self, here: Product) -> None:
         print(f'[Inheritance] Processing {type(here).__name__}...')
         if isinstance(here, Book):
@@ -53,7 +53,7 @@ class ShoppingCart(_jl.Walker):
         self.total += here.price
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def apply_discount(self, here: (Book, Magazine)) -> None:
         print(f'[Tuple] Applying media discount to {type(here).__name__}')
         if isinstance(here, Book):
@@ -67,7 +67,7 @@ class ShoppingCart(_jl.Walker):
 class Checkout(_jl.Node):
     transactions: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def process_payment(self, visitor: Customer) -> None:
         self.transactions += 1
         if isinstance(visitor, RegularCustomer):

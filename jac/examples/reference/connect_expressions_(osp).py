@@ -20,7 +20,7 @@ class Colleague(_jl.Edge):
 
 class GraphBuilder(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def build(self, here: _jl.Root) -> None:
         print('=== 1. Untyped Connect Operators ===')
         alice = Person(name='Alice', age=30)
@@ -88,7 +88,7 @@ class GraphBuilder(_jl.Walker):
 
 class EdgeTraverser(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def traverse(self, here: _jl.Root) -> None:
         print('\n=== Edge Traversal with Visit ===')
         a = Person(name='A', age=25)
@@ -102,7 +102,7 @@ class EdgeTraverser(_jl.Walker):
         print('Visiting all outgoing edges from root:')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def traverse(self, here: Person) -> None:
         print(f'  Visited: {here.name}, age={here.age}')
 _jl.spawn(_jl.root(), GraphBuilder())

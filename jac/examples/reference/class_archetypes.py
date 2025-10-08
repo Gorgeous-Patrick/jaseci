@@ -37,7 +37,7 @@ class Pet(Animal, Domesticated, Mammal, _jl.Node):
     def play(self) -> None:
         print(f'{self.name} plays with {self.favorite_toy}')
 
-    @_jl.entry
+    @_jl.on_entry
     def greet_person(self, visitor: Person) -> None:
         print(f'  {self.name} wags tail at {visitor.name}')
 
@@ -52,7 +52,7 @@ class Relationship(_jl.Edge):
 class Ownership(_jl.Edge):
     duration_years: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def track(self, visitor: OwnershipWalker) -> None:
         print(f'  Edge: Ownership duration = {self.duration_years} years')
         self.duration_years += 1
@@ -61,12 +61,12 @@ class Person(Animal, _jl.Walker):
     name: str = 'Person'
     visited_count: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def greet(self, here: _jl.Root) -> None:
         print(f'{self.name}: Starting walk from root')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def visit_pet(self, here: Pet) -> None:
         self.visited_count += 1
         print(f'{self.name} visits {here.name}')
@@ -75,7 +75,7 @@ class Person(Animal, _jl.Walker):
 class Caretaker(Person, _jl.Walker):
     care_quality: int = 10
 
-    @_jl.entry
+    @_jl.on_entry
     def care_for(self, here: Pet) -> None:
         print(f'{self.name} cares for {here.name} (quality: {self.care_quality})')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
@@ -83,7 +83,7 @@ class Caretaker(Person, _jl.Walker):
 class Veterinarian(Caretaker, _jl.Walker):
     specialty: str = 'general'
 
-    @_jl.entry
+    @_jl.on_entry
     def examine(self, here: Pet) -> None:
         print(f'Dr. {self.name} ({self.specialty}) examines {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
@@ -92,12 +92,12 @@ class AsyncInspector(_jl.Walker):
     __jac_async__ = True
     inspected: list = _jl.field(factory=lambda: [])
 
-    @_jl.entry
+    @_jl.on_entry
     async def inspect(self, here: _jl.Root) -> None:
         print('AsyncInspector: starting')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     async def check(self, here: Pet) -> None:
         self.inspected.append(here.name)
         print(f'  Async checking: {here.name}')
@@ -122,7 +122,7 @@ class AnimalNode(_jl.Node):
 class SpecializedWalker(_jl.Walker):
     specialization: str = 'research'
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, visitor: AnimalNode) -> None:
         print(f'SpecializedWalker ({self.specialization}): Processing node')
         _jl.disengage(visitor)
@@ -149,12 +149,12 @@ class DecoratedNode(Pet, _jl.Node):
 
 class OwnershipWalker(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print('OwnershipWalker: tracking ownership edges')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def visit_node(self, here: Pet) -> None:
         print(f'  At pet: {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().edge().visit()))

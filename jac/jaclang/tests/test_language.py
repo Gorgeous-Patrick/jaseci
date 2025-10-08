@@ -1555,3 +1555,39 @@ class JacLanguageTests(TestCase):
             self.assertIn("😀😍", result)
         finally:
             os.unlink(temp_path)
+
+    def test_known_builtins_matches_actual(self) -> None:
+        """Test that KNOWN_BUILTINS in PyastGenPass matches actual builtins."""
+        from jaclang.compiler.passes.main.pyast_gen_pass import PyastGenPass
+        import jaclang.runtimelib.builtin as builtin_module
+
+        # Get actual builtins from the module (excluding private members)
+        actual_builtins = {
+            name for name in dir(builtin_module)
+            if not name.startswith('_')
+        }
+
+        # Exceptions: builtins that are imported from other sources
+        # - Enum: imported via needs_enum() from standard library's enum module
+        exceptions = {'Enum'}
+        actual_builtins_to_check = actual_builtins - exceptions
+
+        # Get the KNOWN_BUILTINS set from PyastGenPass
+        known_builtins = PyastGenPass.KNOWN_BUILTINS
+
+        # Find missing and extra builtins
+        missing = actual_builtins_to_check - known_builtins
+        extra = known_builtins - actual_builtins_to_check
+
+        # Build error message
+        error_msg = []
+        if missing:
+            error_msg.append(f"Missing from KNOWN_BUILTINS: {sorted(missing)}")
+        if extra:
+            error_msg.append(f"Extra in KNOWN_BUILTINS (not in builtin module): {sorted(extra)}")
+
+        # Assert they match
+        self.assertEqual(
+            known_builtins, actual_builtins_to_check,
+            "\n".join(error_msg) if error_msg else ""
+        )

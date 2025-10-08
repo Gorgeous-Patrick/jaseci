@@ -91,12 +91,12 @@ def double_decorated(x: int) -> int:
 class BasicWalker(_jl.Walker):
     counter: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def initialize(self, here) -> None:
         self.counter = 0
         print('BasicWalker: initialized')
 
-    @_jl.exit
+    @_jl.on_exit
     def finalize(self, here) -> None:
         print(f'BasicWalker: done, counter={self.counter}')
 
@@ -112,42 +112,42 @@ class TypedWalker(_jl.Walker):
     people_visited: int = 0
     cities_visited: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         print('TypedWalker: Starting at root')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def handle_person(self, here: Person) -> None:
         self.people_visited += 1
         print(f'  Visiting person: {here.name}, age {here.age}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def handle_city(self, here: City) -> None:
         self.cities_visited += 1
         print(f'  Visiting city: {here.name}, pop {here.population}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.exit
+    @_jl.on_exit
     def report(self, here) -> None:
         print(f'TypedWalker: Visited {self.people_visited} people, {self.cities_visited} cities')
 
 class MultiAbilityWalker(_jl.Walker):
     stage: str = 'initial'
 
-    @_jl.entry
+    @_jl.on_entry
     def first_pass(self, here: Person) -> None:
         if self.stage == 'initial':
             print(f'  First pass: {here.name}')
             self.stage = 'processed'
 
-    @_jl.entry
+    @_jl.on_entry
     def second_pass(self, here: Person) -> None:
         if self.stage == 'processed':
             print(f'  Second pass: {here.name}')
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
@@ -155,37 +155,37 @@ class InteractivePerson(_jl.Node):
     name: str
     greeted: bool = False
 
-    @_jl.entry
+    @_jl.on_entry
     def greet_typed(self, visitor: TypedWalker) -> None:
         print(f'    {self.name} says: Hello TypedWalker!')
         self.greeted = True
 
-    @_jl.entry
+    @_jl.on_entry
     def greet_multi(self, visitor: MultiAbilityWalker) -> None:
         print(f'    {self.name} says: Hello MultiAbilityWalker!')
 
 class AsyncWalker(_jl.Walker):
     __jac_async__ = True
 
-    @_jl.entry
+    @_jl.on_entry
     async def process(self, here) -> None:
         print('AsyncWalker: async processing')
 
-    @_jl.entry
+    @_jl.on_entry
     async def handle(self, here: Person) -> None:
         print(f'AsyncWalker: async handling {here.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
 class AbstractWalker(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     @abstractmethod
     def must_override(self, here) -> None:
         pass
 
 class ConcreteWalker(AbstractWalker, _jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def must_override(self, here) -> None:
         print('ConcreteWalker: implemented abstract ability')
 
@@ -193,11 +193,11 @@ class StaticAbilityWalker(_jl.Walker):
     instance_data: int = 0
 
     @staticmethod
-    @_jl.entry
+    @_jl.on_entry
     def class_level(self, here) -> None:
         print('Static ability executed')
 
-    @_jl.entry
+    @_jl.on_entry
     def instance_level(self, here) -> None:
         self.instance_data += 1
         print(f'Instance ability: data={self.instance_data}')
@@ -206,7 +206,7 @@ class ControlFlowWalker(_jl.Walker):
     max_depth: int = 2
     current_depth: int = 0
 
-    @_jl.entry
+    @_jl.on_entry
     def traverse(self, here: Person) -> None:
         print(f'  Depth {self.current_depth}: {here.name}')
         if self.current_depth >= self.max_depth:
@@ -216,7 +216,7 @@ class ControlFlowWalker(_jl.Walker):
         self.current_depth += 1
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def start(self, here: _jl.Root) -> None:
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 print('=== 1. Basic Functions ===')

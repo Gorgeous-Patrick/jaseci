@@ -98,11 +98,11 @@ class TaskFilter(_jl.Walker):
     target_priority: Priority = _jl.field(factory=lambda: Priority.HIGH)
     matched: list = _jl.field(factory=lambda: [])
 
-    @_jl.entry
+    @_jl.on_entry
     def traverse(self, here: _jl.Root) -> None:
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def filter(self, here: Task) -> None:
         print(f'    Checking task: {here.title}, priority={here.priority.name}')
         if here.priority == self.target_priority:
@@ -110,7 +110,7 @@ class TaskFilter(_jl.Walker):
             print('      Matched!')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.exit
+    @_jl.on_exit
     def report(self, here) -> None:
         print(f'  Found {len(self.matched)} tasks: {self.matched}')
 print('\n=== 9. Enum in Walker Logic (OSP) ===')

@@ -13,7 +13,7 @@ class Colleague(_jl.Edge):
 
 class EdgeRefWalker(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def demonstrate(self, here: _jl.Root) -> None:
         print('=== 1. Basic Edge References ===\n')
         alice = Person(name='Alice')
@@ -29,7 +29,7 @@ class EdgeRefWalker(_jl.Walker):
             print(f'    - {n.name}')
         _jl.visit(self, _jl.refs(_jl.Path(here)._out().visit()))
 
-    @_jl.entry
+    @_jl.on_entry
     def show_refs(self, here: Person) -> None:
         if here.name == 'Alice':
             print(f'\\n=== 2. Edge References from {here.name} ===\\n')
@@ -86,7 +86,7 @@ class EdgeRefWalker(_jl.Walker):
 
 class Summary(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def show(self, here: _jl.Root) -> None:
         print('\n' + '=' * 50)
         print('EDGE REFERENCE SYNTAX SUMMARY')

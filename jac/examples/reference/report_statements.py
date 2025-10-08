@@ -4,7 +4,7 @@ from jaclang import JacMachineInterface as _jl
 
 class Reporter(_jl.Walker):
 
-    @_jl.entry
+    @_jl.on_entry
     def process(self, here: _jl.Root) -> None:
         _jl.report(42)
         _jl.report('hello')
