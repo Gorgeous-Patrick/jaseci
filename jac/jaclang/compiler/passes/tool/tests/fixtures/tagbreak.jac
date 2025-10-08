@@ -106,7 +106,7 @@ class ModuleManager {
 
 
 def func_with_very_long_params(
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: int,
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: int,
     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: int,
 ) -> None {
     print(
@@ -184,3 +184,52 @@ def x() { }
 
 @decorator()
 class KK {}
+
+
+def get_node_info(self: JacLangServer, sym_node: uni.AstSymbolNode) -> Optional[str] {
+    try {
+        if isinstance(sym_node, uni.NameAtom) {
+            sym_node = sym_node.name_of;
+        }
+        access = (sym_node.sym.access.value + ' ') if sym_node.sym else None;
+        node_info = f"'('{(access if access else '')}{sym_node.sym_category.value}') '{sym_node.sym_name}";
+        if sym_node.name_spec.clean_type {
+            node_info += f"': '{sym_node.name_spec.clean_type}";
+        }
+        if (
+            isinstance(sym_node, uni.AstSymbolNode) and
+            isinstance(sym_node.name_spec.type, ClassType)
+        ) {
+            node_info += f"': '{sym_node.name_spec.type.shared.class_name}";
+        }
+        if (isinstance(sym_node, uni.AstDocNode) and sym_node.doc) {
+            node_info += f"'\n'{sym_node.doc.value}";
+        }
+        if (isinstance(sym_node, uni.Ability) and sym_node.signature) {
+            node_info += f"'\n'{sym_node.signature.unparse()}";
+        }
+    } except AttributeError as e {
+        self.log_warning(f"'Attribute error when accessing node attributes: '{e}");
+    }
+    return node_info.strip();
+}
+
+
+class foo {
+    """Get information about a node."""
+    def get_node_info(
+        self: JacLangServer, sym_node: uni.AstSymbolNode
+    ) -> Optional[str] {
+        if isinstance(sym_node, uni.AstVarNode) {
+            var_name = sym_node.name;
+            var_type = sym_node.var_type if sym_node.var_type else 'unknown';
+            return f" 'Variable: ' {var_name} ', Type: ' {var_type} ";
+        } elif isinstance(sym_node, uni.AstFuncNode) {
+            func_name = sym_node.name;
+            params = ', '.join(
+                [f" {p.name} ': ' {p.param_type} " for p in sym_node.params]
+            );
+            return f" 'Function: ' {func_name} '(' {params} ')' ";
+        }
+    }
+}
