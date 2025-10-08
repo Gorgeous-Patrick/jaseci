@@ -947,16 +947,16 @@ class DocIRGenPass(UniPass):
                 return [expr]
 
         exprs = __flatten_bool_expr(node)
-        for i in range(0, len(exprs) - 1, 2):
+        parts += [exprs[0].gen.doc_ir, self.line()]
+        for i in range(1, len(exprs), 2):
             (
-                expr,
                 op,
+                expr,
             ) = (
-                exprs[i],
                 exprs[i + 1],
+                exprs[i],
             )
             parts += [expr.gen.doc_ir, self.space(), op.gen.doc_ir, self.line()]
-        parts += [exprs[-1].gen.doc_ir, self.line()]
         parts.pop()
         flat = self.concat(parts)
         node.gen.doc_ir = self.group(flat)
