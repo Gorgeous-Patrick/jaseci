@@ -3022,6 +3022,36 @@ class JacParser(Transform[uni.Source, uni.Module]):
             value = self.consume(uni.MatchPattern)
             return uni.MatchKVPair(key=pattern, value=value, kid=self.cur_nodes)
 
+        def attr_pattern(self, _: None) -> uni.MatchValue:
+            """Grammar rule.
+
+            attr_pattern: NAME (DOT NAME)+
+            """
+            name_idx = 0
+            cur_element = self.consume(uni.NameAtom)
+            name_idx += 1
+            trailer: uni.AtomTrailer | None = None
+            while dot := self.match_token(Tok.DOT):
+                target = trailer if trailer else cur_element
+                right = self.consume(uni.NameAtom)
+                name_idx += 2
+                trailer = uni.AtomTrailer(
+                    target=target,
+                    right=right,
+                    is_attr=True,
+                    is_null_ok=False,
+                    kid=[target, dot, right],
+                )
+            name = trailer if trailer else cur_element
+            if not isinstance(name, (uni.NameAtom, uni.AtomTrailer)):
+                raise TypeError(
+                    f"Expected name to be either NameAtom or AtomTrailer, got {type(name)}"
+                )
+            return uni.MatchValue(
+                value=name,
+                kid=[name, *self.flat_cur_nodes[name_idx:]],
+            )
+
         def class_pattern(self, _: None) -> uni.MatchArch:
             """Grammar rule.
 

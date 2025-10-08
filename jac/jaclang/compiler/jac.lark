@@ -156,6 +156,7 @@ pattern: literal_pattern
     | capture_pattern
     | sequence_pattern
     | mapping_pattern
+    | attr_pattern
     | class_pattern
 
 literal_pattern: (INT | FLOAT | multistring)
@@ -166,6 +167,7 @@ sequence_pattern: LSQUARE list_inner_pattern (COMMA list_inner_pattern)* RSQUARE
 mapping_pattern: LBRACE (dict_inner_pattern (COMMA dict_inner_pattern)*)? RBRACE
 list_inner_pattern: (pattern_seq | STAR_MUL NAME)
 dict_inner_pattern: (literal_pattern COLON pattern_seq | STAR_POW NAME)
+attr_pattern: NAME (DOT NAME)+
 class_pattern: NAME (DOT NAME)* LPAREN kw_pattern_list? RPAREN
              | NAME (DOT NAME)* LPAREN pattern_list (COMMA kw_pattern_list)? RPAREN
 
