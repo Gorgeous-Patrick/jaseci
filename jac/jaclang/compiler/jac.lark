@@ -314,7 +314,7 @@ index_slice: LSQUARE                                                            
            | list_val
 
 // [Heading]: Function calls.
-atomic_call: atomic_chain LPAREN param_list? by_llm? RPAREN
+atomic_call: atomic_chain (gen_compr | LPAREN param_list? by_llm? RPAREN)
 
 by_llm: KW_BY expression
 

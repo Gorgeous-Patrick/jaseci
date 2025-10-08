@@ -2063,6 +2063,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
             atomic_call: atomic_chain LPAREN param_list? by_llm? RPAREN
             """
             target = self.consume(uni.Expr)
+            gencompr = self.match(uni.GenCompr)
+            if gencompr:
+                return uni.FuncCall(
+                    target=target,
+                    params=[gencompr],
+                    genai_call=None,
+                    kid=self.cur_nodes,
+                )
             self.consume_token(Tok.LPAREN)
             params_sn = self.match(list)
             genai_call = self.match(uni.Expr)

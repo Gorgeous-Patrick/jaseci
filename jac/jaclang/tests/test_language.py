@@ -1577,6 +1577,25 @@ class JacLanguageTests(TestCase):
         finally:
             os.unlink(temp_path)
 
+    def test_funccall_genexpr(self) -> None:
+        """Test function call with generator expression in both Jac and py2jac."""
+        # Test language support
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("funccall_genexpr", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertIn("Result: 30", stdout_value[0])
+        
+        # Test py2jac conversion
+        py_file_path = f"{self.fixture_abs_path('../../tests/fixtures/funccall_genexpr.py')}"
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        cli.py2jac(py_file_path)
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+        self.assertIn("result = total((x * x) for x in range(5));", stdout_value)
+
     def test_attr_pattern_case(self) -> None:
         """Test attribute pattern matching."""
         captured_output = io.StringIO()
