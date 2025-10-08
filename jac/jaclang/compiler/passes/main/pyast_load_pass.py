@@ -96,6 +96,8 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             body: list[stmt]
             type_ignores: list[TypeIgnore]
         """
+        if not node.body:
+            return uni.Module.make_stub(inject_src=self.ir_in)
         elements: list[uni.UniNode] = [self.convert(i) for i in node.body]
         elements[0] = (
             elements[0].expr
