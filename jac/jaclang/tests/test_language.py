@@ -528,7 +528,7 @@ class JacLanguageTests(TestCase):
             ).ir_out.unparse()
         self.assertIn("def greet2( **kwargs: Any) {", output)
         self.assertEqual(output.count("with entry {"), 14)
-        self.assertIn("assert (x == 5) , 'x should be equal to 5' ;", output)
+        self.assertIn("assert (x == 5) , 'x should be equal to 5';", output)
         self.assertIn("if not (x == y) {", output)
         self.assertIn("squares_dict = {x : (x ** 2) for x in numbers};", output)
         self.assertIn(

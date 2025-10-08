@@ -1154,6 +1154,8 @@ class DocIRGenPass(UniPass):
         """Generate DocIR for assert statements."""
         parts: list[doc.DocType] = []
         for i in node.kid:
+            if isinstance(i, uni.Token) and i.name == Tok.SEMI and len(parts):
+                parts.pop()
             parts.append(i.gen.doc_ir)
             parts.append(self.space())
         parts.pop()

@@ -177,7 +177,9 @@ def gen_diagnostics(
 
 
 @decorator
-def x() { }
+def x() {
+    assert gg == 7;
+}
 
 
 @decorator()
