@@ -1,5 +1,5 @@
 #this file is part of formatter tests and is not meant to be run
- class SemTokManager {
+class SemTokManager {
     """Initialize semantic token manager."""
     def init(self: SemTokManager, ir: uni.Module) -> None {
         self.aaaaastatic_sem_tokens:
@@ -93,7 +93,7 @@ class ModuleManager {
 
 
 ## expr as item extra space issue
- with entry {
+with entry {
     with open(f"Apple{apple}.txt") as f {
         # Fix syntax highlighting
         print(
@@ -184,6 +184,28 @@ def x() { }
 class KK {}
 
 
+# kkk
+import pygame, random, math;
+
+
+# fff
+with entry {
+    # gg
+    a = 9;
+}
+
+
+# kkk
+class X {}
+
+
+# comment
+@decorator
+def xxx() { }
+
+
+# ddd
+glob a = 7;
 def get_node_info(self: JacLangServer, sym_node: uni.AstSymbolNode) -> Optional[str] {
     try {
         if isinstance(sym_node, uni.NameAtom) {
