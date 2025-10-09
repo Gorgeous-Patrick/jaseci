@@ -1,20 +1,20 @@
 ## **Jac's Native Superset of Python**
 
-At its core, Jac is a natural evolution of Python—not a replacement, but an enhancement. For Python developers, Jac offers a familiar foundation with powerful new features for modern software architecture, all while integrating seamlessly with the existing Python ecosystem.
+Jac is designed as a superset of Python, extending the language with additional features for modern software architecture while maintaining full compatibility with the Python ecosystem. Python developers can leverage their existing knowledge while accessing new capabilities for graph-based and object-spatial programming.
 
 ### **How it Works: Transpilation to Native Python**
 
-Unlike languages that require their own runtime environments, virtual machines, or interpreters, Jac programs execute on the standard Python runtime. The Jac compiler **transpiles** your Jac code into pure, efficient Python code through a multi-stage compilation pipeline that generates optimized Python bytecode. This means:
+Jac programs execute on the standard Python runtime without requiring custom runtime environments, virtual machines, or interpreters. The Jac compiler transpiles Jac source code into standard Python through a multi-stage compilation pipeline that generates optimized Python bytecode. This approach provides several advantages:
 
-*   **100% Python Runtime:** Your Jac programs execute on the standard Python runtime, giving you access to Python's mature garbage collector, memory management, and threading model.
-*   **Full Ecosystem Access:** Every package on PyPI, every internal library, and every Python tool you already use works out-of-the-box with Jac.
-*   **Readable Output:** The transpiled Python is clean, maintainable code that you can inspect, debug, and understand.
+*   **Standard Python Runtime:** Jac programs execute on the Python runtime, utilizing Python's garbage collector, memory management, and threading model.
+*   **Full Ecosystem Access:** All packages on PyPI, internal libraries, and Python development tools are compatible with Jac.
+*   **Readable Output:** The transpiled Python code is clean and maintainable, enabling inspection, debugging, and understanding.
 
-Essentially, Jac is to Python what TypeScript is to JavaScript: a powerful superset that compiles down to the language you know and love.
+The relationship between Jac and Python is analogous to that of TypeScript and JavaScript: a superset language that compiles to a widely-adopted base language.
 
 **Example: From Jac to Python**
 
-A simple Jac module with functions, objects, and an entrypoint...
+The following Jac module demonstrates functions, objects, and an entrypoint:
 
 ```jac
 """Functions in Jac."""
@@ -40,7 +40,7 @@ with entry {
 }
 ```
 
-...is transpiled into clean, readable Python code:
+The Jac compiler converts this code into the following Python implementation:
 
 ```python
 """Functions in Jac."""
@@ -65,25 +65,25 @@ person.greet()
 print(f'5! = {factorial(5)}')
 ```
 
-Notice how Jac's object-oriented features compile to standard Python classes inheriting from `Obj` (Jac's base object archetype), with clean imports from `jaclang.lib`.
+The compiled output demonstrates how Jac's object-oriented features map to standard Python classes inheriting from `Obj` (Jac's base object archetype), with imports from the `jaclang.lib` package.
 
 ---
 
 ### **Seamless Interoperability: Import Jac Files Like Python Modules**
 
-One of Jac's most powerful features is how effortlessly it integrates with Python. Once you add a single line—`import jaclang`—to your Python code, you can import `.jac` files exactly as you would any Python module. No build steps, no compilation commands, no configuration files.
+Jac integrates with Python through a simple import mechanism. By adding `import jaclang` to Python code, developers can import `.jac` files using standard Python import statements without requiring build steps, compilation commands, or configuration files.
 
-**What This Means for You:**
+**Key Integration Features:**
 
-*   **Mix and Match Files Freely:** Write some modules in `.jac` and others in `.py`, then import them interchangeably. Your Python files can import Jac modules, and your Jac files can import Python modules—it just works.
+*   **Bidirectional Module Imports:** Python files can import Jac modules, and Jac files can import Python modules using standard import syntax. Modules written in `.jac` and `.py` can be used interchangeably within a project.
 
-*   **Zero Friction Adoption:** Add Jac to your existing Python project without restructuring your codebase. Keep your Python files as-is, and gradually introduce Jac modules where they add value.
+*   **Incremental Adoption:** Jac can be added to existing Python projects without restructuring the codebase. Python files can remain unchanged while Jac modules are introduced where beneficial.
 
-*   **Natural Developer Experience:** Use the same `import` statements you already know. No special syntax, no extra tools—just natural Python imports that happen to work with `.jac` files too.
+*   **Standard Import Syntax:** The same `import` statements used for Python modules work with `.jac` files, requiring no special syntax or additional tools.
 
 **Example: Importing Across Languages**
 
-Say you have a Jac module with graph utilities:
+Consider a Jac module containing graph utilities:
 
 ```jac
 # graph_tools.jac
@@ -93,34 +93,34 @@ node Task {
 }
 ```
 
-Import it in Python just like any other module:
+This module can be imported in Python using standard import syntax:
 
 ```python
 # main.py
 import jaclang  # Enable Jac imports (one-time setup)
 from graph_tools import Task  # Import from .jac file
 
-# Use Jac classes in Python naturally
+# Use Jac classes in Python
 my_task = Task(name="Deploy", priority=1)
 ```
 
-It works in reverse too—your Jac files can import Python libraries:
+Jac files can also import Python libraries:
 
 ```jac
 # analyzer.jac
 import pandas as pd;
 import numpy as np;
 
-# Use Python libraries directly in Jac code
+# Use Python libraries in Jac code
 ```
 
-**How It Works:** Jac leverages Python's [PEP 302](https://peps.python.org/pep-0302/) import hook system to extend Python's native import mechanism. When you `import jaclang`, it registers a custom importer that teaches Python how to find and load `.jac` files. From that point forward, whenever Python encounters an import statement, it automatically checks for `.jac` files alongside `.py` files, compiles them transparently, and loads them into your program—all behind the scenes. This means Jac modules become first-class citizens in your Python environment, indistinguishable from native Python modules.
+**Implementation Details:** Jac extends Python's native import mechanism using the [PEP 302](https://peps.python.org/pep-0302/) import hook system. When `import jaclang` is executed, it registers a custom importer that enables Python to locate and load `.jac` files. Subsequently, Python's import mechanism automatically checks for `.jac` files alongside `.py` files, compiles them transparently, and loads them into the program. This integration makes Jac modules function as first-class citizens within the Python environment.
 
 ---
 
 ### **Five Adoption Patterns: Choose Your Integration Level**
 
-Jac offers flexible adoption strategies to fit your team's needs, from pure Python with Jac enhancements to pure Jac applications. Here are the five primary patterns:
+Jac provides five adoption strategies that accommodate different development requirements, ranging from pure Python implementations with Jac library support to fully Jac-based applications. The following patterns represent the primary integration approaches:
 
 #### **Pattern Comparison Table**
 
@@ -150,22 +150,22 @@ graph LR
 
 ### **Pattern Details and Examples**
 
-**Example Project:** A simple task manager that stores tasks and generates AI-powered task descriptions.
+**Example Project:** The following examples demonstrate a task manager application that stores tasks and generates AI-powered task descriptions.
 
 **Core Features:**
 - Task storage with graph-based relationships
 - Task validation (title length check)
 - AI-generated task descriptions
 
-Let's see how to build this across all 5 patterns.
+Each pattern demonstrates a different approach to implementing this application.
 
 ---
 
 #### **Pattern 1: Pure Jac**
 
-Everything in `.jac` files—no Python files needed.
+This pattern uses exclusively `.jac` files with no Python files required.
 
-**When to use:** New projects where you want full Jac features
+**Use Case:** New projects requiring full access to Jac language features
 
 **Directory Structure:**
 ```
@@ -228,9 +228,9 @@ project/
 
 #### **Pattern 2: Jac + Inline Python**
 
-Embed Python code directly in `.jac` files using `::py::` blocks—useful for migration or when you need Python-specific libraries.
+This pattern embeds Python code directly within `.jac` files using `::py::` blocks, enabling the use of Python-specific libraries or preservation of existing Python code.
 
-**When to use:** Migrating Python code incrementally, keeping legacy utilities as-is
+**Use Case:** Incremental migration of Python codebases while maintaining legacy utilities
 
 **Directory Structure:**
 ```
@@ -291,15 +291,15 @@ project/
     }
     ```
 
-Keep tested Python code while adding Jac features—best for incremental migration.
+This approach preserves tested Python code while introducing Jac features, supporting incremental migration strategies.
 
 ---
 
 #### **Pattern 3: Mostly Jac**
 
-Write your app in Jac, import Python utilities from separate `.py` files.
+This pattern implements the primary application logic in Jac while importing Python utilities from separate `.py` files.
 
-**When to use:** Jac-first development with existing Python utilities or shared modules
+**Use Case:** Jac-first development that leverages existing Python utilities or shared modules
 
 **Directory Structure:**
 ```
@@ -364,15 +364,15 @@ project/
         return "Build API"
     ```
 
-Jac seamlessly imports Python modules—no configuration needed.
+Jac imports Python modules using standard import mechanisms without requiring configuration.
 
 ---
 
 #### **Pattern 4: Mostly Python**
 
-Python-first application that imports `.jac` modules for graph and AI features.
+This pattern maintains a Python-first application structure while importing `.jac` modules for graph-based and AI features.
 
-**When to use:** Existing Python projects adding Jac's graph/AI capabilities
+**Use Case:** Existing Python projects incorporating Jac's graph-native and AI capabilities
 
 **Directory Structure:**
 ```
@@ -442,15 +442,15 @@ project/
     }
     ```
 
-Python stays familiar, but you get Jac's graph and AI features where needed.
+This approach maintains familiar Python syntax while providing access to Jac's graph-based and AI features.
 
 ---
 
 #### **Pattern 5: Pure Python + Jac Library**
 
-Pure Python using Jac's runtime as a library—no `.jac` files.
+This pattern uses pure Python with Jac's runtime as a library, without any `.jac` files.
 
-**When to use:** Conservative adoption, teams preferring Python syntax, existing projects
+**Use Case:** Conservative adoption paths, teams preferring Python syntax, or existing Python projects
 
 **Directory Structure:**
 ```
@@ -506,19 +506,19 @@ project/
         return len(title) > 3
     ```
 
-Pure Python with graph capabilities—no new syntax, but you get Jac's object-spatial model.
+This pattern provides graph-based capabilities in pure Python without introducing new syntax, utilizing Jac's object-spatial model through library imports.
 
 ---
 
 ### **Key Takeaways**
 
-Jac's relationship with Python isn't about choosing one over the other—it's about providing a powerful "and". You get:
+Jac's design as a Python superset enables complementary use of both languages rather than requiring a choice between them. Key characteristics include:
 
-- **Incremental Adoption:** Start with Pattern 5 (pure Python + Jac library) and gradually move toward Pattern 1 (pure Jac) at your own pace
-- **Full Ecosystem Access:** Continue using your favorite Python libraries, frameworks, and tools without compatibility issues
-- **Flexible Integration:** Choose from five adoption patterns based on your team's comfort level and project requirements
-- **Zero Lock-in:** Transpiled Python code is readable and maintainable, giving you an exit strategy if needed
-- **Seamless Imports:** PEP 302 import hooks enable transparent `.jac` and `.py` interoperability
+- **Incremental Adoption:** Projects can begin with Pattern 5 (pure Python + Jac library) and progressively adopt Pattern 1 (pure Jac) as requirements evolve
+- **Full Ecosystem Access:** All Python libraries, frameworks, and development tools remain compatible without modification
+- **Flexible Integration:** Five adoption patterns accommodate different team preferences and project requirements
+- **No Vendor Lock-in:** Transpiled Python code is readable and maintainable, providing migration paths if needed
+- **Transparent Interoperability:** PEP 302 import hooks enable seamless bidirectional imports between `.jac` and `.py` files
 
 | Adoption Pattern | Learning Curve | Migration Effort | Feature Access | Risk Level |
 |------------------|---------------|------------------|----------------|------------|
@@ -528,4 +528,4 @@ Jac's relationship with Python isn't about choosing one over the other—it's ab
 | Pattern 4: Mostly Python | Low-Medium | Low | Select Jac features | Low |
 | Pattern 5: Pure Python + Library | Low | Very Low | Core runtime only | Very Low |
 
-Whether you're building a new application from scratch or enhancing an existing Python codebase, Jac provides the tools and flexibility to write more structured, maintainable, and scalable code—without abandoning the Python ecosystem you know and trust.
+Jac accommodates both new application development and enhancement of existing Python codebases, providing structured approaches to graph-based and object-spatial programming while maintaining full Python ecosystem compatibility.

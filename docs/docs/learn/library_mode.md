@@ -7,7 +7,7 @@ Jac provides a library mode that enables developers to express all Jac language 
 Library mode is designed for:
 
 - **Python-first teams** wanting to adopt Jac's graph-native and AI capabilities without learning new syntax
-- **Existing Python codebases** that need data-spatial architectures and AI integration with zero migration friction
+- **Existing Python codebases** that need object-spatial architectures and AI integration with zero migration friction
 - **Understanding Jac's architecture** by exploring how its transpilation to Python works under the hood
 - **Enterprise and corporate environments** where introducing standard Python libraries is more acceptable than adopting new language syntax
 
