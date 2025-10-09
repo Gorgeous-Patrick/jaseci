@@ -300,25 +300,3 @@ Jac focuses on type safety and readability. Type hints are required and the buil
     ```
 
     This shows how declarations and implementations can live in separate files for maintainable, typed codebases.
-
-## Next Steps
-
-<div class="grid cards" markdown>
-
--   __In The Works__
-
-    ---
-
-    *Roadmap Items*
-
-    [In The Roadmap](bigfeatures.md){ .md-button .md-button--primary }
-
--   __In The Future__
-
-    ---
-
-    *Research in Jac/Jaseci*
-
-    [In Research](research.md){ .md-button }
-
-</div>
