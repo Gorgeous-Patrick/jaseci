@@ -11,7 +11,6 @@ import jaclang.compiler.unitree as uni
 from jaclang.compiler.parser import JacParser
 from jaclang.compiler.passes.main import (
     Alert,
-    BinderPass,
     CFGBuildPass,
     DeclImplMatchPass,
     DefUsePass,
@@ -136,13 +135,6 @@ class JacProgram:
             if settings.predynamo_pass and PreDynamoPass not in py_code_gen:
                 py_code_gen.insert(0, PreDynamoPass)
             self.run_schedule(mod=mod_targ, passes=py_code_gen)
-        return mod_targ
-
-    def bind(self, file_path: str, use_str: str | None = None) -> uni.Module:
-        """Bind the Jac module."""
-        keep_str = use_str or read_file_with_encoding(file_path)
-        mod_targ = self.parse_str(keep_str, file_path)
-        BinderPass(ir_in=mod_targ, prog=self)
         return mod_targ
 
     def build(

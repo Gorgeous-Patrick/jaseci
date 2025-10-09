@@ -15,7 +15,7 @@ import from typing { Callable, TYPE_CHECKING, cast }
 
 import jaclang.compiler.unitree as uni;
 import from jaclang.compiler { TOKEN_MAP }
-import from jaclang.compiler.constant { Tokens as Tok }
+import from jaclang.compiler.constant { SymbolType, Tokens as Tok }
 import from jaclang.compiler.passes.main.pyast_load_pass { PyastBuildPass }
 import from jaclang.compiler.passes.main.sym_tab_build_pass { SymTabBuildPass }
 import from jaclang.compiler.type_system { types }
@@ -267,23 +267,41 @@ class TypeEvaluator {
 
     """Return the effective type of the module."""
     def get_type_of_module(self: TypeEvaluator, node_: uni.ModulePath) -> types.TypeBase {
-        if node_.name_spec.type is not None {
-            return cast(types.ModuleType, node_.name_spec.type);
-        }
-        if not Path(node_.resolve_relative_path()).exists() {
-            node_.name_spec.type = types.UnknownType();
-            return node_.name_spec.type;
-        }
+        if node_.path {
+            # If the type is already computed, return it.
+            if node_.path[-1].type {
+                return node_.path[-1].type;
+            }
 
-        mod: uni.Module = self._import_module_from_path(node_.resolve_relative_path());
-        mod_type = types.ModuleType(
-            mod_name=node_.name_spec.sym_name,
-            file_uri=Path(node_.resolve_relative_path()).resolve(),
-            symbol_table=mod,
-        );
+            for (idx, npath) in enumerate(node_.path) {
+                mod_path = node_.resolve_relative_path_list()[idx];
 
-        node_.name_spec.type = mod_type;
-        return mod_type;
+                # If the path doesn't exist, return unknown type.
+                # eg: import from ..mod { item }  # <-- Here ..mod might not exist.
+                if not Path(mod_path).exists() {
+                    npath.type = types.UnknownType();
+                    npath._sym_category = SymbolType.MODULE;
+                    self.add_diagnostic(npath, 'Module not found', warning=True);
+                    return npath.type;
+                }
+
+                mod: uni.Module = self._import_module_from_path(mod_path);
+                mod_type = types.ModuleType(
+                    mod_name=npath.value,
+                    file_uri=Path(mod_path).resolve(),
+                    symbol_table=mod
+                );
+                npath.type = mod_type;
+                npath._sym_category = SymbolType.MODULE;
+            }
+            if node_.alias {
+                node_.alias.type = node_.path[-1].type;
+                node_.alias._sym_category = SymbolType.MODULE;
+            }
+            return node_.path[-1].type;
+        }
+        return types.UnknownType();
+
     }
 
     """Return the effective type of the module item."""
@@ -291,12 +309,13 @@ class TypeEvaluator {
         # Module item can be both a module or a member of a module.
         # import from .. { mod }   # <-- Here mod is not a member but a module itself.
         # import from mod { item } # <-- Here item is not a module but a member of mod.
-        if node_.name_spec.type is not None {
-            return node_.name_spec.type;
+        if node_.name.type is not None {
+            return node_.name.type;
         }
 
         import_node = node_.parent_of_type(uni.Import);
-        if import_node.from_loc {
+        assert import_node.from_loc is not None;
+        if isinstance(self.get_type_of_module(import_node.from_loc), types.ModuleType){
 
             from_path = Path(import_node.from_loc.resolve_relative_path());
             is_dir = from_path.is_dir() or (from_path.stem == "__init__");
@@ -309,12 +328,12 @@ class TypeEvaluator {
                     if (path := (mod_dir / (node_.name.value + ext)).resolve()).exists() {
                         mod = self._import_module_from_path(str(path));
                         mod_type = types.ModuleType(
-                            mod_name=node_.name_spec.sym_name,
+                            mod_name=node_.name.sym_name,
                             file_uri=path,
                             symbol_table=mod,
                         );
                         # Cache the type.
-                        node_.name_spec.type = mod_type;
+                        node_.name.type = mod_type;
 
                         # FIXME: goto definition works on imported symbol by checking if it's a MODULE
                         # type and in that case it'll call resolve_relative_path on the parent node of
@@ -323,8 +342,8 @@ class TypeEvaluator {
                         # below should work but because of the above assumption (should be a mod path)
                         # it won't, This needs to be discussed.
                         #
-                        # node.name_spec._sym_category = uni.SymbolType.MODULE
-                        return node_.name_spec.type;
+                        node_.name._sym_category = SymbolType.MODULE;
+                        return mod_type;
                     }
                 }
             }
@@ -333,18 +352,18 @@ class TypeEvaluator {
             else {
                 mod_type = self.get_type_of_module(import_node.from_loc);
                 if not isinstance(mod_type, types.ModuleType) {
-                    node_.name_spec.type = types.UnknownType();
+                    node_.name.type = types.UnknownType();
                     # TODO: Add diagnostic that from_loc is not accessible.
                     # Eg: 'Import "scipy" could not be resolved'
-                    return node_.name_spec.type;
+                    return node_.name.type;
                 }
                 if sym := mod_type.symbol_table.lookup(node_.name.value, deep=True) {
                     node_.name.sym = sym;
                     if node_.alias {
                         node_.alias.sym = sym;
                     }
-                    node_.name_spec.type = self.get_type_of_symbol(sym);
-                    return node_.name_spec.type;
+                    node_.name.type = self.get_type_of_symbol(sym);
+                    return node_.name.type;
                 }
             }
         }
@@ -600,12 +619,6 @@ class TypeEvaluator {
     def _get_type_of_symbol(self: TypeEvaluator, symbol: uni.Symbol) -> TypeBase {
         node_ = symbol.decl.name_of;
         match node_ {
-            case uni.ModulePath():
-                return self.get_type_of_module(node_);
-
-            case uni.ModuleItem():
-                return self.get_type_of_module_item(node_);
-
             case uni.Archetype():
                 return self.get_type_of_class(node_);
 
@@ -634,6 +647,12 @@ class TypeEvaluator {
                             return self.get_type_of_expression(node_.parent.value);
                         }
                     }
+                }
+                if isinstance(node_.parent, uni.ModulePath) {
+                    return self.get_type_of_module(node_.parent);
+                }
+                if isinstance(node_.parent, uni.ModuleItem) {
+                    return self.get_type_of_module_item(node_.parent);
                 }
 
             case uni.HasVar():
@@ -734,7 +753,7 @@ class TypeEvaluator {
                 }
 
                 if symbol := expr.sym_tab.lookup(expr.value, deep=True) {
-                    expr.sym = symbol;
+                    expr.sym = self.resolve_imported_symbols(symbol);
                     return self.get_type_of_symbol(symbol);
                 }
         }
@@ -746,6 +765,22 @@ class TypeEvaluator {
     # -----------------------------------------------------------------------------
     # Helper functions
     # -----------------------------------------------------------------------------
+
+    """Resolve the imported symbols to the actual symbol."""
+    def resolve_imported_symbols(self: TypeEvaluator, sym: uni.Symbol) -> uni.Symbol {
+        if (
+            isinstance(sym.decl, uni.Name) and sym.decl.find_parent_of_type(uni.ModuleItem)
+        ) {
+            # If the symbol is from a module item, we need to resolve it to the actual symbol.
+            mod_item = sym.decl.find_parent_of_type(uni.ModuleItem);
+            assert (mod_item is not None);
+            self.get_type_of_module(mod_item.from_mod_path);
+            return (mod_item.name.sym or sym);
+        }
+        return sym;
+    }
+
+
 
     """Check if the expression is Name that is 'self' and in the method context."""
     def _is_expr_self(self: TypeEvaluator, expr: uni.Expr) -> bool {

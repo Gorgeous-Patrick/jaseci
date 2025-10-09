@@ -11,7 +11,7 @@ import from jaclang { JacMachineInterface as Jac }
 import from jaclang.compiler.constant { SymbolType }
 import from jaclang.compiler.program { JacProgram }
 import from jaclang.compiler.type_system.type_utils { get_completion_items }
-import from jaclang.compiler.type_system.types { ClassType, TypeBase }
+import from jaclang.compiler.type_system.types { ClassType, FunctionType, ModuleType, TypeBase }
 import from jaclang.compiler.unitree { UniScopeNode }
 import from sem_manager { SemTokManager }
 import from jaclang.vendor.pygls { uris }
@@ -461,97 +461,59 @@ class JacLangServer(JacProgram , LanguageServer) {
         file_path: str,
         position: lspt.Position
     ) -> Optional[lspt.Location] {
-        node_selected = self.get_token_at_position(file_path, position);
-        if node_selected {
-            if (node_selected.sym.sym_type == SymbolType.MODULE) {
-                spec = node_selected.sym.decl.parent.resolve_relative_path();
-                if spec {
-                    spec = spec[ 5 : ] if spec.startswith('File:') else spec;
-                    return lspt.Location(
-                        uri=uris.from_fs_path(spec),
-                        range=lspt.Range(
-                            start=lspt.Position(line=0, character=0),
-                            end=lspt.Position(line=0, character=0)
-                        )
-                    );
-                } else {
-                    return None;
-                }
-            }
-            if isinstance(node_selected.sym, uni.NameAtom) {
-                node_selected = node_selected.name_of;
-            }
-            elif isinstance(node_selected, uni.Name)
-            and node_selected.parent
-            and isinstance(node_selected.parent, uni.ModulePath)
-             {
-                spec = node_selected.parent.parent.abs_path;
-                if spec {
-                    spec = spec[ 5 : ] if spec.startswith('File:') else spec;
-                    return lspt.Location(
-                        uri=uris.from_fs_path(spec),
-                        range=lspt.Range(
-                            start=lspt.Position(line=0, character=0),
-                            end=lspt.Position(line=0, character=0)
-                        )
-                    );
-                } else {
-                    return None;
-                }
-            } elif node_selected.parent
-            and isinstance(node_selected.parent, uni.ModuleItem)
-             {
-                path =
-                    node_selected.parent.abs_path
-                    or node_selected.parent.from_mod_path.abs_path
-                    ;
-                loc_range = (0, 0, 0, 0);
-                if path and loc_range  {
-                    path = path[ 5 : ] if path.startswith('File:') else path;
-                    return lspt.Location(
-                        uri=uris.from_fs_path(path),
-                        range=lspt.Range(
-                            start=lspt.Position(
-                                line=loc_range[0],
-                                character=loc_range[1]
-                            ),
-                            end=lspt.Position(line=loc_range[2], character=loc_range[3])
-                        )
-                    );
-                }
-            } elif isinstance(node_selected, uni.ElementStmt) {
-                return None;
-            }
-            decl_node =
-                node_selected.parent.body.target
-                if node_selected.parent
-                and isinstance(node_selected.parent, uni.AstImplNeedingNode)
-                and isinstance(node_selected.parent.body, uni.ImplDef)
 
-                else node_selected.sym.decl
-                if node_selected.sym and node_selected.sym.decl
-                else node_selected;
-            if isinstance(decl_node, list) {
-                valid_path = decl_node[0].loc.mod_path;
-            } else {
-                valid_path = decl_node.loc.mod_path;
-            }
-            decl_uri = uris.from_fs_path(valid_path);
-            if isinstance(decl_node, list) {
-                valid_range = decl_node[0].loc;
-            } else {
-                valid_range = decl_node.loc;
-            }
-            try {
-                decl_range = utils.create_range(valid_range);
-            } except ValueError {
-                return None;
-            }
-            decl_location = lspt.Location(uri=decl_uri, range=decl_range);
-            return decl_location;
-        } else {
+        def make_location(node_: uni.UniNode, is_module: bool=False) -> lspt.Location{
+            mod_path = node_.type.file_uri if is_module else node_.loc.mod_path;
+
+            decl_range = utils.create_range(node_.loc) if not is_module else lspt.Range(
+                    start=lspt.Position(line=0, character=0),
+                    end=lspt.Position(line=0, character=0)
+                );
+            return lspt.Location(
+                    uri=uris.from_fs_path(str(mod_path)),
+                    range=decl_range
+                );
+        }
+
+        node_selected = self.get_token_at_position(file_path, position);
+        if not node_selected {
             return None;
         }
+
+        node_type = node_selected.type;
+
+        ####################################################################
+        ##          Handle go to def for types and variables               ##
+        ####################################################################
+        if node_type{
+            if isinstance(node_type, ModuleType) {
+                return make_location(node_selected, is_module=True);
+            }
+            elif isinstance(node_type, ClassType) {
+                return make_location(node_selected.sym.decl);
+            }
+            elif isinstance(node_type, FunctionType) {
+                return make_location(node_selected.sym.decl);
+            }
+        }
+
+        ####################################################################
+        ##         Ad-hoc handling for impl-def go to def                 ##
+        ####################################################################
+        parent = node_selected.parent;
+        if not parent {
+            return None;
+        }
+        if isinstance(parent, uni.ImplDef) and parent.decl_link {
+            return make_location(parent.decl_link.sym.decl);
+        }
+        if isinstance(parent, uni.AstImplNeedingNode) and parent.body {
+            return make_location(parent.body.sym.decl);
+        }
+        if not node_selected or not node_selected.type {
+            return None;
+        }
+        return None;
     }
 
     """Return references for a file."""
