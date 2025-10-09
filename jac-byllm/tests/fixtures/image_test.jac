@@ -1,5 +1,5 @@
 
-import from byllm { Model, Image }
+import from byllm.lib { Model, Image }
 import os;
 
 glob llm = Model(

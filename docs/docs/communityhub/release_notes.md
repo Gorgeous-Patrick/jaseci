@@ -5,6 +5,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jaclang 0.8.10 / jac-cloud 0.2.10 / byllm 0.4.5 (Unreleased)
 
+- **byLLM Lazy Loading**: Refactored byLLM to support lazy loading by moving all exports to `byllm.lib` module. Users should now import from `byllm.lib` in Python (e.g., `from byllm.lib import Model, by`) and use `import from byllm.lib { Model }` in Jac code. This improves startup performance and reduces unnecessary module loading.
+
 ## jaclang 0.8.9 / jac-cloud 0.2.9 / byllm 0.4.4 (Latest Release)
 
 - **Typed Context Blocks (OSP)**: Fully implemented typed context blocks (`-> NodeType { }` and `-> WalkerType { }`) for Object-Spatial Programming, enabling conditional code execution based on runtime types.

@@ -1,4 +1,4 @@
-import from byllm {Model, Image}
+import from byllm.lib {Model, Image}
 import os;
 
 'Personality of the Person'

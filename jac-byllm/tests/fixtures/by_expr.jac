@@ -1,4 +1,4 @@
-import from byllm { Model, MockToolCall }
+import from byllm.lib { Model, MockToolCall }
 
 
 """Run Python code and return the output, if any error exists, return the error message."""

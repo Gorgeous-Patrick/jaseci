@@ -1,5 +1,5 @@
 
-import from byllm { Model, MockToolCall }
+import from byllm.lib { Model, MockToolCall }
 
 node Calculator {
     def add(num1: int, num2: int) -> int {

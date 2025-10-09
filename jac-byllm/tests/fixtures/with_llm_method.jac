@@ -1,4 +1,4 @@
-import from byllm { Model }
+import from byllm.lib { Model }
 
 class PersonalityIndex {
     has index: int;

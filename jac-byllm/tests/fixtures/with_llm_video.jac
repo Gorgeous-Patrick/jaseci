@@ -1,4 +1,4 @@
-import from byllm { Model, Video }
+import from byllm.lib { Model, Video }
 import os;
 
 

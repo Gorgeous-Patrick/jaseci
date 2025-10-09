@@ -114,7 +114,7 @@ We’ll connect to an LLM (GPT-4o here) and define AI-powered methods for genera
 At the top of `level_manager.jac`, import the model:
 
 ```jac
-import from byllm { Model }
+import from byllm.lib { Model }
 
 glob llm = Model(model_name="gpt-4o", verbose=True);
 ```

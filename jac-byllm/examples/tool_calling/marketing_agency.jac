@@ -1,4 +1,4 @@
-import from byllm { Model }
+import from byllm.lib { Model }
 
 # Note that these tools are not available in byllm package and
 # Should be defined by the user him/herself.

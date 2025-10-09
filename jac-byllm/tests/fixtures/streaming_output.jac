@@ -1,5 +1,5 @@
 
-import from byllm { Model }
+import from byllm.lib { Model }
 
 glob llm = Model(
     model_name="mockllm",
