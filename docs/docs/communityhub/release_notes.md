@@ -3,9 +3,9 @@
 This document provides a summary of new features, improvements, and bug fixes in each version of Jac and Jaseci. For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](./breaking_changes.md) page.
 
 
-## jaclang 0.8.10 / jac-cloud 0.2.9 / byllm 0.4.5 (Unreleased)
+## jaclang 0.8.10 / jac-cloud 0.2.10 / byllm 0.4.5 (Unreleased)
 
-## jaclang 0.8.9 / jac-cloud 0.2.8 / byllm 0.4.4 (Latest Release)
+## jaclang 0.8.9 / jac-cloud 0.2.9 / byllm 0.4.4 (Latest Release)
 
 - **Typed Context Blocks (OSP)**: Fully implemented typed context blocks (`-> NodeType { }` and `-> WalkerType { }`) for Object-Spatial Programming, enabling conditional code execution based on runtime types.
 - **Parser Infinite Loop Fix**: Fixed a major parser bug that caused infinite recursion when encountering malformed tuple assignments (e.g., `with entry { a, b = 1, 2; }`), preventing the parser from hanging.
@@ -17,6 +17,12 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Clean generator expression within function calls**: Enhanced the grammar to support generator expressions without braces in a function call. And python to jac conversion will also make it clean.
 - **Support attribute pattern in Match Case**: With the latest bug fix, attribute pattern in match case is supported. Therefore developers use match case pattern like `case a.b.c`.
 - **Py2Jac Empty File Support**: Added support for converting empty Python files to Jac code, ensuring the Py2Jac handles files with no content.
+- **Formatter Enhancements**: Improved the Jac code formatter with several fixes and enhancements, including:
+  - Corrected indentation issues in nested blocks and after comments
+  - Removed extra spaces in statements like `assert`
+  - Preserved docstrings without unintended modifications
+  - Enhanced handling of long expressions and line breaks for better readability
+- **VSCE Improvements**: Improved environment management and autocompletion in the Jac VS Code extension, enhancing developer experience and productivity.
 
 ## jaclang 0.8.8 / jac-cloud 0.2.8 / byllm 0.4.3
 
