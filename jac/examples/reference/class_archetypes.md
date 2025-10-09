@@ -18,14 +18,14 @@ The fundamental distinction between `class` and `obj` is their variable semantic
 - **`obj`**: Uses Python dataclass semantics where all `has` variables automatically become **instance variables** with each instance having its own copy. **Methods have implicit `self`** - it doesn't appear in the parameter list.
 
 This difference is critical when choosing between `class` and `obj`:
-- Use **`class`** when you need class variables (shared state), Python-style explicit `self`, and traditional class behavior
-- Use **`obj`** when you need guaranteed instance variables, implicit `self`, or compatibility with spatial archetypes (`node`, `edge`, `walker` also use implicit `self`)
+- **`class`** is appropriate when class variables (shared state), Python-style explicit `self`, and traditional class behavior are required
+- **`obj`** is appropriate when guaranteed instance variables, implicit `self`, or compatibility with spatial archetypes is required (`node`, `edge`, `walker` also use implicit `self`)
 
 **Basic Archetype Declaration:**
 
-Lines 3-13 demonstrate a `class` archetype with custom `init` constructor (Python-style with explicit `self`). **Note: There are no `has` declarations** - the `init` method (lines 6-10) creates instance variables directly by assigning to `self.species`, `self.age`, and `self.name`. This shows that in `class` archetypes with custom `init`, you can create instance variables without pre-declaring them with `has`. **All methods including `init` require explicit `self` with type annotation** (e.g., `self: ClassicAnimal`). The `describe` method (line 12) also has the explicit `self: ClassicAnimal` parameter.
+Lines 3-13 demonstrate a `class` archetype with custom `init` constructor (Python-style with explicit `self`). **Note: There are no `has` declarations** - the `init` method (lines 6-10) creates instance variables directly by assigning to `self.species`, `self.age`, and `self.name`. This demonstrates that in `class` archetypes with custom `init`, instance variables can be created without pre-declaring them with `has`. **All methods including `init` require explicit `self` with type annotation** (e.g., `self: ClassicAnimal`). The `describe` method (line 12) also has the explicit `self: ClassicAnimal` parameter.
 
-Lines 15-20 show an `obj` archetype with `has` declarations and implicit `self`. The `has` keyword declares attributes with type annotations and default values. **In `obj` archetypes, all `has` variables are instance variables** - each instance gets its own copy (as demonstrated in lines 176-186). Methods like `make_sound` (line 19) have **implicit `self`** - it doesn't appear in the parameter list but can be used in the method body.
+Lines 15-20 show an `obj` archetype with `has` declarations and implicit `self`. The `has` keyword declares attributes with type annotations and default values. **In `obj` archetypes, all `has` variables are instance variables** - each instance gets its own copy (as demonstrated in lines 176-186). Methods like `make_sound` (line 19) have **implicit `self`** - it does not appear in the parameter list but can be used in the method body.
 
 Lines 22-32 demonstrate another `obj` archetype (`Domesticated`), which also uses implicit `self` in methods. All `has` variables in `obj` are instance variables, making each object's attributes independent. Objects can be inherited by nodes for hybrid OOP/spatial designs.
 

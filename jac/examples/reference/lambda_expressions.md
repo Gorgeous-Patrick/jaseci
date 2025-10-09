@@ -1,8 +1,8 @@
-Lambda expressions in Jac create anonymous functions with a concise syntax, perfect for short function definitions that you need to use inline or pass as arguments.
+Lambda expressions in Jac create anonymous functions with a concise syntax, suitable for short function definitions used inline or passed as arguments.
 
 **What are Lambda Expressions?**
 
-Lambda expressions are a way to create small, unnamed functions without using the full `def` syntax. They're ideal for simple operations that you only need once, like transforming data in a map or filter operation.
+Lambda expressions are a way to create small, unnamed functions without using the full `def` syntax. They are ideal for simple operations that are used once, such as transforming data in a map or filter operation.
 
 **Basic Lambda Syntax**
 
@@ -28,11 +28,11 @@ Lines 9-10 demonstrate the simplest form of lambda: one that takes no parameters
 
 **Lambda Without Return Type Hints**
 
-Lines 13-14 show that type hints are optional. You can write `lambda x: int, y: int : x * y` without specifying the return type. Jac will infer the return type from the expression.
+Lines 13-14 show that type hints are optional. A lambda can be written as `lambda x: int, y: int : x * y` without specifying the return type. Jac will infer the return type from the expression.
 
 **Lambda with Only Return Type**
 
-Lines 17-18 demonstrate specifying just the return type without parameters: `lambda -> int : 100`. This is useful when you want to document what the lambda returns even though it takes no inputs.
+Lines 17-18 demonstrate specifying just the return type without parameters: `lambda -> int : 100`. This enables documentation of the lambda's return value even when it takes no inputs.
 
 **Default Parameter Values**
 
@@ -90,13 +90,13 @@ For complex logic requiring multiple statements or control flow, use regular `de
 
 **When to Use Lambdas**
 
-Use lambdas when you need:
+Lambdas are appropriate for:
 - Simple, one-line operations
 - Inline function definitions for `map`, `filter`, `sorted`, etc.
 - Callback functions that are used only once
 - Closures with simple logic
 
-Use regular functions when you need:
+Regular functions are appropriate for:
 - Multiple statements or complex logic
 - Better documentation with docstrings
 - Reusable code that appears in multiple places

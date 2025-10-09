@@ -63,7 +63,7 @@ The `wait` keyword blocks until a task completes and returns its result:
 Line 27: `result1 = wait task1`
 - Pauses execution until `task1` finishes
 - Returns the function's return value (15)
-- If task already finished, returns immediately
+- If the task has already finished, returns immediately
 
 Line 28: `result2 = wait task2`
 - Waits for second task (returns 10)
@@ -88,7 +88,7 @@ The example includes two functions to demonstrate concurrency:
 
 **Concurrency Model**
 
-Under the hood, Jac's `flow`/`wait` uses Python's `ThreadPoolExecutor`:
+Internally, Jac's `flow`/`wait` uses Python's `ThreadPoolExecutor`:
 - `flow` submits the callable to a thread pool and returns a Future-like object
 - `wait` calls the future's `.result()` method to retrieve the value
 - Thread pool is shared across the program

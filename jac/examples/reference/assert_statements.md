@@ -1,4 +1,4 @@
-Assert statements validate conditions at runtime, making your code fail fast when assumptions are violated. They're essential for debugging and testing.
+Assert statements validate conditions at runtime, ensuring code fails quickly when assumptions are violated. They are essential for debugging and testing.
 
 **Basic Assert Syntax**
 
@@ -10,7 +10,7 @@ Lines 9-11 demonstrate using expressions in assertions. After setting `x = 10`, 
 
 **Assertions with Custom Messages**
 
-Line 14 shows how to add a descriptive error message to your assertion. The message after the comma appears when the assertion fails, making it easier to understand what went wrong. This is particularly helpful when debugging complex conditions.
+Line 14 shows how to add a descriptive error message to the assertion. The message after the comma appears when the assertion fails, facilitating error diagnosis. This is particularly helpful when debugging complex conditions.
 
 **Handling Assertion Failures**
 
@@ -25,7 +25,7 @@ When `assert False` on line 19 executes, it raises an AssertionError. The except
 
 **Capturing Error Messages**
 
-Lines 25-29 show how to access the error message from a failed assertion. The `as e` clause captures the exception object, allowing you to print or log the custom message. This is useful for creating informative error reports.
+Lines 25-29 show how to access the error message from a failed assertion. The `as e` clause captures the exception object, enabling printing or logging of the custom message. This is useful for creating informative error reports.
 
 **Assertions with Function Calls**
 
@@ -64,6 +64,6 @@ Assertions are perfect for:
 Unlike regular exceptions, assertions should be used for:
 - Debugging during development
 - Catching programming errors (not user errors)
-- Validating assumptions in your code
+- Validating assumptions in code
 
 For user input validation or expected runtime errors, use regular if statements and raise proper exceptions instead.

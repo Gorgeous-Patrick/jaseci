@@ -1,4 +1,4 @@
-Assignment statements bind values to variables, providing the foundation for storing and manipulating data in your programs.
+Assignment statements bind values to variables, providing the foundation for storing and manipulating data in programs.
 
 **Simple Assignment**
 
@@ -10,7 +10,7 @@ Line 9 demonstrates chaining assignments to give multiple variables the same val
 
 **The let Keyword**
 
-Lines 13-14 introduce the `let` keyword for explicit variable declaration. While `let` is optional, it makes your intent clear - you're creating a new variable. This improves code readability, especially in complex scopes.
+Lines 13-14 introduce the `let` keyword for explicit variable declaration. While `let` is optional, it makes the intent clear by explicitly creating a new variable. This improves code readability, especially in complex scopes.
 
 **Type Annotations**
 
@@ -66,7 +66,7 @@ Lines 42-48 demonstrate bitwise augmented assignments:
 
 **Tuple Unpacking**
 
-Lines 51-52 show unpacking a tuple into multiple variables. The tuple `(10, 20)` on the right is unpacked, assigning 10 to x and 20 to y in a single statement. This is much cleaner than two separate assignments.
+Lines 51-52 show unpacking a tuple into multiple variables. The tuple `(10, 20)` on the right is unpacked, assigning 10 to x and 20 to y in a single statement. This provides more concise syntax than two separate assignments.
 
 **The Swap Pattern**
 

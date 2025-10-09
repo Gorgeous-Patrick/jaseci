@@ -2,7 +2,7 @@ Pipe expressions use the `|>` operator to pass values into functions from left t
 
 **What is the Forward Pipe Operator?**
 
-The forward pipe operator `|>` takes a value on its left and passes it to a function on its right. Think of it as making data flow visible:
+The forward pipe operator `|>` takes a value on its left and passes it to a function on its right. This operator makes data flow explicit:
 
 - Traditional: `square(5)` - function wraps the value
 - Forward pipe: `5 |> square` - value flows into function
@@ -62,10 +62,10 @@ Each operation feeds its result to the next, creating a clean left-to-right flow
 Compare the readability:
 
 **Traditional (nested calls)**:
-Reads inside-out (confusing): "square of double of add_ten of 3"
+Evaluates inside-out (less intuitive): "square of double of add_ten of 3"
 
 **Forward pipe (chained)**:
-Reads left-to-right (natural): "3, add ten, double, square"
+Evaluates left-to-right (more intuitive): "3, add ten, double, square"
 
 The piped version eliminates nested parentheses and makes the data flow explicit.
 

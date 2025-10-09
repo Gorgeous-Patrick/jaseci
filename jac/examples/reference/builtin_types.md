@@ -1,4 +1,4 @@
-Jac provides a rich set of built-in types for representing different kinds of data, with optional type annotations to make your code clearer and safer.
+Jac provides a rich set of built-in types for representing different kinds of data, with optional type annotations to enhance code clarity and type safety.
 
 **String Type**
 
@@ -65,7 +65,7 @@ graph TD
 
 **Boolean Type**
 
-Lines 33-34 show the boolean type `bool`. Booleans have exactly two values: `True` and `False`. They're used for conditions, flags, and logic. Note the capitalization - these are keywords.
+Lines 33-34 show the boolean type `bool`. Booleans have exactly two values: `True` and `False`. They are used for conditions, flags, and logic. Note the capitalization - these are keywords.
 
 **Bytes Type**
 
@@ -83,7 +83,7 @@ Lines 41-44 introduce the `any` type. The `any` type accepts values of any type.
 
 **Type Type**
 
-Lines 47-48 show the `type` type. The `type` type holds type objects themselves. This allows you to:
+Lines 47-48 show the `type` type. The `type` type holds type objects themselves. This enables:
 - Store types in variables
 - Pass types as arguments
 - Create instances dynamically
@@ -117,7 +117,7 @@ Type annotations provide:
 
 **Optional vs Required**
 
-Type annotations in Jac are **optional** - code works without them. However, they're strongly recommended for:
+Type annotations in Jac are **optional** - code works without them. However, they are strongly recommended for:
 - Public APIs and functions
 - Complex data structures
 - Long-lived codebases

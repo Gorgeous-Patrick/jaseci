@@ -4,7 +4,7 @@ Atoms are the fundamental building blocks of expressions - the smallest, indivis
 
 Line 7 shows a basic string literal: `s = "string";`. Strings are sequences of characters enclosed in double quotes.
 
-Lines 42-43 demonstrate multistring concatenation. When you place string literals next to each other, Jac automatically concatenates them into a single string "Hello World". This is useful for splitting long strings across multiple lines in your code.
+Lines 42-43 demonstrate multistring concatenation. When string literals are placed adjacent to each other, Jac automatically concatenates them into a single string "Hello World". This is useful for splitting long strings across multiple lines.
 
 **F-Strings (Formatted Strings)**
 
@@ -12,11 +12,11 @@ Lines 45-46 introduce f-strings for embedding expressions within strings. The `f
 
 **Boolean Literals**
 
-Lines 8-9 show the two boolean values. These represent truth values. Note they're capitalized - `True` and `False` are keywords.
+Lines 8-9 show the two boolean values. These represent truth values. Note they are capitalized - `True` and `False` are keywords.
 
 **None Literal**
 
-Line 10 introduces the None literal. None represents the absence of a value, similar to null in other languages. It's commonly used as a default value or to indicate "no result".
+Line 10 introduces the None literal. None represents the absence of a value, similar to null in other languages. It is commonly used as a default value or to indicate "no result".
 
 **Integer Formats**
 
@@ -61,11 +61,11 @@ Line 26 demonstrates using parentheses to group expressions. Parentheses control
 
 **Named References**
 
-Line 29 shows a simple variable reference. Once a variable has a value, you can use its name to reference that value in expressions.
+Line 29 shows a simple variable reference. Once a variable has a value, its name can be used to reference that value in expressions.
 
 **Type Objects as Values**
 
-Lines 32-33 demonstrate that types themselves can be values. This assigns the type objects for strings and integers to variables. You can use these to create instances or check types at runtime.
+Lines 32-33 demonstrate that types themselves can be values. This assigns the type objects for strings and integers to variables. These can be used to create instances or check types at runtime.
 
 **Collection Literals**
 
@@ -78,7 +78,7 @@ Lines 36-39 show the four main collection types:
 | Dictionary | `{"k": "v"}` | 38 | Mutable key-value mapping |
 | Set | `{1, 2, 3}` | 39 | Mutable, unordered unique values |
 
-Tuples use parentheses and can't be changed after creation. Lists use square brackets and can be modified. Dictionaries use curly braces with `key: value` pairs. Sets use curly braces with just values (no duplicates allowed).
+Tuples use parentheses and cannot be changed after creation. Lists use square brackets and can be modified. Dictionaries use curly braces with `key: value` pairs. Sets use curly braces with just values (no duplicates allowed).
 
 **Enum Member Access**
 
@@ -100,4 +100,4 @@ graph TD
     C --> K[Enum members: NumEnum.aa]
 ```
 
-Atoms are the foundation of all expressions. You combine them with operators and function calls to build more complex computations, but every expression ultimately breaks down into these atomic pieces.
+Atoms are the foundation of all expressions. These are combined with operators and function calls to build more complex computations, but every expression ultimately breaks down into these atomic pieces.

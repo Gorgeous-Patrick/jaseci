@@ -2,7 +2,7 @@ Arithmetic expressions in Jac enable mathematical calculations using standard op
 
 **Basic Arithmetic Operations**
 
-Jac supports fundamental arithmetic operations that work just like traditional mathematics:
+Jac supports fundamental arithmetic operations that follow standard mathematical conventions:
 
 | Operator | Operation | Example Lines | Description |
 |----------|-----------|---------------|-------------|
@@ -16,7 +16,7 @@ Jac supports fundamental arithmetic operations that work just like traditional m
 
 Lines 5-6 show addition and subtraction: `10 + 5` produces 15, while `10 - 5` produces 5.
 
-Lines 9-12 demonstrate multiplication and division operations. Notice that regular division `/` on line 10 produces a float result (2.0), while floor division `//` on line 11 produces an integer (3). The modulo operator `%` on line 12 gives the remainder when dividing 10 by 3, which is 1.
+Lines 9-12 demonstrate multiplication and division operations. Note that regular division `/` on line 10 produces a float result (2.0), while floor division `//` on line 11 produces an integer (3). The modulo operator `%` on line 12 gives the remainder when dividing 10 by 3, which is 1.
 
 **Exponentiation and Power Operations**
 

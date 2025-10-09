@@ -18,9 +18,9 @@ Special references are keywords that Jac makes available automatically in certai
 
 Lines 4-11 demonstrate `self` in an object. Line 8 shows `self.count += 1`, which accesses the instance's `count` attribute. Line 9 uses `self.count` to print the current value.
 
-When you create an instance (line 79) and call its methods (lines 80-81), `self` refers to that specific instance. Each instance has its own `self` that refers to itself.
+When an instance is created (line 79) and its methods are called (lines 80-81), `self` refers to that specific instance. Each instance has its own `self` that refers to itself.
 
-Think of `self` as the answer to "who am I?" - it always points to the current instance, whether that's an object, a walker, or a node.
+The `self` reference always references the current instance, whether that is an object, a walker, or a node.
 
 **super - The Parent Reference**
 
@@ -38,7 +38,7 @@ When `d.speak()` executes on line 85:
 1. Line 22: `super.speak()` calls Animal's speak (line 15-16)
 2. Line 23: Dog adds its own behavior
 
-This allows you to extend parent behavior without replacing it entirely.
+This enables extension of parent behavior without replacing it entirely.
 
 **here - The Current Node Reference**
 
@@ -63,7 +63,7 @@ graph LR
     Note3[here = Task2]
 ```
 
-Think of `here` as "where am I right now?" - it automatically updates as the walker moves through the graph.
+The `here` reference automatically updates to indicate the walker's current location as it moves through the graph.
 
 **visitor - The Walker Reference (in Node Abilities)**
 
@@ -114,7 +114,7 @@ The initialization flow:
 2. `init` method executes (lines 67-69), setting `self.value`
 3. `postinit` method executes (lines 72-73), computing derived values
 
-This two-phase initialization lets you:
+This two-phase initialization enables:
 - `init`: Set up basic attributes with parameters
 - `postinit`: Compute derived values that depend on those attributes
 

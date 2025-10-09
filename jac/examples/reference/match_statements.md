@@ -4,7 +4,7 @@ Match statements provide a powerful pattern matching construct for handling diff
 
 **What is Pattern Matching?**
 
-Pattern matching allows you to compare a value against different patterns and execute code based on which pattern matches. Think of it like a more powerful switch statement that can destructure data, match complex structures, and apply conditions.
+Pattern matching compares a value against different patterns and executes code based on which pattern matches. This construct resembles an enhanced switch statement that can destructure data, match complex structures, and apply conditions.
 
 **Basic Match Structure**
 
@@ -388,4 +388,4 @@ match point {
 }
 ```
 
-If you reversed the order, the general pattern would always match first, and the specific cases would never execute.
+If the order were reversed, the general pattern would always match first, and the specific cases would never execute.

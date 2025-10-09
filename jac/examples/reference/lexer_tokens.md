@@ -2,7 +2,7 @@ Builtin type keywords are special tokens in Jac that represent fundamental data 
 
 **What are Builtin Type Keywords?**
 
-When you write code in Jac, the lexer (the part of the compiler that reads your code) recognizes certain words as special type keywords. These keywords represent the basic building blocks of data in your programs.
+When code is written in Jac, the lexer (the compiler component that reads source code) recognizes certain words as special type keywords. These keywords represent the basic building blocks of data in programs.
 
 **The Eight Builtin Type Keywords**
 
@@ -30,7 +30,7 @@ For example, line 7 shows `x: str = "string"`, which means:
 
 **How the Lexer Treats These Keywords**
 
-Lines 17-18 explain an important detail: these keywords are "tokenized specially" by the lexer. This means the lexer gives them special treatment so they can serve two purposes:
+Lines 17-18 explain an important detail: these keywords are "tokenized specially" by the lexer. This means the lexer applies special handling so they can serve two purposes:
 
 ```mermaid
 graph TD
@@ -42,7 +42,7 @@ graph TD
 
 **Purpose 1: Type Annotations**
 
-Type annotations provide compile-time type information. They tell Jac (and developers reading the code) what type of data a variable should hold:
+Type annotations provide compile-time type information. They indicate to Jac and code readers what type of data a variable should hold:
 
 | Declaration | What It Means |
 |-------------|---------------|
@@ -52,7 +52,7 @@ Type annotations provide compile-time type information. They tell Jac (and devel
 
 **Purpose 2: Runtime Type Objects**
 
-The same keywords can also be used at runtime as type objects. For example, you can use them with `type()` checks, type conversions, or as values in your code.
+The same keywords can also be used at runtime as type objects. They can be used with `type()` checks, type conversions, or as values in code.
 
 **Where These Keywords Appear**
 
@@ -69,7 +69,7 @@ These builtin type keywords can be used in several contexts:
 
 Line 16 prints all the variables, demonstrating that:
 - Each variable holds a value of its declared type
-- The type annotations don't prevent the code from running
+- The type annotations do not prevent the code from running
 - All the builtin types work together in a single program
 
 **Related Information**
