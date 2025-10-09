@@ -2,8 +2,8 @@
 name = "jaclang"
 version = "0.8.9"
 description = "Jac is a unique and powerful programming language that runs on top of Python, offering an unprecedented level of intelligence and intuitive understanding."
-authors = ["Jason Mars <jason@jaseci.org>"]
-maintainers = ["Jason Mars <jason@jaseci.org>"]
+authors = ["Jason Mars <jason@mars.ninja>"]
+maintainers = ["Jason Mars <jason@mars.ninja>"]
 license = "MIT"
 readme = "README.md"
 keywords = [

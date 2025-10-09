@@ -19,7 +19,7 @@ dependencies = [
     "watchdog"
 ]
 authors = [
-    { name = "Jason Mars", email = "jason@jaseci.org" }
+    { name = "Jason Mars", email = "jason@mars.ninja" }
 ]
 readme = "README.md"
 license = { text = "MIT" }
