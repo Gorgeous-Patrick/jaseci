@@ -2,32 +2,32 @@
 
 ## **Introduction**
 
-Every Jac program can be expressed as pure Python code using Jac's library mode. This means you get **100% of Jac's object-spatial programming capabilities** in regular Python syntax—no new language to learn, just powerful libraries to import.
+Jac provides a library mode that enables developers to express all Jac language features as standard Python code. This mode provides complete access to Jac's object-spatial programming capabilities through the `jaclang.lib` package, allowing developers to work entirely within Python syntax.
 
-Library mode is perfect for:
+Library mode is designed for:
 
-- **Python-first teams** wanting to adopt Jac gradually
-- **Existing Python codebases** that need graph-based features
-- **Understanding Jac's internals** by seeing the Python equivalent
-- **Maximum interoperability** with Python tools and frameworks
+- **Python-first teams** wanting to adopt Jac's graph-native and AI capabilities without learning new syntax
+- **Existing Python codebases** that need data-spatial architectures and AI integration with zero migration friction
+- **Understanding Jac's architecture** by exploring how its transpilation to Python works under the hood
+- **Enterprise and corporate environments** where introducing standard Python libraries is more acceptable than adopting new language syntax
 
-### **Turn any Jac code example you see to Pure Python**
+### **Converting Jac Code to Pure Python**
 
-When you run `jac jac2lib myfile.jac`, Jac generates clean Python code that:
+The `jac jac2lib` command transpiles Jac source files into equivalent Python code. The generated output:
 
-1. Imports from `jaclang.lib` instead of using aliased imports
-2. Uses direct function calls like `spawn()` and `visit()` instead of `_jl.spawn()`
-3. Produces readable, maintainable code suitable for library distribution
+1. Provides clean, ergonomic imports from `jaclang.lib` with full IDE autocomplete support
+2. Generates idiomatic Python code with proper type hints and docstrings
+3. Ensures full compatibility with Python tooling, linters, formatters, and static analyzers
 
 ---
 
 ## **The Friends Network Example**
 
-Let's walk through a complete example that demonstrates Jac's object-spatial programming in library mode.
+This section demonstrates Jac's object-spatial programming model through a complete example implementation in library mode.
 
 ### **The Jac Code**
 
-Here's a social network graph with people connected by friendship and family relationships:
+The following example implements a social network graph with person nodes connected by friendship and family relationship edges:
 
 ```jac
 node Person {
@@ -187,9 +187,7 @@ class Friend(Edge):
     pass
 ```
 
-- Inherit from `Node` for graph nodes
-- Inherit from `Edge` for relationships between nodes
-- Use Python's class attributes for data fields
+Graph nodes are implemented by inheriting from the `Node` base class, while relationships between nodes inherit from the `Edge` base class. Data fields are defined using standard Python class attributes with type annotations.
 
 ### **2. Walkers**
 
@@ -209,8 +207,7 @@ class FriendFinder(Walker):
     started: bool = False
 ```
 
-- Inherit from `Walker` for graph traversal agents
-- Walkers move through the graph and execute logic at each node
+Walkers are graph traversal agents implemented by inheriting from the `Walker` base class. Walkers navigate through the graph structure and execute logic at each visited node or edge.
 
 ### **3. Abilities (Event Handlers)**
 
@@ -231,10 +228,7 @@ def report_friend(self, here: Person) -> None:
     print(f"{here.name} is a friend")
 ```
 
-- Use `@on_entry` decorator for entry abilities
-- Use `@on_exit` decorator for exit abilities
-- The `here` parameter represents the current node
-- The `visitor` parameter (in node/edge abilities) represents the walker
+Abilities define event handlers that execute when a walker interacts with nodes or edges. The `@on_entry` decorator marks methods that execute when a walker enters a node or edge, while `@on_exit` marks exit handlers. The `here` parameter represents the current node or edge being visited, and the `visitor` parameter (in node/edge abilities) represents the traversing walker.
 
 ### **4. Connecting Nodes**
 
@@ -254,9 +248,7 @@ connect(left=p1, right=p2, edge=Friend)
 connect(left=p2, right=[p1, p3], edge=Family)
 ```
 
-- `connect()` creates directed edges between nodes
-- `edge` parameter specifies the edge type
-- Can connect to single nodes or lists of nodes
+The `connect()` function creates directed edges between nodes. The `edge` parameter specifies the edge type class, defaulting to a generic edge if omitted. The function supports connecting a single source node to either a single target node or a list of target nodes.
 
 ### **5. Spawning Walkers**
 
@@ -272,9 +264,7 @@ from jaclang.lib import spawn, root
 result = spawn(FriendFinder(), root())
 ```
 
-- `spawn()` starts a walker at a specific node
-- `root()` returns the root node of the graph
-- Returns the walker after traversal completes
+The `spawn()` function initiates a walker at a specified node and begins traversal. The `root()` function returns the root node of the current graph. The `spawn()` function returns the walker instance after traversal completion.
 
 ### **6. Visiting Nodes**
 
@@ -294,332 +284,7 @@ visit(
 )
 ```
 
-- `Path()` creates a traversal path from a node
-- `edge_out()` specifies outgoing edges
-- `edge()` filters to edges only (not nodes)
-- `visit()` marks the path for walker to follow
-- `refs()` converts path to node references
-
----
-
-## **Common Patterns**
-
-### **Pattern 1: Simple Graph Traversal**
-
-```python
-from jaclang.lib import Node, Walker, spawn, visit, refs, Path, root, connect, on_entry
-
-
-class Item(Node):
-    value: int = 0
-
-
-class Traverser(Walker):
-    @on_entry
-    def process(self, here: Item) -> None:
-        print(f"Processing item: {here.value}")
-        visit(self, refs(Path(here).edge_out().visit()))
-
-
-# Build graph
-items = [Item(value=i) for i in range(5)]
-for i in range(len(items) - 1):
-    connect(left=items[i], right=items[i + 1])
-connect(left=root(), right=items[0])
-
-# Traverse
-spawn(Traverser(), root())
-```
-
-### **Pattern 2: Filtered Edge Traversal**
-
-```python
-from jaclang.lib import Node, Edge, Walker, spawn, visit, refs, Path, on_entry
-
-
-class Person(Node):
-    name: str
-
-
-class Friend(Edge):
-    pass
-
-
-class Colleague(Edge):
-    pass
-
-
-class FriendFinder(Walker):
-    @on_entry
-    def find_friends(self, here: Person) -> None:
-        # Only traverse Friend edges
-        visit(
-            self,
-            refs(Path(here).edge_out(edge=lambda e: isinstance(e, Friend)).visit()),
-        )
-```
-
-### **Pattern 3: Bidirectional Traversal**
-
-```python
-from jaclang.lib import Path, visit, refs
-
-# Visit incoming edges
-visit(self, refs(Path(here).edge_in().visit()))
-
-# Visit both incoming and outgoing
-visit(self, refs(Path(here).edge_any().visit()))
-```
-
-### **Pattern 4: Node Type Filtering**
-
-```python
-# Visit only Person nodes
-visit(self, refs(Path(here).edge_out(node=lambda n: isinstance(n, Person)).visit()))
-
-# Visit only edges, not nodes
-visit(self, refs(Path(here).edge_out().edge().visit()))
-```
-
-### **Pattern 5: Filtering Archetype Lists**
-
-```python
-from jaclang.lib import filter_on, Node
-
-class Task(Node):
-    priority: int
-    completed: bool
-
-# Get all high priority incomplete tasks
-tasks = [Task(priority=i, completed=i % 2 == 0) for i in range(10)]
-high_priority = filter_on(tasks, lambda t: t.priority > 5 and not t.completed)
-```
-
-### **Pattern 6: Batch Attribute Assignment**
-
-```python
-from jaclang.lib import assign_all, Node
-
-class Item(Node):
-    status: str = ""
-    version: int = 0
-
-items = [Item() for _ in range(5)]
-# Assign status and version to all items at once
-assign_all(items, (("status", "version"), ("active", 2)))
-```
-
-### **Pattern 7: Working with Multiple Roots**
-
-```python
-from jaclang.lib import root, get_all_root, allow_root, elevate_root
-
-# Get current root
-current = root()
-
-# Get all roots in the system
-all_roots = get_all_root()
-
-# Grant access from one root to another
-allow_root(my_node, all_roots[0].__jac__.id, "READ")
-
-# Elevate to system root for admin operations
-elevate_root()
-```
-
-### **Pattern 8: Dynamic Archetype Creation**
-
-```python
-from jaclang.lib import create_archetype_from_source, get_archetype
-
-# Create archetypes from Jac source code at runtime
-source = """
-node DataPoint {
-    has x: float;
-    has y: float;
-}
-"""
-
-module = create_archetype_from_source(source, module_name="dynamic_nodes")
-DataPoint = get_archetype("dynamic_nodes", "DataPoint")
-point = DataPoint(x=1.0, y=2.0)
-```
-
-### **Pattern 9: Persistence and Graph Management**
-
-```python
-from jaclang.lib import save, object_ref, get_object, commit, reset_graph
-
-# Save a node to make it persistent
-person = Person(name="Alice")
-save(person)
-
-# Get its ID for later retrieval
-person_id = object_ref(person)
-
-# Retrieve it later
-retrieved = get_object(person_id)
-
-# Commit all changes to datasource
-commit()
-
-# Clear entire graph (careful!)
-deleted_count = reset_graph()
-```
-
-### **Pattern 10: Threading for Parallel Operations**
-
-```python
-from jaclang.lib import thread_run, thread_wait
-
-def expensive_computation(data):
-    # Some heavy processing
-    return sum(data)
-
-# Run in background thread
-future = thread_run(expensive_computation, range(1000000))
-
-# Do other work...
-
-# Wait for result when needed
-result = thread_wait(future)
-```
-
----
-
-## **Advanced Features**
-
-### **Semantic Strings (AI Integration)**
-
-```python
-from jaclang.lib import sem, by
-
-
-# Add semantic metadata to classes
-@sem(
-    "Returns the weather for a given city.",
-    {"city": "Name of the city to get weather for"},
-)
-class Weather(Node):
-    city: str
-    temp: float
-
-
-# Use LLM-powered functions (requires byllm package)
-@by(model)
-def analyze_sentiment(text: str) -> str:
-    """Analyze the sentiment of the given text."""
-    pass  # Implementation generated by LLM
-```
-
-### **Data Persistence & Object Management**
-
-```python
-from jaclang.lib import save, object_ref, get_object, commit, destroy
-
-# Save a node to database
-person = Person(name="Alice")
-save(person)
-
-# Get unique ID (hex string)
-node_id = object_ref(person)
-
-# Retrieve by ID later
-retrieved_person = get_object(node_id)
-
-# Commit changes to datasource
-commit(person)
-
-# Delete archetype from memory
-destroy(person)
-```
-
-### **Fine-Grained Access Control**
-
-```python
-from jaclang.lib import (
-    perm_grant, perm_revoke, allow_root, disallow_root,
-    check_read_access, check_write_access, check_connect_access, elevate_root
-)
-
-# Grant public read access to archetype
-perm_grant(node, "READ")
-
-# Revoke public access
-perm_revoke(node)
-
-# Allow specific root to access this node
-allow_root(node, root_id, "WRITE")
-
-# Disallow specific root access
-disallow_root(node, root_id, "READ")
-
-# Check permissions before operations
-if check_write_access(node.__jac__):
-    node.value = 42
-
-# Elevate to system root for admin operations
-elevate_root()
-```
-
-### **Dynamic Module Loading**
-
-```python
-from jaclang.lib import (
-    jac_import, create_archetype_from_source, get_archetype,
-    spawn_node, spawn_walker, update_walker
-)
-
-# Import Jac module dynamically
-jac_import("my_module", "./path/to/modules")
-
-# Create archetypes from source code at runtime
-source_code = """
-node Task {
-    has description: str;
-    has priority: int = 0;
-}
-"""
-module = create_archetype_from_source(source_code, "dynamic_tasks")
-
-# Get and use the dynamically created archetype
-Task = get_archetype("dynamic_tasks", "Task")
-task = Task(description="Complete documentation", priority=1)
-
-# Spawn node by name string
-node = spawn_node("Task", {"description": "Test", "priority": 5}, "dynamic_tasks")
-
-# Spawn walker by name string
-walker = spawn_walker("TaskProcessor", {}, "__main__")
-
-# Hot-reload walker from module
-update_walker("my_module", {"TaskProcessor": None})
-```
-
-### **Graph Introspection**
-
-```python
-from jaclang.lib import (
-    list_modules, list_nodes, list_walkers, list_edges,
-    get_edges, edges_to_nodes, get_edges_with_node
-)
-
-# List all loaded modules
-modules = list_modules()
-
-# List archetypes in a module
-nodes = list_nodes("my_module")
-walkers = list_walkers("my_module")
-edges = list_edges("my_module")
-
-# Get edges connected to nodes
-from jaclang.lib import ObjectSpatialPath, EdgeDir
-path = ObjectSpatialPath([node], [])
-connected_edges = get_edges([node], path.destinations[0])
-
-# Get both edges and connected nodes
-edges_and_nodes = get_edges_with_node([node], path.destinations[0])
-```
+The `Path()` class constructs traversal paths from a given node. The `edge_out()` method specifies outgoing edges to follow, while `edge_in()` specifies incoming edges. The `edge()` method filters the path to include only edges, excluding destination nodes. The `visit()` method marks the constructed path for the walker to traverse, and `refs()` converts the path into concrete node or edge references.
 
 ---
 
@@ -855,12 +520,12 @@ from jaclang.lib import *
 
 ## **Summary**
 
-Library mode demonstrates that **Jac is Python**—just with powerful abstractions for object-spatial programming. You get:
+Library mode provides a pure Python implementation of Jac's object-spatial programming model through the `jaclang.lib` package. This approach offers several advantages:
 
-- ✅ **100% Feature Parity**: Everything Jac can do, library mode can do
-- ✅ **Clean Python**: No magic, just classes, decorators, and functions
-- ✅ **Full IDE Support**: Type hints, autocomplete, and debugging work perfectly
-- ✅ **Easy Integration**: Drop into any Python project without friction
-- ✅ **Readable Output**: Generated code is maintainable and understandable
+- **Complete Feature Parity**: All Jac language features are accessible through the library interface
+- **Idiomatic Python**: Implementation uses standard Python classes, decorators, and functions without runtime magic
+- **Full Tooling Support**: Generated code includes proper type hints, enabling IDE autocomplete, static analysis, and debugging
+- **Seamless Integration**: The library can be incorporated into existing Python projects without requiring build system modifications
+- **Maintainable Output**: Transpiled code is readable and follows Python best practices
 
-Whether you write `.jac` files or use library mode directly, you're writing Python with superpowers for graph-based, AI-native applications.
+Library mode enables developers to leverage Jac's graph-native and AI-integrated programming model while maintaining full compatibility with the Python ecosystem and development workflow.

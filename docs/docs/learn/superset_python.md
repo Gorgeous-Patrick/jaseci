@@ -506,7 +506,7 @@ project/
         return len(title) > 3
     ```
 
-Pure Python with graph capabilities—no new syntax, but you get Jac's data-spatial model.
+Pure Python with graph capabilities—no new syntax, but you get Jac's object-spatial model.
 
 ---
 
