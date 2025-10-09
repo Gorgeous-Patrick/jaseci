@@ -85,32 +85,27 @@ class ExecutionContext:
         self.mem: Memory = ShelfStorage(session)
         self.reports: list[Any] = []
         self.custom: Any = MISSING
-        if not isinstance(
-            system_root := self.mem.find_by_id(UUID(Con.SUPER_ROOT_UUID)), NodeAnchor
-        ):
-            system_root = cast(NodeAnchor, Root().__jac__)  # type: ignore[attr-defined]
-            system_root.id = UUID(Con.SUPER_ROOT_UUID)
-            self.mem.set(system_root.id, system_root)
+        self.system_root = self.mem.find_by_id(UUID(Con.SUPER_ROOT_UUID))
+        if not isinstance(self.system_root, NodeAnchor):
+            self.system_root = cast(NodeAnchor, Root().__jac__)
+            self.system_root.id = UUID(Con.SUPER_ROOT_UUID)
+            self.mem.set(self.system_root.id, self.system_root)
+        self.entry_node = self.root_state = (
+            self._get_anchor(root) if root else self.system_root
+        )
 
-        self.system_root = system_root
-
-        self.entry_node = self.root_state = self.init_anchor(root, self.system_root)
-
-    def init_anchor(
-        self,
-        anchor_id: str | None,
-        default: NodeAnchor,
-    ) -> NodeAnchor:
-        """Load initial anchors."""
-        if anchor_id:
-            if isinstance(anchor := self.mem.find_by_id(UUID(anchor_id)), NodeAnchor):
-                return anchor
+    def _get_anchor(self, anchor_id: str) -> NodeAnchor:
+        """Get anchor by ID or raise error."""
+        anchor = self.mem.find_by_id(UUID(anchor_id))
+        if not isinstance(anchor, NodeAnchor):
             raise ValueError(f"Invalid anchor id {anchor_id} !")
-        return default
+        return anchor
 
     def set_entry_node(self, entry_node: str | None) -> None:
-        """Override entry."""
-        self.entry_node = self.init_anchor(entry_node, self.root_state)
+        """Override entry node."""
+        self.entry_node = (
+            self._get_anchor(entry_node) if entry_node else self.root_state
+        )
 
     def close(self) -> None:
         """Close current ExecutionContext."""
