@@ -48,6 +48,7 @@ from jaclang.runtimelib.constructs import (
     EdgeArchetype,
     GenericEdge,
     JacTestCheck,
+    MTIR,
     NodeAnchor,
     NodeArchetype,
     Root,
@@ -1310,9 +1311,11 @@ class JacByLLM:
     """Jac byLLM integration."""
 
     @staticmethod
-    def get_mtir(caller: Callable, args: dict, call_params: dict) -> object:
+    def get_mtir(
+        caller: Callable, args: dict[int | str, object], call_params: dict[str, object]
+    ) -> MTIR:
         """Get byLLM library."""
-        return None
+        return MTIR(caller=caller, args=args, call_params=call_params)
 
     @staticmethod
     def sem(semstr: str, inner_semstr: dict[str, str]) -> Callable:
@@ -1326,7 +1329,7 @@ class JacByLLM:
         return decorator
 
     @staticmethod
-    def call_llm(model: object, mtir: object) -> Any:  # noqa: ANN401
+    def call_llm(model: object, mtir: MTIR) -> Any:  # noqa: ANN401
         """Call the LLM model.
 
         Note: This is for future uses of the feature in contexts that cannot be decorated.
