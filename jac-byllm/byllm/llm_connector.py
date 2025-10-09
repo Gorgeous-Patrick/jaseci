@@ -181,7 +181,7 @@ class LiteLLMConnector(LLMConnector):
         message: LiteLLMMessage = response.choices[0].message  # type: ignore
         mtir.add_message(message)
 
-        output_content: str = message.content  # type: ignore
+        output_content: str = message.content or ""  # type: ignore
         self.log_info(f"LLM call completed with response:\n{output_content}")
         output_value = mtir.parse_response(output_content)
 
