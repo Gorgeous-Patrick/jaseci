@@ -10,7 +10,6 @@ from .archetype import (
     EdgeAnchor,
     EdgeArchetype,
     GenericEdge,
-    MTIR,
     NodeAnchor,
     NodeArchetype,
     ObjectSpatialFunction,
@@ -19,6 +18,7 @@ from .archetype import (
     WalkerArchetype,
 )
 from .memory import Memory, ShelfStorage
+from .mtp import MTIR
 from .test import JacTestCheck, JacTestResult, JacTextTestRunner
 
 __all__ = [

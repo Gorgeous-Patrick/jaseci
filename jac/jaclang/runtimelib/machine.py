@@ -48,7 +48,6 @@ from jaclang.runtimelib.constructs import (
     EdgeArchetype,
     GenericEdge,
     JacTestCheck,
-    MTIR,
     NodeAnchor,
     NodeArchetype,
     Root,
@@ -56,6 +55,7 @@ from jaclang.runtimelib.constructs import (
     WalkerArchetype,
 )
 from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
+from jaclang.runtimelib.mtp import MTIR
 from jaclang.runtimelib.utils import (
     all_issubclass,
     traverse_graph,

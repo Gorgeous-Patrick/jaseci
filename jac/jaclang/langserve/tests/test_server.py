@@ -230,7 +230,8 @@ class TestJacLangServer(TestCase):
             (6, 17, "concurrent/__init__.py:0:0-0:0"),
             (6, 28, "concurrent/futures/__init__.py:0:0-0:0"),
             (7, 17, "typing.py:0:0-0:0"),
-            (7, 27, "typing.py:2636:0-2636:7"),
+            # not a good one since there may be different typing.py versions
+            # (7, 27, "typing.py:2636:0-2636:7"), 
             (9, 18, "compiler/__init__.py:0:0-0:0"),
             (9, 38, "compiler/unitree.py:0:0-0:0"),
             (11, 35, "compiler/constant.py:0:0-0:0"),

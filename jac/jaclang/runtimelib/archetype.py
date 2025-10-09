@@ -188,15 +188,6 @@ class ObjectSpatialPath:
         return repr.strip()
 
 
-@dataclass(eq=False, repr=False)
-class MTIR:
-    """Meaning Typed Intermediate Representation."""
-
-    caller: Callable
-    args: dict[int | str, object]
-    call_params: dict[str, object]
-
-
 @dataclass(eq=False, repr=False, kw_only=True)
 class Anchor:
     """Object Anchor."""
