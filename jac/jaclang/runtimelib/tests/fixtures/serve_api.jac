@@ -1,0 +1,66 @@
+"""Example Jac program for REST API server."""
+
+# Define some nodes
+node Task {
+    has title: str;
+    has completed: bool = False;
+    has priority: int = 0;
+}
+
+node User {
+    has name: str;
+    has email: str;
+}
+
+# Define a walker to create tasks
+walker CreateTask {
+    has title: str;
+    has priority: int = 1;
+
+    can create with `root entry {
+        task_list = here ++> Task(title=self.title, priority=self.priority);
+        task = task_list[0] if task_list else None;
+        if task {
+            print("Created task: " + task.title);
+        }
+    }
+}
+
+# Define a walker to list all tasks
+walker ListTasks {
+    has tasks: list = [];
+
+    can collect with `root entry {
+        visit [-->];
+    }
+
+    can gather with Task entry {
+        print("Found task: " + here.title);
+    }
+}
+
+# Define a walker to mark tasks as complete
+walker CompleteTask {
+    has title: str;
+
+    can search with `root entry {
+        visit [-->];
+    }
+
+    can mark_complete with Task entry {
+        if here.title == self.title {
+            here.completed = True;
+            print("Completed task: " + here.title);
+        }
+    }
+}
+
+"""Function to add two numbers together."""
+def add_numbers(a: int, b: int) -> int {
+    return a + b;
+}
+
+"""Function to generate a greeting message."""
+def greet(name: str = "World") -> str {
+    return "Hello, " + name + "!";
+}

@@ -71,6 +71,7 @@ nav:
       - Jac Lens: "learn/jac-lens.md"
     - Tooling:
       - "learn/tools/cli.md"
+      - "learn/tools/jac_serve.md"
       - "learn/tools/streamlit.md"
     - Specifications:
       - Jac Keywords: "learn/keywords.md"
