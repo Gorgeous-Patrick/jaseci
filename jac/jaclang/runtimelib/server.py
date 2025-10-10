@@ -15,13 +15,36 @@ from jaclang.runtimelib.machine import ExecutionContext, JacMachine as Jac
 class UserManager:
     """Manage users and their persistent roots."""
 
+    USER_DATA_KEY = "__jac_users__"
+    TOKEN_DATA_KEY = "__jac_tokens__"
+
     def __init__(self, session_path: str) -> None:
         """Initialize user manager."""
+        import shelve
+
         self.session_path = session_path
-        self.users: dict[str, dict[str, Any]] = (
-            {}
+        # Use a separate file for user data to avoid locking conflicts
+        self.user_db_path = f"{session_path}.users"
+        self.shelf = shelve.open(self.user_db_path)
+
+        # Load existing user data from persistent storage
+        self.users: dict[str, dict[str, Any]] = self.shelf.get(
+            self.USER_DATA_KEY, {}
         )  # username -> {password_hash, token, root_id}
-        self.tokens: dict[str, str] = {}  # token -> username
+        self.tokens: dict[str, str] = self.shelf.get(
+            self.TOKEN_DATA_KEY, {}
+        )  # token -> username
+
+    def _persist(self) -> None:
+        """Save user data to persistent storage."""
+        self.shelf[self.USER_DATA_KEY] = self.users
+        self.shelf[self.TOKEN_DATA_KEY] = self.tokens
+        self.shelf.sync()
+
+    def close(self) -> None:
+        """Close the shelf storage."""
+        self._persist()
+        self.shelf.close()
 
     def create_user(self, username: str, password: str) -> dict[str, Any]:
         """Create a new user with their own root node."""
@@ -53,6 +76,9 @@ class UserManager:
             "root_id": root_id,
         }
         self.tokens[token] = username
+
+        # Persist user data to storage
+        self._persist()
 
         return {
             "username": username,

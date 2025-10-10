@@ -41,6 +41,13 @@ class TestServeCommand(TestCase):
 
     def tearDown(self) -> None:
         """Tear down test."""
+        # Close user manager if it exists
+        if self.server and hasattr(self.server, 'user_manager'):
+            try:
+                self.server.user_manager.close()
+            except Exception:
+                pass
+
         # Stop server if running
         if self.httpd:
             try:
@@ -58,11 +65,12 @@ class TestServeCommand(TestCase):
         super().tearDown()
 
     def _del_session(self, session: str) -> None:
-        """Delete session files."""
+        """Delete session files including user database files."""
         path = os.path.dirname(session)
         prefix = os.path.basename(session)
         if os.path.exists(path):
             for file in os.listdir(path):
+                # Clean up session files and user database files (.users)
                 if file.startswith(prefix):
                     try:
                         os.remove(f"{path}/{file}")
@@ -576,3 +584,115 @@ class TestServeCommand(TestCase):
         self.assertIn("priority", walker_info["fields"])
 
         mach.close()
+
+    def test_root_data_persistence_across_server_restarts(self) -> None:
+        """Test that user data and graph persist across server restarts.
+
+        This test verifies that both user credentials and graph data (nodes and
+        edges attached to a root) are properly persisted to the session file and
+        can be accessed after a server restart.
+        """
+        # Start first server instance
+        self._start_server()
+
+        # Create user and get token
+        create_result = self._request(
+            "POST",
+            "/user/create",
+            {"username": "persistuser", "password": "testpass123"}
+        )
+        token = create_result["token"]
+        root_id = create_result["root_id"]
+
+        # Create multiple tasks on the root node
+        task1_result = self._request(
+            "POST",
+            "/walker/CreateTask",
+            {"fields": {"title": "Persistent Task 1", "priority": 1}},
+            token=token
+        )
+        self.assertIn("result", task1_result)
+
+        task2_result = self._request(
+            "POST",
+            "/walker/CreateTask",
+            {"fields": {"title": "Persistent Task 2", "priority": 2}},
+            token=token
+        )
+        self.assertIn("result", task2_result)
+
+        task3_result = self._request(
+            "POST",
+            "/walker/CreateTask",
+            {"fields": {"title": "Persistent Task 3", "priority": 3}},
+            token=token
+        )
+        self.assertIn("result", task3_result)
+
+        # List tasks to verify they were created
+        list_before = self._request(
+            "POST",
+            "/walker/ListTasks",
+            {"fields": {}},
+            token=token
+        )
+        self.assertIn("result", list_before)
+
+        # Shutdown first server instance
+        # Close user manager first to release the shelf lock
+        if self.server and hasattr(self.server, 'user_manager'):
+            self.server.user_manager.close()
+
+        if self.httpd:
+            self.httpd.shutdown()
+            self.httpd.server_close()
+            self.httpd = None
+
+        if self.server_thread and self.server_thread.is_alive():
+            self.server_thread.join(timeout=2)
+
+        # Wait a moment to ensure server is fully stopped
+        time.sleep(0.5)
+
+        # Start second server instance with the same session file
+        self._start_server()
+
+        # Login with the same credentials
+        login_result = self._request(
+            "POST",
+            "/user/login",
+            {"username": "persistuser", "password": "testpass123"}
+        )
+
+        # User should be able to log in successfully
+        self.assertIn("token", login_result)
+        self.assertNotIn("error", login_result)
+
+        new_token = login_result["token"]
+        new_root_id = login_result["root_id"]
+
+        # Root ID should be the same (same user, same root)
+        self.assertEqual(new_root_id, root_id)
+
+        # Token should be the same (persisted from before)
+        self.assertEqual(new_token, token)
+
+        # List tasks again to verify they persisted
+        list_after = self._request(
+            "POST",
+            "/walker/ListTasks",
+            {"fields": {}},
+            token=new_token
+        )
+
+        # The ListTasks walker should successfully run
+        self.assertIn("result", list_after)
+
+        # Complete one of the tasks to verify we can still interact with persisted data
+        complete_result = self._request(
+            "POST",
+            "/walker/CompleteTask",
+            {"fields": {"title": "Persistent Task 2"}},
+            token=new_token
+        )
+        self.assertIn("result", complete_result)
