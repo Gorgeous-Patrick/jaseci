@@ -698,8 +698,7 @@ class TypeEvaluator {
                         if sym := base_type.symbol_table.lookup(
                             expr.right.value, deep=True
                         ) {
-                            expr.right.sym = sym;
-                            return self.get_type_of_symbol(sym);
+                            return self._set_symbol_to_expr(expr.right, sym);
                         }
                         return types.UnknownType();
                     }
@@ -709,8 +708,7 @@ class TypeEvaluator {
                         if member := self._lookup_class_member(
                             base_type, expr.right.value
                         ) {
-                            expr.right.sym = member.symbol;
-                            return self.get_type_of_symbol(member.symbol);
+                            return self._set_symbol_to_expr(expr.right, member.symbol);
                         }
                         return types.UnknownType();
                     }
@@ -720,8 +718,7 @@ class TypeEvaluator {
                         if member := self._lookup_object_member(
                             base_type, expr.right.value
                         ) {
-                            expr.right.sym = member.symbol;
-                            return self.get_type_of_symbol(member.symbol);
+                            return self._set_symbol_to_expr(expr.right, member.symbol);
                         }
                         return types.UnknownType();
                     }
@@ -780,7 +777,11 @@ class TypeEvaluator {
         return sym;
     }
 
-
+    def _set_symbol_to_expr(self: TypeEvaluator, expr: uni.Expr, sym: uni.Symbol) -> TypeBase {
+        expr.sym = sym;
+        expr.type = self.get_type_of_symbol(sym);
+        return expr.type;
+    }
 
     """Check if the expression is Name that is 'self' and in the method context."""
     def _is_expr_self(self: TypeEvaluator, expr: uni.Expr) -> bool {

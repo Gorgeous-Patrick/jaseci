@@ -259,6 +259,32 @@ class TestJacLangServer(TestCase):
                     ),
                 )
 
+    def test_go_to_definition_atom_trailer(self) -> None:
+        """Test that the go to definition is correct."""
+        lsp = JacLangServer()
+        workspace_path = self.fixture_abs_path("")
+        workspace = Workspace(workspace_path, lsp)
+        lsp.lsp._workspace = workspace
+        import_file = uris.from_fs_path(self.fixture_abs_path("user.jac"))
+        lsp.deep_check(import_file)
+        # fmt: off
+        positions = [
+            (14, 16, "fixtures/greet.py:12:3-13:15"),
+            (14, 28, "fixtures/greet.py:5:3-6:15"),
+        ]
+        # fmt: on
+
+        for line, char, expected in positions:
+            with self.subTest(line=line, char=char):
+                self.assertIn(
+                    expected,
+                    str(
+                        lsp.get_definition(
+                            import_file, lspt.Position(line - 1, char - 1)
+                        )
+                    ),
+                )
+
     def test_missing_mod_warning(self) -> None:
         """Test that the missing module warning is correct."""
         lsp = JacLangServer()
