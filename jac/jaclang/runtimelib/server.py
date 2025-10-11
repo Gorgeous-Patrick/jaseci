@@ -4,12 +4,77 @@ import hashlib
 import inspect
 import json
 import secrets
+from contextlib import suppress
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Callable, Optional, get_type_hints
 from urllib.parse import urlparse
 
-from jaclang.runtimelib.constructs import NodeArchetype, Root, WalkerArchetype
+from jaclang.runtimelib.constructs import (
+    Archetype,
+    NodeArchetype,
+    Root,
+    WalkerArchetype,
+)
 from jaclang.runtimelib.machine import ExecutionContext, JacMachine as Jac
+
+
+def serialize_for_response(obj: object) -> object:
+    """Serialize Jac objects to JSON-compatible format.
+
+    This function handles conversion of:
+    - Archetype instances (nodes, walkers, edges, objects)
+    - Lists and dicts (recursively serialize contents)
+    - Other objects (attempt to convert to dict or return as-is)
+    """
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+
+    if isinstance(obj, (list, tuple)):
+        return [serialize_for_response(item) for item in obj]
+
+    if isinstance(obj, dict):
+        return {key: serialize_for_response(value) for key, value in obj.items()}
+
+    # Check for any Archetype subclass (Node, Walker, Edge, Object, etc.)
+    if isinstance(obj, Archetype):
+        # Serialize archetype with its ID and public attributes
+        result = {
+            "_jac_type": type(obj).__name__,
+            "_jac_id": obj.__jac__.id.hex,
+        }
+
+        # Add type-specific metadata
+        if isinstance(obj, NodeArchetype):
+            result["_jac_archetype"] = "node"
+        elif isinstance(obj, WalkerArchetype):
+            result["_jac_archetype"] = "walker"
+        else:
+            result["_jac_archetype"] = "archetype"
+
+        # Get all public attributes from the archetype
+        for attr_name in dir(obj):
+            if not attr_name.startswith("_") and attr_name not in ("__jac__",):
+                try:
+                    attr_value = getattr(obj, attr_name)
+                    # Skip methods and special attributes
+                    if not callable(attr_value):
+                        result[attr_name] = serialize_for_response(attr_value)
+                except Exception:
+                    pass
+        return result
+
+    # Try to convert object to dict if it has __dict__
+    if hasattr(obj, "__dict__"):
+        with suppress(Exception):
+            return serialize_for_response(
+                {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+            )
+
+    # For other types, try to convert to string
+    try:
+        return str(obj)
+    except Exception:
+        return f"<{type(obj).__name__}>"
 
 
 class UserManager:
@@ -248,7 +313,10 @@ class JacAPIServer:
             # Call the function with unpacked arguments
             result = func(**args)
             Jac.commit()
-            return {"result": result, "reports": ctx.reports}
+            return {
+                "result": serialize_for_response(result),
+                "reports": serialize_for_response(ctx.reports),
+            }
         except Exception as e:
             return {"error": str(e)}
         finally:
@@ -289,9 +357,13 @@ class JacAPIServer:
             Jac.spawn(walker, target_node)
             Jac.commit()
 
+            # Serialize the walker's final state and reports
+            walker_result = serialize_for_response(walker)
+            serialized_reports = serialize_for_response(ctx.reports)
+
             return {
-                "result": "Walker executed successfully",
-                "reports": ctx.reports,
+                "result": walker_result,
+                "reports": serialized_reports,
             }
         except Exception as e:
             import traceback
