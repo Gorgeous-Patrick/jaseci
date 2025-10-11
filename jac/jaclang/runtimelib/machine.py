@@ -1063,7 +1063,7 @@ class JacBasics:
         return field(init=init)
 
     @staticmethod
-    def report(expr: Any, custom: bool = False) -> None:  # noqa: ANN401
+    def log_report(expr: Any, custom: bool = False) -> None:  # noqa: ANN401
         """Jac's report stmt feature."""
         ctx = JacMachineInterface.get_context()
         if custom:
@@ -1402,7 +1402,11 @@ class JacUtils:
         if module:
             walkers = []
             for name, obj in inspect.getmembers(module):
-                if isinstance(obj, type) and issubclass(obj, WalkerArchetype):
+                if (
+                    isinstance(obj, type)
+                    and issubclass(obj, WalkerArchetype)
+                    and obj.__module__ == module_name
+                ):
                     walkers.append(name)
             return walkers
         return []
@@ -1414,7 +1418,11 @@ class JacUtils:
         if module:
             nodes = []
             for name, obj in inspect.getmembers(module):
-                if isinstance(obj, type) and issubclass(obj, NodeArchetype):
+                if (
+                    isinstance(obj, type)
+                    and issubclass(obj, NodeArchetype)
+                    and obj.__module__ == module_name
+                ):
                     nodes.append(name)
             return nodes
         return []
@@ -1424,11 +1432,15 @@ class JacUtils:
         """List all edges in a specific module."""
         module = JacMachine.loaded_modules.get(module_name)
         if module:
-            nodes = []
+            edges = []
             for name, obj in inspect.getmembers(module):
-                if isinstance(obj, type) and issubclass(obj, EdgeArchetype):
-                    nodes.append(name)
-            return nodes
+                if (
+                    isinstance(obj, type)
+                    and issubclass(obj, EdgeArchetype)
+                    and obj.__module__ == module_name
+                ):
+                    edges.append(name)
+            return edges
         return []
 
     @staticmethod

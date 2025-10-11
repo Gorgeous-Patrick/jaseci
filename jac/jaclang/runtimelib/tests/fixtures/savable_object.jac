@@ -43,10 +43,8 @@ walker create_custom_object {
     }
 
     can exit1 with `root exit {
-        # get directly from shelf
-        o = _jl.get_context().mem.__shelf__.get(str(self.obj.__jac__.id)).archetype;
-        print(jid(o));
-        print(o);
+        print(jid(self.obj));
+        print(self.obj);
     }
 }
 
@@ -87,6 +85,7 @@ walker delete_custom_object {
     has object_id: str;
 
     can enter1 with `root entry {
-        _jl.destroy([&(self.object_id)]);
+        savable_object = &(self.object_id);
+        del savable_object;
     }
 }

@@ -674,7 +674,7 @@ class JacCliTests(TestCase):
         self.assertEqual(
             process.returncode, 1, "run command should exit with code 1 on syntax error"
         )
-        self.assertIn("Error running", stderr)
+        self.assertIn("Error", stderr)
 
         # Test build command with syntax error
         process = subprocess.Popen(

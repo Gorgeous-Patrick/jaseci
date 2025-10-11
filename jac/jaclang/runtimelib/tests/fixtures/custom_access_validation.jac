@@ -27,7 +27,7 @@ node A {
 walker create_other_root {
     can enter with `root entry {
         other_root = `root().__jac__;
-        _jl.save(other_root);
+        save(other_root);
         print(other_root.id);
     }
 }

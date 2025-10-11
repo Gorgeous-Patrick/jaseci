@@ -18,8 +18,6 @@ class Settings:
 
     # Compiler configuration
     ignore_test_annex: bool = False
-    pyout_jaclib_alias: str = "_jl"
-    library_mode: bool = False
     pyfile_raise: bool = False
     pyfile_raise_full: bool = False
 

@@ -189,7 +189,7 @@ walker TypedWalker {
     }
 
     # Exit ability with context
-    can report with exit {
+    can make_report with exit {
         print(f"TypedWalker: Visited {self.people_visited} people, {self.cities_visited} cities");
     }
 }

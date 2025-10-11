@@ -156,6 +156,24 @@ def dump_traceback(e: Exception) -> str:
     def byte_offset_to_char_offset(string: str, offset: int) -> int:
         return len(string.encode("utf-8")[:offset].decode("utf-8", errors="replace"))
 
+    # Utility function to check if a file is a compiled Jac file and get the original .jac source
+    def get_jac_source_info(py_filename: str) -> tuple[str | None, str | None]:
+        """Return (jac_filename, jac_source) if available, else (None, None)."""
+        # Check if this is a generated Python file from Jac compilation
+        # Generated Python files are stored in __jac_gen__ directory
+        if "__jac_gen__" in py_filename and py_filename.endswith(".py"):
+            # Try to find the corresponding .jac file
+            # The generated .py file typically mirrors the original .jac structure
+            jac_filename = py_filename.replace("__jac_gen__", "").replace(".py", ".jac")
+            if os.path.exists(jac_filename):
+                try:
+                    with open(jac_filename, "r") as f:
+                        jac_source = f.read()
+                    return jac_filename, jac_source
+                except Exception:
+                    pass
+        return None, None
+
     tb = TracebackException(type(e), e, e.__traceback__, limit=None, compact=True)
     trace_dump += f"Error: {str(e)}\n"
 
@@ -169,6 +187,11 @@ def dump_traceback(e: Exception) -> str:
 
     for idx, frame in enumerate(tb.stack):
         func_signature = frame.name + ("()" if frame.name.isidentifier() else "")
+
+        # Check if we can map this to a .jac file
+        jac_filename, jac_source = get_jac_source_info(frame.filename)
+        display_filename = jac_filename if jac_filename else frame.filename
+        display_source = jac_source if jac_source else None
 
         # Pretty print the most recent call's location.
         if idx == 0 and (
@@ -188,22 +211,27 @@ def dump_traceback(e: Exception) -> str:
                 off_start = byte_offset_to_char_offset(line_o, frame.colno) - 1
                 off_end = byte_offset_to_char_offset(line_o, frame.end_colno) - 1
 
-                # Get the source.
-                file_source = None
-                with open(frame.filename, "r") as file:
-                    file_source = file.read()
+                # Get the source - prefer .jac source if available, otherwise use .py
+                file_source = display_source
+                if file_source is None:
+                    try:
+                        with open(frame.filename, "r") as file:
+                            file_source = file.read()
+                    except Exception:
+                        file_source = ""
 
-                # Get the source offset.
-                lines = file_source.split("\n")
-                for i in range(frame.lineno - 1):
-                    off_start += len(lines[i]) + 1
-                    off_end += len(lines[i]) + 1
+                if file_source:
+                    # Get the source offset.
+                    lines = file_source.split("\n")
+                    for i in range(frame.lineno - 1):
+                        off_start += len(lines[i]) + 1
+                        off_end += len(lines[i]) + 1
 
-                trace_dump += pretty_print_source_location(
-                    frame.filename, file_source, frame.lineno, off_start, off_end
-                )
+                    trace_dump += pretty_print_source_location(
+                        display_filename, file_source, frame.lineno, off_start, off_end
+                    )
 
-        trace_dump += f'\n{" " * dump_tab_width}at {func_signature} {frame.filename}:{frame.lineno}'
+        trace_dump += f'\n{" " * dump_tab_width}at {func_signature} {display_filename}:{frame.lineno}'
 
     return trace_dump
 

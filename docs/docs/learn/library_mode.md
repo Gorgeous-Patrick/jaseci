@@ -13,7 +13,7 @@ Library mode is designed for:
 
 ### **Converting Jac Code to Pure Python**
 
-The `jac jac2lib` command transpiles Jac source files into equivalent Python code. The generated output:
+The `jac jac2py` command transpiles Jac source files into equivalent Python code. The generated output:
 
 1. Provides clean, ergonomic imports from `jaclang.lib` with full IDE autocomplete support
 2. Generates idiomatic Python code with proper type hints and docstrings
@@ -83,7 +83,7 @@ with entry {
 
 ### **The Library Mode Python Equivalent**
 
-Run `jac jac2lib friends.jac` to generate:
+Run `jac jac2py friends.jac` to generate:
 
 ```python
 from __future__ import annotations

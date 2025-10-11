@@ -104,7 +104,7 @@ class TaskFilter(Walker):
         visit(self, refs(Path(here).edge_out().visit()))
 
     @on_exit
-    def report(self, here) -> None:
+    def make_report(self, here) -> None:
         print(f'  Found {len(self.matched)} tasks: {self.matched}')
 print('\n=== 9. Enum in Walker Logic (OSP) ===')
 task1 = Task(title='Critical Bug', priority=Priority.HIGH)

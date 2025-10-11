@@ -155,7 +155,7 @@ walker TaskFilter {
         visit [-->];
     }
 
-    can report with exit {
+    can make_report with exit {
         print(f"  Found {len(self.matched)} tasks: {self.matched}");
     }
 }

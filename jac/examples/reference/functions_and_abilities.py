@@ -130,7 +130,7 @@ class TypedWalker(Walker):
         visit(self, refs(Path(here).edge_out().visit()))
 
     @on_exit
-    def report(self, here) -> None:
+    def make_report(self, here) -> None:
         print(f'TypedWalker: Visited {self.people_visited} people, {self.cities_visited} cities')
 
 class MultiAbilityWalker(Walker):
