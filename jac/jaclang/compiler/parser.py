@@ -66,6 +66,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
         """Initialize parser."""
         self.mod_path = root_ir.loc.mod_path
         self.node_list: list[uni.UniNode] = []
+        self._node_ids: set[int] = set()
         Transform.__init__(self, ir_in=root_ir, prog=prog)
 
     def transform(self, ir_in: uni.Source) -> uni.Module:
@@ -256,7 +257,9 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
         def _node_update(self, node: T) -> T:
             self.parse_ref.cur_node = node
-            if node not in self.parse_ref.node_list:
+            node_id = id(node)
+            if node_id not in self.parse_ref._node_ids:
+                self.parse_ref._node_ids.add(node_id)
                 self.parse_ref.node_list.append(node)
             return node
 
