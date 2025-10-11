@@ -149,10 +149,7 @@ nav:
     - Leaderboard: "communityhub/top_contributors.md"
     - Fun Stuff:
       - Project Ideas:
-        - "communityhub/fun/projects.md"
-        - "communityhub/fun/p1.md"
-        - "communityhub/fun/p2.md"
-        - "communityhub/fun/p3.md"
+        - "communityhub/fun/static_fx.md"
       - Content Pieces: "communityhub/content_pieces.md"
     - Internals:
       - Lang Ref Coverage: "internals/refs_coverage_report.md"
