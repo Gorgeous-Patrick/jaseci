@@ -5,6 +5,7 @@ from __future__ import annotations
 import keyword
 import os
 import sys
+from dataclasses import dataclass
 from typing import Callable, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
@@ -20,6 +21,44 @@ T = TypeVar("T", bound=uni.UniNode)
 TL = TypeVar("TL", bound=(uni.UniNode | list))
 
 
+@dataclass
+class LarkParseInput:
+    """Input for Lark parser transform."""
+
+    ir_value: str
+    on_error: Callable[[jl.UnexpectedInput], bool]
+
+
+@dataclass
+class LarkParseOutput:
+    """Output from Lark parser transform."""
+
+    tree: jl.Tree[jl.Tree[str]]
+    comments: list[jl.Token]
+
+
+class LarkParseTransform(Transform[LarkParseInput, LarkParseOutput]):
+    """Transform for Lark parsing step."""
+
+    comment_cache: list[jl.Token] = []
+    parser = jl.Lark_StandAlone(
+        lexer_callbacks={"COMMENT": lambda comment: LarkParseTransform.comment_cache.append(comment)}  # type: ignore
+    )
+
+    def __init__(self, ir_in: LarkParseInput, prog: JacProgram) -> None:
+        """Initialize Lark parser transform."""
+        Transform.__init__(self, ir_in=ir_in, prog=prog)
+
+    def transform(self, ir_in: LarkParseInput) -> LarkParseOutput:
+        """Transform input IR by parsing with Lark."""
+        LarkParseTransform.comment_cache = []
+        tree = LarkParseTransform.parser.parse(ir_in.ir_value, on_error=ir_in.on_error)
+        return LarkParseOutput(
+            tree=tree,
+            comments=LarkParseTransform.comment_cache.copy(),
+        )
+
+
 class JacParser(Transform[uni.Source, uni.Module]):
     """Jac Parser."""
 
@@ -32,9 +71,18 @@ class JacParser(Transform[uni.Source, uni.Module]):
     def transform(self, ir_in: uni.Source) -> uni.Module:
         """Transform input IR."""
         try:
-            tree, comments = JacParser.parse(ir_in.value, on_error=self.error_callback)
-            mod = JacParser.TreeToAST(parser=self).transform(tree)
-            ir_in.comments = [self.proc_comment(i, mod) for i in comments]
+            # Create input for Lark parser transform
+            lark_input = LarkParseInput(
+                ir_value=ir_in.value,
+                on_error=self.error_callback,
+            )
+            # Use LarkParseTransform instead of direct parser call
+            lark_transform = LarkParseTransform(ir_in=lark_input, prog=self.prog)
+            parse_output = lark_transform.ir_out
+
+            # Transform parse tree to AST
+            mod = JacParser.TreeToAST(parser=self).transform(parse_output.tree)
+            ir_in.comments = [self.proc_comment(i, mod) for i in parse_output.comments]
             if not isinstance(mod, uni.Module):
                 raise self.ice()
             if len(self.errors_had) != 0:
@@ -184,24 +232,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
             print(error_label, end=" ", file=sys.stderr)
             print(alrt.pretty_print(colors=colors), file=sys.stderr)
 
-    @staticmethod
-    def _comment_callback(comment: jl.Token) -> None:
-        JacParser.comment_cache.append(comment)
-
-    @staticmethod
-    def parse(
-        ir: str, on_error: Callable[[jl.UnexpectedInput], bool]
-    ) -> tuple[jl.Tree[jl.Tree[str]], list[jl.Token]]:
-        """Parse input IR."""
-        JacParser.comment_cache = []
-        return (
-            JacParser.parser.parse(ir, on_error=on_error),
-            JacParser.comment_cache,
-        )
-
-    comment_cache: list[jl.Token] = []
-
-    parser = jl.Lark_StandAlone(lexer_callbacks={"COMMENT": _comment_callback})  # type: ignore
     JacTransformer: TypeAlias = jl.Transformer[jl.Tree[str], uni.UniNode]
 
     class TreeToAST(JacTransformer):
