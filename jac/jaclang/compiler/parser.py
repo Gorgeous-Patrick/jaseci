@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import keyword
-import logging
 import os
 import sys
 from typing import Callable, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
@@ -13,7 +12,6 @@ from jaclang.compiler import TOKEN_MAP, jac_lark as jl
 from jaclang.compiler.constant import EdgeDir, Tokens as Tok
 from jaclang.compiler.passes.main import Transform
 from jaclang.utils.helpers import ANSIColors
-from jaclang.vendor.lark import Lark, Transformer, Tree, logger
 
 if TYPE_CHECKING:
     from jaclang.compiler.program import JacProgram
@@ -25,14 +23,10 @@ TL = TypeVar("TL", bound=(uni.UniNode | list))
 class JacParser(Transform[uni.Source, uni.Module]):
     """Jac Parser."""
 
-    dev_mode = False
-
     def __init__(self, root_ir: uni.Source, prog: JacProgram) -> None:
         """Initialize parser."""
         self.mod_path = root_ir.loc.mod_path
         self.node_list: list[uni.UniNode] = []
-        if JacParser.dev_mode:
-            JacParser.make_dev()
         Transform.__init__(self, ir_in=root_ir, prog=prog)
 
     def transform(self, ir_in: uni.Source) -> uni.Module:
@@ -204,19 +198,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
             JacParser.parser.parse(ir, on_error=on_error),
             JacParser.comment_cache,
         )
-
-    @staticmethod
-    def make_dev() -> None:
-        """Make parser in dev mode."""
-        JacParser.parser = Lark.open(
-            "jac.lark",
-            parser="lalr",
-            rel_to=__file__,
-            debug=True,
-            lexer_callbacks={"COMMENT": JacParser._comment_callback},
-        )
-        JacParser.JacTransformer = Transformer[Tree[str], uni.UniNode]  # type: ignore
-        logger.setLevel(logging.DEBUG)
 
     comment_cache: list[jl.Token] = []
 
