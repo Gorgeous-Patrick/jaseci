@@ -41,19 +41,9 @@ class FuseCommentsPass(UniPass):
         except StopIteration:
             next_comment = None
 
-        # Handle possible leading comments
-        if next_comment and (not next_code or _is_before(next_comment, next_code)):
-            self.ir_out.src_terminals.insert(0, next_comment)
-
         # Merge streams in order
         while next_comment or next_code:
             if next_comment and (not next_code or _is_before(next_comment, next_code)):
-                # Add comment token
-                if merged and (last_token := merged[-1]):
-                    self.ir_out.src_terminals.insert(
-                        self.ir_out.src_terminals.index(last_token) + 1,
-                        next_comment,
-                    )
                 merged.append(next_comment)
                 try:
                     next_comment = next(comments)
@@ -66,6 +56,7 @@ class FuseCommentsPass(UniPass):
                     next_code = next(code_tokens)
                 except StopIteration:
                     next_code = None
+        self.ir_out.src_terminals[:] = merged
 
         return merged
 

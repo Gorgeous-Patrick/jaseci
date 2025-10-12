@@ -1,8 +1,9 @@
-# Print Hello, World!
-print("Hello, World!")
+"""Simple Python script used by CLI integration tests."""
 
 a = 5
 b = 3
+
+print("Hello, World!")
 sum_ab = a + b
 print("Sum:", sum_ab)
 
@@ -12,12 +13,13 @@ if num % 2 == 0:
 else:
     print(num, "is odd")
 
-# Loop through a list
 fruits = ["apple", "banana", "cherry"]
 for fruit in fruits:
     print(fruit)
 
-def greet(name):
+
+def greet(name: str) -> str:
     return f"Hello, {name}!"
+
 
 print(greet("Alice"))

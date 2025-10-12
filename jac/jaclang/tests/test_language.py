@@ -346,7 +346,10 @@ class JacLanguageTests(TestCase):
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
         self.assertIn("one level deeperslHello World!", stdout_value)
-        self.assertIn("module 'pyfunc' from ", stdout_value)
+        self.assertTrue(
+            "module 'pyfunc' from " in stdout_value
+            or "module 'jaclang.tests.fixtures.pyfunc' from " in stdout_value
+        )
 
     def test_deep_outer_imports_from_loc(self) -> None:
         """Parse micro jac file."""
@@ -357,7 +360,10 @@ class JacLanguageTests(TestCase):
         sys.stdout = sys.__stdout__
         stdout_value = captured_output.getvalue()
         self.assertIn("one level deeperslHello World!", stdout_value)
-        self.assertIn("module 'pyfunc' from ", stdout_value)
+        self.assertTrue(
+            "module 'jaclang.tests.fixtures.pyfunc' from " in stdout_value
+            or "module 'pyfunc' from " in stdout_value
+        )
 
     def test_has_lambda_goodness(self) -> None:
         """Test has lambda_goodness."""

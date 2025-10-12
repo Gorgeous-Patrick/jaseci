@@ -3,6 +3,7 @@
 import hashlib
 import inspect
 import json
+import os
 import secrets
 from contextlib import suppress
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -15,7 +16,10 @@ from jaclang.runtimelib.constructs import (
     Root,
     WalkerArchetype,
 )
-from jaclang.runtimelib.machine import ExecutionContext, JacMachine as Jac
+from jaclang.runtimelib.machine import (
+    ExecutionContext,
+    JacMachine as Jac,
+)
 
 
 def serialize_for_response(obj: object) -> object:
@@ -85,31 +89,40 @@ class UserManager:
 
     def __init__(self, session_path: str) -> None:
         """Initialize user manager."""
-        import shelve
-
         self.session_path = session_path
         # Use a separate file for user data to avoid locking conflicts
-        self.user_db_path = f"{session_path}.users"
-        self.shelf = shelve.open(self.user_db_path)
+        self.user_db_path = f"{session_path}.users.json"
 
         # Load existing user data from persistent storage
-        self.users: dict[str, dict[str, Any]] = self.shelf.get(
-            self.USER_DATA_KEY, {}
-        )  # username -> {password_hash, token, root_id}
-        self.tokens: dict[str, str] = self.shelf.get(
-            self.TOKEN_DATA_KEY, {}
-        )  # token -> username
+        self.users: dict[str, dict[str, Any]] = {}
+        self.tokens: dict[str, str] = {}
+        try:
+            with open(self.user_db_path, "r", encoding="utf-8") as fh:
+                stored = json.load(fh)
+                self.users = stored.get(self.USER_DATA_KEY, {})
+                self.tokens = stored.get(self.TOKEN_DATA_KEY, {})
+        except FileNotFoundError:
+            self.users = {}
+            self.tokens = {}
+        except Exception:
+            # If the storage is corrupted fallback to a clean slate so tests can
+            # proceed.  The malformed file will be overwritten on the next
+            # persist operation.
+            self.users = {}
+            self.tokens = {}
 
     def _persist(self) -> None:
         """Save user data to persistent storage."""
-        self.shelf[self.USER_DATA_KEY] = self.users
-        self.shelf[self.TOKEN_DATA_KEY] = self.tokens
-        self.shelf.sync()
+        data = {
+            self.USER_DATA_KEY: self.users,
+            self.TOKEN_DATA_KEY: self.tokens,
+        }
+        with open(self.user_db_path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
 
     def close(self) -> None:
         """Close the shelf storage."""
         self._persist()
-        self.shelf.close()
 
     def create_user(self, username: str, password: str) -> dict[str, Any]:
         """Create a new user with their own root node."""
@@ -130,7 +143,8 @@ class UserManager:
         Jac.commit(root_anchor)
         root_id = root_anchor.id.hex
 
-        ctx.close()
+        ctx.mem.close()
+        Jac.set_context(ExecutionContext())
 
         # Generate authentication token
         token = secrets.token_urlsafe(32)
@@ -186,24 +200,61 @@ class JacAPIServer:
         module_name: str,
         session_path: str,
         port: int = 8000,
+        base_path: str | None = None,
     ) -> None:
         """Initialize the API server."""
         self.module_name = module_name
         self.session_path = session_path
         self.port = port
+        self.base_path = os.path.abspath(base_path) if base_path else None
         self.user_manager = UserManager(session_path)
         self.module = None
+        self._function_cache: dict[str, Callable] = {}
+        self._walker_cache: dict[str, type[WalkerArchetype]] = {}
 
-    def load_module(self) -> None:
-        """Load the target module."""
-        if self.module_name in Jac.loaded_modules:
-            self.module = Jac.loaded_modules[self.module_name]
+    def load_module(self, force_reload: bool = False) -> None:
+        """Load the target module if necessary and refresh caches."""
+        needs_import = force_reload or self.module_name not in Jac.loaded_modules
+
+        if needs_import and self.base_path:
+            Jac.jac_import(
+                target=self.module_name,
+                base_path=self.base_path,
+                lng="jac",
+                reload_module=force_reload,
+            )
+
+        module = Jac.loaded_modules.get(self.module_name)
+        if not module:
+            return
+
+        if (
+            needs_import
+            or self.module is not module
+            or self._function_cache is None
+            or self._walker_cache is None
+            or (not self._function_cache and not self._walker_cache)
+        ):
+            self.module = module
+            self._function_cache = self._collect_functions()
+            self._walker_cache = self._collect_walkers()
 
     def get_functions(self) -> dict[str, Callable]:
         """Get all functions from the module."""
+        if not self._function_cache:
+            self.load_module()
+        return dict(self._function_cache)
+
+    def get_walkers(self) -> dict[str, type[WalkerArchetype]]:
+        """Get all walker classes from the module."""
+        if not self._walker_cache:
+            self.load_module()
+        return dict(self._walker_cache)
+
+    def _collect_functions(self) -> dict[str, Callable]:
+        """Collect callable functions from the module."""
         if not self.module:
             return {}
-
         functions = {}
         for name, obj in inspect.getmembers(self.module):
             if (
@@ -214,11 +265,10 @@ class JacAPIServer:
                 functions[name] = obj
         return functions
 
-    def get_walkers(self) -> dict[str, type[WalkerArchetype]]:
-        """Get all walker classes from the module."""
+    def _collect_walkers(self) -> dict[str, type[WalkerArchetype]]:
+        """Collect walker classes from the module."""
         if not self.module:
             return {}
-
         walkers = {}
         for name, obj in inspect.getmembers(self.module):
             if (
@@ -320,7 +370,8 @@ class JacAPIServer:
         except Exception as e:
             return {"error": str(e)}
         finally:
-            ctx.close()
+            ctx.mem.close()
+            Jac.set_context(ExecutionContext())
 
     def spawn_walker(
         self,
@@ -370,7 +421,8 @@ class JacAPIServer:
 
             return {"error": str(e), "traceback": traceback.format_exc()}
         finally:
-            ctx.close()
+            ctx.mem.close()
+            Jac.set_context(ExecutionContext())
 
     def create_handler(self) -> type[BaseHTTPRequestHandler]:
         """Create the request handler class."""
@@ -445,6 +497,8 @@ class JacAPIServer:
                 if not username:
                     self._send_json_response(401, {"error": "Unauthorized"})
                     return
+
+                server.load_module()
 
                 if path == "/functions":
                     functions = server.get_functions()
@@ -567,6 +621,8 @@ class JacAPIServer:
                 if not username:
                     self._send_json_response(401, {"error": "Unauthorized"})
                     return
+
+                server.load_module()
 
                 if path.startswith("/function/"):
                     func_name = path.split("/")[-1]

@@ -1,4 +1,9 @@
-"""Jac meta path importer."""
+"""Jac meta path importer.
+
+This module implements PEP 451-compliant import hooks for .jac modules.
+It leverages Python's modern import machinery (importlib.abc) to seamlessly
+integrate Jac modules into Python's import system.
+"""
 
 from __future__ import annotations
 
@@ -6,13 +11,17 @@ import importlib.abc
 import importlib.machinery
 import importlib.util
 import os
+import sys
 from types import ModuleType
 from typing import Optional, Sequence
 
 from jaclang.runtimelib.machine import JacMachine as Jac
 from jaclang.runtimelib.machine import JacMachineInterface
 from jaclang.settings import settings
+from jaclang.utils.log import logging
 from jaclang.utils.module_resolver import get_jac_search_paths, get_py_search_paths
+
+logger = logging.getLogger(__name__)
 
 
 class _ByllmFallbackClass:
@@ -72,8 +81,6 @@ class JacMetaImporter(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         if fullname == "byllm" or fullname.startswith("byllm."):
             # Check if byllm is actually installed by looking for it in sys.path
             # We use importlib.util.find_spec with a custom path to avoid recursion
-            import sys
-
             byllm_found = False
             for finder in sys.meta_path:
                 # Skip ourselves to avoid infinite recursion
@@ -158,31 +165,37 @@ class JacMetaImporter(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         return None  # use default machinery
 
     def exec_module(self, module: ModuleType) -> None:
-        """Execute the module."""
+        """Execute the module by loading and executing its bytecode.
+
+        This method implements PEP 451's exec_module() protocol, which separates
+        module creation from execution. It handles both package (__init__.jac) and
+        regular module (.jac/.py) execution.
+        """
         if not module.__spec__ or not module.__spec__.origin:
             raise ImportError(
                 f"Cannot find spec or origin for module {module.__name__}"
             )
+
         file_path = module.__spec__.origin
         is_pkg = module.__spec__.submodule_search_locations is not None
 
-        if is_pkg:
-            codeobj = Jac.program.get_bytecode(full_target=file_path)
-            if codeobj:
-                exec(codeobj, module.__dict__)
-            JacMachineInterface.load_module(module.__name__, module)
-            return
+        # Register module in JacMachine's tracking
+        JacMachineInterface.load_module(module.__name__, module)
 
-        base_path = os.path.dirname(file_path)
-        target = os.path.splitext(os.path.basename(file_path))[0]
-        ret = JacMachineInterface.jac_import(
-            target=target,
-            base_path=base_path,
-            override_name=module.__name__,
-            lng="py" if file_path.endswith(".py") else "jac",
-        )
-        if ret:
-            loaded_module = ret[0]
-            module.__dict__.update(loaded_module.__dict__)
-        else:
-            raise ImportError(f"Unable to import {module.__name__}")
+        # Get and execute bytecode
+        codeobj = Jac.program.get_bytecode(full_target=file_path)
+        if not codeobj:
+            if is_pkg:
+                # Empty package is OK - just register it
+                return
+            raise ImportError(f"No bytecode found for {file_path}")
+
+        try:
+            # Execute the bytecode directly in the module's namespace
+            exec(codeobj, module.__dict__)
+        except Exception as e:
+            logger.error(f"Error executing module {module.__name__}: {e}")
+            from jaclang.utils.helpers import dump_traceback
+
+            logger.error(dump_traceback(e))
+            raise

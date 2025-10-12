@@ -736,7 +736,7 @@ def serve(
     session_path = session if session else os.path.join(base, f"{mod}.session")
 
     server = JacAPIServer(
-        module_name="__main__" if main else mod,
+        module_name=mod,
         session_path=session_path,
         port=port,
     )

@@ -8,6 +8,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Parser Performance Optimization**: Refactored parser node tracking to use O(N) complexity instead of O(N²), drastically reducing parsing time for large files by replacing list membership checks with set-based ID lookups.
 - **byLLM Lazy Loading**: Refactored byLLM to support lazy loading by moving all exports to `byllm.lib` module. Users should now import from `byllm.lib` in Python (e.g., `from byllm.lib import Model, by`) and use `import from byllm.lib { Model }` in Jac code. This improves startup performance and reduces unnecessary module loading.
 - **NonGPT Fallback for byLLM**: Implemented automatic fallback when byLLM is not installed. When code attempts to import `byllm`, the system will provide mock implementations that return random using the `NonGPT.random_value_for_type()` utility.
+- **Import System Refactoring**: Refactored and simplified the Jac import system to better leverage Python's PEP 302 and PEP 451 import protocols. Removed over-engineered custom import logic in favor of standard Python meta path finders and module loaders, improving reliability and compatibility.
+- **Module Cache Synchronization Fix**: Fixed module cache synchronization issues between `JacMachine.loaded_modules` and `sys.modules` that caused test failures and module loading inconsistencies. The machine now properly manages module lifecycles while preserving special Python modules like `__main__`.
 
 ## jaclang 0.8.9 / jac-cloud 0.2.9 / byllm 0.4.4 (Latest Release)
 
