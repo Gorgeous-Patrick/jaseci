@@ -18,7 +18,7 @@ The MTP concept is implemented in Jac-lang through the **byLLM** plugin, which i
 
 <div align="left" style="margin-top: 1em;">
     <a href="https://arxiv.org/abs/2405.08965" class="md-button" style="display: inline-block; margin-right: 10px;">MTP Research</a>
-    <a href="./quickstart.md" class="md-button" style="display: inline-block; margin-right: 10px;">Get Started with MTP</a>
+    <a href="https://www.jac-lang.org/learn/jac-byllm/quickstart/" class="md-button" style="display: inline-block; margin-right: 10px;">Get Started with MTP</a>
     <a href="https://github.com/jaseci-labs/jaseci/tree/main/jac-byllm" class="md-button" style="display: inline-block;">GitHub</a>
 </div>
 

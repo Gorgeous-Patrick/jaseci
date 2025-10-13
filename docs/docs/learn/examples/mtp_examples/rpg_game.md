@@ -24,13 +24,13 @@ You’ll write code, test it, and see AI-generated levels come to life.
   </iframe>
 </div> -->
 
-#### 📺 **Watch the Tutorial**:
+<!-- #### 📺 **Watch the Tutorial**:
 
 You can find the complete video walkthrough of this RPG level generator tutorial. The video covers each step in detail and shows the AI generation process in action.
 
 <div align="center">
 <iframe width="560" height="315" src="https://www.youtube.com/embed/FSIZmwfQD1s?si=rNdyOUNiipFDr6Fn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-</div>
+</div> -->
 
 <!-- ## <span style="color: orange">Overview
 
