@@ -115,7 +115,7 @@ Similarly, custom types can be used as output types which force the LLM to adher
 
 ## Control! Control! Control!
 
-Even if we are elimination prompt engineering entierly, we allow specific ways to enrich code semantics through **docstrings** and **semstrings**.
+Even if we are elimination prompt engineering entirely, we allow specific ways to enrich code semantics through **docstrings** and **semstrings**.
 
 === "Jac"
     ```jac linenums="1"

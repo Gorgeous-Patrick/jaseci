@@ -73,7 +73,7 @@ Traditional OOP with python classes (`class` or Jac's dataclass-like `obj`) that
 
 Instances of node and edge classes allow for assembling objects in a graph structure to express semantic relationships between objects. This goes beyond only modeling objects in memory as a disconnected soup of instances. Walker classes enables to expression of objects interacting with each other through special methods called abilities.
 
-In this example, nodes represent meaningful entities (like Libraries and Shelves), while walkers (borrower) traverse these node objects and process them.
+In this example, nodes represent meaningful entities (like Libraries and Shelves), while walkers (borrowers) traverse these node objects and process them.
 
 ```jac
 node Library {
@@ -225,7 +225,7 @@ This MTP example demonstrates how Jac seamlessly integrates LLMs with structured
 
 ## Zero to Infinite Scale without any Code Changes
 
-Jac's cloud-native abstractions make persistence and user concepts part of the language so that simple programs can run unchanged locally or in the cloud. Much like every object instance has a self referencial `this` or `self` reference. Every instance of a Jac program invocation has a `root` node reference that is unique to every user and for which any ohter node or edge objeccts connected to `root` will persist across code invocations. Thats it. Using `root` to access presistant user state and data, Jac deployments can be scaled from local enviornments infinitely into to the cloud with no code changes..
+Jac's cloud-native abstractions make persistence and user concepts part of the language so that simple programs can run unchanged locally or in the cloud. Much like every object instance has a self referencial `this` or `self` reference. Every instance of a Jac program invocation has a `root` node reference that is unique to every user and for which any other node or edge objects connected to `root` will persist across code invocations. That's it. Using `root` to access persistent user state and data, Jac deployments can be scaled from local environments infinitely into to the cloud with no code changes.
 
 ```jac
 node Post {
