@@ -1044,7 +1044,7 @@ class JacBasics:
                     to_keep = {
                         k: v for k, v in module.__dict__.items() if k.startswith("__")
                     }
-                    module.__dict__.clear()
+                    # module.__dict__.clear()
                     module.__dict__.update(to_keep)
                 else:
                     module = types.ModuleType("__main__")
