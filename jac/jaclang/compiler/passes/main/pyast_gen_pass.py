@@ -2268,9 +2268,8 @@ class PyastGenPass(UniPass):
             for i in str_seq:
                 if isinstance(i, uni.String):
                     pieces.append(i.lit_value)
-                elif isinstance(i, uni.FString):
-                    pieces.extend(get_pieces(i.parts)) if i.parts else None
-                elif isinstance(i, uni.ExprStmt):
+                elif isinstance(i, (uni.FString, uni.ExprStmt)):
+                    # pieces.extend(get_pieces(i.parts)) if i.parts else None
                     pieces.append(i.gen.py_ast[0])
                 elif isinstance(i, uni.Token) and i.name in [Tok.LBRACE, Tok.RBRACE]:
                     continue
@@ -2310,11 +2309,32 @@ class PyastGenPass(UniPass):
             node.gen.py_ast = [combined_multi[0]]
 
     def exit_f_string(self, node: uni.FString) -> None:
-        py_parts: list[list[ast3.AST]] = [
-            cast(list[ast3.AST], p.gen.py_ast) for p in node.parts
+        node.gen.py_ast = [
+            self.sync(
+                ast3.JoinedStr(
+                    values=[
+                        cast(ast3.expr, part.gen.py_ast[0])
+                        for part in node.parts
+                        if part.gen.py_ast
+                    ],
+                )
+            )
         ]
-        parts = self.flatten(cast(list[list[ast3.AST] | ast3.AST | None], py_parts))
-        node.gen.py_ast = parts if parts else [self.sync(ast3.Constant(value=""))]
+
+    def exit_formatted_value(self, node: uni.FormattedValue) -> None:
+        node.gen.py_ast = [
+            self.sync(
+                ast3.FormattedValue(
+                    value=cast(ast3.expr, node.format_part.gen.py_ast[0]),
+                    conversion=node.conversion,
+                    format_spec=(
+                        cast(ast3.expr, node.format_spec.gen.py_ast[0])
+                        if node.format_spec
+                        else None
+                    ),
+                )
+            )
+        ]
 
     def exit_list_val(self, node: uni.ListVal) -> None:
         elts = [cast(ast3.expr, v.gen.py_ast[0]) for v in node.values]

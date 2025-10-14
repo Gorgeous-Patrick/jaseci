@@ -344,15 +344,34 @@ type_ref: TYPE_OP (named_ref | builtin_type)
 
 multistring: (fstring | STRING)+
 
-fstring: FSTR_START fstr_parts FSTR_END
-       | FSTR_SQ_START fstr_sq_parts FSTR_SQ_END
-       | FSTR_TRIPLE_START fstr_triple_parts FSTR_TRIPLE_END
-       | FSTR_SQ_TRIPLE_START fstr_sq_triple_parts FSTR_SQ_TRIPLE_END
+// [Heading]: Formatted string literals.
+fstring: F_DQ_START fstr_dq_part* F_DQ_END
+       | F_SQ_START fstr_sq_part* F_SQ_END
+       | F_TDQ_START fstr_tdq_part* F_TDQ_END
+       | F_TSQ_START fstr_tsq_part* F_TSQ_END
+       | RF_DQ_START rfstr_dq_part* F_DQ_END
+       | RF_SQ_START rfstr_sq_part* F_SQ_END
+       | RF_TDQ_START rfstr_tdq_part* F_TDQ_END
+       | RF_TSQ_START rfstr_tsq_part* F_TSQ_END
 
-fstr_parts: (FSTR_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
-fstr_sq_parts: (FSTR_SQ_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
-fstr_triple_parts: (FSTR_TRIPLE_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
-fstr_sq_triple_parts: (FSTR_SQ_TRIPLE_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
+fstr_dq_part: F_TEXT_DQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+fstr_sq_part: F_TEXT_SQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+fstr_tdq_part: F_TEXT_TDQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+fstr_tsq_part: F_TEXT_TSQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+// Add separate rules for raw f-strings
+rfstr_dq_part: RF_TEXT_DQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+rfstr_sq_part: RF_TEXT_SQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+rfstr_tdq_part: RF_TEXT_TDQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+rfstr_tsq_part: RF_TEXT_TSQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+
+fformat: F_FORMAT_TEXT | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
 
 // [Heading]: Collection values.
 atom_collection: dict_compr
@@ -441,21 +460,6 @@ PYNLINE: /::py::(.|\n|\r)*?::py::/
 TYPE_OP: /`/
 GLOBAL_OP: "global"
 NONLOCAL_OP: "nonlocal"
-
-// [Heading]: f-string tokens.
-FSTR_TRIPLE_START.2: "f\"\"\""
-FSTR_TRIPLE_END: "\"\"\""
-FSTR_SQ_TRIPLE_START.2: "f'''"
-FSTR_SQ_TRIPLE_END: "'''"
-FSTR_START.1: "f\""
-FSTR_END: "\""
-FSTR_SQ_START.1: "f'"
-FSTR_SQ_END: "'"
-FSTR_TRIPLE_PIECE.-1: /(?:(?!""")(?![{}])[\s\S])+/
-FSTR_SQ_TRIPLE_PIECE.-1: /(?:(?!''')(?![{}])[\s\S])+/
-FSTR_PIECE.-1: /[^\{\}\"]+/
-FSTR_SQ_PIECE.-1: /[^\{\}\']+/
-FSTR_BESC.1: /{{|}}/
 
 RETURN_HINT: "->"
 NULL_OK: "?"
@@ -568,6 +572,35 @@ NOT: "not" // TODO:AST: Rename to KW_NOT
 STRING: /(r?b?|b?r?)("[^"\r\n]*"|'[^'\r\n]*')/
        | /(r?b?|b?r?)("""(.|\r|\n)*?"""|'''(.|\r|\n)*?''')/
 
+RF_DQ_START.3: /[rR][fF]"|[fF][rR]"/
+RF_SQ_START.3: /[rR][fF]'|[fF][rR]'/
+RF_TDQ_START.3: /[rR][fF]"""|[fF][rR]"""/
+RF_TSQ_START.3: /[rR][fF]'''|[fF][rR]'''/
+F_DQ_START.2: /[fF]"/
+F_SQ_START.2: /[fF]'/
+F_TDQ_START.2: /[fF]"""/
+F_TSQ_START.2: /[fF]'''/
+
+F_DQ_END: "\""
+F_SQ_END: "'"
+F_TDQ_END: "\"\"\""
+F_TSQ_END: "'''"
+
+D_RBRACE: "}}"
+D_LBRACE: "{{"
+
+F_TEXT_DQ.-1: /[^"{}\n\\]+|\\./
+F_TEXT_SQ.-1: /[^'{}\n\\]+|\\./
+F_TEXT_TDQ.-1: /(?:[^"{}\\]|"(?!""))+|\\./s
+F_TEXT_TSQ.-1: /(?:[^'{}\\]|'(?!''))+|\\./s
+RF_TEXT_DQ.-1: /[^"{}]+/
+RF_TEXT_SQ.-1: /[^'{}]+/
+RF_TEXT_TDQ.-1: /(?:[^"{}]|"(?!""))+/s
+RF_TEXT_TSQ.-1: /(?:[^'{}]|'(?!''))+/s
+F_FORMAT_TEXT.-1: /[^{}]+/
+
+CONV: /![rRsSaA]/
+
 NULL.1: "None"
 BOOL.1: /True|False/
 FLOAT: /(\d+(\.\d*)|\.\d+)([eE][+-]?\d+)?|\d+([eE][-+]?\d+)/
@@ -661,7 +694,7 @@ DOT_BKWD: "<."
 // Comments and Whitespace                                                   //
 // ************************************************************************* //
 
-COMMENT: /#\*(.|\n|\r)*?\*#|#.*/
+COMMENT.4: /#\*(.|\n|\r)*?\*#|#.*/
 WS.-2: /[ \t\f\r\n]/+
 %ignore COMMENT
 %ignore WS

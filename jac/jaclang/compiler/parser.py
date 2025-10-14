@@ -6,7 +6,7 @@ import keyword
 import os
 import sys
 from dataclasses import dataclass
-from typing import Callable, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
+from typing import Callable, Optional, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler import TOKEN_MAP, jac_lark as jl
@@ -2226,108 +2226,142 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def fstring(self, _: None) -> uni.FString:
             """Grammar rule.
 
-            fstring: FSTR_START fstr_parts FSTR_END
-                | FSTR_SQ_START fstr_sq_parts FSTR_SQ_END
-                | FSTR_TRIPLE_START fstr_triple_parts FSTR_TRIPLE_END
-                | FSTR_SQ_TRIPLE_START fstr_sq_triple_parts FSTR_SQ_TRIPLE_END
+            fstring: F_DQ_START fstr_dq_part* F_DQ_END
+                    | F_SQ_START fstr_sq_part* F_SQ_END
             """
-            (
-                self.match_token(Tok.FSTR_TRIPLE_START)
-                or self.match_token(Tok.FSTR_SQ_TRIPLE_START)
-                or self.match_token(Tok.FSTR_START)
-                or self.consume_token(Tok.FSTR_SQ_START)
-            )
-            target = self.match(list)
-            (
-                self.match_token(Tok.FSTR_TRIPLE_END)
-                or self.match_token(Tok.FSTR_SQ_TRIPLE_END)
-                or self.match_token(Tok.FSTR_END)
-                or self.consume_token(Tok.FSTR_SQ_END)
-            )
+            fstring_configs = [
+                ([Tok.F_DQ_START, Tok.RF_DQ_START], Tok.F_DQ_END),
+                ([Tok.F_SQ_START, Tok.RF_SQ_START], Tok.F_SQ_END),
+                ([Tok.F_TDQ_START, Tok.RF_TDQ_START], Tok.F_TDQ_END),
+                ([Tok.F_TSQ_START, Tok.RF_TSQ_START], Tok.F_TSQ_END),
+            ]
+
+            for start_toks, end_tok in fstring_configs:
+                if fstr := self._process_fstring(start_toks, end_tok):
+                    return fstr
+
+            raise self.ice()
+
+        def _process_fstring(
+            self, start_tok: list[Tok], end_tok: Tok
+        ) -> Optional[uni.FString]:
+            """Process fstring nodes."""
+            tok_start = self.match_token(start_tok[0]) or self.match_token(start_tok[1])
+            if not tok_start:
+                return None
+            parts = []
+            while part := self.match(uni.String) or self.match(uni.FormattedValue):
+                parts.append(part)
+            tok_end = self.consume_token(end_tok)
             return uni.FString(
-                parts=(
-                    self.extract_from_list(target, (uni.String, uni.ExprStmt))
-                    if target
-                    else []
-                ),
+                start=tok_start,
+                parts=parts,
+                end=tok_end,
                 kid=self.flat_cur_nodes,
             )
 
-        def fstr_parts(self, _: None) -> list[uni.UniNode]:
+        def fstr_dq_part(self, _: None) -> uni.Token | uni.FormattedValue:
             """Grammar rule.
 
-            fstr_parts: (FSTR_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
+            fstr_dq_part: F_TEXT_DQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
             """
-            valid_parts: list[uni.UniNode] = [
-                (
-                    i
-                    if isinstance(i, uni.String)
-                    else (
-                        uni.ExprStmt(expr=i, in_fstring=True, kid=[i])
-                        if isinstance(i, uni.Expr)
-                        else i
-                    )
-                )
-                for i in self.cur_nodes
-            ]
-            return valid_parts
+            return self._process_f_expr(Tok.F_TEXT_DQ, self.cur_nodes)
 
-        def fstr_sq_parts(self, _: None) -> list[uni.UniNode]:
+        def fstr_sq_part(self, _: None) -> uni.Token | uni.FormattedValue:
             """Grammar rule.
 
-            fstr_sq_parts: (FSTR_SQ_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
+            fstr_sq_part: F_TEXT_SQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
             """
-            valid_parts: list[uni.UniNode] = [
-                (
-                    i
-                    if isinstance(i, uni.String)
-                    else (
-                        uni.ExprStmt(expr=i, in_fstring=True, kid=[i])
-                        if isinstance(i, uni.Expr)
-                        else i
-                    )
-                )
-                for i in self.cur_nodes
-            ]
-            return valid_parts
+            return self._process_f_expr(Tok.F_TEXT_SQ, self.cur_nodes)
 
-        def fstr_triple_parts(self, _: None) -> list[uni.UniNode]:
+        def fstr_tdq_part(self, _: None) -> uni.Token | uni.FormattedValue:
             """Grammar rule.
 
-            fstr_triple_parts: (FSTR_TRIPLE_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
+            fstr_tdq_part: F_TEXT_DQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
             """
-            valid_parts: list[uni.UniNode] = [
-                (
-                    i
-                    if isinstance(i, uni.String)
-                    else (
-                        uni.ExprStmt(expr=i, in_fstring=True, kid=[i])
-                        if isinstance(i, uni.Expr)
-                        else i
-                    )
-                )
-                for i in self.cur_nodes
-            ]
-            return valid_parts
+            return self._process_f_expr(Tok.F_TEXT_TDQ, self.cur_nodes)
 
-        def fstr_sq_triple_parts(self, _: None) -> list[uni.UniNode]:
+        def fstr_tsq_part(self, _: None) -> uni.Token | uni.FormattedValue:
             """Grammar rule.
 
-            fstr_sq_triple_parts: (FSTR_SQ_TRIPLE_PIECE | FSTR_BESC | LBRACE expression RBRACE )*
+            fstr_sq_part: F_TEXT_SQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
             """
-            valid_parts: list[uni.UniNode] = [
-                (
-                    i
-                    if isinstance(i, uni.String)
-                    else (
-                        uni.ExprStmt(expr=i, in_fstring=True, kid=[i])
-                        if isinstance(i, uni.Expr)
-                        else i
-                    )
+            return self._process_f_expr(Tok.F_TEXT_TSQ, self.cur_nodes)
+
+        def rfstr_dq_part(self, _: None) -> uni.Token | uni.FormattedValue:
+            """Grammar rule.
+
+            fstr_dq_part: F_TEXT_DQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+            """
+            return self._process_f_expr(Tok.RF_TEXT_DQ, self.cur_nodes)
+
+        def rfstr_sq_part(self, _: None) -> uni.Token | uni.FormattedValue:
+            """Grammar rule.
+
+            fstr_sq_part: F_TEXT_SQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+            """
+            return self._process_f_expr(Tok.RF_TEXT_SQ, self.cur_nodes)
+
+        def rfstr_tdq_part(self, _: None) -> uni.Token | uni.FormattedValue:
+            """Grammar rule.
+
+            fstr_tdq_part: F_TEXT_DQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+            """
+            return self._process_f_expr(Tok.RF_TEXT_TDQ, self.cur_nodes)
+
+        def rfstr_tsq_part(self, _: None) -> uni.Token | uni.FormattedValue:
+            """Grammar rule.
+
+            fstr_sq_part: F_TEXT_SQ | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+            """
+            return self._process_f_expr(Tok.RF_TEXT_TSQ, self.cur_nodes)
+
+        def fformat(self, _: None) -> uni.Token | uni.FormattedValue:
+            """Grammar rule.
+
+            fformat: F_FORMAT_TEXT | D_LBRACE | D_RBRACE | LBRACE expression CONV? (COLON fformat*)? RBRACE
+            """
+            return self._process_f_expr(Tok.F_FORMAT_TEXT, self.cur_nodes)
+
+        def _process_f_expr(
+            self, token: Tok, nodes: list[uni.UniNode]
+        ) -> uni.Token | uni.FormattedValue:
+            """Process fexpression nodes."""
+            if (
+                tok := self.match_token(token)
+                or self.match_token(Tok.D_LBRACE)
+                or self.match_token(Tok.D_RBRACE)
+            ):
+                return tok
+            else:
+                conversion = -1
+                format_spec = None
+                self.consume_token(Tok.LBRACE)
+                expr = self.consume(uni.Expr)
+                if conv_tok := self.match_token(Tok.CONV):
+                    conversion = ord(conv_tok.value[1:])
+                if self.match_token(Tok.COLON):
+                    parts = []
+                    while part := self.match(uni.String) or self.match(
+                        uni.FormattedValue
+                    ):
+                        parts.append(part)
+                    if len(parts) == 1 and isinstance(parts[0], uni.String):
+                        format_spec = parts[0]
+                    elif parts:
+                        format_spec = uni.FString(
+                            start=None,
+                            parts=parts,
+                            end=None,
+                            kid=parts,
+                        )
+                self.consume_token(Tok.RBRACE)
+                return uni.FormattedValue(
+                    format_part=expr,
+                    conversion=conversion,
+                    format_spec=format_spec,
+                    kid=self.cur_nodes,
                 )
-                for i in self.cur_nodes
-            ]
-            return valid_parts
 
         def list_val(self, _: None) -> uni.ListVal:
             """Grammar rule.
@@ -3177,15 +3211,23 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 ret_type = uni.Int
             elif token.type in [
                 Tok.STRING,
-                Tok.FSTR_BESC,
-                Tok.FSTR_PIECE,
-                Tok.FSTR_SQ_PIECE,
-                Tok.FSTR_TRIPLE_PIECE,
-                Tok.FSTR_SQ_TRIPLE_PIECE,
+                Tok.D_LBRACE,
+                Tok.D_RBRACE,
+                Tok.F_TEXT_DQ,
+                Tok.F_TEXT_SQ,
+                Tok.F_TEXT_TDQ,
+                Tok.F_TEXT_TSQ,
+                Tok.RF_TEXT_DQ,
+                Tok.RF_TEXT_SQ,
+                Tok.RF_TEXT_TDQ,
+                Tok.RF_TEXT_TSQ,
+                Tok.F_FORMAT_TEXT,
             ]:
                 ret_type = uni.String
-                if token.type == Tok.FSTR_BESC:
-                    token.value = token.value[1:]
+                if token.type == Tok.D_LBRACE:
+                    token.value = "{"
+                elif token.type == Tok.D_RBRACE:
+                    token.value = "}"
             elif token.type == Tok.BOOL:
                 ret_type = uni.Bool
             elif token.type == Tok.PYNLINE and isinstance(token.value, str):

@@ -32,7 +32,7 @@ class TestJacLangServer(TestCase):
         pos = lspt.Position(8, 11)
         self.assertIn(
             # "ability) calculate_area: float",
-            "ability) calculate_area\n( radius : float ) -> float",
+            "ability) calculate_area\\n( radius : float ) -> float",
             lsp.get_hover_info(circle_impl_file, pos).contents.value.replace("'", ""),
         )
 
@@ -50,7 +50,7 @@ class TestJacLangServer(TestCase):
         pos = lspt.Position(8, 11)
         self.assertIn(
             # "ability) calculate_area: float",
-            "(public ability) calculate_area\n( radius : float ) -> float",
+            "(public ability) calculate_area\\n( radius : float ) -> float",
             lsp.get_hover_info(circle_impl_file, pos).contents.value.replace("'", ""),
         )
 

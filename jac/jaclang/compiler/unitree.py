@@ -3223,10 +3223,14 @@ class FString(AtomExpr):
 
     def __init__(
         self,
-        parts: Sequence[String | ExprStmt],
+        start: Optional[Token],
+        parts: Sequence[String | FormattedValue],
+        end: Optional[Token],
         kid: Sequence[UniNode],
     ) -> None:
-        self.parts: list[String | ExprStmt] = list(parts)
+        self.start = start
+        self.parts: list[String | FormattedValue] = list(parts)
+        self.end = end
         UniNode.__init__(self, kid=kid)
         Expr.__init__(self)
         AstSymbolStubNode.__init__(self, sym_type=SymbolType.STRING)
@@ -3236,33 +3240,53 @@ class FString(AtomExpr):
         if deep:
             for part in self.parts:
                 res = res and part.normalize(deep)
-        new_kid: list[UniNode] = []
-        # Determine quote type from first token
-        start_token = self.kid[0] if isinstance(self.kid[0], Token) else None
-        if start_token:
-            if start_token.name == Tok.FSTR_SQ_TRIPLE_START:
-                start_tok, end_tok = Tok.FSTR_SQ_TRIPLE_START, Tok.FSTR_SQ_TRIPLE_END
-            elif start_token.name == Tok.FSTR_TRIPLE_START:
-                start_tok, end_tok = Tok.FSTR_TRIPLE_START, Tok.FSTR_TRIPLE_END
-            elif start_token.name == Tok.FSTR_SQ_START:
-                start_tok, end_tok = Tok.FSTR_SQ_START, Tok.FSTR_SQ_END
-            else:
-                start_tok, end_tok = Tok.FSTR_START, Tok.FSTR_END
-        else:
-            start_tok, end_tok = Tok.FSTR_START, Tok.FSTR_END
+        new_kid: list[UniNode] = (
+            [self.gen_token(self.start)] if self.start is not None else []
+        )
+        for part in self.parts:
+            new_kid.append(part)
+        if self.end is not None:
+            new_kid.append(self.gen_token(self.end))
+        self.set_kids(nodes=new_kid)
+        return res
 
-        new_kid.append(self.gen_token(start_tok))
-        for i in self.parts:
-            if isinstance(i, String):
-                i.value = (
-                    "{{" if i.value == "{" else "}}" if i.value == "}" else i.value
-                )
-                new_kid.append(i)
-            else:
-                new_kid.append(self.gen_token(Tok.LBRACE))
-                new_kid.append(i)
-                new_kid.append(self.gen_token(Tok.RBRACE))
-        new_kid.append(self.gen_token(end_tok))
+    def unparse(self) -> str:
+        valid = self.normalize()
+        res = "".join([i.unparse() for i in self.kid])
+        if not valid:
+            raise NotImplementedError(f"Node {type(self).__name__} is not valid.")
+        return res
+
+
+class FormattedValue(Expr):
+    """FormattedValue node type for Jac Ast."""
+
+    def __init__(
+        self,
+        format_part: Expr,
+        conversion: int,
+        format_spec: Expr | None,
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.format_part: Expr = format_part
+        self.conversion: int = conversion
+        self.format_spec: Expr | None = format_spec
+        UniNode.__init__(self, kid=kid)
+        Expr.__init__(self)
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            res = self.format_part.normalize(deep)
+            res = res and self.format_spec.normalize(deep) if self.format_spec else res
+        new_kid: list[UniNode] = [self.gen_token(Tok.LBRACE)]
+        new_kid.append(self.format_part)
+        if self.conversion != -1:
+            new_kid.append(self.gen_token(Tok.CONV, value="!" + chr(self.conversion)))
+        if self.format_spec:
+            new_kid.append(self.gen_token(Tok.COLON))
+            new_kid.append(self.format_spec)
+        new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 
@@ -4663,6 +4687,8 @@ class String(Literal):
 
     def unparse(self) -> str:
         super().unparse()
+        if self.parent and isinstance(self.parent, FString):
+            return self.lit_value
         return self.value
 
 

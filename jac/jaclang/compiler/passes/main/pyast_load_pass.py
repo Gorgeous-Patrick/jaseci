@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import ast as py_ast
 import os
+import re
 from typing import Optional, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
@@ -1160,7 +1161,7 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         else:
             raise self.ice()
 
-    def proc_formatted_value(self, node: py_ast.FormattedValue) -> uni.ExprStmt:
+    def proc_formatted_value(self, node: py_ast.FormattedValue) -> uni.FormattedValue:
         """Process python node.
 
         class FormattedValue(expr):
@@ -1171,10 +1172,15 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
         format_spec: expr | None
         """
         value = self.convert(node.value)
+        if node.format_spec:
+            fmt_spec = cast(uni.Expr, self.convert(node.format_spec))
+        else:
+            fmt_spec = None
         if isinstance(value, uni.Expr):
-            ret = uni.ExprStmt(
-                expr=value,
-                in_fstring=True,
+            ret = uni.FormattedValue(
+                format_part=value,
+                conversion=node.conversion,
+                format_spec=fmt_spec,
                 kid=[value],
             )
         else:
@@ -1369,13 +1375,34 @@ class PyastBuildPass(Transform[uni.PythonModuleAst, uni.Module]):
             __match_args__ = ("values",)
         values: list[expr]
         """
-        values = [self.convert(value) for value in node.values]
-        valid = [
-            value for value in values if isinstance(value, (uni.String, uni.ExprStmt))
-        ]
+        valid: list[uni.Token | uni.FormattedValue] = []
+        for i in node.values:
+            if isinstance(i, py_ast.Constant) and isinstance(i.value, str):
+                valid.append(self.operator(Tok.STRING, i.value))
+            elif isinstance(i, py_ast.FormattedValue):
+                converted = self.convert(i)
+                if isinstance(converted, uni.FormattedValue):
+                    valid.append(converted)
+            else:
+                raise self.ice("Invalid node in joined str")
+        ast_seg = py_ast.get_source_segment(self.orig_src.code, node)
+        if ast_seg is None:
+            ast_seg = 'f""'
+        match = re.match(r"(?i)(fr|rf|f)('{3}|\"{3}|'|\")", ast_seg)
+        if match:
+            prefix, quote = match.groups()
+            start = match.group(0)
+            end = quote * (3 if len(quote) == 3 else 1)
+        else:
+            start = "f'"
+            end = "'"
+        tok_start = self.operator(Tok.STRING, start)
+        tok_end = self.operator(Tok.STRING, end)
         fstr = uni.FString(
+            start=tok_start,
             parts=valid,
-            kid=[*valid] if valid else [uni.EmptyToken()],
+            end=tok_end,
+            kid=[tok_start, *valid, tok_end] if valid else [uni.EmptyToken()],
         )
         return uni.MultiString(strings=[fstr], kid=[fstr])
 
