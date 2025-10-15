@@ -22,13 +22,13 @@ class TestJacLangServer(TestCase):
         circle_impl_file = uris.from_fs_path(
             self.fixture_abs_path("circle_pure.impl.jac")
         )
-        lsp.deep_check(circle_file)
+        lsp.type_check_file(circle_file)
         pos = lspt.Position(20, 8)
         self.assertIn(
             "Circle class inherits from Shape.",
             lsp.get_hover_info(circle_file, pos).contents.value,
         )
-        lsp.deep_check(circle_impl_file)
+        lsp.type_check_file(circle_impl_file)
         pos = lspt.Position(8, 11)
         self.assertIn(
             # "ability) calculate_area: float",
@@ -46,7 +46,7 @@ class TestJacLangServer(TestCase):
         circle_impl_file = uris.from_fs_path(
             self.fixture_abs_path("circle_pure.impl.jac")
         )
-        lsp.deep_check(circle_impl_file)
+        lsp.type_check_file(circle_impl_file)
         pos = lspt.Position(8, 11)
         self.assertIn(
             # "ability) calculate_area: float",
@@ -61,7 +61,7 @@ class TestJacLangServer(TestCase):
         workspace = Workspace(workspace_path, lsp)
         lsp.lsp._workspace = workspace
         circle_file = uris.from_fs_path(self.fixture_abs_path("circle_pure.jac"))
-        lsp.deep_check(circle_file)
+        lsp.type_check_file(circle_file)
         self.assertEqual(8, len(lsp.get_outline(circle_file)))
 
     def test_go_to_definition(self) -> None:
@@ -71,7 +71,7 @@ class TestJacLangServer(TestCase):
         workspace = Workspace(workspace_path, lsp)
         lsp.lsp._workspace = workspace
         circle_file = uris.from_fs_path(self.fixture_abs_path("circle_pure.jac"))
-        lsp.deep_check(circle_file)
+        lsp.type_check_file(circle_file)
         self.assertIn(
             "fixtures/circle_pure.impl.jac:8:5-8:19",
             str(lsp.get_definition(circle_file, lspt.Position(9, 16))),
@@ -90,12 +90,12 @@ class TestJacLangServer(TestCase):
         decldef_file = uris.from_fs_path(
             self.examples_abs_path("micro/decl_defs_main.impl.jac")
         )
-        lsp.deep_check(decldef_file)
+        lsp.type_check_file(decldef_file)
         decldef_main_file = uris.from_fs_path(
             self.examples_abs_path("micro/decl_defs_main.jac")
         )
-        lsp.deep_check(decldef_main_file)
-        lsp.deep_check(decldef_file)
+        lsp.type_check_file(decldef_main_file)
+        lsp.type_check_file(decldef_file)
         self.assertIn(
             "decl_defs_main.jac:7:8-7:17",
             str(lsp.get_definition(decldef_file, lspt.Position(2, 20))),
@@ -108,7 +108,7 @@ class TestJacLangServer(TestCase):
         workspace = Workspace(workspace_path, lsp)
         lsp.lsp._workspace = workspace
         import_file = uris.from_fs_path(self.fixture_abs_path("md_path.jac"))
-        lsp.deep_check(import_file)
+        lsp.type_check_file(import_file)
         # fmt: off
         positions = [
             (3, 11, "asyncio/__init__.py:0:0-0:0"),
@@ -151,7 +151,7 @@ class TestJacLangServer(TestCase):
         workspace = Workspace(workspace_path, lsp)
         lsp.lsp._workspace = workspace
         import_file = uris.from_fs_path(self.fixture_abs_path("user.jac"))
-        lsp.deep_check(import_file)
+        lsp.type_check_file(import_file)
         # fmt: off
         positions = [
             (14, 16, "fixtures/greet.py:12:3-13:15"),
@@ -177,7 +177,7 @@ class TestJacLangServer(TestCase):
         workspace = Workspace(workspace_path, lsp)
         lsp.lsp._workspace = workspace
         import_file = uris.from_fs_path(self.fixture_abs_path("md_path.jac"))
-        lsp.deep_check(import_file)
+        lsp.type_check_file(import_file)
 
         positions = [
             "fixtures/md_path.jac, line 16, col 13: Module not found",
@@ -200,7 +200,7 @@ class TestJacLangServer(TestCase):
         base_module_file = uris.from_fs_path(
             self.fixture_abs_path("completion_test_err.jac")
         )
-        lsp.deep_check(base_module_file)
+        lsp.type_check_file(base_module_file)
 
         @dataclass
         class Case:
@@ -229,7 +229,7 @@ class TestJacLangServer(TestCase):
         lsp.lsp._workspace = workspace
 
         circle_file = uris.from_fs_path(self.fixture_abs_path("circle.jac"))
-        lsp.deep_check(circle_file)
+        lsp.type_check_file(circle_file)
         test_cases = [
             (47, 12, ["circle.jac:47:8-47:14", "69:8-69:14", "74:8-74:14"]),
             (54, 66, ["54:62-54:76", "65:23-65:37"]),

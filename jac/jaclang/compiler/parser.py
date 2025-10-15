@@ -6,6 +6,7 @@ import keyword
 import os
 import sys
 from dataclasses import dataclass
+from threading import Event
 from typing import Callable, Optional, Sequence, TYPE_CHECKING, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
@@ -62,12 +63,14 @@ class LarkParseTransform(Transform[LarkParseInput, LarkParseOutput]):
 class JacParser(Transform[uni.Source, uni.Module]):
     """Jac Parser."""
 
-    def __init__(self, root_ir: uni.Source, prog: JacProgram) -> None:
+    def __init__(
+        self, root_ir: uni.Source, prog: JacProgram, cancel_token: Event | None = None
+    ) -> None:
         """Initialize parser."""
         self.mod_path = root_ir.loc.mod_path
         self.node_list: list[uni.UniNode] = []
         self._node_ids: set[int] = set()
-        Transform.__init__(self, ir_in=root_ir, prog=prog)
+        Transform.__init__(self, ir_in=root_ir, prog=prog, cancel_token=cancel_token)
 
     def transform(self, ir_in: uni.Source) -> uni.Module:
         """Transform input IR."""
@@ -80,7 +83,6 @@ class JacParser(Transform[uni.Source, uni.Module]):
             # Use LarkParseTransform instead of direct parser call
             lark_transform = LarkParseTransform(ir_in=lark_input, prog=self.prog)
             parse_output = lark_transform.ir_out
-
             # Transform parse tree to AST
             mod = JacParser.TreeToAST(parser=self).transform(parse_output.tree)
             ir_in.comments = [self.proc_comment(i, mod) for i in parse_output.comments]
@@ -267,6 +269,8 @@ class JacParser(Transform[uni.Source, uni.Module]):
             self, tree: jl.Tree, new_children: None | list[uni.UniNode] = None
         ) -> uni.UniNode:
             self.cur_nodes = new_children or tree.children  # type: ignore[assignment]
+            if self.parse_ref.is_canceled():
+                raise StopIteration
             try:
                 return self._node_update(super()._call_userfunc(tree, new_children))
             finally:
