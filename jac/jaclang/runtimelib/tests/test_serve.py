@@ -962,3 +962,110 @@ class TestServeCommand(TestCase):
         self.assertEqual(status_ssr, 200)
 
         self.assertIn('<div id="__jac_root"></div>', html_ssr)
+
+    def test_faux_flag_prints_endpoint_docs(self) -> None:
+        """Test that --faux flag prints endpoint documentation without starting server."""
+        import io
+        import sys
+        from contextlib import redirect_stdout
+
+        # Capture stdout
+        captured_output = io.StringIO()
+
+        try:
+            with redirect_stdout(captured_output):
+                # Call serve with faux=True
+                cli.serve(
+                    filename=self.fixture_abs_path("serve_api.jac"),
+                    session=self.session_file,
+                    port=self.port,
+                    main=True,
+                    faux=True
+                )
+        except SystemExit:
+            pass  # serve() may call exit() in some error cases
+
+        output = captured_output.getvalue()
+
+        # Verify function endpoints are documented
+        self.assertIn("FUNCTIONS", output)
+        self.assertIn("/function/add_numbers", output)
+        self.assertIn("/function/greet", output)
+
+        # Verify walker endpoints are documented
+        self.assertIn("WALKERS", output)
+        self.assertIn("/walker/CreateTask", output)
+        self.assertIn("/walker/ListTasks", output)
+        self.assertIn("/walker/CompleteTask", output)
+
+        # Verify client page endpoints section is documented
+        self.assertIn("CLIENT PAGES", output)
+        self.assertIn("client_page", output)
+
+        # Verify summary is present
+        self.assertIn("TOTAL:", output)
+        self.assertIn("2 functions", output)
+        self.assertIn("3 walkers", output)
+        self.assertIn("16 endpoints", output)
+
+        # Verify parameter details are included
+        self.assertIn("required", output)
+        self.assertIn("optional", output)
+        self.assertIn("Bearer token", output)
+
+    def test_faux_flag_with_littlex_example(self) -> None:
+        """Test that --faux flag correctly identifies functions, walkers, and endpoints in littleX example."""
+        import io
+        from contextlib import redirect_stdout
+
+        # Get the absolute path to littleX file
+        import os
+        littlex_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "../../../examples/littleX/littleX_single_nodeps.jac"
+            )
+        )
+
+        # Skip test if file doesn't exist
+        if not os.path.exists(littlex_path):
+            self.skipTest(f"LittleX example not found at {littlex_path}")
+
+        # Capture stdout
+        captured_output = io.StringIO()
+
+        try:
+            with redirect_stdout(captured_output):
+                # Call serve with faux=True on littleX example
+                cli.serve(
+                    filename=littlex_path,
+                    session=self.session_file,
+                    port=self.port,
+                    main=True,
+                    faux=True
+                )
+        except SystemExit:
+            pass  # serve() may call exit() in some error cases
+
+        output = captured_output.getvalue()
+
+
+        self.assertIn("littleX_single_nodeps", output)
+        self.assertIn("0 functions", output)
+        self.assertIn("15 walkers", output)
+        self.assertIn("36 endpoints", output)
+
+        # Verify some specific walker endpoints are documented
+        self.assertIn("/walker/visit_profile", output)
+        self.assertIn("/walker/create_tweet", output)
+        self.assertIn("/walker/load_feed", output)
+        self.assertIn("/walker/update_profile", output)
+
+        # Verify authentication and introspection endpoints are still present
+        self.assertIn("/user/create", output)
+        self.assertIn("Available", output)
+        self.assertIn("27", output)  # 27 client functions
+        # Verify some client functions are listed
+        self.assertIn("App", output)
+        self.assertIn("FeedView", output)
+        self.assertIn("/page/", output)
