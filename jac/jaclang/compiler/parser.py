@@ -414,15 +414,22 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def toplevel_stmt(self, _: None) -> uni.ElementStmt:
             """Grammar rule.
 
-            toplevel_stmt: import_stmt
-                | archetype
-                | ability
-                | global_var
-                | free_code
+            toplevel_stmt: KW_CLIENT? import_stmt
+                | KW_CLIENT? archetype
+                | impl_def
+                | sem_def
+                | KW_CLIENT? ability
+                | KW_CLIENT? global_var
+                | KW_CLIENT? free_code
                 | py_code_block
-                | test
+                | KW_CLIENT? test
             """
-            return self.consume(uni.ElementStmt)
+            client_tok = self.match_token(Tok.KW_CLIENT)
+            element = self.consume(uni.ElementStmt)
+            if client_tok and isinstance(element, uni.ClientFacingNode):
+                element.is_client_decl = True
+                element.add_kids_left([client_tok])
+            return element
 
         def global_var(self, _: None) -> uni.GlobalVars:
             """Grammar rule.
@@ -2159,6 +2166,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                  | atom_collection
                  | atom_literal
                  | type_ref
+                 | jsx_element
             """
             if self.match_token(Tok.LPAREN):
                 value = self.match(uni.Expr) or self.consume(uni.YieldExpr)
@@ -2628,6 +2636,270 @@ class JacParser(Transform[uni.Source, uni.Module]):
             arch_name = self.consume(uni.NameAtom)
             return uni.TypeRef(
                 target=arch_name,
+                kid=self.cur_nodes,
+            )
+
+        def jsx_element(self, _: None) -> uni.JsxElement:
+            """Grammar rule.
+
+            jsx_element: jsx_self_closing
+                       | jsx_fragment
+                       | jsx_opening_closing
+            """
+            return self.consume(uni.JsxElement)
+
+        def jsx_self_closing(self, _: None) -> uni.JsxElement:
+            """Grammar rule.
+
+            jsx_self_closing: JSX_OPEN_START jsx_element_name jsx_attributes? JSX_SELF_CLOSE
+            """
+            open_tok = self.consume_token(Tok.JSX_OPEN_START)
+            name = self.consume(uni.JsxElementName)
+            # jsx_attributes is optional and returns a list when present
+            attrs_list = self.match(
+                list
+            )  # Will match jsx_attributes which returns a list
+            attrs = attrs_list if attrs_list else []
+            close_tok = self.consume_token(Tok.JSX_SELF_CLOSE)
+
+            # Build kid list manually with proper flattening
+            kid = [open_tok, name]
+            if attrs:
+                kid.extend(attrs)  # Flatten the attributes list
+            kid.append(close_tok)
+
+            return uni.JsxElement(
+                name=name,
+                attributes=attrs,
+                children=None,
+                is_self_closing=True,
+                is_fragment=False,
+                kid=kid,
+            )
+
+        def jsx_opening_closing(self, _: None) -> uni.JsxElement:
+            """Grammar rule.
+
+            jsx_opening_closing: jsx_opening_element jsx_children? jsx_closing_element
+            """
+            opening = self.consume(uni.JsxElement)  # From jsx_opening_element
+            # jsx_children is optional and returns a list when present
+            children_list = self.match(
+                list
+            )  # Will match jsx_children which returns a list
+            children = children_list if children_list else []
+            closing = self.consume(
+                uni.JsxElement
+            )  # From jsx_closing_element (closing tag)
+
+            # Build kid list with proper flattening
+            kid = list(opening.kid)  # Start with opening tag's kids
+            if children:
+                kid.extend(children)  # Add children
+            kid.extend(closing.kid)  # Add closing tag's kids
+
+            # Merge opening and closing into single element
+            return uni.JsxElement(
+                name=opening.name,
+                attributes=opening.attributes,
+                children=children if children else None,
+                is_self_closing=False,
+                is_fragment=False,
+                kid=kid,
+            )
+
+        def jsx_fragment(self, _: None) -> uni.JsxElement:
+            """Grammar rule.
+
+            jsx_fragment: JSX_FRAG_OPEN jsx_children? JSX_FRAG_CLOSE
+            """
+            open_tok = self.consume_token(Tok.JSX_FRAG_OPEN)
+            # jsx_children is optional and returns a list when present
+            children_list = self.match(
+                list
+            )  # Will match jsx_children which returns a list
+            children = children_list if children_list else []
+            close_tok = self.consume_token(Tok.JSX_FRAG_CLOSE)
+
+            # Build kid list with proper flattening
+            kid = [open_tok]
+            if children:
+                kid.extend(children)  # Flatten children
+            kid.append(close_tok)
+
+            return uni.JsxElement(
+                name=None,
+                attributes=None,
+                children=children if children else None,
+                is_self_closing=False,
+                is_fragment=True,
+                kid=kid,
+            )
+
+        def jsx_opening_element(self, _: None) -> uni.JsxElement:
+            """Grammar rule.
+
+            jsx_opening_element: JSX_OPEN_START jsx_element_name jsx_attributes? JSX_TAG_END
+            """
+            open_tok = self.consume_token(Tok.JSX_OPEN_START)
+            name = self.consume(uni.JsxElementName)
+            # jsx_attributes is optional and returns a list when present
+            attrs_list = self.match(
+                list
+            )  # Will match jsx_attributes which returns a list
+            attrs = attrs_list if attrs_list else []
+            end_tok = self.consume_token(Tok.JSX_TAG_END)
+
+            # Build kid list manually with proper flattening
+            kid = [open_tok, name]
+            if attrs:
+                kid.extend(attrs)  # Flatten the attributes list
+            kid.append(end_tok)
+
+            # Return partial element (will be completed in jsx_opening_closing)
+            return uni.JsxElement(
+                name=name,
+                attributes=attrs,
+                children=None,
+                is_self_closing=False,
+                is_fragment=False,
+                kid=kid,
+            )
+
+        def jsx_closing_element(self, _: None) -> uni.JsxElement:
+            """Grammar rule.
+
+            jsx_closing_element: JSX_CLOSE_START jsx_element_name JSX_TAG_END
+            """
+            self.consume_token(Tok.JSX_CLOSE_START)
+            name = self.consume(uni.JsxElementName)
+            self.consume_token(Tok.JSX_TAG_END)
+            # Return stub element with just closing info
+            return uni.JsxElement(
+                name=name,
+                attributes=None,
+                children=None,
+                is_self_closing=False,
+                is_fragment=False,
+                kid=self.cur_nodes,
+            )
+
+        def jsx_element_name(self, _: None) -> uni.JsxElementName:
+            """Grammar rule.
+
+            jsx_element_name: JSX_NAME (DOT JSX_NAME)*
+            """
+            parts = [self.consume_token(Tok.JSX_NAME)]
+            while self.match_token(Tok.DOT):
+                parts.append(self.consume_token(Tok.JSX_NAME))
+            return uni.JsxElementName(
+                parts=parts,
+                kid=self.cur_nodes,
+            )
+
+        def jsx_attributes(self, _: None) -> list[uni.JsxAttribute]:
+            """Grammar rule.
+
+            jsx_attributes: jsx_attribute+
+            """
+            return self.consume_many(uni.JsxAttribute)
+
+        def jsx_attribute(self, _: None) -> uni.JsxAttribute:
+            """Grammar rule.
+
+            jsx_attribute: jsx_spread_attribute | jsx_normal_attribute
+            """
+            return self.consume(uni.JsxAttribute)
+
+        def jsx_spread_attribute(self, _: None) -> uni.JsxSpreadAttribute:
+            """Grammar rule.
+
+            jsx_spread_attribute: LBRACE ELLIPSIS expression RBRACE
+            """
+            self.consume_token(Tok.LBRACE)
+            self.consume_token(Tok.ELLIPSIS)
+            expr = self.consume(uni.Expr)
+            self.consume_token(Tok.RBRACE)
+            return uni.JsxSpreadAttribute(
+                expr=expr,
+                kid=self.cur_nodes,
+            )
+
+        def jsx_normal_attribute(self, _: None) -> uni.JsxNormalAttribute:
+            """Grammar rule.
+
+            jsx_normal_attribute: JSX_NAME (EQ jsx_attr_value)?
+            """
+            name = self.consume_token(Tok.JSX_NAME)
+            value = None
+            if self.match_token(Tok.EQ):
+                value = self.consume(uni.Expr)
+            return uni.JsxNormalAttribute(
+                name=name,
+                value=value,
+                kid=self.cur_nodes,
+            )
+
+        def jsx_attr_value(self, _: None) -> uni.String | uni.Expr:
+            """Grammar rule.
+
+            jsx_attr_value: STRING | LBRACE expression RBRACE
+            """
+            if string := self.match(uni.String):
+                return string
+            self.consume_token(Tok.LBRACE)
+            expr = self.consume(uni.Expr)
+            self.consume_token(Tok.RBRACE)
+            return expr
+
+        def jsx_children(self, _: None) -> list[uni.JsxChild]:
+            """Grammar rule.
+
+            jsx_children: jsx_child+
+            """
+            # The grammar already produces a list of children
+            # Just collect all JsxChild nodes from cur_nodes
+            children = []
+            while self.node_idx < len(self.cur_nodes):
+                if isinstance(
+                    self.cur_nodes[self.node_idx], (uni.JsxChild, uni.JsxElement)
+                ):
+                    children.append(self.cur_nodes[self.node_idx])  # type: ignore[arg-type]
+                    self.node_idx += 1
+                else:
+                    break
+            return children
+
+        def jsx_child(self, _: None) -> uni.JsxChild:
+            """Grammar rule.
+
+            jsx_child: jsx_element | jsx_expression
+            """
+            if jsx_elem := self.match(uni.JsxElement):
+                return jsx_elem  # type: ignore[return-value]
+            return self.consume(uni.JsxChild)
+
+        def jsx_expression(self, _: None) -> uni.JsxExpression:
+            """Grammar rule.
+
+            jsx_expression: LBRACE expression RBRACE
+            """
+            self.consume_token(Tok.LBRACE)
+            expr = self.consume(uni.Expr)
+            self.consume_token(Tok.RBRACE)
+            return uni.JsxExpression(
+                expr=expr,
+                kid=self.cur_nodes,
+            )
+
+        def jsx_text(self, _: None) -> uni.JsxText:
+            """Grammar rule.
+
+            jsx_text: JSX_TEXT
+            """
+            text = self.consume_token(Tok.JSX_TEXT)
+            return uni.JsxText(
+                value=text,
                 kid=self.cur_nodes,
             )
 

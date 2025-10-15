@@ -18,6 +18,7 @@ from typing import (
     Sequence,
     Type,
     TypeVar,
+    Union,
 )
 
 
@@ -575,6 +576,13 @@ class AstAccessNode(UniNode):
 T = TypeVar("T", bound=UniNode)
 
 
+class ClientFacingNode:
+    """Mixin for nodes that can be marked as client-facing declarations."""
+
+    def __init__(self, is_client_decl: bool = False) -> None:
+        self.is_client_decl = is_client_decl
+
+
 class AstDocNode(UniNode):
     """Nodes that have access."""
 
@@ -1002,7 +1010,7 @@ class ProgramModule(UniNode):
         self.hub: dict[str, Module] = {self.loc.mod_path: main_mod} if main_mod else {}
 
 
-class GlobalVars(ElementStmt, AstAccessNode):
+class GlobalVars(ClientFacingNode, ElementStmt, AstAccessNode):
     """GlobalVars node type for Jac Ast."""
 
     def __init__(
@@ -1018,6 +1026,7 @@ class GlobalVars(ElementStmt, AstAccessNode):
         UniNode.__init__(self, kid=kid)
         AstAccessNode.__init__(self, access=access)
         AstDocNode.__init__(self, doc=doc)
+        ClientFacingNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1029,6 +1038,8 @@ class GlobalVars(ElementStmt, AstAccessNode):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
+        if self.is_client_decl:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
         if self.is_frozen:
             new_kid.append(self.gen_token(Tok.KW_LET))
         else:
@@ -1043,7 +1054,7 @@ class GlobalVars(ElementStmt, AstAccessNode):
         return res
 
 
-class Test(AstSymbolNode, ElementStmt, UniScopeNode):
+class Test(ClientFacingNode, AstSymbolNode, ElementStmt, UniScopeNode):
     """Test node type for Jac Ast."""
 
     TEST_COUNT = 0
@@ -1089,6 +1100,7 @@ class Test(AstSymbolNode, ElementStmt, UniScopeNode):
         )
         AstDocNode.__init__(self, doc=doc)
         UniScopeNode.__init__(self, name=self.sym_name)
+        ClientFacingNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1100,6 +1112,8 @@ class Test(AstSymbolNode, ElementStmt, UniScopeNode):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
+        if self.is_client_decl:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
         new_kid.append(self.gen_token(Tok.KW_TEST))
         new_kid.append(self.name)
         new_kid.append(self.gen_token(Tok.LBRACE))
@@ -1110,7 +1124,7 @@ class Test(AstSymbolNode, ElementStmt, UniScopeNode):
         return res
 
 
-class ModuleCode(ElementStmt, ArchBlockStmt, EnumBlockStmt):
+class ModuleCode(ClientFacingNode, ElementStmt, ArchBlockStmt, EnumBlockStmt):
     """ModuleCode node type for Jac Ast."""
 
     def __init__(
@@ -1126,6 +1140,7 @@ class ModuleCode(ElementStmt, ArchBlockStmt, EnumBlockStmt):
         UniNode.__init__(self, kid=kid)
         AstDocNode.__init__(self, doc=doc)
         EnumBlockStmt.__init__(self, is_enum_stmt=is_enum_stmt)
+        ClientFacingNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1137,6 +1152,8 @@ class ModuleCode(ElementStmt, ArchBlockStmt, EnumBlockStmt):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
+        if self.is_client_decl:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
         new_kid.append(self.gen_token(Tok.KW_WITH))
         new_kid.append(self.gen_token(Tok.KW_ENTRY))
         if self.name:
@@ -1179,7 +1196,7 @@ class PyInlineCode(ElementStmt, ArchBlockStmt, EnumBlockStmt, CodeBlockStmt):
         return res
 
 
-class Import(ElementStmt, CodeBlockStmt):
+class Import(ClientFacingNode, ElementStmt, CodeBlockStmt):
     """Import node type for Jac Ast."""
 
     def __init__(
@@ -1197,6 +1214,7 @@ class Import(ElementStmt, CodeBlockStmt):
         UniNode.__init__(self, kid=kid)
         AstDocNode.__init__(self, doc=doc)
         CodeBlockStmt.__init__(self)
+        ClientFacingNode.__init__(self)
 
     @property
     def is_py(self) -> bool:
@@ -1250,6 +1268,8 @@ class Import(ElementStmt, CodeBlockStmt):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
+        if self.is_client_decl:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
         if self.is_absorb:
             new_kid.append(self.gen_token(Tok.KW_INCLUDE))
         else:
@@ -1378,6 +1398,7 @@ class ModuleItem(UniNode):
 
 
 class Archetype(
+    ClientFacingNode,
     ArchSpec,
     AstAccessNode,
     ArchBlockStmt,
@@ -1419,6 +1440,7 @@ class Archetype(
         ArchSpec.__init__(self, decorators=decorators)
         UniScopeNode.__init__(self, name=self.sym_name)
         CodeBlockStmt.__init__(self)
+        ClientFacingNode.__init__(self)
 
     @property
     def is_abstract(self) -> bool:
@@ -1455,6 +1477,8 @@ class Archetype(
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
+        if self.is_client_decl:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
         if self.decorators:
             new_kid.append(self.gen_token(Tok.DECOR_OP))
             for idx, dec in enumerate(self.decorators):
@@ -1646,7 +1670,14 @@ class SemDef(ElementStmt, AstSymbolNode, UniScopeNode):
         return res
 
 
-class Enum(ArchSpec, AstAccessNode, AstImplNeedingNode, ArchBlockStmt, UniScopeNode):
+class Enum(
+    ClientFacingNode,
+    ArchSpec,
+    AstAccessNode,
+    AstImplNeedingNode,
+    ArchBlockStmt,
+    UniScopeNode,
+):
     """Enum node type for Jac Ast."""
 
     def __init__(
@@ -1673,6 +1704,7 @@ class Enum(ArchSpec, AstAccessNode, AstImplNeedingNode, ArchBlockStmt, UniScopeN
         AstDocNode.__init__(self, doc=doc)
         ArchSpec.__init__(self, decorators=decorators)
         UniScopeNode.__init__(self, name=self.sym_name)
+        ClientFacingNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1700,6 +1732,8 @@ class Enum(ArchSpec, AstAccessNode, AstImplNeedingNode, ArchBlockStmt, UniScopeN
                     new_kid.append(self.gen_token(Tok.DECOR_OP))
         if self.doc:
             new_kid.append(self.doc)
+        if self.is_client_decl:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
         new_kid.append(self.gen_token(Tok.KW_ENUM))
         if self.access:
             new_kid.append(self.access)
@@ -1730,6 +1764,7 @@ class Enum(ArchSpec, AstAccessNode, AstImplNeedingNode, ArchBlockStmt, UniScopeN
 
 
 class Ability(
+    ClientFacingNode,
     AstAccessNode,
     ElementStmt,
     AstAsyncNode,
@@ -1774,6 +1809,7 @@ class Ability(
         AstAsyncNode.__init__(self, is_async=is_async)
         UniScopeNode.__init__(self, name=self.sym_name)
         CodeBlockStmt.__init__(self)
+        ClientFacingNode.__init__(self)
 
     @property
     def is_method(self) -> bool:
@@ -1845,6 +1881,8 @@ class Ability(
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
+        if self.is_client_decl:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
         if self.decorators:
             new_kid.append(self.gen_token(Tok.DECOR_OP))
             for idx, dec in enumerate(self.decorators):
@@ -4077,6 +4115,206 @@ class AssignCompr(AtomExpr):
                 if i < len(self.assigns) - 1:
                     new_kid.append(self.gen_token(Tok.COMMA))
             new_kid.append(self.gen_token(Tok.RPAREN))
+        self.set_kids(nodes=new_kid)
+        return res
+
+
+# JSX Nodes
+# ---------
+
+
+class JsxElement(AtomExpr):
+    """JsxElement node type for Jac Ast."""
+
+    def __init__(
+        self,
+        name: Optional["JsxElementName"],
+        attributes: Optional[Sequence["JsxAttribute"]],
+        children: Optional[Sequence["JsxChild"]],
+        is_self_closing: bool,
+        is_fragment: bool,
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.name = name
+        self.attributes = list(attributes) if attributes else []
+        self.children = list(children) if children else []
+        self.is_self_closing = is_self_closing
+        self.is_fragment = is_fragment
+        UniNode.__init__(self, kid=kid)
+        Expr.__init__(self)
+        AstSymbolStubNode.__init__(self, sym_type=SymbolType.OBJECT_ARCH)
+
+    def normalize(self, deep: bool = False) -> bool:
+        """Normalize JSX element by recursively normalizing children.
+
+        Unlike most normalize methods, JSX elements don't need to rebuild
+        their kid structure since the parser already creates it correctly.
+        We just need to normalize child nodes if deep=True.
+        """
+        res = True
+        if deep:
+            if self.name:
+                res = res and self.name.normalize(deep)
+            if self.attributes:
+                for attr in self.attributes:
+                    res = res and attr.normalize(deep)
+            if self.children:
+                for child in self.children:
+                    res = res and child.normalize(deep)
+        return res
+
+
+class JsxElementName(UniNode):
+    """JsxElementName node type for Jac Ast."""
+
+    def __init__(
+        self,
+        parts: Sequence[Name],
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.parts = list(parts)
+        UniNode.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            for part in self.parts:
+                res = res and part.normalize(deep)
+        new_kid: list[UniNode] = []
+        for i, part in enumerate(self.parts):
+            new_kid.append(part)
+            if i < len(self.parts) - 1:
+                new_kid.append(self.gen_token(Tok.DOT))
+        self.set_kids(nodes=new_kid)
+        return res
+
+
+class JsxAttribute(UniNode):
+    """JsxAttribute node type for Jac Ast (base class)."""
+
+    def __init__(self, kid: Sequence[UniNode]) -> None:
+        UniNode.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        """Normalize the node (base implementation)."""
+        # Base class normalize - subclasses should override if needed
+        return True
+
+
+class JsxSpreadAttribute(JsxAttribute):
+    """JsxSpreadAttribute node type for Jac Ast."""
+
+    def __init__(
+        self,
+        expr: Expr,
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.expr = expr
+        JsxAttribute.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            res = self.expr.normalize(deep)
+        new_kid: list[UniNode] = [
+            self.gen_token(Tok.LBRACE),
+            self.gen_token(Tok.ELLIPSIS),
+            self.expr,
+            self.gen_token(Tok.RBRACE),
+        ]
+        self.set_kids(nodes=new_kid)
+        return res
+
+
+class JsxNormalAttribute(JsxAttribute):
+    """JsxNormalAttribute node type for Jac Ast."""
+
+    def __init__(
+        self,
+        name: Name,
+        value: Optional[Union[String, Expr]],
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.name = name
+        self.value = value
+        JsxAttribute.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            res = self.name.normalize(deep)
+            if self.value:
+                res = res and self.value.normalize(deep)
+        new_kid: list[UniNode] = [self.name]
+        if self.value:
+            new_kid.append(self.gen_token(Tok.EQ))
+            if isinstance(self.value, String):
+                new_kid.append(self.value)
+            else:  # Expression in braces
+                new_kid.extend(
+                    [
+                        self.gen_token(Tok.LBRACE),
+                        self.value,
+                        self.gen_token(Tok.RBRACE),
+                    ]
+                )
+        self.set_kids(nodes=new_kid)
+        return res
+
+
+class JsxChild(UniNode):
+    """JsxChild node type for Jac Ast (base class)."""
+
+    def __init__(self, kid: Sequence[UniNode]) -> None:
+        UniNode.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        """Normalize the node (base implementation)."""
+        # Base class normalize - subclasses should override if needed
+        return True
+
+
+class JsxText(JsxChild):
+    """JsxText node type for Jac Ast."""
+
+    def __init__(
+        self,
+        value: str,
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.value = value
+        JsxChild.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        # JSX text is represented as a token
+        if isinstance(self.value, Token):
+            new_kid: list[UniNode] = [self.value]
+        else:
+            new_kid = [self.gen_token(Tok.JSX_TEXT, value=str(self.value))]
+        self.set_kids(nodes=new_kid)
+        return True
+
+
+class JsxExpression(JsxChild):
+    """JsxExpression node type for Jac Ast."""
+
+    def __init__(
+        self,
+        expr: Expr,
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.expr = expr
+        JsxChild.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            res = self.expr.normalize(deep)
+        new_kid: list[UniNode] = [
+            self.gen_token(Tok.LBRACE),
+            self.expr,
+            self.gen_token(Tok.RBRACE),
+        ]
         self.set_kids(nodes=new_kid)
         return res
 

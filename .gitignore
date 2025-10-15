@@ -36,6 +36,7 @@ MANIFEST
 .coverage
 .session
 *.session.db
+*.session.*.json
 .DS_Store
 .vscode
 build

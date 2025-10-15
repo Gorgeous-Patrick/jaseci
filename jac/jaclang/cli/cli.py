@@ -663,6 +663,49 @@ def jac2py(filename: str) -> None:
         exit(1)
 
 
+@cmd_registry.register
+def js(filename: str) -> None:
+    """Convert a Jac file to JavaScript code.
+
+    Translates Jac source code to equivalent JavaScript/ECMAScript code using
+    the ESTree AST specification. This allows Jac programs to run in JavaScript
+    environments like Node.js or web browsers.
+
+    Args:
+        filename: Path to the .jac file to convert
+
+    Examples:
+        jac js myprogram.jac > myprogram.js
+        jac js myprogram.jac
+    """
+    if filename.endswith(".jac"):
+        try:
+            prog = JacProgram()
+            ir = prog.compile(file_path=filename)
+
+            if prog.errors_had:
+                for error in prog.errors_had:
+                    print(f"Error: {error}", file=sys.stderr)
+                exit(1)
+            js_output = ir.gen.js or ""
+            if not js_output.strip():
+                print(
+                    "ECMAScript code generation produced no output.",
+                    file=sys.stderr,
+                )
+                exit(1)
+            print(js_output)
+        except Exception as e:
+            print(f"Error generating JavaScript: {e}", file=sys.stderr)
+            import traceback
+
+            traceback.print_exc()
+            exit(1)
+    else:
+        print("Not a .jac file.", file=sys.stderr)
+        exit(1)
+
+
 # Register core commands first (before plugins load)
 # These can be overridden by plugins with higher priority
 
@@ -739,6 +782,7 @@ def serve(
         module_name=mod,
         session_path=session_path,
         port=port,
+        base_path=base,
     )
 
     try:

@@ -5,15 +5,15 @@ module: (toplevel_stmt (tl_stmt_with_doc | toplevel_stmt)*)?
        | STRING        (tl_stmt_with_doc | toplevel_stmt)*
 
 tl_stmt_with_doc: STRING toplevel_stmt
-toplevel_stmt: import_stmt
-       | archetype
+toplevel_stmt: KW_CLIENT? import_stmt
+       | KW_CLIENT? archetype
        | impl_def
        | sem_def
-       | ability
-       | global_var
-       | free_code
+       | KW_CLIENT? ability
+       | KW_CLIENT? global_var
+       | KW_CLIENT? free_code
        | py_code_block
-       | test
+       | KW_CLIENT? test
 
 // [Heading]: Import/Include Statements.
 import_stmt: KW_IMPORT KW_FROM from_path LBRACE import_items RBRACE
@@ -328,6 +328,7 @@ atom: named_ref
     | atom_collection
     | atom_literal
     | type_ref
+    | jsx_element
 
 atom_literal: builtin_type
             | NULL
@@ -438,6 +439,37 @@ special_ref: KW_INIT
             | KW_SELF
             | KW_HERE
             | KW_VISITOR
+
+// [Heading]: JSX Elements.
+jsx_element: jsx_self_closing
+           | jsx_fragment
+           | jsx_opening_closing
+
+jsx_self_closing: JSX_OPEN_START jsx_element_name jsx_attributes? JSX_SELF_CLOSE
+jsx_opening_closing: jsx_opening_element jsx_children? jsx_closing_element
+jsx_fragment: JSX_FRAG_OPEN jsx_children? JSX_FRAG_CLOSE
+
+jsx_opening_element: JSX_OPEN_START jsx_element_name jsx_attributes? JSX_TAG_END
+jsx_closing_element: JSX_CLOSE_START jsx_element_name JSX_TAG_END
+
+jsx_element_name: JSX_NAME (DOT JSX_NAME)*
+
+jsx_attributes: jsx_attribute+
+jsx_attribute: jsx_spread_attribute | jsx_normal_attribute
+
+jsx_spread_attribute: LBRACE ELLIPSIS expression RBRACE
+jsx_normal_attribute: JSX_NAME (EQ jsx_attr_value)?
+
+jsx_attr_value: STRING
+              | LBRACE expression RBRACE
+
+jsx_children: jsx_child+
+jsx_child: jsx_element
+         | jsx_expression
+         | jsx_text
+
+jsx_expression: LBRACE expression RBRACE
+jsx_text: JSX_TEXT
 
 // [Heading]: Builtin types.
 builtin_type: TYP_TYPE
@@ -551,6 +583,7 @@ KW_STATIC: "static"
 KW_OVERRIDE: "override"
 KW_MATCH: "match"
 KW_CASE: "case"
+KW_CLIENT: "cl"
 
 KW_INIT: "init"
 KW_POST_INIT: "postinit"
@@ -688,6 +721,34 @@ PIPE_FWD: "|>"
 PIPE_BKWD: "<|"
 DOT_FWD: ".>"
 DOT_BKWD: "<."
+
+// JSX Contextual Tokens --------------------------------------------------- //
+
+// JSX opening tag start: < followed by identifier or uppercase
+// Using lower priority so it doesn't interfere with LT operator
+JSX_OPEN_START.2: /<(?=[A-Z_a-z])/
+
+// JSX self-closing end: />
+JSX_SELF_CLOSE: /\/>/
+
+// JSX tag end: > (used for both opening and closing)
+JSX_TAG_END: />/
+
+// JSX closing tag start: </
+JSX_CLOSE_START: /<\//
+
+// JSX fragment open: <>
+JSX_FRAG_OPEN: /<>/
+
+// JSX fragment close: </>
+JSX_FRAG_CLOSE: /<\/>/
+
+// JSX identifier (NAME in JSX context) - allows hyphens for attributes like data-age, aria-label
+JSX_NAME: /[A-Z_a-z][A-Z_a-z0-9\-]*/
+
+// JSX text content (anything except < > { } and must not start/end with whitespace-only)
+// Using negative priority so it's only matched as last resort within JSX
+JSX_TEXT.-1: /[^<>{}\n]+/
 
 
 // ************************************************************************* //

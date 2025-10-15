@@ -27,6 +27,8 @@ class PyJacAstLinkPass(UniPass):
         self, jac_node: uni.UniNode, py_nodes: list[ast3.AST]
     ) -> None:
         """Link jac name ast to py ast nodes."""
+        if isinstance(jac_node, uni.ClientFacingNode) and jac_node.is_client_decl:
+            return
         jac_node.gen.py_ast = py_nodes
         for i in py_nodes:
             if isinstance(i.jac_link, list):  # type: ignore

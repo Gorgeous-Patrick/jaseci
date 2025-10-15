@@ -25,7 +25,7 @@
 <!-- =======
   [jac-lang.org] | [Getting Started] | [Contributing]
 
-  [jac-lang.org]: https://www.jac-lang.org/
+  [jac-lang.org]: https://www.jaseci.org/
   [Getting Started]: https://www.jac-lang.org/learn/getting_started/
   [Contributing]: https://www.jac-lang.org/internals/contrib/ -->
 </div>

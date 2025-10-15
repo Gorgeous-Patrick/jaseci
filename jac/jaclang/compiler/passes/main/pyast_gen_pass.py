@@ -90,25 +90,6 @@ UNARY_OP_MAP: dict[Tok, type[ast3.unaryop]] = {
 class PyastGenPass(UniPass):
     """Jac blue transpilation to python pass."""
 
-    # Builtins that should be imported from jaclang.runtimelib.builtin
-    KNOWN_BUILTINS = {
-        "abstractmethod",
-        "ClassVar",
-        "override",
-        "printgraph",
-        "jid",
-        "jobj",
-        "grant",
-        "revoke",
-        "allroots",
-        "save",
-        "commit",
-        "NoPerm",
-        "ReadPerm",
-        "ConnectPerm",
-        "WritePerm",
-    }
-
     def before_pass(self) -> None:
         self.child_passes: list[PyastGenPass] = []
         for i in self.ir_in.impl_mod + self.ir_in.test_mod:
@@ -131,6 +112,12 @@ class PyastGenPass(UniPass):
 
     def enter_node(self, node: uni.UniNode) -> None:
         """Enter node."""
+        if self._should_skip_client(node):
+            node.gen.py_ast = []
+            if hasattr(node.gen, "py"):
+                node.gen.py = ""  # type: ignore[attr-defined]
+            self.prune()
+            return
         if node.gen.py_ast:
             self.prune()
             return
@@ -138,13 +125,12 @@ class PyastGenPass(UniPass):
 
     def exit_node(self, node: uni.UniNode) -> None:
         """Exit node."""
+        if self._should_skip_client(node):
+            node.gen.py_ast = []
+            if hasattr(node.gen, "py"):
+                node.gen.py = ""  # type: ignore[attr-defined]
+            return
         super().exit_node(node)
-        # for i in node.gen.py_ast:  # Internal validation
-        #     self.node_compilable_test(i)
-
-        # TODO: USE THIS TO SYNC
-        #     if isinstance(i, ast3.AST):
-        #         i.jac_link = node
 
     def jaclib_obj(self, obj_name: str) -> ast3.Name:
         """Return the object from jaclib as ast node based on the import config."""
@@ -302,6 +288,10 @@ class PyastGenPass(UniPass):
             elif item is not None:
                 new_body.append(item)
         return new_body
+
+    def _should_skip_client(self, node: uni.UniNode) -> bool:
+        """Check if node is a client-facing declaration that should skip Python codegen."""
+        return isinstance(node, uni.ClientFacingNode) and node.is_client_decl
 
     def sync(
         self, py_node: T, jac_node: Optional[uni.UniNode] = None, deep: bool = False
@@ -709,18 +699,17 @@ class PyastGenPass(UniPass):
         if node.arch_type.name != Tok.KW_CLASS:
             base_classes.append(self.jaclib_obj(node.arch_type.value.capitalize()))
 
-        node.gen.py_ast = [
-            self.sync(
-                ast3.ClassDef(
-                    name=node.name.sym_name,
-                    bases=[cast(ast3.expr, i) for i in base_classes],
-                    keywords=[],
-                    body=[cast(ast3.stmt, i) for i in body],
-                    decorator_list=[cast(ast3.expr, i) for i in decorators],
-                    type_params=[],
-                )
+        class_def = self.sync(
+            ast3.ClassDef(
+                name=node.name.sym_name,
+                bases=[cast(ast3.expr, i) for i in base_classes],
+                keywords=[],
+                body=[cast(ast3.stmt, i) for i in body],
+                decorator_list=[cast(ast3.expr, i) for i in decorators],
+                type_params=[],
             )
-        ]
+        )
+        node.gen.py_ast = [class_def]
 
     def enter_enum(self, node: uni.Enum) -> None:
         if isinstance(node.body, uni.ImplDef):
@@ -745,18 +734,17 @@ class PyastGenPass(UniPass):
 
         base_classes = [cast(ast3.expr, i.gen.py_ast[0]) for i in node.base_classes]
         base_classes.append(self.builtin_name("Enum"))
-        node.gen.py_ast = [
-            self.sync(
-                ast3.ClassDef(
-                    name=node.name.sym_name,
-                    bases=[cast(ast3.expr, i) for i in base_classes],
-                    keywords=[],
-                    body=[cast(ast3.stmt, i) for i in body],
-                    decorator_list=[cast(ast3.expr, i) for i in decorators],
-                    type_params=[],
-                )
+        class_def = self.sync(
+            ast3.ClassDef(
+                name=node.name.sym_name,
+                bases=[cast(ast3.expr, i) for i in base_classes],
+                keywords=[],
+                body=[cast(ast3.stmt, i) for i in body],
+                decorator_list=[cast(ast3.expr, i) for i in decorators],
+                type_params=[],
             )
-        ]
+        )
+        node.gen.py_ast = [class_def]
 
     def enter_ability(self, node: uni.Ability) -> None:
         if isinstance(node.body, uni.ImplDef):
@@ -970,36 +958,35 @@ class PyastGenPass(UniPass):
         if isinstance(node.signature, uni.FuncSignature) and node.signature.return_type:
             ast_returns = cast(ast3.expr, node.signature.return_type.gen.py_ast[0])
 
-        node.gen.py_ast = [
-            self.sync(
-                func_type(
-                    name=node.name_ref.sym_name,
-                    args=(
-                        cast(ast3.arguments, node.signature.gen.py_ast[0])
-                        if node.signature
-                        else self.sync(
-                            ast3.arguments(
-                                posonlyargs=[],
-                                args=(
-                                    [self.sync(ast3.arg(arg="self", annotation=None))]
-                                    if node.is_method
-                                    else []
-                                ),
-                                vararg=None,
-                                kwonlyargs=[],
-                                kw_defaults=[],
-                                kwarg=None,
-                                defaults=[],
-                            )
+        func_def = self.sync(
+            func_type(
+                name=node.name_ref.sym_name,
+                args=(
+                    cast(ast3.arguments, node.signature.gen.py_ast[0])
+                    if node.signature
+                    else self.sync(
+                        ast3.arguments(
+                            posonlyargs=[],
+                            args=(
+                                [self.sync(ast3.arg(arg="self", annotation=None))]
+                                if node.is_method
+                                else []
+                            ),
+                            vararg=None,
+                            kwonlyargs=[],
+                            kw_defaults=[],
+                            kwarg=None,
+                            defaults=[],
                         )
-                    ),
-                    body=[cast(ast3.stmt, i) for i in body],
-                    decorator_list=[cast(ast3.expr, i) for i in decorator_list],
-                    returns=ast_returns,
-                    type_params=[],
-                )
+                    )
+                ),
+                body=[cast(ast3.stmt, i) for i in body],
+                decorator_list=[cast(ast3.expr, i) for i in decorator_list],
+                returns=ast_returns,
+                type_params=[],
             )
-        ]
+        )
+        node.gen.py_ast = [func_def]
 
     def exit_impl_def(self, node: uni.ImplDef) -> None:
         pass
@@ -3076,7 +3063,9 @@ class PyastGenPass(UniPass):
     def exit_name(self, node: uni.Name) -> None:
         name = node.sym_name
         # Track if this name is a known builtin
-        if name in self.KNOWN_BUILTINS:
+        import jaclang.runtimelib.builtin
+
+        if name in set(jaclang.runtimelib.builtin.__all__):
             self.builtin_imports.add(name)
         node.gen.py_ast = [self.sync(ast3.Name(id=name, ctx=node.py_ctx_func()))]
 
@@ -3102,6 +3091,129 @@ class PyastGenPass(UniPass):
 
     def exit_ellipsis(self, node: uni.Ellipsis) -> None:
         node.gen.py_ast = [self.sync(ast3.Constant(value=...))]
+
+    def exit_jsx_element(self, node: uni.JsxElement) -> None:
+        """Generate Python AST for JSX elements.
+
+        JSX elements are compiled to function calls:
+        <div>Hello</div> -> jsx('div', {}, ['Hello'])
+        <MyComponent {...props} /> -> jsx(MyComponent, props, [])
+        """
+        # Generate tag argument
+        if node.is_fragment or not node.name:
+            tag_arg: ast3.expr = self.sync(ast3.Constant(value=None), node)
+        else:
+            tag_arg = cast(ast3.expr, node.name.gen.py_ast[0])
+
+        # Generate attributes dict
+        if not node.attributes:
+            attrs_expr = self.sync(ast3.Dict(keys=[], values=[]))
+        elif any(isinstance(attr, uni.JsxSpreadAttribute) for attr in node.attributes):
+            # With spread: build merged dict {**dict1, **dict2, key: val}
+            attrs_expr = self.sync(ast3.Dict(keys=[], values=[]))
+            for attr in node.attributes:
+                attr_ast = cast(ast3.expr, attr.gen.py_ast[0])
+                if isinstance(attr, uni.JsxSpreadAttribute):
+                    attrs_expr = self.sync(
+                        ast3.Dict(keys=[None, None], values=[attrs_expr, attr_ast]),
+                        attr,
+                    )
+                elif isinstance(attr, uni.JsxNormalAttribute):
+                    key_ast, value_ast = attr_ast.elts  # type: ignore
+                    attrs_expr = self.sync(
+                        ast3.Dict(keys=[None, key_ast], values=[attrs_expr, value_ast]),
+                        attr,
+                    )
+        else:
+            # No spreads: simple dict
+            keys: list[ast3.expr | None] = []
+            values: list[ast3.expr] = []
+            for attr in node.attributes:
+                if isinstance(attr, uni.JsxNormalAttribute):
+                    attr_ast = attr.gen.py_ast[0]
+                    key_ast, value_ast = attr_ast.elts  # type: ignore
+                    keys.append(key_ast)
+                    values.append(value_ast)
+            attrs_expr = self.sync(ast3.Dict(keys=keys, values=values))
+
+        # Generate children list
+        children_arg = (
+            self.sync(
+                ast3.List(
+                    elts=[cast(ast3.expr, c.gen.py_ast[0]) for c in node.children],
+                    ctx=ast3.Load(),
+                ),
+                node,
+            )
+            if node.children
+            else self.sync(ast3.List(elts=[], ctx=ast3.Load()))
+        )
+
+        node.gen.py_ast = [
+            self.sync(
+                ast3.Call(
+                    func=self.jaclib_obj("jsx"),
+                    args=[tag_arg, attrs_expr, children_arg],
+                    keywords=[],
+                ),
+                node,
+            )
+        ]
+
+    def exit_jsx_element_name(self, node: uni.JsxElementName) -> None:
+        """Generate Python AST for JSX element names."""
+        name_str = ".".join([part.value for part in node.parts])
+        # Components (capitalized) use identifier, HTML elements use string
+        if node.parts[0].value[0].isupper():
+            node.gen.py_ast = [self.sync(ast3.Name(id=name_str, ctx=ast3.Load()), node)]
+        else:
+            node.gen.py_ast = [self.sync(ast3.Constant(value=name_str), node)]
+
+    def exit_jsx_attribute(self, node: uni.JsxAttribute) -> None:
+        """Bases class for JSX attributes - handled by subclasses."""
+        pass
+
+    def exit_jsx_spread_attribute(self, node: uni.JsxSpreadAttribute) -> None:
+        """Generate Python AST for JSX spread attributes.
+
+        Returns the expression to be spread (the dict merge is handled by parent).
+        """
+        node.gen.py_ast = [cast(ast3.expr, node.expr.gen.py_ast[0])]
+
+    def exit_jsx_normal_attribute(self, node: uni.JsxNormalAttribute) -> None:
+        """Generate Python AST for JSX normal attributes.
+
+        Returns a tuple (key, value) for the attribute.
+        """
+        if not node.name:
+            return
+
+        key_ast = self.sync(ast3.Constant(value=node.name.value), node.name)
+        value_ast = (
+            cast(ast3.expr, node.value.gen.py_ast[0])
+            if node.value
+            else self.sync(ast3.Constant(value=True), node)
+        )
+
+        # Store as a tuple that parent can destructure
+        node.gen.py_ast = [
+            self.sync(
+                ast3.Tuple(elts=[key_ast, value_ast], ctx=ast3.Load()),
+                node,
+            )
+        ]
+
+    def exit_jsx_child(self, node: uni.JsxChild) -> None:
+        """Bases class for JSX children - handled by subclasses."""
+        pass
+
+    def exit_jsx_text(self, node: uni.JsxText) -> None:
+        """Generate Python AST for JSX text nodes."""
+        node.gen.py_ast = [self.sync(ast3.Constant(value=node.value.value), node)]
+
+    def exit_jsx_expression(self, node: uni.JsxExpression) -> None:
+        """Generate Python AST for JSX expression children."""
+        node.gen.py_ast = [cast(ast3.expr, node.expr.gen.py_ast[0])]
 
     def exit_semi(self, node: uni.Semi) -> None:
         pass

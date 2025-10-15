@@ -4,6 +4,7 @@ import inspect
 import io
 import os
 import sys
+from pathlib import Path
 
 from jaclang import JacMachineInterface as Jac
 from jaclang.compiler import jac_lark as jl
@@ -215,12 +216,12 @@ class TestLarkParser(TestCaseMicroSuite):
                 }
             """,
             """
-            Missing SEMI
+            Unexpected token 'bar'
+                with entry {
                     foo = Foo(;
                     func(foo bar)
+                             ^^^
                     foo.bar;
-                    ^^^
-                }
             """
         ]
         for idx, alrt in enumerate(prog.errors_had):
@@ -228,5 +229,55 @@ class TestLarkParser(TestCaseMicroSuite):
             for line in expected_errors[idx].strip().split("\n"):
                 line = line.strip()
                 self.assertIn(line, pretty)
+
+    def _load_combined_jsx_fixture(self) -> tuple[str, JacParser]:
+        """Parse the consolidated JSX fixture once for downstream assertions."""
+        fixture_path = (
+            Path(__file__)
+            .resolve()
+            .parent
+            .parent
+            / "passes"
+            / "ecmascript"
+            / "tests"
+            / "fixtures"
+            / "client_jsx.jac"
+        )
+        source_text = fixture_path.read_text(encoding="utf-8")
+        prse = JacParser(
+            root_ir=Source(source_text, mod_path=str(fixture_path)),
+            prog=JacProgram(),
+        )
+        self.assertFalse(
+            prse.errors_had,
+            f"Parser reported errors for JSX fixture: {[str(e) for e in prse.errors_had]}",
+        )
+        return source_text, prse
+
+    def test_jsx_comprehensive_fixture(self) -> None:
+        """Ensure the consolidated JSX fixture exercises varied grammar shapes."""
+        source_text, prse = self._load_combined_jsx_fixture()
+        tree_repr = prse.ir_out.pp()
+
+        expected_snippets = {
+            "self_closing": "<div />",
+            "attribute_binding": 'id={name}',
+            "namespaced_component": "<Form.Input.Text />",
+            "fragment": "<>",
+            "spread_attribute": "{...props}",
+            "expression_child": '{"Hello " + name + "!"}',
+        }
+        for label, snippet in expected_snippets.items():
+            with self.subTest(label=label):
+                self.assertIn(snippet, source_text)
+
+        ast_markers = {
+            "JsxElement": "JsxElement" in tree_repr,
+            "FragmentTokens": "Token - <>" in tree_repr and "Token - </>" in tree_repr,
+            "JsxSpreadAttribute": "JsxSpreadAttribute" in tree_repr,
+        }
+        for label, present in ast_markers.items():
+            with self.subTest(node=label):
+                self.assertTrue(present, f"{label} missing from AST pretty print")
 
 TestLarkParser.self_attach_micro_tests()

@@ -138,6 +138,7 @@ nav:
     - Edge references (OSP): "learn/jac_ref/edge_references_(osp).md"
     - Filter and assign comprehensions: "learn/jac_ref/filter_and_assign_comprehensions.md"
     - Names and references: "learn/jac_ref/names_and_references.md"
+    - Jsx elements: "learn/jac_ref/jsx_elements.md"
     - Builtin types: "learn/jac_ref/builtin_types.md"
     - f-string tokens: "learn/jac_ref/f_string_tokens.md"
     - Lexer Tokens: "learn/jac_ref/lexer_tokens.md"
@@ -152,6 +153,7 @@ nav:
         - "communityhub/fun/static_fx.md"
       - Content Pieces: "communityhub/content_pieces.md"
     - Internals:
+      - JSX 'Project OneLang' Design Doc: "internals/jsx_client_serv_design.md"
       - Lang Ref Coverage: "internals/refs_coverage_report.md"
       - Roadmap: "communityhub/roadmap.md"
       - Design Docs and Guides:

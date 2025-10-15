@@ -5,10 +5,11 @@ from __future__ import annotations
 import ast as py_ast
 import marshal
 import types
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.parser import JacParser
+from jaclang.compiler.passes.ecmascript import EsastGenPass
 from jaclang.compiler.passes.main import (
     Alert,
     CFGBuildPass,
@@ -33,13 +34,9 @@ from jaclang.compiler.passes.tool import (
 )
 from jaclang.runtimelib.utils import read_file_with_encoding
 from jaclang.settings import settings
-from jaclang.utils.log import logging
 
 if TYPE_CHECKING:
     from jaclang.compiler.type_system.type_evaluator import TypeEvaluator
-
-
-logger = logging.getLogger(__name__)
 
 ir_gen_sched = [
     SymTabBuildPass,
@@ -52,6 +49,7 @@ type_check_sched: list = [
     TypeCheckPass,
 ]
 py_code_gen = [
+    EsastGenPass,
     PyastGenPass,
     PyJacAstLinkPass,
     PyBytecodeGenPass,
@@ -62,7 +60,10 @@ format_sched = [FuseCommentsPass, DocIRGenPass, JacFormatPass]
 class JacProgram:
     """JacProgram to handle the Jac program-related functionalities."""
 
-    def __init__(self, main_mod: Optional[uni.ProgramModule] = None) -> None:
+    def __init__(
+        self,
+        main_mod: Optional[uni.ProgramModule] = None,
+    ) -> None:
         """Initialize the JacProgram object."""
         self.mod: uni.ProgramModule = main_mod if main_mod else uni.ProgramModule()
         self.py_raise_map: dict[str, str] = {}
@@ -85,6 +86,27 @@ class JacProgram:
             return marshal.loads(codeobj) if isinstance(codeobj, bytes) else None
         result = self.compile(file_path=full_target)
         return marshal.loads(result.gen.py_bytecode) if result.gen.py_bytecode else None
+
+    def get_client_manifest(self, mod_path: str) -> dict[str, Any]:
+        """Get the client manifest for a specific module.
+
+        Args:
+            mod_path: The module path to get the manifest for
+
+        Returns:
+            Dictionary containing client metadata (exports, globals, params, etc.)
+        """
+        module = self.mod.hub.get(mod_path)
+        if module and hasattr(module.gen, "client_manifest"):
+            manifest = module.gen.client_manifest
+            return {
+                "exports": manifest.exports,
+                "globals": manifest.globals,
+                "params": manifest.params,
+                "globals_values": manifest.globals_values,
+                "has_client": manifest.has_client,
+            }
+        return {}
 
     def parse_str(self, source_str: str, file_path: str) -> uni.Module:
         """Convert a Jac file to an AST."""

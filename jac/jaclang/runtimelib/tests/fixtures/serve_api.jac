@@ -64,3 +64,12 @@ def add_numbers(a: int, b: int) -> int {
 def greet(name: str = "World") -> str {
     return "Hello, " + name + "!";
 }
+
+cl let WELCOME_TITLE: str = "Runtime Test";
+
+cl def client_page() {
+    return <section class="welcome">
+        <h1>{WELCOME_TITLE}</h1>
+        <p>{greet()}</p>
+    </section>;
+}

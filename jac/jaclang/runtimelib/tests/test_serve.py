@@ -33,7 +33,11 @@ class TestServeCommand(TestCase):
         self.server_thread = None
         self.httpd = None
         # Use dynamically allocated free port for each test
-        self.port = get_free_port()
+        try:
+            self.port = get_free_port()
+        except PermissionError:
+            self.skipTest("Socket operations are not permitted in this environment")
+            return
         self.base_url = f"http://localhost:{self.port}"
         # Use unique session file for each test
         test_name = self._testMethodName
@@ -117,15 +121,25 @@ class TestServeCommand(TestCase):
         max_attempts = 50
         for _ in range(max_attempts):
             try:
-                self._request("GET", "/")
+                self._request("GET", "/", timeout=10)
                 break
             except Exception:
                 time.sleep(0.1)
 
     def _request(
-        self, method: str, path: str, data: dict = None, token: str = None
+        self, method: str, path: str, data: dict = None, token: str = None, timeout: int = 5
     ) -> dict:
         """Make HTTP request to server."""
+        status, payload, _ = self._request_raw(method, path, data=data, token=token, timeout=timeout)
+        try:
+            return json.loads(payload)
+        except json.JSONDecodeError as exc:  # pragma: no cover - sanity guard
+            raise AssertionError(f"Expected JSON response, got: {payload}") from exc
+
+    def _request_raw(
+        self, method: str, path: str, data: dict = None, token: str = None, timeout: int = 5
+    ) -> tuple[int, str, dict[str, str]]:
+        """Make an HTTP request and return status, body, and headers."""
         url = f"{self.base_url}{path}"
         headers = {"Content-Type": "application/json"}
 
@@ -136,10 +150,12 @@ class TestServeCommand(TestCase):
         request = Request(url, data=body, headers=headers, method=method)
 
         try:
-            with urlopen(request, timeout=5) as response:
-                return json.loads(response.read().decode())
+            with urlopen(request, timeout=timeout) as response:
+                payload = response.read().decode()
+                return response.status, payload, dict(response.headers)
         except HTTPError as e:
-            return json.loads(e.read().decode())
+            payload = e.read().decode()
+            return e.code, payload, dict(e.headers)
 
     def test_user_manager_creation(self) -> None:
         """Test UserManager creates users with unique roots."""
@@ -523,6 +539,37 @@ class TestServeCommand(TestCase):
 
         self.assertIn("error", result)
 
+    def test_client_page_and_bundle_endpoints(self) -> None:
+        """Render a client page and fetch the bundled JavaScript."""
+        self._start_server()
+
+        create_result = self._request(
+            "POST",
+            "/user/create",
+            {"username": "pageuser", "password": "pass"}
+        )
+        token = create_result["token"]
+
+        # Use longer timeout for page requests (they trigger bundle building)
+        status, html_body, headers = self._request_raw(
+            "GET",
+            "/page/client_page",
+            token=token,
+            timeout=15
+        )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("Content-Type", ""))
+        self.assertIn("<div id=\"__jac_root\">", html_body)
+        self.assertIn("Runtime Test", html_body)
+        self.assertIn("/static/client.js?hash=", html_body)
+
+        # Bundle should be cached from page request, but use longer timeout for CI safety
+        status_js, js_body, js_headers = self._request_raw("GET", "/static/client.js", timeout=15)
+        self.assertEqual(status_js, 200)
+        self.assertIn("application/javascript", js_headers.get("Content-Type", ""))
+        self.assertIn("function __jacJsx", js_body)
+
     def test_server_root_endpoint(self) -> None:
         """Test root endpoint returns API information."""
         self._start_server()
@@ -582,6 +629,108 @@ class TestServeCommand(TestCase):
         self.assertIn("fields", walker_info)
         self.assertIn("title", walker_info["fields"])
         self.assertIn("priority", walker_info["fields"])
+
+        mach.close()
+
+    def test_csr_mode_empty_root(self) -> None:
+        """Test CSR mode returns empty __jac_root for client-side rendering."""
+        self._start_server()
+
+        # Create user
+        create_result = self._request(
+            "POST",
+            "/user/create",
+            {"username": "csruser", "password": "pass"}
+        )
+        token = create_result["token"]
+
+        # Request page in CSR mode using query parameter (longer timeout for bundle building)
+        status, html_body, headers = self._request_raw(
+            "GET",
+            "/page/client_page?mode=csr",
+            token=token,
+            timeout=15
+        )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("Content-Type", ""))
+
+        # In CSR mode, __jac_root should be empty (no SSR)
+        self.assertIn('<div id="__jac_root"></div>', html_body)
+
+        # But __jac_init__ and client.js should still be present
+        self.assertIn('<script id="__jac_init__" type="application/json">', html_body)
+        self.assertIn("/static/client.js?hash=", html_body)
+
+        # __jac_init__ should still contain the function name and args
+        self.assertIn('"function": "client_page"', html_body)
+
+    def test_default_page_is_csr(self) -> None:
+        """Requesting a page without mode parameter returns empty CSR shell."""
+        self._start_server()
+
+        # Create user
+        create_result = self._request(
+            "POST",
+            "/user/create",
+            {"username": "ssruser", "password": "pass"}
+        )
+        token = create_result["token"]
+
+        # Request page without specifying mode (CSR-only, longer timeout for bundle building)
+        status, html_body, headers = self._request_raw(
+            "GET",
+            "/page/client_page",
+            token=token,
+            timeout=15
+        )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("Content-Type", ""))
+
+        # CSR shell should be empty; client renders later
+        self.assertIn('<div id="__jac_root"></div>', html_body)
+
+        # __jac_init__ and client.js should still be present for hydration
+        self.assertIn('<script id="__jac_init__" type="application/json">', html_body)
+        self.assertIn("/static/client.js?hash=", html_body)
+
+    def test_csr_mode_with_server_default(self) -> None:
+        """render_client_page returns an empty shell when called directly."""
+        # Load module
+        base, mod, mach = cli.proc_file_sess(
+            self.fixture_abs_path("serve_api.jac"), ""
+        )
+        Jac.set_base_path(base)
+        Jac.jac_import(
+            target=mod,
+            base_path=base,
+            override_name="__main__",
+            lng="jac",
+        )
+
+        # Create server
+        server = JacAPIServer(
+            module_name="__main__",
+            session_path=self.session_file,
+            port=9998,
+        )
+        server.load_module()
+
+        # Create a test user
+        server.user_manager.create_user("testuser", "testpass")
+
+        # Call render_client_page (always CSR)
+        result = server.render_client_page(
+            function_name="client_page",
+            args={},
+            username="testuser",
+        )
+
+        # Should have empty HTML body (CSR mode)
+        self.assertIn("html", result)
+        html_content = result["html"]
+        self.assertIn('<div id="__jac_root"></div>', html_content)
 
         mach.close()
 
@@ -696,3 +845,120 @@ class TestServeCommand(TestCase):
             token=new_token
         )
         self.assertIn("result", complete_result)
+
+    def test_client_bundle_has_object_get_polyfill(self) -> None:
+        """Test that client bundle includes Object.prototype.get polyfill."""
+        self._start_server()
+
+        # Pre-warm the bundle by requesting a page first (triggers bundle build)
+        # This ensures the bundle is cached before we test it directly
+        try:
+            self._request("GET", "/")
+        except Exception:
+            pass  # Ignore errors, we just want to trigger bundle building
+
+        # Fetch the client bundle with longer timeout for CI environments
+        # Bundle building can be slow on CI runners with limited resources
+        status, js_body, headers = self._request_raw("GET", "/static/client.js", timeout=15)
+
+        self.assertEqual(status, 200)
+        self.assertIn("application/javascript", headers.get("Content-Type", ""))
+
+        # Verify the polyfill is at the beginning of the bundle
+        self.assertIn("Object.prototype.get", js_body)
+        self.assertIn("function(key, defaultValue)", js_body)
+        self.assertIn("this.hasOwnProperty(key)", js_body)
+
+        # Verify the polyfill appears before the runtime code
+        polyfill_pos = js_body.find("Object.prototype.get")
+        runtime_pos = js_body.find("// Jac client runtime")
+        self.assertGreater(runtime_pos, polyfill_pos)
+
+    def test_login_form_renders_with_correct_elements(self) -> None:
+        """Test that client page renders with correct HTML elements via HTTP endpoint."""
+        self._start_server()
+
+        # Create user
+        create_result = self._request(
+            "POST",
+            "/user/create",
+            {"username": "formuser", "password": "pass"}
+        )
+        token = create_result["token"]
+
+        # Request the client_page endpoint (longer timeout for bundle building)
+        status, html_body, headers = self._request_raw(
+            "GET",
+            "/page/client_page",
+            token=token,
+            timeout=15
+        )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("Content-Type", ""))
+
+        # Check basic HTML structure
+        self.assertIn("<!DOCTYPE html>", html_body)
+        self.assertIn('<div id="__jac_root">', html_body)
+        self.assertIn('<script id="__jac_init__"', html_body)
+        self.assertIn("/static/client.js?hash=", html_body)
+
+        # Verify __jac_init__ contains the right function and global
+        self.assertIn('"function": "client_page"', html_body)
+        self.assertIn('"WELCOME_TITLE": "Runtime Test"', html_body)  # Global variable
+
+        # Fetch and verify the bundle (should be cached from page request, but use longer timeout for CI)
+        status_js, js_body, _ = self._request_raw("GET", "/static/client.js", timeout=15)
+        self.assertEqual(status_js, 200)
+
+        # Verify the bundle has the polyfill
+        self.assertIn("Object.prototype.get", js_body)
+
+        # Verify the function is in the bundle
+        self.assertIn("function client_page", js_body)
+
+    def test_default_page_is_csr(self) -> None:
+        """Test that the default page response is CSR (client-side rendering)."""
+        self._start_server()
+
+        # Create user
+        create_result = self._request(
+            "POST",
+            "/user/create",
+            {"username": "csrdefaultuser", "password": "pass"}
+        )
+        token = create_result["token"]
+
+        # Request page WITHOUT specifying mode (should use default, longer timeout for bundle building)
+        status, html_body, headers = self._request_raw(
+            "GET",
+            "/page/client_page",
+            token=token,
+            timeout=15
+        )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("Content-Type", ""))
+
+        # In CSR mode (default), __jac_root should be empty
+        self.assertIn('<div id="__jac_root"></div>', html_body)
+
+        # Should NOT contain pre-rendered content
+        # (The content will be rendered on the client side)
+        # Note: We check that the root div is completely empty
+        import re
+        root_match = re.search(r'<div id="__jac_root">(.*?)</div>', html_body)
+        self.assertIsNotNone(root_match)
+        root_content = root_match.group(1)
+        self.assertEqual(root_content, "")  # Should be empty string
+
+        # Verify that explicitly requesting SSR mode is ignored (still CSR, longer timeout for bundle building)
+        status_ssr, html_ssr, _ = self._request_raw(
+            "GET",
+            "/page/client_page?mode=ssr",
+            token=token,
+            timeout=15
+        )
+        self.assertEqual(status_ssr, 200)
+
+        self.assertIn('<div id="__jac_root"></div>', html_ssr)
