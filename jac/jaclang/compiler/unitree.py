@@ -1442,9 +1442,8 @@ class Archetype(
         CodeBlockStmt.__init__(self)
         ClientFacingNode.__init__(self)
 
-    @property
-    def is_abstract(self) -> bool:
-        body = (
+    def _get_impl_resolved_body(self) -> list:
+        return (
             list(self.body)
             if isinstance(self.body, Sequence)
             else (
@@ -1454,7 +1453,22 @@ class Archetype(
                 else []
             )
         )
+
+    @property
+    def is_abstract(self) -> bool:
+        body = self._get_impl_resolved_body()
         return any(isinstance(i, Ability) and i.is_abstract for i in body)
+
+    def get_has_vars(self) -> list[HasVar]:
+        body = self._get_impl_resolved_body()
+        has_vars: list[HasVar] = []
+        for node in body:
+            if not isinstance(node, ArchHas):
+                continue
+            for has_ in node.vars:
+                if isinstance(has_, HasVar):
+                    has_vars.append(has_)
+        return has_vars
 
     def normalize(self, deep: bool = False) -> bool:
         res = True

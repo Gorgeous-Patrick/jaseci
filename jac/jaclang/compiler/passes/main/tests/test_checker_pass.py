@@ -1,8 +1,6 @@
 
 """Tests for typechecker pass (the pyright implementation)."""
 
-from tempfile import NamedTemporaryFile
-
 from jaclang.utils.test import TestCase
 from jaclang.compiler.passes.main import TypeCheckPass
 from jaclang.compiler.program import JacProgram
@@ -264,6 +262,37 @@ class TypeCheckerPassTests(TestCase):
                      baz(1, b=2); # a can be both positional and keyword
                      baz(1, 2);  # 'b' can only be keyword arg
                      ^^^^^^^^^
+            """,
+        ]
+
+        for i, expected in enumerate(expected_errors):
+            self._assert_error_pretty_found(expected, program.errors_had[i].pretty_print())
+
+    def test_class_construct(self) -> None:
+        program = JacProgram()
+        path = self.fixture_abs_path("checker_class_construct.jac")
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(len(program.errors_had), 3)
+
+        expected_errors = [
+            """
+            Cannot assign <class float> to parameter 'color' of type <class str>
+                    with entry {
+                        c1 = Circle1(RAD);
+                                    ^^^
+            """,
+            """
+            Not all required parameters were provided in the function call: 'age'
+                    with entry {
+                    c2 = Square(length);
+                         ^^^^^^^^^^^^^^
+            """,
+            """
+            Not all required parameters were provided in the function call: 'name'
+                    c = Person(name=name, age=25);
+                    c = Person();
+                        ^^^^^^^^
             """,
         ]
 

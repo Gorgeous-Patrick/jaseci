@@ -164,6 +164,7 @@ class ClassType(TypeBase):
             symbol_table: SymbolTable,
             base_classes: list[TypeBase] | None = None,
             is_builtin_class: bool = False,
+            is_data_class: bool = False,
         ) -> None:
             """Initialize obviously."""
             self.class_name = class_name
@@ -182,6 +183,7 @@ class ClassType(TypeBase):
             #   ...
             #
             self.is_builtin_class = is_builtin_class
+            self.is_data_class = is_data_class
 
     def __init__(
         self,
@@ -225,6 +227,10 @@ class ClassType(TypeBase):
         if class_name is not None:
             return self.shared.class_name == class_name
         return True
+
+    def is_data_class(self) -> bool:
+        """Return true if this class is a data class."""
+        return self.shared.is_data_class
 
 
 class ParamKind(IntEnum):

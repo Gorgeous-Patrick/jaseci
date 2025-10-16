@@ -130,15 +130,16 @@ class JacLangServer(JacProgram , LanguageServer) {
             self._clear_alerts_for_file(fs_path);
 
             t = time.time();
-            self.debug("Type checking started for " + file_path + " t=" + str(t));
+            f = file_path.split("/")[-1].split("\\")[-1];
+            self.debug("Type checking started for " + f + " t=" + str(t));
 
             build = self.compile(
                 use_str=document.source, file_path=document.path, type_check=True
             );
-            self.debug(f"     'Type checking for '{file_path}' done {str(time.time())} in '{(time.time() - t)}' seconds.'");
+            self.debug(f"     'Type checking for '{f}' done {str(time.time())} in '{(time.time() - t)}' seconds.'");
             if cancel_token and cancel_token.is_set(){
-                self.debug("      ** Type checking canceled for " + file_path + " t=" + str(time.time()));
-                self.debug(f"     'Type checking for '{file_path}' was canceled in '{(time.time() - t)}' seconds.'");
+                self.debug("      ** Type checking canceled for " + f + " t=" + str(time.time()));
+                self.debug(f"     'Type checking for '{f}' was canceled in '{(time.time() - t)}' seconds.'");
                 return;
             }
 
