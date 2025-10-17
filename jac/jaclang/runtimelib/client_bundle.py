@@ -165,5 +165,5 @@ class ClientBundleBuilder:
         functions_literal = json.dumps(list(client_functions))
         module_literal = json.dumps(module_name)
 
-        # Use the helper function from client_runtime.jac
-        return f"__jacSafeRegisterModule({module_literal}, {functions_literal}, {globals_literal});"
+        # Use the registration function from client_runtime.jac
+        return f"__jacRegisterClientModule({module_literal}, {functions_literal}, {globals_literal});"

@@ -224,26 +224,28 @@ cl def __jacHasOwn(obj: any, key: any) -> bool {
 }
 
 # Internal polyfill for Python-style dict.get on plain JS objects
-cl def __jacObjectGetPolyfill(key: any, defaultValue: any = None) -> any {
-    if __jacHasOwn(this, key) {
-        return this[key];
-    }
-    if defaultValue != None {
-        return defaultValue;
-    }
-    return None;
-}
-
 cl def __jacEnsureObjectGetPolyfill() -> None {
     proto = Object.prototype;
     if proto.get {
         return;
     }
+
+    # Define the polyfill function inline
+    def get_polyfill(key: any, defaultValue: any = None) -> any {
+        if __jacHasOwn(this, key) {
+            return this[key];
+        }
+        if defaultValue != None {
+            return defaultValue;
+        }
+        return None;
+    }
+
     Object.defineProperty(
         proto,
         "get",
         {
-            "value": __jacObjectGetPolyfill,
+            "value": get_polyfill,
             "configurable": True,
             "writable": True
         }
@@ -581,17 +583,4 @@ cl def __jacRegisterClientModule(
     }
 
     __jacEnsureHydration(moduleName);
-}
-
-# Helper to safely invoke __jacRegisterClientModule with error handling
-cl def __jacSafeRegisterModule(
-    moduleName: str,
-    clientFunctions: list,
-    clientGlobals: dict
-) -> None {
-    if not __isFunction(__jacRegisterClientModule) {
-        console.error("[Jac] __jacRegisterClientModule is not available in client runtime");
-        return;
-    }
-    __jacRegisterClientModule(moduleName, clientFunctions, clientGlobals);
 }

@@ -866,7 +866,6 @@ class TestServeCommand(TestCase):
 
         # Verify the polyfill function is in the runtime (now part of client_runtime.jac)
         self.assertIn("__jacEnsureObjectGetPolyfill", js_body)
-        self.assertIn("__jacObjectGetPolyfill", js_body)
         self.assertIn("Object.defineProperty", js_body)
 
         # Verify core runtime functions are present
@@ -910,9 +909,8 @@ class TestServeCommand(TestCase):
         status_js, js_body, _ = self._request_raw("GET", "/static/client.js", timeout=15)
         self.assertEqual(status_js, 200)
 
-        # Verify the bundle has the polyfill setup functions (now part of client_runtime.jac)
+        # Verify the bundle has the polyfill setup function (now part of client_runtime.jac)
         self.assertIn("__jacEnsureObjectGetPolyfill", js_body)
-        self.assertIn("__jacObjectGetPolyfill", js_body)
 
         # Verify the function is in the bundle
         self.assertIn("function client_page", js_body)
