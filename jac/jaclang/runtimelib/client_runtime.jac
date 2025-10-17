@@ -13,11 +13,11 @@ cl def renderJsxTree(node: any, container: any) -> None {
 # Internal: Build DOM from JSX tree
 cl def __buildDom(node: any) -> any {
     if node == None {
-        return __createTextNode("");
+        return document.createTextNode("");
     }
 
     if not __isObject(node) {
-        return __createTextNode(__toString(node));
+        return document.createTextNode(String(node));
     }
 
     # Handle component functions
@@ -28,7 +28,7 @@ cl def __buildDom(node: any) -> any {
     }
 
     # Create element
-    element = __createElement(tag if tag else "div");
+    element = document.createElement(tag if tag else "div");
 
     # Apply properties
     props = node.get("props", {});
@@ -63,7 +63,7 @@ cl def __applyProp(element: any, key: str, value: any) -> None {
             element.style[styleKey] = value.get(styleKey);
         }
     } elif key != "children" {
-        element.setAttribute(key, __toString(value));
+        element.setAttribute(key, String(value));
     }
 }
 
@@ -71,7 +71,7 @@ cl def __applyProp(element: any, key: str, value: any) -> None {
 cl async def __jacSpawn(walker: str, fields: dict = {}) -> any {
     token = __getLocalStorage("jac_token");
 
-    response = await __fetch(
+    response = await fetch(
         f"/walker/{walker}",
         {
             "method": "POST",
@@ -79,7 +79,7 @@ cl async def __jacSpawn(walker: str, fields: dict = {}) -> any {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}" if token else ""
             },
-            "body": __jsonStringify({"nd": "root", **fields})
+            "body": JSON.stringify({"nd": "root", **fields})
         }
     );
 
@@ -88,14 +88,14 @@ cl async def __jacSpawn(walker: str, fields: dict = {}) -> any {
         raise Exception(f"Walker {walker} failed: {error_text}");
     }
 
-    return __jsonParse(await response.text());
+    return JSON.parse(await response.text());
 }
 
 # Function call function - calls server-side functions from client
 cl async def __jacCallFunction(function_name: str, args: dict = {}) -> any {
     token = __getLocalStorage("jac_token");
 
-    response = await __fetch(
+    response = await fetch(
         f"/function/{function_name}",
         {
             "method": "POST",
@@ -103,7 +103,7 @@ cl async def __jacCallFunction(function_name: str, args: dict = {}) -> any {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}" if token else ""
             },
-            "body": __jsonStringify({"args": args})
+            "body": JSON.stringify({"args": args})
         }
     );
 
@@ -112,23 +112,23 @@ cl async def __jacCallFunction(function_name: str, args: dict = {}) -> any {
         raise Exception(f"Function {function_name} failed: {error_text}");
     }
 
-    data = __jsonParse(await response.text());
+    data = JSON.parse(await response.text());
     return data.get("result");
 }
 
 # Authentication helpers
 cl async def jacSignup(username: str, password: str) -> dict {
-    response = await __fetch(
+    response = await fetch(
         "/user/create",
         {
             "method": "POST",
             "headers": {"Content-Type": "application/json"},
-            "body": __jsonStringify({"username": username, "password": password})
+            "body": JSON.stringify({"username": username, "password": password})
         }
     );
 
     if response.ok {
-        data = __jsonParse(await response.text());
+        data = JSON.parse(await response.text());
         token = data.get("token");
         if token {
             __setLocalStorage("jac_token", token);
@@ -138,7 +138,7 @@ cl async def jacSignup(username: str, password: str) -> dict {
     } else {
         error_text = await response.text();
         try {
-            error_data = __jsonParse(error_text);
+            error_data = JSON.parse(error_text);
             return {"success": False, "error": error_data.get("error", "Signup failed")};
         } except Exception {
             return {"success": False, "error": error_text};
@@ -147,17 +147,17 @@ cl async def jacSignup(username: str, password: str) -> dict {
 }
 
 cl async def jacLogin(username: str, password: str) -> bool {
-    response = await __fetch(
+    response = await fetch(
         "/user/login",
         {
             "method": "POST",
             "headers": {"Content-Type": "application/json"},
-            "body": __jsonStringify({"username": username, "password": password})
+            "body": JSON.stringify({"username": username, "password": password})
         }
     );
 
     if response.ok {
-        data = __jsonParse(await response.text());
+        data = JSON.parse(await response.text());
         token = data.get("token");
         if token {
             __setLocalStorage("jac_token", token);
@@ -177,11 +177,6 @@ cl def jacIsLoggedIn() -> bool {
 }
 
 # Browser API shims
-cl async def __fetch(url: str, options: dict = {}) -> any {
-    fetch_opts = options if options else {};
-    return await fetch(url, fetch_opts);
-}
-
 cl def __getLocalStorage(key: str) -> str {
     storage = globalThis.localStorage;
     return storage.getItem(key) if storage else "";
@@ -201,22 +196,6 @@ cl def __removeLocalStorage(key: str) -> None {
     }
 }
 
-cl def __jsonStringify(obj: any) -> str {
-    return JSON.stringify(obj);
-}
-
-cl def __jsonParse(text: str) -> any {
-    return JSON.parse(text);
-}
-
-cl def __createElement(tag: str) -> any {
-    return document.createElement(tag);
-}
-
-cl def __createTextNode(text: str) -> any {
-    return document.createTextNode(text);
-}
-
 cl def __isObject(value: any) -> bool {
     if value == None {
         return False;
@@ -226,10 +205,6 @@ cl def __isObject(value: any) -> bool {
 
 cl def __isFunction(value: any) -> bool {
     return Object.prototype.toString.call(value) == "[object Function]";
-}
-
-cl def __toString(value: any) -> str {
-    return String(value);
 }
 
 cl def __objectKeys(obj: any) -> list {
@@ -286,7 +261,7 @@ cl def __jacGetDocument(scope: any) -> any {
 
 cl def __jacParseJsonObject(text: str) -> any {
     try {
-        parsed = __jsonParse(text);
+        parsed = JSON.parse(text);
         if __isObject(parsed) {
             return parsed;
         }

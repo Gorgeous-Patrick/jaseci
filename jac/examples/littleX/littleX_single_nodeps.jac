@@ -146,10 +146,6 @@ walker get_profile(visit_profile) {}
 
 
 walker load_user_profiles {
-    obj __specs__ {
-        static has auth: bool = False;
-    }
-
     can load_profiles with `root entry {
         self.profiles: list = [];
         for each_root in allroots() {
@@ -556,9 +552,7 @@ cl async def HomeView()  -> any {
         }
         return FeedView(tweets);
     } except Exception as e {
-        return <div style={{"padding" : "20px" , "color" : "red" }}>Error loading feed: {__toString(
-            e
-        )}</div>;
+        return <div style={{"padding" : "20px" , "color" : "red" }}>Error loading feed: {String(e)}</div>;
     }
 }
 
