@@ -30,8 +30,7 @@ function initPyodideWorker() {
     return pyodideInitPromise;
 }
 
-// Run Jac Code in Worker
-function runJacCodeInWorker(code, inputHandler) {
+function executeJacCodeInWorker(code, inputHandler, commandType = "run") {
     return new Promise(async (resolve, reject) => {
         await initPyodideWorker();
         const handleMessage = async (event) => {
@@ -74,8 +73,16 @@ function runJacCodeInWorker(code, inputHandler) {
             }
         };
         pyodideWorker.addEventListener("message", handleMessage);
-        pyodideWorker.postMessage({ type: "run", code });
+        pyodideWorker.postMessage({ type: commandType, code });
     });
+}
+
+function runJacCodeInWorker(code, inputHandler) {
+    return executeJacCodeInWorker(code, inputHandler, "run");
+}
+
+function serveJacCodeInWorker(code, inputHandler) {
+    return executeJacCodeInWorker(code, inputHandler, "serve");
 }
 
 // Load Monaco Editor Globally
@@ -124,7 +131,10 @@ async function setupCodeBlock(div) {
 
     div.innerHTML = `
     <div class="jac-code" style="border: 1px solid #ccc;"></div>
-    <button class="md-button md-button--primary run-code-btn">Run</button>
+    <div class="button-container" style="display: flex; gap: 8px;">
+        <button class="md-button md-button--primary run-code-btn">Run</button>
+        <button class="md-button md-button--primary serve-code-btn" style="background: linear-gradient(90deg, #0288d1 0%, #03a9f4 100%);">Serve</button>
+    </div>
     <div class="input-dialog" style="display: none; background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%); border: 1px solid #4a90e2; padding: 12px; margin: 8px 0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);">
         <div style="display: flex; gap: 10px; align-items: center;">
             <div class="input-prompt" style="color: #ffffff; font-family: 'Segoe UI', sans-serif; font-size: 13px; font-weight: 500; white-space: nowrap; min-width: fit-content;"></div>
@@ -138,12 +148,22 @@ async function setupCodeBlock(div) {
 
     const container = div.querySelector(".jac-code");
     const runButton = div.querySelector(".run-code-btn");
+    const serveButton = div.querySelector(".serve-code-btn");
     const outputBlock = div.querySelector(".code-output");
     const inputDialog = div.querySelector(".input-dialog");
     const inputPrompt = div.querySelector(".input-prompt");
     const userInput = div.querySelector(".user-input");
     const submitButton = div.querySelector(".submit-input");
     const cancelButton = div.querySelector(".cancel-input");
+
+    // Handle button visibility based on classnames
+    serveButton.style.display = 'none';
+    if (div.classList.contains('serve-only')) {
+        runButton.style.display = 'none';
+        serveButton.style.display = 'inline-block';
+    } else if (div.classList.contains('run-serve')) {
+        serveButton.style.display = 'inline-block';
+    }
 
     const editor = monaco.editor.create(container, {
         value: originalCode || '# Write your Jac code here',
@@ -223,37 +243,42 @@ async function setupCodeBlock(div) {
         };
     }
 
-    runButton.addEventListener("click", async () => {
-        outputBlock.style.display = "block";
-        outputBlock.textContent = "";
-        inputDialog.style.display = "none";
-
-        if (!pyodideReady) {
-            outputBlock.textContent = "Loading Jac runner...";
-            await initPyodideWorker();
-            outputBlock.textContent = "";
-        }
-
-        // Listen for streaming output updates
-        const outputHandler = (event) => {
-            const { output, stream } = event.detail;
-            outputBlock.textContent += output;
-            outputBlock.scrollTop = outputBlock.scrollHeight;
-        };
-
-        document.addEventListener('jacOutputUpdate', outputHandler);
-
-        try {
-            const codeToRun = editor.getValue();
-            const inputHandler = createInputHandler();
-            await runJacCodeInWorker(codeToRun, inputHandler);
-        } catch (error) {
-            outputBlock.textContent += `\nError: ${error}`;
-        } finally {
-            document.removeEventListener('jacOutputUpdate', outputHandler);
+    function createButtonHandler(commandType, initialMessage = "") {
+        return async () => {
+            outputBlock.style.display = "block";
+            outputBlock.textContent = initialMessage;
             inputDialog.style.display = "none";
-        }
-    });
+
+            if (!pyodideReady) {
+                const loadingMsg = "Loading Jac runner...";
+                outputBlock.textContent += loadingMsg + (initialMessage ? "\n" : "");
+                await initPyodideWorker();
+                outputBlock.textContent = outputBlock.textContent.replace(loadingMsg + (initialMessage ? "\n" : ""), "");
+            }
+
+            const outputHandler = (event) => {
+                const { output, stream } = event.detail;
+                outputBlock.textContent += output;
+                outputBlock.scrollTop = outputBlock.scrollHeight;
+            };
+
+            document.addEventListener('jacOutputUpdate', outputHandler);
+
+            try {
+                const codeToRun = editor.getValue();
+                const inputHandler = createInputHandler();
+                await executeJacCodeInWorker(codeToRun, inputHandler, commandType);
+            } catch (error) {
+                outputBlock.textContent += `\nError: ${error}`;
+            } finally {
+                document.removeEventListener('jacOutputUpdate', outputHandler);
+                inputDialog.style.display = "none";
+            }
+        };
+    }
+
+    runButton.addEventListener("click", createButtonHandler("run"));
+    serveButton.addEventListener("click", createButtonHandler("serve", "Starting serve mode...\n"));
 
     userInput.addEventListener('focus', () => {
         userInput.style.borderColor = '#4a90e2';

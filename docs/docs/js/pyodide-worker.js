@@ -42,7 +42,7 @@ self.onmessage = async (event) => {
         pyodide = await loadPyodide();
         await loadPythonResources(pyodide);
         await pyodide.runPythonAsync(`
-from jaclang.cli.cli import run
+from jaclang.cli.cli import run, serve
 from js import postMessage, Atomics, Int32Array, Uint8Array, shared_buf
 import builtins
 import sys
@@ -98,8 +98,9 @@ builtins.input = pyodide_input
 
     try {
         const jacCode = JSON.stringify(code);
+        const cliCommand = type === "serve" ? "serve" : "run";
         const output = await pyodide.runPythonAsync(`
-from jaclang.cli.cli import run
+from jaclang.cli.cli import run, serve
 import sys
 
 # Set up streaming output
@@ -116,7 +117,10 @@ with open("/tmp/temp.jac", "w") as f:
     f.write(jac_code)
 
 try:
-    run("/tmp/temp.jac")
+    if "${cliCommand}" == "serve":
+        serve("/tmp/temp.jac", faux=True)
+    else:
+        run("/tmp/temp.jac")
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
 
