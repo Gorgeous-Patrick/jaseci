@@ -473,6 +473,7 @@ cl async def handle_signup(event: any) -> None {
     password = document.getElementById("signup-password").value;
     password_confirm = document.getElementById("signup-password-confirm").value;
 
+    # Client-side validation
     if password != password_confirm {
         alert("Passwords do not match!");
         return;
@@ -488,35 +489,14 @@ cl async def handle_signup(event: any) -> None {
         return;
     }
 
-    try {
-        response = await __fetch("/user/create", {
-            "method": "POST",
-            "headers": {"Content-Type": "application/json"},
-            "body": __jsonStringify({"username": username, "password": password})
-        });
+    # Use runtime auth function - no need to know about /user/create endpoint!
+    result = await jacSignup(username, password);
 
-        if response.ok {
-            data = __jsonParse(await response.text());
-            token = data.get("token");
-            if token {
-                __setLocalStorage("jac_token", token);
-                alert("Account created successfully! Welcome to LittleX!");
-                navigate_to("home");
-            } else {
-                alert("Signup succeeded but no token received.");
-            }
-        } else {
-            error_text = await response.text();
-            try {
-                error_data = __jsonParse(error_text);
-                error_msg = error_data.get("error", "Signup failed");
-                alert(error_msg);
-            } except Exception {
-                alert("Signup failed: " + error_text);
-            }
-        }
-    } except Exception as e {
-        alert("Error during signup: " + __toString(e));
+    if result.get("success") {
+        alert("Account created successfully! Welcome to LittleX!");
+        navigate_to("home");
+    } else {
+        alert(result.get("error", "Signup failed"));
     }
 }
 

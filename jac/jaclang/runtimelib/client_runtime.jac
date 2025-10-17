@@ -92,6 +92,35 @@ cl async def __jacSpawn(walker: str, fields: dict = {}) -> any {
 }
 
 # Authentication helpers
+cl async def jacSignup(username: str, password: str) -> dict {
+    response = await __fetch(
+        "/user/create",
+        {
+            "method": "POST",
+            "headers": {"Content-Type": "application/json"},
+            "body": __jsonStringify({"username": username, "password": password})
+        }
+    );
+
+    if response.ok {
+        data = __jsonParse(await response.text());
+        token = data.get("token");
+        if token {
+            __setLocalStorage("jac_token", token);
+            return {"success": True, "token": token, "username": username};
+        }
+        return {"success": False, "error": "No token received"};
+    } else {
+        error_text = await response.text();
+        try {
+            error_data = __jsonParse(error_text);
+            return {"success": False, "error": error_data.get("error", "Signup failed")};
+        } except Exception {
+            return {"success": False, "error": error_text};
+        }
+    }
+}
+
 cl async def jacLogin(username: str, password: str) -> bool {
     response = await __fetch(
         "/user/login",
