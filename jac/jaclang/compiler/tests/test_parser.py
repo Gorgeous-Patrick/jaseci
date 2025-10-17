@@ -280,4 +280,106 @@ class TestLarkParser(TestCaseMicroSuite):
             with self.subTest(node=label):
                 self.assertTrue(present, f"{label} missing from AST pretty print")
 
+    def test_client_keyword_tagging(self) -> None:
+        """Test that cl keyword properly tags elements as client declarations.
+
+        Tests:
+        - Single statement with cl prefix
+        - Statement without cl prefix
+        - Block of statements with cl { }
+        - Empty cl blocks
+        - Multiple cl blocks at top level
+        - Various statement types (import, let, obj, test)
+        """
+        # Test 1: Mixed single and block client markers
+        source = """
+cl let foo = 1;
+let bar = 2;
+cl {
+    let baz = 3;
+    test sample {}
+}
+"""
+        module = JacProgram().parse_str(source, "test.jac")
+        body = module.body
+
+        self.assertEqual(
+            [type(stmt).__name__ for stmt in body],
+            ["GlobalVars", "GlobalVars", "GlobalVars", "Test"],
+        )
+        self.assertEqual(
+            [getattr(stmt, "is_client_decl", False) for stmt in body],
+            [True, False, True, True],  # cl let, let, cl{let}, cl{test}
+        )
+
+        # Test 2: Block with different statement types
+        source = """
+cl {
+    import foo;
+    let x = 1;
+    obj MyClass {}
+    test my_test {}
+}
+"""
+        module = JacProgram().parse_str(source, "test.jac")
+        body = module.body
+
+        self.assertEqual(len(body), 4)
+        self.assertTrue(
+            all(
+                getattr(stmt, "is_client_decl", False)
+                for stmt in body
+                if hasattr(stmt, "is_client_decl")
+            )
+        )
+
+        # Test 3: Multiple cl blocks at top level
+        source = """
+cl {
+    let a = 1;
+}
+let b = 2;
+cl {
+    let c = 3;
+}
+"""
+        module = JacProgram().parse_str(source, "test.jac")
+        body = module.body
+
+        self.assertEqual(len(body), 3)
+        self.assertEqual(
+            [getattr(stmt, "is_client_decl", False) for stmt in body],
+            [True, False, True],  # cl{let a}, let b, cl{let c}
+        )
+
+        # Test 4: Empty client block
+        source = """
+cl {}
+let x = 1;
+"""
+        module = JacProgram().parse_str(source, "test.jac")
+        body = module.body
+
+        self.assertEqual(len(body), 1)
+        self.assertFalse(getattr(body[0], "is_client_decl", False))
+
+        # Test 5: Various statement types with single cl marker
+        source = """
+cl import foo;
+cl obj MyClass {}
+cl test my_test {}
+"""
+        module = JacProgram().parse_str(source, "test.jac")
+        body = module.body
+
+        self.assertEqual(len(body), 3)
+        self.assertTrue(
+            all(
+                getattr(stmt, "is_client_decl", False)
+                for stmt in body
+                if hasattr(stmt, "is_client_decl")
+            )
+        )
+
+
 TestLarkParser.self_attach_micro_tests()

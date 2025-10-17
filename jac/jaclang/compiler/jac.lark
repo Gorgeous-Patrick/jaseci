@@ -5,15 +5,19 @@ module: (toplevel_stmt (tl_stmt_with_doc | toplevel_stmt)*)?
        | STRING        (tl_stmt_with_doc | toplevel_stmt)*
 
 tl_stmt_with_doc: STRING toplevel_stmt
-toplevel_stmt: KW_CLIENT? import_stmt
-       | KW_CLIENT? archetype
+
+toplevel_stmt: KW_CLIENT? onelang_stmt
+       | KW_CLIENT LBRACE onelang_stmt* RBRACE
+       | py_code_block
+
+onelang_stmt: import_stmt
+       | archetype
+       | ability
+       | global_var
+       | free_code
+       | test
        | impl_def
        | sem_def
-       | KW_CLIENT? ability
-       | KW_CLIENT? global_var
-       | KW_CLIENT? free_code
-       | py_code_block
-       | KW_CLIENT? test
 
 // [Heading]: Import/Include Statements.
 import_stmt: KW_IMPORT KW_FROM from_path LBRACE import_items RBRACE

@@ -390,17 +390,29 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 | STRING (tl_stmt_with_doc | toplevel_stmt)*
             """
             doc = self.match(uni.String)
-            body = self.match_many(uni.ElementStmt)
+            # Collect all statements, flattening lists from cl { ... } blocks
+            body: list[uni.ElementStmt] = []
+            flat_kids: list[uni.UniNode] = []
+
+            for node in self.cur_nodes:
+                if isinstance(node, list):
+                    # This is a list from cl { } block
+                    body.extend(node)
+                    flat_kids.extend(node)
+                elif isinstance(node, uni.ElementStmt):
+                    body.append(node)
+                    flat_kids.append(node)
+                else:
+                    flat_kids.append(node)
+
             mod = uni.Module(
                 name=self.parse_ref.mod_path.split(os.path.sep)[-1].rstrip(".jac"),
                 source=self.parse_ref.ir_in,
                 doc=doc,
                 body=body,
                 terminals=self.terminals,
-                kid=(
-                    self.cur_nodes
-                    or [uni.EmptyToken(uni.Source("", self.parse_ref.mod_path))]
-                ),
+                kid=flat_kids
+                or [uni.EmptyToken(uni.Source("", self.parse_ref.mod_path))],
             )
             return mod
 
@@ -415,25 +427,47 @@ class JacParser(Transform[uni.Source, uni.Module]):
             element.add_kids_left([doc])
             return element
 
-        def toplevel_stmt(self, _: None) -> uni.ElementStmt:
+        def onelang_stmt(self, _: None) -> uni.ElementStmt:
             """Grammar rule.
 
-            toplevel_stmt: KW_CLIENT? import_stmt
-                | KW_CLIENT? archetype
+            onelang_stmt: import_stmt
+                | archetype
+                | ability
+                | global_var
+                | free_code
+                | test
                 | impl_def
                 | sem_def
-                | KW_CLIENT? ability
-                | KW_CLIENT? global_var
-                | KW_CLIENT? free_code
+            """
+            return self.consume(uni.ElementStmt)
+
+        def toplevel_stmt(self, _: None) -> uni.ElementStmt | list[uni.ElementStmt]:
+            """Grammar rule.
+
+            toplevel_stmt: KW_CLIENT? onelang_stmt
+                | KW_CLIENT LBRACE onelang_stmt* RBRACE
                 | py_code_block
-                | KW_CLIENT? test
             """
             client_tok = self.match_token(Tok.KW_CLIENT)
-            element = self.consume(uni.ElementStmt)
-            if client_tok and isinstance(element, uni.ClientFacingNode):
-                element.is_client_decl = True
-                element.add_kids_left([client_tok])
-            return element
+            if client_tok:
+                lbrace = self.match_token(Tok.LBRACE)
+                if lbrace:
+                    # Collect all statements in the block
+                    elements: list[uni.ElementStmt] = []
+                    while elem := self.match(uni.ElementStmt):
+                        if isinstance(elem, uni.ClientFacingNode):
+                            elem.is_client_decl = True
+                        elements.append(elem)
+                    self.consume(uni.Token)  # RBRACE
+                    return elements
+                else:
+                    element = self.consume(uni.ElementStmt)
+                    if isinstance(element, uni.ClientFacingNode):
+                        element.is_client_decl = True
+                        element.add_kids_left([client_tok])
+                    return element
+            else:
+                return self.consume(uni.ElementStmt)
 
         def global_var(self, _: None) -> uni.GlobalVars:
             """Grammar rule.
