@@ -127,3 +127,41 @@ class EsastGenPassTests(TestCase):
         serialized = json.dumps(ast_dict)
         self.assertIn('"type": "Program"', serialized)
         self.assertGreater(len(serialized), 1000)
+
+    def test_class_separate_impl_file(self) -> None:
+        """Test that separate impl files work correctly for class archetypes."""
+        es_ast = self.compile_to_esast(
+            self.get_fixture_path("class_separate_impl.jac")
+        )
+        js_code = es_to_js(es_ast)
+
+        # Check that the Calculator class exists
+        class_decls = [
+            node for node in es_ast.body if isinstance(node, es.ClassDeclaration)
+        ]
+        class_names = {cls.id.name for cls in class_decls if cls.id}
+        self.assertIn("Calculator", class_names)
+        self.assertIn("ScientificCalculator", class_names)
+
+        # Check that methods from impl file are present
+        calculator_class = next(
+            (cls for cls in class_decls if cls.id and cls.id.name == "Calculator"),
+            None,
+        )
+        self.assertIsNotNone(calculator_class)
+        if calculator_class:
+            method_names = {
+                m.key.name
+                for m in calculator_class.body.body
+                if isinstance(m, es.MethodDefinition) and isinstance(m.key, es.Identifier)
+            }
+            self.assertIn("add", method_names)
+            self.assertIn("multiply", method_names)
+            self.assertIn("get_value", method_names)
+
+        # Check JavaScript output contains the methods
+        self.assertIn("class Calculator", js_code)
+        self.assertIn("class ScientificCalculator", js_code)
+        self.assertIn("add(", js_code)
+        self.assertIn("multiply(", js_code)
+        self.assertIn("power(", js_code)

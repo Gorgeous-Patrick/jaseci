@@ -60,6 +60,10 @@ class EsastGenPass(UniPass):
         """Initialize the pass."""
         from jaclang.compiler.codeinfo import ClientManifest
 
+        self.child_passes: list[EsastGenPass] = []
+        for i in self.ir_in.impl_mod + self.ir_in.test_mod:
+            child_pass = EsastGenPass(ir_in=i, prog=self.prog)
+            self.child_passes.append(child_pass)
         self.imports: list[es.ImportDeclaration] = []
         self.exports: list[es.ExportNamedDeclaration] = []
         self.scope_stack: list[ScopeInfo] = []
@@ -181,11 +185,19 @@ class EsastGenPass(UniPass):
             scope.hoisted.clear()
             body.extend(hoisted)
 
-        # Process module body
+        # Build pre_body including impl_mod and test_mod
         clean_body = [i for i in node.body if not isinstance(i, uni.ImplDef)]
+        pre_body: list[uni.UniNode] = []
+        for pbody in node.impl_mod:
+            pre_body = [*pre_body, *pbody.body]
+        pre_body = [*pre_body, *clean_body]
+        for pbody in node.test_mod:
+            pre_body = [*pre_body, *pbody.body]
+
+        # Process module body
         client_items: list[Union[es.Statement, list[es.Statement]]] = []
         fallback_items: list[Union[es.Statement, list[es.Statement]]] = []
-        for stmt in clean_body:
+        for stmt in pre_body:
             if stmt.gen.es_ast:
                 target_list = (
                     client_items
