@@ -864,15 +864,14 @@ class TestServeCommand(TestCase):
         self.assertEqual(status, 200)
         self.assertIn("application/javascript", headers.get("Content-Type", ""))
 
-        # Verify the polyfill is at the beginning of the bundle
-        self.assertIn("Object.prototype.get", js_body)
-        self.assertIn("function(key, defaultValue)", js_body)
-        self.assertIn("this.hasOwnProperty(key)", js_body)
+        # Verify the polyfill function is in the runtime (now part of client_runtime.jac)
+        self.assertIn("__jacEnsureObjectGetPolyfill", js_body)
+        self.assertIn("__jacObjectGetPolyfill", js_body)
+        self.assertIn("Object.defineProperty", js_body)
 
-        # Verify the polyfill appears before the runtime code
-        polyfill_pos = js_body.find("Object.prototype.get")
-        runtime_pos = js_body.find("// Jac client runtime")
-        self.assertGreater(runtime_pos, polyfill_pos)
+        # Verify core runtime functions are present
+        self.assertIn("__jacJsx", js_body)
+        self.assertIn("__jacRegisterClientModule", js_body)
 
     def test_login_form_renders_with_correct_elements(self) -> None:
         """Test that client page renders with correct HTML elements via HTTP endpoint."""
@@ -911,8 +910,9 @@ class TestServeCommand(TestCase):
         status_js, js_body, _ = self._request_raw("GET", "/static/client.js", timeout=15)
         self.assertEqual(status_js, 200)
 
-        # Verify the bundle has the polyfill
-        self.assertIn("Object.prototype.get", js_body)
+        # Verify the bundle has the polyfill setup functions (now part of client_runtime.jac)
+        self.assertIn("__jacEnsureObjectGetPolyfill", js_body)
+        self.assertIn("__jacObjectGetPolyfill", js_body)
 
         # Verify the function is in the bundle
         self.assertIn("function client_page", js_body)
