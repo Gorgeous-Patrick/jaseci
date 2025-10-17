@@ -99,6 +99,8 @@ class PyastGenPass(UniPass):
         self.already_added: list[str] = []
         self.jaclib_imports: set[str] = set()  # Track individual jaclib imports
         self.builtin_imports: set[str] = set()  # Track individual builtin imports
+        self._temp_name_counter: int = 0
+        self._hoisted_funcs: list[ast3.FunctionDef | ast3.AsyncFunctionDef] = []
         self.preamble: list[ast3.AST] = [
             self.sync(
                 ast3.ImportFrom(
@@ -187,6 +189,33 @@ class PyastGenPass(UniPass):
                 names=[self.sync(ast3.alias(name="Future", asname=None))],
                 level=0,
             ),
+        )
+
+    def _next_temp_name(self, prefix: str) -> str:
+        """Generate a deterministic temporary name for synthesized definitions."""
+        self._temp_name_counter += 1
+        return f"__jac_{prefix}_{self._temp_name_counter}"
+
+    def _function_expr_from_def(
+        self,
+        func_def: ast3.FunctionDef | ast3.AsyncFunctionDef,
+        jac_node: uni.UniNode,
+        filename_hint: str,
+    ) -> ast3.Name:
+        """Convert a synthesized function definition into an executable expression.
+
+        Instead of using make_block_lambda at runtime, we hoist the function
+        definition to be emitted before the current statement, then return
+        a reference to the function name.
+        """
+        # Ensure locations are fixed
+        ast3.fix_missing_locations(func_def)
+        # Add the function to the hoisted list - it will be emitted before the current statement
+        self._hoisted_funcs.append(func_def)
+        # Return a reference to the function name
+        return self.sync(
+            ast3.Name(id=func_def.name, ctx=ast3.Load()),
+            jac_node=jac_node,
         )
 
     def _get_sem_decorator(self, node: uni.UniNode) -> ast3.Call | None:
@@ -1275,19 +1304,24 @@ class PyastGenPass(UniPass):
         node.gen.py_ast = self.resolve_stmt_block(node.body)
 
     def exit_expr_stmt(self, node: uni.ExprStmt) -> None:
-        node.gen.py_ast = [
-            (
-                self.sync(ast3.Expr(value=cast(ast3.expr, node.expr.gen.py_ast[0])))
-                if not node.in_fstring
-                else self.sync(
-                    ast3.FormattedValue(
-                        value=cast(ast3.expr, node.expr.gen.py_ast[0]),
-                        conversion=-1,
-                        format_spec=None,
-                    )
+        # Collect any hoisted functions that were generated during expression evaluation
+        hoisted = self._hoisted_funcs[:]
+        self._hoisted_funcs.clear()
+
+        expr_stmt = (
+            self.sync(ast3.Expr(value=cast(ast3.expr, node.expr.gen.py_ast[0])))
+            if not node.in_fstring
+            else self.sync(
+                ast3.FormattedValue(
+                    value=cast(ast3.expr, node.expr.gen.py_ast[0]),
+                    conversion=-1,
+                    format_spec=None,
                 )
             )
-        ]
+        )
+
+        # Emit hoisted functions before the expression statement
+        node.gen.py_ast = [*hoisted, expr_stmt]
 
     def exit_concurrent_expr(self, node: uni.ConcurrentExpr) -> None:
         func = ""
@@ -1881,48 +1915,49 @@ class PyastGenPass(UniPass):
         )
         targets_ast = [cast(ast3.expr, t.gen.py_ast[0]) for t in node.target]
 
+        # Collect any hoisted functions that were generated during expression evaluation
+        hoisted = self._hoisted_funcs[:]
+        self._hoisted_funcs.clear()
+
         if node.type_tag:
-            node.gen.py_ast = [
-                self.sync(
-                    ast3.AnnAssign(
-                        target=cast(ast3.Name, targets_ast[0]),
-                        annotation=cast(ast3.expr, node.type_tag.gen.py_ast[0]),
-                        value=(
-                            cast(ast3.expr, node.value.gen.py_ast[0])
-                            if node.value
-                            else None
-                        ),
-                        simple=int(isinstance(targets_ast[0], ast3.Name)),
-                    )
+            assignment_stmt: ast3.AnnAssign | ast3.Assign | ast3.AugAssign = self.sync(
+                ast3.AnnAssign(
+                    target=cast(ast3.Name, targets_ast[0]),
+                    annotation=cast(ast3.expr, node.type_tag.gen.py_ast[0]),
+                    value=(
+                        cast(ast3.expr, node.value.gen.py_ast[0])
+                        if node.value
+                        else None
+                    ),
+                    simple=int(isinstance(targets_ast[0], ast3.Name)),
                 )
-            ]
+            )
         elif node.aug_op:
-            node.gen.py_ast = [
-                self.sync(
-                    ast3.AugAssign(
-                        target=cast(ast3.Name, targets_ast[0]),
-                        op=cast(ast3.operator, node.aug_op.gen.py_ast[0]),
-                        value=(
-                            cast(ast3.expr, value)
-                            if isinstance(value, ast3.expr)
-                            else ast3.Constant(value=None)
-                        ),
-                    )
+            assignment_stmt = self.sync(
+                ast3.AugAssign(
+                    target=cast(ast3.Name, targets_ast[0]),
+                    op=cast(ast3.operator, node.aug_op.gen.py_ast[0]),
+                    value=(
+                        cast(ast3.expr, value)
+                        if isinstance(value, ast3.expr)
+                        else ast3.Constant(value=None)
+                    ),
                 )
-            ]
+            )
         else:
-            node.gen.py_ast = [
-                self.sync(
-                    ast3.Assign(
-                        targets=cast(list[ast3.expr], targets_ast),
-                        value=(
-                            cast(ast3.expr, value)
-                            if isinstance(value, ast3.expr)
-                            else ast3.Constant(value=None)
-                        ),
-                    )
+            assignment_stmt = self.sync(
+                ast3.Assign(
+                    targets=cast(list[ast3.expr], targets_ast),
+                    value=(
+                        cast(ast3.expr, value)
+                        if isinstance(value, ast3.expr)
+                        else ast3.Constant(value=None)
+                    ),
                 )
-            ]
+            )
+
+        # Emit hoisted functions before the assignment
+        node.gen.py_ast = [*hoisted, assignment_stmt]
 
     def exit_binary_expr(self, node: uni.BinaryExpr) -> None:
         if isinstance(node.op, uni.ConnectOp):
@@ -2150,28 +2185,80 @@ class PyastGenPass(UniPass):
         ]
 
     def exit_lambda_expr(self, node: uni.LambdaExpr) -> None:
-        # Python lambda expressions don't support type annotations
+        # Multi-statement lambda emits a synthesized function definition that is
+        # hoisted before the current statement.
+        if isinstance(node.body, list):
+            if node.signature and node.signature.gen.py_ast:
+                arguments = cast(ast3.arguments, node.signature.gen.py_ast[0])
+            else:
+                arguments = self.sync(
+                    ast3.arguments(
+                        posonlyargs=[],
+                        args=[],
+                        kwonlyargs=[],
+                        kw_defaults=[],
+                        defaults=[],
+                    ),
+                    jac_node=node,
+                )
+            body_stmts = [
+                cast(ast3.stmt, stmt)
+                for stmt in self.resolve_stmt_block(node.body, doc=None)
+            ]
+            if not body_stmts:
+                body_stmts = [self.sync(ast3.Pass(), jac_node=node)]
+            func_name = self._next_temp_name("lambda")
+            returns = (
+                cast(ast3.expr, node.signature.return_type.gen.py_ast[0])
+                if node.signature
+                and node.signature.return_type
+                and node.signature.return_type.gen.py_ast
+                else None
+            )
+            func_def = self.sync(
+                ast3.FunctionDef(
+                    name=func_name,
+                    args=arguments,
+                    body=body_stmts,
+                    decorator_list=[],
+                    returns=returns,
+                    type_params=[],
+                ),
+                jac_node=node,
+            )
+            node.gen.py_ast = [
+                self._function_expr_from_def(
+                    func_def=func_def,
+                    jac_node=node,
+                    filename_hint=f"<jac_lambda:{func_name}>",
+                )
+            ]
+            return
+
+        # Single-expression lambda maps directly to Python lambda; strip annotations.
         if node.signature:
             self._remove_lambda_param_annotations(node.signature)
-
+        if node.signature and node.signature.gen.py_ast:
+            arguments = cast(ast3.arguments, node.signature.gen.py_ast[0])
+        else:
+            arguments = self.sync(
+                ast3.arguments(
+                    posonlyargs=[],
+                    args=[],
+                    kwonlyargs=[],
+                    kw_defaults=[],
+                    defaults=[],
+                ),
+                jac_node=node,
+            )
+        body_expr = cast(ast3.expr, node.body.gen.py_ast[0])
         node.gen.py_ast = [
             self.sync(
                 ast3.Lambda(
-                    args=(
-                        cast(ast3.arguments, node.signature.gen.py_ast[0])
-                        if node.signature
-                        else self.sync(
-                            ast3.arguments(
-                                posonlyargs=[],
-                                args=[],
-                                kwonlyargs=[],
-                                kw_defaults=[],
-                                defaults=[],
-                            )
-                        )
-                    ),
-                    body=cast(ast3.expr, node.body.gen.py_ast[0]),
-                )
+                    args=arguments,
+                    body=body_expr,
+                ),
+                jac_node=node,
             )
         ]
 
@@ -2537,6 +2624,24 @@ class PyastGenPass(UniPass):
             ]
 
     def exit_atom_unit(self, node: uni.AtomUnit) -> None:
+        if (
+            isinstance(node.value, uni.Ability)
+            and node.value.gen.py_ast
+            and isinstance(
+                node.value.gen.py_ast[0], (ast3.FunctionDef, ast3.AsyncFunctionDef)
+            )
+        ):
+            func_ast = cast(
+                ast3.FunctionDef | ast3.AsyncFunctionDef, node.value.gen.py_ast[0]
+            )
+            node.gen.py_ast = [
+                self._function_expr_from_def(
+                    func_def=func_ast,
+                    jac_node=node,
+                    filename_hint=f"<jac_iife:{func_ast.name}>",
+                )
+            ]
+            return
         node.gen.py_ast = node.value.gen.py_ast
 
     def gen_call_args(

@@ -302,14 +302,18 @@ class AstTool:
             for kid in cls.kids:
                 if "_end" in kid.name:
                     kid.name = kid.name.replace("_end", "_end_")
-                arrow = "-.->" if "Optional" in kid.typ else "-->"
+                typ_str = str(kid.typ)
+                arrow = "-.->" if "Optional" in typ_str else "-->"
                 typ = (
-                    kid.typ.replace("Optional[", "")
+                    typ_str.replace("typing.", "")
+                    .replace("jaclang.compiler.unitree.", "")
+                    .replace("Optional[", "")
+                    .replace("Union[", "")
                     .replace("SubTag[", "")
                     .replace("Sequence[", "")
+                    .replace("list[", "list - ")
                     .replace("]", "")
                     .replace("|", ",")
-                    .replace("list[", "list - ")
                 )
                 output += f"{cls.name} {arrow}|{typ}| {kid.name}\n"
             output += "```\n\n"

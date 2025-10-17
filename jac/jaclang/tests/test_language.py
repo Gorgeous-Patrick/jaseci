@@ -557,7 +557,7 @@ class JacLanguageTests(TestCase):
                 ),
                 prog=JacProgram(),
             ).ir_out.unparse()
-        self.assertIn("class X {\n    with entry {\n        a_b = 67;", output)
+        self.assertIn("class X {\n    with entry {\n        let a_b = 67;", output)
         self.assertIn("br = b'Hello\\\\\\\\nWorld'", output)
         self.assertIn(
             "class Circle {\n    def init(self: Circle, radius: float", output

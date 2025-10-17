@@ -153,6 +153,31 @@ class PyastGenPassTests(TestCaseMicroSuite, AstSyncTestMixin):
 
         self.assertFalse(out.errors_had)
 
+    def test_iife_fixture_executes(self) -> None:
+        """Ensure IIFE and block lambdas lower to executable Python."""
+        fixture_path = self.lang_fixture_abs_path("iife_functions.jac")
+        code_gen = (prog := JacProgram()).compile(fixture_path)
+        self.assertFalse(prog.errors_had)
+        if code_gen.gen.py_ast and isinstance(code_gen.gen.py_ast[0], ast3.Module):
+            module_ast = code_gen.gen.py_ast[0]
+            compiled = compile(module_ast, filename="<ast>", mode="exec")
+            captured = io.StringIO()
+            original_stdout = sys.stdout
+            try:
+                sys.stdout = captured
+                module = types.ModuleType("__main__")
+                module.__dict__["__file__"] = code_gen.loc.mod_path
+                exec(compiled, module.__dict__)
+            finally:
+                sys.stdout = original_stdout
+            output = captured.getvalue()
+            self.assertIn("Test 1 - Basic IIFE: 42", output)
+            self.assertIn(
+                "Test 6 - IIFE returning function, adder(5): 15",
+                output,
+            )
+            self.assertIn("All IIFE tests completed!", output)
+
     def parent_scrub(self, node: uni.UniNode) -> bool:
         """Validate every node has parent."""
         success = True

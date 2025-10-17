@@ -147,6 +147,19 @@ class JavaScriptGenerationTests(TestCase):
 
         self.assert_balanced_syntax(js_code, self.CLIENT_FIXTURE)
 
+    def test_iife_fixture_generates_function_expressions(self) -> None:
+        """IIFE-heavy fixture should lower Jac function expressions for JS runtime."""
+        fixture_path = self.lang_fixture_abs_path("iife_functions_client.jac")
+        js_code = self.compile_fixture_to_js(fixture_path)
+
+        # Ensure representative IIFE constructs are present
+        self.assertIn("function get_value()", js_code)
+        self.assertIn("function calculate(x, y)", js_code)
+        self.assertIn("}();", js_code, "IIFE invocation pattern missing in generated JS")
+        self.assertIn("function outer()", js_code)
+        self.assertIn("return () => {\n    let count = count + 1;\n    return count;\n  };", js_code)
+        self.assertIn("All client-side IIFE tests completed!", js_code)
+
     def test_cli_js_command_outputs_js(self) -> None:
         """jac js CLI should emit JavaScript for the core fixture."""
         fixture_path = self.get_fixture_path(self.CORE_FIXTURE)
@@ -175,6 +188,52 @@ class JavaScriptGenerationTests(TestCase):
         try:
             js_code = self.compile_fixture_to_js(temp_path)
             self.assertLess(len(js_code), 100, "Empty file produced unexpectedly large output")
+            self.assert_balanced_syntax(js_code, temp_path)
+        finally:
+            os.unlink(temp_path)
+
+    def test_type_to_typeof_transformation(self) -> None:
+        """Test that type() calls transform to typeof operator in JavaScript."""
+        jac_code = '''"""Test type() to typeof conversion."""
+
+cl def check_types() {
+    let x = 42;
+    let y = "hello";
+    let obj = {"key": "value"};
+    let arr = [1, 2, 3];
+
+    let t1 = type(x);
+    let t2 = type(y);
+    let t3 = type(obj);
+    let t4 = type(arr[0]);
+
+    return t1;
+}
+'''
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as tmp:
+            tmp.write(jac_code)
+            tmp.flush()
+            temp_path = tmp.name
+
+        try:
+            js_code = self.compile_fixture_to_js(temp_path)
+
+            # Verify typeof operator is present
+            self.assertIn("typeof", js_code, "typeof operator should be present in output")
+
+            # Verify specific transformations
+            self.assertIn("typeof x", js_code, "type(x) should become typeof x")
+            self.assertIn("typeof y", js_code, "type(y) should become typeof y")
+            self.assertIn("typeof obj", js_code, "type(obj) should become typeof obj")
+            self.assertIn("typeof arr[0]", js_code, "type(arr[0]) should become typeof arr[0]")
+
+            # Ensure no type() function calls remain
+            self.assertNotIn("type(", js_code, "No type() calls should remain in JavaScript")
+
+            # Count typeof occurrences - should have exactly 4
+            typeof_count = js_code.count("typeof")
+            self.assertEqual(typeof_count, 4, f"Expected 4 typeof occurrences, found {typeof_count}")
+
             self.assert_balanced_syntax(js_code, temp_path)
         finally:
             os.unlink(temp_path)

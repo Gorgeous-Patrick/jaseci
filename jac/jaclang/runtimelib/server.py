@@ -311,9 +311,19 @@ class ModuleIntrospector:
             return
 
         mod_path = getattr(self._module, "__file__", None)
-        self._client_manifest = (
-            Jac.program.get_client_manifest(mod_path) if mod_path else {}
-        )
+        if mod_path:
+            mod = Jac.program.mod.hub.get(mod_path)
+            if mod and mod.gen.client_manifest:
+                manifest = mod.gen.client_manifest
+                self._client_manifest = {
+                    "exports": manifest.exports,
+                    "globals": manifest.globals,
+                    "params": manifest.params,
+                    "globals_values": manifest.globals_values,
+                    "has_client": manifest.has_client,
+                }
+                return
+        self._client_manifest = {}
 
     def _collect_functions(self) -> dict[str, Callable[..., Any]]:
         """Collect callable functions from module."""

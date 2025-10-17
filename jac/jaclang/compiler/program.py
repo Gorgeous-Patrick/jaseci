@@ -6,7 +6,7 @@ import ast as py_ast
 import marshal
 import types
 from threading import Event
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.parser import JacParser
@@ -87,27 +87,6 @@ class JacProgram:
             return marshal.loads(codeobj) if isinstance(codeobj, bytes) else None
         result = self.compile(file_path=full_target)
         return marshal.loads(result.gen.py_bytecode) if result.gen.py_bytecode else None
-
-    def get_client_manifest(self, mod_path: str) -> dict[str, Any]:
-        """Get the client manifest for a specific module.
-
-        Args:
-            mod_path: The module path to get the manifest for
-
-        Returns:
-            Dictionary containing client metadata (exports, globals, params, etc.)
-        """
-        module = self.mod.hub.get(mod_path)
-        if module and hasattr(module.gen, "client_manifest"):
-            manifest = module.gen.client_manifest
-            return {
-                "exports": manifest.exports,
-                "globals": manifest.globals,
-                "params": manifest.params,
-                "globals_values": manifest.globals_values,
-                "has_client": manifest.has_client,
-            }
-        return {}
 
     def parse_str(
         self, source_str: str, file_path: str, cancel_token: Event | None = None

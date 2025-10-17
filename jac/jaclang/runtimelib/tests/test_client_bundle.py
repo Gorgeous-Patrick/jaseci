@@ -29,16 +29,22 @@ class ClientBundleBuilderTests(TestCase):
         bundle = builder.build(module)
 
         self.assertIn("function __jacJsx", bundle.code)
-        self.assertIn('moduleFunctions["client_page"] = client_page;', bundle.code)
-        self.assertIn('moduleFunctions["ButtonProps"] = ButtonProps;', bundle.code)
-        self.assertIn('scope["client_page"] = client_page;', bundle.code)
-        self.assertIn('scope["ButtonProps"] = ButtonProps;', bundle.code)
-        self.assertIn('moduleGlobals["API_LABEL"] = API_LABEL;', bundle.code)
-        self.assertIn('scope["API_LABEL"] = API_LABEL;', bundle.code)
-        self.assertIn("hydrateJacClient", bundle.code)
-        self.assertIn("document.getElementById('__jac_init__')", bundle.code)
-        self.assertIn("Object.assign(scope, moduleGlobals);", bundle.code)
-        self.assertIn("for (const [gName, gValue] of Object.entries(payload.globals", bundle.code)
+        # Check that registration mechanism is present
+        self.assertIn('moduleFunctions[funcName] = funcRef;', bundle.code)
+        self.assertIn('scope[funcName] = funcRef;', bundle.code)
+        self.assertIn('moduleGlobals[gName] = existing;', bundle.code)
+        self.assertIn('scope[gName] = defaultValue;', bundle.code)
+        # Check that actual client functions and globals are defined
+        self.assertIn('function client_page()', bundle.code)
+        self.assertIn('class ButtonProps', bundle.code)
+        self.assertIn('const API_LABEL = "Runtime Test";', bundle.code)
+        # Check hydration logic is present
+        self.assertIn("__jacHydrateFromDom", bundle.code)
+        self.assertIn("__jacEnsureHydration", bundle.code)
+        self.assertIn('getElementById("__jac_init__")', bundle.code)
+        self.assertIn('getElementById("__jac_root")', bundle.code)
+        # Check globals iteration logic
+        self.assertIn("for (const gName of __objectKeys(payloadGlobals))", bundle.code)
         self.assertIn("client_page", bundle.client_functions)
         self.assertIn("ButtonProps", bundle.client_functions)
         self.assertIn("API_LABEL", bundle.client_globals)

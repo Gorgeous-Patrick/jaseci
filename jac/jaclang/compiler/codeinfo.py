@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from jaclang.compiler.passes.ecmascript.estree import Node as EsNode
     from jaclang.compiler.unitree import Source, Token
 
 
@@ -35,6 +36,7 @@ class CodeGenTarget:
         self.client_manifest: ClientManifest = ClientManifest()
         self.py_ast: list[ast3.AST] = []
         self.py_bytecode: Optional[bytes] = None
+        self.es_ast: Optional[EsNode] = None
 
 
 class CodeLocInfo:

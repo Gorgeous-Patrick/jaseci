@@ -243,7 +243,8 @@ concurrent_expr: (KW_FLOW | KW_WAIT)? walrus_assign
 walrus_assign: (named_ref WALRUS_EQ)? pipe
 
 // [Heading]: Lambda expressions.
-lambda_expr: KW_LAMBDA func_decl_params? (RETURN_HINT expression)? COLON expression
+lambda_expr: KW_LAMBDA func_decl_params (RETURN_HINT expression)? ( COLON expression | code_block )
+           | KW_LAMBDA func_decl? ( COLON expression | code_block )
 
 // [Heading]: Pipe expressions.
 pipe: (pipe PIPE_FWD)? pipe_back
@@ -324,7 +325,7 @@ param_list: expr_list COMMA kw_expr_list COMMA?
 
 // [Heading]: Atomic expressions.
 atom: named_ref
-    | LPAREN (expression | yield_expr) RPAREN
+    | LPAREN (expression | yield_expr | function_decl) RPAREN
     | atom_collection
     | atom_literal
     | type_ref

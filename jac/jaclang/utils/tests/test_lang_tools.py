@@ -135,6 +135,6 @@ class JacAstToolTests(TestCase):
         """Testing for Autodoc for Uninodes."""
         auto_uni = self.tool.autodoc_uninode()
         self.assertIn(
-            "## LambdaExpr\n```mermaid\nflowchart LR\nLambdaExpr -->|Expr| body",
+            "## LambdaExpr\n```mermaid\nflowchart LR\nLambdaExpr -->|Expr, CodeBlockStmt| body",
             auto_uni,
         )

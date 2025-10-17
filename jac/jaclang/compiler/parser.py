@@ -1733,44 +1733,90 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def lambda_expr(self, _: None) -> uni.LambdaExpr:
             """Grammar rule.
 
-            lambda_expr: KW_LAMBDA func_decl_params? (RETURN_HINT expression)? COLON expression
+            lambda_expr: KW_LAMBDA func_decl_params? (RETURN_HINT expression)? ( COLON expression | code_block )
             """
             return_type: uni.Expr | None = None
             return_hint_tok: uni.Token | None = None
             sig_kid: list[uni.UniNode] = []
             self.consume_token(Tok.KW_LAMBDA)
-            params = self.match(list)
-            if return_hint_tok := self.match_token(Tok.RETURN_HINT):
-                return_type = self.consume(uni.Expr)
-            self.consume_token(Tok.COLON)
-            body = self.consume(uni.Expr)
-            if params:
-                sig_kid.extend(params)
-            if return_hint_tok:
-                sig_kid.append(return_hint_tok)
-            if return_type:
-                sig_kid.append(return_type)
-            signature = (
-                uni.FuncSignature(
-                    posonly_params=[],
-                    params=(
-                        self.extract_from_list(params, uni.ParamVar) if params else []
-                    ),
-                    varargs=None,
-                    kwonlyargs=[],
-                    kwargs=None,
-                    return_type=return_type,
-                    kid=sig_kid,
+            param_nodes: list[uni.UniNode] | None = None
+            signature = self.match(uni.FuncSignature)
+            signature_created = False
+            if not signature:
+                if self.node_idx < len(self.cur_nodes) and isinstance(
+                    self.cur_nodes[self.node_idx], list
+                ):
+                    candidate: list[uni.UniNode] = self.cur_nodes[self.node_idx]  # type: ignore[assignment]
+                    first = candidate[0] if candidate else None
+                    if not (
+                        isinstance(first, uni.Token) and first.name == Tok.LBRACE.name
+                    ):
+                        param_nodes = self.consume(list)
+                elif (
+                    self.node_idx < len(self.cur_nodes)
+                    and isinstance(self.cur_nodes[self.node_idx], uni.Token)
+                    and self.cur_nodes[self.node_idx].name == Tok.LPAREN.name
+                ):
+                    self.consume_token(Tok.LPAREN)
+                    param_nodes = self.match(list)
+                    self.consume_token(Tok.RPAREN)
+                if return_hint_tok := self.match_token(Tok.RETURN_HINT):
+                    return_type = self.consume(uni.Expr)
+                if param_nodes:
+                    sig_kid.extend(param_nodes)
+                if return_hint_tok:
+                    sig_kid.append(return_hint_tok)
+                if return_type:
+                    sig_kid.append(return_type)
+                signature = (
+                    uni.FuncSignature(
+                        posonly_params=[],
+                        params=(
+                            self.extract_from_list(param_nodes, uni.ParamVar)
+                            if param_nodes
+                            else []
+                        ),
+                        varargs=None,
+                        kwonlyargs=[],
+                        kwargs=None,
+                        return_type=return_type,
+                        kid=sig_kid,
+                    )
+                    if param_nodes or return_type
+                    else None
                 )
-                if params or return_type
-                else None
-            )
-            new_kid = [
-                i
-                for i in self.cur_nodes
-                if i != params and i != return_type and i != return_hint_tok
-            ]
-            new_kid.insert(1, signature) if signature else None
+                signature_created = signature is not None
+
+            # Check if body is a code block or expression
+            block_nodes: list[uni.UniNode] | None = None
+            if self.match_token(Tok.COLON):
+                # Single-expression body
+                body: uni.Expr | list[uni.CodeBlockStmt] = self.consume(uni.Expr)
+            else:
+                if self.node_idx < len(self.cur_nodes) and isinstance(
+                    self.cur_nodes[self.node_idx], list
+                ):
+                    block_nodes = self.consume(list)
+                    body = self.extract_from_list(block_nodes, uni.CodeBlockStmt)
+                else:
+                    self.consume_token(Tok.LBRACE)
+                    body_stmts: list[uni.CodeBlockStmt] = []
+                    while not self.match_token(Tok.RBRACE):
+                        body_stmts.append(self.consume(uni.CodeBlockStmt))
+                    body = body_stmts
+
+            new_kid: list[uni.UniNode] = []
+            for item in self.cur_nodes:
+                if param_nodes is not None and item is param_nodes:
+                    continue
+                if item is return_type or item is return_hint_tok:
+                    continue
+                if block_nodes is not None and item is block_nodes:
+                    new_kid.extend(block_nodes)
+                else:
+                    new_kid.append(item)
+            if signature_created and signature:
+                new_kid.insert(1, signature)
             return uni.LambdaExpr(
                 signature=signature,
                 body=body,
@@ -2166,14 +2212,19 @@ class JacParser(Transform[uni.Source, uni.Module]):
             """Grammar rule.
 
             atom: named_ref
-                 | LPAREN (expression | yield_expr) RPAREN
+                 | LPAREN (expression | yield_expr | function_decl) RPAREN
                  | atom_collection
                  | atom_literal
                  | type_ref
                  | jsx_element
             """
             if self.match_token(Tok.LPAREN):
-                value = self.match(uni.Expr) or self.consume(uni.YieldExpr)
+                # Try to match expression first, then yield_expr, then function_decl
+                value = self.match(uni.Expr)
+                if value is None:
+                    value = self.match(uni.YieldExpr)
+                if value is None:
+                    value = self.consume(uni.Ability)
                 self.consume_token(Tok.RPAREN)
                 return uni.AtomUnit(value=value, kid=self.cur_nodes)
             return self.consume(uni.AtomExpr)
