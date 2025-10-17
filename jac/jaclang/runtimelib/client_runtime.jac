@@ -553,3 +553,16 @@ cl def __jacRegisterClientModule(
 
     __jacEnsureHydration(moduleName);
 }
+
+# Helper to safely invoke __jacRegisterClientModule with error handling
+cl def __jacSafeRegisterModule(
+    moduleName: str,
+    clientFunctions: list,
+    clientGlobals: dict
+) -> None {
+    if not __isFunction(__jacRegisterClientModule) {
+        console.error("[Jac] __jacRegisterClientModule is not available in client runtime");
+        return;
+    }
+    __jacRegisterClientModule(moduleName, clientFunctions, clientGlobals);
+}

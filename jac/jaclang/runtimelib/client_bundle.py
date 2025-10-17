@@ -100,18 +100,7 @@ class ClientBundleBuilder:
             module.__name__, client_exports, client_globals_map
         )
 
-        # Add Object.prototype.get polyfill for Python dict-like behavior
-        polyfill_js = (
-            "// Polyfill: Add .get() method to objects for Python dict-like behavior\n"
-            "if (!Object.prototype.get) {\n"
-            "  Object.prototype.get = function(key, defaultValue) {\n"
-            "    return this.hasOwnProperty(key) ? this[key] : (defaultValue !== undefined ? defaultValue : null);\n"
-            "  };\n"
-            "}\n"
-        )
-
         bundle_pieces = [
-            polyfill_js,
             "// Jac client runtime",
             runtime_js,
             "",
@@ -176,14 +165,5 @@ class ClientBundleBuilder:
         functions_literal = json.dumps(list(client_functions))
         module_literal = json.dumps(module_name)
 
-        return "\n".join(
-            [
-                "(function(){",
-                "  if (typeof __jacRegisterClientModule !== 'function') {",
-                "    console.error('[Jac] __jacRegisterClientModule is not available in client runtime');",
-                "    return;",
-                "  }",
-                f"  __jacRegisterClientModule({module_literal}, {functions_literal}, {globals_literal});",
-                "})();",
-            ]
-        )
+        # Use the helper function from client_runtime.jac
+        return f"__jacSafeRegisterModule({module_literal}, {functions_literal}, {globals_literal});"
