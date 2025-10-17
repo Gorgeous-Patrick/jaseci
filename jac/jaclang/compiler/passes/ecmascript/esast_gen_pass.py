@@ -69,6 +69,7 @@ class EsastGenPass(UniPass):
         self.scope_stack: list[ScopeInfo] = []
         self.scope_map: dict[uni.UniScopeNode, ScopeInfo] = {}
         self.client_manifest = ClientManifest()
+        self.client_scope_stack: list[bool] = []  # Track client scope nesting
 
     def enter_node(self, node: uni.UniNode) -> None:
         """Enter node."""
@@ -167,6 +168,10 @@ class EsastGenPass(UniPass):
             scope.hoisted.clear()
             return hoisted + statements
         return statements
+
+    def _is_in_client_scope(self) -> bool:
+        """Check if we're currently in a client-side function."""
+        return any(self.client_scope_stack)
 
     # Module and Program
     # ==================
@@ -531,6 +536,12 @@ class EsastGenPass(UniPass):
 
         node.gen.es_ast = var_decl
 
+    def enter_ability(self, node: uni.Ability) -> None:
+        """Track entry into ability to manage client scope."""
+        # Push True if this is a client function, False otherwise
+        is_client = getattr(node, "is_client_decl", False)
+        self.client_scope_stack.append(is_client)
+
     def exit_ability(self, node: uni.Ability) -> None:
         """Process ability (function/method) declaration."""
         if getattr(node, "is_client_decl", False) and not node.is_method:
@@ -597,6 +608,10 @@ class EsastGenPass(UniPass):
                 jac_node=node,
             )
             node.gen.es_ast = func_decl
+
+        # Pop the client scope stack
+        if self.client_scope_stack:
+            self.client_scope_stack.pop()
 
     def exit_func_signature(self, node: uni.FuncSignature) -> None:
         """Process function signature."""
@@ -1617,6 +1632,87 @@ class EsastGenPass(UniPass):
             )
             node.gen.es_ast = typeof_expr
             return
+
+        # Check if we're calling a server function from client code
+        # This should transform the call to use __jacCallFunction
+        if self._is_in_client_scope() and isinstance(node.target, uni.Name):
+            target_sym = getattr(node.target, "sym", None)
+            if target_sym and target_sym.defn:
+                # Get the definition node
+                defn_node = target_sym.defn[0]
+                # Check if it's an Ability (function) and if it's NOT a client function
+                if hasattr(defn_node, "parent") and isinstance(
+                    defn_node.parent, uni.Ability
+                ):
+                    ability_node = defn_node.parent
+                    is_server_func = not getattr(ability_node, "is_client_decl", False)
+
+                    if is_server_func:
+                        # Transform to __jacCallFunction call
+                        func_name = node.target.sym_name
+
+                        # Build parameter mapping
+                        param_names: list[str] = []
+                        if isinstance(ability_node.signature, uni.FuncSignature):
+                            param_names = [
+                                p.name.sym_name
+                                for p in ability_node.signature.params
+                                if hasattr(p, "name")
+                            ]
+
+                        # Build args object {param1: arg1, param2: arg2, ...}
+                        props: list[Union[es.Property, es.SpreadElement]] = []
+                        for i, arg in enumerate(args):
+                            if isinstance(arg, es.SpreadElement):
+                                # Handle spread arguments
+                                props.append(arg)
+                            elif i < len(param_names):
+                                # Named parameter
+                                key = self.sync_loc(
+                                    es.Literal(value=param_names[i]), jac_node=node
+                                )
+                                props.append(
+                                    self.sync_loc(
+                                        es.Property(
+                                            key=key,
+                                            value=arg,
+                                            kind="init",
+                                            method=False,
+                                            shorthand=False,
+                                            computed=False,
+                                        ),
+                                        jac_node=node,
+                                    )
+                                )
+
+                        args_obj = self.sync_loc(
+                            es.ObjectExpression(properties=props), jac_node=node
+                        )
+
+                        # Create __jacCallFunction(func_name, args_obj) call
+                        call_expr = self.sync_loc(
+                            es.AwaitExpression(
+                                argument=self.sync_loc(
+                                    es.CallExpression(
+                                        callee=self.sync_loc(
+                                            es.Identifier(name="__jacCallFunction"),
+                                            jac_node=node,
+                                        ),
+                                        arguments=[
+                                            self.sync_loc(
+                                                es.Literal(value=func_name),
+                                                jac_node=node,
+                                            ),
+                                            args_obj,
+                                        ],
+                                    ),
+                                    jac_node=node,
+                                )
+                            ),
+                            jac_node=node,
+                        )
+                        node.gen.es_ast = call_expr
+                        return
 
         callee = (
             node.target.gen.es_ast

@@ -91,6 +91,31 @@ cl async def __jacSpawn(walker: str, fields: dict = {}) -> any {
     return __jsonParse(await response.text());
 }
 
+# Function call function - calls server-side functions from client
+cl async def __jacCallFunction(function_name: str, args: dict = {}) -> any {
+    token = __getLocalStorage("jac_token");
+
+    response = await __fetch(
+        f"/function/{function_name}",
+        {
+            "method": "POST",
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {token}" if token else ""
+            },
+            "body": __jsonStringify({"args": args})
+        }
+    );
+
+    if not response.ok {
+        error_text = await response.text();
+        raise Exception(f"Function {function_name} failed: {error_text}");
+    }
+
+    data = __jsonParse(await response.text());
+    return data.get("result");
+}
+
 # Authentication helpers
 cl async def jacSignup(username: str, password: str) -> dict {
     response = await __fetch(
