@@ -2742,20 +2742,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
             jsx_self_closing: JSX_OPEN_START jsx_element_name jsx_attributes? JSX_SELF_CLOSE
             """
-            open_tok = self.consume_token(Tok.JSX_OPEN_START)
+            self.consume_token(Tok.JSX_OPEN_START)
             name = self.consume(uni.JsxElementName)
             # jsx_attributes is optional and returns a list when present
             attrs_list = self.match(
                 list
             )  # Will match jsx_attributes which returns a list
             attrs = attrs_list if attrs_list else []
-            close_tok = self.consume_token(Tok.JSX_SELF_CLOSE)
-
-            # Build kid list manually with proper flattening
-            kid = [open_tok, name]
-            if attrs:
-                kid.extend(attrs)  # Flatten the attributes list
-            kid.append(close_tok)
+            self.consume_token(Tok.JSX_SELF_CLOSE)
 
             return uni.JsxElement(
                 name=name,
@@ -2763,7 +2757,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 children=None,
                 is_self_closing=True,
                 is_fragment=False,
-                kid=kid,
+                kid=self.flat_cur_nodes,
             )
 
         def jsx_opening_closing(self, _: None) -> uni.JsxElement:
@@ -2777,15 +2771,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 list
             )  # Will match jsx_children which returns a list
             children = children_list if children_list else []
-            closing = self.consume(
-                uni.JsxElement
-            )  # From jsx_closing_element (closing tag)
-
-            # Build kid list with proper flattening
-            kid = list(opening.kid)  # Start with opening tag's kids
-            if children:
-                kid.extend(children)  # Add children
-            kid.extend(closing.kid)  # Add closing tag's kids
+            self.consume(uni.JsxElement)  # From jsx_closing_element (closing tag)
 
             # Merge opening and closing into single element
             return uni.JsxElement(
@@ -2794,7 +2780,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 children=children if children else None,
                 is_self_closing=False,
                 is_fragment=False,
-                kid=kid,
+                kid=self.flat_cur_nodes,
             )
 
         def jsx_fragment(self, _: None) -> uni.JsxElement:
@@ -2802,19 +2788,13 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
             jsx_fragment: JSX_FRAG_OPEN jsx_children? JSX_FRAG_CLOSE
             """
-            open_tok = self.consume_token(Tok.JSX_FRAG_OPEN)
+            self.consume_token(Tok.JSX_FRAG_OPEN)
             # jsx_children is optional and returns a list when present
             children_list = self.match(
                 list
             )  # Will match jsx_children which returns a list
             children = children_list if children_list else []
-            close_tok = self.consume_token(Tok.JSX_FRAG_CLOSE)
-
-            # Build kid list with proper flattening
-            kid = [open_tok]
-            if children:
-                kid.extend(children)  # Flatten children
-            kid.append(close_tok)
+            self.consume_token(Tok.JSX_FRAG_CLOSE)
 
             return uni.JsxElement(
                 name=None,
@@ -2822,7 +2802,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 children=children if children else None,
                 is_self_closing=False,
                 is_fragment=True,
-                kid=kid,
+                kid=self.flat_cur_nodes,
             )
 
         def jsx_opening_element(self, _: None) -> uni.JsxElement:
@@ -2830,20 +2810,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
             jsx_opening_element: JSX_OPEN_START jsx_element_name jsx_attributes? JSX_TAG_END
             """
-            open_tok = self.consume_token(Tok.JSX_OPEN_START)
+            self.consume_token(Tok.JSX_OPEN_START)
             name = self.consume(uni.JsxElementName)
             # jsx_attributes is optional and returns a list when present
             attrs_list = self.match(
                 list
             )  # Will match jsx_attributes which returns a list
             attrs = attrs_list if attrs_list else []
-            end_tok = self.consume_token(Tok.JSX_TAG_END)
-
-            # Build kid list manually with proper flattening
-            kid = [open_tok, name]
-            if attrs:
-                kid.extend(attrs)  # Flatten the attributes list
-            kid.append(end_tok)
+            self.consume_token(Tok.JSX_TAG_END)
 
             # Return partial element (will be completed in jsx_opening_closing)
             return uni.JsxElement(
@@ -2852,7 +2826,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 children=None,
                 is_self_closing=False,
                 is_fragment=False,
-                kid=kid,
+                kid=self.flat_cur_nodes,
             )
 
         def jsx_closing_element(self, _: None) -> uni.JsxElement:

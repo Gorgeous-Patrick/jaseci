@@ -235,7 +235,6 @@ cl def navigate_to(route: str) -> None {
     window.history.pushState({}, "", "#" + route);
     # Call render_app asynchronously
     render_app();
-
 # Fire and forget - browser will handle the async
  }
 
@@ -262,7 +261,6 @@ cl def handle_popstate(event: any) -> None {
     hash = window.location.hash;
     if hash {
         appState["current_route"] = hash[1:];
-
     # Remove the '#'
      } else {
         appState["current_route"] = "login";
@@ -276,7 +274,6 @@ cl def init_router()  -> None {
     hash = window.location.hash;
     if hash {
         appState["current_route"] = hash[1:];
-
     # Remove the '#'
      } else {
         if jacIsLoggedIn() {
@@ -307,20 +304,40 @@ cl obj ClientProfile {
 
 # UI Components - Render a single tweet card
 cl def TweetCard(tweet: ClientTweet) -> any {
-    return <div class="tweet-card" style={
-    {"border" : "1px solid #e1e8ed" , "padding" : "15px" , "margin" : "10px 0" , "borderRadius" : "8px" }}><div class="tweet-header" style={
-    {"fontWeight" : "bold" , "marginBottom" : "8px" }}>@{tweet.username}</div><div class="tweet-content" style={
-    {"marginBottom" : "12px" }}>{tweet.content}</div><div class="tweet-actions" style={
-    {"display" : "flex" , "gap" : "15px" }}><button onclick={like_tweet_action(
-        tweet.id
-    )} style={{"padding" : "5px 10px" , "cursor" : "pointer" }}>Like ({tweet.likes.length})</button><button style={
-    {"padding" : "5px 10px" }}>Comment ({tweet.comments.length})</button></div></div>;
+    return <div
+        class="tweet-card"
+        style={
+        {"border" : "1px solid #e1e8ed" , "padding" : "15px" , "margin" : "10px 0" , "borderRadius" : "8px" }}>
+    <div
+            class="tweet-header"
+            style={{"fontWeight" : "bold" , "marginBottom" : "8px" }}>
+        @
+        {tweet.username}
+        </div>
+    <div class="tweet-content" style={{"marginBottom" : "12px" }}>
+        {tweet.content}
+        </div>
+    <div class="tweet-actions" style={{"display" : "flex" , "gap" : "15px" }}>
+        <button
+                onclick={like_tweet_action(tweet.id)}
+                style={{"padding" : "5px 10px" , "cursor" : "pointer" }}>
+            Like (
+            {tweet.likes.length}
+            )
+            </button>
+        <button style={{"padding" : "5px 10px" }}>
+            Comment (
+            {tweet.comments.length}
+            )
+            </button>
+        </div>
+    </div>;
 }
 
 
 # Handle liking a tweet - calls server walker directly
 # The compiler automatically transforms this to __jacCallFunction at compile time!
-cl async def like_tweet_action(
+ cl async def like_tweet_action(
     tweet_id: str
 ) -> any {
     try {
@@ -336,29 +353,71 @@ cl async def like_tweet_action(
 
 # Render the main feed view
 cl def FeedView(tweets: list) -> any {
-    return <div class="feed-container" style={
-    {"maxWidth" : "600px" , "margin" : "0 auto" , "fontFamily" : "sans-serif" }}><div class="feed-header" style={
-    {"padding" : "20px" , "borderBottom" : "1px solid #e1e8ed" }}><h1 style={
-    {"margin" : "0" }}>LittleX Feed</h1></div><div class="feed-content">{[
-        TweetCard(tweet) for tweet in tweets
-    ]}</div></div>;
+    return <div
+        class="feed-container"
+        style={
+        {"maxWidth" : "600px" , "margin" : "0 auto" , "fontFamily" : "sans-serif" }}>
+    <div
+            class="feed-header"
+            style={{"padding" : "20px" , "borderBottom" : "1px solid #e1e8ed" }}>
+        <h1 style={{"margin" : "0" }}>
+            LittleX Feed
+            </h1>
+        </div>
+    <div class="feed-content">
+        {[TweetCard(tweet) for tweet in tweets]}
+        </div>
+    </div>;
 }
 
 
 # Render login form
 cl def LoginForm()  -> any {
-    return <div class="login-container" style={
-    {"maxWidth" : "400px" , "margin" : "50px auto" , "padding" : "20px" , "border" : "1px solid #e1e8ed" , "borderRadius" : "8px" , "fontFamily" : "sans-serif" }}><h2 style={
-    {"marginTop" : "0" }}>Login to LittleX</h2><form onsubmit={handle_login}><div style={
-    {"marginBottom" : "15px" }}><label style={
-    {"display" : "block" , "marginBottom" : "5px" }}>Username:</label><input type="text" id="username" style={
-    {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }} /></div><div style={
-    {"marginBottom" : "15px" }}><label style={
-    {"display" : "block" , "marginBottom" : "5px" }}>Password:</label><input type="password" id="password" style={
-    {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }} /></div><button type="submit" style={
-    {"width" : "100%" , "padding" : "10px" , "backgroundColor" : "#1da1f2" , "color" : "white" , "border" : "none" , "borderRadius" : "4px" , "cursor" : "pointer" }}>Login</button></form><div style={
-    {"marginTop" : "15px" , "textAlign" : "center" }}><a href="#signup" onclick={go_to_signup} style={
-    {"color" : "#1da1f2" , "textDecoration" : "none" , "cursor" : "pointer" }}>Don't have an account? Sign up</a></div></div>;
+    return <div
+        class="login-container"
+        style={
+        {"maxWidth" : "400px" , "margin" : "50px auto" , "padding" : "20px" , "border" : "1px solid #e1e8ed" , "borderRadius" : "8px" , "fontFamily" : "sans-serif" }}>
+    <h2 style={{"marginTop" : "0" }}>
+        Login to LittleX
+        </h2>
+    <form onsubmit={handle_login}>
+        <div style={{"marginBottom" : "15px" }}>
+            <label style={{"display" : "block" , "marginBottom" : "5px" }}>
+                Username:
+                </label>
+            <input
+                type="text"
+                id="username"
+                style={
+                {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }}/>
+            </div>
+        <div style={{"marginBottom" : "15px" }}>
+            <label style={{"display" : "block" , "marginBottom" : "5px" }}>
+                Password:
+                </label>
+            <input
+                type="password"
+                id="password"
+                style={
+                {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }}/>
+            </div>
+        <button
+                type="submit"
+                style={
+                {"width" : "100%" , "padding" : "10px" , "backgroundColor" : "#1da1f2" , "color" : "white" , "border" : "none" , "borderRadius" : "4px" , "cursor" : "pointer" }}>
+            Login
+            </button>
+        </form>
+    <div style={{"marginTop" : "15px" , "textAlign" : "center" }}>
+        <a
+                href="#signup"
+                onclick={go_to_signup}
+                style={
+                {"color" : "#1da1f2" , "textDecoration" : "none" , "cursor" : "pointer" }}>
+            Don't have an account? Sign up
+            </a>
+        </div>
+    </div>;
 }
 
 
@@ -378,21 +437,64 @@ cl async def handle_login(event: any) -> None {
 
 # Render signup form
 cl def SignupForm()  -> any {
-    return <div class="signup-container" style={
-    {"maxWidth" : "400px" , "margin" : "50px auto" , "padding" : "20px" , "border" : "1px solid #e1e8ed" , "borderRadius" : "8px" , "fontFamily" : "sans-serif" }}><h2 style={
-    {"marginTop" : "0" }}>Sign Up for LittleX</h2><form onsubmit={handle_signup}><div style={
-    {"marginBottom" : "15px" }}><label style={
-    {"display" : "block" , "marginBottom" : "5px" }}>Username:</label><input type="text" id="signup-username" required style={
-    {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }} /></div><div style={
-    {"marginBottom" : "15px" }}><label style={
-    {"display" : "block" , "marginBottom" : "5px" }}>Password:</label><input type="password" id="signup-password" required style={
-    {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }} /></div><div style={
-    {"marginBottom" : "15px" }}><label style={
-    {"display" : "block" , "marginBottom" : "5px" }}>Confirm Password:</label><input type="password" id="signup-password-confirm" required style={
-    {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }} /></div><button type="submit" style={
-    {"width" : "100%" , "padding" : "10px" , "backgroundColor" : "#1da1f2" , "color" : "white" , "border" : "none" , "borderRadius" : "4px" , "cursor" : "pointer" }}>Sign Up</button></form><div style={
-    {"marginTop" : "15px" , "textAlign" : "center" }}><a href="#login" onclick={go_to_login} style={
-    {"color" : "#1da1f2" , "textDecoration" : "none" , "cursor" : "pointer" }}>Already have an account? Login</a></div></div>;
+    return <div
+        class="signup-container"
+        style={
+        {"maxWidth" : "400px" , "margin" : "50px auto" , "padding" : "20px" , "border" : "1px solid #e1e8ed" , "borderRadius" : "8px" , "fontFamily" : "sans-serif" }}>
+    <h2 style={{"marginTop" : "0" }}>
+        Sign Up for LittleX
+        </h2>
+    <form onsubmit={handle_signup}>
+        <div style={{"marginBottom" : "15px" }}>
+            <label style={{"display" : "block" , "marginBottom" : "5px" }}>
+                Username:
+                </label>
+            <input
+                type="text"
+                id="signup-username"
+                required
+                style={
+                {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }}/>
+            </div>
+        <div style={{"marginBottom" : "15px" }}>
+            <label style={{"display" : "block" , "marginBottom" : "5px" }}>
+                Password:
+                </label>
+            <input
+                type="password"
+                id="signup-password"
+                required
+                style={
+                {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }}/>
+            </div>
+        <div style={{"marginBottom" : "15px" }}>
+            <label style={{"display" : "block" , "marginBottom" : "5px" }}>
+                Confirm Password:
+                </label>
+            <input
+                type="password"
+                id="signup-password-confirm"
+                required
+                style={
+                {"width" : "100%" , "padding" : "8px" , "boxSizing" : "border-box" }}/>
+            </div>
+        <button
+                type="submit"
+                style={
+                {"width" : "100%" , "padding" : "10px" , "backgroundColor" : "#1da1f2" , "color" : "white" , "border" : "none" , "borderRadius" : "4px" , "cursor" : "pointer" }}>
+            Sign Up
+            </button>
+        </form>
+    <div style={{"marginTop" : "15px" , "textAlign" : "center" }}>
+        <a
+                href="#login"
+                onclick={go_to_login}
+                style={
+                {"color" : "#1da1f2" , "textDecoration" : "none" , "cursor" : "pointer" }}>
+            Already have an account? Login
+            </a>
+        </div>
+    </div>;
 }
 
 
@@ -463,7 +565,12 @@ cl def App()  -> any {
     route = get_current_route();
     nav_bar = build_nav_bar(route);
     content_view = get_view_for_route(route);
-    return <div class="app-container">{nav_bar}{content_view}</div>;
+    return <div class="app-container">
+    
+    {nav_bar}
+    {content_view}
+    
+    </div>;
 }
 
 
@@ -491,8 +598,13 @@ cl def HomeViewLoader()  -> any {
     # Trigger async load
     load_home_view();
     # Return loading state
-     return <div style={
-    {"textAlign" : "center" , "padding" : "50px" , "fontFamily" : "sans-serif" }}><h2>Loading feed...</h2></div>;
+     return <div
+        style={
+        {"textAlign" : "center" , "padding" : "50px" , "fontFamily" : "sans-serif" }}>
+    <h2>
+        Loading feed...
+        </h2>
+    </div>;
 }
 
 
@@ -502,7 +614,13 @@ cl async def load_home_view()  -> None {
     root = document.getElementById("__jac_root");
     if root {
         renderJsxTree(
-            <div class="app-container">{build_nav_bar("home")}{view}</div>, root
+            <div class="app-container">
+            
+            {build_nav_bar("home")}
+            {view}
+            
+            </div>,
+            root
         );
     }
 }
@@ -513,12 +631,34 @@ cl def build_nav_bar(route: str) -> any {
     if not jacIsLoggedIn() or route == "login" or route == "signup" {
         return None;
     }
-    return <nav style={
-    {"backgroundColor" : "#1da1f2" , "padding" : "15px" , "marginBottom" : "20px" }}><div style={
-    {"maxWidth" : "600px" , "margin" : "0 auto" , "display" : "flex" , "gap" : "20px" , "alignItems" : "center" }}><a href="#home" onclick={go_to_home} style={
-    {"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold" , "cursor" : "pointer" }}>Home</a><a href="#profile" onclick={go_to_profile} style={
-    {"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold" , "cursor" : "pointer" }}>Profile</a><button onclick={logout_action} style={
-    {"marginLeft" : "auto" , "padding" : "5px 15px" , "backgroundColor" : "white" , "color" : "#1da1f2" , "border" : "none" , "borderRadius" : "4px" , "cursor" : "pointer" , "fontWeight" : "bold" }}>Logout</button></div></nav>;
+    return <nav
+        style={
+        {"backgroundColor" : "#1da1f2" , "padding" : "15px" , "marginBottom" : "20px" }}>
+    <div
+            style={
+            {"maxWidth" : "600px" , "margin" : "0 auto" , "display" : "flex" , "gap" : "20px" , "alignItems" : "center" }}>
+        <a
+                href="#home"
+                onclick={go_to_home}
+                style={
+                {"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold" , "cursor" : "pointer" }}>
+            Home
+            </a>
+        <a
+                href="#profile"
+                onclick={go_to_profile}
+                style={
+                {"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold" , "cursor" : "pointer" }}>
+            Profile
+            </a>
+        <button
+                onclick={logout_action}
+                style={
+                {"marginLeft" : "auto" , "padding" : "5px 15px" , "backgroundColor" : "white" , "color" : "#1da1f2" , "border" : "none" , "borderRadius" : "4px" , "cursor" : "pointer" , "fontWeight" : "bold" }}>
+            Logout
+            </button>
+        </div>
+    </nav>;
 }
 
 
@@ -526,7 +666,8 @@ cl def build_nav_bar(route: str) -> any {
 cl async def HomeView()  -> any {
     if not jacIsLoggedIn() {
         navigate_to("login");
-        return <div></div>;
+        return <div>
+        </div>;
     }
     try {
         # Call load_feed walker directly - compiler transforms to __jacCallFunction!
@@ -552,7 +693,10 @@ cl async def HomeView()  -> any {
         }
         return FeedView(tweets);
     } except Exception as e {
-        return <div style={{"padding" : "20px" , "color" : "red" }}>Error loading feed: {String(e)}</div>;
+        return <div style={{"padding" : "20px" , "color" : "red" }}>
+        Error loading feed:
+        {String(e)}
+        </div>;
     }
 }
 
@@ -561,11 +705,24 @@ cl async def HomeView()  -> any {
 cl def ProfileView()  -> any {
     if not jacIsLoggedIn() {
         navigate_to("login");
-        return <div></div>;
+        return <div>
+        </div>;
     }
-    return <div class="profile-container" style={
-    {"maxWidth" : "600px" , "margin" : "20px auto" , "padding" : "20px" , "fontFamily" : "sans-serif" }}><h1>Profile</h1><div style={
-    {"padding" : "15px" , "border" : "1px solid #e1e8ed" , "borderRadius" : "8px" }}><p>Profile information will be displayed here.</p></div></div>;
+    return <div
+        class="profile-container"
+        style={
+        {"maxWidth" : "600px" , "margin" : "20px auto" , "padding" : "20px" , "fontFamily" : "sans-serif" }}>
+    <h1>
+        Profile
+        </h1>
+    <div
+            style={
+            {"padding" : "15px" , "border" : "1px solid #e1e8ed" , "borderRadius" : "8px" }}>
+        <p>
+            Profile information will be displayed here.
+            </p>
+        </div>
+    </div>;
 }
 
 
