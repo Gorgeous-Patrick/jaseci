@@ -23,13 +23,67 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, Union
 
 import jaclang.compiler.passes.ecmascript.estree as es
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.constant import Tokens as Tok
-from jaclang.compiler.passes import UniPass
+from jaclang.compiler.passes.ast_gen import BaseAstGenPass
+from jaclang.compiler.passes.ast_gen.jsx_processor import EsJsxProcessor
 from jaclang.compiler.passes.ecmascript.es_unparse import es_to_js
+
+ES_LOGICAL_OPS: dict[Tok, str] = {Tok.KW_AND: "&&", Tok.KW_OR: "||"}
+
+ES_BINARY_OPS: dict[Tok, str] = {
+    Tok.EE: "===",
+    Tok.NE: "!==",
+    Tok.LT: "<",
+    Tok.GT: ">",
+    Tok.LTE: "<=",
+    Tok.GTE: ">=",
+    Tok.PLUS: "+",
+    Tok.MINUS: "-",
+    Tok.STAR_MUL: "*",
+    Tok.DIV: "/",
+    Tok.MOD: "%",
+    Tok.BW_AND: "&",
+    Tok.BW_OR: "|",
+    Tok.BW_XOR: "^",
+    Tok.LSHIFT: "<<",
+    Tok.RSHIFT: ">>",
+}
+
+ES_COMPARISON_OPS: dict[Tok, str] = {
+    Tok.EE: "===",
+    Tok.NE: "!==",
+    Tok.LT: "<",
+    Tok.GT: ">",
+    Tok.LTE: "<=",
+    Tok.GTE: ">=",
+    Tok.KW_IN: "in",
+    Tok.KW_NIN: "in",
+}
+
+ES_UNARY_OPS: dict[Tok, str] = {
+    Tok.MINUS: "-",
+    Tok.PLUS: "+",
+    Tok.NOT: "!",
+    Tok.BW_NOT: "~",
+}
+
+ES_AUG_ASSIGN_OPS: dict[Tok, str] = {
+    Tok.ADD_EQ: "+=",
+    Tok.SUB_EQ: "-=",
+    Tok.MUL_EQ: "*=",
+    Tok.DIV_EQ: "/=",
+    Tok.MOD_EQ: "%=",
+    Tok.BW_AND_EQ: "&=",
+    Tok.BW_OR_EQ: "|=",
+    Tok.BW_XOR_EQ: "^=",
+    Tok.LSHIFT_EQ: "<<=",
+    Tok.RSHIFT_EQ: ">>=",
+    Tok.STAR_POW_EQ: "**=",
+}
 
 
 @dataclass
@@ -53,23 +107,21 @@ class AssignmentTargetInfo:
     is_first: bool
 
 
-class EsastGenPass(UniPass):
+class EsastGenPass(BaseAstGenPass[es.Statement]):
     """Jac to ECMAScript AST transpilation pass."""
 
     def before_pass(self) -> None:
         """Initialize the pass."""
         from jaclang.compiler.codeinfo import ClientManifest
 
-        self.child_passes: list[EsastGenPass] = []
-        for i in self.ir_in.impl_mod + self.ir_in.test_mod:
-            child_pass = EsastGenPass(ir_in=i, prog=self.prog)
-            self.child_passes.append(child_pass)
+        self.child_passes: list[EsastGenPass] = self._init_child_passes(EsastGenPass)
         self.imports: list[es.ImportDeclaration] = []
         self.exports: list[es.ExportNamedDeclaration] = []
         self.scope_stack: list[ScopeInfo] = []
         self.scope_map: dict[uni.UniScopeNode, ScopeInfo] = {}
         self.client_manifest = ClientManifest()
         self.client_scope_stack: list[bool] = []  # Track client scope nesting
+        self.jsx_processor = EsJsxProcessor(self)
 
     def enter_node(self, node: uni.UniNode) -> None:
         """Enter node."""
@@ -99,18 +151,6 @@ class EsastGenPass(UniPass):
             end=es.Position(line=jac_node.loc.last_line, column=jac_node.loc.col_end),
         )
         return es_node
-
-    def flatten(
-        self, items: list[Union[es.Statement, list[es.Statement], None]]
-    ) -> list[es.Statement]:
-        """Flatten a list of items or lists into a single list."""
-        result: list[es.Statement] = []
-        for item in items:
-            if isinstance(item, list):
-                result.extend(item)
-            elif item is not None:
-                result.append(item)
-        return result
 
     # Scope helpers
     # =============
@@ -173,6 +213,50 @@ class EsastGenPass(UniPass):
         """Check if we're currently in a client-side function."""
         return any(self.client_scope_stack)
 
+    def _collect_stmt_body(
+        self, body: Optional[Sequence[uni.UniNode]]
+    ) -> list[es.Statement]:
+        """Convert a sequence of Jac statements into ESTree statements."""
+        if not body:
+            return []
+
+        statements: list[es.Statement] = []
+        for stmt in body:
+            if isinstance(stmt, uni.Semi):
+                continue
+            generated = getattr(stmt.gen, "es_ast", None)
+            if isinstance(generated, list):
+                statements.extend(
+                    item for item in generated if isinstance(item, es.Statement)
+                )
+            elif isinstance(generated, es.Statement):
+                statements.append(generated)
+        return statements
+
+    def _get_ast_or_default(
+        self,
+        node: Optional[uni.UniNode],
+        default_factory: Callable[[Optional[uni.UniNode]], es.Node],
+    ) -> es.Node:
+        """Return an existing ESTree node or synthesize a fallback."""
+        if node and getattr(node.gen, "es_ast", None):
+            generated = node.gen.es_ast
+            if isinstance(generated, es.Node):
+                return generated
+        fallback = default_factory(node)
+        jac_ref = node if node is not None else self.cur_node
+        return self.sync_loc(fallback, jac_node=jac_ref)
+
+    def _build_block_statement(
+        self,
+        scope_node: uni.UniScopeNode,
+        body_nodes: Optional[Sequence[uni.UniNode]],
+    ) -> es.BlockStatement:
+        """Construct a block statement from a Jac scope node."""
+        statements = self._collect_stmt_body(body_nodes)
+        statements = self._prepend_hoisted(scope_node, statements)
+        return self.sync_loc(es.BlockStatement(body=statements), jac_node=scope_node)
+
     # Module and Program
     # ==================
 
@@ -190,19 +274,12 @@ class EsastGenPass(UniPass):
             scope.hoisted.clear()
             body.extend(hoisted)
 
-        # Build pre_body including impl_mod and test_mod
-        clean_body = [i for i in node.body if not isinstance(i, uni.ImplDef)]
-        pre_body: list[uni.UniNode] = []
-        for pbody in node.impl_mod:
-            pre_body = [*pre_body, *pbody.body]
-        pre_body = [*pre_body, *clean_body]
-        for pbody in node.test_mod:
-            pre_body = [*pre_body, *pbody.body]
+        merged_body = self._merge_module_bodies(node)
 
         # Process module body
         client_items: list[Union[es.Statement, list[es.Statement]]] = []
         fallback_items: list[Union[es.Statement, list[es.Statement]]] = []
-        for stmt in pre_body:
+        for stmt in merged_body:
             if stmt.gen.es_ast:
                 target_list = (
                     client_items
@@ -211,11 +288,7 @@ class EsastGenPass(UniPass):
                 )
                 target_list.append(stmt.gen.es_ast)
         target_body = client_items if client_items else fallback_items
-        for item in target_body:
-            if isinstance(item, list):
-                body.extend(item)
-            else:
-                body.append(item)
+        body.extend(self._flatten_ast_list(target_body))
 
         # Add exports
         body.extend(self.exports)
@@ -306,12 +379,7 @@ class EsastGenPass(UniPass):
         ] = []
         has_members: list[uni.ArchHas] = []
 
-        # Process body
-        inner: Sequence[uni.CodeBlockStmt] | None = None
-        if isinstance(node.body, uni.ImplDef) and isinstance(node.body.body, list):
-            inner = node.body.body  # type: ignore
-        elif isinstance(node.body, list):
-            inner = node.body
+        inner = self._get_body_inner(node)
 
         if inner:
             for stmt in inner:
@@ -488,11 +556,7 @@ class EsastGenPass(UniPass):
         """Process enum declaration as an object."""
         properties: list[es.Property] = []
 
-        inner: Sequence[uni.EnumBlockStmt] | None = None
-        if isinstance(node.body, uni.ImplDef) and isinstance(node.body.body, list):
-            inner = node.body.body  # type: ignore
-        elif isinstance(node.body, list):
-            inner = node.body
+        inner = self._get_body_inner(node)
 
         if inner:
             for stmt in inner:
@@ -561,21 +625,8 @@ class EsastGenPass(UniPass):
                     params.append(param.gen.es_ast)
 
         # Process body
-        body_stmts: list[es.Statement] = []
-        inner: Sequence[uni.CodeBlockStmt] | None = None
-        if isinstance(node.body, uni.ImplDef) and isinstance(node.body.body, list):
-            inner = node.body.body  # type: ignore
-        elif isinstance(node.body, list):
-            inner = node.body
-
-        if inner:
-            for stmt in inner:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        body_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        body_stmts.append(stmt.gen.es_ast)
-
+        inner = self._get_body_inner(node)
+        body_stmts = self._collect_stmt_body(inner)
         body_stmts = self._prepend_hoisted(node, body_stmts)
         block = self.sync_loc(es.BlockStatement(body=body_stmts), jac_node=node)
 
@@ -639,217 +690,41 @@ class EsastGenPass(UniPass):
     # =========
 
     def exit_jsx_element(self, node: uni.JsxElement) -> None:
-        """Process JSX element into __jacJsx(tag, props, children) call."""
-        # Tag expression (string literal for HTML tags, identifier/member for components)
-        if node.is_fragment or not node.name:
-            tag_expr: es.Expression = self.sync_loc(
-                es.Literal(value=None), jac_node=node
-            )
-        else:
-            tag_expr = (
-                node.name.gen.es_ast
-                if node.name.gen.es_ast
-                else self.sync_loc(es.Literal(value=None), jac_node=node.name)
-            )
-
-        # Props / attributes
-        props_expr: es.Expression
-        attributes = node.attributes or []
-        has_spread = any(
-            isinstance(attr, uni.JsxSpreadAttribute) for attr in attributes
-        )
-        if not attributes:
-            props_expr = self.sync_loc(
-                es.ObjectExpression(properties=[]), jac_node=node
-            )
-        elif has_spread:
-            segments: list[es.Expression] = []
-            for attr in attributes:
-                if isinstance(attr, uni.JsxSpreadAttribute):
-                    exp = getattr(attr.gen, "es_ast", None)
-                    if exp:
-                        segments.append(exp)
-                elif isinstance(attr, uni.JsxNormalAttribute):
-                    prop = getattr(attr.gen, "es_ast", None)
-                    if isinstance(prop, es.Property):
-                        segments.append(
-                            self.sync_loc(
-                                es.ObjectExpression(properties=[prop]), jac_node=attr
-                            )
-                        )
-            if segments:
-                assign_member = self.sync_loc(
-                    es.MemberExpression(
-                        object=self.sync_loc(
-                            es.Identifier(name="Object"), jac_node=node
-                        ),
-                        property=self.sync_loc(
-                            es.Identifier(name="assign"), jac_node=node
-                        ),
-                        computed=False,
-                        optional=False,
-                    ),
-                    jac_node=node,
-                )
-                props_expr = self.sync_loc(
-                    es.CallExpression(
-                        callee=assign_member,
-                        arguments=[
-                            self.sync_loc(
-                                es.ObjectExpression(properties=[]), jac_node=node
-                            ),
-                            *segments,
-                        ],
-                    ),
-                    jac_node=node,
-                )
-            else:
-                props_expr = self.sync_loc(
-                    es.ObjectExpression(properties=[]), jac_node=node
-                )
-        else:
-            properties: list[es.Property] = []
-            for attr in attributes:
-                prop = getattr(attr.gen, "es_ast", None)
-                if isinstance(prop, es.Property):
-                    properties.append(prop)
-            props_expr = self.sync_loc(
-                es.ObjectExpression(properties=properties), jac_node=node
-            )
-
-        # Children
-        children_elements: list[Optional[Union[es.Expression, es.SpreadElement]]] = []
-        for child in node.children or []:
-            child_expr = getattr(child.gen, "es_ast", None)
-            if child_expr is None:
-                continue
-            if isinstance(child_expr, list):
-                children_elements.extend(child_expr)  # type: ignore[arg-type]
-            else:
-                children_elements.append(child_expr)
-        children_expr = self.sync_loc(
-            es.ArrayExpression(elements=children_elements), jac_node=node
-        )
-
-        # __jacJsx(tag, props, children)
-        call_expr = self.sync_loc(
-            es.CallExpression(
-                callee=self.sync_loc(es.Identifier(name="__jacJsx"), jac_node=node),
-                arguments=[tag_expr, props_expr, children_expr],
-            ),
-            jac_node=node,
-        )
-        node.gen.es_ast = call_expr
+        """Process JSX element."""
+        node.gen.es_ast = self.jsx_processor.element(node)
 
     def exit_jsx_element_name(self, node: uni.JsxElementName) -> None:
         """Process JSX element name."""
-        if not node.parts:
-            node.gen.es_ast = self.sync_loc(es.Literal(value=None), jac_node=node)
-            return
-
-        parts = [part.value for part in node.parts]
-        first = parts[0]
-        if first and first[0].isupper():
-            expr: es.Expression = self.sync_loc(
-                es.Identifier(name=first), jac_node=node.parts[0]
-            )
-            for idx, part in enumerate(parts[1:], start=1):
-                expr = self.sync_loc(
-                    es.MemberExpression(
-                        object=expr,
-                        property=self.sync_loc(
-                            es.Identifier(name=part), jac_node=node.parts[idx]
-                        ),
-                        computed=False,
-                        optional=False,
-                    ),
-                    jac_node=node,
-                )
-            node.gen.es_ast = expr
-        else:
-            node.gen.es_ast = self.sync_loc(
-                es.Literal(value=".".join(parts)), jac_node=node
-            )
+        self.jsx_processor.element_name(node)
 
     def exit_jsx_spread_attribute(self, node: uni.JsxSpreadAttribute) -> None:
         """Process JSX spread attribute."""
-        expr = (
-            node.expr.gen.es_ast
-            if node.expr.gen.es_ast
-            else self.sync_loc(es.ObjectExpression(properties=[]), jac_node=node)
-        )
-        node.gen.es_ast = expr
+        self.jsx_processor.spread_attribute(node)
 
     def exit_jsx_normal_attribute(self, node: uni.JsxNormalAttribute) -> None:
         """Process JSX normal attribute."""
-        key_expr = self.sync_loc(es.Literal(value=node.name.value), jac_node=node.name)
-        if node.value is None:
-            value_expr = self.sync_loc(es.Literal(value=True), jac_node=node)
-        elif isinstance(node.value, uni.String):
-            value_expr = self.sync_loc(
-                es.Literal(value=node.value.lit_value), jac_node=node.value
-            )
-        else:
-            value_expr = (
-                node.value.gen.es_ast
-                if node.value.gen.es_ast
-                else self.sync_loc(es.Literal(value=None), jac_node=node.value)
-            )
-
-        prop = self.sync_loc(
-            es.Property(
-                key=key_expr,
-                value=value_expr,
-                kind="init",
-                method=False,
-                shorthand=False,
-                computed=False,
-            ),
-            jac_node=node,
-        )
-        node.gen.es_ast = prop
+        self.jsx_processor.normal_attribute(node)
 
     def exit_jsx_text(self, node: uni.JsxText) -> None:
         """Process JSX text node."""
-        raw_value = node.value.value if hasattr(node.value, "value") else node.value
-        node.gen.es_ast = self.sync_loc(es.Literal(value=str(raw_value)), jac_node=node)
+        self.jsx_processor.text(node)
 
     def exit_jsx_expression(self, node: uni.JsxExpression) -> None:
         """Process JSX expression child."""
-        expr = (
-            node.expr.gen.es_ast
-            if node.expr.gen.es_ast
-            else self.sync_loc(es.Literal(value=None), jac_node=node.expr)
-        )
-        node.gen.es_ast = expr
+        self.jsx_processor.expression(node)
 
     # Control Flow Statements
     # =======================
 
     def exit_if_stmt(self, node: uni.IfStmt) -> None:
         """Process if statement."""
-        test = (
-            node.condition.gen.es_ast
-            if node.condition.gen.es_ast
-            else self.sync_loc(es.Literal(value=True), jac_node=node.condition)
+        test = self._get_ast_or_default(
+            node.condition, default_factory=lambda _src: es.Literal(value=True)
         )
-
-        consequent_stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        consequent_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        consequent_stmts.append(stmt.gen.es_ast)
-
-        consequent_stmts = self._prepend_hoisted(node, consequent_stmts)
-        consequent = self.sync_loc(
-            es.BlockStatement(body=consequent_stmts), jac_node=node
-        )
+        consequent = self._build_block_statement(node, node.body)
 
         alternate: Optional[es.Statement] = None
-        if node.else_body and node.else_body.gen.es_ast and node.else_body.gen.es_ast:
+        if node.else_body and node.else_body.gen.es_ast:
             alternate = node.else_body.gen.es_ast
 
         if_stmt = self.sync_loc(
@@ -860,28 +735,13 @@ class EsastGenPass(UniPass):
 
     def exit_else_if(self, node: uni.ElseIf) -> None:
         """Process else-if clause."""
-        test = (
-            node.condition.gen.es_ast
-            if node.condition.gen.es_ast
-            else self.sync_loc(es.Literal(value=True), jac_node=node.condition)
+        test = self._get_ast_or_default(
+            node.condition, default_factory=lambda _src: es.Literal(value=True)
         )
-
-        consequent_stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        consequent_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        consequent_stmts.append(stmt.gen.es_ast)
-
-        consequent_stmts = self._prepend_hoisted(node, consequent_stmts)
-        consequent = self.sync_loc(
-            es.BlockStatement(body=consequent_stmts), jac_node=node
-        )
+        consequent = self._build_block_statement(node, node.body)
 
         alternate: Optional[es.Statement] = None
-        if node.else_body and node.else_body.gen.es_ast and node.else_body.gen.es_ast:
+        if node.else_body and node.else_body.gen.es_ast:
             alternate = node.else_body.gen.es_ast
 
         if_stmt = self.sync_loc(
@@ -892,38 +752,17 @@ class EsastGenPass(UniPass):
 
     def exit_else_stmt(self, node: uni.ElseStmt) -> None:
         """Process else clause."""
-        stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        stmts.extend(stmt.gen.es_ast)
-                    else:
-                        stmts.append(stmt.gen.es_ast)
-
+        stmts = self._collect_stmt_body(node.body)
         stmts = self._prepend_hoisted(node, stmts)
         block = self.sync_loc(es.BlockStatement(body=stmts), jac_node=node)
         node.gen.es_ast = block
 
     def exit_while_stmt(self, node: uni.WhileStmt) -> None:
         """Process while statement."""
-        test = (
-            node.condition.gen.es_ast
-            if node.condition.gen.es_ast
-            else self.sync_loc(es.Literal(value=True), jac_node=node.condition)
+        test = self._get_ast_or_default(
+            node.condition, default_factory=lambda _src: es.Literal(value=True)
         )
-
-        body_stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        body_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        body_stmts.append(stmt.gen.es_ast)
-
-        body_stmts = self._prepend_hoisted(node, body_stmts)
-        body = self.sync_loc(es.BlockStatement(body=body_stmts), jac_node=node)
+        body = self._build_block_statement(node, node.body)
 
         while_stmt = self.sync_loc(
             es.WhileStatement(test=test, body=body), jac_node=node
@@ -945,17 +784,7 @@ class EsastGenPass(UniPass):
             )
         )
 
-        body_stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        body_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        body_stmts.append(stmt.gen.es_ast)
-
-        body_stmts = self._prepend_hoisted(node, body_stmts)
-        body = self.sync_loc(es.BlockStatement(body=body_stmts), jac_node=node)
+        body = self._build_block_statement(node, node.body)
 
         pattern_nodes = (
             es.Identifier,
@@ -993,17 +822,7 @@ class EsastGenPass(UniPass):
 
     def exit_try_stmt(self, node: uni.TryStmt) -> None:
         """Process try statement."""
-        block_stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        block_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        block_stmts.append(stmt.gen.es_ast)
-
-        block_stmts = self._prepend_hoisted(node, block_stmts)
-        block = self.sync_loc(es.BlockStatement(body=block_stmts), jac_node=node)
+        block = self._build_block_statement(node, node.body)
 
         handler: Optional[es.CatchClause] = None
         if node.excepts:
@@ -1034,17 +853,7 @@ class EsastGenPass(UniPass):
                 es.Identifier(name=node.name.sym_name), jac_node=node.name
             )
 
-        body_stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        body_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        body_stmts.append(stmt.gen.es_ast)
-
-        body_stmts = self._prepend_hoisted(node, body_stmts)
-        body = self.sync_loc(es.BlockStatement(body=body_stmts), jac_node=node)
+        body = self._build_block_statement(node, node.body)
 
         catch_clause = self.sync_loc(
             es.CatchClause(param=param, body=body), jac_node=node
@@ -1053,18 +862,7 @@ class EsastGenPass(UniPass):
 
     def exit_finally_stmt(self, node: uni.FinallyStmt) -> None:
         """Process finally clause."""
-        body_stmts: list[es.Statement] = []
-        if node.body:
-            for stmt in node.body:
-                if stmt.gen.es_ast:
-                    if isinstance(stmt.gen.es_ast, list):
-                        body_stmts.extend(stmt.gen.es_ast)
-                    else:
-                        body_stmts.append(stmt.gen.es_ast)
-
-        body_stmts = self._prepend_hoisted(node, body_stmts)
-        block = self.sync_loc(es.BlockStatement(body=body_stmts), jac_node=node)
-        node.gen.es_ast = block
+        node.gen.es_ast = self._build_block_statement(node, node.body)
 
     def exit_raise_stmt(self, node: uni.RaiseStmt) -> None:
         """Process raise statement."""
@@ -1162,10 +960,8 @@ class EsastGenPass(UniPass):
 
     def exit_expr_stmt(self, node: uni.ExprStmt) -> None:
         """Process expression statement."""
-        expr = (
-            node.expr.gen.es_ast
-            if node.expr.gen.es_ast
-            else self.sync_loc(es.Literal(value=None), jac_node=node.expr)
+        expr = self._get_ast_or_default(
+            node.expr, default_factory=lambda _src: es.Literal(value=None)
         )
 
         expr_stmt = self.sync_loc(
@@ -1178,23 +974,22 @@ class EsastGenPass(UniPass):
 
     def exit_binary_expr(self, node: uni.BinaryExpr) -> None:
         """Process binary expression."""
-        left = node.left.gen.es_ast if node.left.gen.es_ast else None
-        if not left:
-            if isinstance(node.left, uni.Name):
-                left = self.sync_loc(
-                    es.Identifier(name=node.left.sym_name), jac_node=node.left
-                )
-            else:
-                left = self.sync_loc(es.Literal(value=0), jac_node=node.left)
-
-        right = node.right.gen.es_ast if node.right.gen.es_ast else None
-        if not right:
-            if isinstance(node.right, uni.Name):
-                right = self.sync_loc(
-                    es.Identifier(name=node.right.sym_name), jac_node=node.right
-                )
-            else:
-                right = self.sync_loc(es.Literal(value=0), jac_node=node.right)
+        left = self._get_ast_or_default(
+            node.left,
+            default_factory=lambda src: (
+                es.Identifier(name=src.sym_name)
+                if isinstance(src, uni.Name)
+                else es.Literal(value=0)
+            ),
+        )
+        right = self._get_ast_or_default(
+            node.right,
+            default_factory=lambda src: (
+                es.Identifier(name=src.sym_name)
+                if isinstance(src, uni.Name)
+                else es.Literal(value=0)
+            ),
+        )
 
         op_name = getattr(node.op, "name", None)
 
@@ -1211,26 +1006,6 @@ class EsastGenPass(UniPass):
             node.gen.es_ast = spawn_call
             return
 
-        # Map Jac operators to JS operators
-        op_map = {
-            Tok.EE: "===",
-            Tok.NE: "!==",
-            Tok.LT: "<",
-            Tok.GT: ">",
-            Tok.LTE: "<=",
-            Tok.GTE: ">=",
-            Tok.PLUS: "+",
-            Tok.MINUS: "-",
-            Tok.STAR_MUL: "*",
-            Tok.DIV: "/",
-            Tok.MOD: "%",
-            Tok.BW_AND: "&",
-            Tok.BW_OR: "|",
-            Tok.BW_XOR: "^",
-            Tok.LSHIFT: "<<",
-            Tok.RSHIFT: ">>",
-        }
-
         if op_name == Tok.WALRUS_EQ and isinstance(left, es.Identifier):
             self._ensure_identifier_declared(left.name, node.left)
             assign_expr = self.sync_loc(
@@ -1240,16 +1015,14 @@ class EsastGenPass(UniPass):
             node.gen.es_ast = assign_expr
             return
 
-        operator = op_map.get(op_name, "+")
-
-        # Check if it's a logical operator
-        if op_name in (Tok.KW_AND, Tok.KW_OR):
-            logical_op = "&&" if op_name == Tok.KW_AND else "||"
+        logical_op = ES_LOGICAL_OPS.get(op_name)
+        if logical_op:
             bin_expr = self.sync_loc(
                 es.LogicalExpression(operator=logical_op, left=left, right=right),
                 jac_node=node,
             )
         else:
+            operator = ES_BINARY_OPS.get(op_name, "+")
             bin_expr = self.sync_loc(
                 es.BinaryExpression(operator=operator, left=left, right=right),
                 jac_node=node,
@@ -1264,21 +1037,16 @@ class EsastGenPass(UniPass):
             node.gen.es_ast = self.sync_loc(es.Literal(value=None), jac_node=node)
             return
 
-        # Get the operator
-        logical_op = "&&" if node.op.name == Tok.KW_AND else "||"
+        logical_op = ES_LOGICAL_OPS.get(node.op.name, "&&")
 
         # Build the logical expression from left to right
-        result = (
-            node.values[0].gen.es_ast
-            if node.values[0].gen.es_ast
-            else self.sync_loc(es.Literal(value=None), jac_node=node.values[0])
+        result = self._get_ast_or_default(
+            node.values[0], default_factory=lambda _src: es.Literal(value=None)
         )
 
         for val in node.values[1:]:
-            right = (
-                val.gen.es_ast
-                if val.gen.es_ast
-                else self.sync_loc(es.Literal(value=None), jac_node=val)
+            right = self._get_ast_or_default(
+                val, default_factory=lambda _src: es.Literal(value=None)
             )
             result = self.sync_loc(
                 es.LogicalExpression(operator=logical_op, left=result, right=right),
@@ -1292,17 +1060,6 @@ class EsastGenPass(UniPass):
         # CompareExpr can have multiple comparisons chained: a < b < c
         # Need to convert to: a < b && b < c
 
-        op_map = {
-            Tok.EE: "===",
-            Tok.NE: "!==",
-            Tok.LT: "<",
-            Tok.GT: ">",
-            Tok.LTE: "<=",
-            Tok.GTE: ">=",
-            Tok.KW_IN: "in",
-            Tok.KW_NIN: "in",  # Will need negation
-        }
-
         if not node.rights or not node.ops:
             # Fallback to simple comparison
             node.gen.es_ast = self.sync_loc(es.Literal(value=True), jac_node=node)
@@ -1310,41 +1067,43 @@ class EsastGenPass(UniPass):
 
         # Build comparisons
         comparisons: list[es.Expression] = []
-        left = (
-            node.left.gen.es_ast
-            if node.left.gen.es_ast
-            else self.sync_loc(es.Identifier(name="left"), jac_node=node.left)
+        left = self._get_ast_or_default(
+            node.left,
+            default_factory=lambda src: (
+                es.Identifier(name=src.sym_name)
+                if isinstance(src, uni.Name)
+                else es.Identifier(name="left")
+            ),
         )
 
-        for _, (op, right_node) in enumerate(zip(node.ops, node.rights)):
-            right = (
-                right_node.gen.es_ast
-                if right_node.gen.es_ast
-                else self.sync_loc(es.Identifier(name="right"), jac_node=right_node)
+        for op_token, right_node in zip(node.ops, node.rights):
+            right = self._get_ast_or_default(
+                right_node,
+                default_factory=lambda src: (
+                    es.Identifier(name=src.sym_name)
+                    if isinstance(src, uni.Name)
+                    else es.Identifier(name="right")
+                ),
             )
-            operator = op_map.get(op.name, "===")
+            operator = ES_COMPARISON_OPS.get(op_token.name, "===")
 
-            # Handle 'not in' operator
-            if op.name == Tok.KW_NIN:
-                bin_expr = self.sync_loc(
-                    es.UnaryExpression(
-                        operator="!",
-                        prefix=True,
-                        argument=self.sync_loc(
-                            es.BinaryExpression(operator="in", left=left, right=right),
-                            jac_node=node,
-                        ),
-                    ),
+            if op_token.name == Tok.KW_NIN:
+                in_expr = self.sync_loc(
+                    es.BinaryExpression(operator="in", left=left, right=right),
+                    jac_node=node,
+                )
+                comparison = self.sync_loc(
+                    es.UnaryExpression(operator="!", prefix=True, argument=in_expr),
                     jac_node=node,
                 )
             else:
-                bin_expr = self.sync_loc(
+                comparison = self.sync_loc(
                     es.BinaryExpression(operator=operator, left=left, right=right),
                     jac_node=node,
                 )
 
-            comparisons.append(bin_expr)
-            left = right  # For chained comparisons
+            comparisons.append(comparison)
+            left = right
 
         # Combine with && if multiple comparisons
         if len(comparisons) == 1:
@@ -1360,20 +1119,11 @@ class EsastGenPass(UniPass):
 
     def exit_unary_expr(self, node: uni.UnaryExpr) -> None:
         """Process unary expression."""
-        operand = (
-            node.operand.gen.es_ast
-            if node.operand.gen.es_ast
-            else self.sync_loc(es.Literal(value=0), jac_node=node.operand)
+        operand = self._get_ast_or_default(
+            node.operand, default_factory=lambda _src: es.Literal(value=0)
         )
 
-        op_map = {
-            Tok.MINUS: "-",
-            Tok.PLUS: "+",
-            Tok.NOT: "!",
-            Tok.BW_NOT: "~",
-        }
-
-        operator = op_map.get(node.op.name, "!")
+        operator = ES_UNARY_OPS.get(node.op.name, "!")
 
         unary_expr = self.sync_loc(
             es.UnaryExpression(operator=operator, prefix=True, argument=operand),
@@ -1473,31 +1223,15 @@ class EsastGenPass(UniPass):
             node.gen.es_ast = None
             return
 
-        aug_op_map = {
-            Tok.ADD_EQ: "+=",
-            Tok.SUB_EQ: "-=",
-            Tok.MUL_EQ: "*=",
-            Tok.DIV_EQ: "/=",
-            Tok.MOD_EQ: "%=",
-            Tok.BW_AND_EQ: "&=",
-            Tok.BW_OR_EQ: "|=",
-            Tok.BW_XOR_EQ: "^=",
-            Tok.LSHIFT_EQ: "<<=",
-            Tok.RSHIFT_EQ: ">>=",
-            Tok.STAR_POW_EQ: "**=",
-        }
-
         value_expr = (
-            node.value.gen.es_ast
-            if node.value and node.value.gen.es_ast and node.value.gen.es_ast
-            else None
+            node.value.gen.es_ast if node.value and node.value.gen.es_ast else None
         )
 
         if node.aug_op:
             left, _, _ = self._convert_assignment_target(node.target[0])
-            operator = aug_op_map.get(node.aug_op.name, "=")
-            right = value_expr or self.sync_loc(
-                es.Identifier(name="undefined"), jac_node=node
+            operator = ES_AUG_ASSIGN_OPS.get(node.aug_op.name, "=")
+            right = value_expr or self._get_ast_or_default(
+                node.value, default_factory=lambda _src: es.Identifier(name="undefined")
             )
             assign_expr = self.sync_loc(
                 es.AssignmentExpression(operator=operator, left=left, right=right),
@@ -1534,8 +1268,8 @@ class EsastGenPass(UniPass):
             )
 
         statements: list[es.Statement] = []
-        current_value = value_expr or self.sync_loc(
-            es.Identifier(name="undefined"), jac_node=node
+        current_value = value_expr or self._get_ast_or_default(
+            node.value, default_factory=lambda _src: es.Identifier(name="undefined")
         )
 
         for info in reversed(targets_info):
