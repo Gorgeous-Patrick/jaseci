@@ -914,6 +914,7 @@ class Module(AstDocNode, UniScopeNode):
         if not self.stub_only and (
             self.loc.mod_path.endswith(".impl.jac")
             or self.loc.mod_path.endswith(".test.jac")
+            or self.loc.mod_path.endswith(".cl.jac")
         ):
             head_mod_name = self.name.split(".")[0]
             potential_path = os.path.join(
@@ -923,7 +924,11 @@ class Module(AstDocNode, UniScopeNode):
             if os.path.exists(potential_path) and potential_path != self.loc.mod_path:
                 return potential_path
             annex_dir = os.path.split(os.path.dirname(self.loc.mod_path))[-1]
-            if annex_dir.endswith(".impl") or annex_dir.endswith(".test"):
+            if (
+                annex_dir.endswith(".impl")
+                or annex_dir.endswith(".test")
+                or annex_dir.endswith(".cl")
+            ):
                 head_mod_name = os.path.split(os.path.dirname(self.loc.mod_path))[
                     -1
                 ].split(".")[0]
