@@ -10,13 +10,7 @@ import jaclang.compiler.unitree as uni
 if TYPE_CHECKING:
     from jaclang.compiler.passes.ecmascript.esast_gen_pass import EsastGenPass
     from jaclang.compiler.passes.ecmascript.estree import (
-        ArrayExpression,
-        CallExpression,
         Expression,
-        Identifier,
-        Literal,
-        MemberExpression,
-        ObjectExpression,
         Property,
         SpreadElement,
     )
@@ -28,18 +22,23 @@ class EsJsxProcessor:
 
     def __init__(self, pass_ref: "EsastGenPass") -> None:
         self.pass_ref = pass_ref
+        # Import estree at runtime to access AST node classes
+        from jaclang.compiler.passes.ecmascript import estree as es
+
+        self.es = es
 
     def element(self, node: uni.JsxElement) -> "Expression":
         """Process JSX element into __jacJsx(tag, props, children) call."""
+        es = self.es
         if node.is_fragment or not node.name:
             tag_expr: Expression = self.pass_ref.sync_loc(
-                Literal(value=None), jac_node=node
+                es.Literal(value=None), jac_node=node
             )
         else:
             tag_expr = (
                 node.name.gen.es_ast
                 if node.name.gen.es_ast
-                else self.pass_ref.sync_loc(Literal(value=None), jac_node=node.name)
+                else self.pass_ref.sync_loc(es.Literal(value=None), jac_node=node.name)
             )
 
         attributes = node.attributes or []
@@ -48,31 +47,31 @@ class EsJsxProcessor:
         )
         if not attributes:
             props_expr: Expression = self.pass_ref.sync_loc(
-                ObjectExpression(properties=[]), jac_node=node
+                es.ObjectExpression(properties=[]), jac_node=node
             )
         elif has_spread:
             segments: list[Expression] = []
             for attr in attributes:
                 if isinstance(attr, uni.JsxSpreadAttribute):
                     exp = getattr(attr.gen, "es_ast", None)
-                    if isinstance(exp, Expression):
+                    if isinstance(exp, es.Expression):
                         segments.append(exp)
                 elif isinstance(attr, uni.JsxNormalAttribute):
                     prop = getattr(attr.gen, "es_ast", None)
-                    if isinstance(prop, Property):
+                    if isinstance(prop, es.Property):
                         segments.append(
                             self.pass_ref.sync_loc(
-                                ObjectExpression(properties=[prop]), jac_node=attr
+                                es.ObjectExpression(properties=[prop]), jac_node=attr
                             )
                         )
             if segments:
                 assign_member = self.pass_ref.sync_loc(
-                    MemberExpression(
+                    es.MemberExpression(
                         object=self.pass_ref.sync_loc(
-                            Identifier(name="Object"), jac_node=node
+                            es.Identifier(name="Object"), jac_node=node
                         ),
                         property=self.pass_ref.sync_loc(
-                            Identifier(name="assign"), jac_node=node
+                            es.Identifier(name="assign"), jac_node=node
                         ),
                         computed=False,
                         optional=False,
@@ -80,11 +79,11 @@ class EsJsxProcessor:
                     jac_node=node,
                 )
                 props_expr = self.pass_ref.sync_loc(
-                    CallExpression(
+                    es.CallExpression(
                         callee=assign_member,
                         arguments=[
                             self.pass_ref.sync_loc(
-                                ObjectExpression(properties=[]), jac_node=node
+                                es.ObjectExpression(properties=[]), jac_node=node
                             ),
                             *segments,
                         ],
@@ -93,16 +92,16 @@ class EsJsxProcessor:
                 )
             else:
                 props_expr = self.pass_ref.sync_loc(
-                    ObjectExpression(properties=[]), jac_node=node
+                    es.ObjectExpression(properties=[]), jac_node=node
                 )
         else:
             properties: list[Property] = []
             for attr in attributes:
                 prop = getattr(attr.gen, "es_ast", None)
-                if isinstance(prop, Property):
+                if isinstance(prop, es.Property):
                     properties.append(prop)
             props_expr = self.pass_ref.sync_loc(
-                ObjectExpression(properties=properties), jac_node=node
+                es.ObjectExpression(properties=properties), jac_node=node
             )
 
         children_elements: list[Optional[Union[Expression, SpreadElement]]] = []
@@ -115,13 +114,13 @@ class EsJsxProcessor:
             else:
                 children_elements.append(child_expr)
         children_expr = self.pass_ref.sync_loc(
-            ArrayExpression(elements=children_elements), jac_node=node
+            es.ArrayExpression(elements=children_elements), jac_node=node
         )
 
         call_expr = self.pass_ref.sync_loc(
-            CallExpression(
+            es.CallExpression(
                 callee=self.pass_ref.sync_loc(
-                    Identifier(name="__jacJsx"), jac_node=node
+                    es.Identifier(name="__jacJsx"), jac_node=node
                 ),
                 arguments=[tag_expr, props_expr, children_expr],
             ),
@@ -131,21 +130,22 @@ class EsJsxProcessor:
 
     def element_name(self, node: uni.JsxElementName) -> "Expression":
         """Process JSX element name."""
+        es = self.es
         if not node.parts:
-            expr = self.pass_ref.sync_loc(Literal(value=None), jac_node=node)
+            expr = self.pass_ref.sync_loc(es.Literal(value=None), jac_node=node)
         else:
             parts = [part.value for part in node.parts]
             first = parts[0]
             if first and first[0].isupper():
                 expr = self.pass_ref.sync_loc(
-                    Identifier(name=first), jac_node=node.parts[0]
+                    es.Identifier(name=first), jac_node=node.parts[0]
                 )
                 for idx, part in enumerate(parts[1:], start=1):
                     expr = self.pass_ref.sync_loc(
-                        MemberExpression(
+                        es.MemberExpression(
                             object=expr,
                             property=self.pass_ref.sync_loc(
-                                Identifier(name=part), jac_node=node.parts[idx]
+                                es.Identifier(name=part), jac_node=node.parts[idx]
                             ),
                             computed=False,
                             optional=False,
@@ -154,41 +154,45 @@ class EsJsxProcessor:
                     )
             else:
                 expr = self.pass_ref.sync_loc(
-                    Literal(value=".".join(parts)), jac_node=node
+                    es.Literal(value=".".join(parts)), jac_node=node
                 )
         node.gen.es_ast = expr
         return expr
 
     def spread_attribute(self, node: uni.JsxSpreadAttribute) -> "Expression":
         """Process JSX spread attribute."""
+        es = self.es
         expr = (
             node.expr.gen.es_ast
             if node.expr and node.expr.gen.es_ast
-            else self.pass_ref.sync_loc(ObjectExpression(properties=[]), jac_node=node)
+            else self.pass_ref.sync_loc(
+                es.ObjectExpression(properties=[]), jac_node=node
+            )
         )
         node.gen.es_ast = expr
         return expr
 
     def normal_attribute(self, node: uni.JsxNormalAttribute) -> "Property":
         """Process JSX normal attribute."""
+        es = self.es
         key_expr = self.pass_ref.sync_loc(
-            Literal(value=node.name.value), jac_node=node.name
+            es.Literal(value=node.name.value), jac_node=node.name
         )
         if node.value is None:
-            value_expr = self.pass_ref.sync_loc(Literal(value=True), jac_node=node)
+            value_expr = self.pass_ref.sync_loc(es.Literal(value=True), jac_node=node)
         elif isinstance(node.value, uni.String):
             value_expr = self.pass_ref.sync_loc(
-                Literal(value=node.value.lit_value), jac_node=node.value
+                es.Literal(value=node.value.lit_value), jac_node=node.value
             )
         else:
             value_expr = (
                 node.value.gen.es_ast
                 if node.value.gen.es_ast
-                else self.pass_ref.sync_loc(Literal(value=None), jac_node=node.value)
+                else self.pass_ref.sync_loc(es.Literal(value=None), jac_node=node.value)
             )
 
         prop = self.pass_ref.sync_loc(
-            Property(
+            es.Property(
                 key=key_expr,
                 value=value_expr,
                 kind="init",
@@ -203,17 +207,19 @@ class EsJsxProcessor:
 
     def text(self, node: uni.JsxText) -> "Expression":
         """Process JSX text node."""
+        es = self.es
         raw_value = node.value.value if hasattr(node.value, "value") else node.value
-        expr = self.pass_ref.sync_loc(Literal(value=str(raw_value)), jac_node=node)
+        expr = self.pass_ref.sync_loc(es.Literal(value=str(raw_value)), jac_node=node)
         node.gen.es_ast = expr
         return expr
 
     def expression(self, node: uni.JsxExpression) -> "Expression":
         """Process JSX expression child."""
+        es = self.es
         expr = (
             node.expr.gen.es_ast
             if node.expr and node.expr.gen.es_ast
-            else self.pass_ref.sync_loc(Literal(value=None), jac_node=node.expr)
+            else self.pass_ref.sync_loc(es.Literal(value=None), jac_node=node.expr)
         )
         node.gen.es_ast = expr
         return expr
