@@ -84,6 +84,8 @@ class JacLangServer(JacProgram , LanguageServer) {
         self.type_check_threads: dict[str, threading.Thread] = {};
         self.cancel_tokens: dict[str, threading.Event] = {};
 
+        self.debounce_timers: dict[str, threading.Timer] = {};
+
         # Disable logging library from logging anything
         # logging.getLogger().setLevel(logging.CRITICAL);
     }
@@ -180,24 +182,40 @@ class JacLangServer(JacProgram , LanguageServer) {
         }
     }
 
-       """Type check with thread cancellation."""
+    """Type check with thread cancellation and proper debouncing."""
     async def type_check(self: JacLangServer, file_path: str) -> None {
-        # Cancel existing thread for this file if running
+        # Cancel existing debounce timer for this file
+        if file_path in self.debounce_timers {
+            self.debounce_timers[file_path].cancel();
+        }
+
+        # Cancel existing type check thread for this file if running
         if file_path in self.cancel_tokens {
             self.cancel_tokens[file_path].set();
         }
-        # Create new cancellation token
+
+        # Create new cancellation token for the upcoming type check
         self.cancel_tokens[file_path] = threading.Event();
 
-        # Start new thread for type checking
-        self.type_check_threads[file_path] = threading.Thread(
-            target=self.type_check_file,
-            args=(file_path, self.cancel_tokens[file_path])
-        );
-        self.type_check_threads[file_path].start();
+        # Create a debounced function that will run the actual type check
+        def debounced_type_check() -> None {
+            # Start new thread for type checking
+            print(" debounced_type_check ->", time.time(), file=sys.stderr);
+            self.type_check_threads[file_path] = threading.Thread(
+                target=self.type_check_file,
+                args=(file_path, self.cancel_tokens[file_path])
+            );
+            self.type_check_threads[file_path].start();
+            self.type_check_threads[file_path].join();
+        }
 
-        # Synchronous wait for thread to finish
-        await asyncio.to_thread(self.type_check_threads[file_path].join);
+        # Set up debounce timer with the actual type check function
+        self.debounce_timers[file_path] = threading.Timer(0.5, debounced_type_check);
+        self.debounce_timers[file_path].start();
+
+        # Wait for the current type check thread to finish (if any)
+        await asyncio.to_thread(self.debounce_timers[file_path].join);
+
     }
 
     def get_token_at_position(
