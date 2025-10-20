@@ -1862,6 +1862,14 @@ class Ability(
         return self.method_owner is not None
 
     @property
+    def is_cls_method(self) -> bool:
+        """Check if this ability is a class method."""
+        return self.is_method and any(
+            isinstance(dec, Name) and dec.sym_name == "classmethod"
+            for dec in self.decorators or ()
+        )
+
+    @property
     def is_def(self) -> bool:
         return not self.signature or isinstance(self.signature, FuncSignature)
 

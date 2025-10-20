@@ -15,7 +15,6 @@ from jaclang.compiler.passes.main import (
     Alert,
     CFGBuildPass,
     DeclImplMatchPass,
-    DefUsePass,
     JacAnnexPass,
     JacImportDepsPass,
     PreDynamoPass,
@@ -24,6 +23,7 @@ from jaclang.compiler.passes.main import (
     PyastBuildPass,
     PyastGenPass,
     SemDefMatchPass,
+    SemanticAnalysisPass,
     SymTabBuildPass,
     Transform,
     TypeCheckPass,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 ir_gen_sched = [
     SymTabBuildPass,
     DeclImplMatchPass,
-    DefUsePass,
+    SemanticAnalysisPass,
     SemDefMatchPass,
     CFGBuildPass,
 ]
@@ -153,8 +153,7 @@ class JacProgram:
         """Convert a Jac file to an AST."""
         mod_targ = self.compile(file_path, use_str, type_check=type_check)
         JacImportDepsPass(ir_in=mod_targ, prog=self)
-        for mod in self.mod.hub.values():
-            DefUsePass(mod, prog=self)
+        SemanticAnalysisPass(ir_in=mod_targ, prog=self)
         return mod_targ
 
     def run_schedule(

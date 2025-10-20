@@ -359,6 +359,40 @@ class TypeCheckerPassTests(TestCase):
                         ^^^^^^^^^^
         """, program.errors_had[0].pretty_print())
 
+    def test_checker_member_access(self) -> None:
+        path = self.fixture_abs_path("symtab_build.jac")
+        program = JacProgram()
+        mod = program.compile(path)
+        TypeCheckPass(ir_in=mod, prog=program)
+        self.assertEqual(
+            len(mod.sym_tab.names_in_scope.values()),
+            2,
+        )
+        mod_scope_symbols = ['Symbol(alice', 'Symbol(Person']
+        for sym in mod_scope_symbols:
+            self.assertIn(sym, str(mod.sym_tab.names_in_scope.values()))
+        self.assertEqual(
+            len(mod.sym_tab.kid_scope[0].names_in_scope.values()),
+            5,
+        )
+        kid_scope_symbols = [
+            'Symbol(age',
+            'Symbol(greet',
+            'Symbol(name,',
+            'Symbol(create_person',
+            'Symbol(class_info',
+        ]
+        for sym in kid_scope_symbols:
+            self.assertIn(sym, str(mod.sym_tab.kid_scope[0].names_in_scope.values()))
+        age_sym = mod.sym_tab.kid_scope[0].lookup("age")
+        assert age_sym is not None
+        self.assertIn('(NAME, age, 23:11 - 23:14)', str(age_sym.uses))
+        self.assertEqual(len(program.errors_had), 1)
+        self._assert_error_pretty_found("""
+            alice.age = '909'; # <-- Error
+            ^^^^^^^^^^^^^^^^^^
+        """, program.errors_had[0].pretty_print())
+
     def test_checker_import_missing_module(self) -> None:
         path = self.fixture_abs_path("checker_import_missing_module.jac")
         program = JacProgram()
