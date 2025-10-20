@@ -925,14 +925,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def ability_decl(self, _: None) -> uni.Ability:
             """Grammar rule.
 
-            ability_decl: KW_OVERRIDE? KW_STATIC? KW_CAN access_tag? named_ref
+            ability_decl: KW_OVERRIDE? KW_STATIC? KW_CAN access_tag? named_ref?
                 event_clause (block_tail | KW_ABSTRACT? SEMI)
             """
             is_override = self.match_token(Tok.KW_OVERRIDE) is not None
             is_static = self.match_token(Tok.KW_STATIC) is not None
             self.consume_token(Tok.KW_CAN)
             access = self.match(uni.SubTag)
-            name = self.consume(uni.NameAtom)
+            name = self.match(uni.NameAtom)
             signature = self.consume(uni.EventSignature)
 
             # Handle block_tail
