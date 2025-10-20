@@ -1430,6 +1430,19 @@ class JacLanguageTests(TestCase):
         self.assertIn("foo2", stdout_value[6])
         self.assertIn("Coroutine task is completed", stdout_value[17])
 
+    def test_iter_for_continue(self) -> None:
+        """Test iter for continue."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("iter_for_continue", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertIn("0", stdout_value[0])
+        self.assertIn("1", stdout_value[1])
+        self.assertIn("2", stdout_value[2])
+        self.assertIn("Skipping 3", stdout_value[3])
+        self.assertIn("4", stdout_value[4])
+
     def test_unicode_string_literals(self) -> None:
         """Test unicode characters in string literals are preserved correctly."""
         captured_output = io.StringIO()

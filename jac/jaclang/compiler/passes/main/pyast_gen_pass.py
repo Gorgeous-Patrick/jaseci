@@ -1684,7 +1684,11 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
         if node.ctrl.name == Tok.KW_BREAK:
             node.gen.py_ast = [self.sync(ast3.Break())]
         elif node.ctrl.name == Tok.KW_CONTINUE:
-            node.gen.py_ast = [self.sync(ast3.Continue())]
+            if iter_for_parent := self.find_parent_of_type(node, uni.IterForStmt):
+                count_by = iter_for_parent.count_by
+                node.gen.py_ast = [count_by.gen.py_ast[0], self.sync(ast3.Continue())]
+            else:
+                node.gen.py_ast = [self.sync(ast3.Continue())]
         elif node.ctrl.name == Tok.KW_SKIP:
             node.gen.py_ast = [self.sync(ast3.Return(value=None))]
 
