@@ -71,9 +71,9 @@ The `cl` keyword marks Jac declarations for **client-side compilation**. This en
 
 When `cl` is present:
 - Node is marked with `is_client_decl = True`
-- Python codegen is skipped for the declaration (via `_should_skip_client()` in [pyast_gen_pass.py:292-294](../jaclang/compiler/passes/main/pyast_gen_pass.py#L292-L294))
+- Python codegen is skipped for the declaration (via `_should_skip_client()` in [pyast_gen_pass.py:310-312](../jaclang/compiler/passes/main/pyast_gen_pass.py#L310-L312))
 - JavaScript codegen generates ECMAScript AST (in [esast_gen_pass.py](../jaclang/compiler/passes/ecmascript/esast_gen_pass.py))
-- The declaration is tracked in the module's `ClientManifest` (exports, globals, params)
+- The declaration is tracked in the module's `ClientManifest` (exports, globals, params, globals_values, imports)
 
 #### Supported Constructs
 
@@ -82,7 +82,7 @@ When `cl` is present:
 cl def homepage() -> dict {
     return <div>
         <h1>Welcome</h1>
-        <button onclick={spawn load_feed()}>Load Feed</button>
+        <button onclick={load_feed()}>Load Feed</button>
     </div>;
 }
 
@@ -98,25 +98,102 @@ cl let API_BASE_URL: str = "https://api.example.com";
 
 #### Grammar Definition
 
-From [jac.lark:8-16, 586](../jaclang/compiler/jac.lark#L8-L16):
+From [jac.lark:9-10, 591](../jaclang/compiler/jac.lark#L9-L10):
 
 ```lark
-toplevel_stmt: KW_CLIENT? import_stmt
-       | KW_CLIENT? archetype
-       | impl_def
-       | sem_def
-       | KW_CLIENT? ability
-       | KW_CLIENT? global_var
-       | KW_CLIENT? free_code
+toplevel_stmt: KW_CLIENT? onelang_stmt
+       | KW_CLIENT LBRACE onelang_stmt* RBRACE
        | py_code_block
-       | KW_CLIENT? test
 
 KW_CLIENT: "cl"
 ```
 
-### 2. JSX Syntax
+The `cl` keyword can prefix individual statements or wrap multiple statements in braces.
 
-JSX is fully supported in Jac with grammar defined in [jac.lark:444-473](../jaclang/compiler/jac.lark#L444-L473). JSX elements are transpiled to `__jacJsx(tag, props, children)` calls by [esast_gen_pass.py:600-701](../jaclang/compiler/passes/ecmascript/esast_gen_pass.py#L600-L701).
+### 2. Client Imports
+
+Client code can import functions and utilities from the built-in `jac:client_runtime` module using the `cl import` syntax. This allows client-side code to access the runtime's JSX rendering, authentication helpers, and server interaction functions.
+
+#### Syntax
+
+```jac
+cl import from jac:client_runtime {
+    renderJsxTree,
+    jacLogin,
+    jacLogout,
+    jacSignup,
+    jacIsLoggedIn,
+}
+```
+
+#### Available Exports from `jac:client_runtime`
+
+The client runtime ([client_runtime.jac](../jaclang/runtimelib/client_runtime.jac)) exports these public functions for use in client code:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `renderJsxTree` | `(node: any, container: any) -> None` | Renders a JSX tree into a DOM container |
+| `jacSignup` | `async (username: str, password: str) -> dict` | Creates a new user account and returns `{success, token, username}` or `{success, error}` |
+| `jacLogin` | `async (username: str, password: str) -> bool` | Authenticates user and stores token in localStorage |
+| `jacLogout` | `() -> None` | Clears authentication token from localStorage |
+| `jacIsLoggedIn` | `() -> bool` | Checks if user has valid token in localStorage |
+
+> **Note**: Functions prefixed with `__jac` (like `__jacJsx`, `__buildDom`, `__jacSpawn`, etc.) are internal runtime functions automatically available in the client bundle. They should not be imported directly - use the public API functions listed above instead.
+
+#### How Client Imports Work
+
+When processing client imports ([esast_gen_pass.py:317-325](../jaclang/compiler/passes/ecmascript/esast_gen_pass.py#L317-L325)):
+
+1. **Parser detects** `cl import from jac:client_runtime` syntax
+   - The `jac:` prefix indicates a special runtime import
+   - The import is marked with `is_client_decl = True`
+
+2. **ESTree generation** creates JavaScript import declaration:
+   ```javascript
+   import { renderJsxTree, jacLogin } from "jac:client_runtime";
+   ```
+
+3. **Manifest tracking** records the import in `ClientManifest.imports`:
+   - Key: `"client_runtime"` (from `dot_path_str`)
+   - Value: Resolved path to `client_runtime.jac`
+
+4. **Bundle generation** compiles `client_runtime.jac` into the bundle, making these functions available globally
+
+#### Example Usage
+
+```jac
+cl import from jac:client_runtime {
+    jacLogin,
+    jacLogout,
+    jacIsLoggedIn,
+}
+
+cl def LoginForm() {
+    async def handleLogin(event: any) {
+        event.preventDefault();
+        let username = document.getElementById("username").value;
+        let password = document.getElementById("password").value;
+
+        success = await jacLogin(username, password);
+        if success {
+            console.log("Login successful!");
+            // Redirect or update UI
+        } else {
+            console.log("Login failed");
+        }
+    }
+
+    return <form onsubmit={handleLogin}>
+        <input id="username" type="text" placeholder="Username" />
+        <input id="password" type="password" placeholder="Password" />
+        <button type="submit">Login</button>
+    </form>;
+}
+```
+
+### 3. JSX Syntax
+
+JSX is fully supported in Jac with grammar defined in [jac.lark:448-473](../jaclang/compiler/jac.lark#L448-L473). JSX elements are transpiled to `__jacJsx(tag, props, children)` calls by [jsx_processor.py:30-129](../jaclang/compiler/passes/ast_gen/jsx_processor.py#L30-L129) via the `EsJsxProcessor` class.
 
 #### JSX Features
 
@@ -173,48 +250,47 @@ JSX elements compile to function calls:
 | [client_runtime.jac](../jaclang/runtimelib/client_runtime.jac) | Client runtime | JSX rendering (`__jacJsx`, `renderJsxTree`), walker spawning (`__jacSpawn`), auth helpers |
 | [server.py](../jaclang/runtimelib/server.py) | HTTP server | Serves pages (`/page/<fn>`), bundles (`/static/client.js`), walkers |
 | **Data Structures** | | |
-| `ClientManifest` | Metadata container | Stores `exports` (function names), `globals` (var names), `params` (arg order), `globals_values` (literal values) |
+| [ClientManifest](../jaclang/compiler/codeinfo.py#L15-L25) | Metadata container (in codeinfo.py) | Stores `exports` (function names), `globals` (var names), `params` (arg order), `globals_values` (literal values), `has_client` (bool), `imports` (module mappings) |
 
 ### Client Bundle Structure
 
 The bundle generated by `ClientBundleBuilder` contains (in order):
 
-1. **Polyfills** - Browser compatibility shims:
+1. **Polyfills** - Browser compatibility shims (from [client_runtime.jac:227-253](../jaclang/runtimelib/client_runtime.jac#L227-L253)):
+   The `__jacEnsureObjectGetPolyfill()` function adds a Python-style `.get()` method to `Object.prototype`:
    ```javascript
    Object.prototype.get = function(key, defaultValue) {
-       return this.hasOwnProperty(key) ? this[key] : (defaultValue !== undefined ? defaultValue : null);
+       if (this.hasOwnProperty(key)) {
+           return this[key];
+       }
+       return defaultValue !== undefined ? defaultValue : null;
    };
    ```
+   This polyfill is called automatically during module registration and hydration.
 
 2. **Client Runtime** - Compiled from [client_runtime.jac](../jaclang/runtimelib/client_runtime.jac):
    - `__jacJsx(tag, props, children)` - JSX factory function
    - `renderJsxTree(node, container)` - DOM rendering
    - `__buildDom(node)` - Recursive DOM builder
    - `__applyProp(element, key, value)` - Attribute/event handler application
-   - `__jacSpawn(walker, fields)` - Walker invocation via `/walker/<name>` endpoint
-   - Auth helpers: `jacLogin`, `jacLogout`, `jacIsLoggedIn`
+   - `__jacSpawn(walker, fields)` - Async walker invocation via `/walker/<name>` endpoint
+   - `__jacCallFunction(function_name, args)` - Async server-side function calls via `/function/<name>` endpoint
+   - Auth helpers: `jacSignup`, `jacLogin`, `jacLogout`, `jacIsLoggedIn`
+   - Registration and hydration: `__jacRegisterClientModule`, `__jacHydrateFromDom`, `__jacEnsureHydration`
 
 3. **Application Module** - Transpiled user code with `cl` declarations
 
-4. **Registration Code** - Exposes module symbols globally:
+4. **Registration Code** - Generated by [client_bundle.py:245-251](../jaclang/runtimelib/client_bundle.py#L245-L251):
    ```javascript
-   (function registerJacClientModule(){
-       const scope = typeof globalThis !== 'undefined' ? globalThis : window;
-       const registry = scope.__jacClient || (scope.__jacClient = { functions: {}, globals: {}, modules: {} });
-
-       // Register functions and globals
-       moduleFunctions["homepage"] = homepage;
-       scope["homepage"] = homepage;
-
-       // Hydration logic - executes on DOMContentLoaded
-       function hydrateJacClient() {
-           const payload = JSON.parse(document.getElementById('__jac_init__').textContent);
-           const target = registry.functions[payload.function];
-           const result = target.apply(scope, orderedArgs);
-           renderJsxTree(result, document.getElementById('__jac_root'));
-       }
-   })();
+   __jacRegisterClientModule("module_name", ["homepage", "other_func"], {"API_URL": "value"});
    ```
+
+   This calls the `__jacRegisterClientModule` function from the runtime which:
+   - Registers all exported client functions in the global registry
+   - Sets up client global variables with default values
+   - Creates a module record in `__jacClient.modules`
+   - Calls `__jacEnsureHydration` to set up DOMContentLoaded listener
+   - Executes hydration automatically when DOM is ready
 
 ### Server Endpoints
 
@@ -222,14 +298,16 @@ From [server.py](../jaclang/runtimelib/server.py):
 
 | Endpoint | Method | Description | Implementation |
 |----------|--------|-------------|----------------|
-| `/page/<fn>` | GET | Render HTML page for client function | Lines 709-741 |
-| `/static/client.js` | GET | Serve compiled JavaScript bundle | Lines 662-684 |
-| `/walker/<name>` | POST | Spawn walker on node | Lines 914-927 |
-| `/function/<name>` | POST | Call server-side function | Lines 899-912 |
-| `/user/create` | POST | Create new user account | Lines 857-872 |
-| `/user/login` | POST | Authenticate and get token | Lines 874-889 |
-| `/functions` | GET | List available functions | Lines 751-759 |
-| `/walkers` | GET | List available walkers | Lines 761-769 |
+| `/page/<fn>` | GET | Render HTML page for client function | Lines 806-830 |
+| `/static/client.js` | GET | Serve compiled JavaScript bundle | Lines 772-781 |
+| `/walker/<name>` | POST | Spawn walker on node | Handled by ExecutionHandler |
+| `/function/<name>` | POST | Call server-side function | Handled by ExecutionHandler |
+| `/user/create` | POST | Create new user account | Handled by AuthHandler |
+| `/user/login` | POST | Authenticate and get token | Handled by AuthHandler |
+| `/functions` | GET | List available functions | Handled by IntrospectionHandler |
+| `/walkers` | GET | List available walkers | Handled by IntrospectionHandler |
+
+> **Note**: The server has been refactored to use handler classes (AuthHandler, IntrospectionHandler, ExecutionHandler) for better organization.
 
 #### Page Rendering Flow
 
@@ -242,7 +320,7 @@ When `GET /page/homepage?arg1=value1` is requested:
 5. **Build payload** - Serialize args, globals, arg order
 6. **Render HTML** - Return shell with embedded payload and script tag
 
-HTML template (from [server.py:343-356](../jaclang/runtimelib/server.py#L343-L356)):
+HTML template (from [server.py:491-504](../jaclang/runtimelib/server.py#L491-L504)):
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -271,21 +349,32 @@ On page load in the browser:
 7. **Handle result** - If Promise, await; otherwise render immediately
 8. **Render JSX** - Call `renderJsxTree(result, __jac_root)`
 
-From [client_bundle.py:262-279](../jaclang/runtimelib/client_bundle.py#L262-L279):
-```javascript
-const result = target.apply(scope, orderedArgs);
-if (result && typeof result.then === 'function') {
-    result.then(applyRender).catch((err) => {
-        console.error('[Jac] Error resolving client function promise', err);
-    });
+From [client_runtime.jac:470-488](../jaclang/runtimelib/client_runtime.jac#L470-L488):
+```jac
+callOutcome = __jacSafeCallTarget(target, scope, orderedArgs, targetName);
+if not callOutcome or not callOutcome.get("ok") {
+    return;
+}
+value = callOutcome.get("value");
+
+if value and __isObject(value) and __isFunction(value.then) {
+    value.then(
+        lambda node: any -> None {
+            __jacApplyRender(renderer, rootEl, node);
+        }
+    ).catch(
+        lambda err: any -> None {
+            console.error("[Jac] Error resolving client function promise", err);
+        }
+    );
 } else {
-    applyRender(result);
+    __jacApplyRender(renderer, rootEl, value);
 }
 ```
 
 ### JSX Rendering
 
-The `renderJsxTree` function ([client_runtime.jac:9-11](../jaclang/runtimelib/client_runtime.jac#L9-L11)) calls `__buildDom` to recursively build DOM:
+The `renderJsxTree` function ([client_runtime.jac:9-11](../jaclang/runtimelib/client_runtime.jac#L9-L11)) calls `__buildDom` ([client_runtime.jac:14-50](../jaclang/runtimelib/client_runtime.jac#L14-L50)) to recursively build DOM:
 
 1. **Null/undefined** → Empty text node
 2. **Primitive values** → Text node with `String(value)`
@@ -329,7 +418,7 @@ cl def homepage() {
         </header>
         <main>
             <p>Full-stack web development in one language!</p>
-            <button onclick={spawn load_users()}>Load Users</button>
+            <button onclick={load_users()}>Load Users</button>
         </main>
     </div>;
 }
@@ -364,11 +453,13 @@ jac serve myapp.jac
 When the user clicks "Load Users":
 
 1. **Client**: `spawn load_users()` triggers `__jacSpawn("LoadUsers", {})`
-2. **HTTP**: `POST /walker/LoadUsers` with `{"nd": "root"}`
-3. **Server**: Spawns `LoadUsers` walker on root node
+2. **HTTP**: Async `POST /walker/LoadUsers` with `{"nd": "root"}` and Authorization header
+3. **Server**: Authenticates user, spawns `LoadUsers` walker on root node
 4. **Server**: Walker executes, generates reports
 5. **HTTP**: Returns `{"result": {...}, "reports": [...]}`
-6. **Client**: Receives walker results (could update UI)
+6. **Client**: Receives walker results as Promise (can be awaited to update UI)
+
+The `__jacSpawn` function ([client_runtime.jac:71-92](../jaclang/runtimelib/client_runtime.jac#L71-L92)) is async and retrieves the auth token from localStorage before making the request.
 
 ## Test Coverage
 
@@ -386,21 +477,3 @@ When the user clicks "Load Users":
 - [client_jsx.jac](../jaclang/compiler/passes/ecmascript/tests/fixtures/client_jsx.jac) - Comprehensive client syntax examples
 - [jsx_elements.jac](../examples/reference/jsx_elements.jac) - JSX feature demonstrations
 
-## Known Limitations
-
-1. **No SSR/Hydration** - All rendering happens on the client; no server-side pre-rendering
-2. **No Type Checking in JS** - Type annotations are stripped during transpilation
-3. **Limited Walker Integration** - `spawn` from client requires server round-trip
-4. **No React Ecosystem** - Custom JSX runtime, not compatible with React components
-5. **Bundle Size** - Runtime included in every bundle (no code splitting)
-
-## Future Enhancements
-
-Potential improvements for this system:
-
-1. **Server-Side Rendering** - Pre-render initial HTML on server, hydrate on client
-2. **Code Splitting** - Separate runtime from application code, lazy load modules
-3. **Hot Module Replacement** - Live reload during development
-4. **TypeScript Generation** - Optionally emit `.d.ts` files for client code
-5. **React Compatibility** - Support importing and using React components
-6. **WebSocket Support** - Real-time walker updates without polling
