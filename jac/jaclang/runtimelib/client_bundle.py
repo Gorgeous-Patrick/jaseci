@@ -53,14 +53,26 @@ class ClientBundleBuilder:
         module_path = module.__file__.replace(".py", ".jac")
 
         source_path = Path(module_path).resolve()
-        runtime_path = self.runtime_path.resolve()
-        signature = self._signature([source_path, runtime_path])
+
+        # Get the manifest to determine which files will be included
+        from jaclang.runtimelib.machine import JacMachine as Jac
+
+        mod = Jac.program.mod.hub.get(str(source_path))
+        manifest = mod.gen.client_manifest if mod else None
+
+        # Build list of all files that will be in the bundle for cache signature
+        bundle_paths = [source_path]
+        if manifest and manifest.imports:
+            for import_path in manifest.imports.values():
+                bundle_paths.append(Path(import_path))
+
+        signature = self._signature(bundle_paths)
 
         cached = self._cache.get(module.__name__)
         if not force and cached and cached.signature == signature:
             return cached.bundle
 
-        bundle = self._compile_bundle(module, source_path, runtime_path)
+        bundle = self._compile_bundle(module, source_path)
         self._cache[module.__name__] = _CachedBundle(signature=signature, bundle=bundle)
         return bundle
 
@@ -68,18 +80,51 @@ class ClientBundleBuilder:
         self,
         module: ModuleType,
         module_path: Path,
-        runtime_path: Path,
     ) -> ClientBundle:
         """Compile bundle pieces and stitch them together."""
-        runtime_js = self._compile_to_js(runtime_path)
-
-        # Get manifest from JacProgram
+        # Get manifest from JacProgram first to check for imports
         from jaclang.runtimelib.machine import JacMachine as Jac
 
         mod = Jac.program.mod.hub.get(str(module_path))
         manifest = mod.gen.client_manifest if mod else None
 
+        # Process client imports and track which modules are being bundled
+        import_pieces: list[str] = []
+        bundled_module_names: set[str] = set()
+
+        if manifest and manifest.imports:
+            for import_name, import_path in manifest.imports.items():
+                bundled_module_names.add(import_name)
+                import_path_obj = Path(import_path)
+                if import_path_obj.suffix == ".js":
+                    # For .js files, read and include as-is
+                    try:
+                        with open(import_path_obj, "r", encoding="utf-8") as f:
+                            js_code = f.read()
+                            import_pieces.append(
+                                f"// Imported .js module: {import_name}"
+                            )
+                            import_pieces.append(js_code)
+                            import_pieces.append("")
+                    except FileNotFoundError:
+                        import_pieces.append(
+                            f"// Warning: Could not find {import_path}"
+                        )
+                elif import_path_obj.suffix == ".jac":
+                    # For .jac files, compile to JS
+                    try:
+                        compiled_js = self._compile_to_js(import_path_obj)
+                        import_pieces.append(f"// Imported .jac module: {import_name}")
+                        import_pieces.append(compiled_js)
+                        import_pieces.append("")
+                    except ClientBundleError:
+                        import_pieces.append(
+                            f"// Warning: Could not compile {import_path}"
+                        )
+
+        # Compile main module and strip import statements for bundled modules
         module_js = self._compile_to_js(module_path)
+        module_js = self._strip_import_statements(module_js, bundled_module_names)
 
         client_exports = sorted(dict.fromkeys(manifest.exports)) if manifest else []
 
@@ -100,15 +145,22 @@ class ClientBundleBuilder:
             module.__name__, client_exports, client_globals_map
         )
 
-        bundle_pieces = [
-            "// Jac client runtime",
-            runtime_js,
-            "",
-            f"// Client module: {module.__name__}",
-            module_js,
-            "",
-            registration_js,
-        ]
+        bundle_pieces = []
+
+        # Add imported modules (which may include client_runtime if explicitly imported)
+        if import_pieces:
+            bundle_pieces.extend(import_pieces)
+
+        # Add main module
+        bundle_pieces.extend(
+            [
+                f"// Client module: {module.__name__}",
+                module_js,
+                "",
+                registration_js,
+            ]
+        )
+
         bundle_code = "\n".join(piece for piece in bundle_pieces if piece is not None)
         bundle_hash = hashlib.sha256(bundle_code.encode("utf-8")).hexdigest()
 
@@ -130,6 +182,36 @@ class ClientBundleBuilder:
                 f"Failed to compile '{source_path}' for client bundle:\n{formatted}"
             )
         return mod.gen.js or ""
+
+    @staticmethod
+    def _strip_import_statements(js_code: str, bundled_modules: set[str]) -> str:
+        """Remove ES6 import statements for modules that are bundled.
+
+        Args:
+            js_code: The JavaScript code
+            bundled_modules: Set of module names that are being bundled
+
+        Returns:
+            JavaScript code with bundled imports removed
+        """
+        import re
+
+        lines = js_code.split("\n")
+        filtered_lines = []
+
+        for line in lines:
+            # Match ES6 import statements: import { ... } from "module_name";
+            import_match = re.match(
+                r'^\s*import\s+.*\s+from\s+["\']([^"\']+)["\'];?\s*$', line
+            )
+            if import_match:
+                module_name = import_match.group(1)
+                # Skip this line if the module is being bundled
+                if module_name in bundled_modules:
+                    continue
+            filtered_lines.append(line)
+
+        return "\n".join(filtered_lines)
 
     @staticmethod
     def _signature(paths: Iterable[Path]) -> str:

@@ -609,15 +609,38 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def import_path(self, _: None) -> uni.ModulePath:
             """Grammar rule.
 
-            import_path: dotted_name (KW_AS NAME)?
+            import_path: (NAME COLON)? dotted_name (KW_AS NAME)?
             """
+            # The grammar can produce: [NAME, COLON, list, KW_AS, NAME]
+            # or just: [list, KW_AS, NAME]
+            # or just: [list]
+
+            prefix = None
+
+            # Check if first element is a NAME (not a list from dotted_name)
+            if (
+                self.cur_nodes
+                and isinstance(self.cur_nodes[0], uni.Name)
+                and len(self.cur_nodes) > 1
+                and isinstance(self.cur_nodes[1], uni.Token)
+                and self.cur_nodes[1].name == Tok.COLON
+            ):
+                # We have a prefix
+                prefix = self.consume(uni.Name)
+                self.consume_token(Tok.COLON)
+
+            # Now consume the dotted_name list
             valid_path = self.extract_from_list(self.consume(list), uni.Name)
+
+            # Check for optional alias
             alias = self.consume(uni.Name) if self.match_token(Tok.KW_AS) else None
+
             return uni.ModulePath(
                 path=valid_path,
                 level=0,
                 alias=alias,
                 kid=self.flat_cur_nodes,
+                prefix=prefix,
             )
 
         def dotted_name(self, _: None) -> list[uni.UniNode]:

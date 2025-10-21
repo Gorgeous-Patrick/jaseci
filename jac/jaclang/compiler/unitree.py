@@ -1305,10 +1305,12 @@ class ModulePath(UniNode):
         level: int,
         alias: Optional[Name],
         kid: Sequence[UniNode],
+        prefix: Optional[Name] = None,
     ) -> None:
         self.path = path
         self.level = level
         self.alias = alias
+        self.prefix = prefix
         self.abs_path: Optional[str] = None
         UniNode.__init__(self, kid=kid)
 
@@ -1329,6 +1331,26 @@ class ModulePath(UniNode):
     def resolve_relative_path(self, target_item: Optional[str] = None) -> str:
         """Convert an import target string into a relative file path."""
         target = self.dot_path_str + (f".{target_item}" if target_item else "")
+
+        # Handle 'jac:' prefix for runtime imports
+        if self.prefix and self.prefix.value == "jac":
+            # For jac: imports, resolve relative to the jac runtime directory
+            import jaclang.runtimelib
+
+            runtime_dir = os.path.dirname(jaclang.runtimelib.__file__)
+            # Handle both .jac and .js file extensions
+            if not (target.endswith(".jac") or target.endswith(".js")):
+                # Try .jac first, then .js
+                jac_path = os.path.join(runtime_dir, target + ".jac")
+                if os.path.exists(jac_path):
+                    return jac_path
+                js_path = os.path.join(runtime_dir, target + ".js")
+                if os.path.exists(js_path):
+                    return js_path
+                # Default to .jac
+                return jac_path
+            return os.path.join(runtime_dir, target)
+
         return resolve_relative_path(target, self.loc.mod_path)
 
     def resolve_relative_path_list(self) -> list[str]:
@@ -1343,11 +1365,16 @@ class ModulePath(UniNode):
     def normalize(self, deep: bool = False) -> bool:
         res = True
         if deep:
+            if self.prefix:
+                res = res and self.prefix.normalize(deep)
             if self.path:
                 for item in self.path:
                     res = res and item.normalize(deep)
             res = res and self.alias.normalize(deep) if self.alias else res
         new_kid: list[UniNode] = []
+        if self.prefix:
+            new_kid.append(self.prefix)
+            new_kid.append(self.gen_token(Tok.COLON))
         for _ in range(self.level):
             new_kid.append(self.gen_token(Tok.DOT))
         if self.path:

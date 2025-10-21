@@ -317,6 +317,13 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
     def exit_import(self, node: uni.Import) -> None:
         """Process import statement."""
         if node.from_loc and node.items:
+            # Track client imports with prefix (e.g., jac:client_runtime)
+            if node.is_client_decl and node.from_loc.prefix:
+                resolved_path = node.from_loc.resolve_relative_path()
+                import_key = node.from_loc.dot_path_str
+                self.client_manifest.imports[import_key] = resolved_path
+                self.client_manifest.has_client = True
+
             source = self.sync_loc(
                 es.Literal(value=node.from_loc.dot_path_str), jac_node=node.from_loc
             )

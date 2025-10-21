@@ -1,4 +1,10 @@
 import datetime;
+cl import from jac:client_runtime {
+    jacLogin,
+    jacLogout,
+    jacSignup,
+    renderJsxTree,
+}
 
 
 node Profile {

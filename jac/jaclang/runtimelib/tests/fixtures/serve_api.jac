@@ -1,5 +1,9 @@
 """Example Jac program for REST API server."""
 
+cl import from jac:client_runtime {
+    renderJsxTree,
+}
+
 # Define some nodes
 node Task {
     has title: str;

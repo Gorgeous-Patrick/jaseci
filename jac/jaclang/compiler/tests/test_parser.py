@@ -474,5 +474,61 @@ walker MyWalker {
         # Names should be different due to different locations
         self.assertNotEqual(name1, name2)
 
+    def test_cl_import_with_prefix(self) -> None:
+        """Test that cl import with jac: prefix is properly parsed.
+
+        Tests:
+        - cl import from jac:client_runtime syntax
+        - Prefix field is captured in ModulePath
+        - Import is marked as client-side
+        """
+        source = """
+cl import from jac:client_runtime {
+    jacLogin,
+    jacLogout,
+    renderJsxTree,
+}
+"""
+        prog = JacProgram()
+        module = prog.parse_str(source, "test.jac")
+        self.assertFalse(prog.errors_had, f"Parser errors: {prog.errors_had}")
+
+        # Find the import statement
+        imports = [stmt for stmt in module.body if type(stmt).__name__ == "Import"]
+        self.assertEqual(len(imports), 1, "Should have one import statement")
+
+        import_stmt = imports[0]
+
+        # Check that it's a client import
+        self.assertTrue(
+            getattr(import_stmt, "is_client_decl", False),
+            "Import should be marked as client-side"
+        )
+
+        # Check the from_loc has the prefix
+        self.assertIsNotNone(import_stmt.from_loc, "Import should have from_loc")
+        self.assertIsNotNone(
+            import_stmt.from_loc.prefix, "ModulePath should have prefix"
+        )
+        self.assertEqual(
+            import_stmt.from_loc.prefix.value,
+            "jac",
+            "Prefix should be 'jac'"
+        )
+
+        # Check the module path
+        self.assertEqual(
+            import_stmt.from_loc.dot_path_str,
+            "client_runtime",
+            "Module path should be 'client_runtime'"
+        )
+
+        # Check the imported items
+        self.assertEqual(len(import_stmt.items), 3, "Should have 3 imported items")
+        item_names = [item.name.value for item in import_stmt.items]
+        self.assertIn("jacLogin", item_names)
+        self.assertIn("jacLogout", item_names)
+        self.assertIn("renderJsxTree", item_names)
+
 
 TestLarkParser.self_attach_micro_tests()
