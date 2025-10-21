@@ -1452,6 +1452,43 @@ class DocIRGenPass(UniPass):
         parts.append(self.indent(self.concat([self.hard_line()] + indent_parts)))
         node.gen.doc_ir = self.group(self.concat(parts))
 
+    def exit_switch_stmt(self, node: uni.SwitchStmt) -> None:
+        """Generate DocIR for switch statements."""
+        parts: list[doc.DocType] = []
+        switch_parts: list[doc.DocType] = [self.hard_line()]
+        for i in node.kid:
+            if i == node.target:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif isinstance(i, uni.SwitchCase):
+                switch_parts.append(i.gen.doc_ir)
+                switch_parts.append(self.hard_line())
+            elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
+                parts.append(self.indent(self.concat(switch_parts)))
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        node.gen.doc_ir = self.group(self.concat(parts))
+
+    def exit_switch_case(self, node: uni.SwitchCase) -> None:
+        """Generate DocIR for switch cases."""
+        parts: list[doc.DocType] = []
+        indent_parts: list[doc.DocType] = []
+        for i in node.kid:
+            if isinstance(i, uni.Token) and i.name == Tok.COLON:
+                parts.pop()
+                parts.append(i.gen.doc_ir)
+            elif i in node.body:
+                indent_parts.append(i.gen.doc_ir)
+                indent_parts.append(self.hard_line())
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        parts.append(self.indent(self.concat([self.hard_line()] + indent_parts)))
+        node.gen.doc_ir = self.group(self.concat(parts))
+
     def exit_match_value(self, node: uni.MatchValue) -> None:
         """Generate DocIR for match value patterns."""
         parts: list[doc.DocType] = []

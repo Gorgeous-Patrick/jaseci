@@ -3056,6 +3056,48 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
             )
         ]
 
+    def enter_switch_stmt(self, node: uni.SwitchStmt) -> None:
+        cases = []
+        all_cases = []
+        for i in range(len(node.cases)):
+            if not node.cases[i].body:
+                cases.append(node.cases[i])
+                all_cases.append(node.cases[i])
+            elif cases and node.cases[i].pattern and node.cases[i].body:
+                pattern = [case.pattern for case in cases] + [node.cases[i].pattern]
+                node.cases[i].pattern = uni.MatchOr(patterns=pattern, kid=pattern)
+                node.cases[i].unparse()
+                cases = []
+        for i in all_cases:
+            if i in node.kid:
+                node.cases.remove(i)
+                node.kid.remove(i)
+
+    def exit_switch_stmt(self, node: uni.SwitchStmt) -> None:
+        node.gen.py_ast = [
+            self.sync(
+                ast3.Match(
+                    subject=cast(ast3.expr, node.target.gen.py_ast[0]),
+                    cases=[cast(ast3.match_case, x.gen.py_ast[0]) for x in node.cases],
+                )
+            )
+        ]
+
+    def exit_switch_case(self, node: uni.SwitchCase) -> None:
+        node.gen.py_ast = [
+            self.sync(
+                ast3.match_case(
+                    pattern=(
+                        cast(ast3.pattern, node.pattern.gen.py_ast[0])
+                        if node.pattern
+                        else self.sync(ast3.MatchAs())
+                    ),
+                    guard=None,
+                    body=[cast(ast3.stmt, x.gen.py_ast[0]) for x in node.body],
+                )
+            )
+        ]
+
     def exit_match_or(self, node: uni.MatchOr) -> None:
         node.gen.py_ast = [
             self.sync(

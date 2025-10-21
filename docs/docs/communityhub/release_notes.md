@@ -18,6 +18,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Import System Refactoring**: Refactored and simplified the Jac import system to better leverage Python's PEP 302 and PEP 451 import protocols. Removed over-engineered custom import logic in favor of standard Python meta path finders and module loaders, improving reliability and compatibility.
 - **Module Cache Synchronization Fix**: Fixed module cache synchronization issues between `JacMachine.loaded_modules` and `sys.modules` that caused test failures and module loading inconsistencies. The machine now properly manages module lifecycles while preserving special Python modules like `__main__`.
 - **Formatted String Literals (f-strings)**: Added improved and comprehensive support for Python-style formatted string literals in Jac with full feature parity.
+- **Switch Case Statement**: Switch statement is introduced and javascript style fallthrough behavior is also supported.
 
 ## jaclang 0.8.9 / jac-cloud 0.2.9 / byllm 0.4.4 (Latest Release)
 

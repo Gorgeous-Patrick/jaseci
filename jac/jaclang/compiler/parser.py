@@ -3287,6 +3287,44 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 kid=self.cur_nodes,
             )
 
+        def switch_stmt(self, _: None) -> uni.SwitchStmt:
+            """Grammar rule.
+
+            switch_stmt: KW_SWITCH expression LBRACE switch_case_block+ RBRACE
+            """
+            self.consume_token(Tok.KW_SWITCH)
+            target = self.consume(uni.Expr)
+            self.consume_token(Tok.LBRACE)
+            cases = [self.consume(uni.SwitchCase)]
+            while case := self.match(uni.SwitchCase):
+                cases.append(case)
+            self.consume_token(Tok.RBRACE)
+            return uni.SwitchStmt(
+                target=target,
+                cases=cases,
+                kid=self.cur_nodes,
+            )
+
+        def switch_case_block(self, _: None) -> uni.SwitchCase:
+            """Grammar rule.
+
+            switch_case_block: (KW_CASE pattern_seq | KW_DEFAULT) COLON statement*
+            """
+            stmts = []
+            if self.match_token(Tok.KW_CASE):
+                pattern = self.consume(uni.MatchPattern)
+            else:
+                self.consume_token(Tok.KW_DEFAULT)
+                pattern = None
+            self.consume_token(Tok.COLON)
+            while stmt := self.match(uni.CodeBlockStmt):
+                stmts.append(stmt)
+            return uni.SwitchCase(
+                pattern=pattern,
+                body=stmts,
+                kid=self.cur_nodes,
+            )
+
         def pattern_seq(self, _: None) -> uni.MatchPattern:
             """Grammar rule.
 
