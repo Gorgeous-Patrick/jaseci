@@ -1173,6 +1173,32 @@ class ModuleCode(ClientFacingNode, ElementStmt, ArchBlockStmt, EnumBlockStmt):
         return res
 
 
+class ClientBlock(ElementStmt):
+    """ClientBlock node type for cl { ... } blocks in Jac Ast."""
+
+    def __init__(
+        self,
+        body: Sequence[ElementStmt],
+        kid: Sequence[UniNode],
+    ) -> None:
+        self.body = list(body)
+        UniNode.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
+        new_kid: list[UniNode] = []
+        new_kid.append(self.gen_token(Tok.KW_CLIENT))
+        new_kid.append(self.gen_token(Tok.LBRACE))
+        for stmt in self.body:
+            new_kid.append(stmt)
+        new_kid.append(self.gen_token(Tok.RBRACE))
+        self.set_kids(nodes=new_kid)
+        return res
+
+
 class PyInlineCode(ElementStmt, ArchBlockStmt, EnumBlockStmt, CodeBlockStmt):
     """PyInlineCode node type for Jac Ast."""
 

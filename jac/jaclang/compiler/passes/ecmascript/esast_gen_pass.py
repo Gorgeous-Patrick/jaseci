@@ -125,6 +125,14 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
 
     def enter_node(self, node: uni.UniNode) -> None:
         """Enter node."""
+        if (
+            isinstance(node, uni.ElementStmt)
+            and isinstance(node, uni.ClientFacingNode)
+            and not node.is_client_decl
+            and (node.parent is None or isinstance(node.parent, uni.Module))
+        ):
+            self.prune()
+            return
         if isinstance(node, uni.UniScopeNode):
             self._push_scope(node)
         if node.gen.es_ast:
@@ -134,6 +142,13 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
 
     def exit_node(self, node: uni.UniNode) -> None:
         """Exit node."""
+        if (
+            isinstance(node, uni.ElementStmt)
+            and isinstance(node, uni.ClientFacingNode)
+            and not node.is_client_decl
+            and (node.parent is None or isinstance(node.parent, uni.Module))
+        ):
+            return
         super().exit_node(node)
         if isinstance(node, uni.UniScopeNode):
             self._pop_scope(node)
@@ -1997,6 +2012,21 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
                         body_stmts.append(stmt.gen.es_ast)
 
         # Module code is executed at module level, so just output the statements
+        node.gen.es_ast = body_stmts
+
+    def exit_client_block(self, node: uni.ClientBlock) -> None:
+        """Process client block (cl { ... })."""
+        # Generate the body statements directly - unwrap the block
+        body_stmts: list[es.Statement] = []
+        if node.body:
+            for stmt in node.body:
+                if stmt.gen.es_ast:
+                    if isinstance(stmt.gen.es_ast, list):
+                        body_stmts.extend(stmt.gen.es_ast)
+                    else:
+                        body_stmts.append(stmt.gen.es_ast)
+
+        # ClientBlock is just a grouping construct, output the statements directly
         node.gen.es_ast = body_stmts
 
     def exit_test(self, node: uni.Test) -> None:

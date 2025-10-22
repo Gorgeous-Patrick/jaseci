@@ -8,6 +8,7 @@ from pathlib import Path
 
 from jaclang import JacMachineInterface as Jac
 from jaclang.compiler import jac_lark as jl
+from jaclang.compiler import unitree as uni
 from jaclang.compiler.constant import Tokens
 from jaclang.compiler.parser import JacParser
 from jaclang.compiler.program import JacProgram
@@ -303,13 +304,29 @@ cl {
         module = JacProgram().parse_str(source, "test.jac")
         body = module.body
 
+        # With ClientBlock, cl {} creates a single ClientBlock node
         self.assertEqual(
             [type(stmt).__name__ for stmt in body],
-            ["GlobalVars", "GlobalVars", "GlobalVars", "Test"],
+            ["GlobalVars", "GlobalVars", "ClientBlock"],
         )
         self.assertEqual(
             [getattr(stmt, "is_client_decl", False) for stmt in body],
-            [True, False, True, True],  # cl let, let, cl{let}, cl{test}
+            [True, False, False],  # cl let, let, ClientBlock (not ClientFacingNode)
+        )
+        # Check the ClientBlock's body
+        client_block = body[2]
+        self.assertIsInstance(client_block, uni.ClientBlock)
+        self.assertEqual(len(client_block.body), 2)
+        self.assertEqual(
+            [type(stmt).__name__ for stmt in client_block.body],
+            ["GlobalVars", "Test"],
+        )
+        self.assertTrue(
+            all(
+                getattr(stmt, "is_client_decl", False)
+                for stmt in client_block.body
+                if hasattr(stmt, "is_client_decl")
+            )
         )
 
         # Test 2: Block with different statement types
@@ -324,11 +341,15 @@ cl {
         module = JacProgram().parse_str(source, "test.jac")
         body = module.body
 
-        self.assertEqual(len(body), 4)
+        # With ClientBlock, all statements are wrapped in a single ClientBlock
+        self.assertEqual(len(body), 1)
+        self.assertIsInstance(body[0], uni.ClientBlock)
+        # Check the ClientBlock's body has 4 statements
+        self.assertEqual(len(body[0].body), 4)
         self.assertTrue(
             all(
                 getattr(stmt, "is_client_decl", False)
-                for stmt in body
+                for stmt in body[0].body
                 if hasattr(stmt, "is_client_decl")
             )
         )
@@ -346,11 +367,12 @@ cl {
         module = JacProgram().parse_str(source, "test.jac")
         body = module.body
 
+        # Now we have: ClientBlock, GlobalVars, ClientBlock
         self.assertEqual(len(body), 3)
-        self.assertEqual(
-            [getattr(stmt, "is_client_decl", False) for stmt in body],
-            [True, False, True],  # cl{let a}, let b, cl{let c}
-        )
+        self.assertIsInstance(body[0], uni.ClientBlock)
+        self.assertIsInstance(body[1], uni.GlobalVars)
+        self.assertIsInstance(body[2], uni.ClientBlock)
+        self.assertFalse(getattr(body[1], "is_client_decl", False))  # let b is not client
 
         # Test 4: Empty client block
         source = """
@@ -360,8 +382,12 @@ let x = 1;
         module = JacProgram().parse_str(source, "test.jac")
         body = module.body
 
-        self.assertEqual(len(body), 1)
-        self.assertFalse(getattr(body[0], "is_client_decl", False))
+        # Empty ClientBlock followed by GlobalVars
+        self.assertEqual(len(body), 2)
+        self.assertIsInstance(body[0], uni.ClientBlock)
+        self.assertEqual(len(body[0].body), 0)  # Empty
+        self.assertIsInstance(body[1], uni.GlobalVars)
+        self.assertFalse(getattr(body[1], "is_client_decl", False))
 
         # Test 5: Various statement types with single cl marker
         source = """

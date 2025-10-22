@@ -1,17 +1,17 @@
 """Client-side runtime for Jac JSX and walker interactions."""
-
+cl {
 # JSX factory function
-cl def __jacJsx(tag: any, props: dict = {}, children: list = []) -> dict {
+def __jacJsx(tag: any, props: dict = {}, children: list = []) -> dict {
     return {"tag": tag, "props": props, "children": children};
 }
 
 # DOM rendering function
-cl def renderJsxTree(node: any, container: any) -> None {
+def renderJsxTree(node: any, container: any) -> None {
     container.replaceChildren(__buildDom(node));
 }
 
 # Internal: Build DOM from JSX tree
-cl def __buildDom(node: any) -> any {
+def __buildDom(node: any) -> any {
     if node == None {
         return document.createTextNode("");
     }
@@ -50,7 +50,7 @@ cl def __buildDom(node: any) -> any {
 }
 
 # Internal: Apply property to DOM element
-cl def __applyProp(element: any, key: str, value: any) -> None {
+def __applyProp(element: any, key: str, value: any) -> None {
     if key.startswith("on") {
         # Event handler: onclick -> click
         event = key[2:].lower();
@@ -68,7 +68,7 @@ cl def __applyProp(element: any, key: str, value: any) -> None {
 }
 
 # Walker spawn function
-cl async def __jacSpawn(walker: str, fields: dict = {}) -> any {
+async def __jacSpawn(walker: str, fields: dict = {}) -> any {
     token = __getLocalStorage("jac_token");
 
     response = await fetch(
@@ -92,7 +92,7 @@ cl async def __jacSpawn(walker: str, fields: dict = {}) -> any {
 }
 
 # Function call function - calls server-side functions from client
-cl async def __jacCallFunction(function_name: str, args: dict = {}) -> any {
+async def __jacCallFunction(function_name: str, args: dict = {}) -> any {
     token = __getLocalStorage("jac_token");
 
     response = await fetch(
@@ -117,7 +117,7 @@ cl async def __jacCallFunction(function_name: str, args: dict = {}) -> any {
 }
 
 # Authentication helpers
-cl async def jacSignup(username: str, password: str) -> dict {
+async def jacSignup(username: str, password: str) -> dict {
     response = await fetch(
         "/user/create",
         {
@@ -146,7 +146,7 @@ cl async def jacSignup(username: str, password: str) -> dict {
     }
 }
 
-cl async def jacLogin(username: str, password: str) -> bool {
+async def jacLogin(username: str, password: str) -> bool {
     response = await fetch(
         "/user/login",
         {
@@ -167,47 +167,47 @@ cl async def jacLogin(username: str, password: str) -> bool {
     return False;
 }
 
-cl def jacLogout() -> None {
+def jacLogout() -> None {
     __removeLocalStorage("jac_token");
 }
 
-cl def jacIsLoggedIn() -> bool {
+def jacIsLoggedIn() -> bool {
     token = __getLocalStorage("jac_token");
     return token != None and token != "";
 }
 
 # Browser API shims
-cl def __getLocalStorage(key: str) -> str {
+def __getLocalStorage(key: str) -> str {
     storage = globalThis.localStorage;
     return storage.getItem(key) if storage else "";
 }
 
-cl def __setLocalStorage(key: str, value: str) -> None {
+def __setLocalStorage(key: str, value: str) -> None {
     storage = globalThis.localStorage;
     if storage {
         storage.setItem(key, value);
     }
 }
 
-cl def __removeLocalStorage(key: str) -> None {
+def __removeLocalStorage(key: str) -> None {
     storage = globalThis.localStorage;
     if storage {
         storage.removeItem(key);
     }
 }
 
-cl def __isObject(value: any) -> bool {
+def __isObject(value: any) -> bool {
     if value == None {
         return False;
     }
     return Object.prototype.toString.call(value) == "[object Object]";
 }
 
-cl def __isFunction(value: any) -> bool {
+def __isFunction(value: any) -> bool {
     return Object.prototype.toString.call(value) == "[object Function]";
 }
 
-cl def __objectKeys(obj: any) -> list {
+def __objectKeys(obj: any) -> list {
     if obj == None {
         return [];
     }
@@ -215,7 +215,7 @@ cl def __objectKeys(obj: any) -> list {
 }
 
 # Low-level helpers
-cl def __jacHasOwn(obj: any, key: any) -> bool {
+def __jacHasOwn(obj: any, key: any) -> bool {
     try {
         return Object.prototype.hasOwnProperty.call(obj, key);
     } except Exception {
@@ -224,7 +224,7 @@ cl def __jacHasOwn(obj: any, key: any) -> bool {
 }
 
 # Internal polyfill for Python-style dict.get on plain JS objects
-cl def __jacEnsureObjectGetPolyfill() -> None {
+def __jacEnsureObjectGetPolyfill() -> None {
     proto = Object.prototype;
     if proto.get {
         return;
@@ -253,7 +253,7 @@ cl def __jacEnsureObjectGetPolyfill() -> None {
 }
 
 # Common utility helpers
-cl def __jacGetDocument(scope: any) -> any {
+def __jacGetDocument(scope: any) -> any {
     try {
         return scope.document;
     } except Exception {
@@ -261,7 +261,7 @@ cl def __jacGetDocument(scope: any) -> any {
     }
 }
 
-cl def __jacParseJsonObject(text: str) -> any {
+def __jacParseJsonObject(text: str) -> any {
     try {
         parsed = JSON.parse(text);
         if __isObject(parsed) {
@@ -275,7 +275,7 @@ cl def __jacParseJsonObject(text: str) -> any {
     }
 }
 
-cl def __jacBuildOrderedArgs(order: list, argsDict: dict) -> list {
+def __jacBuildOrderedArgs(order: list, argsDict: dict) -> list {
     result = [];
     if not order {
         return result;
@@ -287,7 +287,7 @@ cl def __jacBuildOrderedArgs(order: list, argsDict: dict) -> list {
     return result;
 }
 
-cl def __jacResolveRenderer(scope: any) -> any {
+def __jacResolveRenderer(scope: any) -> any {
     if scope.renderJsxTree {
         return scope.renderJsxTree;
     }
@@ -297,7 +297,7 @@ cl def __jacResolveRenderer(scope: any) -> any {
     return None;
 }
 
-cl def __jacResolveTarget(
+def __jacResolveTarget(
     moduleRecord: dict,
     registry: dict,
     name: str
@@ -321,7 +321,7 @@ cl def __jacResolveTarget(
     return None;
 }
 
-cl def __jacSafeCallTarget(
+def __jacSafeCallTarget(
     target: any,
     scope: any,
     orderedArgs: list,
@@ -337,7 +337,7 @@ cl def __jacSafeCallTarget(
 }
 
 # Runtime support helpers for client module registration / hydration
-cl def __jacGlobalScope() -> any {
+def __jacGlobalScope() -> any {
     try {
         return globalThis;
     } except Exception {}
@@ -350,7 +350,7 @@ cl def __jacGlobalScope() -> any {
     return {};
 }
 
-cl def __jacEnsureRegistry() -> dict {
+def __jacEnsureRegistry() -> dict {
     scope = __jacGlobalScope();
     registry = scope.__jacClient;
     if not registry {
@@ -385,7 +385,7 @@ cl def __jacEnsureRegistry() -> dict {
     return registry;
 }
 
-cl def __jacApplyRender(renderer: any, container: any, node: any) -> None {
+def __jacApplyRender(renderer: any, container: any, node: any) -> None {
     if not renderer or not container {
         return;
     }
@@ -396,7 +396,7 @@ cl def __jacApplyRender(renderer: any, container: any, node: any) -> None {
     }
 }
 
-cl def __jacHydrateFromDom(defaultModuleName: str) -> None {
+def __jacHydrateFromDom(defaultModuleName: str) -> None {
     __jacEnsureObjectGetPolyfill();
     scope = __jacGlobalScope();
     documentRef = __jacGetDocument(scope);
@@ -488,13 +488,13 @@ cl def __jacHydrateFromDom(defaultModuleName: str) -> None {
     }
 }
 
-cl def __jacExecuteHydration() -> None {
+def __jacExecuteHydration() -> None {
     registry = __jacEnsureRegistry();
     defaultModule = registry.lastModule if registry.lastModule else "";
     __jacHydrateFromDom(defaultModule);
 }
 
-cl def __jacEnsureHydration(moduleName: str) -> None {
+def __jacEnsureHydration(moduleName: str) -> None {
     __jacEnsureObjectGetPolyfill();
     registry = __jacEnsureRegistry();
     registry.lastModule = moduleName;
@@ -526,7 +526,7 @@ cl def __jacEnsureHydration(moduleName: str) -> None {
     }
 }
 
-cl def __jacRegisterClientModule(
+def __jacRegisterClientModule(
     moduleName: str,
     clientFunctions: list = [],
     clientGlobals: dict = {}
@@ -583,4 +583,5 @@ cl def __jacRegisterClientModule(
     }
 
     __jacEnsureHydration(moduleName);
+}
 }

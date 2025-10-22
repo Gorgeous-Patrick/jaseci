@@ -452,18 +452,31 @@ class JacParser(Transform[uni.Source, uni.Module]):
             if client_tok:
                 lbrace = self.match_token(Tok.LBRACE)
                 if lbrace:
-                    # Collect all statements in the block
+                    # Create a ClientBlock to wrap the statements
                     elements: list[uni.ElementStmt] = []
                     while elem := self.match(uni.ElementStmt):
                         if isinstance(elem, uni.ClientFacingNode):
                             elem.is_client_decl = True
+                            # Propagate to ModuleCode children (with entry blocks)
+                            if isinstance(elem, uni.ModuleCode) and elem.body:
+                                for stmt in elem.body:
+                                    if isinstance(stmt, uni.ClientFacingNode):
+                                        stmt.is_client_decl = True
                         elements.append(elem)
                     self.consume(uni.Token)  # RBRACE
-                    return elements
+                    return uni.ClientBlock(
+                        body=elements,
+                        kid=self.flat_cur_nodes,
+                    )
                 else:
                     element = self.consume(uni.ElementStmt)
                     if isinstance(element, uni.ClientFacingNode):
                         element.is_client_decl = True
+                        # Propagate to ModuleCode children (with entry blocks)
+                        if isinstance(element, uni.ModuleCode) and element.body:
+                            for stmt in element.body:
+                                if isinstance(stmt, uni.ClientFacingNode):
+                                    stmt.is_client_decl = True
                         element.add_kids_left([client_tok])
                     return element
             else:
