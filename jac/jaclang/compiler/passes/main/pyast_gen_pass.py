@@ -358,6 +358,106 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                     i.jac_link: ast3.AST = [self.cur_node]  # type: ignore
         return py_nodes
 
+    def resolve_switch_pattern(
+        self, pattern: uni.MatchPattern, target: uni.Expr
+    ) -> ast3.expr:
+        """Resolve switch case pattern."""
+        if isinstance(pattern, uni.MatchValue):
+            return self.sync(
+                ast3.Compare(
+                    left=cast(ast3.expr, target.gen.py_ast[0]),
+                    ops=[self.sync(ast3.Eq())],
+                    comparators=[cast(ast3.expr, pattern.value.gen.py_ast[0])],
+                )
+            )
+        elif isinstance(pattern, uni.MatchOr):
+            return self.sync(
+                ast3.BoolOp(
+                    op=self.sync(ast3.Or()),
+                    values=[
+                        self.resolve_switch_pattern(pat, target)
+                        for pat in pattern.patterns
+                    ],
+                )
+            )
+        elif isinstance(pattern, uni.MatchSingleton):
+            return self.sync(
+                ast3.Compare(
+                    left=cast(ast3.expr, target.gen.py_ast[0]),
+                    ops=[self.sync(ast3.Is())],
+                    comparators=[cast(ast3.expr, pattern.value.gen.py_ast[0])],
+                )
+            )
+        # elif isinstance(pattern, uni.MatchAs):
+        #     pass
+        # elif isinstance(pattern, uni.MatchSequence):
+        #     pass
+        # elif isinstance(pattern, uni.MatchMapping):
+        #     pass
+        # elif isinstance(pattern, uni.MatchKVPair):
+        #     pass
+        # elif isinstance(pattern, uni.MatchStar):
+        #     pass
+        # elif isinstance(pattern, uni.MatchArch):
+        #     pass
+        else:
+            raise self.ice("Unsupported switch pattern type")
+
+    def resolve_switch_stmt(self, node: uni.SwitchStmt) -> list[ast3.AST]:
+        """Resolve switch statement."""
+        var_executed = self.sync(ast3.Name(id="__executed", ctx=ast3.Store()))
+        assign_var = self.sync(
+            ast3.Assign(
+                targets=[var_executed], value=self.sync(ast3.Constant(value=False))
+            )
+        )
+        ast_nodes: list[ast3.AST] = []
+        test_expr: ast3.expr
+        executed_assign = self.sync(
+            ast3.Assign(
+                targets=[var_executed], value=self.sync(ast3.Constant(value=True))
+            )
+        )
+        for case in node.cases:
+            if case.pattern is None:
+                # default case
+                ast_nodes.extend(self.resolve_stmt_block(case.body) + [executed_assign])
+            else:
+                test_expr = self.sync(
+                    ast3.BoolOp(
+                        op=self.sync(ast3.Or()),
+                        values=[
+                            self.resolve_switch_pattern(case.pattern, node.target),
+                            self.sync(ast3.Name(id="__executed", ctx=ast3.Load())),
+                        ],
+                    )
+                )
+                if_stmt = self.sync(
+                    ast3.If(
+                        test=test_expr,
+                        body=cast(
+                            list[ast3.stmt],
+                            self.resolve_stmt_block(case.body) + [executed_assign],
+                        ),
+                        orelse=[],
+                    )
+                )
+                ast_nodes.append(if_stmt)
+        while_cond = self.sync(
+            ast3.UnaryOp(
+                op=self.sync(ast3.Not()),
+                operand=self.sync(ast3.Name(id="__executed", ctx=ast3.Load())),
+            )
+        )
+        return [
+            assign_var,
+            self.sync(
+                ast3.While(
+                    test=while_cond, body=cast(list[ast3.stmt], ast_nodes), orelse=[]
+                )
+            ),
+        ]
+
     def resolve_stmt_block(
         self,
         node: Sequence[uni.CodeBlockStmt] | Sequence[uni.EnumBlockStmt] | None,
@@ -372,7 +472,11 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
             else (
                 self._flatten_ast_list(
                     [
-                        x.gen.py_ast
+                        (
+                            x.gen.py_ast
+                            if not isinstance(x, uni.SwitchStmt)
+                            else self.resolve_switch_stmt(x)
+                        )
                         for x in valid_stmts
                         if not isinstance(x, uni.ImplDef)
                     ]
@@ -3060,48 +3164,6 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                         if node.guard
                         else None
                     ),
-                    body=[cast(ast3.stmt, x.gen.py_ast[0]) for x in node.body],
-                )
-            )
-        ]
-
-    def enter_switch_stmt(self, node: uni.SwitchStmt) -> None:
-        cases = []
-        all_cases = []
-        for i in range(len(node.cases)):
-            if not node.cases[i].body:
-                cases.append(node.cases[i])
-                all_cases.append(node.cases[i])
-            elif cases and node.cases[i].pattern and node.cases[i].body:
-                pattern = [case.pattern for case in cases] + [node.cases[i].pattern]
-                node.cases[i].pattern = uni.MatchOr(patterns=pattern, kid=pattern)
-                node.cases[i].unparse()
-                cases = []
-        for i in all_cases:
-            if i in node.kid:
-                node.cases.remove(i)
-                node.kid.remove(i)
-
-    def exit_switch_stmt(self, node: uni.SwitchStmt) -> None:
-        node.gen.py_ast = [
-            self.sync(
-                ast3.Match(
-                    subject=cast(ast3.expr, node.target.gen.py_ast[0]),
-                    cases=[cast(ast3.match_case, x.gen.py_ast[0]) for x in node.cases],
-                )
-            )
-        ]
-
-    def exit_switch_case(self, node: uni.SwitchCase) -> None:
-        node.gen.py_ast = [
-            self.sync(
-                ast3.match_case(
-                    pattern=(
-                        cast(ast3.pattern, node.pattern.gen.py_ast[0])
-                        if node.pattern
-                        else self.sync(ast3.MatchAs())
-                    ),
-                    guard=None,
                     body=[cast(ast3.stmt, x.gen.py_ast[0]) for x in node.body],
                 )
             )
