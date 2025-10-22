@@ -29,7 +29,7 @@ from_path: (DOT | ELLIPSIS)* import_path
 
 import_path: (NAME COLON)? dotted_name (KW_AS NAME)?
 import_items: (import_item COMMA)* import_item COMMA?
-import_item: named_ref (KW_AS NAME)?
+import_item: (KW_DEFAULT | STAR_MUL | named_ref) (KW_AS NAME)?
 dotted_name: named_ref (DOT named_ref)*
 
 // [Heading]: Class Archetypes.

@@ -1416,11 +1416,17 @@ class ModulePath(UniNode):
 
 
 class ModuleItem(UniNode):
-    """ModuleItem node type for Jac Ast."""
+    """ModuleItem node type for Jac Ast.
+
+    Name can be either:
+    - Name: for regular named imports (e.g., useState, axios)
+    - Token (KW_DEFAULT): for default imports (Category 2)
+    - Token (STAR_MUL): for namespace imports (Category 4)
+    """
 
     def __init__(
         self,
-        name: Name,
+        name: Name | Token,
         alias: Optional[Name],
         kid: Sequence[UniNode],
     ) -> None:

@@ -673,9 +673,25 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def import_item(self, _: None) -> uni.ModuleItem:
             """Grammar rule.
 
-            import_item: named_ref (KW_AS NAME)?
+            import_item: (KW_DEFAULT | STAR_MUL | named_ref) (KW_AS NAME)?
             """
-            name = self.consume(uni.Name)
+            # The first node in cur_nodes is the name (either Token for default/*, or Name for regular)
+            # Check if it's a special token or regular name
+            name: uni.Name | uni.Token
+            first_node = (
+                self.cur_nodes[self.node_idx]
+                if self.node_idx < len(self.cur_nodes)
+                else None
+            )
+
+            if isinstance(first_node, uni.Token) and first_node.name in [
+                Tok.KW_DEFAULT.name,
+                Tok.STAR_MUL.name,
+            ]:
+                name = self.consume(uni.Token)
+            else:
+                name = self.consume(uni.Name)
+
             alias = self.consume(uni.Name) if self.match_token(Tok.KW_AS) else None
             return uni.ModuleItem(
                 name=name,
