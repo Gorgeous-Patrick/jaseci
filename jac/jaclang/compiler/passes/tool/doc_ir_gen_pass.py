@@ -104,6 +104,39 @@ class DocIRGenPass(UniPass):
 
         return first and last
 
+    def trim_trailing_line(self, parts: List[doc.DocType]) -> None:
+        """Recursively trim trailing Line (soft or hard) nodes from parts."""
+        if not parts:
+            return
+
+        while parts:
+            last = parts[-1]
+
+            if isinstance(last, doc.Line):
+                parts.pop()
+                continue  # keep trimming in case of multiple trailing lines
+
+            elif isinstance(last, doc.Concat):
+                self.trim_trailing_line(last.parts)
+                # If Concat becomes empty, remove it entirely
+                if not last.parts:
+                    parts.pop()
+                    continue
+
+            elif isinstance(last, doc.Group):
+                contents = last.contents
+                if isinstance(contents, doc.Concat):
+                    self.trim_trailing_line(contents.parts)
+                    if not contents.parts:
+                        parts.pop()
+                        continue
+                elif isinstance(contents, doc.Line):
+                    # If group only contains a trailing line, drop the group
+                    parts.pop()
+                    continue
+
+            break
+
     def exit_module(self, node: uni.Module) -> None:
         """Exit module."""
         parts: list[doc.DocType] = []
@@ -281,30 +314,33 @@ class DocIRGenPass(UniPass):
                 parts.append(i.gen.doc_ir)
                 if not isinstance(node.signature, uni.FuncSignature):
                     parts.append(self.space())
-            elif isinstance(node.body, Sequence) and i in node.body:
-                if not in_body:
-                    parts.pop()
-                    body_parts.append(self.hard_line())
-                body_parts.append(i.gen.doc_ir)
+            elif isinstance(i, uni.Token) and i.name == Tok.LBRACE:
+                parts.append(i.gen.doc_ir)
                 body_parts.append(self.hard_line())
                 in_body = True
-            elif in_body:
+            elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
                 in_body = False
-                body_parts.pop()
+                self.trim_trailing_line(body_parts)
                 parts.append(self.indent(self.concat(body_parts)))
-                parts.append(self.hard_line())
+                if len(body_parts) > 0:
+                    parts.append(self.hard_line())
+                else:
+                    parts.append(self.space())
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
-            elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
-                parts.pop()
-                parts.append(i.gen.doc_ir)
-                parts.append(self.space())
+            elif in_body:
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
             elif (
                 i == node.kid[0] and isinstance(i, uni.Token) and i.name == Tok.COMMENT
             ):
                 has_comment = i.gen.doc_ir
             elif not in_body and isinstance(i, uni.Token) and i.name == Tok.DECOR_OP:
                 parts.append(i.gen.doc_ir)
+            elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
+                parts.pop()
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -1220,24 +1256,23 @@ class DocIRGenPass(UniPass):
                 i == node.kid[0] and isinstance(i, uni.Token) and i.name == Tok.COMMENT
             ):
                 has_comment = i.gen.doc_ir
-            elif isinstance(node.body, Sequence) and i in node.body:
-                if not in_body:
-                    parts.pop()
-                    body_parts.append(self.hard_line())
-                body_parts.append(i.gen.doc_ir)
+            elif isinstance(i, uni.Token) and i.name == Tok.LBRACE:
+                parts.append(i.gen.doc_ir)
                 body_parts.append(self.hard_line())
                 in_body = True
-            elif in_body:
+            elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
                 in_body = False
-                body_parts.pop()
+                self.trim_trailing_line(body_parts)
                 parts.append(self.indent(self.concat(body_parts)))
-                parts.append(self.hard_line())
+                if len(body_parts):
+                    parts.append(self.hard_line())
+                else:
+                    parts.append(self.line())
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
-            elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
-                parts.pop()
-                parts.append(i.gen.doc_ir)
-                parts.append(self.space())
+            elif in_body:
+                body_parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
