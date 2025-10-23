@@ -1587,6 +1587,8 @@ class DocIRGenPass(UniPass):
     def exit_enum(self, node: uni.Enum) -> None:
         """Generate DocIR for enum declarations."""
         parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = []
+        in_body = False
         for i in node.kid:
             if (node.doc and i is node.doc) or (
                 node.decorators and i in node.decorators
@@ -1597,6 +1599,22 @@ class DocIRGenPass(UniPass):
                 parts.pop()
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
+            elif isinstance(i, uni.Token) and i.name == Tok.LBRACE:
+                parts.append(i.gen.doc_ir)
+                body_parts.append(self.line())
+                in_body = True
+            elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
+                in_body = False
+                if len(body_parts) and isinstance(body_parts[-1], doc.Line):
+                    body_parts.pop()
+                parts.append(self.indent(self.concat(body_parts)))
+                parts.append(self.line())
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif in_body:
+                body_parts.append(i.gen.doc_ir)
+                if isinstance(i, uni.Token) and i.name == Tok.COMMA:
+                    body_parts.append(self.line())
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())

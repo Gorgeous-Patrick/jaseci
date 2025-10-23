@@ -282,3 +282,14 @@ hru
 """;
     }
 }
+
+
+enum Role0 { ADMIN = 'admin', USER = 'user', GUEST = 'guest', }
+
+
+enum Role {
+    ADMIN = 'admin',
+    USER = 'user',
+    GUEST = 'guest',
+    ADMIN2 = "111111111111111111111111111111111111111111111111111111111111",
+}
