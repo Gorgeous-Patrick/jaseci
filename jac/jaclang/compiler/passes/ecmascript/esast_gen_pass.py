@@ -226,6 +226,14 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
         scope = self._current_scope()
         return name in scope.declared if scope else False
 
+    def _is_declared_in_any_scope(self, name: str) -> bool:
+        """Check if a name is declared in the current scope or any parent scope.
+
+        This is essential for proper closure support - we need to avoid re-declaring
+        variables that exist in parent scopes when generating nested functions.
+        """
+        return any(name in scope.declared for scope in reversed(self.scope_stack))
+
     def _register_declaration(self, name: str) -> None:
         """Mark a name as declared within the current scope."""
         scope = self._current_scope()
@@ -1377,13 +1385,15 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
 
             should_declare = False
             if decl_name:
-                should_declare = is_first and not self._is_declared_in_current_scope(
+                # Check if this variable is already declared in ANY scope (including parent scopes)
+                # This enables proper closure support - nested functions can access parent scope variables
+                should_declare = is_first and not self._is_declared_in_any_scope(
                     decl_name
                 )
             elif pattern_names:
                 should_declare = any(
                     self._is_name_first_definition(name_node)
-                    and not self._is_declared_in_current_scope(name)
+                    and not self._is_declared_in_any_scope(name)
                     for name, name_node in pattern_names
                 )
 

@@ -157,7 +157,9 @@ class JavaScriptGenerationTests(TestCase):
         self.assertIn("function calculate(x, y)", js_code)
         self.assertIn("}();", js_code, "IIFE invocation pattern missing in generated JS")
         self.assertIn("function outer()", js_code)
-        self.assertIn("return () => {\n    let count = count + 1;\n    return count;\n  };", js_code)
+        # Verify closure is working correctly - count should not be redeclared with 'let'
+        # The inner function should access the outer 'count' variable via closure
+        self.assertIn("return () => {\n    count = count + 1;\n    return count;\n  };", js_code)
         self.assertIn("All client-side IIFE tests completed!", js_code)
 
     def test_cli_js_command_outputs_js(self) -> None:
