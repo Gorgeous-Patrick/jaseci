@@ -182,6 +182,22 @@ class JacLangServer(JacProgram , LanguageServer) {
         }
     }
 
+    """Check if debounce timer is active for a file."""
+    def is_debounce_active(self: JacLangServer, file_path: str) -> bool {
+        return (
+            file_path in self.debounce_timers and
+            self.debounce_timers[file_path].is_alive()
+        );
+    }
+
+    """Check if type check thread is active for a file."""
+    def is_type_check_thread_active(self: JacLangServer, file_path: str) -> bool {
+        return (
+            file_path in self.type_check_threads and
+            self.type_check_threads[file_path].is_alive()
+        );
+    }
+
     """Type check with thread cancellation and proper debouncing."""
     async def type_check(self: JacLangServer, file_path: str) -> None {
         # Cancel existing debounce timer for this file

@@ -145,13 +145,23 @@ def did_delete_files(ls: JacLangServer, params: lspt.DeleteFilesParams) -> None 
 )
 async def completion(
     ls: JacLangServer, params: lspt.CompletionParams
-) -> lspt.CompletionList {
-    debug(ls, "Waiting for compilation to finish...");
-    global still_compiling;
-    while still_compiling {
+) -> lspt.CompletionList{
+    file_path = params.text_document.uri;
+    debug(ls, f"Waiting for any pending debounce or type check for {file_path}...");
+
+    while True{
+        debounce_active = ls.is_debounce_active(file_path);
+        thread_active = ls.is_type_check_thread_active(file_path);
+
+        # Break only when both debounce and type-check threads are done
+        if (not debounce_active) and (not thread_active) {
+            break;
+        }
+
         await asyncio.sleep(0.1);
     }
-    debug(ls, "Compilation finished, providing completions...");
+
+    debug(ls, f"All checks done for {file_path}, providing completions...");
     return ls.get_completion(
         params.text_document.uri,
         params.position,
