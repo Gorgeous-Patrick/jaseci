@@ -118,10 +118,6 @@ class ExecutionContext:
         """Get current root."""
         return cast(Root, self.root_state.archetype)
 
-    def global_system_root(self) -> NodeAnchor:
-        """Get global system root."""
-        return self.system_root
-
 
 class JacAccessValidation:
     """Jac Access Validation Specs."""
