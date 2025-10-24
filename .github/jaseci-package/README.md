@@ -1,4 +1,4 @@
-# Jaseci 
+# Jaseci
 ### Complete AI-Native Programming Ecosystem
 
 Jaseci is a meta-package that provides a unified installation for the complete Jaseci ecosystem.
@@ -8,7 +8,7 @@ Jaseci is a meta-package that provides a unified installation for the complete J
 When you install `jaseci`, you automatically get:
 
 - **jaclang** - The Jac programming language
-- **byllm** - LLM integration for AI-native programming  
+- **byllm** - LLM integration for AI-native programming
 - **jac-cloud** - Cloud deployment and scaling capabilities
 - **jac-streamlit** - Streamlit integration for visualization
 
