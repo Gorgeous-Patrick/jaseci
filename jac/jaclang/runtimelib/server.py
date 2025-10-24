@@ -281,8 +281,8 @@ class ModuleIntrospector:
     _bundle_builder: ClientBundleBuilder = field(
         default_factory=ClientBundleBuilder, init=False
     )
-    _function_access: dict[str, str] = field(default_factory=dict, init=False)
-    _walker_access: dict[str, str] = field(default_factory=dict, init=False)
+    _function_access: dict[str, bool] = field(default_factory=dict, init=False)
+    _walker_access: dict[str, bool] = field(default_factory=dict, init=False)
 
     def load(self, force_reload: bool = False) -> None:
         """Load module and refresh caches."""
@@ -351,28 +351,20 @@ class ModuleIntrospector:
             # Top-level abilities (functions) - note: Ability uses 'name_ref' not 'name'
             if isinstance(item, uni.Ability) and hasattr(item, "name_ref"):
                 func_name = item.name_ref.sym_name
-                access_type = (
-                    str(item.access_type.value)
-                    if hasattr(item, "access_type")
-                    else "public"
-                )
-                self._function_access[func_name] = access_type
+                # Store whether auth is required: True for protected/private, False for public
+                self._function_access[func_name] = not item.public_access
 
             # Walkers (which are archetypes)
             elif isinstance(item, uni.Archetype) and hasattr(item, "name"):
                 # Check if it's a walker by checking if it's a subclass of WalkerArchetype
                 arch_name = item.name.sym_name
-                access_type = (
-                    str(item.access_type.value)
-                    if hasattr(item, "access_type")
-                    else "public"
-                )
 
                 # Try to get the actual class from the module to check if it's a walker
                 if hasattr(self._module, arch_name):
                     cls = getattr(self._module, arch_name)
                     if isinstance(cls, type) and issubclass(cls, WalkerArchetype):
-                        self._walker_access[arch_name] = access_type
+                        # Store whether auth is required: True for protected/private, False for public
+                        self._walker_access[arch_name] = not item.public_access
 
     def _collect_functions(self) -> dict[str, Callable[..., Any]]:
         """Collect callable functions from module."""
@@ -564,8 +556,8 @@ class ModuleIntrospector:
         Public functions: no authentication required
         Protected/Private functions: authentication required
         """
-        access = self._function_access.get(func_name, "public")
-        return access in ("protected", "private")
+        # _function_access stores: True = auth required, False = public (no auth)
+        return self._function_access.get(func_name, False)
 
     def is_auth_required_for_walker(self, walker_name: str) -> bool:
         """Check if authentication is required for a walker based on its access level.
@@ -573,8 +565,8 @@ class ModuleIntrospector:
         Public walkers: no authentication required
         Protected/Private walkers: authentication required
         """
-        access = self._walker_access.get(walker_name, "public")
-        return access in ("protected", "private")
+        # _walker_access stores: True = auth required, False = public (no auth)
+        return self._walker_access.get(walker_name, False)
 
     def _collect_client_globals(self) -> dict[str, Any]:
         """Collect client-exposed global values."""

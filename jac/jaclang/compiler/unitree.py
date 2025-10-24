@@ -573,6 +573,10 @@ class AstAccessNode(UniNode):
             )
         )
 
+    @property
+    def public_access(self) -> bool:
+        return self.access_type == SymbolAccess.PUBLIC
+
 
 T = TypeVar("T", bound=UniNode)
 
