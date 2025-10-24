@@ -3,7 +3,11 @@ cl import from jac:client_runtime {
     jacLogin,
     jacLogout,
     jacSignup,
-    renderJsxTree,
+    createRouter,
+    Route,
+    Link,
+    navigate,
+    createState,
 }
 
 
@@ -229,67 +233,15 @@ walker load_feed(visit_profile) {
 
 # Client-side UI Components (marked with 'cl' for browser execution)
 # ===================================================================
- # Client-side router state - using a global object to hold state
- cl let appState: dict =
-{"current_route" : "login" , "tweets" : [] , "loading" : False };
+
+# Reactive state management
+cl let [appState, setAppState] = createState({
+    "tweets": [],
+    "loading": False
+});
 
 
-# Router helper functions
-cl def navigate_to(route: str) -> None {
-    console.log("Navigating to:", route);
-    appState["current_route"] = route;
-    window.history.pushState({}, "", "#" + route);
-    # Call render_app asynchronously
-    render_app();
-# Fire and forget - browser will handle the async
- }
-
-
-cl def render_app()  -> None {
-    console.log("render_app called, route:", appState.get("current_route", "unknown"));
-    root_element = document.getElementById("__jac_root");
-    if root_element {
-        component = App();
-        console.log("Rendering component to root");
-        renderJsxTree(component, root_element);
-        console.log("Render complete");
-    }
-}
-
-
-cl def get_current_route()  -> str {
-    return appState.get("current_route", "login");
-}
-
-
-# Handle browser back/forward buttons
-cl def handle_popstate(event: any) -> None {
-    hash = window.location.hash;
-    if hash {
-        appState["current_route"] = hash[1:];
-    # Remove the '#'
-     } else {
-        appState["current_route"] = "login";
-    }
-    render_app();
-}
-
-
-# Initialize route from URL hash
-cl def init_router()  -> None {
-    hash = window.location.hash;
-    if hash {
-        appState["current_route"] = hash[1:];
-    # Remove the '#'
-     } else {
-        if jacIsLoggedIn() {
-            appState["current_route"] = "home";
-        } else {
-            appState["current_route"] = "login";
-        }
-    }
-    window.addEventListener("popstate", handle_popstate);
-}
+# Manual routing functions removed - now using reactive createRouter
 
 
 # Shared data model for client/server
@@ -415,13 +367,9 @@ cl def LoginForm()  -> any {
             </button>
         </form>
     <div style={{"marginTop" : "15px" , "textAlign" : "center" }}>
-        <a
-                href="#signup"
-                onclick={go_to_signup}
-                style={
-                {"color" : "#1da1f2" , "textDecoration" : "none" , "cursor" : "pointer" }}>
+        <Link href="/signup">
             Don't have an account? Sign up
-            </a>
+        </Link>
         </div>
     </div>;
 }
@@ -434,7 +382,7 @@ cl async def handle_login(event: any) -> None {
     password = document.getElementById("password").value;
     success = await jacLogin(username, password);
     if success {
-        navigate_to("home");
+        navigate("/home");
     } else {
         alert("Login failed. Please try again.");
     }
@@ -492,41 +440,15 @@ cl def SignupForm()  -> any {
             </button>
         </form>
     <div style={{"marginTop" : "15px" , "textAlign" : "center" }}>
-        <a
-                href="#login"
-                onclick={go_to_login}
-                style={
-                {"color" : "#1da1f2" , "textDecoration" : "none" , "cursor" : "pointer" }}>
+        <Link href="/login">
             Already have an account? Login
-            </a>
+        </Link>
         </div>
     </div>;
 }
 
 
-# Navigation helper functions
-cl def go_to_login(event: any) -> None {
-    event.preventDefault();
-    navigate_to("login");
-}
-
-
-cl def go_to_signup(event: any) -> None {
-    event.preventDefault();
-    navigate_to("signup");
-}
-
-
-cl def go_to_home(event: any) -> None {
-    event.preventDefault();
-    navigate_to("home");
-}
-
-
-cl def go_to_profile(event: any) -> None {
-    event.preventDefault();
-    navigate_to("profile");
-}
+# Navigation helper functions removed - using Link component and navigate() directly
 
 
 # Handle signup form submission
@@ -550,11 +472,11 @@ cl async def handle_signup(event: any) -> None {
     }
     # Use runtime auth function - no need to know about /user/create endpoint!
     result = await jacSignup(username, password);
-    if result.get("success") {
+    if result["success"] if "success" in result else False {
         alert("Account created successfully! Welcome to LittleX!");
-        navigate_to("home");
+        navigate("/home");
     } else {
-        alert(result.get("error", "Signup failed"));
+        alert(result["error"] if "error" in result else "Signup failed");
     }
 }
 
@@ -562,79 +484,50 @@ cl async def handle_signup(event: any) -> None {
 # Handle logout
 cl def logout_action()  -> None {
     jacLogout();
-    navigate_to("login");
+    navigate("/login");
 }
 
 
-# Main App component that handles routing
-cl def App()  -> any {
-    route = get_current_route();
-    nav_bar = build_nav_bar(route);
-    content_view = get_view_for_route(route);
+# Main App component with declarative router
+cl def App() -> any {
+    # Create routes array manually (workaround for JS compiler bug with named args)
+    login_route = {
+        "path": "/login",
+        "component": lambda -> any { return LoginForm(); },
+        "guard": None
+    };
+    signup_route = {
+        "path": "/signup",
+        "component": lambda -> any { return SignupForm(); },
+        "guard": None
+    };
+    home_route = {
+        "path": "/home",
+        "component": lambda -> any { return HomeView(); },
+        "guard": jacIsLoggedIn
+    };
+    profile_route = {
+        "path": "/profile",
+        "component": lambda -> any { return ProfileView(); },
+        "guard": jacIsLoggedIn
+    };
+
+    routes = [login_route, signup_route, home_route, profile_route];
+    router = createRouter(routes, "/login");
+
+    # Get current path for navbar
+    currentPath = router.path();
+
     return <div class="app-container">
-    
-    {nav_bar}
-    {content_view}
-    
+        {build_nav_bar(currentPath)}
+        {router.render()}
     </div>;
-}
-
-
-# Get the view for a given route (handles async)
-cl def get_view_for_route(
-    route: str
-) -> any {
-    if route == "signup" {
-        return SignupForm();
-    }
-    if route == "home" {
-        # For home, return a loading placeholder and load async
-         return HomeViewLoader();
-    }
-    if route == "profile" {
-        return ProfileView();
-    }
-    # Default to login
-     return LoginForm();
-}
-
-
-# Loader component for home view that handles async loading
-cl def HomeViewLoader()  -> any {
-    # Trigger async load
-    load_home_view();
-    # Return loading state
-     return <div
-        style={
-        {"textAlign" : "center" , "padding" : "50px" , "fontFamily" : "sans-serif" }}>
-    <h2>
-        Loading feed...
-        </h2>
-    </div>;
-}
-
-
-# Async function to load and render home view
-cl async def load_home_view()  -> None {
-    view = await HomeView();
-    root = document.getElementById("__jac_root");
-    if root {
-        renderJsxTree(
-            <div class="app-container">
-            
-            {build_nav_bar("home")}
-            {view}
-            
-            </div>,
-            root
-        );
-    }
 }
 
 
 # Helper to build navigation bar
 cl def build_nav_bar(route: str) -> any {
-    if not jacIsLoggedIn() or route == "login" or route == "signup" {
+    if not jacIsLoggedIn() or route == "/login" or route == "/signup" {
         return None;
     }
     return <nav
@@ -643,20 +536,16 @@ cl def build_nav_bar(route: str) -> any {
     <div
             style={
             {"maxWidth" : "600px" , "margin" : "0 auto" , "display" : "flex" , "gap" : "20px" , "alignItems" : "center" }}>
-        <a
-                href="#home"
-                onclick={go_to_home}
-                style={
-                {"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold" , "cursor" : "pointer" }}>
-            Home
-            </a>
-        <a
-                href="#profile"
-                onclick={go_to_profile}
-                style={
-                {"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold" , "cursor" : "pointer" }}>
-            Profile
-            </a>
+        <Link href="/home">
+            <span style={{"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold"}}>
+                Home
+            </span>
+        </Link>
+        <Link href="/profile">
+            <span style={{"color" : "white" , "textDecoration" : "none" , "fontWeight" : "bold"}}>
+                Profile
+            </span>
+        </Link>
         <button
                 onclick={logout_action}
                 style={
@@ -668,51 +557,27 @@ cl def build_nav_bar(route: str) -> any {
 }
 
 
-# Home view (async version of littlex_home)
-cl async def HomeView()  -> any {
+# Home view - simplified for testing reactive routing
+cl def HomeView() -> any {
     if not jacIsLoggedIn() {
-        navigate_to("login");
-        return <div>
-        </div>;
+        navigate("/login");
+        return <div></div>;
     }
-    try {
-        # Call load_feed walker directly - compiler transforms to __jacCallFunction!
-        result = await load_feed();
-        # Transform walker results to ClientTweet objects
-        tweets = [];
-        if result and result.reports and result.reports.length > 0 {
-            feed_data = result.reports[0];
-            for item in feed_data {
-                if item.Tweet_Info {
-                    tweet_info = item.Tweet_Info;
-                    tweets.append(
-                        ClientTweet(
-                            username=tweet_info.username,
-                            id=tweet_info.id,
-                            content=tweet_info.content,
-                            likes=tweet_info.likes,
-                            comments=tweet_info.comments
-                        )
-                    );
-                }
-            }
-        }
-        return FeedView(tweets);
-    } except Exception as e {
-        return <div style={{"padding" : "20px" , "color" : "red" }}>
-        Error loading feed:
-        {String(e)}
-        </div>;
-    }
+
+    return <div style={{"textAlign" : "center" , "padding" : "50px" , "fontFamily" : "sans-serif"}}>
+        <h1>Home Feed</h1>
+        <p>Welcome to LittleX! This is the home page.</p>
+        <p>The reactive router is working!</p>
+    </div>;
 }
 
 
+
 # Profile view
-cl def ProfileView()  -> any {
+cl def ProfileView() -> any {
     if not jacIsLoggedIn() {
-        navigate_to("login");
-        return <div>
-        </div>;
+        navigate("/login");
+        return <div></div>;
     }
     return <div
         class="profile-container"
@@ -732,8 +597,7 @@ cl def ProfileView()  -> any {
 }
 
 
-# Main SPA entry point - this is what gets called when the page loads
-cl def littlex_app()  -> any {
-    init_router();
+# Main SPA entry point - simplified with reactive routing
+cl def littlex_app() -> any {
     return App();
 }

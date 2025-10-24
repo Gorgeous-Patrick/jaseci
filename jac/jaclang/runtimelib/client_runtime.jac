@@ -24,6 +24,11 @@ def __buildDom(node: any) -> any {
     tag = node.get("tag");
     if __isFunction(tag) {
         props = node.get("props", {});
+        children = node.get("children", []);
+        # Merge children into props for component
+        if children and children.length > 0 {
+            props["children"] = children;
+        }
         return __buildDom(tag(props));
     }
 
@@ -60,14 +65,336 @@ def __applyProp(element: any, key: str, value: any) -> None {
     } elif key == "style" and __isObject(value) {
         # Style object
         for styleKey in __objectKeys(value) {
-            element.style[styleKey] = value.get(styleKey);
+            element.style[styleKey] = value[styleKey];
         }
     } elif key != "children" {
         element.setAttribute(key, String(value));
     }
 }
 
+# ============================================================================
+# Reactive State Management System
+# ============================================================================
+
+# Global reactive context for managing signals, effects, and re-renders
+let __jacReactiveContext = {
+    "signals": [],              # Global signal storage (enables closures)
+    "pendingRenders": [],       # Batched re-renders queue
+    "flushScheduled": False,    # Debounce flag for batching
+    "rootComponent": None,      # Root function to re-render
+    "currentComponent": None,   # Current component ID being rendered
+    "currentEffect": None,      # Current effect for dependency tracking
+    "router": None             # Global router instance
+};
+
+# Create a reactive signal (primitive value)
+# Returns [getter, setter] tuple for reactive primitive value
+def createSignal(initialValue: any) -> list {
+    signalId = __jacReactiveContext.signals.length;
+    signalData = {"value": initialValue, "subscribers": []};
+    __jacReactiveContext.signals.push(signalData);
+
+    def getter() -> any {
+        __jacTrackDependency(signalData.subscribers);
+        return signalData.value;
+    }
+
+    def setter(newValue: any) -> None {
+        if newValue != signalData.value {
+            signalData.value = newValue;
+            __jacNotifySubscribers(signalData.subscribers);
+        }
+    }
+
+    return [getter, setter];
+}
+
+# Create reactive state (object/dict)
+# Returns [getter, setter] tuple for reactive object
+def createState(initialState: dict) -> list {
+    signalId = __jacReactiveContext.signals.length;
+    signalData = {"value": initialState, "subscribers": []};
+    __jacReactiveContext.signals.push(signalData);
+
+    def getter() -> dict {
+        __jacTrackDependency(signalData.subscribers);
+        return signalData.value;
+    }
+
+    def setter(updates: dict) -> None {
+        # Shallow merge
+        newState = {};
+        stateValue = signalData.value;
+        for key in __objectKeys(stateValue) {
+            newState[key] = stateValue[key];
+        }
+        for key in __objectKeys(updates) {
+            newState[key] = updates[key];
+        }
+        signalData.value = newState;
+        __jacNotifySubscribers(signalData.subscribers);
+    }
+
+    return [getter, setter];
+}
+
+# Run effect when dependencies change
+# Executes effectFn and re-runs when tracked signals change
+def createEffect(effectFn: any) -> None {
+    __jacRunEffect(effectFn);
+}
+
+# Internal: Track component dependencies
+def __jacTrackDependency(subscribers: list) -> None {
+    currentEffect = __jacReactiveContext.currentEffect;
+    if currentEffect {
+        alreadySubscribed = False;
+        for sub in subscribers {
+            if sub == currentEffect {
+                alreadySubscribed = True;
+            }
+        }
+        if not alreadySubscribed {
+            subscribers.push(currentEffect);
+        }
+    }
+
+    currentComponent = __jacReactiveContext.currentComponent;
+    if currentComponent {
+        alreadySubscribed = False;
+        for sub in subscribers {
+            if sub == currentComponent {
+                alreadySubscribed = True;
+            }
+        }
+        if not alreadySubscribed {
+            subscribers.push(currentComponent);
+        }
+    }
+}
+
+# Internal: Notify subscribers of state change
+def __jacNotifySubscribers(subscribers: list) -> None {
+    for subscriber in subscribers {
+        if __isFunction(subscriber) {
+            # It's an effect function - re-run it
+            __jacRunEffect(subscriber);
+        } else {
+            # It's a component ID - schedule re-render
+            __jacScheduleRerender(subscriber);
+        }
+    }
+}
+
+# Internal: Run an effect function with dependency tracking
+def __jacRunEffect(effectFn: any) -> None {
+    previousEffect = __jacReactiveContext.currentEffect;
+    __jacReactiveContext.currentEffect = effectFn;
+
+    try {
+        effectFn();
+    } except Exception as err {
+        console.error("[Jac] Error in effect:", err);
+    }
+
+    __jacReactiveContext.currentEffect = previousEffect;
+}
+
+# Schedule a re-render (batched)
+def __jacScheduleRerender(componentId: any) -> None {
+    pending = __jacReactiveContext.pendingRenders;
+
+    # Check if already scheduled
+    alreadyScheduled = False;
+    for item in pending {
+        if item == componentId {
+            alreadyScheduled = True;
+        }
+    }
+
+    if not alreadyScheduled {
+        pending.push(componentId);
+        __jacScheduleFlush();
+    }
+}
+
+# Schedule a flush of pending renders
+def __jacScheduleFlush() -> None {
+    if not __jacReactiveContext.flushScheduled {
+        __jacReactiveContext.flushScheduled = True;
+
+        # Use requestAnimationFrame for batching, fallback to setTimeout
+        try {
+            requestAnimationFrame(__jacFlushRenders);
+        } except Exception {
+            setTimeout(__jacFlushRenders, 0);
+        }
+    }
+}
+
+# Flush all pending renders
+def __jacFlushRenders() -> None {
+    pending = __jacReactiveContext.pendingRenders;
+    __jacReactiveContext.pendingRenders = [];
+    __jacReactiveContext.flushScheduled = False;
+
+    for componentId in pending {
+        __jacRerenderComponent(componentId);
+    }
+}
+
+# Re-render the root component
+def __jacRerenderComponent(componentId: any) -> None {
+    rootEl = document.getElementById("__jac_root");
+    if not rootEl {
+        return;
+    }
+
+    rootComponent = __jacReactiveContext.rootComponent;
+    if not rootComponent {
+        return;
+    }
+
+    try {
+        previousComponent = __jacReactiveContext.currentComponent;
+        __jacReactiveContext.currentComponent = componentId;
+
+        component = rootComponent();
+        renderJsxTree(component, rootEl);
+
+        __jacReactiveContext.currentComponent = previousComponent;
+    } except Exception as err {
+        console.error("[Jac] Error re-rendering component:", err);
+    }
+}
+
+# ============================================================================
+# Declarative Routing System
+# ============================================================================
+
+# Route configuration object
+obj RouteConfig {
+    has path: str;
+    has component: any;
+    has guard: any = None;
+}
+
+# Create a router instance
+def createRouter(routes: list, defaultRoute: str = "/") -> dict {
+    # Get initial path from hash or use default
+    initialPath = __jacGetHashPath();
+    if not initialPath {
+        initialPath = defaultRoute;
+    }
+
+    # Create reactive signal for current path
+    [currentPath, setCurrentPath] = createSignal(initialPath);
+
+    # Listen to hash changes
+    window.addEventListener("hashchange", lambda event: any -> None {
+        newPath = __jacGetHashPath();
+        if not newPath {
+            newPath = defaultRoute;
+        }
+        setCurrentPath(newPath);
+    });
+
+    # Listen to popstate (back/forward buttons)
+    window.addEventListener("popstate", lambda event: any -> None {
+        newPath = __jacGetHashPath();
+        if not newPath {
+            newPath = defaultRoute;
+        }
+        setCurrentPath(newPath);
+    });
+
+    # Render method - returns component for current route
+    def render() -> any {
+        path = currentPath();  # Track dependency!
+
+        # Find matching route
+        for route in routes {
+            if route.path == path {
+                # Check guard if present
+                if route.guard and not route.guard() {
+                    return <div>Access Denied</div>;
+                }
+                return route.component();
+            }
+        }
+
+        # No match - show 404
+        return <div>404 - Route not found: {path}</div>;
+    }
+
+    # Navigate method
+    def navigateTo(path: str) -> None {
+        window.location.hash = "#" + path;
+        setCurrentPath(path);
+    }
+
+    # Store router in global context
+    router = {
+        "path": currentPath,
+        "render": render,
+        "navigate": navigateTo
+    };
+    __jacReactiveContext.router = router;
+
+    return router;
+}
+
+# Route config factory
+def Route(path: str, component: any, guard: any = None) -> dict {
+    return {"path": path, "component": component, "guard": guard};
+}
+
+# Link component for declarative navigation
+def Link(props: dict) -> any {
+    href = props["href"] if "href" in props else "/";
+    children = props["children"] if "children" in props else [];
+
+    def handleClick(event: any) -> None {
+        console.log("Link clicked, navigating to:", href);
+        event.preventDefault();
+        navigate(href);
+    }
+
+    # Return JSX node manually to properly spread children
+    return __jacJsx("a", {"href": "#" + href, "onclick": handleClick}, children);
+}
+
+# Navigate programmatically
+def navigate(path: str) -> None {
+    console.log("navigate() called with path:", path);
+    router = __jacReactiveContext.router;
+    if router {
+        console.log("Router found, calling router.navigate()");
+        router.navigate(path);
+    } else {
+        console.log("No router, setting hash directly");
+        window.location.hash = "#" + path;
+    }
+}
+
+# Hook to access router in components
+def useRouter() -> dict {
+    return __jacReactiveContext.router;
+}
+
+# Internal: Get current hash path
+def __jacGetHashPath() -> str {
+    hash = window.location.hash;
+    if hash {
+        return hash[1:];  # Remove '#'
+    }
+    return "";
+}
+
+# ============================================================================
 # Walker spawn function
+# ============================================================================
+
 async def __jacSpawn(walker: str, fields: dict = {}) -> any {
     token = __getLocalStorage("jac_token");
 
@@ -462,16 +789,21 @@ def __jacHydrateFromDom(defaultModuleName: str) -> None {
         return;
     }
 
+    # Set up reactive root component for automatic re-rendering
+    __jacReactiveContext.rootComponent = lambda -> any {
+        __jacReactiveContext.currentComponent = "__root__";
+        result = target.apply(scope, orderedArgs);
+        __jacReactiveContext.currentComponent = None;
+        return result;
+    };
+
     renderer = __jacResolveRenderer(scope);
     if not renderer {
         console.warn("[Jac] renderJsxTree is not available in client bundle");
     }
 
-    callOutcome = __jacSafeCallTarget(target, scope, orderedArgs, targetName);
-    if not callOutcome or not callOutcome.get("ok") {
-        return;
-    }
-    value = callOutcome.get("value");
+    # Initial render - call the root component
+    value = __jacReactiveContext.rootComponent();
 
     if value and __isObject(value) and __isFunction(value.then) {
         value.then(
