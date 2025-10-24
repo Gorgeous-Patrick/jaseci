@@ -455,3 +455,98 @@ cl def check_types() {
 
         # Test 8: Ensure balanced syntax
         self.assert_balanced_syntax(js_code, fixture_path)
+
+    def test_hyphenated_package_imports_generate_correct_js(self) -> None:
+        """Test string literal imports for hyphenated package names.
+
+        Validates:
+        - String literal imports work for packages with hyphens (react-dom, styled-components, etc.)
+        - Named imports: import from "react-dom" { render }
+        - Default imports: import from "styled-components" { default as styled }
+        - Namespace imports: import from "react-dom" { * as ReactDOM }
+        - Mixed imports: import from "react-dom" { default as RD, createPortal }
+        """
+        fixture_path = self.get_fixture_path("hyphenated_imports.jac")
+        js_code = self.compile_fixture_to_js(fixture_path)
+
+        # Test 1: react-dom named imports
+        self.assertIn(
+            'import { render, hydrate } from "react-dom";',
+            js_code,
+            "String literal import should generate: import { render, hydrate } from 'react-dom';"
+        )
+
+        # Test 2: react-dom named import with alias
+        self.assertIn(
+            'import { render as renderDOM } from "react-dom";',
+            js_code,
+            "String literal import with alias should work"
+        )
+
+        # Test 3: react-dom namespace import
+        self.assertIn(
+            'import * as ReactDOM from "react-dom";',
+            js_code,
+            "String literal namespace import should generate: import * as ReactDOM from 'react-dom';"
+        )
+
+        # Test 4: react-dom default import
+        self.assertIn(
+            'import ReactDOMDefault from "react-dom";',
+            js_code,
+            "String literal default import should generate: import ReactDOMDefault from 'react-dom';"
+        )
+
+        # Test 5: react-dom mixed default and named
+        self.assertIn(
+            'import RD, { createPortal } from "react-dom";',
+            js_code,
+            "String literal mixed import should generate: import RD, { createPortal } from 'react-dom';"
+        )
+
+        # Test 6: styled-components default import
+        self.assertIn(
+            'import styled from "styled-components";',
+            js_code,
+            "String literal import should work for styled-components"
+        )
+
+        # Test 7: date-fns multiple named imports
+        self.assertIn(
+            'import { format, parse, addDays } from "date-fns";',
+            js_code,
+            "String literal import should work for date-fns"
+        )
+
+        # Test 8: react-router-dom multiple named imports
+        self.assertIn(
+            'import { BrowserRouter, Route, Link } from "react-router-dom";',
+            js_code,
+            "String literal import should work for react-router-dom"
+        )
+
+        # Test 9: Regular (non-string) imports still work
+        self.assertIn(
+            'import { useState, useEffect } from "react";',
+            js_code,
+            "Regular imports without string literals should still work"
+        )
+        self.assertIn(
+            'import { map, filter } from "lodash";',
+            js_code,
+            "Regular imports should work alongside string literal imports"
+        )
+
+        # Test 10: Ensure function definitions are generated
+        self.assertIn(
+            "function TestComponent()",
+            js_code,
+            "Client function should be generated"
+        )
+
+        # Test 11: Verify no Python-style imports leaked
+        self.assertNotIn("from react-dom import", js_code, "No Python syntax should appear")
+        self.assertNotIn("from 'react-dom' import", js_code, "No Python syntax should appear")
+
+        # Test 12: Ensure balanced syntax
+        self.assert_balanced_syntax(js_code, fixture_path)

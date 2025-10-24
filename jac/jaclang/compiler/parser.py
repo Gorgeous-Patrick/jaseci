@@ -622,15 +622,18 @@ class JacParser(Transform[uni.Source, uni.Module]):
         def import_path(self, _: None) -> uni.ModulePath:
             """Grammar rule.
 
-            import_path: (NAME COLON)? dotted_name (KW_AS NAME)?
+            import_path: (NAME COLON)? (dotted_name | STRING) (KW_AS NAME)?
             """
             # The grammar can produce: [NAME, COLON, list, KW_AS, NAME]
             # or just: [list, KW_AS, NAME]
             # or just: [list]
+            # or: [NAME, COLON, String, KW_AS, NAME]
+            # or: [String, KW_AS, NAME]
+            # or: [String]
 
             prefix = None
 
-            # Check if first element is a NAME (not a list from dotted_name)
+            # Check if first element is a NAME followed by COLON (prefix case)
             if (
                 self.cur_nodes
                 and isinstance(self.cur_nodes[0], uni.Name)
@@ -642,8 +645,15 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 prefix = self.consume(uni.Name)
                 self.consume_token(Tok.COLON)
 
-            # Now consume the dotted_name list
-            valid_path = self.extract_from_list(self.consume(list), uni.Name)
+            # Now consume either String or dotted_name list
+            # Check if we have a String node first
+            if self.cur_nodes and isinstance(self.cur_nodes[0], uni.String):
+                # Handle string literal import path
+                string_node = self.consume(uni.String)
+                valid_path = [string_node]
+            else:
+                # Handle dotted_name list
+                valid_path = self.extract_from_list(self.consume(list), uni.Name)
 
             # Check for optional alias
             alias = self.consume(uni.Name) if self.match_token(Tok.KW_AS) else None

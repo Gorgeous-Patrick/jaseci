@@ -1327,7 +1327,7 @@ class ModulePath(UniNode):
 
     def __init__(
         self,
-        path: Optional[Sequence[Name]],
+        path: Optional[Sequence[Name | String]],
         level: int,
         alias: Optional[Name],
         kid: Sequence[UniNode],
@@ -1350,6 +1350,9 @@ class ModulePath(UniNode):
     @property
     def dot_path_str(self) -> str:
         """Get path string."""
+        if self.path and len(self.path) == 1 and isinstance(self.path[0], String):
+            # Handle string literal import path
+            return ("." * self.level) + self.path[0].lit_value
         return ("." * self.level) + ".".join(
             [p.value for p in self.path] if self.path else []
         )
