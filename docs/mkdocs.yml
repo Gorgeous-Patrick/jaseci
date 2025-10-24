@@ -154,7 +154,7 @@ nav:
       - Content Pieces: "communityhub/content_pieces.md"
     - Internals:
       - JSX 'Project OneLang' Design Doc: "internals/jsx_client_serv_design.md"
-      - Jac Client Import Patterns Proposal: "internals/jac_import_patterns_proposal.md"
+      - Jac Client Import Patterns Proposal: "internals/jac_import_patterns.md"
       - Lang Ref Coverage: "internals/refs_coverage_report.md"
       - Roadmap: "communityhub/roadmap.md"
       - Design Docs and Guides:
