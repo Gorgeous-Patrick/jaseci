@@ -159,6 +159,7 @@ nav:
       - Roadmap: "communityhub/roadmap.md"
       - Design Docs and Guides:
         - Compiler/Runtime Design: "internals/internals.md"
+        - Language Evolution - Transparent Runtime: "internals/language_evolution_transparent_runtime.md"
         - Static Compilation:
           - Sym Table Design Docs:
             - "internals/symbol_tables/index.md"
