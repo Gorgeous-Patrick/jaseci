@@ -1,5 +1,7 @@
 """Unit test utilities for JacLangServer."""
 
+from __future__ import annotations
+
 import os
 import tempfile
 from typing import Optional
@@ -53,7 +55,7 @@ class TestFile:
     version: int = 1
     
     @classmethod
-    def from_template(cls, template_name: str, content: str = "") -> "TestFile":
+    def from_template(cls, template_name: str, content: str = "") -> TestFile:
         """Create a test file from a template."""
         code = load_jac_template(cls._get_template_path(template_name), content)
         temp_path = create_temp_jac_file(code)
