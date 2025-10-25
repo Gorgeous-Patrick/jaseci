@@ -550,3 +550,225 @@ cl def check_types() {
 
         # Test 12: Ensure balanced syntax
         self.assert_balanced_syntax(js_code, fixture_path)
+
+    def test_fstring_simple_variable_interpolation(self) -> None:
+        """Test that f-strings with simple variable interpolation generate correct template literals."""
+        jac_code = '''"""Test f-string with simple variables."""
+
+cl def greet_user(name: str, age: int) -> str {
+    return f"Hello, {name}! You are {age} years old.";
+}
+'''
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as tmp:
+            tmp.write(jac_code)
+            tmp.flush()
+            temp_path = tmp.name
+
+        try:
+            js_code = self.compile_fixture_to_js(temp_path)
+
+            # Test 1: Function should be generated
+            self.assertIn("function greet_user", js_code, "Function should be generated")
+
+            # Test 2: Template literal with backticks should be present
+            self.assertIn("`", js_code, "Template literal should use backticks")
+
+            # Test 3: Variable interpolation with ${} syntax
+            self.assertIn("${name}", js_code, "name variable should be interpolated with ${}")
+            self.assertIn("${age}", js_code, "age variable should be interpolated with ${}")
+
+            # Test 4: Text parts should be present
+            self.assertIn("Hello,", js_code, "Static text should be present")
+            self.assertIn("You are", js_code, "Static text should be present")
+            self.assertIn("years old.", js_code, "Static text should be present")
+
+            # Test 5: No string concatenation with + should be present for f-strings
+            # The function should use template literal, not concatenation
+            lines = [l.strip() for l in js_code.split('\n') if 'return' in l and '`' in l]
+            if lines:
+                return_line = lines[0]
+                # Ensure it's a single template literal, not concatenation
+                self.assertIn("`Hello, ${name}! You are ${age} years old.`", return_line,
+                              "F-string should generate single template literal")
+
+            # Test 6: Ensure balanced syntax
+            self.assert_balanced_syntax(js_code, temp_path)
+        finally:
+            os.unlink(temp_path)
+
+    def test_fstring_with_expressions(self) -> None:
+        """Test that f-strings with expressions generate correct template literals."""
+        jac_code = '''"""Test f-string with expressions."""
+
+cl def calculate_message(x: int, y: int) -> str {
+    return f"The sum of {x} and {y} is {x + y}";
+}
+
+cl def conditional_message(score: int) -> str {
+    return f"Score: {score}, Status: {score >= 60}";
+}
+'''
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as tmp:
+            tmp.write(jac_code)
+            tmp.flush()
+            temp_path = tmp.name
+
+        try:
+            js_code = self.compile_fixture_to_js(temp_path)
+
+            # Test 1: Functions should be generated
+            self.assertIn("function calculate_message", js_code, "Function should be generated")
+            self.assertIn("function conditional_message", js_code, "Function should be generated")
+
+            # Test 2: Template literals should be present
+            self.assertIn("`", js_code, "Template literals should use backticks")
+
+            # Test 3: Expression interpolation with ${} syntax
+            self.assertIn("${x}", js_code, "x variable should be interpolated")
+            self.assertIn("${y}", js_code, "y variable should be interpolated")
+            self.assertIn("${x + y}", js_code, "Expression x + y should be interpolated")
+
+            # Test 4: Complex expression interpolation
+            self.assertIn("${score}", js_code, "score variable should be interpolated")
+            self.assertIn("${score >= 60}", js_code, "Comparison expression should be interpolated")
+
+            # Test 5: Static text parts should be present
+            self.assertIn("The sum of", js_code, "Static text should be present")
+            self.assertIn("and", js_code, "Static text should be present")
+            self.assertIn("is", js_code, "Static text should be present")
+            self.assertIn("Score:", js_code, "Static text should be present")
+            self.assertIn("Status:", js_code, "Static text should be present")
+
+            # Test 6: Ensure balanced syntax
+            self.assert_balanced_syntax(js_code, temp_path)
+        finally:
+            os.unlink(temp_path)
+
+    def test_fstring_advanced_fixture_template_literals(self) -> None:
+        """Test that the advanced fixture's f-strings generate proper template literals."""
+        js_code = self.compile_fixture_to_js(self.ADVANCED_FIXTURE)
+
+        # Test 1: Template literal examples function should exist
+        self.assertIn("function template_literal_examples", js_code,
+                     "template_literal_examples function should be generated")
+
+        # Test 2: Template literals should be present (backticks)
+        template_literal_count = js_code.count("`")
+        self.assertGreaterEqual(template_literal_count, 2,
+                               "Should have at least one template literal (2 backticks)")
+
+        # Test 3: Template literal interpolation syntax should be present
+        self.assertIn("${", js_code, "Template literal interpolation ${} should be present")
+
+        # Test 4: Specific f-string from fixture should be converted correctly
+        # f"{user} scored {score} which is a {status}" should become
+        # `${user} scored ${score} which is a ${status}`
+        self.assertIn("${user}", js_code, "user variable should be interpolated")
+        self.assertIn("${score}", js_code, "score variable should be interpolated")
+        self.assertIn("${status}", js_code, "status variable should be interpolated")
+
+        # Test 5: Verify the correct structure exists somewhere in the output
+        # Should have: `${user} scored ${score} which is a ${status}`
+        self.assertIn("scored", js_code, "Static text 'scored' should be present")
+        self.assertIn("which is a", js_code, "Static text 'which is a' should be present")
+
+    def test_fstring_edge_cases(self) -> None:
+        """Test f-string edge cases: empty, text-only, expression-only."""
+        jac_code = '''"""Test f-string edge cases."""
+
+cl def test_edge_cases() -> dict {
+    let name = "Alice";
+    let value = 42;
+
+    # Text only (no interpolation)
+    let text_only = f"This is just plain text";
+
+    # Expression only (no static text)
+    let expr_only = f"{value}";
+
+    # Multiple consecutive expressions
+    let consecutive = f"{name}{value}";
+
+    # Mixed with spaces
+    let mixed = f"Name: {name}, Value: {value}";
+
+    return {"text": text_only, "expr": expr_only, "cons": consecutive, "mixed": mixed};
+}
+'''
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as tmp:
+            tmp.write(jac_code)
+            tmp.flush()
+            temp_path = tmp.name
+
+        try:
+            js_code = self.compile_fixture_to_js(temp_path)
+
+            # Test 1: Function should be generated
+            self.assertIn("function test_edge_cases", js_code, "Function should be generated")
+
+            # Test 2: Template literals should be present
+            self.assertIn("`", js_code, "Template literals should use backticks")
+
+            # Test 3: Text-only f-string should become template literal
+            self.assertIn("`This is just plain text`", js_code,
+                         "Text-only f-string should become simple template literal")
+
+            # Test 4: Expression-only f-string should become template literal with interpolation
+            self.assertIn("`${value}`", js_code,
+                         "Expression-only f-string should become template literal with ${}")
+
+            # Test 5: Multiple consecutive expressions should work
+            self.assertIn("`${name}${value}`", js_code,
+                         "Consecutive expressions should be properly interpolated")
+
+            # Test 6: Mixed text and expressions should work
+            self.assertIn("Name:", js_code, "Static text should be present")
+            self.assertIn("Value:", js_code, "Static text should be present")
+            self.assertIn("${name}", js_code, "Variables should be interpolated")
+            self.assertIn("${value}", js_code, "Variables should be interpolated")
+
+            # Test 7: Ensure balanced syntax
+            self.assert_balanced_syntax(js_code, temp_path)
+        finally:
+            os.unlink(temp_path)
+
+    def test_fstring_no_concatenation_operators(self) -> None:
+        """Test that f-strings don't generate string concatenation with + operators."""
+        jac_code = '''"""Test that f-strings use template literals, not concatenation."""
+
+cl def format_message(user: str, count: int) -> str {
+    return f"User {user} has {count} items";
+}
+'''
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as tmp:
+            tmp.write(jac_code)
+            tmp.flush()
+            temp_path = tmp.name
+
+        try:
+            js_code = self.compile_fixture_to_js(temp_path)
+
+            # Test 1: Template literal should be present
+            self.assertIn("`", js_code, "Template literal should be present")
+            self.assertIn("${user}", js_code, "user should be interpolated")
+            self.assertIn("${count}", js_code, "count should be interpolated")
+
+            # Test 2: The return statement should NOT use string concatenation
+            # Find the return statement
+            return_statements = [line for line in js_code.split('\n') if 'return' in line]
+            fstring_returns = [line for line in return_statements if '${' in line]
+
+            if fstring_returns:
+                # Check that the f-string return doesn't have + operators for concatenation
+                for ret_line in fstring_returns:
+                    # Allow + for expressions inside ${}, but not for string concatenation
+                    # The line should use a single template literal, not "string" + var + "string"
+                    # Count backticks - should be exactly 2 (opening and closing)
+                    backtick_count = ret_line.count("`")
+                    self.assertEqual(backtick_count, 2,
+                                   f"Return with f-string should use single template literal, got: {ret_line}")
+
+            # Test 3: Ensure balanced syntax
+            self.assert_balanced_syntax(js_code, temp_path)
+        finally:
+            os.unlink(temp_path)

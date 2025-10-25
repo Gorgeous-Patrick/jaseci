@@ -1959,37 +1959,98 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
         str_lit = self.sync_loc(es.Literal(value=value, raw=raw_value), jac_node=node)
         node.gen.es_ast = str_lit
 
+    def exit_formatted_value(self, node: uni.FormattedValue) -> None:
+        """Process formatted value in f-string."""
+        # Get the expression being formatted
+        expr = (
+            node.format_part.gen.es_ast
+            if node.format_part.gen.es_ast
+            else self.sync_loc(es.Literal(value=""), jac_node=node.format_part)
+        )
+
+        # For JavaScript template literals, we just need the expression
+        # Conversion and format specs are not directly supported in JS template literals
+        # but we can wrap with String() for type coercion if needed
+        node.gen.es_ast = expr
+
     def exit_f_string(self, node: uni.FString) -> None:
         """Process f-string literal as template literal."""
-        # F-strings need to be converted to template literals (backtick strings) in JS
-        # f"Hello {name}" -> `Hello ${name}`
+        # F-strings are converted to JavaScript template literals (backtick strings)
+        # f"Hello {name}!" -> `Hello ${name}!`
 
-        # For now, convert to concatenation of strings and expressions
-        # This is a simplified version - proper template literals would be better
-        parts: list[es.Expression] = []
+        quasis: list[es.TemplateElement] = []
+        expressions: list[es.Expression] = []
 
-        for part in node.parts:
-            if part.gen.es_ast:
-                expr = part.gen.es_ast
-                if isinstance(expr, es.ExpressionStatement):
-                    expr = expr.expression
-                parts.append(expr)
+        for i, part in enumerate(node.parts):
+            is_last = i == len(node.parts) - 1
 
-        if not parts:
-            # Empty f-string
-            node.gen.es_ast = self.sync_loc(es.Literal(value=""), jac_node=node)
-        elif len(parts) == 1:
-            # Single part
-            node.gen.es_ast = parts[0]
-        else:
-            # Multiple parts - concatenate with +
-            result = parts[0]
-            for part in parts[1:]:
-                result = self.sync_loc(
-                    es.BinaryExpression(operator="+", left=result, right=part),
+            if isinstance(part, uni.String):
+                # This is a literal string part
+                value = part.value
+                # Remove surrounding quotes from the string
+                if value.startswith(('"""', "'''")):
+                    value = value[3:-3]
+                elif value.startswith(('"', "'")):
+                    value = value[1:-1]
+
+                # Create a template element with both cooked and raw values
+                elem = self.sync_loc(
+                    es.TemplateElement(
+                        tail=is_last, value={"cooked": value, "raw": value}
+                    ),
+                    jac_node=part,
+                )
+                quasis.append(elem)
+            elif isinstance(part, uni.FormattedValue):
+                # This is an interpolated expression
+                # Need to add an empty quasi before the expression if this is the first part
+                if i == 0 or not isinstance(node.parts[i - 1], uni.String):
+                    empty_elem = self.sync_loc(
+                        es.TemplateElement(tail=False, value={"cooked": "", "raw": ""}),
+                        jac_node=part,
+                    )
+                    quasis.append(empty_elem)
+
+                # Add the expression
+                expr = (
+                    part.gen.es_ast
+                    if part.gen.es_ast
+                    else self.sync_loc(es.Literal(value=""), jac_node=part)
+                )
+                expressions.append(expr)
+
+                # Add empty quasi after if this is the last part
+                if is_last:
+                    empty_elem = self.sync_loc(
+                        es.TemplateElement(tail=True, value={"cooked": "", "raw": ""}),
+                        jac_node=part,
+                    )
+                    quasis.append(empty_elem)
+
+        # Ensure we always have at least one quasi (even if empty)
+        if not quasis:
+            quasis.append(
+                self.sync_loc(
+                    es.TemplateElement(tail=True, value={"cooked": "", "raw": ""}),
                     jac_node=node,
                 )
-            node.gen.es_ast = result
+            )
+
+        # TemplateLiteral must have len(quasis) == len(expressions) + 1
+        # Adjust if needed
+        while len(quasis) < len(expressions) + 1:
+            quasis.append(
+                self.sync_loc(
+                    es.TemplateElement(tail=True, value={"cooked": "", "raw": ""}),
+                    jac_node=node,
+                )
+            )
+
+        template_lit = self.sync_loc(
+            es.TemplateLiteral(quasis=quasis, expressions=expressions),
+            jac_node=node,
+        )
+        node.gen.es_ast = template_lit
 
     def exit_if_else_expr(self, node: uni.IfElseExpr) -> None:
         """Process ternary expression."""
