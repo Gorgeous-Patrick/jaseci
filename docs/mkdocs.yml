@@ -233,6 +233,7 @@ theme:
       quote: octicons/quote-16
 
 markdown_extensions:
+
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.highlight:
@@ -259,6 +260,8 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.superfences
   - tables
+  - mkdocs_graphviz
+
   - toc:
         permalink: "#"
 
@@ -275,6 +278,8 @@ copyright: Copyright &copy; 2025 Jac Hackers Everwhere
 
 extra_javascript:
   - assets/mathjax-config.js
+  - https://unpkg.com/viz.js@2.1.2/viz.js
+  - https://unpkg.com/viz.js@2.1.2/full.render.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
   - https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js
