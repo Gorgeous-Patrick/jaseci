@@ -1638,3 +1638,15 @@ class JacLanguageTests(TestCase):
         self.assertIn("Matched case for value: Berry or Cherry", stdout_value[4])
         self.assertIn("No match found for value: banana", stdout_value[5])
         self.assertIn("No match found for value: mango", stdout_value[6])
+
+    def test_safe_call_operator(self) -> None:
+        """Test safe call operator."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("safe_call_operator", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue().split("\n")
+        self.assertIn("None", stdout_value[0])
+        self.assertIn("Alice", stdout_value[1])
+        self.assertIn("3", stdout_value[2])
+        self.assertIn("None", stdout_value[3])
