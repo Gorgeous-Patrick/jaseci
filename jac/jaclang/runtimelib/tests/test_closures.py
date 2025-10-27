@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from jaclang.runtimelib.client_bundle import ClientBundleBuilder
 from jaclang.runtimelib.machine import JacMachine as Jac
 from jaclang.utils.test import TestCase
 
@@ -25,7 +24,7 @@ class ClosureTests(TestCase):
         fixtures_dir = Path(__file__).parent / "fixtures"
         (module,) = Jac.jac_import("test_closures", str(fixtures_dir))
 
-        builder = ClientBundleBuilder()
+        builder = Jac.get_client_bundle_builder()
         bundle = builder.build(module)
 
         # Print the generated JavaScript for debugging

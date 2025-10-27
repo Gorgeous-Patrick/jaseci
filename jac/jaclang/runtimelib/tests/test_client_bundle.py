@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from jaclang.runtimelib.client_bundle import ClientBundleBuilder
 from jaclang.runtimelib.machine import JacMachine as Jac
 from jaclang.utils.test import TestCase
 
@@ -25,7 +24,7 @@ class ClientBundleBuilderTests(TestCase):
         fixtures_dir = Path(__file__).parent / "fixtures"
         (module,) = Jac.jac_import("client_app", str(fixtures_dir))
 
-        builder = ClientBundleBuilder()
+        builder = Jac.get_client_bundle_builder()
         bundle = builder.build(module)
 
         self.assertIn("function __jacJsx", bundle.code)
@@ -59,7 +58,7 @@ class ClientBundleBuilderTests(TestCase):
         fixtures_dir = Path(__file__).parent / "fixtures"
         (module,) = Jac.jac_import("client_app_with_import", str(fixtures_dir))
 
-        builder = ClientBundleBuilder()
+        builder = Jac.get_client_bundle_builder()
         bundle = builder.build(module)
 
         # Check that client_runtime functions are included in the bundle

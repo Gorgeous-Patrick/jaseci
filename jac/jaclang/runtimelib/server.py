@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Callable, Literal, TypeAlias, get_type_hints
 from urllib.parse import parse_qs, urlparse
 
-from jaclang.runtimelib.client_bundle import ClientBundleBuilder, ClientBundleError
+from jaclang.runtimelib.client_bundle import ClientBundleError
 from jaclang.runtimelib.constructs import (
     Archetype,
     NodeArchetype,
@@ -278,11 +278,14 @@ class ModuleIntrospector:
     _client_manifest: dict[str, Any] = field(default_factory=dict, init=False)
     _bundle: Any = field(default=None, init=False)
     _bundle_error: str | None = field(default=None, init=False)
-    _bundle_builder: ClientBundleBuilder = field(
-        default_factory=ClientBundleBuilder, init=False
-    )
+    _bundle_builder: Any = field(default=None, init=False)
     _function_access: dict[str, bool] = field(default_factory=dict, init=False)
     _walker_access: dict[str, bool] = field(default_factory=dict, init=False)
+
+    def __post_init__(self) -> None:
+        """Initialize bundle builder using plugin system."""
+        # Use plugin system to get bundle builder (allows override)
+        self._bundle_builder = Jac.get_client_bundle_builder()
 
     def load(self, force_reload: bool = False) -> None:
         """Load module and refresh caches."""
