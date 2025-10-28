@@ -53,64 +53,24 @@ class ViteClientBundleBuilder(ClientBundleBuilder):
         mod = Jac.program.mod.hub.get(str(module_path))
         manifest = mod.gen.client_manifest if mod else None
 
-        # Process client imports and track which modules are being bundled
-        import_pieces: list[str] = []
-        bundled_module_names: set[str] = set()
-        if manifest and manifest.imports:
-            for import_name, import_path in manifest.imports.items():
-                bundled_module_names.add(import_name)
-                import_path_obj = Path(import_path)
-                if import_path_obj.suffix == ".js":
-                    # For .js files, read and include as-is
-                    try:
-                        with open(import_path_obj, "r", encoding="utf-8") as f:
-                            js_code = f.read()
-                            import_pieces.append(
-                                f"// Imported .js module: {import_name}"
-                            )
-                            import_pieces.append(js_code)
-                            import_pieces.append("")
-                    except FileNotFoundError:
-                        import_pieces.append(
-                            f"// Warning: Could not find {import_path}"
-                        )
-                elif import_path_obj.suffix == ".jac":
-                    # For .jac files, compile to JS
-                    try:
-                        compiled_js = self._compile_to_js(import_path_obj)
-                        import_pieces.append(
-                            f"// Imported .jac module changed: {import_name}"
-                        )
-                        import_pieces.append(compiled_js)
-                        import_pieces.append("")
-                    except ClientBundleError:
-                        import_pieces.append(
-                            f"// Warning: Could not compile {import_path}"
-                        )
+        # Use base class method to process imports
+        import_pieces, bundled_module_names = self._process_imports(
+            manifest, module_path
+        )
+
         # Compile main module and strip import statements for bundled modules
-        module_js = self._compile_to_js(module_path)
+        module_js, _ = self._compile_to_js(module_path)
         module_js = self._strip_import_statements(module_js, bundled_module_names)
 
-        # compile runtime to js
-        runtime_js = self._compile_to_js(self.runtime_path)
+        # compile runtime to js and add to import_pieces
+        runtime_js, _ = self._compile_to_js(self.runtime_path)
         import_pieces.append(f"// Imported runtime module: {self.runtime_path}")
         import_pieces.append(runtime_js)
         import_pieces.append("")
 
-        client_exports = sorted(dict.fromkeys(manifest.exports)) if manifest else []
-
-        client_globals_map: dict[str, Any] = {}
-        if manifest:
-            for name in manifest.globals:
-                if name in manifest.globals_values:
-                    client_globals_map[name] = manifest.globals_values[name]
-                elif hasattr(module, name):
-                    client_globals_map[name] = getattr(module, name)
-                else:
-                    client_globals_map[name] = None
-        client_globals_map = {
-            key: client_globals_map[key] for key in sorted(client_globals_map)
-        }
+        # Use base class methods to extract exports and globals
+        client_exports = self._extract_client_exports(manifest)
+        client_globals_map = self._extract_client_globals(manifest, module)
 
         bundle_pieces = []
 

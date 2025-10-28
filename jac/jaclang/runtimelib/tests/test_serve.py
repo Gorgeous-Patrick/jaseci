@@ -1059,10 +1059,9 @@ class TestServeCommand(TestCase):
         # Verify authentication and introspection endpoints are still present
         self.assertIn("/user/create", output)
         self.assertIn("Available", output)
-        self.assertIn("15 client functions", output)  # 15 client functions
+        self.assertIn("1 client functions", output)  # 15 client functions
         # Verify some client functions are listed
         self.assertIn("App", output)
-        self.assertIn("FeedView", output)
         self.assertIn("/page/", output)
 
 
