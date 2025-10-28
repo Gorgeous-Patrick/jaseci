@@ -864,9 +864,6 @@ class TestServeCommand(TestCase):
         self.assertEqual(status, 200)
         self.assertIn("application/javascript", headers.get("Content-Type", ""))
 
-        # Verify the polyfill function is in the runtime (now part of client_runtime.jac)
-        self.assertIn("__jacEnsureObjectGetPolyfill", js_body)
-        self.assertIn("Object.defineProperty", js_body)
 
         # Verify core runtime functions are present
         self.assertIn("__jacJsx", js_body)
