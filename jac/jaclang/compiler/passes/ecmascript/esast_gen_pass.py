@@ -31,6 +31,7 @@ from jaclang.compiler.constant import Tokens as Tok
 from jaclang.compiler.passes.ast_gen import BaseAstGenPass
 from jaclang.compiler.passes.ast_gen.jsx_processor import EsJsxProcessor
 from jaclang.compiler.passes.ecmascript.es_unparse import es_to_js
+from jaclang.utils import convert_to_js_import_path
 
 ES_LOGICAL_OPS: dict[Tok, str] = {Tok.KW_AND: "&&", Tok.KW_OR: "||"}
 
@@ -122,41 +123,6 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
         self.client_manifest = ClientManifest()
         self.client_scope_stack: list[bool] = []  # Track client scope nesting
         self.jsx_processor = EsJsxProcessor(self)
-
-    def _convert_to_js_import_path(self, path: str) -> str:
-        """Convert Jac-style import path to JavaScript-style import path.
-
-        Transforms relative paths to be valid JavaScript:
-        - .utils -> ./utils
-        - ..lib -> ../lib
-        - ...config -> ../../config
-        """
-        if not path:
-            return path
-
-        # Count leading dots
-        dot_count = 0
-        for char in path:
-            if char == ".":
-                dot_count += 1
-            else:
-                break
-
-        # If path starts with dots (relative import)
-        if dot_count > 0:
-            # Extract the path after the dots
-            rest_of_path = path[dot_count:]
-
-            # For single dot, we need ./
-            # For multiple dots, convert to ../ patterns
-            if dot_count == 1:
-                return "./" + rest_of_path if rest_of_path else "."
-            else:
-                # Convert multiple dots to ../.. pattern
-                parent_dirs = "../" * (dot_count - 1)
-                return parent_dirs[:-1] + ("/" + rest_of_path if rest_of_path else "")
-
-        return path
 
     def enter_node(self, node: uni.UniNode) -> None:
         """Enter node."""
@@ -383,7 +349,7 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
                 self.client_manifest.has_client = True
 
             # Convert Jac-style path to JavaScript-style path
-            js_import_path = self._convert_to_js_import_path(node.from_loc.dot_path_str)
+            js_import_path = convert_to_js_import_path(node.from_loc.dot_path_str)
 
             source = self.sync_loc(
                 es.Literal(value=js_import_path), jac_node=node.from_loc

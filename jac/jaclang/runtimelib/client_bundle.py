@@ -10,6 +10,7 @@ from types import ModuleType
 from typing import Any, Iterable, NamedTuple, Sequence, TYPE_CHECKING
 
 from jaclang.compiler.program import JacProgram
+from jaclang.utils import convert_to_js_import_path
 
 if TYPE_CHECKING:
     from jaclang.compiler.codeinfo import ClientManifest
@@ -274,37 +275,6 @@ class ClientBundleBuilder:
         return mod.gen.js or "", mod
 
     @staticmethod
-    def _convert_to_js_import_path(path: str) -> str:
-        """Convert Jac-style import path to JavaScript-style import path."""
-        if not path:
-            return path
-
-        # Count leading dots
-        dot_count = 0
-        for char in path:
-            if char == ".":
-                dot_count += 1
-            else:
-                break
-
-        # If path starts with dots (relative import)
-        if dot_count > 0:
-            # Extract the path after the dots
-            rest_of_path = path[dot_count:]
-
-            # For single dot, we need ./
-            if dot_count == 1:
-                return "./" + rest_of_path
-            # For double dot, we need ../
-            elif dot_count == 2:
-                return "../" + rest_of_path
-            # For triple dot and more, add extra ../ for each dot beyond 1
-            else:
-                return ("../" * (dot_count - 1)) + rest_of_path
-
-        return path
-
-    @staticmethod
     def _strip_import_statements(js_code: str, bundled_modules: set[str]) -> str:
         """Remove ES6 import statements for modules that are bundled.
 
@@ -318,10 +288,7 @@ class ClientBundleBuilder:
         import re
 
         # Convert bundled module names to their JS import paths for matching
-        bundled_js_paths = {
-            ClientBundleBuilder._convert_to_js_import_path(mod)
-            for mod in bundled_modules
-        }
+        bundled_js_paths = {convert_to_js_import_path(mod) for mod in bundled_modules}
         # Also keep the original names for backward compatibility
         all_bundled = bundled_modules | bundled_js_paths
 

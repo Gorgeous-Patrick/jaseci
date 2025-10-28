@@ -114,6 +114,48 @@ def resolve_relative_path(target: str, base_path: str) -> str:
     return path
 
 
+def convert_to_js_import_path(path: str) -> str:
+    """Convert Jac-style import path to JavaScript-style import path.
+
+    Transforms relative paths to be valid JavaScript:
+    - .utils -> ./utils
+    - ..lib -> ../lib
+    - ...config -> ../../config
+
+    Args:
+        path: Jac-style import path (potentially with leading dots)
+
+    Returns:
+        JavaScript-style import path
+    """
+    if not path:
+        return path
+
+    # Count leading dots
+    dot_count = 0
+    for char in path:
+        if char == ".":
+            dot_count += 1
+        else:
+            break
+
+    # If path starts with dots (relative import)
+    if dot_count > 0:
+        # Extract the path after the dots
+        rest_of_path = path[dot_count:]
+
+        # For single dot, we need ./
+        # For multiple dots, convert to ../ patterns
+        if dot_count == 1:
+            return "./" + rest_of_path if rest_of_path else "."
+        else:
+            # Convert multiple dots to ../.. pattern
+            parent_dirs = "../" * (dot_count - 1)
+            return parent_dirs[:-1] + ("/" + rest_of_path if rest_of_path else "")
+
+    return path
+
+
 def get_typeshed_paths() -> list[str]:
     """Return the typeshed stubs and stdlib directories if available."""
     # You may want to make this configurable or autodetect

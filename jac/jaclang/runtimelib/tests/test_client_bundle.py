@@ -214,29 +214,29 @@ class ClientBundleBuilderTests(TestCase):
 
     def test_import_path_conversion(self) -> None:
         """Test that Jac-style import paths are converted to JS paths."""
-        from jaclang.runtimelib.client_bundle import ClientBundleBuilder
+        from jaclang.utils import convert_to_js_import_path
 
         # Test single dot (current directory)
         self.assertEqual(
-            ClientBundleBuilder._convert_to_js_import_path(".module"),
+            convert_to_js_import_path(".module"),
             "./module"
         )
 
         # Test double dot (parent directory)
         self.assertEqual(
-            ClientBundleBuilder._convert_to_js_import_path("..module"),
+            convert_to_js_import_path("..module"),
             "../module"
         )
 
         # Test triple dot (grandparent directory)
         self.assertEqual(
-            ClientBundleBuilder._convert_to_js_import_path("...module"),
+            convert_to_js_import_path("...module"),
             "../../module"
         )
 
         # Test absolute import (no dots)
         self.assertEqual(
-            ClientBundleBuilder._convert_to_js_import_path("module"),
+            convert_to_js_import_path("module"),
             "module"
         )
 
