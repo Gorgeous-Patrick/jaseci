@@ -116,10 +116,6 @@ class JacCmd:
 
                 # Create a basic Jac file
                 main_jac_content = """
-cl import from jac:client_runtime {
-    initRouter
-}
-
 # Pages
 cl def HomeView() -> any {
     return <div
