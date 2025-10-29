@@ -74,7 +74,7 @@ class JacSerializer:
                     {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
                 )
 
-        return str(obj) if hasattr(obj, "__str__") else f"<{type(obj).__name__}>"
+        return str(obj)
 
     @staticmethod
     def _serialize_archetype(arch: Archetype) -> dict[str, JsonValue]:
@@ -346,19 +346,19 @@ class ModuleIntrospector:
             return
 
         mod_ast = Jac.program.mod.hub.get(mod_path)
-        if not mod_ast or not hasattr(mod_ast, "body"):
+        if not mod_ast:
             return
 
         # Traverse AST body to find functions and walkers with access levels
         for item in mod_ast.body:
             # Top-level abilities (functions) - note: Ability uses 'name_ref' not 'name'
-            if isinstance(item, uni.Ability) and hasattr(item, "name_ref"):
+            if isinstance(item, uni.Ability) and item.name_ref is not None:
                 func_name = item.name_ref.sym_name
                 # Store whether auth is required: True for protected/private, False for public
                 self._function_access[func_name] = not item.public_access
 
             # Walkers (which are archetypes)
-            elif isinstance(item, uni.Archetype) and hasattr(item, "name"):
+            elif isinstance(item, uni.Archetype):
                 # Check if it's a walker by checking if it's a subclass of WalkerArchetype
                 arch_name = item.name.sym_name
 
