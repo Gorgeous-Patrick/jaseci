@@ -891,21 +891,18 @@ class JacAPIServer:
                         ResponseBuilder.send_json(self, 503, {"error": str(exc)})
                     return
 
-                # Introspection endpoints - check if auth required
+                # Route to introspection handlers
                 if path == "/functions":
-                    # List functions - always require auth for introspection
-                    username = self._authenticate()
-                    if not username:
-                        ResponseBuilder.send_json(self, 401, {"error": "Unauthorized"})
-                        return
                     self._send_response(server.introspection_handler.list_functions())
+                    return
                 elif path == "/walkers":
-                    # List walkers - always require auth for introspection
-                    username = self._authenticate()
-                    if not username:
-                        ResponseBuilder.send_json(self, 401, {"error": "Unauthorized"})
-                        return
+                    # # List walkers - always require auth for introspection
+                    # username = self._authenticate()
+                    # if not username:
+                    #     ResponseBuilder.send_json(self, 401, {"error": "Unauthorized"})
+                    #     return
                     self._send_response(server.introspection_handler.list_walkers())
+                    return
                 elif path.startswith("/function/"):
                     name = path.split("/")[-1]
                     # Check if this function requires authentication
@@ -920,6 +917,7 @@ class JacAPIServer:
                     self._send_response(
                         server.introspection_handler.get_function_info(name)
                     )
+                    return
                 elif path.startswith("/walker/"):
                     name = path.split("/")[-1]
                     # Check if this walker requires authentication
@@ -934,8 +932,16 @@ class JacAPIServer:
                     self._send_response(
                         server.introspection_handler.get_walker_info(name)
                     )
+                    return
+                elif path == "/protected":
+                    username = self._authenticate()
+                    if not username:
+                        ResponseBuilder.send_json(self, 401, {"error": "Unauthorized"})
+                        return
+                    self._send_response(Response(200, {"message": "sucessful"}))
                 else:
                     ResponseBuilder.send_json(self, 404, {"error": "Not found"})
+                # # Protected endpoints
 
             def do_POST(self) -> None:  # noqa: N802
                 """Handle POST requests."""

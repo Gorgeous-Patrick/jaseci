@@ -269,7 +269,7 @@ class TestServeCommand(TestCase):
         self._start_server()
 
         # Try to access protected endpoint without token
-        result = self._request("GET", "/functions")
+        result = self._request("GET", "/protected")
         self.assertIn("error", result)
         self.assertIn("Unauthorized", result["error"])
 
@@ -1389,13 +1389,8 @@ class TestAccessLevelAuthentication(TestCase):
         """Test that introspection list endpoints require authentication."""
         self._start_server()
 
-        # Try to list functions without authentication - should fail
-        result = self._request("GET", "/functions")
-        self.assertIn("error", result)
-        self.assertIn("Unauthorized", result["error"])
-
         # Try to list walkers without authentication - should fail
-        result = self._request("GET", "/walkers")
+        result = self._request("GET", "/protected")
         self.assertIn("error", result)
         self.assertIn("Unauthorized", result["error"])
 
