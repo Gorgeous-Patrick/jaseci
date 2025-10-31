@@ -109,7 +109,9 @@ class JavaScriptGenerationTests(TestCase):
 
         self.assert_balanced_syntax(js_code, self.CORE_FIXTURE)
         self.assert_no_jac_keywords(js_code, self.CORE_FIXTURE)
-        self.assertGreater(len(js_code), 200, "Core fixture generated suspiciously small output")
+        self.assertGreater(
+            len(js_code), 200, "Core fixture generated suspiciously small output"
+        )
 
     def test_advanced_fixture_emits_expected_constructs(self) -> None:
         """Advanced fixture should exercise higher-level Jac features."""
@@ -123,7 +125,7 @@ class JavaScriptGenerationTests(TestCase):
         self.assertIn("function spread_and_rest_examples", js_code)
         self.assertIn("...defaults", js_code)
         self.assertIn("function template_literal_examples", js_code)
-        self.assertIn("score >= 60 ? \"pass\" : \"fail\"", js_code)
+        self.assertIn('score >= 60 ? "pass" : "fail"', js_code)
         self.assertIn("function do_while_simulation", js_code)
         self.assertIn("function build_advanced_report", js_code)
 
@@ -132,7 +134,9 @@ class JavaScriptGenerationTests(TestCase):
 
         self.assert_balanced_syntax(js_code, self.ADVANCED_FIXTURE)
         self.assert_no_jac_keywords(js_code, self.ADVANCED_FIXTURE)
-        self.assertGreater(len(js_code), 150, "Advanced fixture output unexpectedly small")
+        self.assertGreater(
+            len(js_code), 150, "Advanced fixture output unexpectedly small"
+        )
 
     def test_client_fixture_generates_client_bundle(self) -> None:
         """Client-focused fixture should emit JSX-flavoured JavaScript."""
@@ -143,7 +147,9 @@ class JavaScriptGenerationTests(TestCase):
         self.assertIn('__jacJsx("div"', js_code)
         self.assertIn("class ButtonProps", js_code)
         self.assertIn("constructor(props", js_code)
-        self.assertNotIn("server_only", js_code, "Server-only code leaked into client bundle")
+        self.assertNotIn(
+            "server_only", js_code, "Server-only code leaked into client bundle"
+        )
 
         self.assert_balanced_syntax(js_code, self.CLIENT_FIXTURE)
 
@@ -155,11 +161,15 @@ class JavaScriptGenerationTests(TestCase):
         # Ensure representative IIFE constructs are present
         self.assertIn("function get_value()", js_code)
         self.assertIn("function calculate(x, y)", js_code)
-        self.assertIn("}();", js_code, "IIFE invocation pattern missing in generated JS")
+        self.assertIn(
+            "}();", js_code, "IIFE invocation pattern missing in generated JS"
+        )
         self.assertIn("function outer()", js_code)
         # Verify closure is working correctly - count should not be redeclared with 'let'
         # The inner function should access the outer 'count' variable via closure
-        self.assertIn("return () => {\n    count = count + 1;\n    return count;\n  };", js_code)
+        self.assertIn(
+            "return () => {\n    count = count + 1;\n    return count;\n  };", js_code
+        )
         self.assertIn("All client-side IIFE tests completed!", js_code)
 
     def test_cli_js_command_outputs_js(self) -> None:
@@ -189,7 +199,9 @@ class JavaScriptGenerationTests(TestCase):
 
         try:
             js_code = self.compile_fixture_to_js(temp_path)
-            self.assertLess(len(js_code), 100, "Empty file produced unexpectedly large output")
+            self.assertLess(
+                len(js_code), 100, "Empty file produced unexpectedly large output"
+            )
             self.assert_balanced_syntax(js_code, temp_path)
         finally:
             os.unlink(temp_path)
@@ -221,20 +233,28 @@ cl def check_types() {
             js_code = self.compile_fixture_to_js(temp_path)
 
             # Verify typeof operator is present
-            self.assertIn("typeof", js_code, "typeof operator should be present in output")
+            self.assertIn(
+                "typeof", js_code, "typeof operator should be present in output"
+            )
 
             # Verify specific transformations
             self.assertIn("typeof x", js_code, "type(x) should become typeof x")
             self.assertIn("typeof y", js_code, "type(y) should become typeof y")
             self.assertIn("typeof obj", js_code, "type(obj) should become typeof obj")
-            self.assertIn("typeof arr[0]", js_code, "type(arr[0]) should become typeof arr[0]")
+            self.assertIn(
+                "typeof arr[0]", js_code, "type(arr[0]) should become typeof arr[0]"
+            )
 
             # Ensure no type() function calls remain
-            self.assertNotIn("type(", js_code, "No type() calls should remain in JavaScript")
+            self.assertNotIn(
+                "type(", js_code, "No type() calls should remain in JavaScript"
+            )
 
             # Count typeof occurrences - should have exactly 4
             typeof_count = js_code.count("typeof")
-            self.assertEqual(typeof_count, 4, f"Expected 4 typeof occurrences, found {typeof_count}")
+            self.assertEqual(
+                typeof_count, 4, f"Expected 4 typeof occurrences, found {typeof_count}"
+            )
 
             self.assert_balanced_syntax(js_code, temp_path)
         finally:
@@ -257,49 +277,49 @@ cl def check_types() {
         self.assertIn(
             'import { useState } from "react";',
             js_code,
-            "Single named import should generate: import { useState } from 'react';"
+            "Single named import should generate: import { useState } from 'react';",
         )
 
         # Test 2: Multiple named imports
         self.assertIn(
             'import { map, filter, reduce } from "lodash";',
             js_code,
-            "Multiple named imports should generate: import { map, filter, reduce } from 'lodash';"
+            "Multiple named imports should generate: import { map, filter, reduce } from 'lodash';",
         )
 
         # Test 3: Named import with alias
         self.assertIn(
             'import { get as httpGet } from "axios";',
             js_code,
-            "Aliased import should generate: import { get as httpGet } from 'axios';"
+            "Aliased import should generate: import { get as httpGet } from 'axios';",
         )
 
         # Test 4: Mixed named imports and aliases
         self.assertIn(
             'import { createApp, ref as reactive, computed } from "vue";',
             js_code,
-            "Mixed imports should preserve order and aliases"
+            "Mixed imports should preserve order and aliases",
         )
 
         # Test 5: Relative path imports (single dot)
         self.assertIn(
-            'import { helper } from "./utils";',
+            'import { helper } from "./utils.js";',
             js_code,
-            "Relative import with .utils should generate ./utils"
+            "Relative import with .utils should generate ./utils.js",
         )
 
         # Test 6: Relative path imports (double dot)
         self.assertIn(
-            'import { formatter as format } from "../lib";',
+            'import { formatter as format } from "../lib.js";',
             js_code,
-            "Relative import with ..lib should generate ../lib"
+            "Relative import with ..lib should generate ../lib.js",
         )
 
         # Test 7: Relative path imports (triple dot - grandparent)
         self.assertIn(
-            'import { settings } from "../../config";',
+            'import { settings } from "../../config.js";',
             js_code,
-            "Relative import with ...config should generate ../../config"
+            "Relative import with ...config should generate ../../config.js",
         )
 
         # Test 8: Module prefix notation (jac:client_runtime)
@@ -308,19 +328,19 @@ cl def check_types() {
         self.assertIn(
             'import { renderJsxTree, jacLogin, jacLogout } from "client_runtime";',
             js_code,
-            "Module prefix notation resolves to client_runtime"
+            "Module prefix notation resolves to client_runtime",
         )
 
         # Test 9: Ensure function definitions are generated
         self.assertIn(
-            "function example_usage()",
-            js_code,
-            "Client function should be generated"
+            "function example_usage()", js_code, "Client function should be generated"
         )
 
         # Test 10: Verify no Python-style imports leaked
         self.assertNotIn("from react import", js_code, "No Python syntax should appear")
-        self.assertNotIn("from lodash import", js_code, "No Python syntax should appear")
+        self.assertNotIn(
+            "from lodash import", js_code, "No Python syntax should appear"
+        )
 
         # Test 11: Ensure balanced syntax
         self.assert_balanced_syntax(js_code, fixture_path)
@@ -344,49 +364,53 @@ cl def check_types() {
         self.assertIn(
             'import React from "react";',
             js_code,
-            "Default import should generate: import React from 'react';"
+            "Default import should generate: import React from 'react';",
         )
 
         # Test 2: Default import from axios
         self.assertIn(
             'import axios from "axios";',
             js_code,
-            "Default import should generate: import axios from 'axios';"
+            "Default import should generate: import axios from 'axios';",
         )
 
         # Test 3: Default import from vue
         self.assertIn(
             'import Vue from "vue";',
             js_code,
-            "Default import should generate: import Vue from 'vue';"
+            "Default import should generate: import Vue from 'vue';",
         )
 
         # Test 4: Default import with relative path (single dot)
         self.assertIn(
-            'import Button from "./components.Button";',
+            'import Button from "./components.Button.js";',
             js_code,
-            "Relative default import should work with ./ path"
+            "Relative default import should work with ./ path and add .js extension",
         )
 
         # Test 5: Default import with relative path (double dot)
         self.assertIn(
-            'import utils from "../lib.utils";',
+            'import utils from "../lib.utils.js";',
             js_code,
-            "Relative default import should work with ../ path"
+            "Relative default import should work with ../ path and add .js extension",
         )
 
         # Test 6: Ensure function definitions are generated
         self.assertIn(
-            "function example_usage()",
-            js_code,
-            "Client function should be generated"
+            "function example_usage()", js_code, "Client function should be generated"
         )
 
         # Test 7: Verify no named import syntax leaked for defaults
         # Should NOT have: import { React } from "react"
-        self.assertNotIn('import { React }', js_code, "Default should not use named import syntax")
-        self.assertNotIn('import { axios }', js_code, "Default should not use named import syntax")
-        self.assertNotIn('import { Vue }', js_code, "Default should not use named import syntax")
+        self.assertNotIn(
+            "import { React }", js_code, "Default should not use named import syntax"
+        )
+        self.assertNotIn(
+            "import { axios }", js_code, "Default should not use named import syntax"
+        )
+        self.assertNotIn(
+            "import { Vue }", js_code, "Default should not use named import syntax"
+        )
 
         # Test 8: Ensure balanced syntax
         self.assert_balanced_syntax(js_code, fixture_path)
@@ -410,48 +434,50 @@ cl def check_types() {
         self.assertIn(
             'import * as React from "react";',
             js_code,
-            "Namespace import should generate: import * as React from 'react';"
+            "Namespace import should generate: import * as React from 'react';",
         )
 
         # Test 2: Namespace import from lodash
         self.assertIn(
             'import * as _ from "lodash";',
             js_code,
-            "Namespace import should generate: import * as _ from 'lodash';"
+            "Namespace import should generate: import * as _ from 'lodash';",
         )
 
         # Test 3: Namespace import from dateutils
         self.assertIn(
             'import * as DateUtils from "dateutils";',
             js_code,
-            "Namespace import should generate: import * as DateUtils from 'dateutils';"
+            "Namespace import should generate: import * as DateUtils from 'dateutils';",
         )
 
         # Test 4: Namespace import with relative path (single dot)
         self.assertIn(
-            'import * as utils from "./utils";',
+            'import * as utils from "./utils.js";',
             js_code,
-            "Relative namespace import should work with ./ path"
+            "Relative namespace import should work with ./ path and add .js extension",
         )
 
         # Test 5: Namespace import with relative path (double dot)
         self.assertIn(
-            'import * as helpers from "../lib.helpers";',
+            'import * as helpers from "../lib.helpers.js";',
             js_code,
-            "Relative namespace import should work with ../ path"
+            "Relative namespace import should work with ../ path and add .js extension",
         )
 
         # Test 6: Ensure function definitions are generated
         self.assertIn(
-            "function example_usage()",
-            js_code,
-            "Client function should be generated"
+            "function example_usage()", js_code, "Client function should be generated"
         )
 
         # Test 7: Verify no named import syntax leaked for namespace
         # Should NOT have: import { React } from "react"
-        self.assertNotIn('import { * }', js_code, "Namespace should not use braces around *")
-        self.assertNotIn('import { * as', js_code, "Namespace should not have * inside braces")
+        self.assertNotIn(
+            "import { * }", js_code, "Namespace should not use braces around *"
+        )
+        self.assertNotIn(
+            "import { * as", js_code, "Namespace should not have * inside braces"
+        )
 
         # Test 8: Ensure balanced syntax
         self.assert_balanced_syntax(js_code, fixture_path)
@@ -473,83 +499,182 @@ cl def check_types() {
         self.assertIn(
             'import { render, hydrate } from "react-dom";',
             js_code,
-            "String literal import should generate: import { render, hydrate } from 'react-dom';"
+            "String literal import should generate: import { render, hydrate } from 'react-dom';",
         )
 
         # Test 2: react-dom named import with alias
         self.assertIn(
             'import { render as renderDOM } from "react-dom";',
             js_code,
-            "String literal import with alias should work"
+            "String literal import with alias should work",
         )
 
         # Test 3: react-dom namespace import
         self.assertIn(
             'import * as ReactDOM from "react-dom";',
             js_code,
-            "String literal namespace import should generate: import * as ReactDOM from 'react-dom';"
+            "String literal namespace import should generate: import * as ReactDOM from 'react-dom';",
         )
 
         # Test 4: react-dom default import
         self.assertIn(
             'import ReactDOMDefault from "react-dom";',
             js_code,
-            "String literal default import should generate: import ReactDOMDefault from 'react-dom';"
+            "String literal default import should generate: import ReactDOMDefault from 'react-dom';",
         )
 
         # Test 5: react-dom mixed default and named
         self.assertIn(
             'import RD, { createPortal } from "react-dom";',
             js_code,
-            "String literal mixed import should generate: import RD, { createPortal } from 'react-dom';"
+            "String literal mixed import should generate: import RD, { createPortal } from 'react-dom';",
         )
 
         # Test 6: styled-components default import
         self.assertIn(
             'import styled from "styled-components";',
             js_code,
-            "String literal import should work for styled-components"
+            "String literal import should work for styled-components",
         )
 
         # Test 7: date-fns multiple named imports
         self.assertIn(
             'import { format, parse, addDays } from "date-fns";',
             js_code,
-            "String literal import should work for date-fns"
+            "String literal import should work for date-fns",
         )
 
         # Test 8: react-router-dom multiple named imports
         self.assertIn(
             'import { BrowserRouter, Route, Link } from "react-router-dom";',
             js_code,
-            "String literal import should work for react-router-dom"
+            "String literal import should work for react-router-dom",
         )
 
         # Test 9: Regular (non-string) imports still work
         self.assertIn(
             'import { useState, useEffect } from "react";',
             js_code,
-            "Regular imports without string literals should still work"
+            "Regular imports without string literals should still work",
         )
         self.assertIn(
             'import { map, filter } from "lodash";',
             js_code,
-            "Regular imports should work alongside string literal imports"
+            "Regular imports should work alongside string literal imports",
         )
 
         # Test 10: Ensure function definitions are generated
         self.assertIn(
-            "function TestComponent()",
-            js_code,
-            "Client function should be generated"
+            "function TestComponent()", js_code, "Client function should be generated"
         )
 
         # Test 11: Verify no Python-style imports leaked
-        self.assertNotIn("from react-dom import", js_code, "No Python syntax should appear")
-        self.assertNotIn("from 'react-dom' import", js_code, "No Python syntax should appear")
+        self.assertNotIn(
+            "from react-dom import", js_code, "No Python syntax should appear"
+        )
+        self.assertNotIn(
+            "from 'react-dom' import", js_code, "No Python syntax should appear"
+        )
 
         # Test 12: Ensure balanced syntax
         self.assert_balanced_syntax(js_code, fixture_path)
+
+    def test_relative_imports_include_js_extension(self) -> None:
+        """Test that relative imports generate .js extensions for browser compatibility.
+
+        Validates that all relative import paths (./ and ../) include the .js extension
+        which is the browser-level standard for ES modules.
+
+        This test specifically covers:
+        - Single dot relative imports: .utils -> ./utils.js
+        - Double dot relative imports: ..lib -> ../lib.js
+        - Triple dot relative imports: ...config -> ../../config.js
+        - Module names with dots: .components.Button -> ./components.Button.js
+        """
+        jac_code = '''"""Test relative imports with .js extension."""
+
+cl {
+# Single dot relative import
+import from .utils { MessageFormatter }
+
+# Double dot relative import
+import from ..lib { formatter }
+
+# Triple dot relative import
+import from ...config { settings }
+
+# Module name with dots (should still get .js)
+import from .components.Button { Button }
+
+# Using imported functions
+def test_usage() {
+    let formatter = MessageFormatter();
+    return formatter.format("test");
+}
+}
+'''
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as tmp:
+            tmp.write(jac_code)
+            tmp.flush()
+            temp_path = tmp.name
+
+        try:
+            js_code = self.compile_fixture_to_js(temp_path)
+
+            # Test 1: Single dot relative import should have .js extension
+            self.assertIn(
+                'import { MessageFormatter } from "./utils.js";',
+                js_code,
+                "Single dot relative import should generate ./utils.js",
+            )
+
+            # Test 2: Double dot relative import should have .js extension
+            self.assertIn(
+                'import { formatter } from "../lib.js";',
+                js_code,
+                "Double dot relative import should generate ../lib.js",
+            )
+
+            # Test 3: Triple dot relative import should have .js extension
+            self.assertIn(
+                'import { settings } from "../../config.js";',
+                js_code,
+                "Triple dot relative import should generate ../../config.js",
+            )
+
+            # Test 4: Module name with dots should still get .js extension
+            self.assertIn(
+                'import { Button } from "./components.Button.js";',
+                js_code,
+                "Module name with dots should still get .js extension",
+            )
+
+            # Test 5: Ensure function definitions are generated
+            self.assertIn(
+                "function test_usage()", js_code, "Client function should be generated"
+            )
+
+            # Test 6: Verify no imports without .js extension for relative paths
+            # This ensures all relative imports have the extension
+            import_lines = [
+                line
+                for line in js_code.split("\n")
+                if "import" in line and "from" in line
+            ]
+            relative_imports = [
+                line for line in import_lines if "./" in line or "../" in line
+            ]
+            for line in relative_imports:
+                # Each relative import should end with .js" or .js';
+                self.assertTrue(
+                    '.js"' in line or ".js'" in line,
+                    f"Relative import should have .js extension: {line}",
+                )
+
+            # Test 7: Ensure balanced syntax
+            self.assert_balanced_syntax(js_code, temp_path)
+        finally:
+            os.unlink(temp_path)
 
     def test_fstring_simple_variable_interpolation(self) -> None:
         """Test that f-strings with simple variable interpolation generate correct template literals."""
@@ -568,14 +693,20 @@ cl def greet_user(name: str, age: int) -> str {
             js_code = self.compile_fixture_to_js(temp_path)
 
             # Test 1: Function should be generated
-            self.assertIn("function greet_user", js_code, "Function should be generated")
+            self.assertIn(
+                "function greet_user", js_code, "Function should be generated"
+            )
 
             # Test 2: Template literal with backticks should be present
             self.assertIn("`", js_code, "Template literal should use backticks")
 
             # Test 3: Variable interpolation with ${} syntax
-            self.assertIn("${name}", js_code, "name variable should be interpolated with ${}")
-            self.assertIn("${age}", js_code, "age variable should be interpolated with ${}")
+            self.assertIn(
+                "${name}", js_code, "name variable should be interpolated with ${}"
+            )
+            self.assertIn(
+                "${age}", js_code, "age variable should be interpolated with ${}"
+            )
 
             # Test 4: Text parts should be present
             self.assertIn("Hello,", js_code, "Static text should be present")
@@ -584,12 +715,17 @@ cl def greet_user(name: str, age: int) -> str {
 
             # Test 5: No string concatenation with + should be present for f-strings
             # The function should use template literal, not concatenation
-            lines = [l.strip() for l in js_code.split('\n') if 'return' in l and '`' in l]
+            lines = [
+                l.strip() for l in js_code.split("\n") if "return" in l and "`" in l
+            ]
             if lines:
                 return_line = lines[0]
                 # Ensure it's a single template literal, not concatenation
-                self.assertIn("`Hello, ${name}! You are ${age} years old.`", return_line,
-                              "F-string should generate single template literal")
+                self.assertIn(
+                    "`Hello, ${name}! You are ${age} years old.`",
+                    return_line,
+                    "F-string should generate single template literal",
+                )
 
             # Test 6: Ensure balanced syntax
             self.assert_balanced_syntax(js_code, temp_path)
@@ -617,8 +753,12 @@ cl def conditional_message(score: int) -> str {
             js_code = self.compile_fixture_to_js(temp_path)
 
             # Test 1: Functions should be generated
-            self.assertIn("function calculate_message", js_code, "Function should be generated")
-            self.assertIn("function conditional_message", js_code, "Function should be generated")
+            self.assertIn(
+                "function calculate_message", js_code, "Function should be generated"
+            )
+            self.assertIn(
+                "function conditional_message", js_code, "Function should be generated"
+            )
 
             # Test 2: Template literals should be present
             self.assertIn("`", js_code, "Template literals should use backticks")
@@ -626,11 +766,17 @@ cl def conditional_message(score: int) -> str {
             # Test 3: Expression interpolation with ${} syntax
             self.assertIn("${x}", js_code, "x variable should be interpolated")
             self.assertIn("${y}", js_code, "y variable should be interpolated")
-            self.assertIn("${x + y}", js_code, "Expression x + y should be interpolated")
+            self.assertIn(
+                "${x + y}", js_code, "Expression x + y should be interpolated"
+            )
 
             # Test 4: Complex expression interpolation
             self.assertIn("${score}", js_code, "score variable should be interpolated")
-            self.assertIn("${score >= 60}", js_code, "Comparison expression should be interpolated")
+            self.assertIn(
+                "${score >= 60}",
+                js_code,
+                "Comparison expression should be interpolated",
+            )
 
             # Test 5: Static text parts should be present
             self.assertIn("The sum of", js_code, "Static text should be present")
@@ -649,16 +795,24 @@ cl def conditional_message(score: int) -> str {
         js_code = self.compile_fixture_to_js(self.ADVANCED_FIXTURE)
 
         # Test 1: Template literal examples function should exist
-        self.assertIn("function template_literal_examples", js_code,
-                     "template_literal_examples function should be generated")
+        self.assertIn(
+            "function template_literal_examples",
+            js_code,
+            "template_literal_examples function should be generated",
+        )
 
         # Test 2: Template literals should be present (backticks)
         template_literal_count = js_code.count("`")
-        self.assertGreaterEqual(template_literal_count, 2,
-                               "Should have at least one template literal (2 backticks)")
+        self.assertGreaterEqual(
+            template_literal_count,
+            2,
+            "Should have at least one template literal (2 backticks)",
+        )
 
         # Test 3: Template literal interpolation syntax should be present
-        self.assertIn("${", js_code, "Template literal interpolation ${} should be present")
+        self.assertIn(
+            "${", js_code, "Template literal interpolation ${} should be present"
+        )
 
         # Test 4: Specific f-string from fixture should be converted correctly
         # f"{user} scored {score} which is a {status}" should become
@@ -670,7 +824,9 @@ cl def conditional_message(score: int) -> str {
         # Test 5: Verify the correct structure exists somewhere in the output
         # Should have: `${user} scored ${score} which is a ${status}`
         self.assertIn("scored", js_code, "Static text 'scored' should be present")
-        self.assertIn("which is a", js_code, "Static text 'which is a' should be present")
+        self.assertIn(
+            "which is a", js_code, "Static text 'which is a' should be present"
+        )
 
     def test_fstring_edge_cases(self) -> None:
         """Test f-string edge cases: empty, text-only, expression-only."""
@@ -704,22 +860,33 @@ cl def test_edge_cases() -> dict {
             js_code = self.compile_fixture_to_js(temp_path)
 
             # Test 1: Function should be generated
-            self.assertIn("function test_edge_cases", js_code, "Function should be generated")
+            self.assertIn(
+                "function test_edge_cases", js_code, "Function should be generated"
+            )
 
             # Test 2: Template literals should be present
             self.assertIn("`", js_code, "Template literals should use backticks")
 
             # Test 3: Text-only f-string should become template literal
-            self.assertIn("`This is just plain text`", js_code,
-                         "Text-only f-string should become simple template literal")
+            self.assertIn(
+                "`This is just plain text`",
+                js_code,
+                "Text-only f-string should become simple template literal",
+            )
 
             # Test 4: Expression-only f-string should become template literal with interpolation
-            self.assertIn("`${value}`", js_code,
-                         "Expression-only f-string should become template literal with ${}")
+            self.assertIn(
+                "`${value}`",
+                js_code,
+                "Expression-only f-string should become template literal with ${}",
+            )
 
             # Test 5: Multiple consecutive expressions should work
-            self.assertIn("`${name}${value}`", js_code,
-                         "Consecutive expressions should be properly interpolated")
+            self.assertIn(
+                "`${name}${value}`",
+                js_code,
+                "Consecutive expressions should be properly interpolated",
+            )
 
             # Test 6: Mixed text and expressions should work
             self.assertIn("Name:", js_code, "Static text should be present")
@@ -755,8 +922,10 @@ cl def format_message(user: str, count: int) -> str {
 
             # Test 2: The return statement should NOT use string concatenation
             # Find the return statement
-            return_statements = [line for line in js_code.split('\n') if 'return' in line]
-            fstring_returns = [line for line in return_statements if '${' in line]
+            return_statements = [
+                line for line in js_code.split("\n") if "return" in line
+            ]
+            fstring_returns = [line for line in return_statements if "${" in line]
 
             if fstring_returns:
                 # Check that the f-string return doesn't have + operators for concatenation
@@ -765,8 +934,11 @@ cl def format_message(user: str, count: int) -> str {
                     # The line should use a single template literal, not "string" + var + "string"
                     # Count backticks - should be exactly 2 (opening and closing)
                     backtick_count = ret_line.count("`")
-                    self.assertEqual(backtick_count, 2,
-                                   f"Return with f-string should use single template literal, got: {ret_line}")
+                    self.assertEqual(
+                        backtick_count,
+                        2,
+                        f"Return with f-string should use single template literal, got: {ret_line}",
+                    )
 
             # Test 3: Ensure balanced syntax
             self.assert_balanced_syntax(js_code, temp_path)
