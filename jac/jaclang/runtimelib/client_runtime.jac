@@ -402,20 +402,21 @@ async def __jacSpawn(walker: str, fields: dict = {}) -> any {
         f"/walker/{walker}",
         {
             "method": "POST",
+            "accept": "application/json",
             "headers": {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}" if token else ""
             },
-            "body": JSON.stringify({"nd": "root", **fields})
+            "body": JSON.stringify({"fields": {"nd": "root", **fields}})
         }
     );
 
     if not response.ok {
-        error_text = await response.text();
+        error_text = await response.json();
         raise Exception(f"Walker {walker} failed: {error_text}");
     }
 
-    return JSON.parse(await response.text());
+    return await response.json();
 }
 
 # Function call function - calls server-side functions from client
