@@ -5,6 +5,10 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jaclang 0.9.0 / jac-cloud 0.2.11 / byllm 0.4.6 / jac-client 0.1.0 (Unreleased)
 
+- **byLLM now auto-imports `jaclang`**: byLLM will ensure `jaclang` is available by automatically importing it when available.
+
+- **Clearer error / forced import when `jaclang` is missing**: If `jaclang` has been uninstalled or cannot be found, byLLM now raises a more actionable error message.
+
 - **Client Bundler Plugin Support**: Extended the existing `pluggy`-based plugin architecture to support custom client bundling implementations. Two static methods were added to `JacMachineInterface` to enable client bundler plugins:
   - `get_client_bundle_builder()`: Returns the client bundle builder instance, allowing plugins to provide custom bundler implementations
   - `build_client_bundle()`: Builds client bundles for modules, can be overridden by plugins to use custom bundling strategies
