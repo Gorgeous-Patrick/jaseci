@@ -267,7 +267,6 @@ class DocIRGenPass(UniPass):
                     and not self.has_gap(prev_kid, i)
                 ):
                     parts.append(self.hard_line())
-                    parts.append(self.hard_line())
                 parts.append(i.gen.doc_ir)
             parts.append(self.hard_line())
             prev_kid = i

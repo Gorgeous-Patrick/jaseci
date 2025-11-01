@@ -9,7 +9,6 @@ class SemTokManager {
     }
 }
 
-
 def walrus_example() {
     if ((x := 10) > 5) {
         print(x);
@@ -18,7 +17,6 @@ def walrus_example() {
         );
     }
 }
-
 
 with entry {
     c = (
@@ -41,7 +39,6 @@ with entry {
     print("""This is a long
         line of code.""");
 }
-
 
 class ModuleManager {
     def clear_alerts_for_file(self: ModuleManager, file_path_fs: str) -> None {
@@ -91,7 +88,6 @@ class ModuleManager {
     }
 }
 
-
 ## expr as item extra space issue
 with entry {
     with open(f"Apple{apple}.txt") as f {
@@ -99,7 +95,6 @@ with entry {
         print(f.read());
     }
 }
-
 
 def func_with_very_long_params(
     aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: int,
@@ -111,7 +106,6 @@ def func_with_very_long_params(
     );
 }
 
-
 def func_with_long_params(
     aaaaaaaaaaaaaaaaaaaaaa: int, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: int,
 ) -> None {
@@ -120,11 +114,9 @@ def func_with_long_params(
     );
 }
 
-
 def func_with_short_params(a: int, b: int) -> None {
     print(a + b + c[5:]);
 }
-
 
 with entry {
     if (
@@ -145,14 +137,12 @@ with entry {
     a = 4 if True else 4;
 }
 
-
 import from typing { Any, Awaitable, Callable, Coroutine, Optional, ParamSpec, TypeVar }
 
 import from jaclang.compiler.constant {
     JacSemTokenModifier as SemTokMod,
     JacSemTokenType as SemTokType,
 }
-
 
 """Return diagnostics."""
 def gen_diagnostics(
@@ -173,20 +163,16 @@ def gen_diagnostics(
     }
 }
 
-
 @decorator
 def x() {
     assert gg == 7;
 }
 
-
 @decorator()
 class KK {}
 
-
 # kkk
 import pygame, random, math;
-
 
 # fff
 with entry {
@@ -194,15 +180,13 @@ with entry {
     a = 9;
 }
 
-
 # kkk
 class X {}
-
+class X {}
 
 # comment
 @decorator
 def xxx() { }
-
 
 # ddd
 glob a = 7;
@@ -234,7 +218,6 @@ def get_node_info(self: JacLangServer, sym_node: uni.AstSymbolNode) -> Optional[
     return node_info.strip();
 }
 
-
 class foo {
     """Get information about a node."""
     def get_node_info(
@@ -254,7 +237,6 @@ class foo {
     }
 }
 
-
 def x3() {
     if dest_type.is_class_instance() and src_type.is_class_instance() {
         print("x");
@@ -271,7 +253,6 @@ def x3() {
     }
 }
 
-
 class HH {
     def test()  -> Optional[str] {
         a = """!
@@ -281,9 +262,7 @@ hru
     }
 }
 
-
 enum Role0 { ADMIN = 'admin', USER = 'user', GUEST = 'guest', }
-
 
 enum Role {
     ADMIN = 'admin',
@@ -292,14 +271,12 @@ enum Role {
     ADMIN2 = "111111111111111111111111111111111111111111111111111111111111",
 }
 
-
 enum Y {
     A,  # 12
     B,  # 12
     C  #12
     # 1212
 }
-
 
 # 121212
 def main() {
@@ -312,7 +289,6 @@ def main() {
         print("Condition met");  # C3
     }
 }
-
 
 obj Vehicle(ssdsd) {  # Has statements with type annotations (instance variables in obj)
     # Has statements with type annotations (instance variables in obj)
