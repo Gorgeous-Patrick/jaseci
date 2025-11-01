@@ -96,9 +96,7 @@ class ModuleManager {
 with entry {
     with open(f"Apple{apple}.txt") as f {
         # Fix syntax highlighting
-        print(
-            f.read()
-        );
+        print(f.read());
     }
 }
 
@@ -292,4 +290,41 @@ enum Role {
     USER = 'user',
     GUEST = 'guest',
     ADMIN2 = "111111111111111111111111111111111111111111111111111111111111",
+}
+
+
+enum Y {
+    A,  # 12
+    B,  # 12
+    C  #12
+    # 1212
+}
+
+
+# 121212
+def main() {
+    print("Hello, World!");  # C1
+    # This is a comment
+    print(
+        "Hello, World!"  # 123
+    );  # C2
+    if True {
+        print("Condition met");  # C3
+    }
+}
+
+
+obj Vehicle(ssdsd) {  # Has statements with type annotations (instance variables in obj)
+    # Has statements with type annotations (instance variables in obj)
+    """sadasd"""
+    has name2: str,  # C1
+        year2: int,  # C2
+        name1: str;  # C3
+
+    # Inline Python
+    ::py::
+    def py_method(self):
+        return "Python code"
+    ::py::
+
 }
