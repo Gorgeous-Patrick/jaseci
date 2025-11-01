@@ -520,7 +520,7 @@ cl def App() -> any {
     };
 
     routes = [login_route, signup_route, home_route, profile_route];
-    router = createRouter(routes, "/login");
+    router = initRouter(routes, "/login");
 
     # Get current path for navbar
     currentPath = router.path();
@@ -610,6 +610,6 @@ cl def ProfileView() -> any {
 
 
 # Main SPA entry point - simplified with reactive routing
-cl def littlex_app() -> any {
+cl def jac_app() -> any {
     return App();
 }
