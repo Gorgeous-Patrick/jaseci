@@ -782,21 +782,63 @@ class DocIRGenPass(UniPass):
 
     def exit_dict_val(self, node: uni.DictVal) -> None:
         """Generate DocIR for dictionary values."""
-        parts: list[doc.DocType] = []
-        for i in node.kid:
-            if isinstance(i, uni.Token) and i.name == Tok.LBRACE:
-                parts.append(self.tight_line())
-                parts.append(i.gen.doc_ir)
-            elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
-                parts.append(i.gen.doc_ir)
-            else:
-                parts.append(i.gen.doc_ir)
-                parts.append(self.space())
-        node.gen.doc_ir = self.group(self.concat(parts))
+        if not node.kid:
+            node.gen.doc_ir = self.group(self.concat([]))
+            return
+
+        opening = node.kid[0].gen.doc_ir
+        closing = node.kid[-1].gen.doc_ir if len(node.kid) > 1 else self.concat([])
+        kv_pairs = [kid for kid in node.kid if isinstance(kid, uni.KVPair)]
+        has_trailing_comma = (
+            len(node.kid) >= 2
+            and isinstance(node.kid[-2], uni.Token)
+            and node.kid[-2].name == Tok.COMMA
+        )
+
+        if not kv_pairs:
+            node.gen.doc_ir = self.group(self.concat([opening, closing]))
+            return
+
+        inline_body = self.join(
+            self.text(", "),
+            [pair.gen.doc_ir for pair in kv_pairs],
+        )
+        if has_trailing_comma:
+            inline_body = self.concat([inline_body, self.text(",")])
+        not_broke = self.concat([opening, inline_body, closing])
+
+        body_parts: list[doc.DocType] = []
+        pair_docs = [pair.gen.doc_ir for pair in kv_pairs]
+        for idx, pair_doc in enumerate(pair_docs):
+            body_parts.append(pair_doc)
+            if idx < len(pair_docs) - 1 or has_trailing_comma:
+                body_parts.append(self.text(","))
+            body_parts.append(self.hard_line())
+        self.trim_trailing_line(body_parts)
+
+        broke = self.concat(
+            [
+                opening,
+                self.indent(
+                    self.concat([self.hard_line(), *body_parts]), ast_node=node
+                ),
+                self.hard_line(),
+                closing,
+            ]
+        )
+
+        node.gen.doc_ir = self.group(self.if_break(broke, not_broke))
 
     def exit_k_v_pair(self, node: uni.KVPair) -> None:
         """Generate DocIR for key-value pairs."""
-        self._assign_space_group(node)
+        parts: list[doc.DocType] = []
+        for kid in node.kid:
+            if isinstance(kid, uni.Token) and kid.name == Tok.COLON:
+                parts.append(kid.gen.doc_ir)
+                parts.append(self.space())
+            else:
+                parts.append(kid.gen.doc_ir)
+        node.gen.doc_ir = self.concat(parts)
 
     def exit_has_var(self, node: uni.HasVar) -> None:
         """Generate DocIR for has variable declarations."""
@@ -1728,55 +1770,115 @@ class DocIRGenPass(UniPass):
         """Generate DocIR for ellipsis."""
         node.gen.doc_ir = self.text(node.value, source_token=node)
 
-    def exit_jsx_element(self, node: uni.JsxElement) -> None:
-        """Generate DocIR for JSX elements - kid-centric beautiful formatting!"""
-        parts: list[doc.DocType] = []
-        prev = None
+    def _jsx_attrs_need_multiline(self, node: uni.JsxElement) -> bool:
+        """Return True if JSX attributes should be split across multiple lines."""
+        if len(node.attributes) > 1:
+            return True
 
-        # Check if we have any JSX element children
-        # Use node.children instead of node.kid to avoid counting opening/closing tags
-        has_jsx_elem_children = any(
-            isinstance(k, uni.JsxElement) for k in node.children
+        for attr in node.attributes:
+            if isinstance(attr, uni.JsxNormalAttribute):
+                if attr.value is None or isinstance(attr.value, uni.String):
+                    continue
+                return True
+            return True
+        return False
+
+    def exit_jsx_element(self, node: uni.JsxElement) -> None:
+        """Generate DocIR for JSX elements with prettier-inspired formatting."""
+        has_tokens = any(isinstance(kid, uni.Token) for kid in node.kid)
+
+        if has_tokens:
+            first_child = node.kid[0] if node.kid else None
+            if (
+                isinstance(first_child, uni.Token)
+                and first_child.name == Tok.JSX_CLOSE_START
+            ):
+                node.gen.doc_ir = self.group(
+                    self.concat([kid.gen.doc_ir for kid in node.kid])
+                )
+                return
+
+            start_token = (
+                node.kid[0] if node.kid and isinstance(node.kid[0], uni.Token) else None
+            )
+            end_token = (
+                node.kid[-1]
+                if node.kid and isinstance(node.kid[-1], uni.Token)
+                else None
+            )
+
+            if not start_token or not end_token:
+                node.gen.doc_ir = self.group(
+                    self.concat([kid.gen.doc_ir for kid in node.kid])
+                )
+                return
+
+            name_node = next(
+                (kid for kid in node.kid if isinstance(kid, uni.JsxElementName)), None
+            )
+            attr_docs = [attr.gen.doc_ir for attr in node.attributes]
+            needs_multiline = self._jsx_attrs_need_multiline(node)
+
+            parts: list[doc.DocType] = [start_token.gen.doc_ir]
+
+            if name_node:
+                parts.append(name_node.gen.doc_ir)
+
+            if attr_docs:
+                if needs_multiline:
+                    attr_block: list[doc.DocType] = [self.hard_line()]
+                    attr_block.extend(self.intersperse(attr_docs, self.hard_line()))
+                    parts.append(self.indent(self.concat(attr_block), ast_node=node))
+                    parts.append(self.hard_line())
+                else:
+                    parts.append(self.space())
+                    parts.append(self.join(self.space(), attr_docs))
+
+            if end_token.name == Tok.JSX_SELF_CLOSE:
+                if (attr_docs and not needs_multiline) or not attr_docs:
+                    parts.append(self.space())
+                parts.append(end_token.gen.doc_ir)
+            else:
+                parts.append(end_token.gen.doc_ir)
+
+            node.gen.doc_ir = self.group(self.concat(parts), ast_node=node)
+            return
+
+        if not node.kid:
+            node.gen.doc_ir = self.group(self.concat([]))
+            return
+
+        opening_doc = node.kid[0].gen.doc_ir
+        closing_doc = node.kid[-1].gen.doc_ir if len(node.kid) > 1 else self.concat([])
+
+        child_parts: list[doc.DocType] = []
+        for child in node.children:
+            child_parts.append(child.gen.doc_ir)
+            child_parts.append(self.hard_line())
+        self.trim_trailing_line(child_parts)
+
+        inline_child_types = (uni.JsxText, uni.JsxExpression)
+        all_inline_children = node.children and all(
+            isinstance(child, inline_child_types) for child in node.children
         )
 
-        # Only break/indent if we have JSX element children
-        # (simple text/expression children stay inline)
-        should_format_children = has_jsx_elem_children
-
-        for i in node.kid:
-            # Add line break between attributes (allows them to wrap nicely)
-            if (
-                prev
-                and isinstance(prev, (uni.JsxElementName, uni.JsxAttribute))
-                and isinstance(i, uni.JsxAttribute)
-            ):
-                parts.append(self.line())
-            # Add hard line between JSX element children, or before first child
-            elif (
-                prev
-                and (
-                    (
-                        isinstance(prev, (uni.JsxChild, uni.JsxElement))
-                        and isinstance(i, (uni.JsxChild, uni.JsxElement))
-                    )
-                    or (
-                        isinstance(prev, (uni.JsxElementName, uni.JsxAttribute))
-                        and isinstance(i, (uni.JsxChild, uni.JsxElement))
-                    )
+        parts = [opening_doc]
+        if all_inline_children:
+            inline_doc = self.concat([child.gen.doc_ir for child in node.children])
+            parts.append(
+                self.indent(self.concat([self.hard_line(), inline_doc]), ast_node=node)
+            )
+            parts.append(self.hard_line())
+        elif child_parts:
+            parts.append(
+                self.indent(
+                    self.concat([self.hard_line(), *child_parts]), ast_node=node
                 )
-                and should_format_children
-            ):
-                parts.append(self.hard_line())
+            )
+            parts.append(self.hard_line())
+        parts.append(closing_doc)
 
-            # Indent JSX element children, but not text/expression children
-            if isinstance(i, uni.JsxElement) and should_format_children:
-                parts.append(self.indent(i.gen.doc_ir))
-            else:
-                parts.append(i.gen.doc_ir)
-
-            prev = i
-
-        node.gen.doc_ir = self.group(self.concat(parts))
+        node.gen.doc_ir = self.group(self.concat(parts), ast_node=node)
 
     def exit_jsx_element_name(self, node: uni.JsxElementName) -> None:
         """Generate DocIR for JSX element names."""
