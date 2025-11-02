@@ -357,14 +357,9 @@ cl import from jac:client_runtime {
     createState,
 }
 
-
 cl {
     # Reactive state management
-    let [appState, setAppState] = createState({
-        "tweets": [],
-        "loading": False
-    });
-
+    let [appState, setAppState] = createState({"tweets" : [] , "loading" : False });
 
     # Shared data model for client/server
     obj ClientTweet {
@@ -382,37 +377,21 @@ cl {
             style={
             {"border" : "1px solid #e1e8ed" , "padding" : "15px" , "margin" : "10px 0" , "borderRadius" : "8px" }}>
         <div
-                class="tweet-header"
-                style={{"fontWeight" : "bold" , "marginBottom" : "8px" }}>
-            @
-            {tweet.username}
-            </div>
-        <div class="tweet-content" style={{"marginBottom" : "12px" }}>
-            {tweet.content}
-            </div>
+            class="tweet-header"
+            style={{"fontWeight" : "bold" , "marginBottom" : "8px" }}>@{tweet.username}</div>
+        <div class="tweet-content" style={{"marginBottom" : "12px" }}>{tweet.content}</div>
         <div class="tweet-actions" style={{"display" : "flex" , "gap" : "15px" }}>
             <button
-                    onclick={like_tweet_action(tweet.id)}
-                    style={{"padding" : "5px 10px" , "cursor" : "pointer" }}>
-                Like (
-                {tweet.likes.length}
-                )
-                </button>
-            <button style={{"padding" : "5px 10px" }}>
-                Comment (
-                {tweet.comments.length}
-                )
-                </button>
+                onclick={like_tweet_action(tweet.id)}
+                style={{"padding" : "5px 10px" , "cursor" : "pointer" }}>Like ({tweet.likes.length})</button>
+            <button style={{"padding" : "5px 10px" }}>Comment ({tweet.comments.length})</button>
             </div>
         </div>;
     }
 
-
     # Handle liking a tweet - calls server walker directly
     # The compiler automatically transforms this to __jacCallFunction at compile time!
-    async def like_tweet_action(
-        tweet_id: str
-    ) -> any {
+    async def like_tweet_action(tweet_id: str) -> any {
         try {
             result = await like_tweet(tweet_id);
             print("Tweet liked:", result);
@@ -422,5 +401,4 @@ cl {
             print("Error liking tweet:", e);
         }
     }
-
 }

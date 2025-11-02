@@ -155,7 +155,7 @@ class DocIRGenPass(UniPass):
         for i in node.kid:
             if isinstance(body, Sequence) and self.is_within(i, body):
                 if body and i == body[0]:
-                    parts.append(self.indent(self.concat(body_parts)))
+                    parts.append(self.indent(self.concat(body_parts), ast_node=node))
                     parts.append(self.hard_line())
                 self.add_body_stmt_with_spacing(body_parts, i, prev_body_item)
                 prev_body_item = i
