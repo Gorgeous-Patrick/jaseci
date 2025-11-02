@@ -105,7 +105,10 @@ class DocIRGenPass(UniPass):
     def _child_docs(self, node: uni.UniNode) -> list[doc.DocType]:
         """Return generated DocIR for each child."""
 
-        return [kid.gen.doc_ir for kid in node.kid]
+        docs: list[doc.DocType] = []
+        for kid in node.kid:
+            docs.append(kid.gen.doc_ir)
+        return docs
 
     def _assign_concat(self, node: uni.UniNode) -> None:
         """Assign a simple Concat of child documents."""
@@ -317,6 +320,8 @@ class DocIRGenPass(UniPass):
         is_in_items: bool = False
 
         for i in node.kid:
+            if isinstance(i, uni.Token) and self._is_injected_client_token(i):
+                continue
             if isinstance(i, uni.Token) and i.name == Tok.COMMA:
                 if is_in_items:
                     mod_items.pop()
@@ -786,18 +791,36 @@ class DocIRGenPass(UniPass):
             node.gen.doc_ir = self.group(self.concat([]))
             return
 
-        opening = node.kid[0].gen.doc_ir
-        closing = node.kid[-1].gen.doc_ir if len(node.kid) > 1 else self.concat([])
-        kv_pairs = [kid for kid in node.kid if isinstance(kid, uni.KVPair)]
-        has_trailing_comma = (
-            len(node.kid) >= 2
-            and isinstance(node.kid[-2], uni.Token)
-            and node.kid[-2].name == Tok.COMMA
-        )
+        kv_indices = [
+            idx for idx, kid in enumerate(node.kid) if isinstance(kid, uni.KVPair)
+        ]
+        kv_pairs = [node.kid[idx] for idx in kv_indices]
 
         if not kv_pairs:
-            node.gen.doc_ir = self.group(self.concat([opening, closing]))
+            node.gen.doc_ir = self.group(
+                self.concat([kid.gen.doc_ir for kid in node.kid])
+            )
             return
+
+        first_idx = kv_indices[0]
+        last_idx = kv_indices[-1]
+
+        prefix_docs = [node.kid[i].gen.doc_ir for i in range(first_idx)]
+        suffix_nodes = node.kid[last_idx + 1 :]
+
+        has_trailing_comma = (
+            bool(suffix_nodes)
+            and isinstance(suffix_nodes[0], uni.Token)
+            and suffix_nodes[0].name == Tok.COMMA
+        )
+
+        if has_trailing_comma:
+            suffix_docs = [kid.gen.doc_ir for kid in suffix_nodes[1:]]
+        else:
+            suffix_docs = [kid.gen.doc_ir for kid in suffix_nodes]
+
+        opening = self.concat(prefix_docs) if prefix_docs else self.concat([])
+        closing = self.concat(suffix_docs) if suffix_docs else self.concat([])
 
         inline_body = self.join(
             self.text(", "),
@@ -832,12 +855,35 @@ class DocIRGenPass(UniPass):
     def exit_k_v_pair(self, node: uni.KVPair) -> None:
         """Generate DocIR for key-value pairs."""
         parts: list[doc.DocType] = []
-        for kid in node.kid:
+        kid_count = len(node.kid)
+
+        for idx, kid in enumerate(node.kid):
+            if not isinstance(
+                kid.gen.doc_ir,
+                (
+                    doc.Text,
+                    doc.Concat,
+                    doc.Group,
+                    doc.Indent,
+                    doc.Line,
+                    doc.Align,
+                    doc.IfBreak,
+                ),
+            ):
+                self.enter_exit(kid)
+
+            parts.append(kid.gen.doc_ir)
+
+            is_last = idx == kid_count - 1
             if isinstance(kid, uni.Token) and kid.name == Tok.COLON:
-                parts.append(kid.gen.doc_ir)
+                if not is_last:
+                    parts.append(self.space())
+            elif not is_last:
+                next_kid = node.kid[idx + 1]
+                if isinstance(next_kid, uni.Token) and next_kid.name == Tok.COLON:
+                    continue
                 parts.append(self.space())
-            else:
-                parts.append(kid.gen.doc_ir)
+
         node.gen.doc_ir = self.concat(parts)
 
     def exit_has_var(self, node: uni.HasVar) -> None:
@@ -1706,9 +1752,28 @@ class DocIRGenPass(UniPass):
             parts.append(i.gen.doc_ir)
         node.gen.doc_ir = self.group(self.concat(parts))
 
+    def _is_injected_client_token(self, token: uni.Token) -> bool:
+        """Return True when token is a synthetic client keyword inside a client block."""
+        if token.name != Tok.KW_CLIENT:
+            return False
+        parent = token.parent
+        current = parent
+        in_client_block = False
+        while current is not None:
+            if isinstance(current, uni.ClientBlock):
+                in_client_block = True
+                break
+            current = current.parent
+        if not in_client_block:
+            return False
+        return not isinstance(parent, uni.ClientBlock)
+
     def exit_token(self, node: uni.Token) -> None:
         """Generate DocIR for tokens."""
-        node.gen.doc_ir = self.text(node.value, source_token=node)
+        if self._is_injected_client_token(node):
+            node.gen.doc_ir = self.text("", source_token=None)
+        else:
+            node.gen.doc_ir = self.text(node.value, source_token=node)
 
     def exit_semi(self, node: uni.Semi) -> None:
         """Generate DocIR for semicolons."""
@@ -1834,7 +1899,40 @@ class DocIRGenPass(UniPass):
                     parts.append(self.space())
                     parts.append(self.join(self.space(), attr_docs))
 
-            if end_token.name == Tok.JSX_SELF_CLOSE:
+            is_self_closing = end_token.name == Tok.JSX_SELF_CLOSE
+
+            if not is_self_closing and node.children:
+                child_parts: list[doc.DocType] = []
+                for child in node.children:
+                    child_parts.append(child.gen.doc_ir)
+                    child_parts.append(self.hard_line())
+                self.trim_trailing_line(child_parts)
+
+                inline_child_types = (uni.JsxText, uni.JsxExpression)
+                all_inline_children = node.children and all(
+                    isinstance(child, inline_child_types) for child in node.children
+                )
+
+                if all_inline_children:
+                    inline_doc = self.concat(
+                        [child.gen.doc_ir for child in node.children]
+                    )
+                    parts.append(
+                        self.indent(
+                            self.concat([self.hard_line(), inline_doc]), ast_node=node
+                        )
+                    )
+                    parts.append(self.hard_line())
+                elif child_parts:
+                    parts.append(
+                        self.indent(
+                            self.concat([self.hard_line(), *child_parts]),
+                            ast_node=node,
+                        )
+                    )
+                    parts.append(self.hard_line())
+
+            if is_self_closing:
                 if (attr_docs and not needs_multiline) or not attr_docs:
                     parts.append(self.space())
                 parts.append(end_token.gen.doc_ir)
@@ -1851,7 +1949,7 @@ class DocIRGenPass(UniPass):
         opening_doc = node.kid[0].gen.doc_ir
         closing_doc = node.kid[-1].gen.doc_ir if len(node.kid) > 1 else self.concat([])
 
-        child_parts: list[doc.DocType] = []
+        child_parts = []
         for child in node.children:
             child_parts.append(child.gen.doc_ir)
             child_parts.append(self.hard_line())
@@ -1896,19 +1994,52 @@ class DocIRGenPass(UniPass):
 
     def exit_jsx_normal_attribute(self, node: uni.JsxNormalAttribute) -> None:
         """Generate DocIR for JSX normal attributes."""
-        # Normalize to ensure LBRACE/RBRACE tokens are added for expression values
-        node.normalize()
         parts: list[doc.DocType] = []
-        for i in node.kid:
-            # Tokens created by normalize() have empty doc_ir, so regenerate it
-            if (
-                isinstance(i, uni.Token)
-                and isinstance(i.gen.doc_ir, doc.Text)
-                and not i.gen.doc_ir.text
-            ):
-                i.gen.doc_ir = self.text(i.value)
-            elif not isinstance(
-                i.gen.doc_ir,
+
+        has_brace_tokens = any(
+            isinstance(child, uni.Token) and child.name in {Tok.LBRACE, Tok.RBRACE}
+            for child in node.kid
+        )
+
+        if has_brace_tokens:
+            for child in node.kid:
+                if not isinstance(
+                    child.gen.doc_ir,
+                    (
+                        doc.Text,
+                        doc.Concat,
+                        doc.Group,
+                        doc.Indent,
+                        doc.Line,
+                        doc.Align,
+                        doc.IfBreak,
+                    ),
+                ):
+                    self.enter_exit(child)
+                parts.append(child.gen.doc_ir)
+            node.gen.doc_ir = self.concat(parts)
+            return
+
+        for child in node.kid:
+            if child is node.value and child and not isinstance(child, uni.String):
+                if not isinstance(
+                    child.gen.doc_ir,
+                    (
+                        doc.Text,
+                        doc.Concat,
+                        doc.Group,
+                        doc.Indent,
+                        doc.Line,
+                        doc.Align,
+                        doc.IfBreak,
+                    ),
+                ):
+                    self.enter_exit(child)
+                parts.extend([self.text("{"), child.gen.doc_ir, self.text("}")])
+                continue
+
+            if not isinstance(
+                child.gen.doc_ir,
                 (
                     doc.Text,
                     doc.Concat,
@@ -1919,9 +2050,8 @@ class DocIRGenPass(UniPass):
                     doc.IfBreak,
                 ),
             ):
-                # For nodes with invalid doc_ir, generate it by visiting
-                self.enter_exit(i)
-            parts.append(i.gen.doc_ir)
+                self.enter_exit(child)
+            parts.append(child.gen.doc_ir)
         node.gen.doc_ir = self.concat(parts)
 
     def exit_jsx_text(self, node: uni.JsxText) -> None:
