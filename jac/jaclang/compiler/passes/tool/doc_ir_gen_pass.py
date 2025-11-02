@@ -126,14 +126,15 @@ class DocIRGenPass(UniPass):
         """
         parts: list[doc.DocType] = []
         body_parts: list[doc.DocType] = [self.hard_line()]
+        prev_body_item: Optional[uni.UniNode] = None
 
         for i in node.kid:
             if isinstance(body, Sequence) and self.is_within(i, body):
                 if body and i == body[0]:
                     parts.append(self.indent(self.concat(body_parts)))
                     parts.append(self.hard_line())
-                body_parts.append(i.gen.doc_ir)
-                body_parts.append(self.hard_line())
+                self.add_body_stmt_with_spacing(body_parts, i, prev_body_item)
+                prev_body_item = i
             else:
                 parts.append(i.gen.doc_ir)
                 if space_between_parts:
@@ -195,6 +196,18 @@ class DocIRGenPass(UniPass):
     def has_gap(self, prev_kid: uni.UniNode, curr_kid: uni.UniNode) -> bool:
         """Check if there is a gap between the previous and current node."""
         return prev_kid.loc.last_line + 1 < curr_kid.loc.first_line
+
+    def add_body_stmt_with_spacing(
+        self,
+        body_parts: list[doc.DocType],
+        current: uni.UniNode,
+        previous: Optional[uni.UniNode],
+    ) -> None:
+        """Add a body statement preserving single blank lines from source."""
+        if previous and self.has_gap(previous, current):
+            body_parts.append(self.hard_line())
+        body_parts.append(current.gen.doc_ir)
+        body_parts.append(self.hard_line())
 
     def is_within(self, kid_node: uni.UniNode, block: Sequence[uni.UniNode]) -> bool:
         """Check if kid node is within the block."""
@@ -401,6 +414,7 @@ class DocIRGenPass(UniPass):
         parts: list[doc.DocType] = []
         body_parts: list[doc.DocType] = []
         in_body = False
+        prev_body_item: Optional[uni.UniNode] = None
         for i in node.kid:
             if i == node.doc or (node.decorators and i in node.decorators):
                 parts.append(i.gen.doc_ir)
@@ -424,8 +438,8 @@ class DocIRGenPass(UniPass):
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
             elif in_body:
-                body_parts.append(i.gen.doc_ir)
-                body_parts.append(self.hard_line())
+                self.add_body_stmt_with_spacing(body_parts, i, prev_body_item)
+                prev_body_item = i
             elif not in_body and isinstance(i, uni.Token) and i.name == Tok.DECOR_OP:
                 parts.append(i.gen.doc_ir)
             elif isinstance(i, uni.Token) and i.name == Tok.SEMI:
@@ -1191,6 +1205,7 @@ class DocIRGenPass(UniPass):
         parts: list[doc.DocType] = []
         body_parts: list[doc.DocType] = []
         in_body = False
+        prev_body_item: Optional[uni.UniNode] = None
         for i in node.kid:
             if node.doc and i is node.doc:
                 parts.append(i.gen.doc_ir)
@@ -1216,8 +1231,8 @@ class DocIRGenPass(UniPass):
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
             elif in_body:
-                body_parts.append(i.gen.doc_ir)
-                body_parts.append(self.hard_line())
+                self.add_body_stmt_with_spacing(body_parts, i, prev_body_item)
+                prev_body_item = i
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -1384,13 +1399,14 @@ class DocIRGenPass(UniPass):
         """Generate DocIR for match cases."""
         parts: list[doc.DocType] = []
         indent_parts: list[doc.DocType] = []
+        prev_body_item: Optional[uni.UniNode] = None
         for i in node.kid:
             if isinstance(i, uni.Token) and i.name == Tok.COLON:
                 parts.pop()
                 parts.append(i.gen.doc_ir)
             elif i in node.body:
-                indent_parts.append(i.gen.doc_ir)
-                indent_parts.append(self.hard_line())
+                self.add_body_stmt_with_spacing(indent_parts, i, prev_body_item)
+                prev_body_item = i
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())
@@ -1421,13 +1437,14 @@ class DocIRGenPass(UniPass):
         """Generate DocIR for switch cases."""
         parts: list[doc.DocType] = []
         indent_parts: list[doc.DocType] = []
+        prev_body_item: Optional[uni.UniNode] = None
         for i in node.kid:
             if isinstance(i, uni.Token) and i.name == Tok.COLON:
                 parts.pop()
                 parts.append(i.gen.doc_ir)
             elif i in node.body:
-                indent_parts.append(i.gen.doc_ir)
-                indent_parts.append(self.hard_line())
+                self.add_body_stmt_with_spacing(indent_parts, i, prev_body_item)
+                prev_body_item = i
             else:
                 parts.append(i.gen.doc_ir)
                 parts.append(self.space())

@@ -171,6 +171,13 @@ class CommentInjectionPass(UniPass):
 
                 # Add standalone comments before child
                 if child.loc:
+                    prev_comment = None
+                    prev_item_line = (
+                        module.kid[child_idx - 1].loc.last_line
+                        if child_idx > 0 and module.kid[child_idx - 1].loc
+                        else 0
+                    )
+
                     for idx, comment in enumerate(self.ir_out.source.comments):
                         if (
                             idx not in self.used_comments
@@ -179,8 +186,39 @@ class CommentInjectionPass(UniPass):
                             <= comment.loc.first_line
                             < child.loc.first_line
                         ):
+                            # Check if we need a blank line before this comment
+                            should_add_line = (
+                                prev_comment
+                                and comment.loc.first_line
+                                > prev_comment.loc.last_line + 1
+                            ) or (
+                                prev_item_line > 0
+                                and comment.loc.first_line > prev_item_line + 1
+                            )
+
+                            # If comment immediately follows previous item but there's a
+                            # gap line (two consecutive hard lines),
+                            # remove one to avoid double spacing
+                            if (
+                                not should_add_line
+                                and len(result) >= 2
+                                and isinstance(result[-1], doc.Line)
+                                and result[-1].hard
+                                and isinstance(result[-2], doc.Line)
+                                and result[-2].hard
+                            ):
+                                result.pop()
+
+                            if should_add_line and not (
+                                result
+                                and isinstance(result[-1], doc.Line)
+                                and result[-1].hard
+                            ):
+                                result.append(doc.Line(hard=True))
+
                             result.append(self._make_standalone_comment(comment))
                             self.used_comments.add(idx)
+                            prev_comment = comment
 
                     current_line = child.loc.last_line + 1
 
@@ -259,6 +297,13 @@ class CommentInjectionPass(UniPass):
 
                     # If part is part of current body item or after it
                     # Add standalone comments before this body item
+                    prev_comment = None
+                    prev_item_line = (
+                        node.body[body_idx - 1].loc.last_line
+                        if body_idx > 0 and node.body[body_idx - 1].loc
+                        else current_line - 1
+                    )
+
                     for idx, comment in enumerate(self.ir_out.source.comments):
                         if (
                             idx not in self.used_comments
@@ -267,10 +312,41 @@ class CommentInjectionPass(UniPass):
                             <= comment.loc.first_line
                             < body_item.loc.first_line
                         ):
+                            # Check if we need a blank line before this comment
+                            should_add_line = (
+                                prev_comment
+                                and comment.loc.first_line
+                                > prev_comment.loc.last_line + 1
+                            ) or (
+                                prev_item_line > 0
+                                and comment.loc.first_line > prev_item_line + 1
+                            )
+
+                            # If comment immediately follows previous item but '
+                            # there's a gap line (two consecutive hard lines),
+                            # remove one to avoid double spacing
+                            if (
+                                not should_add_line
+                                and len(parts_with_standalone) >= 2
+                                and isinstance(parts_with_standalone[-1], doc.Line)
+                                and parts_with_standalone[-1].hard
+                                and isinstance(parts_with_standalone[-2], doc.Line)
+                                and parts_with_standalone[-2].hard
+                            ):
+                                parts_with_standalone.pop()
+
+                            if should_add_line and not (
+                                parts_with_standalone
+                                and isinstance(parts_with_standalone[-1], doc.Line)
+                                and parts_with_standalone[-1].hard
+                            ):
+                                parts_with_standalone.append(doc.Line(hard=True))
+
                             parts_with_standalone.append(
                                 self._make_standalone_comment(comment)
                             )
                             self.used_comments.add(idx)
+                            prev_comment = comment
 
                     current_line = body_item.loc.last_line + 1
 
@@ -290,16 +366,42 @@ class CommentInjectionPass(UniPass):
         # Add any remaining comments after all body items but before closing brace
         if body_end and node.body:
             last_body_line = (
-                node.body[-1].loc.last_line + 1 if node.body[-1].loc else current_line
+                node.body[-1].loc.last_line if node.body[-1].loc else current_line - 1
             )
+            prev_comment = None
+
             for idx, comment in enumerate(self.ir_out.source.comments):
                 if (
                     idx not in self.used_comments
                     and idx not in self.inline_comment_ids
-                    and last_body_line <= comment.loc.first_line < body_end
+                    and last_body_line < comment.loc.first_line < body_end
                 ):
+                    # Check if we need a blank line before this comment
+                    should_add_line = (
+                        prev_comment
+                        and comment.loc.first_line > prev_comment.loc.last_line + 1
+                    ) or (comment.loc.first_line > last_body_line + 1)
+
+                    # If comment immediately follows previous item but there's a gap line (two consecutive hard lines),
+                    # remove one to avoid double spacing
+                    if (
+                        not should_add_line
+                        and len(result) >= 2
+                        and isinstance(result[-1], doc.Line)
+                        and result[-1].hard
+                        and isinstance(result[-2], doc.Line)
+                        and result[-2].hard
+                    ):
+                        result.pop()
+
+                    if should_add_line and not (
+                        result and isinstance(result[-1], doc.Line) and result[-1].hard
+                    ):
+                        result.append(doc.Line(hard=True))
+
                     result.append(self._make_standalone_comment(comment))
                     self.used_comments.add(idx)
+                    prev_comment = comment
 
         return doc.Indent(doc.Concat(result), ast_node=node)
 
