@@ -9,7 +9,7 @@ from typing import Dict, List, Sequence
 import jaclang.compiler.passes.tool.doc_ir as doc
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.constant import Tokens as Tok
-from jaclang.compiler.passes import UniPass
+from jaclang.compiler.passes import Transform
 
 
 @dataclass(slots=True)
@@ -53,7 +53,7 @@ class CommentStore:
         self._used: set[int] = set()
 
     @classmethod
-    def from_module(cls, module: uni.Module) -> "CommentStore":
+    def from_module(cls, module: uni.Module) -> CommentStore:
         """Build a comment store by analysing module tokens once."""
 
         items: list[tuple[str, int, uni.Token | uni.CommentToken]] = []
@@ -162,7 +162,7 @@ class CommentStore:
         return leftovers
 
 
-class CommentInjectionPass(UniPass):
+class CommentInjectionPass(Transform[uni.Module, uni.Module]):
     """
     Injects comments using token sequence analysis for perfect precision.
 
@@ -171,24 +171,19 @@ class CommentInjectionPass(UniPass):
     Line collapsing.
     """
 
-    def before_pass(self) -> None:
-        """Initialize with token analysis."""
+    def transform(self, ir_in: uni.Module) -> uni.Module:
+        """Inject comments using token-level precision."""
+        # Initialize comment store
         self._comments: CommentStore | None = None
+        if isinstance(ir_in, uni.Module):
+            self._comments = CommentStore.from_module(ir_in)
 
-        if isinstance(self.ir_out, uni.Module):
-            self._comments = CommentStore.from_module(self.ir_out)
+        # Early return if not a module or no comments
+        if not isinstance(ir_in, uni.Module) or not self._comments:
+            return ir_in
 
-        return super().before_pass()
-
-    def after_pass(self) -> None:
-        """Inject comments."""
-        if not isinstance(self.ir_out, uni.Module):
-            return
-
-        if not self._comments:
-            return
-
-        processed = self._process(self.ir_out, self.ir_out.gen.doc_ir)
+        # Process the document IR
+        processed = self._process(ir_in, ir_in.gen.doc_ir)
 
         # Append any comments that could not be matched to a location (paranoid safety net)
         leftovers = self._comments.drain_unattached()
@@ -197,12 +192,14 @@ class CommentInjectionPass(UniPass):
             self._emit_standalone_comments(
                 sink,
                 leftovers,
-                prev_item_line=self.ir_out.loc.last_line if self.ir_out.loc else None,
+                prev_item_line=ir_in.loc.last_line if ir_in.loc else None,
             )
             processed = doc.Concat(sink)
 
         # Post-process to remove unnecessary line breaks after inline comments
-        self.ir_out.gen.doc_ir = self._remove_redundant_lines(processed)
+        ir_in.gen.doc_ir = self._remove_redundant_lines(processed)
+
+        return ir_in
 
     def _process(self, ctx: uni.UniNode, node: doc.DocType) -> doc.DocType:
         """Main recursive processor with type-specific handling."""
