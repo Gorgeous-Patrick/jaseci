@@ -345,3 +345,82 @@ async def type_check(self: JacLangServer, file_path: str) -> None {
     # Wait for the current type check thread to finish (if any)
     await asyncio.to_thread(self.debounce_timers[file_path].join);
 }
+
+cl import from jac:client_runtime {
+    jacLogin,
+    jacLogout,
+    jacSignup,
+    createRouter,
+    Route,
+    Link,
+    navigate,
+    createState,
+}
+
+
+cl {
+    # Reactive state management
+    let [appState, setAppState] = createState({
+        "tweets": [],
+        "loading": False
+    });
+
+
+    # Shared data model for client/server
+    obj ClientTweet {
+        has username: str = "";
+        has id: str = "";
+        has content: str = "";
+        has likes: list = [];
+        has comments: list = [];
+    }
+
+    # UI Components - Render a single tweet card
+    def TweetCard(tweet: ClientTweet) -> any {
+        return <div
+            class="tweet-card"
+            style={
+            {"border" : "1px solid #e1e8ed" , "padding" : "15px" , "margin" : "10px 0" , "borderRadius" : "8px" }}>
+        <div
+                class="tweet-header"
+                style={{"fontWeight" : "bold" , "marginBottom" : "8px" }}>
+            @
+            {tweet.username}
+            </div>
+        <div class="tweet-content" style={{"marginBottom" : "12px" }}>
+            {tweet.content}
+            </div>
+        <div class="tweet-actions" style={{"display" : "flex" , "gap" : "15px" }}>
+            <button
+                    onclick={like_tweet_action(tweet.id)}
+                    style={{"padding" : "5px 10px" , "cursor" : "pointer" }}>
+                Like (
+                {tweet.likes.length}
+                )
+                </button>
+            <button style={{"padding" : "5px 10px" }}>
+                Comment (
+                {tweet.comments.length}
+                )
+                </button>
+            </div>
+        </div>;
+    }
+
+
+    # Handle liking a tweet - calls server walker directly
+    # The compiler automatically transforms this to __jacCallFunction at compile time!
+    async def like_tweet_action(
+        tweet_id: str
+    ) -> any {
+        try {
+            result = await like_tweet(tweet_id);
+            print("Tweet liked:", result);
+            # Re-render feed after like
+            window.location.reload();
+        } except Exception as e {
+            print("Error liking tweet:", e);
+        }
+    }
+
+}

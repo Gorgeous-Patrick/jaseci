@@ -1202,6 +1202,38 @@ class DocIRGenPass(UniPass):
                 parts.append(self.space())
         node.gen.doc_ir = self.group(self.concat(parts))
 
+    def exit_client_block(self, node: uni.ClientBlock) -> None:
+        """Generate DocIR for client blocks (cl { ... })."""
+        parts: list[doc.DocType] = []
+        body_parts: list[doc.DocType] = []
+        in_body = False
+        prev_body_item: Optional[uni.UniNode] = None
+        for i in node.kid:
+            if isinstance(i, uni.Token) and i.name == Tok.KW_CLIENT:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif isinstance(i, uni.Token) and i.name == Tok.LBRACE:
+                parts.append(i.gen.doc_ir)
+                body_parts.append(self.hard_line())
+                in_body = True
+            elif isinstance(i, uni.Token) and i.name == Tok.RBRACE:
+                in_body = False
+                self.trim_trailing_line(body_parts)
+                parts.append(self.indent(self.concat(body_parts), ast_node=node))
+                if len(body_parts):
+                    parts.append(self.hard_line())
+                else:
+                    parts.append(self.line())
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+            elif in_body:
+                self.add_body_stmt_with_spacing(body_parts, i, prev_body_item)
+                prev_body_item = i
+            else:
+                parts.append(i.gen.doc_ir)
+                parts.append(self.space())
+        node.gen.doc_ir = self.group(self.concat(parts))
+
     def exit_module_code(self, node: uni.ModuleCode) -> None:
         """Generate DocIR for module code."""
         parts: list[doc.DocType] = []
