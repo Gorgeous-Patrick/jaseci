@@ -856,20 +856,6 @@ class DocIRGenPass(UniPass):
         kid_count = len(node.kid)
 
         for idx, kid in enumerate(node.kid):
-            if not isinstance(
-                kid.gen.doc_ir,
-                (
-                    doc.Text,
-                    doc.Concat,
-                    doc.Group,
-                    doc.Indent,
-                    doc.Line,
-                    doc.Align,
-                    doc.IfBreak,
-                ),
-            ):
-                self.enter_exit(kid)
-
             parts.append(kid.gen.doc_ir)
 
             is_last = idx == kid_count - 1
@@ -1982,54 +1968,15 @@ class DocIRGenPass(UniPass):
 
         if has_brace_tokens:
             for child in node.kid:
-                if not isinstance(
-                    child.gen.doc_ir,
-                    (
-                        doc.Text,
-                        doc.Concat,
-                        doc.Group,
-                        doc.Indent,
-                        doc.Line,
-                        doc.Align,
-                        doc.IfBreak,
-                    ),
-                ):
-                    self.enter_exit(child)
                 parts.append(child.gen.doc_ir)
             node.gen.doc_ir = self.concat(parts)
             return
 
         for child in node.kid:
             if child is node.value and child and not isinstance(child, uni.String):
-                if not isinstance(
-                    child.gen.doc_ir,
-                    (
-                        doc.Text,
-                        doc.Concat,
-                        doc.Group,
-                        doc.Indent,
-                        doc.Line,
-                        doc.Align,
-                        doc.IfBreak,
-                    ),
-                ):
-                    self.enter_exit(child)
                 parts.extend([self.text("{"), child.gen.doc_ir, self.text("}")])
                 continue
 
-            if not isinstance(
-                child.gen.doc_ir,
-                (
-                    doc.Text,
-                    doc.Concat,
-                    doc.Group,
-                    doc.Indent,
-                    doc.Line,
-                    doc.Align,
-                    doc.IfBreak,
-                ),
-            ):
-                self.enter_exit(child)
             parts.append(child.gen.doc_ir)
         node.gen.doc_ir = self.concat(parts)
 
