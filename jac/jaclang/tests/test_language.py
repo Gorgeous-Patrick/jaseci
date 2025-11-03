@@ -1650,3 +1650,17 @@ class JacLanguageTests(TestCase):
         self.assertIn("Alice", stdout_value[1])
         self.assertIn("3", stdout_value[2])
         self.assertIn("None", stdout_value[3])
+
+    def test_anonymous_ability_execution(self) -> None:
+        """Test that anonymous abilities execute correctly with synthetic names."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("anonymous_ability_test", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+
+        # Verify all expected outputs from the anonymous abilities
+        self.assertIn("Walker root entry executed", stdout_value)
+        self.assertIn("Walker root exit executed", stdout_value)
+        self.assertIn("Node entry executed: TestNode", stdout_value)
+        self.assertIn("Walker visiting node", stdout_value)

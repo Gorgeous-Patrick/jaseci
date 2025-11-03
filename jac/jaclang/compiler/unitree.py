@@ -1893,7 +1893,6 @@ class Ability(
         doc: Optional[String] = None,
         decorators: Sequence[Expr] | None = None,
     ) -> None:
-        self.name_ref = name_ref
         self.is_override = is_override
         self.is_static = is_static
         self.is_abstract = is_abstract
@@ -1912,10 +1911,20 @@ class Ability(
                 raise ValueError(
                     "Cannot create synthetic name_ref without location info."
                 )
-            synthetic_name_ref = Name(
+            # Generate anonymous name based on event type and location
+            event_type = (
+                "entry"
+                if isinstance(signature, EventSignature)
+                and signature.event.name == Tok.KW_ENTRY
+                else "exit"
+            )
+            synthetic_name = (
+                f"__ability_{event_type}_{first_tok.line_no}_{first_tok.c_start}__"
+            )
+            synthetic_name_ref: NameAtom = Name(
                 orig_src=first_tok.orig_src,
                 name=Tok.NAME,
-                value=self.py_resolve_name(),
+                value=synthetic_name,
                 line=first_tok.line_no,
                 end_line=first_tok.end_line,
                 col_start=first_tok.c_start,
@@ -1925,8 +1934,10 @@ class Ability(
                 is_enum_stmt=False,
             )
             name_spec_for_init: Name | NameAtom = synthetic_name_ref
+            self.name_ref = synthetic_name_ref
         else:
             name_spec_for_init = name_ref
+            self.name_ref = name_ref
 
         AstSymbolNode.__init__(
             self,
