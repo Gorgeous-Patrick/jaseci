@@ -2997,10 +2997,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
             value = None
             if self.match_token(Tok.EQ):
                 value = self.consume(uni.Expr)
+            kids = [*self.cur_nodes]
+            if hasattr(value, "attached_tokens"):  # <-- TEMP WORKAROUND
+                kids.insert(kids.index(value) + 1, value.attached_tokens[1])  # type: ignore
+                kids.insert(kids.index(value), value.attached_tokens[0])  # type: ignore
             return uni.JsxNormalAttribute(
                 name=name,
                 value=value,
-                kid=self.cur_nodes,
+                kid=kids,
             )
 
         def jsx_attr_value(self, _: None) -> uni.String | uni.Expr:
@@ -3010,9 +3014,10 @@ class JacParser(Transform[uni.Source, uni.Module]):
             """
             if string := self.match(uni.String):
                 return string
-            self.consume_token(Tok.LBRACE)
+            lbrace = self.consume_token(Tok.LBRACE)
             expr = self.consume(uni.Expr)
-            self.consume_token(Tok.RBRACE)
+            rbrace = self.consume_token(Tok.RBRACE)
+            expr.attached_tokens = [lbrace, rbrace]  # <-- TEMP WORKAROUND
             return expr
 
         def jsx_children(self, _: None) -> list[uni.JsxChild]:
