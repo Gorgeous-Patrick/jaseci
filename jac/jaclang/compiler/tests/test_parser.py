@@ -128,6 +128,7 @@ class TestLarkParser(TestCaseMicroSuite):
             "UniNode",
             "UniScopeNode",
             "UniCFGNode",
+            "ClientFacingNode",
             "ProgramModule",
             "WalkerStmtOnlyNode",
             "Source",

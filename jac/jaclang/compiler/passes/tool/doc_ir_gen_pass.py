@@ -320,8 +320,6 @@ class DocIRGenPass(UniPass):
         is_in_items: bool = False
 
         for i in node.kid:
-            if isinstance(i, uni.Token) and self._is_injected_client_token(i):
-                continue
             if isinstance(i, uni.Token) and i.name == Tok.COMMA:
                 if is_in_items:
                     mod_items.pop()
@@ -1752,28 +1750,9 @@ class DocIRGenPass(UniPass):
             parts.append(i.gen.doc_ir)
         node.gen.doc_ir = self.group(self.concat(parts))
 
-    def _is_injected_client_token(self, token: uni.Token) -> bool:
-        """Return True when token is a synthetic client keyword inside a client block."""
-        if token.name != Tok.KW_CLIENT:
-            return False
-        parent = token.parent
-        current = parent
-        in_client_block = False
-        while current is not None:
-            if isinstance(current, uni.ClientBlock):
-                in_client_block = True
-                break
-            current = current.parent
-        if not in_client_block:
-            return False
-        return not isinstance(parent, uni.ClientBlock)
-
     def exit_token(self, node: uni.Token) -> None:
         """Generate DocIR for tokens."""
-        if self._is_injected_client_token(node):
-            node.gen.doc_ir = self.text("", source_token=None)
-        else:
-            node.gen.doc_ir = self.text(node.value, source_token=node)
+        node.gen.doc_ir = self.text(node.value, source_token=node)
 
     def exit_semi(self, node: uni.Semi) -> None:
         """Generate DocIR for semicolons."""
