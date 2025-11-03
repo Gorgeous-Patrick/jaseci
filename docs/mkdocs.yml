@@ -8,11 +8,12 @@ nav:
     # - Getting Started: "learn/getting_started.md"
     - Getting Started:
       - Installation: "learn/installation.md"
-      - Tour of Jac/Jaseci: "learn/tour.md"
+      # - Tour of Jac/Jaseci: "learn/tour.md"
       - Jac as Your First Programming Language: "learn/beginners_guide_to_jac.md"
+      - Syntax Quick Reference: "learn/quick_reference.md"
       - Native Superset of Python: "learn/superset_python.md"
       - Jac Library in Pure Python: "learn/library_mode.md"
-      - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"
+      # - Learn Jac in 5 Minutes: "learn/jac_in_a_flash.md"
     - The Jac Book:
       - Introduction: "jac_book/index.md"
       - 1. Welcome to Jac: "jac_book/chapter_1.md"
