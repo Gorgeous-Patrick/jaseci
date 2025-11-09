@@ -7,6 +7,8 @@ import pdb
 import re
 from traceback import TracebackException
 
+from jaclang.settings import settings
+
 
 def pascal_to_snake(pascal_string: str) -> str:
     """Convert pascal case to snake case."""
@@ -197,12 +199,13 @@ def dump_traceback(e: Exception) -> str:
 
     # Process and print frames, collapsing consecutive internal runtime calls
     seen_runtime_marker: bool = False
+    collapse_internal: bool = not settings.show_internal_stack_errs
 
     for idx, frame in enumerate(tb.stack):
         is_internal: bool = is_internal_runtime_frame(frame.filename)
 
-        # Collapse consecutive internal runtime frames into a single marker
-        if is_internal:
+        # Collapse consecutive internal runtime frames into a single marker (if enabled)
+        if is_internal and collapse_internal:
             if not seen_runtime_marker:
                 trace_dump += f'\n{" " * dump_tab_width}... [internal runtime calls]'
                 seen_runtime_marker = True
