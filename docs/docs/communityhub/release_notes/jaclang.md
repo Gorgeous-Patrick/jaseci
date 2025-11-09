@@ -5,8 +5,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 ## jaclang 0.9.0 (Unreleased)
 
 - **Plugin Architecture for Server Rendering**: Added extensible plugin system for server-side page rendering, allowing custom rendering engines and third-party templating integration with transform, cache, and customization capabilities.
-
-- **byLLM In-Memory Images**: byLLM Image class now accepts in-memory and path-like inputs (bytes/bytearray/memoryview, BytesIO/file-like, PIL.Image, Path), plus data/gs/http(s) URLs; auto-detects MIME (incl. WEBP), preserves URLs, and reads streams.
+- **Improvements to Runtime Error reporting**: Made various improvements to runtime error CLI reporting.
 
 ## jaclang 0.8.10 (Latest Release)
 

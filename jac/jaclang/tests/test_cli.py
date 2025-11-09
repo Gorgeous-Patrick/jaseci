@@ -137,7 +137,7 @@ class JacCliTests(TestCase):
         # Verify exit code is 1
         self.assertEqual(cm.exception.code, 1)
 
-        expected_stdout_values = (
+        expected_stderr_values = (
             "Error: list index out of range",
             "    print(some_list[invalid_index]);",
             "          ^^^^^^^^^^^^^^^^^^^^^^^^",
@@ -145,9 +145,8 @@ class JacCliTests(TestCase):
             "  at foo() ",
             "  at <module> ",
         )
-        logger_capture = "\n".join([rec.message for rec in self.caplog.records])
-        for exp in expected_stdout_values:
-            self.assertIn(exp, logger_capture)
+        for exp in expected_stderr_values:
+            self.assertIn(exp, captured_output.getvalue())
 
     def test_jac_impl_err(self) -> None:
         """Basic test for pass."""
