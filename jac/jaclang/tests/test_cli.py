@@ -137,6 +137,8 @@ class JacCliTests(TestCase):
         # Verify exit code is 1
         self.assertEqual(cm.exception.code, 1)
 
+        output = captured_output.getvalue()
+
         expected_stderr_values = (
             "Error: list index out of range",
             "    print(some_list[invalid_index]);",
@@ -144,9 +146,22 @@ class JacCliTests(TestCase):
             "  at bar() ",
             "  at foo() ",
             "  at <module> ",
+            "... [internal runtime calls]",
         )
         for exp in expected_stderr_values:
-            self.assertIn(exp, captured_output.getvalue())
+            self.assertIn(exp, output)
+
+        # Ensure internal runtime calls are collapsed and NOT shown individually
+        internal_call_patterns = (
+            "meta_importer.py",
+            "machine.py",
+            "/jaclang/vendor/",
+            "pluggy",
+            "_multicall",
+            "_hookexec",
+        )
+        for pattern in internal_call_patterns:
+            self.assertNotIn(pattern, output)
 
     def test_jac_impl_err(self) -> None:
         """Basic test for pass."""
