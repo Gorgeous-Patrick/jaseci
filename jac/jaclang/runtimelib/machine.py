@@ -1895,7 +1895,6 @@ class JacMachine(JacMachineInterface):
     @staticmethod
     def set_base_path(base_path: str) -> None:
         """Set the base path for the machine."""
-        JacMachine.reset_machine()
         JacMachine.base_path_dir = (
             base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
         )
