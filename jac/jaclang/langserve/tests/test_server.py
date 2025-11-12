@@ -81,6 +81,17 @@ class TestJacLangServer(TestCase):
             str(lsp.get_definition(circle_file, lspt.Position(20, 16))),
         )
 
+        goto_defs_file = uris.from_fs_path(self.fixture_abs_path("goto_def_tests.jac"))
+        lsp.type_check_file(goto_defs_file)
+        self.assertIn(
+            "fixtures/goto_def_tests.jac:0:5-0:13",
+            str(lsp.get_definition(goto_defs_file, lspt.Position(6, 21))),
+        )
+        self.assertIn(
+            "fixtures/goto_def_tests.jac:1:8-1:17",
+            str(lsp.get_definition(goto_defs_file, lspt.Position(6, 30))),
+        )
+
     def test_go_to_definition_method_manual_impl(self) -> None:
         """Test that the go to definition is correct."""
         lsp = JacLangServer()
