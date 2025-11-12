@@ -80,6 +80,7 @@ nav:
       - "learn/tools/cli.md"
       - "learn/tools/jac_serve.md"
       - "learn/tools/streamlit.md"
+      - LLMDocs: "learn/tools/llmdocs.md"
     - Examples:
       - LittleX (your own twitter): "learn/examples/littleX/tutorial.md"
       - Jac MCP Conversational Chatbot: "learn/examples/rag_chatbot/Overview.md"
