@@ -103,7 +103,7 @@ cl {
             console.log("Component mounted!");
             # Load initial data
             async def loadData() -> None {
-                result = await __jacSpawn("get_data", "", {});
+                result = await jacSpawn("get_data", "", {});
                 setData(result);
             }
             loadData();
@@ -182,7 +182,7 @@ The most common use case is loading data when a component mounts:
 
 ```jac
 cl import from react { useState, useEffect }
-cl import from '@jac-client/utils' { __jacSpawn }
+cl import from '@jac-client/utils' { jacSpawn }
 
 cl {
     def TodoApp() -> any {
@@ -194,7 +194,7 @@ cl {
                 setLoading(True);
 
                 # Fetch todos from backend
-                result = await __jacSpawn("read_todos", "", {});
+                result = await jacSpawn("read_todos", "", {});
                 console.log(result);
                 setTodos(result.reports);
                 setLoading(False);
@@ -258,7 +258,7 @@ Load user-specific data when a component mounts:
 
 ```jac
 cl import from react { useState, useEffect }
-cl import from '@jac-client/utils' { __jacSpawn }
+cl import from '@jac-client/utils' { jacSpawn }
 
 cl {
     def ProfileView() -> any {
@@ -273,7 +273,7 @@ cl {
                 }
 
                 # Fetch user profile
-                result = await __jacSpawn("get_user_profile", "", {});
+                result = await jacSpawn("get_user_profile", "", {});
                 setProfile(result);
                 setLoading(False);
             }
@@ -358,7 +358,7 @@ cl {
 
 ```jac
 cl import from react { useState, useEffect }
-cl import from '@jac-client/utils' { __jacSpawn }
+cl import from '@jac-client/utils' { jacSpawn }
 
 cl {
     def app() -> any {
@@ -368,7 +368,7 @@ cl {
 
         useEffect(lambda -> None {
             async def loadTodos() -> None {
-                todos = await __jacSpawn("read_todos","",{});
+                todos = await jacSpawn("read_todos","",{});
                 console.log(todos);
                 setTodos(todos.reports);
             }
@@ -383,7 +383,7 @@ cl {
                 "text": inputValue.trim(),
                 "done": False
             };
-            await __jacSpawn("create_todo","", {"text": inputValue.trim()});
+            await jacSpawn("create_todo","", {"text": inputValue.trim()});
             newTodos = todos.concat([newTodo]);
             setTodos(newTodos);
             setInputValue("");
@@ -391,7 +391,7 @@ cl {
 
         # Toggle todo completion status
         async def toggleTodo(id: any) -> None {
-            await __jacSpawn("toggle_todo",id, {});
+            await jacSpawn("toggle_todo",id, {});
             setTodos(todos.map(lambda todo: any -> any {
                 if todo._jac_id == id {
                     updatedTodo = {
@@ -472,7 +472,7 @@ cl {
 
 ```jac
 cl import from react { useState, useEffect }
-cl import from '@jac-client/utils' { __jacSpawn }
+cl import from '@jac-client/utils' { jacSpawn }
 
 cl {
     def Dashboard() -> any {
@@ -486,8 +486,8 @@ cl {
 
                 # Load multiple data sources in parallel
                 results = await Promise.all([
-                    __jacSpawn("get_stats", "", {}),
-                    __jacSpawn("get_recent_activity", "", {})
+                    jacSpawn("get_stats", "", {}),
+                    jacSpawn("get_recent_activity", "", {})
                 ]);
 
                 setStats(results[0]);
@@ -571,7 +571,7 @@ Always handle async operations with proper error handling:
 useEffect(lambda -> None {
     async def loadData() -> None {
         try {
-            data = await __jacSpawn("get_data", "", {});
+            data = await jacSpawn("get_data", "", {});
             setData(data);
         } except Exception as err {
             console.error("Error loading data:", err);
@@ -616,7 +616,7 @@ def Component() -> any {
         async def loadData() -> None {
             try {
                 setLoading(True);
-                result = await __jacSpawn("get_data", "", {});
+                result = await jacSpawn("get_data", "", {});
                 setData(result);
             } except Exception as err {
                 setError(err);

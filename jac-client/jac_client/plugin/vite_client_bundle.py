@@ -181,10 +181,24 @@ class ViteClientBundleBuilder(ClientBundleBuilder):
         runtimeutils_manifest = mod.gen.client_manifest if mod else None
         runtimeutils_exports_list = self._extract_client_exports(runtimeutils_manifest)
 
+        # Add React Router exports that are variable declarations (not functions)
+        # These need to be manually added since they're 'let' declarations, not 'def' functions
+        router_exports = [
+            "Router",
+            "Routes",
+            "Route",
+            "Link",
+            "Navigate",
+            "useNavigate",
+            "useLocation",
+            "useParams",
+        ]
+
+        # Combine manifest exports with router exports
+        all_exports = sorted(set(runtimeutils_exports_list + router_exports))
+
         export_block = (
-            f"export {{ {', '.join(runtimeutils_exports_list)} }};\n"
-            if runtimeutils_exports_list
-            else ""
+            f"export {{ {', '.join(all_exports)} }};\n" if all_exports else ""
         )
 
         combined_runtime_utils_js = f"{runtimeutils_js}\n{export_block}"

@@ -33,7 +33,8 @@ class ViteClientBundleBuilderTests(TestCase):
         # Create package.json with base dependencies
         dependencies = {
             "react": "^19.2.0",
-            "react-dom": "^19.2.0"
+            "react-dom": "^19.2.0",
+            "react-router-dom": "^7.3.0"
         }
         
         # Add antd if requested
@@ -139,24 +140,22 @@ export default defineConfig({
         # Create a temporary directory for our test project
         with tempfile.TemporaryDirectory() as temp_dir:            
             temp_path = Path(temp_dir)
-            # Create project with Vite installed
+ 
             package_json, output_dir = self._create_test_project_with_vite(temp_path)
-            
+            runtime_path = Path(__file__).parent.parent / "plugin" / "client_runtime.jac"
             # Initialize the Vite builder
             builder = ViteClientBundleBuilder(
+                runtime_path=runtime_path,
                 vite_package_json=package_json,
                 vite_output_dir=output_dir,
                 vite_minify=False,  # Disable minification for easier inspection
             )
-            
             # Import the test module
             fixtures_dir = Path(__file__).parent / "fixtures" / "basic-app"
             (module,) = Jac.jac_import("app", str(fixtures_dir))
-            
             # Build the bundle
             bundle = builder.build(module, force=True)
-            
-            # Verify bundle structure
+
             self.assertIsNotNone(bundle)
             self.assertEqual(bundle.module_name, "app")
             self.assertIn("app", bundle.client_functions)
@@ -183,8 +182,11 @@ export default defineConfig({
         fixtures_dir = Path(__file__).parent / "fixtures" / "basic-app"
         (module,) = Jac.jac_import("app", str(fixtures_dir))
         
+        runtime_path = Path(__file__).parent.parent / "plugin" / "client_runtime.jac"
+        
         # Create builder without package.json
         builder = ViteClientBundleBuilder(
+            runtime_path=runtime_path,
             vite_package_json=Path("/nonexistent/package.json"),
             vite_output_dir=Path("/tmp/output"),
         )
@@ -204,9 +206,11 @@ export default defineConfig({
             
             # Create project with Vite and Ant Design installed
             package_json, output_dir = self._create_test_project_with_vite(temp_path, include_antd=True)
+            runtime_path = Path(__file__).parent.parent / "plugin" / "client_runtime.jac"
             
             # Initialize the Vite builder
             builder = ViteClientBundleBuilder(
+                runtime_path=runtime_path,
                 vite_package_json=package_json,
                 vite_output_dir=output_dir,
                 vite_minify=False,
@@ -251,9 +255,11 @@ export default defineConfig({
             
             # Create project with Vite installed
             package_json, output_dir = self._create_test_project_with_vite(temp_path, include_antd=True)
+            runtime_path = Path(__file__).parent.parent / "plugin" / "client_runtime.jac"
             
             # Initialize the Vite builder
             builder = ViteClientBundleBuilder(
+                runtime_path=runtime_path,
                 vite_package_json=package_json,
                 vite_output_dir=output_dir,
                 vite_minify=False,
@@ -293,9 +299,10 @@ export default defineConfig({
             temp_path = Path(temp_dir)
             # Create project with Vite installed
             package_json, output_dir = self._create_test_project_with_vite(temp_path)
-            
+            runtime_path = Path(__file__).parent.parent / "plugin" / "client_runtime.jac"
             # Initialize the Vite builder
             builder = ViteClientBundleBuilder(
+                runtime_path=runtime_path,
                 vite_package_json=package_json,
                 vite_output_dir=output_dir,
                 vite_minify=False,
@@ -345,9 +352,11 @@ export default defineConfig({
             
             # Create project with Vite installed
             package_json, output_dir = self._create_test_project_with_vite(temp_path)
+            runtime_path = Path(__file__).parent.parent / "plugin" / "client_runtime.jac"
             
             # Initialize the Vite builder
             builder = ViteClientBundleBuilder(
+                runtime_path=runtime_path,
                 vite_package_json=package_json,
                 vite_output_dir=output_dir,
                 vite_minify=False,

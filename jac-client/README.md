@@ -9,7 +9,7 @@ Jac Client enables you to write React-like components, manage state, and build i
 ## ✨ Features
 
 - **Single Language**: Write frontend and backend in Jac
-- **No HTTP Client**: Use `__jacSpawn()` instead of fetch/axios
+- **No HTTP Client**: Use `jacSpawn()` instead of fetch/axios
 - **React Hooks**: Use standard React `useState` and `useEffect` hooks
 - **Component-Based**: Build reusable UI components with JSX
 - **Graph Database**: Built-in graph data model eliminates need for SQL/NoSQL
@@ -85,7 +85,7 @@ cl {
 
 ```jac
 cl import from react { useState, useEffect }
-cl import from '@jac-client/utils' { __jacSpawn }
+cl import from '@jac-client/utils' { jacSpawn }
 
 # Backend: Jac nodes and walkers
 node Todo {
@@ -114,7 +114,7 @@ cl {
 
         useEffect(lambda -> None {
             async def loadTodos() -> None {
-                result = await __jacSpawn("read_todos", "", {});
+                result = await jacSpawn("read_todos", "", {});
                 setTodos(result.reports);
             }
             loadTodos();

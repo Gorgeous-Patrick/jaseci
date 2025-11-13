@@ -103,7 +103,11 @@ class JacCmd:
                             "@babel/preset-env": "^7.28.5",
                             "@babel/preset-react": "^7.28.5",
                         },
-                        "dependencies": {"react": "^19.2.0", "react-dom": "^19.2.0"},
+                        "dependencies": {
+                            "react": "^19.2.0",
+                            "react-dom": "^19.2.0",
+                            "react-router-dom": "^6.30.1",
+                        },
                     }
                 )
 

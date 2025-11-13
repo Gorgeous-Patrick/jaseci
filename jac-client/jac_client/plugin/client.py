@@ -63,7 +63,6 @@ class JacClient:
         output_dir = base_path / "dist"
         # Use the plugin's client_runtime.jac file
         runtime_path = Path(__file__).with_name("client_runtime.jac")
-        print(f"Runtime path: {runtime_path}")
         return ViteClientBundleBuilder(
             runtime_path=runtime_path,
             vite_package_json=package_json_path,

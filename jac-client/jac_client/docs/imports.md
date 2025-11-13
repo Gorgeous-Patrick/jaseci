@@ -24,7 +24,7 @@ Jac-Client provides built-in utilities for authentication, backend communication
 
 ```jac
 cl import from '@jac-client/utils' {
-    __jacSpawn,      # Call backend walkers
+    jacSpawn,      # Call backend walkers
     jacLogin,        # Login user
     jacSignup,       # Register new user
     jacLogout,       # Logout user
@@ -36,13 +36,13 @@ cl import from '@jac-client/utils' {
 
 ### Backend Communication
 
-#### `__jacSpawn` - Call Backend Walkers
+#### `jacSpawn` - Call Backend Walkers
 
-The `__jacSpawn` function lets you call backend walkers from the frontend:
+The `jacSpawn` function lets you call backend walkers from the frontend:
 
 ```jac
 cl import from react { useState, useEffect }
-cl import from '@jac-client/utils' { __jacSpawn }
+cl import from '@jac-client/utils' { jacSpawn }
 
 cl {
     def TodoApp() -> any {
@@ -51,7 +51,7 @@ cl {
         useEffect(lambda -> None {
             async def loadTodos() -> None {
                 # Call backend walker
-                result = await __jacSpawn("read_todos", "", {});
+                result = await jacSpawn("read_todos", "", {});
                 setTodos(result.reports);
             }
             loadTodos();
@@ -59,7 +59,7 @@ cl {
 
         async def addTodo(text: str) -> None {
             # Call walker with parameters
-            new_todo = await __jacSpawn("create_todo", "", {"text": text});
+            new_todo = await jacSpawn("create_todo", "", {"text": text});
             setTodos(todos.concat([new_todo]));
         }
 
@@ -70,7 +70,7 @@ cl {
 
 **Signature:**
 ```jac
-__jacSpawn(walker_name: str, node_id: str, params: dict) -> any
+jacSpawn(walker_name: str, node_id: str, params: dict) -> any
 ```
 
 - `walker_name`: Name of the backend walker to call
@@ -354,7 +354,7 @@ cl {
 
 ```jac
 cl import from react { useState, useEffect }
-cl import from '@jac-client/utils' { jacIsLoggedIn, __jacSpawn, navigate }
+cl import from '@jac-client/utils' { jacIsLoggedIn, jacSpawn, navigate }
 
 cl {
     def ProtectedDashboard() -> any {
@@ -368,7 +368,7 @@ cl {
             }
 
             async def loadUserData() -> None {
-                result = await __jacSpawn("get_user_profile", "", {});
+                result = await jacSpawn("get_user_profile", "", {});
                 setUser(result);
                 setLoading(False);
             }
@@ -388,7 +388,7 @@ cl {
 
 ```jac
 cl import from react { useState }
-cl import from '@jac-client/utils' { __jacSpawn }
+cl import from '@jac-client/utils' { jacSpawn }
 
 cl {
     def CreateTodoForm() -> any {
@@ -401,7 +401,7 @@ cl {
 
             setLoading(True);
             try {
-                await __jacSpawn("create_todo", "", {"text": text});
+                await jacSpawn("create_todo", "", {"text": text});
                 setText("");  # Clear form
                 alert("Todo created!");
             } catch (err) {

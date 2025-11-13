@@ -322,7 +322,7 @@ cl {
         if not text { return; }
 
         # Create todo on backend
-        new_todo = await __jacSpawn("create_todo", {"text": text});
+        new_todo = await jacSpawn("create_todo", {"text": text});
 
         # Update frontend state
         s = todoState();
@@ -386,7 +386,7 @@ async def onAddTodo(e: any) -> None {
     if not text { return; }
 
     # Handle form submission
-    new_todo = await __jacSpawn("create_todo", {"text": text});
+    new_todo = await jacSpawn("create_todo", {"text": text});
     # ... update state
 }
 ```
@@ -427,7 +427,7 @@ def FilterButton(filterType: str) -> any {
 
 One of Jac's most powerful features is **seamless backend communication** without writing HTTP requests, fetch calls, or axios code.
 
-### The `__jacSpawn()` Function
+### The `jacSpawn()` Function
 
 Instead of writing:
 ```javascript
@@ -442,14 +442,14 @@ const data = await response.json();
 
 You simply write:
 ```jac
-new_todo = await __jacSpawn("create_todo", {"text": "New todo"});
+new_todo = await jacSpawn("create_todo", {"text": "New todo"});
 ```
 
-### How `__jacSpawn()` Works
+### How `jacSpawn()` Works
 
 ```jac
 # Call a walker on the backend
-result = await __jacSpawn(
+result = await jacSpawn(
     walker_name,    # Name of the walker to execute
     fields,         # Dictionary of parameters to pass
     node_id         # Optional: specific node ID (defaults to "root")
@@ -459,13 +459,13 @@ result = await __jacSpawn(
 **Example from Todo App:**
 ```jac
 # Create a new todo
-new_todo = await __jacSpawn("create_todo", {"text": text});
+new_todo = await jacSpawn("create_todo", {"text": text});
 
 # Toggle todo status
-toggled_todo = await __jacSpawn("toggle_todo", {}, todo_id);
+toggled_todo = await jacSpawn("toggle_todo", {}, todo_id);
 
 # Read all todos
-todos = await __jacSpawn("read_todos");
+todos = await jacSpawn("read_todos");
 ```
 
 ### Backend Walkers
@@ -517,7 +517,7 @@ async def onAddTodo(e: any) -> None {
     if not text { return; }
 
     # Call backend walker - no fetch/axios needed!
-    new_todo = await __jacSpawn("create_todo", {"text": text});
+    new_todo = await jacSpawn("create_todo", {"text": text});
 
     # Update frontend state
     s = todoState();
@@ -534,7 +534,7 @@ async def onAddTodo(e: any) -> None {
 ```jac
 walker create_todo {
     can create with `root entry {
-        # 'text' comes from the fields dictionary passed to __jacSpawn
+        # 'text' comes from the fields dictionary passed to jacSpawn
         text = context.text;
         new_todo = here ++> Todo(text=text);
         report new_todo;
@@ -542,7 +542,7 @@ walker create_todo {
 }
 ```
 
-### Benefits of `__jacSpawn()`
+### Benefits of `jacSpawn()`
 
 ✅ **No HTTP Configuration**: No need to set up API endpoints, CORS, or request/response formats
 ✅ **Type Safety**: Jac handles serialization automatically
@@ -627,7 +627,7 @@ cl {
     async def onAddTodo(e: any) -> None {
         e.preventDefault();
         text = document.getElementById("todo-input").value;
-        new_todo = await __jacSpawn("create_todo", {"text": text});
+        new_todo = await jacSpawn("create_todo", {"text": text});
         # Update state...
     }
 
@@ -678,7 +678,7 @@ Check out the `examples/` directory for working applications:
 ## 💡 Key Takeaways
 
 1. **Single Language**: Write frontend and backend in Jac
-2. **No HTTP Client**: Use `__jacSpawn()` instead of fetch/axios
+2. **No HTTP Client**: Use `jacSpawn()` instead of fetch/axios
 3. **Reactive State**: `createState()` manages UI updates automatically
 4. **Component-Based**: Build reusable UI components with JSX
 5. **Type Safety**: Jac provides type checking across frontend and backend
