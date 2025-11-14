@@ -11,7 +11,6 @@ cl import from "@jac-client/utils" {
     Navigate,
     useNavigate,
     useLocation,
-    jacSpawn,
     jacSignup,
     jacLogin,
     jacLogout,
@@ -411,7 +410,7 @@ cl {
         # Load todos on mount
         useEffect(
             lambda   -> None{ async def loadTodos()  -> None {
-                result = await jacSpawn("read_todos", "", {});
+                result = root spawn read_todos();
                 setTodos(result.reports if result.reports else []);
             } loadTodos();} ,
             []
@@ -422,14 +421,14 @@ cl {
             if not input.trim() {
                 return;
             }
-            result = await jacSpawn("create_todo", "", {"text": input.trim()});
+            result = root spawn create_todo(text=input.trim());
             setTodos(todos.concat([result.reports[0][0]]));
             setInput("");
         }
 
         # Toggle todo
         async def toggleTodo(id: any) -> None {
-            await jacSpawn("toggle_todo", id, {});
+            id spawn toggle_todo();
             setTodos(
                 todos.map(
                     lambda  todo: any  -> any{ if todo._jac_id == id {
@@ -445,7 +444,7 @@ cl {
 
         # Delete todo
         async def deleteTodo(id: any) -> None {
-            await jacSpawn("delete_todo", id, {});
+            id spawn delete_todo();
             setTodos(
                 todos.filter(lambda  todo: any  -> bool{ return todo._jac_id != id; } )
             );

@@ -392,3 +392,85 @@ export default defineConfig({
             
             # Cleanup
             builder.cleanup_temp_dir()
+
+    def test_spawn_operator(self) -> None:
+        """Test that spawn operator generates correct __jacSpawn calls for both orderings and node types (root and UUID)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create project with Vite installed
+            package_json, output_dir = self._create_test_project_with_vite(temp_path)
+            runtime_path = Path(__file__).parent.parent / "plugin" / "client_runtime.jac"
+
+            # Initialize the Vite builder
+            builder = ViteClientBundleBuilder(
+                runtime_path=runtime_path,
+                vite_package_json=package_json,
+                vite_output_dir=output_dir,
+                vite_minify=False,
+            )
+
+            # Import the test module with both spawn operator orderings
+            fixtures_dir = Path(__file__).parent / "fixtures" / "spawn_test"
+            (module,) = Jac.jac_import("app", str(fixtures_dir))
+
+            # Build the bundle
+            bundle = builder.build(module, force=True)
+
+            # Verify bundle structure
+            self.assertIsNotNone(bundle)
+            self.assertEqual(bundle.module_name, "app")
+            self.assertIn("app", bundle.client_functions)
+
+            # Verify complete __jacSpawn calls for root spawn scenarios
+            # Standard order: root spawn test_walker()
+            self.assertIn('__jacSpawn("test_walker", "", {})', bundle.code)
+
+            # Standard order: root spawn parameterized_walker(value=42)
+            self.assertIn('__jacSpawn("parameterized_walker", "", {', bundle.code)
+            self.assertIn('"value": 42', bundle.code)
+
+            # Reverse order: test_walker(message="Reverse spawn!") spawn root
+            # Should generate: __jacSpawn("test_walker", "", {message: "Reverse spawn!"})
+            self.assertRegex(
+                bundle.code,
+                r'__jacSpawn\("test_walker",\s*"",\s*\{[^}]*"message":\s*"Reverse spawn!"[^}]*\}\)'
+            )
+
+            # Verify UUID spawn scenarios with complete calls
+            # Standard UUID spawn: node_id spawn test_walker()
+            # Should generate: __jacSpawn("test_walker", node_id, {})
+            self.assertIn('__jacSpawn("test_walker", node_id, {})', bundle.code)
+            self.assertIn('"550e8400-e29b-41d4-a716-446655440000"', bundle.code)
+
+            # Reverse UUID spawn: parameterized_walker(value=100) spawn another_node_id
+            # Should generate: __jacSpawn("parameterized_walker", another_node_id, {value: 100})
+            self.assertRegex(
+                bundle.code,
+                r'__jacSpawn\("parameterized_walker",\s*another_node_id,\s*\{[^}]*"value":\s*100[^}]*\}\)'
+            )
+            self.assertIn('"6ba7b810-9dad-11d1-80b4-00c04fd430c8"', bundle.code)
+
+            # Verify positional argument mapping for walkers
+            self.assertRegex(
+                bundle.code,
+                r'__jacSpawn\("positional_walker",\s*node_id,\s*\{[^}]*"label":\s*"Node positional"[^}]*"count":\s*2',
+            )
+            # Verify spread (**kwargs) handling when walker is on left-hand side
+            self.assertRegex(
+                bundle.code,
+                r'__jacSpawn\("positional_walker",\s*"",\s*_objectSpread\(\{\s*"label":\s*"Spread order"[^}]*"count":\s*5\s*\},\s*extra_fields\)',
+            )
+
+            # Verify we have at least 7 __jacSpawn calls (previous cases + new positional/spread)
+            self.assertTrue(
+                bundle.code.count('__jacSpawn') >= 7,
+                "Expected at least 7 __jacSpawn calls in bundle"
+            )
+
+            # Verify bundle was written to output directory
+            bundle_files = list(output_dir.glob("client.*.js"))
+            self.assertGreater(len(bundle_files), 0, "Expected at least one bundle file")
+
+            # Cleanup
+            builder.cleanup_temp_dir()
