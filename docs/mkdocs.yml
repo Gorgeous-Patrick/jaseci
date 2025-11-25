@@ -57,7 +57,7 @@ nav:
         - Examples: "learn/jac-byllm/examples.md"
         - Python byllm Interface: "learn/jac-byllm/python_integration.md"
         - Using Multimodal models: "learn/jac-byllm/multimodality.md"
-        - Create Your Own Language Model: "learn/jac-byllm/create_own_lm.md"
+        - Creating a Custom Model Class: "learn/jac-byllm/create_own_lm.md"
         # - Build your own byllm plugin: "learn/jac-byllm/creating_byllm_plugins.md". # Needs review and update
         - LiteLLM Proxy Server: "learn/jac-byllm/litellm_proxy.md"
     - Scale-Native Programming:
@@ -264,7 +264,10 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.arithmatex:
-      generic: true
+  # - pymdownx.emoji:
+  #     emoji_index: !!python/name:materialx.emoji.twemoji
+  #     emoji_generator: !!python/name:materialx.emoji.to_svg
+
   - pymdownx.blocks.caption
   - attr_list
   - md_in_html
