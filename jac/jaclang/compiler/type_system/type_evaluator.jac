@@ -1331,28 +1331,32 @@ class TypeEvaluator {
 
         parameters: list[types.Parameter] = [];
 
-        # Iterate over the has vars and create parameters.
-        for has_var in class_type.shared.symbol_table.get_has_vars() {
+        for cls in class_type.shared.mro[::-1] {
 
-            # Get parameter type.
-            param_type: TypeBase | None = None;
-            if has_var.type_tag {
-                var_type_expr = has_var.type_tag.tag;
-                type_cls = self.get_type_of_expression(var_type_expr);
-                param_type = self._convert_to_instance(type_cls);
+            # Iterate over the has vars and create parameters.
+            for has_var in cls.shared.symbol_table.get_has_vars() {
+
+                # Get parameter type.
+                param_type: TypeBase | None = None;
+                if has_var.type_tag {
+                    var_type_expr = has_var.type_tag.tag;
+                    type_cls = self.get_type_of_expression(var_type_expr);
+                    param_type = self._convert_to_instance(type_cls);
+                }
+
+                # Create parameter.
+                parameters.append(
+                    types.Parameter(
+                        name=has_var.name.value,
+                        category=types.ParameterCategory.Positional,
+                        param_type=param_type,
+                        default_value=has_var.value,
+                        is_self=False,
+                        param_kind=types.ParamKind.NORMAL,
+                    )
+                );
             }
 
-            # Create parameter.
-            parameters.append(
-                types.Parameter(
-                    name=has_var.name.value,
-                    category=types.ParameterCategory.Positional,
-                    param_type=param_type,
-                    default_value=has_var.value,
-                    is_self=False,
-                    param_kind=types.ParamKind.NORMAL,
-                )
-            );
         }
 
         # Create and return the __init__ method type.
