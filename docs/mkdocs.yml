@@ -105,7 +105,11 @@ nav:
       - Lifecycle Hooks: "jac-client/lifecycle-hooks.md"
       - Advanced State: "jac-client/advanced-state.md"
       - Imports: "jac-client/imports.md"
-      - File System: "jac-client/file-system/intro.md"
+      - File System:
+        - Introduction: "jac-client/file-system/intro.md"
+        - Backend/Frontend Separation: "jac-client/file-system/backend-frontend.md"
+        - Nested Folder Imports: "jac-client/file-system/nested-imports.md"
+        - The app.jac Entry Point: "jac-client/file-system/app.jac.md"
       - Handling Assets: "jac-client/asset-serving/intro.md"
     - Tooling:
       - Jac Debugger: "learn/debugger.md"
