@@ -1667,3 +1667,17 @@ class JacLanguageTests(TestCase):
         self.assertIn("Walker root exit executed", stdout_value)
         self.assertIn("Node entry executed: TestNode", stdout_value)
         self.assertIn("Walker visiting node", stdout_value)
+
+    def test_escaped_quote_strings(self) -> None:
+        """Test strings with escaped quotes are handled correctly."""
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        Jac.jac_import("escaped_quote_strings", base_path=self.fixture_abs_path("./"))
+        sys.stdout = sys.__stdout__
+        stdout_value = captured_output.getvalue()
+
+        self.assertIn('He said "Hello World"', stdout_value)
+        self.assertIn('It\'s a "great" day', stdout_value)
+        self.assertIn('She said "Don\'t forget the \\backslash\\"', stdout_value)
+        self.assertIn("Line 1\nLine 2\tTabbed", stdout_value)
+        self.assertIn("Path: C:\\Users\\Documents\\file.txt", stdout_value)
