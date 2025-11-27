@@ -120,7 +120,12 @@ obj BaseLLM {
         params = self.make_model_params(mtir);
 
         # Call the LiteLLM API
-        self.log_info(f"Calling LLM: {self.model_name} with params:\n{params}");
+        log_params = (
+            {**params, "api_key": "*" * len(params["api_key"])}
+            if params.get("api_key")
+            else params
+        );
+        self.log_info(f"Calling LLM: {self.model_name} with params:\n{log_params}");
         self.api_key = params.get("api_key");
         self.api_base = params.pop("api_base", DEFAULT_BASE_URL);
         response = self.model_call_no_stream(params);
@@ -159,7 +164,12 @@ obj BaseLLM {
         params = self.make_model_params(mtir);
 
         # Call the LiteLLM API
-        self.log_info(f"Calling LLM: {self.model_name} with params:\n{params}");
+        log_params = (
+            {**params, "api_key": "*" * len(params["api_key"])}
+            if params.get("api_key")
+            else params
+        );
+        self.log_info(f"Calling LLM: {self.model_name} with params:\n{log_params}");
         self.api_key = params.get("api_key");
         self.api_base = params.pop("api_base", DEFAULT_BASE_URL);
         response = self.model_call_with_stream(params);
