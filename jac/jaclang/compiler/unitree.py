@@ -7,7 +7,7 @@ import builtins
 import os
 from collections.abc import Callable, Sequence
 from copy import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from hashlib import md5
 from types import EllipsisType
@@ -305,6 +305,15 @@ class Symbol:
         return f"Symbol({self.sym_name}, {self.sym_type}, {self.access}, {self.defn})"
 
 
+@dataclass
+class InheritedSymbolTable:
+    """Represents an inherited symbol table for selective imports."""
+
+    base_symbol_table: UniScopeNode
+    load_all_symbols: bool = False
+    symbols: list[str] = field(default_factory=list)
+
+
 class UniScopeNode(UniNode):
     """Symbol Table."""
 
@@ -318,6 +327,7 @@ class UniScopeNode(UniNode):
         self.parent_scope = parent_scope
         self.kid_scope: list[UniScopeNode] = []
         self.names_in_scope: dict[str, Symbol] = {}
+        self.inherited_scope: list[InheritedSymbolTable] = []
 
     def get_type(self) -> SymbolType:
         """Get type."""
@@ -744,6 +754,10 @@ class Expr(UniNode):
         # 1. Find a better name for this
         # 2. Migrate this to expr_type property
         self.type: TypeBase | None = None
+
+        # Temporary storage for attached tokens (e.g., braces in JSX attributes)
+        # TODO: Refactor to eliminate this workaround
+        self.attached_tokens: list[Token] | None = None
 
     @property
     def expr_type(self) -> str:
@@ -3498,13 +3512,11 @@ class FString(AtomExpr):
         if deep:
             for part in self.parts:
                 res = res and part.normalize(deep)
-        new_kid: list[UniNode] = (
-            [self.gen_token(self.start)] if self.start is not None else []
-        )
+        new_kid: list[UniNode] = [self.start] if self.start is not None else []
         for part in self.parts:
             new_kid.append(part)
         if self.end is not None:
-            new_kid.append(self.gen_token(self.end))
+            new_kid.append(self.end)
         self.set_kids(nodes=new_kid)
         return res
 
@@ -4350,14 +4362,14 @@ class JsxElement(AtomExpr):
         self,
         name: JsxElementName | None,
         attributes: Sequence[JsxAttribute] | None,
-        children: Sequence[JsxChild] | None,
+        children: Sequence[JsxChild | JsxElement] | None,
         is_self_closing: bool,
         is_fragment: bool,
         kid: Sequence[UniNode],
     ) -> None:
         self.name = name
         self.attributes = list(attributes) if attributes else []
-        self.children = list(children) if children else []
+        self.children: list[JsxChild | JsxElement] = list(children) if children else []
         self.is_self_closing = is_self_closing
         self.is_fragment = is_fragment
         UniNode.__init__(self, kid=kid)
@@ -4389,7 +4401,7 @@ class JsxElementName(UniNode):
 
     def __init__(
         self,
-        parts: Sequence[Name],
+        parts: Sequence[Name | Token],
         kid: Sequence[UniNode],
     ) -> None:
         self.parts = list(parts)
@@ -4451,7 +4463,7 @@ class JsxNormalAttribute(JsxAttribute):
 
     def __init__(
         self,
-        name: Name,
+        name: Name | Token,
         value: String | Expr | None,
         kid: Sequence[UniNode],
     ) -> None:
@@ -4499,7 +4511,7 @@ class JsxText(JsxChild):
 
     def __init__(
         self,
-        value: str,
+        value: str | Token,
         kid: Sequence[UniNode],
     ) -> None:
         self.value = value

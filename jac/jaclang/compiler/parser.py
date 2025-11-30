@@ -15,7 +15,7 @@ from jaclang.compiler import TOKEN_MAP
 from jaclang.compiler import jac_lark as jl
 from jaclang.compiler.constant import EdgeDir
 from jaclang.compiler.constant import Tokens as Tok
-from jaclang.compiler.passes.main import Transform
+from jaclang.compiler.passes.main import BaseTransform, Transform
 from jaclang.utils.helpers import ANSIColors
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ class LarkParseOutput:
     comments: list[jl.Token]
 
 
-class LarkParseTransform(Transform[LarkParseInput, LarkParseOutput]):
+class LarkParseTransform(BaseTransform[LarkParseInput, LarkParseOutput]):
     """Transform for Lark parsing step."""
 
     comment_cache: list[jl.Token] = []
@@ -53,7 +53,7 @@ class LarkParseTransform(Transform[LarkParseInput, LarkParseOutput]):
 
     def __init__(self, ir_in: LarkParseInput, prog: JacProgram) -> None:
         """Initialize Lark parser transform."""
-        Transform.__init__(self, ir_in=ir_in, prog=prog)
+        super().__init__(ir_in=ir_in, prog=prog)
 
     def transform(self, ir_in: LarkParseInput) -> LarkParseOutput:
         """Transform input IR by parsing with Lark."""
@@ -655,6 +655,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
 
             # Now consume either String or dotted_name list
             # Check if we have a String node first
+            valid_path: list[uni.Name | uni.String]
             if self.cur_nodes and isinstance(self.cur_nodes[0], uni.String):
                 # Handle string literal import path
                 string_node = self.consume(uni.String)
@@ -1077,13 +1078,12 @@ class JacParser(Transform[uni.Source, uni.Module]):
             func_decl: (LPAREN func_decl_params? RPAREN) (RETURN_HINT expression)?
                     | (RETURN_HINT expression)
             """
-            params: list[uni.UniNode] | None = None
             return_spec: uni.Expr | None = None
 
             # Check if starting with RETURN_HINT
             if return_hint := self.match_token(Tok.RETURN_HINT):
                 return_spec = self.consume(uni.Expr)
-                kid_list = [return_hint]
+                kid_list: list[uni.UniNode] = [return_hint]
                 if return_spec:
                     kid_list.append(return_spec)
                 return uni.FuncSignature(
@@ -1107,14 +1107,14 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 if return_hint:
                     return_spec = self.consume(uni.Expr)
                 # Build kid list with all tokens
-                kid_list = [lparen]
+                func_kid_list: list[uni.UniNode] = [lparen]
                 if all_params:
-                    kid_list.extend(all_params)
-                kid_list.append(rparen)
+                    func_kid_list.extend(all_params)
+                func_kid_list.append(rparen)
                 if return_hint:
-                    kid_list.append(return_hint)
+                    func_kid_list.append(return_hint)
                     if return_spec:
-                        kid_list.append(return_spec)
+                        func_kid_list.append(return_spec)
                 return uni.FuncSignature(
                     posonly_params=posonly_params,
                     params=params,
@@ -1122,7 +1122,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                     kwonlyargs=kwonlyargs,
                     kwargs=kwargs,
                     return_type=return_spec,
-                    kid=kid_list,
+                    kid=func_kid_list,
                 )
 
         def _parse_parameter_categories(
@@ -1873,8 +1873,8 @@ class JacParser(Transform[uni.Source, uni.Module]):
                         param_nodes = self.consume(list)
                 elif (
                     self.node_idx < len(self.cur_nodes)
-                    and isinstance(self.cur_nodes[self.node_idx], uni.Token)
-                    and self.cur_nodes[self.node_idx].name == Tok.LPAREN.name
+                    and isinstance(cur_node := self.cur_nodes[self.node_idx], uni.Token)
+                    and cur_node.name == Tok.LPAREN.name
                 ):
                     self.consume_token(Tok.LPAREN)
                     param_nodes = self.match(list)
@@ -2339,10 +2339,12 @@ class JacParser(Transform[uni.Source, uni.Module]):
             """
             if lparen := self.match_token(Tok.LPAREN):
                 # Try to match expression first, then yield_expr, then function_decl
-                value = self.match(uni.Expr)
-                if value is None:
-                    value = self.match(uni.YieldExpr)
-                if value is None:
+                value: uni.Expr | uni.YieldExpr | uni.Ability
+                if matched_expr := self.match(uni.Expr):
+                    value = matched_expr
+                elif matched_yield := self.match(uni.YieldExpr):
+                    value = matched_yield
+                else:
                     value = self.consume(uni.Ability)
                 rparen = self.consume_token(Tok.RPAREN)
                 return uni.AtomUnit(value=value, kid=[lparen, value, rparen])
@@ -2517,7 +2519,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
                 return tok
             else:
                 conversion = -1
-                format_spec = None
+                format_spec: uni.String | uni.FString | None = None
                 self.consume_token(Tok.LBRACE)
                 expr = self.consume(uni.Expr)
                 if conv_tok := self.match_token(Tok.CONV):
@@ -2577,7 +2579,7 @@ class JacParser(Transform[uni.Source, uni.Module]):
             lparen = self.consume_token(Tok.LPAREN)
             target = self.match(list)
             rparen = self.consume_token(Tok.RPAREN)
-            values = (
+            values: list[uni.Expr | uni.KWPair] = (
                 self.extract_from_list(target, (uni.Expr, uni.KWPair)) if target else []
             )
             # Build kid list with all tokens
@@ -3008,9 +3010,10 @@ class JacParser(Transform[uni.Source, uni.Module]):
             if self.match_token(Tok.EQ):
                 value = self.consume(uni.Expr)
             kids = [*self.cur_nodes]
-            if hasattr(value, "attached_tokens"):  # <-- TEMP WORKAROUND
-                kids.insert(kids.index(value) + 1, value.attached_tokens[1])  # type: ignore
-                kids.insert(kids.index(value), value.attached_tokens[0])  # type: ignore
+            # Insert attached tokens (braces) around expressions if present
+            if isinstance(value, uni.Expr) and value.attached_tokens is not None:
+                kids.insert(kids.index(value) + 1, value.attached_tokens[1])
+                kids.insert(kids.index(value), value.attached_tokens[0])
             return uni.JsxNormalAttribute(
                 name=name,
                 value=value,
@@ -3030,31 +3033,30 @@ class JacParser(Transform[uni.Source, uni.Module]):
             expr.attached_tokens = [lbrace, rbrace]  # <-- TEMP WORKAROUND
             return expr
 
-        def jsx_children(self, _: None) -> list[uni.JsxChild]:
+        def jsx_children(self, _: None) -> list[uni.JsxChild | uni.JsxElement]:
             """Grammar rule.
 
             jsx_children: jsx_child+
             """
             # The grammar already produces a list of children
             # Just collect all JsxChild nodes from cur_nodes
-            children = []
+            children: list[uni.JsxChild | uni.JsxElement] = []
             while self.node_idx < len(self.cur_nodes):
-                if isinstance(
-                    self.cur_nodes[self.node_idx], (uni.JsxChild, uni.JsxElement)
-                ):
-                    children.append(self.cur_nodes[self.node_idx])  # type: ignore[arg-type]
+                cur = self.cur_nodes[self.node_idx]
+                if isinstance(cur, (uni.JsxChild, uni.JsxElement)):
+                    children.append(cur)
                     self.node_idx += 1
                 else:
                     break
             return children
 
-        def jsx_child(self, _: None) -> uni.JsxChild:
+        def jsx_child(self, _: None) -> uni.JsxChild | uni.JsxElement:
             """Grammar rule.
 
             jsx_child: jsx_element | jsx_expression
             """
             if jsx_elem := self.match(uni.JsxElement):
-                return jsx_elem  # type: ignore[return-value]
+                return jsx_elem
             return self.consume(uni.JsxChild)
 
         def jsx_expression(self, _: None) -> uni.JsxExpression:

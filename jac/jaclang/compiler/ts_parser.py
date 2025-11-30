@@ -8,11 +8,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from threading import Event
 from types import ModuleType
-from typing import TYPE_CHECKING, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, cast
 
 import jaclang.compiler.unitree as uni
 from jaclang.compiler.constant import TsTokens as Tok
-from jaclang.compiler.passes.main import Transform
+from jaclang.compiler.passes.main import BaseTransform, Transform
 from jaclang.utils.helpers import ANSIColors
 
 if TYPE_CHECKING:
@@ -78,24 +78,24 @@ class TsLarkParseOutput:
     comments: list[object]  # Lark Tokens
 
 
-class TsLarkParseTransform(Transform[TsLarkParseInput, TsLarkParseOutput]):
+class TsLarkParseTransform(BaseTransform[TsLarkParseInput, TsLarkParseOutput]):
     """Transform for TypeScript Lark parsing step."""
 
     comment_cache: list[object] = []
 
     def __init__(self, ir_in: TsLarkParseInput, prog: JacProgram) -> None:
         """Initialize TypeScript Lark parser transform."""
-        Transform.__init__(self, ir_in=ir_in, prog=prog)
+        super().__init__(ir_in=ir_in, prog=prog)
 
     def transform(self, ir_in: TsLarkParseInput) -> TsLarkParseOutput:
         """Transform input IR by parsing with LALR parser."""
         TsLarkParseTransform.comment_cache = []
-        parser = get_ts_parser()
+        parser: Any = get_ts_parser()
         try:
             tree = parser.parse(ir_in.ir_value, on_error=ir_in.on_error)
         except Exception as e:
             # Call error handler if provided
-            if ir_in.on_error:
+            if ir_in.on_error is not None:
                 ir_in.on_error(e)
             raise
         return TsLarkParseOutput(
@@ -187,7 +187,7 @@ class TypeScriptParser(Transform[uni.Source, uni.Module]):
 
         lark_token = lark_module.Token
 
-        def try_feed_missing_token(iparser: object) -> Tok | None:
+        def try_feed_missing_token(iparser: Any) -> Tok | None:
             """Try to feed a missing token to recover."""
             accepts = iparser.accepts()
             for tok in TypeScriptParser._MISSING_TOKENS:
@@ -198,7 +198,7 @@ class TypeScriptParser(Transform[uni.Source, uni.Module]):
                     return tok
             return None
 
-        def feed_current_token(iparser: object, tok: object) -> bool:
+        def feed_current_token(iparser: Any, tok: Any) -> bool:
             """Feed current token after recovery."""
             max_attempts = 100
             attempts = 0
@@ -275,27 +275,38 @@ class TypeScriptParser(Transform[uni.Source, uni.Module]):
             transformer_base = lark_module.Transformer
             outer_ref = self
 
-            class _InnerTransformer(transformer_base):  # type: ignore[misc]
+            # Dynamic class inheritance from Lark Transformer requires type: ignore
+            # since Python's type system doesn't support runtime base classes
+            class _InnerTransformer(transformer_base):  # type: ignore[misc, valid-type]
                 """Inner Lark transformer."""
 
                 def __init__(self) -> None:
                     super().__init__()
                     self.outer = outer_ref
 
-                def _get_token(self, token: object) -> uni.Token:
+                def _get_token(self, token: Any) -> uni.Token:
                     """Convert Lark token to uni.Token."""
+                    # Lark Token attributes - using Any since Lark is dynamically loaded
+                    tok_type: str = token.type
+                    tok_value: str = token.value
+                    tok_line: int = token.line or 1
+                    tok_end_line: int = token.end_line or tok_line
+                    tok_column: int = token.column or 0
+                    tok_end_column: int = token.end_column or (
+                        tok_column + len(tok_value)
+                    )
+                    tok_start_pos: int = token.start_pos or 0
+                    tok_end_pos: int = token.end_pos or (tok_start_pos + len(tok_value))
                     return uni.Token(
                         orig_src=self.outer.parse_ref.ir_in,
-                        name=token.type,
-                        value=token.value,
-                        line=token.line or 1,
-                        end_line=token.end_line or token.line or 1,
-                        col_start=token.column or 0,
-                        col_end=token.end_column
-                        or (token.column or 0) + len(token.value),
-                        pos_start=token.start_pos or 0,
-                        pos_end=token.end_pos
-                        or (token.start_pos or 0) + len(token.value),
+                        name=tok_type,
+                        value=tok_value,
+                        line=tok_line,
+                        end_line=tok_end_line,
+                        col_start=tok_column,
+                        col_end=tok_end_column,
+                        pos_start=tok_start_pos,
+                        pos_end=tok_end_pos,
                     )
 
                 def _make_name(self, token) -> uni.Name:
@@ -1789,11 +1800,13 @@ class TypeScriptParser(Transform[uni.Source, uni.Module]):
             elif mod_name.endswith(".jsx"):
                 mod_name = mod_name[:-4]
 
+            # Cast stmts since TypeScript parser produces CodeBlockStmt which
+            # is not in the standard Module.body type but works at runtime
             return uni.Module(
                 name=mod_name,
                 source=self.parse_ref.ir_in,
                 doc=None,
-                body=stmts,
+                body=cast(Any, stmts),
                 terminals=self.terminals,
                 kid=body or [uni.EmptyToken(self.parse_ref.ir_in)],
             )
