@@ -695,18 +695,25 @@ def test_cli_error_exit_codes(fixture_path) -> None:
         "check command should exit with code 1 on type check error"
     )
 
-    # Test format command with non-existent file
-    process = subprocess.Popen(
-        ["jac", "format", "/nonexistent.jac"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    stdout, stderr = process.communicate()
-    assert process.returncode == 1, (
-        "format command should exit with code 1 on missing file"
-    )
-    assert "does not exist" in stderr
+    # Test format command with file that needs changes (exits 1 for pre-commit usage)
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".jac", delete=False
+    ) as temp_file:
+        temp_file.write('with entry{print("hello");}')  # Needs formatting
+        temp_path = temp_file.name
+    try:
+        process = subprocess.Popen(
+            ["jac", "format", temp_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = process.communicate()
+        assert process.returncode == 1, (
+            "format command should exit with code 1 when file is changed"
+        )
+    finally:
+        os.remove(temp_path)
 
     # Test check command with invalid file type
     process = subprocess.Popen(
@@ -768,6 +775,7 @@ def test_format_tracks_changed_files() -> None:
         )
         stdout, stderr = process.communicate()
 
-        assert process.returncode == 0
+        # Exit code 1 indicates files were changed (useful for pre-commit hooks)
+        assert process.returncode == 1
         assert "2/2" in stderr
         assert "(1 changed)" in stderr
