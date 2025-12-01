@@ -240,7 +240,7 @@ def test_jac_test_err(fixture_path) -> None:
     sys.stderr = sys.__stderr__
     stdout_value = captured_output.getvalue()
     path_to_file = fixture_path("baddy.test.jac")
-    assert f'"{path_to_file}", line 1,' in stdout_value
+    assert f'"{path_to_file}", line 2,' in stdout_value
 
 
 def test_jac_ast_tool_pass_template(capture_stdout) -> None:
