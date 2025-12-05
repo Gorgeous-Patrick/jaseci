@@ -94,6 +94,20 @@ def test_imported_sym(fixture_path: Callable[[str], str]) -> None:
     )
 
 
+def test_datetime_import(fixture_path: Callable[[str], str]) -> None:
+    program = JacProgram()
+    mod = program.compile(fixture_path("checker_import_star/main.jac"))
+    TypeCheckPass(ir_in=mod, prog=program)
+    assert len(program.errors_had) == 1
+    _assert_error_pretty_found(
+        """
+      d: str = datetime.date();
+      ^^^^^^^^^^^^^^^^^^^^^^
+    """,
+        program.errors_had[0].pretty_print(),
+    )
+
+
 def test_member_access_type_infered(fixture_path: Callable[[str], str]) -> None:
     program = JacProgram()
     mod = program.compile(fixture_path("member_access_type_inferred.jac"))
