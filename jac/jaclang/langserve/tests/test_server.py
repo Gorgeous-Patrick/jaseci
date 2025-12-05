@@ -1,5 +1,6 @@
 import inspect
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import lsprotocol.types as lspt
@@ -11,7 +12,7 @@ from jaclang.vendor.pygls.workspace import Workspace
 
 
 @pytest.fixture
-def fixture_path():
+def fixture_path() -> Callable[[str], str]:
     """Get absolute path to fixture file."""
 
     def _fixture_path(fixture: str) -> str:
@@ -29,7 +30,7 @@ def fixture_path():
 
 
 @pytest.fixture
-def examples_abs_path():
+def examples_abs_path() -> Callable[[str], str]:
     """Get absolute path of a example from examples directory."""
     import jaclang
 
@@ -44,7 +45,7 @@ def examples_abs_path():
 
 
 @pytest.fixture
-def passes_main_fixture_abs_path():
+def passes_main_fixture_abs_path() -> Callable[[str], str]:
     """Get absolute path of a fixture from compiler passes main fixtures directory."""
     import jaclang
 

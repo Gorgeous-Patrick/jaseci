@@ -3,6 +3,7 @@
 import os
 import subprocess
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ from jaclang.compiler.program import JacProgram
 
 
 @pytest.fixture
-def fixture_path():
+def fixture_path() -> Callable[[str], str]:
     """Return a function that returns absolute path to a fixture file."""
 
     def _get_fixture_path(filename: str) -> str:
@@ -25,7 +26,7 @@ def fixture_path():
 
 
 @pytest.fixture
-def lang_fixture_path():
+def lang_fixture_path() -> Callable[[str], str]:
     """Return a function that returns absolute path to a language fixture file."""
 
     def _get_lang_fixture_path(file: str) -> str:

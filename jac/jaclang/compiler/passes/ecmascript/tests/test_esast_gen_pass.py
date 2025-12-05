@@ -1,7 +1,7 @@
 """Test ECMAScript AST generation using consolidated Jac fixtures."""
 
 import json
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 import pytest
@@ -13,7 +13,7 @@ from jaclang.compiler.program import JacProgram
 
 
 @pytest.fixture
-def fixture_path():
+def fixture_path() -> Callable[[str], str]:
     """Return a function that returns absolute path to a fixture file."""
 
     def _get_fixture_path(filename: str) -> str:

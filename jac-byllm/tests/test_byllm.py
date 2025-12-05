@@ -4,6 +4,7 @@ import contextlib
 import io
 import os
 import sys
+from collections.abc import Callable
 
 import pytest
 import yaml
@@ -16,7 +17,7 @@ jac_import = Jac.jac_import
 
 
 @pytest.fixture
-def fixture_path():
+def fixture_path() -> Callable[[str], str]:
     """Fixture to get the absolute path of fixtures directory."""
 
     def _fixture_abs_path(fixture: str) -> str:

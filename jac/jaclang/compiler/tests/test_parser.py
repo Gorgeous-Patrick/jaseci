@@ -5,6 +5,7 @@ import io
 import os
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,7 @@ from jaclang.runtimelib.utils import read_file_with_encoding
 
 
 @pytest.fixture
-def fixture_path():
+def fixture_path() -> Callable[[str], str]:
     """Get absolute path to fixture file."""
 
     def _fixture_path(fixture: str) -> str:
@@ -38,7 +39,7 @@ def fixture_path():
 
 
 @pytest.fixture
-def load_fixture():
+def load_fixture() -> Callable[[str], str]:
     """Load fixture from fixtures directory."""
 
     def _load_fixture(fixture: str) -> str:
@@ -56,7 +57,7 @@ def load_fixture():
 
 
 @pytest.fixture
-def file_to_str():
+def file_to_str() -> Callable[[str], str]:
     """Load file to string."""
 
     def _file_to_str(file_path: str) -> str:
@@ -66,7 +67,7 @@ def file_to_str():
 
 
 @pytest.fixture
-def lang_fixture_abs_path():
+def lang_fixture_abs_path() -> Callable[[str], str]:
     """Get language fixture absolute path."""
     import jaclang
 

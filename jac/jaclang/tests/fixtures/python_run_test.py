@@ -6,7 +6,7 @@ print("Hello from Python!")
 print("This is a test Python file.")
 
 
-def main():
+def main() -> int:
     """Main function to demonstrate execution."""
     result = 42
     print(f"Result: {result}")

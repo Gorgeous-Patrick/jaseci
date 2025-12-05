@@ -1,4 +1,4 @@
-def foo(type=90):
+def foo(type: int = 90) -> int:
     """This is a function with a docstring."""
     return type
 

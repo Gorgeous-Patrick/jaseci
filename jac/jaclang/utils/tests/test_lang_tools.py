@@ -2,6 +2,7 @@
 
 import inspect
 import os
+from collections.abc import Callable
 
 import pytest
 
@@ -12,7 +13,7 @@ from jaclang.utils.lang_tools import AstTool
 
 
 @pytest.fixture
-def fixture_path():
+def fixture_path() -> Callable[[str], str]:
     """Get absolute path to fixture file."""
 
     def _fixture_path(fixture: str) -> str:
@@ -30,7 +31,7 @@ def fixture_path():
 
 
 @pytest.fixture
-def load_fixture():
+def load_fixture() -> Callable[[str], str]:
     """Load fixture from fixtures directory."""
 
     def _load_fixture(fixture: str) -> str:
@@ -48,7 +49,7 @@ def load_fixture():
 
 
 @pytest.fixture
-def tool():
+def tool() -> AstTool:
     """Create AstTool instance for tests."""
     return AstTool()
 

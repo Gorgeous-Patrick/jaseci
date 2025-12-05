@@ -9,7 +9,7 @@ from jaclang.langserve.sem_manager import SemTokManager
 
 
 @pytest.fixture
-def initial_sem_tokens():
+def initial_sem_tokens() -> list[int]:
     """Fixture for initial semantic tokens."""
     # fmt: off
     return [
@@ -20,7 +20,7 @@ def initial_sem_tokens():
 
 
 @pytest.fixture
-def document_lines():
+def document_lines() -> list[str]:
     """Fixture for document lines."""
     return [
         "",

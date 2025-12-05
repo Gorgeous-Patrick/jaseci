@@ -2,7 +2,7 @@ import contextlib
 
 if __name__ == "__main__":
 
-    def foo():
+    def foo() -> str:
         print("One")
         return "foo"
 
@@ -20,7 +20,7 @@ if condition:
     bar()
 
 
-def baz():
+def baz() -> str:
     print("Three")
     return "baz"
 

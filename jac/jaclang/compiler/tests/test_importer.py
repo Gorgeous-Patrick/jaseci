@@ -3,6 +3,7 @@
 import io
 import os
 import sys
+from collections.abc import Callable
 
 import pytest
 
@@ -14,7 +15,7 @@ from jaclang.settings import settings
 
 
 @pytest.fixture
-def fixture_abs_path():
+def fixture_abs_path() -> Callable[[str], str]:
     """Get absolute path to fixture file."""
     import inspect
 

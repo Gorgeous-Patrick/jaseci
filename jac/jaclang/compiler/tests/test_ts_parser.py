@@ -1,5 +1,6 @@
 """Tests for TypeScript parser."""
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ from jaclang.compiler.unitree import Source
 
 
 @pytest.fixture
-def ts_fixture_abs_path():
+def ts_fixture_abs_path() -> Callable[[str], str]:
     """Get absolute path to TypeScript fixture file."""
 
     def _ts_fixture_abs_path(filename: str) -> str:
@@ -21,7 +22,7 @@ def ts_fixture_abs_path():
 
 
 @pytest.fixture
-def load_ts_fixture(ts_fixture_abs_path):
+def load_ts_fixture(ts_fixture_abs_path: Callable[[str], str]) -> Callable[[str], str]:
     """Load TypeScript fixture file contents."""
 
     def _load_ts_fixture(filename: str) -> str:
@@ -33,7 +34,7 @@ def load_ts_fixture(ts_fixture_abs_path):
 
 
 @pytest.fixture
-def parse_ts():
+def parse_ts() -> Callable[[str, str], TypeScriptParser]:
     """Parse TypeScript source code and return parser."""
 
     def _parse_ts(source_code: str, mod_path: str = "") -> TypeScriptParser:
@@ -44,12 +45,16 @@ def parse_ts():
 
 
 @pytest.fixture
-def parse_ts_file(load_ts_fixture, ts_fixture_abs_path, parse_ts):
+def parse_ts_file(
+    load_ts_fixture: Callable[[str], str],
+    ts_fixture_abs_path: Callable[[str], str],
+    parse_ts: Callable[[str, str], TypeScriptParser],
+) -> Callable[[str], TypeScriptParser]:
     """Parse TypeScript fixture file and return parser."""
 
     def _parse_ts_file(filename: str) -> TypeScriptParser:
         source_code = load_ts_fixture(filename)
-        return parse_ts(source_code, mod_path=ts_fixture_abs_path(filename))
+        return parse_ts(source_code, ts_fixture_abs_path(filename))
 
     return _parse_ts_file
 

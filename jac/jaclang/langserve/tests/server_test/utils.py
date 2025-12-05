@@ -6,11 +6,16 @@ import asyncio
 import os
 import tempfile
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from jaclang.langserve.engine import JacLangServer
 
 from lsprotocol.types import (
     DidChangeTextDocumentParams,
     DidOpenTextDocumentParams,
     DidSaveTextDocumentParams,
+    SemanticTokens,
     TextDocumentItem,
     VersionedTextDocumentIdentifier,
 )
@@ -35,7 +40,7 @@ def load_jac_template(template_file: str, code: str = "") -> str:
     return jac_template.replace("#{{INJECT_CODE}}", code)
 
 
-def create_ls_with_workspace(file_path: str):
+def create_ls_with_workspace(file_path: str) -> tuple[str | None, JacLangServer]:
     """Create JacLangServer and workspace for a given file path, return (uri, ls)."""
     from jaclang.langserve.engine import JacLangServer
 
@@ -153,7 +158,7 @@ class LanguageServerTestHelper:
         """Get diagnostics for the current document."""
         return self.ls.diagnostics.get(self.test_file.uri, [])
 
-    def get_semantic_tokens(self):
+    def get_semantic_tokens(self) -> SemanticTokens:
         """Get semantic tokens for the current document."""
         return self.ls.get_semantic_tokens(self.test_file.uri)
 

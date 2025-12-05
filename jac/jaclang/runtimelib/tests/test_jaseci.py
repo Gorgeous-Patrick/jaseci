@@ -3,6 +3,7 @@
 import io
 import os
 import sys
+from collections.abc import Callable
 
 import pytest
 
@@ -23,19 +24,20 @@ def captured_output():
 
 
 @pytest.fixture
-def output_capturer():
+def output_capturer() -> dict[str, Callable[[], str] | Callable[[], None]]:
     """Fixture that provides functions to capture and restore output."""
-    captured = {"output": None, "old_stdout": sys.__stdout__}
+    captured: dict[str, object] = {"output": None, "old_stdout": sys.__stdout__}
 
-    def start_capture():
+    def start_capture() -> None:
         captured["output"] = io.StringIO()
-        sys.stdout = captured["output"]
+        sys.stdout = captured["output"]  # type: ignore[assignment]
 
-    def stop_capture():
-        sys.stdout = captured["old_stdout"]
+    def stop_capture() -> None:
+        sys.stdout = captured["old_stdout"]  # type: ignore[assignment]
 
     def get_output() -> str:
-        return captured["output"].getvalue() if captured["output"] else ""
+        output = captured["output"]
+        return output.getvalue() if output else ""  # type: ignore[attr-defined]
 
     return {"start": start_capture, "stop": stop_capture, "get": get_output}
 
