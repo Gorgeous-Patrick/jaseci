@@ -63,6 +63,8 @@ obj PrefetchedTypes {
     has mapping_class: TypeBase | None = None;
     has template_class: TypeBase | None = None;
     has type_var_class: TypeBase | None = None;
+    # Prefetched from jac_builtins.pyi file
+    has root_class: TypeBase | None = None;
 }
 
 """Represents a single entry in the symbol resolution stack."""
@@ -104,6 +106,10 @@ class TypeEvaluator {
         os.path.dirname(__file__), "../../vendor/typeshed/stdlib/types.pyi",
     );
 
+    has _JAC_BUILTINS_STUB_FILE_PATH: str = os.path.join(
+        os.path.dirname(__file__), "jac_builtins.pyi",
+    );
+
     """Initialize the type evaluator with prefetched types.
 
     Implementation Note:
@@ -136,11 +142,14 @@ class TypeEvaluator {
         self.builtins_module = self._load_stub_module(
             TypeEvaluator._BUILTINS_STUB_FILE_PATH
         );
+        self.jac_builtins_module = self._load_stub_module(
+            TypeEvaluator._JAC_BUILTINS_STUB_FILE_PATH
+        );
 
         self._prefetch_types();
     }
 
-    """Load and return the builtins stub module."""
+    """Load and return builtins stub module."""
     def _load_stub_module(self: TypeEvaluator, path: str) -> uni.Module {
         if not os.path.exists(path) {
             if not settings.all_warnings {
@@ -172,11 +181,13 @@ class TypeEvaluator {
     }
 
     """Return the prefetched types for the type evaluator."""
-    def _prefetch_types(self: TypeEvaluator) -> "PrefetchedTypes" {
+    def _prefetch_types(self: TypeEvaluator) {
         get_types_type = lambda  type_name: str  -> types.TypeBase:
             self._get_type_from_module(self.types_module, type_name);
         get_builtin_type = lambda  type_name: str  -> types.TypeBase:
             self._get_type_from_module(self.builtins_module, type_name);
+        get_jac_builtin_type = lambda  type_name: str  -> types.TypeBase:
+            self._get_type_from_module(self.jac_builtins_module, type_name);
 
         # TODO: Pyright first try load NoneType from typeshed and if it cannot
         # then it set to unknown type.
@@ -199,6 +210,8 @@ class TypeEvaluator {
         # self.prefetch.supports_keys_and_get_item_class =
         # self.prefetch.mapping_class =
         # self.prefetch.template_class =
+        self.prefetch.root_class = get_jac_builtin_type("Root");
+        self.prefetch.root_class.shared.is_root_class = True;
     }
 
     def get_none_type(self: TypeEvaluator) -> TypeBase {
@@ -1036,6 +1049,9 @@ class TypeEvaluator {
 
             case uni.Name() | uni.SpecialVarRef():
                 if isinstance(expr, uni.SpecialVarRef) {
+                    if expr.name == Tok.KW_ROOT {
+                        return self._get_type_of_root(expr);
+                    }
                     # Handle "here" and "visitor" special name ref.
                     if expr.name in (Tok.KW_HERE, Tok.KW_VISITOR) {
                         if (method := self._get_enclosing_method(expr)) {
@@ -1157,7 +1173,7 @@ class TypeEvaluator {
     }
 
     """Return the effective type of self."""
-    def _get_type_of_self(self: TypeEvaluator, node_: uni.Name) -> TypeBase {
+    def _get_type_of_self(self: TypeEvaluator, node_: uni.SpecialVarRef) -> TypeBase {
         if method := self._get_enclosing_method(node_) {
             cls = method.method_owner;
             if isinstance(cls, uni.Archetype) {
@@ -1170,6 +1186,13 @@ class TypeEvaluator {
             }
         }
         return types.UnknownType();
+    }
+
+    """Return the effective type of root."""
+    def _get_type_of_root(self: TypeEvaluator, node_: uni.SpecialVarRef) -> TypeBase {
+        node_.sym = self.prefetch.root_class.get_class_symbol();
+        node_.type = self.prefetch.root_class.clone_as_instance();
+        return node_.type;
     }
 
     """Convert a class type to an instance type."""
