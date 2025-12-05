@@ -28,6 +28,7 @@ Documentation = "https://jac-lang.org"
 serve = "jac_client.plugin.client:JacClient"
 create_jac_app = "jac_client.plugin.cli:JacCmd"
 
+
 [project.optional-dependencies]
 dev = [
     "python-dotenv==1.0.1",

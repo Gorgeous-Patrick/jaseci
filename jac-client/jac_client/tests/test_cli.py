@@ -96,17 +96,6 @@ def test_create_jac_app() -> None:
             components_dir = os.path.join(project_path, "components")
             assert not os.path.exists(components_dir)
 
-            # Verify vite.config.js does NOT have TypeScript config
-            vite_config_path = os.path.join(project_path, "vite.config.js")
-            assert os.path.exists(vite_config_path)
-            with open(vite_config_path) as f:
-                vite_config_content = f.read()
-            assert "@vitejs/plugin-react" not in vite_config_content
-            assert (
-                'extensions: [".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json"]'
-                not in vite_config_content
-            )
-
             # Verify package.json does NOT have TypeScript dependencies
             assert "typescript" not in package_data["devDependencies"]
             assert "@types/react" not in package_data["devDependencies"]
@@ -248,21 +237,6 @@ def test_create_jac_app_with_typescript() -> None:
             assert "interface ButtonProps" in button_content
             assert "export const Button" in button_content
 
-            # Verify vite.config.js has TypeScript configuration
-            vite_config_path = os.path.join(project_path, "vite.config.js")
-            assert os.path.exists(vite_config_path)
-
-            with open(vite_config_path) as f:
-                vite_config_content = f.read()
-
-            assert "import react from" in vite_config_content
-            assert "@vitejs/plugin-react" in vite_config_content
-            assert "plugins: [react()]" in vite_config_content
-            assert (
-                'extensions: [".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json"]'
-                in vite_config_content
-            )
-
             # Verify app.jac includes TypeScript import
             app_jac_path = os.path.join(project_path, "app.jac")
             assert os.path.exists(app_jac_path)
@@ -287,4 +261,83 @@ def test_create_jac_app_with_typescript() -> None:
 
         finally:
             # Return to original directory
+            os.chdir(original_cwd)
+
+
+def test_generate_client_config() -> None:
+    """Test generate_client_config command creates config.json."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(temp_dir)
+
+            # Run generate_client_config command
+            result = run(
+                ["jac", "generate_client_config"],
+                capture_output=True,
+                text=True,
+            )
+
+            # Check that command succeeded
+            assert result.returncode == 0
+            assert "Successfully created config.json" in result.stdout
+
+            # Verify config.json was created
+            config_path = os.path.join(temp_dir, "config.json")
+            assert os.path.exists(config_path)
+
+            # Verify config.json has correct structure
+            with open(config_path) as f:
+                config_data = json.load(f)
+
+            assert "vite" in config_data
+            assert "ts" in config_data
+            assert "plugins" in config_data["vite"]
+            assert "lib_imports" in config_data["vite"]
+            assert "build" in config_data["vite"]
+            assert "server" in config_data["vite"]
+            assert "resolve" in config_data["vite"]
+
+            # Verify default values
+            assert config_data["vite"]["plugins"] == []
+            assert config_data["vite"]["lib_imports"] == []
+            assert config_data["vite"]["build"] == {}
+            assert config_data["vite"]["server"] == {}
+            assert config_data["vite"]["resolve"] == {}
+            assert config_data["ts"] == {}
+
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_generate_client_config_existing_file() -> None:
+    """Test generate_client_config command when config.json already exists."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(temp_dir)
+
+            # Create existing config.json
+            existing_config = {"vite": {"plugins": ["existing()"]}}
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(config_path, "w") as f:
+                json.dump(existing_config, f)
+
+            # Run generate_client_config command
+            result = run(
+                ["jac", "generate_client_config"],
+                capture_output=True,
+                text=True,
+            )
+
+            # Should fail with non-zero exit code
+            assert result.returncode != 0
+            assert "config.json already exists" in result.stderr
+
+            # Verify existing config was not overwritten
+            with open(config_path) as f:
+                config_data = json.load(f)
+            assert config_data["vite"]["plugins"] == ["existing()"]
+
+        finally:
             os.chdir(original_cwd)
