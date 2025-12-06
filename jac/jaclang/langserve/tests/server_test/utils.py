@@ -76,7 +76,7 @@ class JacTestFile:
         """Get absolute path to test template file."""
         return os.path.abspath(os.path.join(os.path.dirname(__file__), file_name))
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Remove temporary test file."""
         if os.path.exists(self.path):
             os.remove(self.path)
@@ -90,7 +90,7 @@ class JacTestFile:
 class LanguageServerTestHelper:
     """Helper class for language server testing operations."""
 
-    def __init__(self, ls, test_file: JacTestFile):
+    def __init__(self, ls: JacLangServer, test_file: JacTestFile) -> None:
         self.ls = ls
         self.test_file = test_file
 

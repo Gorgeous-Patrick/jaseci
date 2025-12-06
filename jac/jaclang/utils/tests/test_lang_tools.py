@@ -54,7 +54,7 @@ def tool() -> AstTool:
     return AstTool()
 
 
-def test_pass_template(tool) -> None:
+def test_pass_template(tool: AstTool) -> None:
     """Basic test for pass."""
     out = tool.pass_template()
     assert "target: Expr," in out
@@ -66,7 +66,7 @@ def test_pass_template(tool) -> None:
     assert out.count("def exit_") > 20
 
 
-def test_gendotfile(tool) -> None:
+def test_gendotfile(tool: AstTool) -> None:
     """Testing for HTML entity."""
     jac_file_path = os.path.join(
         os.path.dirname(jaclang.__file__), "../examples/reference/edges_walk.jac"
@@ -77,7 +77,7 @@ def test_gendotfile(tool) -> None:
         assert i not in out
 
 
-def test_print(tool) -> None:
+def test_print(tool: AstTool) -> None:
     """Testing for print AstTool."""
     jac_file = os.path.join(
         os.path.dirname(jaclang.__file__),
@@ -89,7 +89,7 @@ def test_print(tool) -> None:
     assert out is not None, msg
 
 
-def test_print_py(tool) -> None:
+def test_print_py(tool: AstTool) -> None:
     """Testing for print_py AstTool."""
     jac_py_directory = os.path.join(
         os.path.dirname(jaclang.__file__), "../examples/reference/"
@@ -141,14 +141,14 @@ def test_automated() -> None:
     assert len(other_reference_files) == 0
 
 
-def test_py_jac_mode(tool, fixture_path) -> None:
+def test_py_jac_mode(tool: AstTool, fixture_path: Callable[[str], str]) -> None:
     """Testing for py_jac_mode support."""
     file = fixture_path("../../../tests/fixtures/pyfunc.py")
     out = tool.ir(["unparse", file])
     assert "def my_print(x: object) -> None" in out
 
 
-def test_sym_sym_dot(tool) -> None:
+def test_sym_sym_dot(tool: AstTool) -> None:
     """Testing for sym, sym. AstTool."""
     jac_file = os.path.normpath(
         os.path.join(
@@ -173,7 +173,7 @@ def test_sym_sym_dot(tool) -> None:
     assert '[label="' in out
 
 
-def test_uninode_doc(tool) -> None:
+def test_uninode_doc(tool: AstTool) -> None:
     """Testing for Autodoc for Uninodes."""
     auto_uni = tool.autodoc_uninode()
     assert (

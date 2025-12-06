@@ -17,7 +17,7 @@ class Orange1:
     def get_orange(self) -> int:
         return self.orange
 
-    def set_orange(self, orange):
+    def set_orange(self, orange: int) -> None:
         self.orange = orange
 
 

@@ -39,9 +39,3 @@ known-first-party = ["jaclang", "jac_client", "jac_scale", "byllm"]
 
 [lint.flake8-annotations]
 suppress-none-returning = true
-
-[lint.per-file-ignores]
-"**/tests/**/*.py" = ["ANN001"]
-"**/test_*.py" = ["ANN001"]
-"**/*_test.py" = ["ANN001"]
-"**/scripts/**/*.py" = ["ANN001"]

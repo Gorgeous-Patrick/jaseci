@@ -65,7 +65,9 @@ def passes_main_fixture_abs_path() -> Callable[[str], str]:
     return _passes_main_fixture_abs_path
 
 
-def create_server(workspace_path: str | None, fixture_path_func) -> JacLangServer:
+def create_server(
+    workspace_path: str | None, fixture_path_func: Callable[[str], str]
+) -> JacLangServer:
     """Create a JacLangServer wired to the given workspace."""
     lsp = JacLangServer()
     workspace_root = workspace_path or fixture_path_func("")
@@ -74,7 +76,7 @@ def create_server(workspace_path: str | None, fixture_path_func) -> JacLangServe
     return lsp
 
 
-def test_impl_stay_connected(fixture_path) -> None:
+def test_impl_stay_connected(fixture_path: Callable[[str], str]) -> None:
     """Test that the server doesn't run if there is a syntax error."""
     lsp = create_server(None, fixture_path)
     try:
@@ -96,7 +98,7 @@ def test_impl_stay_connected(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_impl_auto_discover(fixture_path) -> None:
+def test_impl_auto_discover(fixture_path: Callable[[str], str]) -> None:
     """Test that the server doesn't run if there is a syntax error."""
     lsp = create_server(None, fixture_path)
     try:
@@ -111,7 +113,7 @@ def test_impl_auto_discover(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_outline_symbols(fixture_path) -> None:
+def test_outline_symbols(fixture_path: Callable[[str], str]) -> None:
     """Test that the outline symbols are correct."""
     lsp = create_server(None, fixture_path)
     try:
@@ -122,7 +124,7 @@ def test_outline_symbols(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_go_to_definition(fixture_path) -> None:
+def test_go_to_definition(fixture_path: Callable[[str], str]) -> None:
     """Test that the go to definition is correct."""
     lsp = create_server(None, fixture_path)
     try:
@@ -154,7 +156,9 @@ def test_go_to_definition(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_go_to_definition_method_manual_impl(examples_abs_path) -> None:
+def test_go_to_definition_method_manual_impl(
+    examples_abs_path: Callable[[str], str],
+) -> None:
     """Test that the go to definition is correct."""
     lsp = create_server(None, lambda x: "")
     try:
@@ -174,7 +178,7 @@ def test_go_to_definition_method_manual_impl(examples_abs_path) -> None:
         lsp.shutdown()
 
 
-def test_go_to_definition_md_path(fixture_path) -> None:
+def test_go_to_definition_md_path(fixture_path: Callable[[str], str]) -> None:
     """Test that the go to definition is correct."""
     lsp = create_server(None, fixture_path)
     try:
@@ -212,7 +216,9 @@ def test_go_to_definition_md_path(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_go_to_definition_connect_filter(passes_main_fixture_abs_path) -> None:
+def test_go_to_definition_connect_filter(
+    passes_main_fixture_abs_path: Callable[[str], str],
+) -> None:
     """Test that the go to definition is correct."""
     lsp = create_server(None, lambda x: "")
     try:
@@ -246,7 +252,7 @@ def test_go_to_definition_connect_filter(passes_main_fixture_abs_path) -> None:
         lsp.shutdown()
 
 
-def test_go_to_definition_atom_trailer(fixture_path) -> None:
+def test_go_to_definition_atom_trailer(fixture_path: Callable[[str], str]) -> None:
     """Test that the go to definition is correct."""
     lsp = create_server(None, fixture_path)
     try:
@@ -270,7 +276,7 @@ def test_go_to_definition_atom_trailer(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_missing_mod_warning(fixture_path) -> None:
+def test_missing_mod_warning(fixture_path: Callable[[str], str]) -> None:
     """Test that the missing module warning is correct."""
     lsp = create_server(None, fixture_path)
     try:
@@ -287,7 +293,7 @@ def test_missing_mod_warning(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_completion(fixture_path) -> None:
+def test_completion(fixture_path: Callable[[str], str]) -> None:
     """Test that the completions are correct."""
     import asyncio
 
@@ -321,7 +327,7 @@ def test_completion(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_go_to_reference(fixture_path) -> None:
+def test_go_to_reference(fixture_path: Callable[[str], str]) -> None:
     """Test that the go to reference is correct."""
     lsp = create_server(None, fixture_path)
     try:
@@ -341,7 +347,9 @@ def test_go_to_reference(fixture_path) -> None:
         lsp.shutdown()
 
 
-def test_go_to_def_import_star(passes_main_fixture_abs_path) -> None:
+def test_go_to_def_import_star(
+    passes_main_fixture_abs_path: Callable[[str], str],
+) -> None:
     """Test that the go to reference is correct."""
     lsp = create_server(None, lambda x: "")
     try:

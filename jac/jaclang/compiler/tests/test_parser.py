@@ -88,7 +88,7 @@ def test_fstring_escape_brace() -> None:
     assert not prse.errors_had
 
 
-def test_parser_fam(load_fixture) -> None:
+def test_parser_fam(load_fixture: Callable[[str], str]) -> None:
     """Parse micro jac file."""
     prse = JacParser(
         root_ir=Source(load_fixture("fam.jac"), mod_path=""),
@@ -97,7 +97,7 @@ def test_parser_fam(load_fixture) -> None:
     assert not prse.errors_had
 
 
-def test_staticmethod_checks_out(load_fixture) -> None:
+def test_staticmethod_checks_out(load_fixture: Callable[[str], str]) -> None:
     """Parse micro jac file."""
     prse = JacParser(
         root_ir=Source(
@@ -111,7 +111,7 @@ def test_staticmethod_checks_out(load_fixture) -> None:
     assert "staticmethod" not in out
 
 
-def test_parser_kwesc(load_fixture) -> None:
+def test_parser_kwesc(load_fixture: Callable[[str], str]) -> None:
     """Parse micro jac file."""
     prse = JacParser(
         root_ir=Source(load_fixture("kwesc.jac"), mod_path=""),
@@ -120,7 +120,7 @@ def test_parser_kwesc(load_fixture) -> None:
     assert not prse.errors_had
 
 
-def test_parser_mod_doc_test(load_fixture) -> None:
+def test_parser_mod_doc_test(load_fixture: Callable[[str], str]) -> None:
     """Parse micro jac file."""
     prse = JacParser(
         root_ir=Source(load_fixture("mod_doc_test.jac"), mod_path=""),
@@ -230,14 +230,14 @@ def test_all_ast_has_normalize() -> None:
             assert "normalize" in cls.__dict__
 
 
-def test_inner_mod_impl(fixture_path) -> None:
+def test_inner_mod_impl(fixture_path: Callable[[str], str]) -> None:
     """Parse micro jac file."""
     prog = JacProgram()
     prog.compile(fixture_path("codegentext.jac"))
     assert not prog.errors_had
 
 
-def test_param_syntax(lang_fixture_abs_path) -> None:
+def test_param_syntax(lang_fixture_abs_path: Callable[[str], str]) -> None:
     """Parse param syntax jac file."""
     captured_output = io.StringIO()
     sys.stdout = captured_output
@@ -247,7 +247,7 @@ def test_param_syntax(lang_fixture_abs_path) -> None:
     assert len(prog.errors_had) == 8
 
 
-def test_multiple_syntax_errors(fixture_path) -> None:
+def test_multiple_syntax_errors(fixture_path: Callable[[str], str]) -> None:
     """Parse param syntax jac file."""
     captured_output = io.StringIO()
     sys.stdout = captured_output
@@ -618,7 +618,7 @@ cl import from jac:client_runtime {
 
 
 # Micro suite test generation
-def _micro_suite_test(filename: str, file_to_str) -> None:
+def _micro_suite_test(filename: str, file_to_str: Callable[[str], str]) -> None:
     """Parse micro jac file."""
     prse = JacParser(
         root_ir=Source(file_to_str(filename), mod_path=filename),
