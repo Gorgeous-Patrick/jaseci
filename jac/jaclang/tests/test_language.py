@@ -293,6 +293,25 @@ def test_fstring_multiple_quotation(
     assert stdout_value.split("\n")[3] == 'hello klkl"""'
 
 
+def test_fstring_escape_sequences(
+    fixture_path: Callable[[str], str],
+    capture_stdout: Callable[[], AbstractContextManager[io.StringIO]],
+) -> None:
+    """Test that escape sequences in f-strings are properly decoded."""
+    with capture_stdout() as captured_output:
+        Jac.jac_import(
+            "compiler/passes/main/tests/fixtures/fstring_escape_sequences",
+            base_path=fixture_path("../../"),
+        )
+    stdout_value = captured_output.getvalue()
+    lines = stdout_value.strip().split("\n")
+    # Verify escape sequences are actual newlines/tabs, not literal \n or \t
+    assert lines[0] == "'hello\\nworld'"  # repr shows \n as \\n
+    assert lines[1] == "'tab\\there'"  # repr shows \t as \\t
+    assert lines[2] == "'line1\\nline2\\nline3'"
+    assert lines[3] == "'world\\tworld\\tworld'"
+
+
 def test_deep_imports(
     fixture_path: Callable[[str], str],
     capture_stdout: Callable[[], AbstractContextManager[io.StringIO]],
@@ -1442,8 +1461,8 @@ def test_concurrency(
     with capture_stdout() as captured_output:
         Jac.jac_import("concurrency", base_path=fixture_path("./"))
     stdout_value = captured_output.getvalue().split("\n")
-    assert "Started" in stdout_value[0]
-    assert "B(name='Hi')" in stdout_value[8]
+    assert "Started" in stdout_value[3]
+    assert "B(name='Hi')" in stdout_value[7]
     assert "11" in stdout_value[9]
     assert "13" in stdout_value[10]
 
