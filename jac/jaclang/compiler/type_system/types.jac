@@ -217,6 +217,18 @@ class ClassType(TypeBase) {
         return new_instance;
     }
 
+    def clone_as_class(self: ClassType) -> ClassType {
+        if not self.is_instance() {
+            return self;
+        }
+        private = ClassType.ClassDetailsPrivate(type_args=self.private.type_args[:]);
+        new_flag = self.flags;
+        new_flag = TypeFlags((new_flag & ~TypeFlags.Instance));
+        new_flags = TypeFlags((new_flag | TypeFlags.Instantiable));
+        new_class = ClassType(self.shared, private=private, flags=new_flags);
+        return new_class;
+    }
+
     """Return a new class type specialized with the given type arguments."""
     def specialize_generics(self: ClassType, type_args: list[TypeBase]) -> ClassType {
         new_private = ClassType.ClassDetailsPrivate(type_args=type_args);
