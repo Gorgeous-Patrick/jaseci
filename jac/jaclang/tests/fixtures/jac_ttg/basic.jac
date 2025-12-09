@@ -1,4 +1,3 @@
-
 node BFSNode {
     has id: int;
     has jac_node_size: int = 8;

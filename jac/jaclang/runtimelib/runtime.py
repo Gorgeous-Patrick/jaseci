@@ -28,9 +28,9 @@ from typing import (
 )
 from uuid import UUID
 
+from jaclang.compiler import unitree
 from jaclang.compiler.constant import Constants as Con
 from jaclang.compiler.constant import EdgeDir, colors
-from jaclang.compiler import unitree
 from jaclang.utils import infer_language
 from jaclang.vendor import pluggy
 
@@ -2021,6 +2021,7 @@ class JacUtils:
         """Wait for a thread to finish."""
         return future.result()
 
+
 class JacTTGGenerator:
     @dataclass
     class TTGNode:
@@ -2200,6 +2201,7 @@ class JacTTGGenerator:
                 state.children.append(new_walker_state)
                 walker_states.append(new_walker_state)
         return ttg_root
+
 
 class JacRuntimeInterface(
     JacClassReferences,
