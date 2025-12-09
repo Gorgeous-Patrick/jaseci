@@ -9,6 +9,7 @@ Lines 3-7 demonstrate the fundamental yield syntax. Instead of returning a singl
 **Generator Iteration**
 
 Lines 46-49 show consuming a generator. Each iteration:
+
 1. Resumes the generator from where it last yielded
 2. Executes until the next yield statement
 3. Returns the yielded value
@@ -19,6 +20,7 @@ This prints: 1, 2, 3 (each on a separate line).
 **Yielding Different Types**
 
 Lines 9-13 demonstrate yielding various value types. Generators can yield any type:
+
 - Line 10: String
 - Line 11: Integer
 - Line 12: List
@@ -40,6 +42,7 @@ This is memory-efficient because values are generated on demand rather than stor
 Lines 25-28 demonstrate delegating to another generator:
 
 `yield from` delegates to another iterable:
+
 - Line 26: Yields each element from the list [1, 2, 3]
 - Line 27: Yields each value from range(4, 7) which is 4, 5, 6
 
@@ -56,6 +59,7 @@ This pattern enables selective generation, filtering during iteration rather tha
 **Yield with Expressions**
 
 Lines 38-42 demonstrate yielding computed values. Yields can be arbitrary expressions:
+
 - Line 40: `x * 2` evaluates to 20
 - Line 41: `x + 5` evaluates to 15
 
@@ -122,6 +126,7 @@ Lines 44-86 demonstrate all yield patterns:
 **Generator Protocol**
 
 Generators implement the iterator protocol:
+
 - `__iter__()` - Returns the generator itself
 - `__next__()` - Resumes execution until next yield
 - Raises `StopIteration` when function completes without yielding

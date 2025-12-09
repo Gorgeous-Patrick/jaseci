@@ -24,16 +24,19 @@ ts-support/
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
-2. Run the Jac server:
+1. Run the Jac server:
+
 ```bash
 jac serve app.jac
 ```
 
-3. Open your browser and navigate to:
+1. Open your browser and navigate to:
+
 ```
 http://localhost:8000/page/app
 ```
@@ -71,6 +74,7 @@ cl import from .components.Button { Button }
 ```
 
 The Jac compiler will:
+
 1. Preserve the import statement in the compiled JavaScript
 2. Copy the TypeScript file to the `compiled/` directory
 3. Vite will process and bundle the TypeScript file during build
@@ -90,6 +94,7 @@ Use the TypeScript component in your Jac code:
 ## TypeScript Configuration
 
 The `tsconfig.json` is configured for:
+
 - React JSX support
 - Modern ES2020 target
 - Strict type checking

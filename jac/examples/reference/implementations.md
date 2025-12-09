@@ -114,6 +114,7 @@ One of the most powerful uses of implementation blocks is organizing code across
     ```
 
 **Running the program:**
+
 ```bash
 jac run main.jac main.impl.jac
 ```

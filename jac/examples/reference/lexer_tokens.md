@@ -24,6 +24,7 @@ Lines 7-14 demonstrate all eight builtin type keywords used as type annotations:
 The pattern for declaring a variable with a type annotation is:
 
 For example, line 7 shows `x: str = "string"`, which means:
+
 - `x` is the variable name
 - `str` is the type annotation (telling Jac this should be a string)
 - `"string"` is the value being assigned
@@ -68,6 +69,7 @@ These builtin type keywords can be used in several contexts:
 **Complete Example Breakdown**
 
 Line 16 prints all the variables, demonstrating that:
+
 - Each variable holds a value of its declared type
 - The type annotations do not prevent the code from running
 - All the builtin types work together in a single program
@@ -79,6 +81,7 @@ Line 18 points to `builtin_types.jac` for more comprehensive examples of how to 
 **Why Special Tokenization Matters**
 
 By tokenizing these keywords specially, Jac can:
+
 1. Provide better error messages when types are misused
 2. Enable type checking and inference
 3. Allow these words to be used both as types and values

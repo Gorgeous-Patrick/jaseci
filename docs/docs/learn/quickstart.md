@@ -4,8 +4,8 @@ This document will give you a quick start on Object-Spatial Programming(OSP), th
 For a short overview of the language syntax, refer to the [Syntax Quick Reference](./quick_reference.md).
 If using byLLM in Python, refer to its [documentation](./jac-byllm/python_integration.md).
 
-
 ## Python Superset
+
 Jac is a drop-in replacement for Python and supersets Python, much like Typescript supersets Javascript or C++ supersets C. It extends Python's semantics while maintaining full interoperability with the Python ecosystem.
 Anything you can build with Python, you can build in Jac, and often more efficiently.
 
@@ -22,10 +22,12 @@ def example(){
 }
 
 # jac's equivalent of main
+
 with entry {
     print("Hello world!");
     example();
 }
+
 ```
 </div>
 
@@ -73,6 +75,7 @@ with entry {
     print(alice.greet());  # Standard method call
 }
 ```
+
 </div>
 
 The output behavior is standard for OOP: "Hello, I'm Alice! Alice is now 26!"
@@ -100,7 +103,9 @@ with entry {
 }
 
 # You now have a graph structure where relationships exist
+
 # independently of any object's internal state
+
 ```
 </div>
 
@@ -140,6 +145,7 @@ with entry {
     # The result is a list of Person nodes, not data structures you have to unpack
 }
 ```
+
 </div>
 
 This creates a graph edge that "knows" it's a friendship and can answer questions about itself. Visualizing `alice ->:Friend:->` returns the actual `bob` node, ready for method calls.
@@ -232,6 +238,7 @@ with entry {
     root ++> alice ++> bob;
     root spawn Greeter();  # Launch walker, it navigates autonomously
 }
+
 ```
 </div>
 
@@ -366,6 +373,7 @@ walker Visitor {
 ```
 
 Execution order: **node ability first**, then walker ability. This bidirectional interaction contract means you can:
+
 - Nodes validate/prepare state before walker acts
 - Walkers implement generic algorithms that any node can customize
 - Achieve double-dispatch polymorphism without visitor pattern boilerplate
@@ -476,6 +484,7 @@ This walker traverses the entire task graph, identifies completed dependencies, 
 ---
 
 ## Next Steps
+
 Jac contains many more features!
 
 **Want to start building?** We have a [Syntax Quick Reference](./quick_reference.md) to make it easier to write jac.

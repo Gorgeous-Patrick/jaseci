@@ -80,10 +80,10 @@ OSP provides a **declarative way to express agent interactions** without writing
 The following walkthrough shows how the Task Manager example is implemented (source: `jac-byllm/examples/agentic_ai/task-manager-lite/task_manager.jac`). The goal is to map Jac constructs to the Agentic AI architecture described above.
 
 Each agent node in this example demonstrates a key pattern:
+
 - **Local tools** as member methods that the LLM can invoke
 - **LLM-powered decision-making** via the `by llm()` annotation
 - **Entry points** (abilities with `can execute`) that trigger when a walker visits the node
-
 
 **Task Node** (`node Task`)
 
@@ -293,6 +293,7 @@ To help the LLM make better decisions, especially during routing, you can annota
 **Why Semstrings Matter:**
 
 When the LLM calls `plan_tasks()` or needs to route tasks, it receives the enum definition. Without semstrings, it only sees:
+
 ```
 RoutingNodes.TASK_HANDLING
 RoutingNodes.EMAIL_HANDLING

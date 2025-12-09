@@ -1,12 +1,12 @@
 # Step 3: Styling Components
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll learn how to style your components using inline CSS to make them look great!
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 3.1: Style the TodoItem Component
 
@@ -166,7 +166,7 @@ cl {
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### What are Inline Styles?
 
@@ -395,23 +395,24 @@ def app() -> any {
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  How to write inline styles in Jac
--  Double curly braces `{{ }}` syntax
--  camelCase property names
--  Common CSS properties
--  Conditional styling with ternary operator
--  Flexbox basics for layout
--  Reusing styles with variables
+- How to write inline styles in Jac
+- Double curly braces `{{ }}` syntax
+- camelCase property names
+- Common CSS properties
+- Conditional styling with ternary operator
+- Flexbox basics for layout
+- Reusing styles with variables
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: Styles not applying
 
 **Check:**
+
 - Did you use double curly braces `{{ }}`?
 - Are property names in quotes? `"padding"` not `padding`
 - Are values in quotes? `"20px"` not `20px`
@@ -443,7 +444,7 @@ def app() -> any {
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try adding a container with centered content:
 
@@ -464,6 +465,7 @@ def app() -> any {
 ```
 
 This creates:
+
 - Centered container (max width 600px)
 - Light gray background
 - Full height
@@ -471,7 +473,7 @@ This creates:
 
 ---
 
-##  Next Step
+## Next Step
 
 Great! Your components now look professional. Next, let's build the **complete Todo UI** with all the components working together!
 

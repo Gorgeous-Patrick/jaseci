@@ -5,6 +5,7 @@ Comprehensive React component library with Material Design for Jac applications.
 ## Overview
 
 Material-UI (MUI) provides pre-built, accessible React components following Material Design principles. This approach is perfect for:
+
 - Rapid application development
 - Consistent Material Design
 - Accessible components out of the box
@@ -252,21 +253,21 @@ cl import from "@mui/icons-material/Edit" { default as EditIcon }
 
 ## Advantages
 
--  **Pre-built, accessible components**
--  **Consistent Material Design**
--  **Comprehensive component library**
--  **Built-in theming system**
--  **TypeScript support**
--  **Active community** and documentation
--  **Production-ready** components
+- **Pre-built, accessible components**
+- **Consistent Material Design**
+- **Comprehensive component library**
+- **Built-in theming system**
+- **TypeScript support**
+- **Active community** and documentation
+- **Production-ready** components
 
 ## Limitations
 
--  **Larger bundle size**
--  **Material Design aesthetic** (may not fit all brands)
--  **Learning curve** for component API
--  **Less flexibility** than custom CSS
--  **Requires JavaScript** for styling
+- **Larger bundle size**
+- **Material Design aesthetic** (may not fit all brands)
+- **Learning curve** for component API
+- **Less flexibility** than custom CSS
+- **Requires JavaScript** for styling
 
 ## When to Use
 

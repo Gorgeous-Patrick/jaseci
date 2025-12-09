@@ -1,6 +1,7 @@
 # all-in-one
 
 This example demonstrates a comprehensive Jac application combining:
+
 - **React Router** - Client-side routing
 - **CSS Styling** - Pure CSS with asset references
 - **Asset Serving** - Static assets (images, etc.)
@@ -10,6 +11,7 @@ This example demonstrates a comprehensive Jac application combining:
 ## Running Jac Code
 
 Make sure node modules are installed:
+
 ```bash
 npm install
 ```

@@ -3,6 +3,7 @@
 > **️ Warning: TypeScript as Last Resort**
 >
 > **Always prefer writing code in Jac when possible.** TypeScript support is provided for cases where you need to:
+>
 > - Integrate existing TypeScript/React component libraries
 > - Reuse complex TypeScript components from other projects
 > - Work with teams that require TypeScript for specific components
@@ -33,22 +34,25 @@ The simplest way to add TypeScript support is during project creation using the 
 ### Steps
 
 1. **Create a new Jac project:**
+
    ```bash
    jac create_jac_app my-app
    ```
 
 2. **When prompted, answer 'y' for TypeScript support:**
+
    ```
    Does your project require TypeScript support? (y/n): y
    ```
 
 That's it! The CLI will automatically:
--  Install TypeScript dependencies
--  Create `tsconfig.json` with proper configuration
--  Update `vite.config.js` with TypeScript support
--  Create a `components/` directory with a sample `Button.tsx` component
--  Update `app.jac` with a TypeScript import example
--  Update `README.md` with TypeScript instructions
+
+- Install TypeScript dependencies
+- Create `tsconfig.json` with proper configuration
+- Update `vite.config.js` with TypeScript support
+- Create a `components/` directory with a sample `Button.tsx` component
+- Update `app.jac` with a TypeScript import example
+- Update `README.md` with TypeScript instructions
 
 ### What Gets Created
 
@@ -87,6 +91,7 @@ Add TypeScript and React type definitions to your `package.json`:
 ```
 
 Then run:
+
 ```bash
 npm install
 ```
@@ -124,6 +129,7 @@ Create a `tsconfig.json` file in your project root:
 ```
 
 **Key settings:**
+
 - `jsx: "react-jsx"` - Enables React JSX support
 - `noEmit: true` - TypeScript only type-checks, Vite handles compilation
 - `moduleResolution: "bundler"` - Optimized for Vite bundling
@@ -167,6 +173,7 @@ export default defineConfig({
 ```
 
 **Changes:**
+
 - Import and add `@vitejs/plugin-react` to plugins
 - Add `.ts`, `.tsx`, `.mts` to the `resolve.extensions` array
 
@@ -275,6 +282,7 @@ cl {
 ```
 
 **Import syntax:**
+
 - Use quotes around the import path: `".components/Button.tsx"`
 - Include the `.tsx` extension in the import path
 - Import named exports: `{ Button }`
@@ -284,6 +292,7 @@ cl {
 ### TypeScript file not found during build
 
 Ensure:
+
 - TypeScript files are in the `components/` directory (or path specified in `tsconfig.json` include)
 - The import path in Jac includes the `.tsx` extension
 - Vite config has TypeScript extensions in `resolve.extensions`
@@ -303,11 +312,13 @@ Ensure:
 ## Example Project
 
 See the complete working example in:
+
 ```
 jac-client/jac_client/examples/ts-support/
 ```
 
 This example demonstrates:
+
 - TypeScript component creation
 - Importing TypeScript in Jac files
 - Full build pipeline configuration
@@ -316,12 +327,14 @@ This example demonstrates:
 ## Quick Reference
 
 ### During Project Creation
+
 ```bash
 jac create_jac_app my-app
 # Answer 'y' when prompted for TypeScript support
 ```
 
 ### For Existing Projects
+
 1. Install dependencies: `npm install typescript @types/react @types/react-dom @vitejs/plugin-react --save-dev`
 2. Create `tsconfig.json` (copy from Method 2, Step 2)
 3. Update `vite.config.js` (copy from Method 2, Step 3)

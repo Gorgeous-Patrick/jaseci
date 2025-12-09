@@ -9,6 +9,7 @@ Lines 3-5 define a function that takes four integer parameters (`a`, `b`, `c`, `
 **List Unpacking with Asterisk**
 
 Lines 9-11 demonstrate list unpacking using `*`. Line 11 shows `[*list1, *list2]`, which unpacks both lists into a new list:
+
 - `*list1` expands to elements: `1, 2, 3`
 - `*list2` expands to elements: `4, 5, 6`
 - Combined result: `[1, 2, 3, 4, 5, 6]`
@@ -18,6 +19,7 @@ This provides a clean way to concatenate lists without using the `+` operator or
 **Dictionary Unpacking with Double Asterisk**
 
 Lines 14-16 demonstrate dictionary unpacking using `**`. Line 16 shows `{**dict1, **dict2}`, which unpacks both dictionaries into a new dictionary:
+
 - `**dict1` expands to key-value pairs: `'a': 1, 'b': 2`
 - `**dict2` expands to key-value pairs: `'c': 3, 'd': 4`
 - Merged result: `{'a': 1, 'b': 2, 'c': 3, 'd': 4}`
@@ -27,12 +29,14 @@ If both dictionaries had the same key, the rightmost dictionary's value would ta
 **Unpacking in Function Calls**
 
 Lines 19-20 demonstrate unpacking dictionaries as keyword arguments. Line 19: `result1 = compute(**merged);`
+
 - `merged` is `{'a': 1, 'b': 2, 'c': 3, 'd': 4}`
 - `**merged` unpacks to keyword arguments: `a=1, b=2, c=3, d=4`
 - Calls: `compute(a=1, b=2, c=3, d=4)`
 - Returns: `1 + 2 + 3 + 4 = 10`
 
 Line 20: `result2 = compute(**dict1, **dict2);`
+
 - `**dict1` provides: `a=1, b=2`
 - `**dict2` provides: `c=3, d=4`
 - Same result: `10`
@@ -49,6 +53,7 @@ This allows you to pass collected arguments to functions without explicitly nami
 **Multiple Unpacking**
 
 You can unpack multiple collections in a single expression:
+
 - Lists: `[*a, *b, *c]` combines three lists
 - Dicts: `{**x, **y, **z}` merges three dictionaries
 - Function calls: `func(**d1, **d2)` passes arguments from two dicts
@@ -69,6 +74,7 @@ Unpacking is powerful for building collections with mixed content:
 **Example Execution**
 
 Line 22 prints all results from lines 11, 16, 19, and 20:
+
 - `combined` = [1, 2, 3, 4, 5, 6]
 - `merged` = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
 - `result1` = 10
@@ -77,6 +83,7 @@ Line 22 prints all results from lines 11, 16, 19, and 20:
 **Shallow Copy Semantics**
 
 When unpacking creates a new collection, it performs a shallow copy:
+
 - New outer collection is created
 - Elements/values themselves are not copied (references are copied)
 - Modifying nested objects affects both collections

@@ -7,6 +7,7 @@ This document demonstrates the usage of formatted string literals (f-strings) in
 F-strings are prefixed with `f` or `F` and use curly braces `{}` to embed expressions.
 
 **Python:**
+
 ```python
 name = "John"
 print(f"Hello {name}")
@@ -14,6 +15,7 @@ print(F'Hello {name}')
 ```
 
 **Jac:**
+
 ```jac
 name = "John";
 print(f"Hello {name}");
@@ -33,6 +35,7 @@ print(f"{{It is myname}}, name is: {name}")
 F-strings support expressions and format specifiers for numbers:
 
 ### Basic Operations
+
 ```python
 x = 10
 y = 20
@@ -40,6 +43,7 @@ print(f"Sum of {x} and {y} is {x + y}")
 ```
 
 ### Number Base Conversions
+
 - **Hexadecimal:** `{value:x}` - converts to lowercase hex
 - **Binary:** `{value:b}` - converts to binary
 - **Decimal formatting:** `{value:.2f}` - formats to 2 decimal places
@@ -57,6 +61,7 @@ print(f"Pi: {pi:.2f}")      # Output: 3.14
 ```
 
 ### Field Width
+
 ```python
 print(f"Hex: {z:10}")       # Right-aligned in 10 character field
 ```
@@ -96,6 +101,7 @@ print(f"name is {name} {f'inner: {name}'}")
 F-strings work with triple quotes for multiline strings:
 
 ### Triple Double Quotes
+
 ```python
 multiline_msg = f"""Hello {name},
 This is a multiline f-string.
@@ -104,6 +110,7 @@ Sum of {x} + {y} = {x + y}"""
 ```
 
 ### Triple Single Quotes
+
 ```python
 another_multiline = f'''Welcome {name}!
 Here's your data:
@@ -114,6 +121,7 @@ Binary of {x}: {x:b}'''
 ```
 
 ### Nested Triple Quote F-strings
+
 ```python
 nested_triple = f"""Outer: {name} {f'''Inner triple: {value}'''}"""
 ```
@@ -139,6 +147,7 @@ Debug Report for {name}:
 Raw f-strings combine the benefits of raw strings (no escape sequence processing) with f-string interpolation. They are prefixed with `rf` or `fr`.
 
 ### Basic Raw F-strings
+
 ```python
 path = "home"
 file = "test.txt"
@@ -149,6 +158,7 @@ raw_path2 = fr'D:\Projects\{name}\{file}'
 ```
 
 ### Multiline Raw F-strings
+
 ```python
 raw_multiline = rf"""Path: C:\Users\{name}\Documents\
 File: {file}
@@ -162,16 +172,19 @@ Pattern for {name}: \b{name}\b'''
 ### Common Use Cases for Raw F-strings
 
 **File Paths (Windows):**
+
 ```python
 windows_path = rf"\\server\share\{name}\documents\{file}"
 ```
 
 **Regular Expressions:**
+
 ```python
 regex_pattern = rf"\b{name}\w*\b"
 ```
 
 **Literal Backslashes:**
+
 ```python
 raw_with_newline = rf"Line 1\nLine 2 with {name}\tTabbed"
 ```
@@ -199,6 +212,7 @@ Both Python and Jac support the same f-string syntax with minor differences:
 ## Summary
 
 F-strings provide a powerful and intuitive way to format strings in both Python and Jac. They support:
+
 - Variable interpolation
 - Expression evaluation
 - Number formatting and base conversion

@@ -1,6 +1,6 @@
 # Step 1: Project Setup
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this first step, you'll create your Jac project and understand the basic file structure.
 
@@ -163,6 +163,7 @@ return <div>
    ```
 
 3. Use `{}` to insert Jac code
+
    ```jac
    let name = "Alice";
    return <h1>Hello, {name}!</h1>;  # Shows: Hello, Alice!

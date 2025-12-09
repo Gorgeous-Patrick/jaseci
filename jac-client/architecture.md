@@ -7,6 +7,7 @@ The `jac-client` package uses a **Vite-based bundling system** to transform Jac 
 ### Core Components
 
 #### `ViteClientBundleBuilder`
+
 Extends the base `ClientBundleBuilder` to provide Vite integration. Key responsibilities:
 
 1. **Compilation Pipeline**
@@ -28,11 +29,13 @@ Extends the base `ClientBundleBuilder` to provide Vite integration. Key responsi
 
 4. **Bundle Generation** (`_bundle_with_vite`)
    - Creates React entry point (`main.js`) with:
+
      ```javascript
      import React from "react";
      import { createRoot } from "react-dom/client";
      import { app as App } from "./app.js";
      ```
+
    - Runs `npm run compile` then copies assets (`_copy_asset_files`)
    - Runs `npm run build` to bundle with Vite
    - Generates hashed bundle file (`client.[hash].js`)
@@ -42,7 +45,6 @@ Extends the base `ClientBundleBuilder` to provide Vite integration. Key responsi
 ### Build Flow
 
 ![Build Pipeline](jac_client/docs/assets/pipe_line-v2.svg)
-
 
 ```
 1. Module compilation
@@ -89,6 +91,7 @@ The compilation system preserves the folder structure of source files when writi
 #### Example
 
 Given the following source structure:
+
 ```
 nested-basic/
 ├── app.jac                    (root module)
@@ -98,6 +101,7 @@ nested-basic/
 ```
 
 The compiled output in `compiled/` will be:
+
 ```
 compiled/
 ├── app.js                     (from app.jac)
@@ -116,12 +120,14 @@ compiled/
 #### Implementation Details
 
 The `_compile_dependencies_recursively` method:
+
 - Tracks `source_root` as the parent directory of the root module
 - Calculates `relative_path = file_path.relative_to(source_root)` for each file
 - Creates parent directories as needed with `mkdir(parents=True, exist_ok=True)`
 - Handles edge cases where files might be outside `source_root` by falling back to filename-only
 
 This ensures that the folder structure is preserved for:
+
 - `.jac` files (compiled to `.js`)
 - `.js` files (copied as-is)
 - Other asset files (CSS, images, etc.)
@@ -131,47 +137,60 @@ This ensures that the folder structure is preserved for:
 CSS files are handled through a multi-stage process that ensures styles are properly bundled and served:
 
 #### 1. CSS Import in Jac Code
+
 CSS files are imported in Jac code using the `cl import` syntax:
+
 ```jac
 cl import ".styles.css";
 ```
 
 This gets compiled to JavaScript:
+
 ```javascript
 import "./styles.css";
 ```
 
 #### 2. Asset Copying (`_copy_asset_files`)
+
 After Babel compilation, CSS and other asset files are copied from `compiled/` to `build/`:
+
 - **Why**: Babel only transpiles JavaScript, so CSS files need manual copying
 - **When**: After `npm run compile`, before `npm run build`
 - **What**: Copies `.css`, `.scss`, `.sass`, `.less`, and image files
 - **Location**: `compiled/styles.css` → `build/styles.css`
 
 #### 3. Vite CSS Processing
+
 Vite processes CSS imports during bundling:
+
 - Extracts CSS from JavaScript imports
 - Bundles and minifies CSS
 - Outputs to `dist/main.css` (default filename)
 - Preserves CSS import statements in the bundle
 
 #### 4. HTML Template Generation
+
 The `JacClientModuleIntrospector.render_page()` method:
+
 - Detects CSS files in the `dist/` directory
 - Generates a hash from the CSS file content for cache busting
 - Includes a `<link>` tag in the HTML `<head>`:
+
   ```html
   <link rel="stylesheet" href="/static/main.css?hash=abc123..."/>
   ```
 
 #### 5. Server-Side CSS Serving
+
 The `JacAPIServer` handles CSS file requests:
+
 - **Route**: `/static/*.css` (e.g., `/static/main.css`)
 - **Handler**: Reads CSS file from `dist/` directory
 - **Response**: Serves with `text/css` content type
 - **Location**: `{base_path}/dist/{filename}.css`
 
 **Implementation** (`server.py`):
+
 ```python
 # CSS files from dist directory
 if path.startswith("/static/") and path.endswith(".css"):
@@ -182,6 +201,7 @@ if path.startswith("/static/") and path.endswith(".css"):
 ```
 
 #### CSS File Flow
+
 ```
 app.jac (cl import ".styles.css")
   ↓
@@ -250,7 +270,9 @@ The `config.json` file uses a hierarchical structure with predefined keys for di
 #### Configuration Keys
 
 ##### `vite.plugins`
+
 Array of plugin function calls to add to Vite config:
+
 ```json
 {
   "vite": {
@@ -260,7 +282,9 @@ Array of plugin function calls to add to Vite config:
 ```
 
 ##### `vite.lib_imports`
+
 Array of import statements for plugins and libraries:
+
 ```json
 {
   "vite": {
@@ -270,7 +294,9 @@ Array of import statements for plugins and libraries:
 ```
 
 ##### `vite.build`
+
 Object with build options that override defaults:
+
 ```json
 {
   "vite": {
@@ -283,7 +309,9 @@ Object with build options that override defaults:
 ```
 
 ##### `vite.server`
+
 Object with dev server options:
+
 ```json
 {
   "vite": {
@@ -296,7 +324,9 @@ Object with dev server options:
 ```
 
 ##### `vite.resolve`
+
 Object with resolve options (merged with base aliases):
+
 ```json
 {
   "vite": {

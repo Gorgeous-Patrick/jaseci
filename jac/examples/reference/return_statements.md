@@ -42,6 +42,7 @@ graph TD
 ```
 
 This pattern is valuable for:
+
 - Guard clauses validating inputs
 - Handling special cases before main logic
 - Avoiding deep nesting in conditionals
@@ -63,6 +64,7 @@ Lines 57-59 demonstrate calling with different arguments, each taking a differen
 **Return Statement Execution**
 
 Key behaviors to understand:
+
 - Execution stops immediately at the return statement
 - No code after the return in that code path will execute
 - The expression is evaluated before exiting
@@ -97,6 +99,7 @@ Return statements enable several important programming patterns demonstrated in 
 **Complete Example Flow**
 
 Lines 48-60 in the entry block call all the example functions in sequence, demonstrating each return pattern:
+
 - Simple value return
 - Expression evaluation return
 - Explicit None return

@@ -5,6 +5,7 @@ Context managers provide automatic resource management using the `with` statemen
 **Basic With Statement (Lines 4-7)**
 
 Line 5: `with open(__file__, 'r') as f {`
+
 - Opens the file in read mode
 - Binds the file object to variable `f`
 - Automatically closes the file when the block ends
@@ -22,6 +23,7 @@ The `as` clause binds the context manager's return value (from `__enter__`) to a
 **Multiple Context Managers (Lines 9-12)**
 
 Line 10: `with open(__file__, 'r') as f1, open(__file__, 'r') as f2 {`
+
 - Manages multiple resources in one statement
 - Separated by commas
 - All resources properly cleaned up in reverse order
@@ -47,13 +49,15 @@ graph TD
 
 The example defines a `Printer` class implementing the context manager protocol:
 
-**__enter__ method (Lines 16-19)**:
+****enter** method (Lines 16-19)**:
+
 - Line 16: `def __enter__(self: Printer) -> Printer {`
 - Called when entering the `with` block
 - Line 17: Prints "entering" (setup logic)
 - Line 18: Returns `self` (the object to bind to `as` variable)
 
-**__exit__ method (Lines 21-23)**:
+****exit** method (Lines 21-23)**:
+
 - Line 21: `def __exit__(self: Printer, exc_type: object, exc_val: object, exc_tb: object) -> None {`
 - Called when exiting the `with` block
 - Receives exception information if an error occurred:
@@ -66,11 +70,13 @@ The example defines a `Printer` class implementing the context manager protocol:
 **Using Custom Context Managers (Lines 26-33)**
 
 **Without as binding (Lines 26-28)**:
+
 - Line 26: Creates Printer, enters context
 - Prints: "entering", "inside", "exiting"
 - The `as` clause is optional when you don't need to reference the resource
 
 **With as binding (Lines 31-33)**:
+
 - Line 31: Binds the returned object to `p`
 - Can use `p` within the block
 - Still automatically calls cleanup
@@ -78,6 +84,7 @@ The example defines a `Printer` class implementing the context manager protocol:
 **Nested Context Managers (Lines 36-40)**
 
 Lines 36-40:
+
 - Outer context entered first (p1)
 - Inner context entered second (p2)
 - Cleanup happens in reverse: p2 exits, then p1 exits
@@ -103,9 +110,11 @@ sequenceDiagram
 **Async Context Managers (Lines 42-58)**
 
 Line 43: `async def test_async_with {`
+
 - Defines an async function demonstrating async context managers
 
 **AsyncContext class (Lines 44-53)**:
+
 - Line 45: `async def __aenter__(self: AsyncContext) -> AsyncContext {`
   - Async version of `__enter__`
   - Used with `async with` statements
@@ -116,6 +125,7 @@ Line 43: `async def test_async_with {`
   - Can perform async cleanup
 
 **Using async context managers (Lines 55-57)**:
+
 - Uses `async with` instead of `with`
 - Only works in async functions
 - Allows await operations in setup/cleanup
@@ -124,14 +134,14 @@ Line 43: `async def test_async_with {`
 
 The key benefit of context managers is guaranteed cleanup:
 
-| Scenario | __enter__ Called | __exit__ Called | Cleanup Happens |
+| Scenario | **enter** Called | **exit** Called | Cleanup Happens |
 |----------|-----------------|-----------------|-----------------|
 | Normal execution | Yes | Yes | Yes |
 | Exception in block | Yes | Yes | Yes |
 | Return in block | Yes | Yes | Yes |
 | Break/continue in loop | Yes | Yes | Yes |
 
-**Exception Handling in __exit__**
+**Exception Handling in **exit****
 
 The `__exit__` method receives exception details:
 

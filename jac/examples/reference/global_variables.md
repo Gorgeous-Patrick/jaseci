@@ -62,16 +62,19 @@ The `let` keyword is used for all module-level variable declarations, clearly in
 **Access Control in Practice**
 
 **Private variables** (`:priv`):
+
 - Only accessible within the defining module
 - Cannot be imported by other modules
 - Useful for internal implementation details
 
 **Public variables** (`:pub`):
+
 - Accessible from other modules
 - Part of the module's public API
 - Can be imported and used externally
 
 **Protected variables** (`:protect`):
+
 - Accessible to subclasses and related code
 - Limited visibility between private and public
 - Used for semi-internal state

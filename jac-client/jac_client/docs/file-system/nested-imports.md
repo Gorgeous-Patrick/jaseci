@@ -108,6 +108,7 @@ cl import from ..ButtonSecondL {
 Here's a complete example demonstrating nested folder imports:
 
 **Project Structure:**
+
 ```
 nested-advance/
 ├── app.jac                    # Root entry point
@@ -120,6 +121,7 @@ nested-advance/
 ```
 
 **app.jac:**
+
 ```jac
 cl import from .ButtonRoot {
     ButtonRoot
@@ -145,6 +147,7 @@ cl def app() -> any {
 ```
 
 **level1/ButtonSecondL.jac:**
+
 ```jac
 cl import from ..ButtonRoot {
     ButtonRoot
@@ -159,6 +162,7 @@ cl def ButtonSecondL() -> any {
 ```
 
 **level1/Card.jac:**
+
 ```jac
 # Imports from both above (root) and below (level2)
 cl import from ..ButtonRoot {
@@ -177,6 +181,7 @@ cl def Card() -> any {
 ```
 
 **level1/level2/ButtonThirdL.jac:**
+
 ```jac
 cl import from ...ButtonRoot {
     ButtonRoot
@@ -218,6 +223,7 @@ cl def ButtonThirdL() -> any {
 ## Best Practices for Nested Folders
 
 1. **Organize by feature or component type**: Group related files together
+
    ```
    components/
    ├── ui/
@@ -238,6 +244,7 @@ cl def ButtonThirdL() -> any {
 ## Common Patterns
 
 ### Pattern 1: Component Library Structure
+
 ```
 components/
 ├── ui/
@@ -252,6 +259,7 @@ components/
 ```
 
 **Usage:**
+
 ```jac
 # From root
 cl import from .components.ui.Button { Button }
@@ -262,6 +270,7 @@ cl import from ..forms.LoginForm { LoginForm }
 ```
 
 ### Pattern 2: Feature-Based Structure
+
 ```
 features/
 ├── auth/
@@ -276,6 +285,7 @@ features/
 ```
 
 **Usage:**
+
 ```jac
 # From root
 cl import from .features.auth.Login { Login }
@@ -286,6 +296,7 @@ cl import from ..todos.TodoList { TodoList }
 ```
 
 ### Pattern 3: Mixed Structure
+
 ```
 app.jac                    # Root entry
 components/
@@ -299,6 +310,7 @@ hooks/
 ```
 
 **Usage:**
+
 ```jac
 # From app.jac
 cl import from .components.ui.Button { Button }
@@ -312,16 +324,19 @@ cl import from ...utils.helpers.format { capitalize }
 ## Troubleshooting
 
 ### Import Not Found
+
 - Verify the file exists at the expected path
 - Check that the relative path matches the folder structure
 - Ensure file extension is `.jac` (not `.cl.jac` for imports)
 
 ### Wrong Import Path
+
 - Count the directory levels between source and target
 - Use `..` for each level up, `.folder` for each level down
 - Start with `.` for current directory imports
 
 ### File Name Conflicts
+
 - Use nested folders to avoid conflicts
 - Files with the same name in different folders won't conflict
 - Folder structure is preserved in compiled output

@@ -5,6 +5,7 @@ Traditional CSS with external stylesheets. The most straightforward styling appr
 ## Overview
 
 Pure CSS is the foundation of web styling. You write CSS in a separate file and import it into your Jac code. This approach is perfect for:
+
 - Simple projects
 - Learning CSS fundamentals
 - Maximum control over styling
@@ -194,20 +195,20 @@ Keep styles in the CSS file for maintainability:
 
 ## Advantages
 
--  **No build step required** for CSS
--  **Easy to understand** and maintain
--  **Works with any CSS framework**
--  **Minimal dependencies**
--  **Great browser support**
--  **Familiar syntax** for developers
+- **No build step required** for CSS
+- **Easy to understand** and maintain
+- **Works with any CSS framework**
+- **Minimal dependencies**
+- **Great browser support**
+- **Familiar syntax** for developers
 
 ## Limitations
 
--  **No variables or nesting** (use CSS variables for theming)
--  **No preprocessing features**
--  **Global scope** (use BEM or similar for scoping)
--  **No dynamic styling** based on props
--  **Manual organization** required
+- **No variables or nesting** (use CSS variables for theming)
+- **No preprocessing features**
+- **Global scope** (use BEM or similar for scoping)
+- **No dynamic styling** based on props
+- **Manual organization** required
 
 ## When to Use
 

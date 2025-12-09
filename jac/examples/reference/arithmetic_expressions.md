@@ -55,12 +55,14 @@ Line 25 demonstrates precedence: `2 + 3 * 4` equals 14, not 20, because multipli
 Line 26 shows how parentheses override precedence: `(2 + 3) * 4` equals 20 because the parentheses force addition to happen first.
 
 Lines 27-28 show that operators of the same precedence evaluate left-to-right:
+
 - `10 - 3 + 2` evaluates as `(10 - 3) + 2 = 9`
 - `10 / 2 * 3` evaluates as `(10 / 2) * 3 = 15.0`
 
 **Complex Expressions**
 
 Line 31 shows a complex expression combining multiple operators. This evaluates in the following order:
+
 1. `4 ** 2` = 16 (exponentiation first)
 2. `3 * 16` = 48 (multiplication)
 3. `10 / 2` = 5.0 (division)
@@ -70,12 +72,14 @@ Line 31 shows a complex expression combining multiple operators. This evaluates 
 **Chained Operations**
 
 Lines 35-36 demonstrate operations with the same precedence:
+
 - Line 35: `100 - 50 + 25 - 10` evaluates left-to-right as `((100 - 50) + 25) - 10 = 65`
 - Line 36: `2 * 3 * 4 / 2` evaluates as `((2 * 3) * 4) / 2 = 12.0`
 
 **Floor Division and Modulo Relationship**
 
 Lines 39-40 show how floor division and modulo work together:
+
 - `17 // 5` = 3 (quotient)
 - `17 % 5` = 2 (remainder)
 
@@ -84,6 +88,7 @@ Together they satisfy the equation: `17 = 5 * 3 + 2`
 **Precedence Examples**
 
 Lines 43-45 provide additional precedence demonstrations:
+
 - Line 43: `2 + 3 * 4` = 14 (multiplication before addition)
 - Line 44: `2 ** 3 * 4` = 32 (exponentiation before multiplication: 8 * 4)
 - Line 45: `10 / 2 + 5` = 10.0 (division before addition: 5.0 + 5)

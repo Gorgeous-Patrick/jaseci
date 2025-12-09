@@ -43,6 +43,7 @@ This document provides a comprehensive reference of all JavaScript/ECMAScript im
 ## Usage Rules
 
 ### 1. Client Import Requirement
+
 - **Default imports** (`default as Name`) and **namespace imports** (`* as Name`) **MUST** use `cl` prefix
 - **Named imports** work with or without `cl` prefix (but `cl` generates JavaScript)
 
@@ -77,6 +78,7 @@ cl import from react-dom { render }  # Error: hyphen not allowed in identifier
 ```
 
 **When to use string literals:**
+
 - Package names with hyphens: `react-dom`, `styled-components`, `react-router-dom`, `date-fns`
 - Package names with special characters that aren't valid in identifiers
 - Any package name that would cause a syntax error without quotes
@@ -97,18 +99,21 @@ Jac uses Python-style dots for relative imports, which are automatically convert
 ## Implementation Details
 
 ### Grammar
+
 ```lark
 import_path: (NAME COLON)? (dotted_name | STRING) (KW_AS NAME)?
 import_item: (KW_DEFAULT | STAR_MUL | named_ref) (KW_AS NAME)?
 ```
 
 ### Type Handling
+
 - Regular named imports: `ModuleItem.name` is `Name`
 - Default imports: `ModuleItem.name` is `Token(KW_DEFAULT)`
 - Namespace imports: `ModuleItem.name` is `Token(STAR_MUL)`
 - String literal imports: `ModulePath.path` contains a single `String` node
 
 ### Validation
+
 - `pyast_gen_pass.py`:
   - Logs error if `default` or `*` used without `cl`
   - Logs error if string literal imports used without `cl` (Python doesn't support string literal module names)
@@ -120,6 +125,7 @@ import_item: (KW_DEFAULT | STAR_MUL | named_ref) (KW_AS NAME)?
 ## Testing
 
 All patterns tested and verified in:
+
 - `test_js_generation.py::test_category1_named_imports_generate_correct_js`
 - `test_js_generation.py::test_category2_default_imports_generate_correct_js`
 - `test_js_generation.py::test_category4_namespace_imports_generate_correct_js`
@@ -130,6 +136,7 @@ All patterns tested and verified in:
 ## Examples
 
 ### Full Feature Demo
+
 ```jac
 cl {
     # Named imports
@@ -168,6 +175,7 @@ cl {
 ```
 
 ### Generated JavaScript Output
+
 ```javascript
 import { useState, useEffect, useRef } from "react";
 import { map as mapArray, filter } from "lodash";
@@ -193,12 +201,12 @@ function MyComponent() {
 
 ## Status Summary
 
--  **Category 1 (Named Imports)**: Fully implemented and tested
--  **Category 2 (Default Imports)**: Fully implemented and tested
--  **Category 3 (Mixed Imports)**: Working for default+named and default+namespace
--  **Category 4 (Namespace Imports)**: Fully implemented and tested
--  **Relative Paths**: Full support with automatic conversion
--  **String Literal Imports**: Full support for hyphenated package names (react-dom, styled-components, etc.)
+- **Category 1 (Named Imports)**: Fully implemented and tested
+- **Category 2 (Default Imports)**: Fully implemented and tested
+- **Category 3 (Mixed Imports)**: Working for default+named and default+namespace
+- **Category 4 (Namespace Imports)**: Fully implemented and tested
+- **Relative Paths**: Full support with automatic conversion
+- **String Literal Imports**: Full support for hyphenated package names (react-dom, styled-components, etc.)
 - ️ **Named + Namespace Mix**: Generates but produces invalid JavaScript
 
 **Last Updated**: 2025-10-23

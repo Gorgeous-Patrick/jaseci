@@ -7,6 +7,7 @@ Jac provides built-in support for unit testing through test blocks, allowing you
 The general form is: `test test_name { assertions and test code }`
 
 Components:
+
 - `test` - Keyword that begins a test block
 - `test_name` - Identifier for the test
 - Curly braces - Contain test code and assertions
@@ -33,6 +34,7 @@ Assertions are the primary mechanism for verifying expected behavior. Each test 
 Lines 18-26 show programmatic test execution. Line 18 uses `with entry:__main__` to ensure code only runs when the file is executed directly (not imported).
 
 Lines 21-24 use `subprocess.run()` to execute the Jac test runner:
+
 - `["jac", "test", f"{__file__}"]` - Command to test current file
 - `stdout=subprocess.PIPE, stderr=subprocess.PIPE` - Capture output
 - `text=True` - Return output as strings
@@ -57,6 +59,7 @@ graph TD
 ```
 
 When `jac test filename.jac` runs:
+
 1. Jac scans the file for all `test` blocks
 2. Each test block executes in isolation
 3. Assertions are evaluated
@@ -66,6 +69,7 @@ When `jac test filename.jac` runs:
 **Test Isolation**
 
 Each test block runs independently:
+
 - If one test fails, others still execute
 - Tests don't share state
 - Execution order is not guaranteed
@@ -87,6 +91,7 @@ Effective tests should:
 **Use Cases**
 
 Test blocks are valuable for:
+
 - Unit testing individual functions or methods
 - Verifying object behavior
 - Testing graph operations and walker logic
@@ -96,6 +101,7 @@ Test blocks are valuable for:
 **Test Naming**
 
 While the examples use simple names (`test1`, `test2`, `test3`), production code should use descriptive names:
+
 - `test_password_validation` - Clearer than `test1`
 - `test_user_creation` - Describes what is tested
 - `test_edge_traversal` - Indicates the feature
@@ -103,6 +109,7 @@ While the examples use simple names (`test1`, `test2`, `test3`), production code
 **Integration with Development**
 
 Tests written inline with code:
+
 - Live alongside the implementation
 - Are easy to discover and maintain
 - Serve as executable documentation

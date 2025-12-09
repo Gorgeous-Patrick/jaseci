@@ -7,11 +7,14 @@ Every Jac client project **must** have an `app.jac` file. This file serves as th
 ### Entry Point for the Build System
 
 When you run `jac serve app.jac`, the build system:
+
 1. Compiles `app.jac` to JavaScript
 2. Generates an entry file (`compiled/main.js`) that imports your `app` function:
+
    ```javascript
    import { app as App } from "./app.js";
    ```
+
 3. Renders your app component in the browser
 
 **Without `app.jac`, the build system cannot find your application entry point.**
@@ -19,6 +22,7 @@ When you run `jac serve app.jac`, the build system:
 ## The `app()` Function
 
 The `app.jac` file **must** export an `app()` function. This function is:
+
 - The root component of your application
 - Automatically imported and rendered by the build system
 - The starting point for all your UI components
@@ -67,6 +71,7 @@ cl {
 ## Common Mistakes
 
 **Missing `app()` function:**
+
 ```jac
 #  WRONG - No app() function
 cl {
@@ -77,6 +82,7 @@ cl {
 ```
 
 **Wrong function name:**
+
 ```jac
 #  WRONG - Function named 'main' instead of 'app'
 cl {
@@ -87,6 +93,7 @@ cl {
 ```
 
 **Not in `cl` block:**
+
 ```jac
 #  WRONG - app() not in cl block
 def app() -> any {

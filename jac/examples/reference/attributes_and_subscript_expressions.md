@@ -5,6 +5,7 @@ Subscripted and dotted expressions provide syntax for accessing collection eleme
 **Object Definition**
 
 Lines 3-7 define a `Sample` object with three attributes:
+
 - `items`: a list initialized to `[10, 20, 30, 40, 50]`
 - `data`: a dictionary initialized to `{"name": "Alice", "age": 30}`
 - `value`: an integer initialized to `42`
@@ -16,6 +17,7 @@ Line 10 creates an instance of this object for demonstration.
 Line 13 demonstrates dot notation: `val = s.value;`
 
 The dot operator `.` accesses an attribute on an object:
+
 - `s` - The object instance
 - `.value` - The attribute name
 - Result: 42
@@ -47,6 +49,7 @@ Lines 21-23 demonstrate slice operations on lists:
 | 23 | `s.items[2:]` | 2 | end | `[30, 40, 50]` (index 2 to end) |
 
 Slice syntax is `[start:end]` where:
+
 - `start` is inclusive (included in result)
 - `end` is exclusive (not included in result)
 - Omitting `start` defaults to beginning (0)
@@ -57,6 +60,7 @@ Slice syntax is `[start:end]` where:
 Line 26 shows chaining operations: `first_char = s.data["name"][0];`
 
 Execution left-to-right:
+
 1. `s.data` - Access data attribute (returns dictionary)
 2. `["name"]` - Get value for key "name" (returns "Alice")
 3. `[0]` - Get first character (returns "A")
@@ -68,6 +72,7 @@ Chaining allows you to access nested data structures in a single expression.
 Line 29 demonstrates null-safe access: `safe_val = s?.value;`
 
 The `?.` operator:
+
 - Accesses the attribute if the object is not None
 - Returns None if the object is None (instead of raising an error)
 - Useful for optional attributes or nullable objects
@@ -89,6 +94,7 @@ Lines 31-46 provide additional null-safe access scenarios:
 **Chained Null-Safe Behavior**
 
 When using multiple `?.` operators in a chain (line 42):
+
 - Evaluation proceeds left-to-right
 - If any object in the chain is None, the entire expression returns None
 - No error is raised; execution continues safely
@@ -112,6 +118,7 @@ Negative indices work for ordered sequences (lists, tuples, strings) but not dic
 Lines 48-49 print all the values extracted throughout the example:
 
 First print statement (line 48):
+
 - `val` = 42
 - `item1` = 10
 - `item2` = 50
@@ -123,6 +130,7 @@ First print statement (line 48):
 - `safe_val` = 42
 
 Second print statement (line 49) - Null-safe examples:
+
 - `null_safe1` = None (accessing `.value` on None)
 - `null_safe2` = None (accessing `.items` on None)
 - `nested_val` = {"name": "Alice", "age": 30} (safe access on valid object)

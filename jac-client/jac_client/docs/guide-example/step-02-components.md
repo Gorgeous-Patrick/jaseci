@@ -1,12 +1,12 @@
 # Step 2: First Component
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll create your first reusable component - a **TodoItem** that displays a single todo.
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 2.1: Create a TodoItem Component
 
@@ -123,7 +123,7 @@ cl {
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### What is a Component?
 
@@ -328,23 +328,24 @@ let myText = "Learn Jac";
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  Components are functions that return UI
--  How to create a component
--  PascalCase naming convention
--  Passing data to components with props
--  Receiving props as a single object
--  Composing components (nesting)
--  Organizing app into multiple components
+- Components are functions that return UI
+- How to create a component
+- PascalCase naming convention
+- Passing data to components with props
+- Receiving props as a single object
+- Composing components (nesting)
+- Organizing app into multiple components
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: Component not showing up
 
 **Check:**
+
 - Is the name in PascalCase? `TodoItem` not `todoItem`
 - Did you use `<TodoItem />` (with angle brackets)?
 - Does it have a `return` statement?
@@ -369,6 +370,7 @@ def TodoItem(props: any) -> any {
 ### Issue: Props are undefined
 
 **Check:**
+
 - Did you pass the props when using the component?
 - Are the prop names spelled the same in both places?
 
@@ -385,7 +387,7 @@ def TodoItem(props: any) -> any {
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try adding a new component:
 
@@ -409,7 +411,7 @@ def app() -> any {
 
 ---
 
-##  Next Step
+## Next Step
 
 Great! You can now create and organize components. But they look plain. Let's make them beautiful with **styling**!
 

@@ -4,12 +4,12 @@ A complete authentication example using Jac with React Router for client-side ro
 
 ## Features
 
--  **React Router Integration** - Hash-based routing using `react-router-dom` v6
--  **User Authentication** - Login and signup functionality
+- **React Router Integration** - Hash-based routing using `react-router-dom` v6
+- **User Authentication** - Login and signup functionality
 - ️ **Protected Routes** - Dashboard page accessible only to authenticated users
--  **Modern UI** - Clean, responsive design
--  **Navigation Guards** - Automatic redirects for unauthenticated users
--  **LocalStorage Session** - Persistent authentication state
+- **Modern UI** - Clean, responsive design
+- **Navigation Guards** - Automatic redirects for unauthenticated users
+- **LocalStorage Session** - Persistent authentication state
 
 ## React Router Features Demonstrated
 
@@ -23,6 +23,7 @@ A complete authentication example using Jac with React Router for client-side ro
 ## Setup
 
 Install dependencies:
+
 ```bash
 npm install
 ```
@@ -30,6 +31,7 @@ npm install
 ## Running the App
 
 Start the development server:
+
 ```bash
 jac serve app.jac
 ```

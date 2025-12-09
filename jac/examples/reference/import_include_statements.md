@@ -12,6 +12,7 @@ After importing, all module members are accessible via dot notation: `os.getcwd(
 **Import with Alias**
 
 Line 8 shows renaming a module during import. The module is imported but referenced by the shorter name `dt` instead of `datetime`. Use this for:
+
 - Shorter names (convenience)
 - Avoiding naming conflicts
 - Conventional abbreviations
@@ -21,6 +22,7 @@ Line 26 demonstrates usage: `dt.datetime.now().year`
 **Import From with Specific Items**
 
 Line 11 demonstrates selective imports using `import from`. This syntax:
+
 - Imports only specific items from a module (`sqrt`, `pi`, `log`)
 - Can alias imported items (`log as logarithm`)
 - Uses curly braces `{ }` to group the imports
@@ -35,6 +37,7 @@ Line 14 shows that trailing commas are allowed. The trailing comma after `Counte
 **Relative Imports**
 
 Lines 17-19 (commented) show relative import syntax for package-relative imports. The dot notation indicates package hierarchy:
+
 - `.` - Current package
 - `..` - Parent package
 - `...` - Grandparent package
@@ -82,21 +85,25 @@ Lines 21-27 demonstrate using imported items:
 **When to Use Each Pattern**
 
 **Simple import** - Best for:
+
 - Need many items from the module
 - Module name is short and clear
 - Standard library modules
 
 **Aliased import** - Best for:
+
 - Long module names
 - Conventional abbreviations (numpy as np, pandas as pd)
 - Avoiding naming conflicts
 
 **Selective import** - Best for:
+
 - Only need specific items
 - Frequently used functions
 - Cleaner code without module prefix
 
 **Relative import** - Best for:
+
 - Package-internal imports
 - Maintaining package structure
 - Avoiding absolute path dependencies

@@ -15,6 +15,7 @@ Lines 10-12 demonstrate using `range()` to generate numeric sequences. This prod
 **For-To-By Loop (Jac's C-Style Loop)**
 
 Lines 15-17 show Jac's unique three-part loop syntax. This loop has three components:
+
 - **Initialization** (`i=0`): Sets the starting value
 - **Condition** (`to i<5`): Loop continues while true
 - **Increment** (`by i+=1`): Executed after each iteration

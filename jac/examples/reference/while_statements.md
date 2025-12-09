@@ -52,6 +52,7 @@ Lines 62-70 demonstrate nesting. The inner loop (lines 64-67) completes fully fo
 **When to Use While**
 
 Prefer while loops for:
+
 - Condition-dependent iteration (unknown iteration count)
 - Processing until a sentinel value appears
 - Polling or waiting for conditions
@@ -59,6 +60,7 @@ Prefer while loops for:
 - State machines or complex control flow
 
 Prefer for loops for:
+
 - Iterating a known number of times
 - Processing all items in a collection
 - Cleaner code when iteration count is fixed

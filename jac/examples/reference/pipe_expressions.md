@@ -12,6 +12,7 @@ The key advantage is readability, especially when chaining multiple operations.
 **Basic Forward Pipe Syntax**
 
 Line 9 demonstrates the basic form. This breaks down as:
+
 - `5` is the value on the left
 - `|>` is the forward pipe operator
 - `square` is the function on the right
@@ -50,6 +51,7 @@ graph LR
 ```
 
 Step-by-step execution:
+
 1. Start with `3`
 2. `3 |> add_ten` = `13` (3 + 10)
 3. `13 |> double` = `26` (13 * 2)
@@ -72,6 +74,7 @@ The piped version eliminates nested parentheses and makes the data flow explicit
 **Pipe with Built-in Functions**
 
 Line 15 shows using pipe with built-in functions. This pipes a list into the `sum` function, producing 15. The pipe operator works with:
+
 - User-defined functions (lines 3-5)
 - Built-in functions (line 15)
 - Lambda expressions (line 18)
@@ -80,6 +83,7 @@ Line 15 shows using pipe with built-in functions. This pipes a list into the `su
 **Pipe to Lambda Expressions**
 
 Line 18 demonstrates piping to inline lambda functions. This breaks down as:
+
 - `10` is the input value
 - `|>` pipes it to the lambda
 - `(lambda n: int : n * 3)` multiplies by 3
@@ -101,6 +105,7 @@ Understanding the relationship between the two pipe operators:
 **Pipe back** (covered in pipe_back_expressions.md):
 
 Both produce the same result, but emphasize different aspects:
+
 - Forward pipe emphasizes the data and its transformation journey
 - Pipe back emphasizes the function being applied
 
@@ -147,6 +152,7 @@ The pipe operator offers several benefits:
 **Output Demonstration**
 
 Line 20 prints all results:
+
 - `result1 = 25` (square of 5)
 - `result2 = 676` (3 |> add_ten |> double |> square)
 - `total = 15` (sum of [1,2,3,4,5])
@@ -155,6 +161,7 @@ Line 20 prints all results:
 **Relationship to Functional Programming**
 
 The forward pipe operator comes from functional programming languages:
+
 - **F#**: `|>` operator (direct inspiration)
 - **Elixir**: `|>` operator for pipelines
 - **Unix shells**: `|` for piping command output

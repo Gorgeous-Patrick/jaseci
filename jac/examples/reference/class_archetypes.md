@@ -18,6 +18,7 @@ The fundamental distinction between `class` and `obj` is their variable semantic
 - **`obj`**: Uses Python dataclass semantics where all `has` variables automatically become **instance variables** with each instance having its own copy. **Methods have implicit `self`** - it doesn't appear in the parameter list.
 
 This difference is critical when choosing between `class` and `obj`:
+
 - **`class`** is appropriate when class variables (shared state), Python-style explicit `self`, and traditional class behavior are required
 - **`obj`** is appropriate when guaranteed instance variables, implicit `self`, or compatibility with spatial archetypes is required (`node`, `edge`, `walker` also use implicit `self`)
 
@@ -55,6 +56,7 @@ Lines 23-31 show multiple inheritance where `Pet` combines three parent archetyp
 **Access Modifiers:**
 
 Lines 98-100 demonstrate the three access levels using colon syntax:
+
 - `:priv` - Private to defining module
 - `:pub` - Publicly accessible
 - `:protect` - Protected to subclasses
@@ -79,6 +81,7 @@ Lines 46-49 show an edge ability triggered during edge traversal. Abilities enab
 **Bidirectional Polymorphism:**
 
 When a walker visits a node, both execute matching abilities:
+
 - Walker's abilities dispatch based on visited node type (lines 60-64)
 - Node's abilities dispatch based on visiting walker type (lines 28-30)
 
@@ -87,6 +90,7 @@ This creates rich interaction patterns where both parties respond to encounters.
 **Forward Declarations and Implementations:**
 
 Lines 103-105 show forward declarations - declaring archetype names without bodies. These enable:
+
 - Breaking circular dependencies
 - Organizing large codebases
 - Separating interface from implementation
@@ -100,6 +104,7 @@ Lines 128-140 demonstrate decorator usage. Decorators are Python functions that 
 **Async Walkers:**
 
 Lines 84-95 show async walker declaration. The `async` keyword enables concurrent operations:
+
 - Async walkers can have async abilities (line 86, 90)
 - Async abilities can use `await` for asynchronous operations
 - Useful for I/O-bound traversal logic
@@ -107,6 +112,7 @@ Lines 84-95 show async walker declaration. The `async` keyword enables concurren
 **Spatial Integration:**
 
 Lines 184-204 demonstrate Object-Spatial Programming:
+
 - Line 184: Create graph structure with `++>` (connect operator)
 - Line 189: Spawn walker at root with `root spawn person`
 - Line 203: Connect with typed edge using `+>: EdgeType() :+>`

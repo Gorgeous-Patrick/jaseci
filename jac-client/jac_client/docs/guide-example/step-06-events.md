@@ -1,12 +1,12 @@
 # Step 6: Event Handlers
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll learn how to handle user interactions like clicks, typing, and key presses to make your app fully interactive!
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 6.1: Handle Input Changes (onChange)
 
@@ -339,6 +339,7 @@ cl {
 ```
 
 **Try it!** You can now:
+
 - Add todos
 - Check/uncheck them
 - Delete them
@@ -462,13 +463,14 @@ cl {
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### What are Event Handlers?
 
 Event handlers are functions that run when something happens (user clicks, types, etc.).
 
 **Common events:**
+
 - `onClick` - User clicks an element
 - `onChange` - Input value changes
 - `onKeyPress` - User presses a key
@@ -488,6 +490,7 @@ Event handlers are functions that run when something happens (user clicks, types
 ```
 
 **Breakdown:**
+
 - `onClick={}` - The event attribute
 - `lambda e: any -> None { }` - Anonymous function
 - `e` - Event object (contains info about the event)
@@ -503,6 +506,7 @@ onChange={lambda e: any -> None {
 ```
 
 **Common properties:**
+
 - `e.target` - The element that triggered the event
 - `e.target.value` - Current value (for inputs)
 - `e.key` - Which key was pressed
@@ -659,30 +663,32 @@ def removeItem(id: any) -> None {
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  What event handlers are
--  Common events (onClick, onChange, onKeyPress)
--  Event handler syntax with lambda functions
--  The event object (`e`)
--  Passing functions as props
--  Updating state in event handlers
--  Array methods (concat, map, filter)
--  Inline vs named functions
+- What event handlers are
+- Common events (onClick, onChange, onKeyPress)
+- Event handler syntax with lambda functions
+- The event object (`e`)
+- Passing functions as props
+- Updating state in event handlers
+- Array methods (concat, map, filter)
+- Inline vs named functions
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: Event handler not firing
 
 **Check:**
+
 - Did you use `onClick` not `onclick`? (capital C)
 - Did you pass a function? `onClick={myFunction}` not `onClick={myFunction()}`
 
 ### Issue: Input not updating
 
 **Check:**
+
 - Did you add both `value` and `onChange`?
 - Is `onChange` calling the state setter?
 
@@ -714,7 +720,7 @@ setTodos(todos.concat([newTodo]));
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try adding a "Clear All" button:
 
@@ -740,7 +746,7 @@ def clearCompleted() -> None {
 
 ---
 
-##  Next Step
+## Next Step
 
 Excellent! Your app is now fully interactive with local state. But when you refresh the page, all your todos disappear!
 

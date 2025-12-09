@@ -7,12 +7,14 @@ Jac allows you to organize your code by execution environment, making it easier 
 ### `.jac` Files - Server-side Code
 
 Standard Jac files (`.jac`) contain your backend logic:
+
 - Node definitions
 - Walker implementations
 - Business logic
 - Data processing
 
 **Example: `app.jac`**
+
 ```jac
 # Backend - Todo Node
 node Todo {
@@ -46,6 +48,7 @@ walker read_todos {
 Client files (`.cl.jac`) contain your frontend components and logic. All code in these files is automatically treated as client-side code without requiring the `cl` keyword.
 
 **Example: `app.cl.jac`**
+
 ```jac
 import from react {
     useState
@@ -79,6 +82,7 @@ def app -> Any {
 You can also combine backend and frontend code in the same `.jac` file using `cl` blocks:
 
 **Example: `app.jac` with both backend and frontend**
+
 ```jac
 # Backend - Todo Node
 node Todo {
@@ -117,12 +121,14 @@ cl {
 ### 1. No `cl` Keyword Required in `.cl.jac` Files
 
 In `.cl.jac` files, you don't need to prefix declarations with `cl`:
+
 - All code is compiled for the client environment
 - Cleaner syntax for frontend-only files
 
 ### 2. Clear Separation of Concerns
 
 **Option 1: Separate Files**
+
 ```
 my-app/
 ├── app.jac       # Server-side: walkers, nodes, business logic
@@ -130,6 +136,7 @@ my-app/
 ```
 
 **Option 2: Single File with `cl` Blocks**
+
 ```jac
 # Backend code (no cl keyword)
 node Todo { ... }
@@ -164,6 +171,7 @@ async def computeAnswer() -> None {
 ## Project Structure Examples
 
 ### Simple Structure
+
 ```
 my-app/
 ├── app.jac          # Backend: nodes and walkers
@@ -171,6 +179,7 @@ my-app/
 ```
 
 ### Feature-Based Structure
+
 ```
 my-app/
 ├── app.jac           # Main backend logic
@@ -184,6 +193,7 @@ my-app/
 ```
 
 ### Mixed Structure (Single Files)
+
 ```
 my-app/
 ├── app.jac           # Backend + Frontend in one file
@@ -194,11 +204,13 @@ my-app/
 ## When to Use Each Approach
 
 ### Use Separate Files (`.jac` + `.cl.jac`)
+
 - Large applications with clear separation
 - Team workflows where backend/frontend are separate
 - When you want explicit file-based organization
 
 ### Use Single File with `cl` Blocks
+
 - Small to medium applications
 - When backend and frontend are tightly coupled
 - Quick prototypes and demos
@@ -207,6 +219,7 @@ my-app/
 ## Examples
 
 See working examples in the codebase:
+
 - [`basic-full-stack/`](../../examples/basic-full-stack/) - Mixed backend/frontend in single file
 - [`full-stack-with-auth/`](../../examples/full-stack-with-auth/) - Complete full-stack application
 

@@ -4,7 +4,7 @@ Welcome to the Todo App example! This guide will walk you through building a ful
 
 ---
 
-##  1. Creating the Application
+## 1. Creating the Application
 
 ### Prerequisites
 
@@ -17,6 +17,7 @@ Before installing Jac client, you need to have **Node.js** installed on your sys
 Visit [https://nodejs.org/en/download](https://nodejs.org/en/download) and follow the instructions to install Node.js using **nvm** (Node Version Manager) with **npm**.
 
 Select:
+
 - **Platform**: Linux
 - **Package Manager**: nvm
 - **Package**: npm
@@ -53,12 +54,14 @@ jac create_jac_app todo-app
 ```
 
 This command will:
+
 - Create a new directory with your project name
 - Set up the basic project structure
 - Initialize npm and install Vite (for development server)
 - Create a starter `app.jac` file with a sample component
 
 **What gets created:**
+
 ```
 my-app/
 ├── app.jac          # Your main application file
@@ -76,6 +79,7 @@ jac serve app.jac
 ```
 
 This starts both:
+
 - **Backend server**: Handles your Jac graph operations and walkers
 - **Frontend development server**: Serves your React components
 
@@ -83,7 +87,7 @@ You can access your app at `http://localhost:8000`
 
 ---
 
-##  2. Entry Point of the App
+## 2. Entry Point of the App
 
 Every Jac client application needs an entry point function. This is where your app starts rendering.
 
@@ -109,6 +113,7 @@ cl {
 ```
 
 **Key Points:**
+
 - `app()` is the **required entry point** that Jac looks for
 - It must be defined inside a `cl { }` block (client-side code)
 - The `cl` (client) block indicates this code runs in the browser
@@ -116,6 +121,7 @@ cl {
 - You can define other components and helper functions in the same `cl` block
 
 **Example with Multiple Components:**
+
 ```jac
 cl import from react {useState, useEffect}
 
@@ -149,7 +155,7 @@ cl {
 
 ---
 
-##  3. Creating Components
+## 3. Creating Components
 
 Components in Jac are functions that return JSX (JavaScript XML). They're similar to React components but written in pure Jac syntax.
 
@@ -181,6 +187,7 @@ def TodoItem(item: dict) -> any {
 ```
 
 **Component Features:**
+
 - **JSX Syntax**: Write HTML-like syntax directly in Jac
 - **Inline Styles**: Use JavaScript objects for styling
 - **Event Handlers**: Attach functions to user interactions
@@ -216,6 +223,7 @@ def TodoItem(item: dict) -> any {
 ```
 
 **Breaking it down:**
+
 - `item: dict` - Component receives a dictionary (todo item) as a prop
 - `style={{...}}` - Inline styles using JavaScript objects
 - `checked={item.done}` - Dynamic attribute binding
@@ -224,7 +232,7 @@ def TodoItem(item: dict) -> any {
 
 ---
 
-##  4. Adding State with React Hooks
+## 4. Adding State with React Hooks
 
 Jac uses React hooks for state management. You can use all standard React hooks by importing them:
 
@@ -252,6 +260,7 @@ cl {
 ```
 
 **Available React Hooks:**
+
 - `useState` - For state management
 - `useEffect` - For side effects
 - `useRef` - For refs
@@ -327,7 +336,7 @@ cl {
 
 ---
 
-##  5. Event Handling
+## 5. Event Handling
 
 Event handling in Jac works just like React, but with Jac's lambda syntax.
 
@@ -415,13 +424,14 @@ def FilterButton(filterType: str, currentFilter: str, onFilterChange: any) -> an
 
 ---
 
-##  6. Magic: No More Axios/Fetch!
+## 6. Magic: No More Axios/Fetch!
 
 One of Jac's most powerful features is **seamless backend communication** without writing HTTP requests, fetch calls, or axios code.
 
 ### The `spawn` Syntax
 
 Instead of writing:
+
 ```javascript
 // Traditional approach
 const response = await fetch('/api/todos', {
@@ -433,6 +443,7 @@ const data = await response.json();
 ```
 
 You simply write:
+
 ```jac
 response = root spawn create_todo(text="New todo");
 ```
@@ -445,12 +456,14 @@ result = node_reference spawn walker_name(parameters);
 ```
 
 **Syntax:**
+
 - `node_reference` - The node to spawn the walker on (commonly `root` for the root node, or a node ID)
 - `spawn` - The spawn keyword
 - `walker_name` - Name of the walker to execute
 - `parameters` - Parameters to pass to the walker (as function arguments)
 
 **Example from Todo App:**
+
 ```jac
 # Create a new todo (spawn on root node)
 response = root spawn create_todo(text=text);
@@ -505,6 +518,7 @@ walker read_todos {
 ### Complete Example: Creating a Todo
 
 **Frontend (in `cl` block):**
+
 ```jac
 async def onAddTodo(e: any) -> None {
     e.preventDefault();
@@ -527,6 +541,7 @@ async def onAddTodo(e: any) -> None {
 ```
 
 **Backend (outside `cl` block):**
+
 ```jac
 walker create_todo {
     has text: str;
@@ -577,7 +592,7 @@ if jacIsLoggedIn() {
 
 ---
 
-##  Complete Example: Todo App Structure
+## Complete Example: Todo App Structure
 
 Here's how all the pieces fit together:
 
@@ -642,7 +657,7 @@ cl {
 
 ---
 
-##  Running the Todo App
+## Running the Todo App
 
 To run this example:
 
@@ -655,7 +670,7 @@ Then visit `http://localhost:8000` in your browser.
 
 ---
 
-##  Next Steps
+## Next Steps
 
 Ready to dive deeper? Explore these advanced topics:
 
@@ -665,7 +680,7 @@ Ready to dive deeper? Explore these advanced topics:
 - **[Imports](imports.md)**: Import third-party libraries (React, Ant Design, Lodash), other Jac files, and JavaScript modules
 - **[Learn JAC](https://www.jac-lang.org)**: Explore Jac's graph-based data modeling
 
-##  Examples
+## Examples
 
 Check out the `examples/` directory for working applications:
 
@@ -677,7 +692,7 @@ Check out the `examples/` directory for working applications:
 
 ---
 
-##  Key Takeaways
+## Key Takeaways
 
 1. **Single Language**: Write frontend and backend in Jac
 2. **No HTTP Client**: Use `spawn` syntax instead of fetch/axios

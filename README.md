@@ -45,22 +45,19 @@ The project brings together a set of components that work seamlessly together:
 
 ---
 
-
 ## Core Concepts
 
 Jac is an innovative programming language that extends Python's semantics while maintaining full interoperability with the Python ecosystem. It introduces cutting-edge programming models and abstractions specifically designed to hide complexity, embrace AI-forward development, and automate categories of common software systems that typically require manual implementation. Despite being relatively new, Jac has already proven its production-grade capabilities, currently powering several real-world applications across various use cases. Jaseci's power is rooted in four key principles.
 
+- **AI-Native:** Treat AI models as a native type. Weave them into your logic as effortlessly as calling a function with first-class AI abstractions.
 
-* **AI-Native:** Treat AI models as a native type. Weave them into your logic as effortlessly as calling a function with first-class AI abstractions.
+- **Agentic Object-Spatial Programming Model:** Model your domain as a graph of objects and deploy agentic **walker** objects to travel through your object graph performing operations in-situ. Intuitively model AI state, the problem domain, and data.
 
-* **Agentic Object-Spatial Programming Model:** Model your domain as a graph of objects and deploy agentic **walker** objects to travel through your object graph performing operations in-situ. Intuitively model AI state, the problem domain, and data.
+- **Python Superset:** Use the entire Python ecosystem (`pip`, `numpy`, `pandas`, etc.) without friction. All valid Python code is also valid Jac code, ensuring a gentle learning curve.
 
-* **Python Superset:** Use the entire Python ecosystem (`pip`, `numpy`, `pandas`, etc.) without friction. All valid Python code is also valid Jac code, ensuring a gentle learning curve.
-
-* **Cloud-Native:** Deploy your application as a production-ready API server with a single `jac serve` command, scaling from local prototype development to a distributed cloud environment with zero code changes.
+- **Cloud-Native:** Deploy your application as a production-ready API server with a single `jac serve` command, scaling from local prototype development to a distributed cloud environment with zero code changes.
 
 ---
-
 
 ## Installation & Setup
 
@@ -70,9 +67,11 @@ Jac is an innovative programming language that extends Python's semantics while 
 <br>
 
 Get the complete, stable toolkit from PyPI:
+
 ```bash
 pip install jaclang[all]
 ```
+
 This is the fastest way to get started with building applications.
 
 </details>
@@ -83,14 +82,15 @@ This is the fastest way to get started with building applications.
 <br>
 
 If you plan to contribute to Jaseci, install it in editable mode from a cloned repository:
+
 ```bash
 git clone https://github.com/Jaseci-Labs/jaseci.git
 cd jaseci
 ```
+
 This will install all development dependencies, including testing and linting tools.
 
 </details>
-
 
 ## Command-Line Interface (CLI)
 
@@ -102,11 +102,9 @@ The `jac` CLI is your primary interface for interacting with the Jaseci ecosyste
 | **`jac build <file.jac>`** | Builds a self-contained Jac application from a source file. |
 | **`jac serve <file.jac>`** | Executes a Jac file to the cloud. |
 
-
 ---
 
-
-##  Awesome Jaseci Projects
+## Awesome Jaseci Projects
 
 Explore these impressive projects built with Jaseci! These innovative applications showcase the power and versatility of the Jaseci ecosystem. Consider supporting these projects or getting inspired to build your own.
 
@@ -122,13 +120,13 @@ Explore these impressive projects built with Jaseci! These innovative applicatio
 
 ---
 
-##  Join the Community & Contribute
+## Join the Community & Contribute
 
 We are building the future of AI development, and we welcome all contributors.
 
-*   **`` Join our Discord:** The best place to ask questions, share ideas, and collaborate is our [**Discord Server**](https://discord.gg/6j3QNdtcN6).
-*   **`` Report Bugs:** Find a bug? Please create an issue in this repository with a clear description.
-*   **`` Submit PRs:** Check out our [**Contributing Guide**](https://www.jac-lang.org/internals/contrib/) for details on our development process.
+- **`` Join our Discord:** The best place to ask questions, share ideas, and collaborate is our [**Discord Server**](https://discord.gg/6j3QNdtcN6).
+- **`` Report Bugs:** Find a bug? Please create an issue in this repository with a clear description.
+- **`` Submit PRs:** Check out our [**Contributing Guide**](https://www.jac-lang.org/internals/contrib/) for details on our development process.
 
 <br>
 

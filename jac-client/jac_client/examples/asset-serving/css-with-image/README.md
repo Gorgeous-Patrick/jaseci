@@ -24,16 +24,19 @@ relative-imports/
 ## Running the Example
 
 1. Make sure node modules are installed:
+
 ```bash
 npm install
 ```
 
-2. Run the Jac server:
+1. Run the Jac server:
+
 ```bash
 jac serve app.jac
 ```
 
-3. Open your browser and navigate to:
+1. Open your browser and navigate to:
+
 ```
 http://localhost:8000/page/app
 ```
@@ -57,18 +60,21 @@ cl import from "./assets/burger.png" { default as burgerImage }
 ### Use Cases
 
 **Component-Scoped Assets:**
+
 ```jac
 # In a component file
 cl import from "./images/icon.svg" { default as icon }
 ```
 
 **Parent Directory Assets:**
+
 ```jac
 # Access assets from parent directory
 cl import from "../shared/assets/logo.png" { default as logo }
 ```
 
 **Nested Assets:**
+
 ```jac
 # Assets in subdirectories
 cl import from "./assets/images/hero.jpg" { default as hero }

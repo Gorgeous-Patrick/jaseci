@@ -35,6 +35,7 @@ classDiagram
 ```
 
 When `d.speak()` executes on line 85:
+
 1. Line 22: `super.speak()` calls Animal's speak (line 15-16)
 2. Line 23: Dog adds its own behavior
 
@@ -45,6 +46,7 @@ This enables extension of parent behavior without replacing it entirely.
 Lines 28-37 show `here` used in a walker. Line 34 demonstrates `here.name`, accessing the current node's attributes.
 
 When a walker visits different nodes:
+
 - At root: `here` refers to the root node
 - At Task node: `here` refers to that specific Task node
 - Line 35: `visit [-->]` moves to the next node, updating what `here` points to
@@ -70,6 +72,7 @@ The `here` reference automatically updates to indicate the walker's current loca
 Lines 40-47 demonstrate `visitor` in a node ability. Line 44 shows `visitor.__class__.__name__`, accessing the walker's type from within a node's ability.
 
 This creates bidirectional communication:
+
 - Walker abilities: Define what the walker does when visiting a node
 - Node abilities (with `visitor`): Define what the node does when visited by a walker
 
@@ -100,6 +103,7 @@ graph TD
 ```
 
 Key insights about `root`:
+
 - **Automatic Persistence**: Anything connected to root (via edges) persists automatically
 - **Per-User Isolation**: Each user gets their own distinct root node
 - **Global Accessibility**: Available anywhere in spatial contexts (walkers, node abilities)
@@ -110,32 +114,37 @@ Key insights about `root`:
 Lines 63-75 demonstrate the initialization lifecycle. Line 67 shows `def init(value: int)`, which is the constructor. Line 69 calls `self.postinit()`, which executes after initialization.
 
 The initialization flow:
+
 1. Object is created: `Configured(value=10)` on line 98
 2. `init` method executes (lines 67-69), setting `self.value`
 3. `postinit` method executes (lines 72-73), computing derived values
 
 This two-phase initialization enables:
+
 - `init`: Set up basic attributes with parameters
 - `postinit`: Compute derived values that depend on those attributes
 
 **Context Matters: When References Are Available**
 
 In walker abilities (lines 12-14, 17-21):
--  `self` - the walker instance
--  `here` - the current node being visited
--  `root` - the root node
--  `visitor` - NOT available (the walker IS the visitor)
+
+- `self` - the walker instance
+- `here` - the current node being visited
+- `root` - the root node
+- `visitor` - NOT available (the walker IS the visitor)
 
 In node abilities (lines 43-46):
--  `self` - the node instance (same as `here`)
--  `here` - also the node instance
--  `visitor` - the walker that's visiting
--  `root` - the root node
+
+- `self` - the node instance (same as `here`)
+- `here` - also the node instance
+- `visitor` - the walker that's visiting
+- `root` - the root node
 
 In regular object methods (lines 7-10):
--  `self` - the object instance
--  `super` - parent class
--  Spatial references (`here`, `visitor`, `root`) - NOT available
+
+- `self` - the object instance
+- `super` - parent class
+- Spatial references (`here`, `visitor`, `root`) - NOT available
 
 **Common Patterns**
 

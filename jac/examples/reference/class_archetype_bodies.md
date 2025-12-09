@@ -11,10 +11,12 @@ Lines 9-10 show the `has` keyword declaring data fields. Each field requires a t
 **Important: `class` vs `obj` Behavior:**
 
 The example uses `obj Vehicle` (line 5), where **all `has` fields automatically become instance variables**. In contrast:
+
 - **In `obj` archetypes**: `has` fields are **instance variables** by default (each instance gets its own copy)
 - **In `class` archetypes**: `has` fields with defaults become **class variables** initially (shared across instances), but can be shadowed when assigned
 
 **Method Self Parameter:**
+
 - **In `obj` archetypes**: Methods have **implicit `self`** - it doesn't appear in the parameter list (e.g., `def display() -> str { return self.year; }`)
 - **In `class` archetypes**: Methods require **explicit `self` parameter with type annotation** (e.g., `def display(self: MyClass) -> str { return self.year; }`)
 
@@ -78,6 +80,7 @@ Lines 38-40 demonstrate nesting - a `class Part` defined inside `Vehicle`. This 
 **Inline Python:**
 
 Lines 43-46 show embedding raw Python code using `::py::` delimiters. Code between markers executes as native Python, allowing:
+
 - Python-specific methods
 - Direct library usage
 - Performance-critical sections
@@ -114,6 +117,7 @@ Line 50 calls the constructor with `name` and `year`. Fields get values, then `p
 **Type Annotations:**
 
 All fields require type annotations (colon followed by type). Common types include:
+
 - Primitives: `str`, `int`, `float`, `bool`
 - Collections: `list`, `dict`, `set`, `tuple`
 - Custom: Any archetype name
@@ -122,6 +126,7 @@ All fields require type annotations (colon followed by type). Common types inclu
 **Usage Patterns:**
 
 Line 50-51 show object creation - constructors accept named arguments matching field declarations. Line 53 demonstrates:
+
 - Instance method calls: `v1.display()`
 - Static method calls: `Vehicle.get_count()`
 

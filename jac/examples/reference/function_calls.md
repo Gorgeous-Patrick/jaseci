@@ -15,6 +15,7 @@ Line 13 demonstrates the most basic calling pattern - positional arguments. Argu
 **Keyword Arguments**
 
 Line 16 shows calling with all keyword arguments. Each argument explicitly specifies which parameter it's for. This allows:
+
 - Arguments in any order
 - Clear intent for each value
 - Better readability for complex calls
@@ -24,6 +25,7 @@ Line 16 shows calling with all keyword arguments. Each argument explicitly speci
 Line 19 demonstrates combining both styles:
 
 **Rules for mixing:**
+
 1. Positional arguments must come first
 2. Keyword arguments follow positionals
 3. Once you use a keyword argument, all subsequent arguments must be keywords
@@ -36,6 +38,7 @@ Line 22 shows omitting parameters with default values. Only `x` and `y` are prov
 **Variadic Arguments**
 
 Line 25 demonstrates calling a function with *args and **kwargs. In this call:
+
 - Positional arguments (1, 2, 3) are collected into `args` tuple
 - Keyword arguments (a=4, b=5) are collected into `kwargs` dictionary
 - The function sums all values: 1+2+3+4+5 = 15
@@ -70,22 +73,26 @@ flowchart TD
 **When to Use Each Style**
 
 **Positional arguments** - Best for:
+
 - Functions with few parameters (2-3)
 - When parameter order is obvious
 - Frequently called functions
 
 **Keyword arguments** - Best for:
+
 - Functions with many parameters
 - When clarity is more important than brevity
 - Parameters with non-obvious purposes
 - Boolean flags and configuration options
 
 **Mixed style** - Best for:
+
 - Required parameters positionally
 - Optional parameters by keyword
 - Balancing clarity and conciseness
 
 **Default parameters** - Best for:
+
 - Optional configuration
 - Backward compatibility
 - Sensible fallback values

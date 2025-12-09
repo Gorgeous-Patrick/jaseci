@@ -62,6 +62,7 @@ Add Vite plugins by providing function calls as strings. These are directly inje
 **Format**: Array of plugin function call strings
 
 **Examples**:
+
 ```json
 {
   "vite": {
@@ -83,6 +84,7 @@ Import statements required for the plugins. These are added to the top of the ge
 **Format**: Array of import statement strings
 
 **Examples**:
+
 ```json
 {
   "vite": {
@@ -104,6 +106,7 @@ Override Vite build options. This object is merged with the default build config
 **Format**: JavaScript object (will be converted to JS in generated config)
 
 **Common Options**:
+
 - `sourcemap`: Enable source maps (`true` | `false` | `"inline"` | `"hidden"`)
 - `minify`: Minification method (`"esbuild"` | `"terser"` | `false`)
 - `rollupOptions`: Rollup-specific options
@@ -111,6 +114,7 @@ Override Vite build options. This object is merged with the default build config
 - `emptyOutDir`: Clear output directory before build
 
 **Example**:
+
 ```json
 {
   "vite": {
@@ -136,12 +140,14 @@ Configure the Vite development server.
 **Format**: JavaScript object
 
 **Common Options**:
+
 - `port`: Server port (default: `5173`)
 - `open`: Open browser automatically (`true` | `false`)
 - `host`: Server host (`true` | `"0.0.0.0"` | specific host)
 - `cors`: Enable CORS (`true` | `false`)
 
 **Example**:
+
 ```json
 {
   "vite": {
@@ -161,11 +167,13 @@ Override module resolution options.
 **Format**: JavaScript object
 
 **Common Options**:
+
 - `alias`: Path aliases (object mapping aliases to paths)
 - `extensions`: File extensions to resolve (array of strings)
 - `dedupe`: Deduplicate packages (array of package names)
 
 **Example**:
+
 ```json
 {
   "vite": {
@@ -181,6 +189,7 @@ Override module resolution options.
 ```
 
 **Note**: The default configuration already includes:
+
 - `@jac-client/utils` → `compiled/client_runtime.js`
 - `@jac-client/assets` → `compiled/assets`
 - Extensions: `[".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json"]`
@@ -239,6 +248,7 @@ The generated `vite.config.js` is created in `.jac-client.configs/vite.config.js
 ```
 
 **Required package.json dependencies**:
+
 ```json
 {
   "dependencies": {
@@ -375,8 +385,8 @@ For `build`, `server`, and `resolve`, use object format:
 
 ### 4. Version Control
 
--  **Commit**: `config.json` (your customizations)
--  **Don't commit**: `.jac-client.configs/` (generated files)
+- **Commit**: `config.json` (your customizations)
+- **Don't commit**: `.jac-client.configs/` (generated files)
 
 The `.gitignore` automatically excludes generated configs.
 
@@ -399,6 +409,7 @@ jac generate_client_config
 ```
 
 **Behavior**:
+
 - Creates `config.json` if it doesn't exist
 - Fails if `config.json` already exists (prevents overwriting)
 - Provides helpful output with examples
@@ -410,6 +421,7 @@ jac generate_client_config
 **Problem**: Changes to `config.json` aren't reflected in the build.
 
 **Solution**:
+
 - Ensure `config.json` is in the project root
 - Check JSON syntax is valid
 - Verify the build process regenerates the config (it should automatically)
@@ -419,6 +431,7 @@ jac generate_client_config
 **Problem**: Plugin is added but not working.
 
 **Solution**:
+
 - Verify the plugin is installed in `package.json`
 - Check that the import statement matches the plugin package name
 - Ensure the plugin function call syntax is correct
@@ -429,6 +442,7 @@ jac generate_client_config
 **Problem**: Build options in `config.json` aren't being used.
 
 **Solution**:
+
 - Ensure options are in object format (not strings)
 - Check that the option names match Vite's API
 - Verify the generated config in `.jac-client.configs/vite.config.js`
@@ -438,6 +452,7 @@ jac generate_client_config
 **Problem**: Invalid JSON in `config.json`.
 
 **Solution**:
+
 - Use a JSON validator
 - Check for trailing commas
 - Ensure all strings are properly quoted

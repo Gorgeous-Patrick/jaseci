@@ -14,18 +14,22 @@ Jac provides `flow` and `wait` keywords for thread-based concurrency, allowing f
 The `flow` keyword initiates concurrent execution without blocking:
 
 Line 20: `task1 = flow compute(5, 10)`
+
 - Starts `compute(5, 10)` in a background thread
 - Returns immediately with a task handle
 - Function executes concurrently
 
 Line 21: `task2 = flow compute(3, 7)`
+
 - Starts another concurrent task
 - Both tasks run in parallel
 
 Line 22: `task3 = flow slow_task(42)`
+
 - Third concurrent task
 
 Line 24: `print("All tasks started concurrently")`
+
 - Executes immediately without waiting for tasks to complete
 - All three tasks are running in the background
 
@@ -61,14 +65,17 @@ sequenceDiagram
 The `wait` keyword blocks until a task completes and returns its result:
 
 Line 27: `result1 = wait task1`
+
 - Pauses execution until `task1` finishes
 - Returns the function's return value (15)
 - If the task has already finished, returns immediately
 
 Line 28: `result2 = wait task2`
+
 - Waits for second task (returns 10)
 
 Line 29: `result3 = wait task3`
+
 - Waits for third task (returns 84)
 
 **Function Execution (Lines 5-16)**
@@ -76,11 +83,13 @@ Line 29: `result3 = wait task3`
 The example includes two functions to demonstrate concurrency:
 
 **compute function (Lines 5-9)**:
+
 - Line 6: Prints message showing which computation is starting
 - Line 7: `sleep(1)` simulates a time-consuming operation (1 second delay)
 - Line 8: Returns the sum of x and y
 
 **slow_task function (Lines 11-16)**:
+
 - Line 12: Prints task start message
 - Line 13: `sleep(1)` simulates work
 - Line 14: Prints completion message
@@ -89,6 +98,7 @@ The example includes two functions to demonstrate concurrency:
 **Concurrency Model**
 
 Internally, Jac's `flow`/`wait` uses Python's `ThreadPoolExecutor`:
+
 - `flow` submits the callable to a thread pool and returns a Future-like object
 - `wait` calls the future's `.result()` method to retrieve the value
 - Thread pool is shared across the program

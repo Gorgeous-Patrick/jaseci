@@ -5,16 +5,19 @@
 `jac scale` is a comprehensive deployment and scaling solution for JAC applications that provides three powerful capabilities:
 
 ### 1. Multi-Layer Memory Architecture
+
 - **Caching Layer**: Redis for high-speed data access and session management
 - **Persistence Storage**: MongoDB for reliable, long-term data storage
 - **Optimized Performance**: Intelligent caching strategy to minimize database load and maximize response times
 
 ### 2. FastAPI Integration with Swagger Documentation
+
 - Automatically converts JAC walkers and functions into RESTful FastAPI endpoints
 - Built-in Swagger/OpenAPI documentation for easy API exploration and testing
 - Interactive API interface accessible at `/docs` endpoint
 
 ### 3. Kubernetes Deployment & Auto-Scaling
+
 - **Easy Deployment**: One-command deployment to Kubernetes clusters
 - **Auto-Scaling**: Scale your application based on demand
 - **Database Auto-Provisioning**: Automatically spawns and configures Redis and MongoDB instances
@@ -23,9 +26,10 @@
 Whether you're developing locally with `jac serve` or deploying to production with `jac scale`, you get the same powerful features with the flexibility to choose your deployment strategy.
 
 ## Prerequisites
+
 - kubenetes(K8) installed
-    - [Minikube Kubernetes](https://minikube.sigs.k8s.io/docs/start/?arch=%2Fwindows%2Fx86-64%2Fstable%2F.exe+download/) (for Windows/Linux)
-    - [Docker Desktop with Kubernetes](https://www.docker.com/resources/kubernetes-and-docker/) (alternative for Windows - easier setup)
+  - [Minikube Kubernetes](https://minikube.sigs.k8s.io/docs/start/?arch=%2Fwindows%2Fx86-64%2Fstable%2F.exe+download/) (for Windows/Linux)
+  - [Docker Desktop with Kubernetes](https://www.docker.com/resources/kubernetes-and-docker/) (alternative for Windows - easier setup)
 
 **Note:** Kubernetes is only needed if you are planning to use the `jac scale` command. If you only want to use `jac serve`, Kubernetes is not required.
 
@@ -52,11 +56,13 @@ python -m venv venv
 ### 3. Activate the Virtual Environment
 
 **Linux/Mac:**
+
 ```bash
 source venv/bin/activate
 ```
 
 **Windows:**
+
 ```bash
 venv\Scripts\activate
 ```
@@ -159,12 +165,14 @@ jac serve main.jac
 ```
 
 **What this does:**
+
 - Starts your JAC application as a FastAPI server
 - Uses ShelfStorage for persisting anchors (lightweight, file-based storage)
 - No database setup required
 - Ideal for development and testing
 
 **Access your application:**
+
 - Application: http://localhost:8000
 - Swagger Documentation: http://localhost:8000/docs
 
@@ -173,10 +181,12 @@ jac serve main.jac
 To use `jac scale`, you need Kubernetes installed on your machine.
 
 **Option A: MicroK8 (Windows/Linux/Mac)**
+
 - [Official MicroK8 installation guide](https://microk8s.io/)
 - [ubunutu installation guide](https://www.digitalocean.com/community/tutorials/how-to-setup-a-microk8s-kubernetes-cluster-on-ubuntu-22-04)
 
 **Option B: Docker Desktop with Kubernetes (Windows - Recommended)**
+
 - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - Enable Kubernetes in Docker Desktop settings (easier setup)
 
@@ -193,16 +203,19 @@ jac scale main.jac
 ```
 
 **What this does:**
+
 - Deploys your JAC application to Kubernetes
 - Automatically provisions Redis and MongoDB as persistence storage
 - Creates necessary Kubernetes resources (Deployments, Services, StatefulSets)
 - Exposes your application via NodePort
 
 **Access your application:**
+
 - Application: http://localhost:30001
 - Swagger Documentation: http://localhost:30001/docs
 
 **Use this when:**
+
 - You want faster deployments without rebuilding
 - You're testing configuration changes
 - You're in development mode
@@ -212,6 +225,7 @@ jac scale main.jac
 Build your application as a Docker container and deploy it:
 
 **Prerequisites:**
+
 1. Create a `Dockerfile` in your `traveller` directory
 2. Add Docker credentials to your `.env` file:
 
@@ -228,16 +242,19 @@ jac scale main.jac -b
 ```
 
 **What this does:**
+
 - Builds a Docker image of your JAC application
 - Pushes the image to DockerHub
 - Deploys the image to Kubernetes
 - Sets up Redis and MongoDB for persistence
 
 **Access your application:**
+
 - Application: http://localhost:30001
 - Swagger Documentation: http://localhost:30001/docs
 
 **Use this when:**
+
 - Deploying to production
 - You want to version and host your Docker image
 - Sharing your application with others
@@ -252,12 +269,13 @@ jac destroy main.jac
 ```
 
 **What this does:**
+
 - Deletes all Kubernetes deployments, services, and StatefulSets
 - Removes persistent volumes and claims
 - Cleans up the namespace (if custom namespace was used)
 
-
 ## Quick Start: Running Todo application with frontend
+
 Follow these steps to set up and test the Todo application with frontend
 
 ### 1. Clone the Jaseci Repository
@@ -279,11 +297,13 @@ python -m venv venv
 ### 3. Activate the Virtual Environment
 
 **Linux/Mac:**
+
 ```bash
 source venv/bin/activate
 ```
 
 **Windows:**
+
 ```bash
 venv\Scripts\activate
 ```
@@ -305,6 +325,7 @@ Lets create the todo application using jac client.For that lets run following co
 ```bash
 jac create_jac_app todo
 ```
+
 Then lets copy the todo fully implemented jac code available inside jac-scale/examples/todo to our newly created /todo folder
 
 ```bash
@@ -321,6 +342,7 @@ jac serve app.jac
 ```
 
 **Access your application:**
+
 - Frontend: http://localhost:8000/page/app
 - Backend: http://localhost:8000
 - Swagger Documentation: http://localhost:8000/docs
@@ -333,10 +355,12 @@ you can add new todo tasks
 To use `jac scale`, you need Kubernetes installed on your machine.
 
 **Option A: MicroK8 (Windows/Linux/Mac)**
+
 - [Official MicroK8 installation guide](https://microk8s.io/)
 - [ubunutu installation guide](https://www.digitalocean.com/community/tutorials/how-to-setup-a-microk8s-kubernetes-cluster-on-ubuntu-22-04)
 
 **Option B: Docker Desktop with Kubernetes (Windows - Recommended)**
+
 - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - Enable Kubernetes in Docker Desktop settings (easier setup)
 
@@ -351,12 +375,15 @@ Deploy your application to Kubernetes without building a Docker image:
 ```bash
 jac scale app.jac
 ```
+
 **Access your application:**
+
 - Frontend: http://localhost:30001/page/app
 - Backend: http://localhost:30001
 - Swagger Documentation: http://localhost:30001/docs
 
 **Use this when:**
+
 - You want faster deployments without rebuilding
 - You're testing configuration changes
 - You're in development mode
@@ -370,11 +397,13 @@ jac scale app.jac -b
 ```
 
 **Access your application:**
+
 - Frontend: http://localhost:30001/page/app
 - Backend: http://localhost:30001
 - Swagger Documentation: http://localhost:30001/docs
 
 **Use this when:**
+
 - Deploying to production
 - You want to version and host your Docker image
 - Sharing your application with others
@@ -389,6 +418,7 @@ jac destroy app.jac
 ```
 
 **What this does:**
+
 - Deletes all Kubernetes deployments, services, and StatefulSets
 - Removes persistent volumes and claims
 - Cleans up the namespace (if custom namespace was used)
@@ -420,6 +450,7 @@ jac scale main.jac
 ```
 
 **Use this when:**
+
 - You want faster deployments without rebuilding
 - You're testing configuration changes
 - You're in development mode
@@ -433,16 +464,17 @@ jac scale main.jac -b
 ```
 
 **Requirements for Build Mode:**
+
 - A `Dockerfile` in your application directory
 - Environment variables set:
   - `DOCKER_USERNAME` - Your DockerHub username
   - `DOCKER_PASSWORD` - Your DockerHub password/access token
 
 **Use this when:**
+
 - Deploying to production
 - You want to version and host your Docker image
 - Sharing your application with others
-
 
 ## Important Notes
 
@@ -490,6 +522,7 @@ When you run `jac scale`, the following steps are executed:
 ## Architecture
 
 ### k8 pods structure
+
 ![k8 pod structure](assets/jac-scale-architecture.svg)
 
 ## Troubleshooting
@@ -497,28 +530,34 @@ When you run `jac scale`, the following steps are executed:
 ### Common Issues
 
 **Kubernetes cluster not accessible:**
+
 - Ensure Kubernetes is running: `kubectl cluster-info`
 - Check your kubeconfig: `kubectl config view`
 
 **DockerHub authentication fails:**
+
 - Verify your `DOCKER_USERNAME` and `DOCKER_PASSWORD` are correct
 - Ensure you're using an access token (not password) if 2FA is enabled
 
 **Namespace doesn't exist:**
+
 - The plugin creates namespaces automatically
 - If using a custom namespace, ensure proper permissions
 
 **Database connection issues:**
+
 - Verify StatefulSets are running: `kubectl get statefulsets -n <namespace>`
 - Check pod logs: `kubectl logs <pod-name> -n <namespace>`
 - Ensure persistent volumes are bound: `kubectl get pvc -n <namespace>`
 
 **Application not accessible:**
+
 - Check service exposure: `kubectl get svc -n <namespace>`
 - Verify NodePort is not blocked by firewall
 - For Minikube, use: `minikube service <service-name> -n <namespace>`
 
 **Build failures:**
+
 - Ensure Dockerfile exists in your application directory
 - Check Docker daemon is running
 - Verify sufficient disk space for image building
@@ -526,6 +565,7 @@ When you run `jac scale`, the following steps are executed:
 ### Getting Help
 
 If you encounter issues:
+
 1. Check pod status: `kubectl get pods -n <namespace>`
 2. View pod logs: `kubectl logs <pod-name> -n <namespace>`
 3. Describe resources: `kubectl describe <resource-type> <resource-name> -n <namespace>`
@@ -559,6 +599,7 @@ Each example includes complete source code and can be run `jac serve`.
 ## Next Steps
 
 After successfully running the demo:
+
 - **For JAC Serve**: Access your application at http://localhost:8000 and explore the Swagger documentation at http://localhost:8000/docs
 - **For JAC Scale**: Access your application at http://localhost:30001 and explore the Swagger documentation at http://localhost:30001/docs
 - Modify the JAC application and redeploy

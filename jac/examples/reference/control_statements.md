@@ -15,6 +15,7 @@ Control statements alter the normal flow of execution within loops, providing me
 The `break` keyword immediately exits the innermost loop:
 
 Lines 5-10:
+
 - Loop starts with `i` from 0 to 9
 - Line 6: When `i > 3` (i.e., when i=4), condition is true
 - Line 7: `break` executes, exiting the loop
@@ -38,6 +39,7 @@ graph TD
 The `continue` keyword skips the rest of the current iteration and proceeds to the next:
 
 Lines 13-18:
+
 - Loop iterates j from 0 to 4
 - Line 14: When `j == 2`, condition is true
 - Line 15: `continue` skips to next iteration
@@ -63,6 +65,7 @@ graph TD
 Break works the same in while loops:
 
 Lines 21-28:
+
 - Line 22: Infinite loop (`while True`)
 - Line 23: Increment counter
 - Line 24: When count exceeds 3, break executes
@@ -74,6 +77,7 @@ Lines 21-28:
 Continue skips iterations in while loops:
 
 Lines 31-38:
+
 - Line 33: Increment n first (important!)
 - Line 34: If n is even, skip print
 - Line 37: Only odd numbers are printed
@@ -82,6 +86,7 @@ Lines 31-38:
 **Skip Statement - Walker-Specific (Lines 40-45)**
 
 Line 41-44:
+
 - `skip` is used in walker contexts (not regular loops)
 - Stops processing current node
 - Walker continues to next queued node
@@ -100,6 +105,7 @@ Line 41-44:
 **Nested Loops with Break (Lines 47-55)**
 
 Lines 48-55:
+
 - Nested loops: outer (x) and inner (y)
 - Line 50: When x=1 and y=1, break executes
 - **Break only exits inner loop**, not outer loop
@@ -124,6 +130,7 @@ graph TD
 **Nested Loops with Continue (Lines 57-65)**
 
 Lines 58-65:
+
 - Line 60: When a equals b, skip that iteration
 - **Continue only affects inner loop**
 - Prints all pairs where a ≠ b
@@ -166,18 +173,21 @@ Skip diagonal in matrix:
 **When to Use Each**
 
 Use `break` when:
+
 - Search finds target
 - Error condition detected
 - Maximum iterations reached
 - Early termination improves performance
 
 Use `continue` when:
+
 - Filtering items in a collection
 - Skipping invalid data
 - Processing only subset of items
 - Avoiding nested if statements
 
 Use `skip` when:
+
 - Walker should skip current node
 - Node doesn't meet criteria
 - Avoiding duplicate processing

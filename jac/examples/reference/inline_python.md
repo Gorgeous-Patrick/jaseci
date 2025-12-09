@@ -9,6 +9,7 @@ Lines 4-10 demonstrate the simplest Python embedding. Python code is delimited b
 **Python Block Syntax**
 
 The `::py::` delimiter:
+
 - Opens a Python code block (line 4)
 - Closes the block with a matching `::py::` (line 10)
 - Contains valid Python code using Python syntax (indentation-based, no semicolons)
@@ -17,6 +18,7 @@ The `::py::` delimiter:
 **Python Methods in Objects**
 
 Lines 19-41 show Python methods within a Jac object. Python methods:
+
 - Use `self` to access Jac member variables (line 25: `self.data`)
 - Follow Python syntax and conventions
 - Can use Python built-ins and comprehensions
@@ -25,6 +27,7 @@ Lines 19-41 show Python methods within a Jac object. Python methods:
 **Data Interoperability**
 
 Lines 55-76 demonstrate Jac-Python data exchange. Data structures seamlessly pass between Jac and Python:
+
 - Jac lists work as Python lists (line 70)
 - Jac dicts work as Python dicts (line 74)
 - Return values integrate naturally into Jac code
@@ -36,6 +39,7 @@ Lines 79-106 show importing and using Python libraries. Standard Python librarie
 **Python in Nodes**
 
 Lines 109-135 demonstrate Python methods in node definitions. Python methods in nodes can:
+
 - Access node state via `self.value` (line 117)
 - Modify node attributes (line 118)
 - Import libraries locally (line 116)
@@ -44,6 +48,7 @@ Lines 109-135 demonstrate Python methods in node definitions. Python methods in 
 **Mixed Jac and Python Methods**
 
 Lines 166-205 show combining Jac and Python methods in the same object. Objects can have both Jac methods (lines 170-173) and Python methods (lines 177-191). Both types:
+
 - Access the same `self.history` attribute
 - Are called the same way from Jac code (lines 198-200)
 - Can modify shared state
@@ -60,6 +65,7 @@ Lines 166-205 show combining Jac and Python methods in the same object. Objects 
 **When to Use Inline Python**
 
 **Use Python for:**
+
 - Computationally intensive operations
 - Leveraging existing Python libraries
 - Complex numerical/statistical operations
@@ -67,6 +73,7 @@ Lines 166-205 show combining Jac and Python methods in the same object. Objects 
 - Integration with Python-only APIs
 
 **Use Jac for:**
+
 - Object-Spatial Programming features
 - Graph operations and traversal
 - Walker-node interactions

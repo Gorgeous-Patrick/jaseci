@@ -99,6 +99,7 @@ Line 73 shows `(*beginning, last)` where the asterisk comes first, capturing all
 **Practical Applications**
 
 Unpacking is particularly useful for:
+
 - Function returns: Extracting multiple return values
 - Data processing: Separating headers from data rows
 - Pattern matching: Pulling apart structured data

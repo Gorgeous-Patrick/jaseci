@@ -70,6 +70,7 @@ flowchart TD
 **Key Differences**
 
 **Global vs Nonlocal:**
+
 - `global` reaches to module level (skips all intermediate scopes)
 - `nonlocal` reaches to the nearest enclosing function scope (not global)
 - `global` can declare variables that don't exist yet

@@ -9,6 +9,7 @@ Pattern matching compares a value against different patterns and executes code b
 **Basic Match Structure**
 
 The fundamental structure consists of:
+
 - `match` keyword followed by an expression to evaluate
 - One or more `case` clauses defining patterns
 - Optional guard clauses using `if` for additional conditions
@@ -33,6 +34,7 @@ flowchart TD
 **Execution Model**
 
 Match statements follow these rules:
+
 1. **Sequential Evaluation**: Patterns are checked from top to bottom
 2. **First Match Wins**: Only the first matching case executes
 3. **Automatic Exit**: After executing a case body, control exits the match
@@ -75,6 +77,7 @@ Line 38 sets `pi = 3.14`. The match on line 39 compares this against float liter
 Line 50 sets `command = "start"`. String matching on lines 51-59 tests against different command strings, matching line 52 and executing line 53.
 
 **Key Points**:
+
 - Literals match using equality comparison
 - Type must match exactly (no automatic conversion)
 - The wildcard `_` (lines 34, 46, 59) catches unmatched cases
@@ -96,6 +99,7 @@ Booleans are singletons - there's only one `True` object and one `False` object 
 Line 75 sets `optional_value = None`. The match on line 76 uses the singleton pattern on line 77 to detect the absence of a value, executing line 78.
 
 **Usage**:
+
 - Use for optional values and nullable types
 - Common in error handling and default value checks
 - `None` checks are more reliable than equality checks
@@ -115,6 +119,7 @@ Line 88 sets `value = 42`. Line 90 uses `case x:` which matches any value and bi
 Line 95 sets `day = "sunday"`. The wildcard on line 99 matches anything but doesn't bind a value - useful when you need a default case but don't need the value itself.
 
 The difference:
+
 - `case x:` - matches and binds to variable `x`
 - `case _:` - matches but doesn't bind (you can't reference `_`)
 
@@ -142,6 +147,7 @@ Lines 131-137 demonstrate the `*` operator for capturing variable-length subsequ
 
 Line 131: `numbers = [1, 2, 3, 4, 5]`
 Line 133: `case [first, *middle, last]:`
+
 - Binds `first=1`
 - Binds `middle=[2, 3, 4]` (all middle elements)
 - Binds `last=5`
@@ -153,15 +159,18 @@ This is similar to Python's unpacking but in pattern context.
 Line 140: `data = [100, 200, 300, 400]`
 
 Line 142: `case [*start, 400]:` captures everything except the last element
+
 - `start = [100, 200, 300]`
 
 Line 144: `case [100, *rest]:` captures everything after the first element
+
 - `rest = [200, 300, 400]`
 
 **Nested Sequences (lines 149-153)**
 
 Line 149: `matrix = [[1, 2], [3, 4]]`
 Line 151: `case [[a, b], [c, d]]:` matches a 2x2 nested structure
+
 - Binds `a=1, b=2, c=3, d=4`
 
 This demonstrates pattern matching on arbitrarily nested data structures.
@@ -183,6 +192,7 @@ Unlike sequence patterns, mapping patterns support **partial matching** - the di
 
 Line 169: `person = {"id": 123, "role": "admin"}`
 Line 171: `case {"id": user_id, "role": user_role}:`
+
 - Matches if keys exist
 - Binds `user_id=123` and `user_role="admin"`
 
@@ -190,6 +200,7 @@ Line 171: `case {"id": user_id, "role": user_role}:`
 
 Line 176: `config = {"host": "localhost", "port": 8080, "debug": True, "timeout": 30}`
 Line 178: `case {"host": h, "port": p, **rest}:`
+
 - Binds `h="localhost"`, `p=8080`
 - Captures remaining items in `rest = {"debug": True, "timeout": 30}`
 
@@ -213,6 +224,7 @@ Class patterns match object instances and destructure their fields.
 Lines 4-7 define the `Point` class.
 Line 194: `p1 = Point(x=5.0, y=10.0)`
 Line 196: `case Point(x=x_val, y=y_val):`
+
 - Checks that `p1` is a `Point` instance
 - Binds `x_val=5.0`, `y_val=10.0`
 
@@ -221,6 +233,7 @@ Line 196: `case Point(x=x_val, y=y_val):`
 Line 201: `origin = Point(x=0.0, y=0.0)`
 
 Multiple cases test for different conditions:
+
 - Line 203: Matches origin exactly
 - Line 205: Matches any point on y-axis (x must be 0.0, y is captured)
 - Line 207: Matches any point on x-axis (x is captured, y must be 0.0)
@@ -235,6 +248,7 @@ Line 214: `circle = Circle(center=Point(x=3.0, y=4.0), radius=5.0)`
 Line 216: `case Circle(center=Point(x=cx, y=cy), radius=r):`
 
 This pattern:
+
 1. Checks `circle` is a `Circle` instance
 2. Extracts the `center` field, checking it's a `Point`
 3. Extracts `x` and `y` from that nested `Point`
@@ -244,6 +258,7 @@ This pattern:
 
 Line 221: `rect = Rectangle(width=10.0, height=20.0)`
 Line 223: `case Rectangle(width=w, height=h) as captured_rect:`
+
 - Binds field values `w=10.0`, `h=20.0`
 - Binds entire object to `captured_rect`
 
@@ -264,6 +279,7 @@ Line 236: `case 400 | 401 | 403 | 404:` matches client errors
 The `|` operator creates an OR pattern - if any alternative matches, the case executes. Since `code` is 404, line 236 matches and line 237 executes.
 
 **Usage**:
+
 - Group related values into categories
 - Reduce duplication in case clauses
 - Can be used with any pattern type, not just literals
@@ -280,6 +296,7 @@ Line 249: `age = 25`
 Line 251: `case x if x < 18:` - pattern `x` captures the value, then checks if `x < 18`
 
 Since `age` is 25:
+
 - Line 251 matches pattern but fails guard (25 >= 18)
 - Line 253 matches pattern and passes guard (25 < 65)
 - Line 254 executes
@@ -289,6 +306,7 @@ Since `age` is 25:
 Line 260: `score = 85`
 
 The match implements a grading scale using guards:
+
 - Line 262: `case s if s >= 90:` for grade A
 - Line 264: `case s if s >= 80:` for grade B (matches since 85 >= 80)
 - Subsequent cases handle lower grades
@@ -307,6 +325,7 @@ Line 279: `shape_data = {"type": "circle", "center": [0, 0], "radius": 10}`
 Line 281: `case {"type": "circle", "center": [x, y], "radius": r}:`
 
 This single pattern combines:
+
 1. **Mapping pattern**: Matches dictionary structure
 2. **Literal pattern**: Checks `"type"` is `"circle"`
 3. **Sequence pattern**: Destructures `"center"` as `[x, y]`
@@ -315,6 +334,7 @@ This single pattern combines:
 **Multiple Statements (lines 290-303)**
 
 Lines 292-295 show that case bodies can contain multiple statements. After matching "success":
+
 1. Prints success message
 2. Sets status variable
 3. Prints status code

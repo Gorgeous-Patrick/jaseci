@@ -22,6 +22,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 ## jaclang 0.9.1
 
 -**Side effect imports supported**: side effect imports supported which will help to inject css.
+
 - **Plugin for sending static files**: Added extensible plugin system for sending static files, enabling custom static file serving strategies and integration with various storage backends.
 - **Type Checking Enhancements**:
   - Added type checking support for object spatial codes including the connect operator

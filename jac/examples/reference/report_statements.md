@@ -60,6 +60,7 @@ Lines 6-25 show a walker ability with seven different report statements. All of 
 **Use Cases**
 
 Report statements excel at:
+
 - Collecting data from multiple nodes during a graph walk
 - Streaming results without waiting for traversal completion
 - Providing progress updates during long-running traversals
@@ -69,6 +70,7 @@ Report statements excel at:
 **Practical Example**
 
 The walker on lines 3-29 demonstrates a typical pattern:
+
 1. Enter a node (root in this case)
 2. Report various computed values (lines 6-25)
 3. Disengage to stop the walker (line 27)

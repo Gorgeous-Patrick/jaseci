@@ -5,6 +5,7 @@ Semstrings (semantic strings) provide explicit semantic context for AI models in
 **LLM Model Setup**
 
 Line 3 imports the `Model` class from the `byllm` module. Line 5 creates a global LLM instance using `let llm = Model(...)`, configuring it with:
+
 - Model name: `"mockllm"` (for testing; production uses real LLM services)
 - Mock outputs: `["SecureP@ss1"]` (predefined response for testing)
 
@@ -15,6 +16,7 @@ Line 8 demonstrates delegating a function's implementation to an LLM:
 `def generate_password() -> str by llm();`
 
 Breaking down this declaration:
+
 - `def generate_password()` - Function name provides semantic intent
 - `-> str` - Return type tells AI to produce a string
 - `by llm()` - Delegates implementation to the AI model
@@ -24,6 +26,7 @@ The `by` keyword handles delegation to the AI. Jac automatically extracts meanin
 **Semantic String Definition**
 
 Lines 11-14 use the `sem` keyword to provide additional semantic context. The syntax pattern is `sem function_name = """description""";` where:
+
 - `sem` - Keyword indicating a semantic annotation
 - `generate_password` - Matches the function name from line 8
 - Triple-quoted string - Contains explicit requirements and constraints
@@ -31,6 +34,7 @@ Lines 11-14 use the `sem` keyword to provide additional semantic context. The sy
 **Semantic Requirements**
 
 The semantic string specifies detailed password requirements:
+
 - Minimum 8 characters
 - Contains uppercase letters
 - Contains lowercase letters
@@ -56,6 +60,7 @@ graph LR
 ```
 
 When `generate_password()` is called on line 17:
+
 1. The `by llm()` clause delegates to the AI model
 2. Jac generates a prompt using implicit semantics (function structure)
 3. The `sem` annotation provides explicit semantic context
@@ -79,6 +84,7 @@ Line 17 calls the AI-implemented function like any normal function: `pwd = gener
 **Advantages of Semantic Annotations**
 
 The `sem` keyword approach provides several benefits:
+
 - **Context-rich**: Enriches AI understanding beyond code structure alone
 - **Explicit semantics**: Unlike comments, becomes part of execution context
 - **Maintainable**: Natural language works alongside type annotations

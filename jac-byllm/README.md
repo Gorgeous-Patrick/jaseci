@@ -90,15 +90,15 @@ Docstrings naturally enhance the semantics of their associated code constructs, 
 
 byLLM is built using the underline priciple of Meaning Typed Programming and we shown our evaluation data compared with two such AI integration frameworks for python, such as DSPy and LMQL. We show significant performance gain against LMQL while allowing on par or better performance to DSPy, while reducing devloper complexity upto 10x.
 
+**Full Documentation**: [Jac byLLM Documentation](https://www.jac-lang.org/learn/jac-byllm/with_llm/)
 
-** Full Documentation**: [Jac byLLM Documentation](https://www.jac-lang.org/learn/jac-byllm/with_llm/)
+**Complete Examples**:
 
-** Complete Examples**:
 - [Fantasy Trading Game](https://www.jac-lang.org/learn/examples/mtp_examples/fantasy_trading_game/) - Interactive RPG with AI-generated characters
 - [RPG Level Generator](https://www.jac-lang.org/learn/examples/mtp_examples/rpg_game/) - AI-powered game level creation
 - [RAG Chatbot Tutorial](https://www.jac-lang.org/learn/examples/rag_chatbot/Overview/) - Building chatbots with document retrieval
 
-** Research**: The research journey of MTP is available on [Arxiv](https://arxiv.org/abs/2405.08965) and accepted for OOPSLA 2025.
+**Research**: The research journey of MTP is available on [Arxiv](https://arxiv.org/abs/2405.08965) and accepted for OOPSLA 2025.
 
 ## Quick Links
 
@@ -111,10 +111,11 @@ byLLM is built using the underline priciple of Meaning Typed Programming and we 
 We welcome contributions to byLLM! Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.
 
 Areas we actively seek contributions:
--  Bug fixes and improvements
--  Documentation enhancements
--  New examples and tutorials
--  Test cases and benchmarks
+
+- Bug fixes and improvements
+- Documentation enhancements
+- New examples and tutorials
+- Test cases and benchmarks
 
 Please see our [Contributing Guide](https://www.jac-lang.org/internals/contrib/) for detailed instructions.
 
@@ -123,6 +124,7 @@ If you find a bug or have a feature request, please [open an issue](https://gith
 ## Community
 
 Join our vibrant community:
+
 - [Discord Server](https://discord.gg/6j3QNdtcN6) - Chat with the team and community
 
 ## License
@@ -135,12 +137,10 @@ byLLM integrates with various LLM providers (OpenAI, Anthropic, Google, etc.) th
 
 ## Cite our research
 
-
 > Jayanaka L. Dantanarayana, Yiping Kang, Kugesan Sivasothynathan, Christopher Clarke, Baichuan Li, Savini
 Kashmira, Krisztian Flautner, Lingjia Tang, and Jason Mars. 2025. MTP: A Meaning-Typed Language Ab-
 straction for AI-Integrated Programming. Proc. ACM Program. Lang. 9, OOPSLA2, Article 314 (October 2025),
 29 pages. https://doi.org/10.1145/3763092
-
 
 ## Jaseci Contributors
 

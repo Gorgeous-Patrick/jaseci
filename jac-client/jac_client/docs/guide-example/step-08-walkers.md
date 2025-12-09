@@ -1,12 +1,12 @@
 # Step 8: Backend with Walkers
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll add a **real backend** to your app using walkers - so your todos are stored on a server!
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 8.1: Define the Todo Node
 
@@ -228,6 +228,7 @@ When rendering todos, use `_jac_id` instead of custom id:
 ```
 
 **Try it!**
+
 1. Add some todos
 2. Check/uncheck them
 3. Delete some
@@ -239,11 +240,12 @@ When rendering todos, use `_jac_id` instead of custom id:
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### What Are Walkers?
 
 Walkers are **backend functions** that:
+
 - Run on the **server** (not in the browser)
 - Can traverse your data graph
 - Automatically become API endpoints
@@ -274,6 +276,7 @@ walker read_todos {
 ```
 
 No routes, no manual API setup - it just works!
+
 ### The `spawn` Syntax
 
 This is how you call walkers from your frontend:
@@ -289,6 +292,7 @@ todoId spawn toggle_todo();                 # On specific node
 ```
 
 **What happens:**
+
 1. Request sent to server
 2. Walker runs on server
 3. Data stored in backend
@@ -309,6 +313,7 @@ Your data is stored as a graph:
 ```
 
 When you call `read_todos`:
+
 1. Walker starts at `root`
 2. Follows edges (`-->`) to find Todo nodes
 3. Reports each Todo found
@@ -320,6 +325,7 @@ new_todo = here ++> Todo(text=self.text);
 ```
 
 **Breakdown:**
+
 - `here` - Current node (root)
 - `++>` - Create node and connect it
 - `Todo(...)` - New node to create
@@ -332,6 +338,7 @@ visit [-->(`?Todo)];
 ```
 
 **Breakdown:**
+
 - `visit` - Traverse to these nodes
 - `-->` - Follow outgoing edges
 - `` `?Todo `` - Find nodes of type Todo
@@ -389,11 +396,13 @@ cl {
 ### Data Persistence
 
 **localStorage (Step 7):**
+
 - Stored in browser only
 - Lost when you clear browser data
 - Not shared across devices
 
 **Walkers (Step 8):**
+
 - Stored on server
 - Persists forever
 - Accessible from any device
@@ -422,21 +431,21 @@ useEffect(lambda -> None {
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  What walkers are (backend functions)
--  How to define data models with nodes
--  Creating walkers for CRUD operations
--  Calling walkers from frontend with `spawn`
--  Graph traversal (`-->`, `` `?Node ``)
--  Creating node connections (`++>`)
--  Reporting data to frontend
--  Using `_jac_id` for node references
--  Data persistence on the server
+- What walkers are (backend functions)
+- How to define data models with nodes
+- Creating walkers for CRUD operations
+- Calling walkers from frontend with `spawn`
+- Graph traversal (`-->`, `` `?Node ``)
+- Creating node connections (`++>`)
+- Reporting data to frontend
+- Using `_jac_id` for node references
+- Data persistence on the server
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: Walker not found
 
@@ -491,13 +500,14 @@ if result.reports and result.reports.length > 0 {
 ### Issue: Data not persisting
 
 **Check:**
+
 - Are you calling the walker? `root spawn create_todo(...)`
 - Is the walker running successfully? Check browser console
 - Did you remove the localStorage code? (We don't need it anymore!)
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try adding a walker to clear all completed todos:
 
@@ -525,7 +535,7 @@ async def clearCompleted() -> None {
 
 ---
 
-##  Next Step
+## Next Step
 
 Excellent! Your app now has a real backend. But there's a problem: **everyone can see everyone's todos!**
 

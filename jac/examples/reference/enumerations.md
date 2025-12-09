@@ -5,11 +5,13 @@ Enumerations provide type-safe named constants with associated values. Jac enums
 **Basic Enum Syntax (Lines 6-16)**
 
 Lines 6-10 define an integer enum:
+
 - Members are named constants with explicit values
 - Access via `Color.RED`, `Color.GREEN`, etc.
 - Trailing commas are allowed and recommended
 
 Lines 12-16 define a string enum:
+
 - Values can be strings instead of integers
 - String enums useful for API constants and configuration
 
@@ -25,6 +27,7 @@ Lines 12-16 define a string enum:
 **Accessing Enum Members (Lines 18-21)**
 
 Line 20: `print(f"Color.RED: {Color.RED.value}, Role.ADMIN: {Role.ADMIN.value}");`
+
 - `.value` retrieves the enum member's value
 - `.name` retrieves the member's name as a string
 - `Color.RED.value` returns `1`
@@ -33,17 +36,20 @@ Line 20: `print(f"Color.RED: {Color.RED.value}, Role.ADMIN: {Role.ADMIN.value}")
 **Forward Declaration with Decorator (Lines 23-36)**
 
 Lines 24-25 show forward declaration:
+
 - Declares enum without defining members
 - Allows applying decorators before implementation
 - `@unique` decorator ensures all values are unique (from Python's enum module)
 
 Lines 27-31 implement the enum:
+
 - `impl` block provides the member definitions
 - Separates declaration from implementation
 
 **Enum with Access Modifier (Lines 38-48)**
 
 Lines 39-43:
+
 - Access modifiers: `:pub`, `:protect`, `:priv`
 - Controls enum visibility across modules
 - `:protect` makes it accessible to submodules
@@ -53,6 +59,7 @@ Lines 39-43:
 Lines 51-67 define an enum with methods:
 
 **Method features**:
+
 - Lines 56-67: Python code between `::py::` delimiters
 - Methods have access to `self.value` and `self.name`
 - Can contain any Python logic
@@ -78,6 +85,7 @@ graph TD
 **Enum Comparison (Lines 75-98)**
 
 Lines 82-90 define a function using enum comparison:
+
 - Line 83: Enum members compared with `==`
 - Type-safe comparison prevents invalid values
 - Line 94: `s1 == s2` compares enum instances
@@ -85,11 +93,13 @@ Lines 82-90 define a function using enum comparison:
 **Enum Iteration and Lookup (Lines 100-110)**
 
 **Iteration (Lines 105-107)**:
+
 - Enums are iterable
 - Iterates in definition order
 - Each iteration yields an enum member
 
 **Lookup methods (Line 109)**:
+
 - `Color(2)` - lookup by value, returns `Color.GREEN`
 - `Role['ADMIN']` - lookup by name, returns `Role.ADMIN`
 - Raises `ValueError` if value not found
@@ -106,21 +116,25 @@ Lines 82-90 define a function using enum comparison:
 **Enums in Data Structures (Lines 112-123)**
 
 Lines 116-117 show enums in lists:
+
 - Enum members can be list elements
 - List comprehension accesses `.name` attribute
 
 Lines 119-122 show enums as dictionary keys:
+
 - Enum members make excellent dict keys (hashable, unique)
 - Provides type-safe mapping
 
 **Enums in Node Attributes (Lines 125-138)**
 
 Lines 126-130 define a node with enum attributes:
+
 - Node attributes can be enum-typed
 - Provides type safety for node state
 - Default values from enum members
 
 Lines 134-137 show usage:
+
 - Initialize with enum members
 - Access both name and value
 
@@ -142,11 +156,13 @@ stateDiagram-v2
 **Enums in Walker Logic (Lines 140-174)**
 
 Lines 141-161 define a walker that filters by enum:
+
 - Line 142: Walker has enum-typed attribute
 - Line 151: Compares node's enum attribute to walker's
 - Enables type-safe filtering during graph traversal
 
 Lines 165-173 demonstrate usage:
+
 - Creates tasks with different priorities
 - Spawns walker that filters for HIGH priority
 - Walker collects matching tasks in `self.matched`
@@ -204,6 +220,7 @@ graph TD
 **When to Use Enums**
 
 Use enums when:
+
 - Values form a fixed, known set
 - Need type safety and validation
 - Want reverse lookup (value to name)
@@ -212,6 +229,7 @@ Use enums when:
 - Comparing priority or severity levels
 
 Avoid enums when:
+
 - Values are dynamic or user-defined
 - Set changes frequently
 - Need arbitrary value types

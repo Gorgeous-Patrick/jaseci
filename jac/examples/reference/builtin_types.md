@@ -70,6 +70,7 @@ Lines 33-34 show the boolean type `bool`. Booleans have exactly two values: `Tru
 **Bytes Type**
 
 Lines 37-38 demonstrate the bytes type. Bytes represent binary data - sequences of integers from 0-255. The `b` prefix before the string creates bytes. This type is essential for:
+
 - Reading/writing binary files
 - Network protocols
 - Cryptography
@@ -84,6 +85,7 @@ Lines 41-44 introduce the `any` type. The `any` type accepts values of any type.
 **Type Type**
 
 Lines 47-48 show the `type` type. The `type` type holds type objects themselves. This enables:
+
 - Store types in variables
 - Pass types as arguments
 - Create instances dynamically
@@ -92,6 +94,7 @@ Lines 47-48 show the `type` type. The `type` type holds type objects themselves.
 **Type Annotations in Functions**
 
 Lines 51-56 demonstrate function type annotations. Function signatures can specify:
+
 - Parameter types: `x: int, y: str`
 - Return type: `-> tuple`
 
@@ -110,6 +113,7 @@ graph LR
 ```
 
 Type annotations provide:
+
 - **Documentation**: Makes code intent clear
 - **Type Checking**: Tools can verify type correctness
 - **IDE Support**: Better autocomplete and error detection
@@ -118,6 +122,7 @@ Type annotations provide:
 **Optional vs Required**
 
 Type annotations in Jac are **optional** - code works without them. However, they are strongly recommended for:
+
 - Public APIs and functions
 - Complex data structures
 - Long-lived codebases

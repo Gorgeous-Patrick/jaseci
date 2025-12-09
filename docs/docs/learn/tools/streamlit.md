@@ -21,6 +21,7 @@ jac streamlit your_app.jac
 ```
 
 This command will:
+
 1. Compile your Jac code
 2. Launch a Streamlit web server
 3. Open your app in the default web browser
@@ -30,6 +31,7 @@ This command will:
 We've included several example applications to help you get started:
 
 #### Simple Calculator
+
 A basic calculator demonstrating form handling and user interaction:
 
 ```jac
@@ -107,11 +109,13 @@ with entry {
 ```
 
 Run this example with:
+
 ```bash
 jac streamlit simple_calculator.jac
 ```
 
 #### Todo App
+
 A todo application showcasing session state management:
 
 ```jac
@@ -186,6 +190,7 @@ with entry {
 ```
 
 Run this example with:
+
 ```bash
 jac streamlit todo_app.jac
 ```
@@ -266,7 +271,6 @@ with entry {
 }
 ```
 
-
 ## Advanced Usage
 
 ### Integration with Jac Cloud
@@ -334,8 +338,6 @@ with entry {
     }
 }
 ```
-
-
 
 ## Next Steps
 

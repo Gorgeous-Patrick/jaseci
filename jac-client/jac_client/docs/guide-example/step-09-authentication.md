@@ -1,12 +1,12 @@
 # Step 9: Adding Authentication
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll add user authentication so each person has their own private todos!
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 9.1: Import Authentication Functions
 
@@ -305,6 +305,7 @@ def TodosPage() -> any {
 ```
 
 **What we did:**
+
 - Renamed `app` to `TodosPage`
 - Added a check: if not logged in, show a message
 - If logged in, show the todos
@@ -317,13 +318,14 @@ def TodosPage() -> any {
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### What is Authentication?
 
 Authentication = Proving who you are
 
 **Real-world analogy:**
+
 - **ID card** - You show it to prove your identity
 - **Email/Password** - Same thing, but digital!
 
@@ -358,6 +360,7 @@ result = await jacSignup("alice", "password123");
 ```
 
 **What happens:**
+
 1. Jac creates a new user account
 2. Hashes the password (secure!)
 3. Creates a session token
@@ -375,6 +378,7 @@ false // Login failed
 ```
 
 **What happens:**
+
 1. Jac checks if user exists
 2. Verifies password (securely)
 3. Creates a session token
@@ -388,6 +392,7 @@ jacLogout();
 ```
 
 **What happens:**
+
 1. Removes session token from browser
 2. You're now logged out
 3. Next API call will fail (not authenticated)
@@ -403,6 +408,7 @@ if jacIsLoggedIn() {
 ```
 
 **What it checks:**
+
 1. Is there a valid session token?
 2. Has it expired?
 3. Returns true/false
@@ -417,6 +423,7 @@ if jacIsLoggedIn() {
 ```
 
 **Key points:**
+
 - `onSubmit` fires when form is submitted
 - Submitting = clicking button OR pressing Enter
 - Always call `e.preventDefault()` to stop page reload
@@ -483,6 +490,7 @@ walker read_todos {
 ```
 
 Jac automatically:
+
 - Uses the logged-in user's root node
 - Each user sees only their own todos
 - No way to access other users' data
@@ -506,25 +514,26 @@ await jacLogin("alice", "password123");
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  What authentication is and why it's important
--  Using `jacSignup` to create accounts
--  Using `jacLogin` to log users in
--  Using `jacLogout` to log users out
--  Using `jacIsLoggedIn` to check auth status
--  Creating login and signup forms
--  Handling form submission
--  Protecting pages with auth checks
--  User isolation (each user sees only their data)
+- What authentication is and why it's important
+- Using `jacSignup` to create accounts
+- Using `jacLogin` to log users in
+- Using `jacLogout` to log users out
+- Using `jacIsLoggedIn` to check auth status
+- Creating login and signup forms
+- Handling form submission
+- Protecting pages with auth checks
+- User isolation (each user sees only their data)
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: "Signup failed"
 
 **Check:**
+
 - Is the email already taken? Try a different one
 - Are email/password not empty?
 - Check browser console for errors
@@ -532,6 +541,7 @@ await jacLogin("alice", "password123");
 ### Issue: Login says "Invalid credentials"
 
 **Check:**
+
 - Did you create an account first?
 - Is the email/password correct?
 - Emails are case-sensitive!
@@ -539,6 +549,7 @@ await jacLogin("alice", "password123");
 ### Issue: jacIsLoggedIn() always returns false
 
 **Check:**
+
 - Did you successfully login/signup?
 - Check browser console for errors
 - Try logging in again
@@ -546,13 +557,14 @@ await jacLogin("alice", "password123");
 ### Issue: Can't create multiple accounts
 
 **Solution:** Each email can only be used once. Try different emails:
+
 - alice, bob, carol
 - user1, user2, user3
 - test_alice, test_bob
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try adding a "Remember me" message:
 
@@ -577,7 +589,7 @@ def LoginPage() -> any {
 
 ---
 
-##  Next Step
+## Next Step
 
 Great! You now have authentication, but you're still showing only one page at a time.
 

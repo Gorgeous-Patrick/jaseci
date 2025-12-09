@@ -1,9 +1,10 @@
 # my-app
+
 make sure node modules are installed:
+
 ```bash
 npm install
 ```
-
 
 ## Running Jac Code
 

@@ -4,7 +4,7 @@ Learn how to create multi-page applications with client-side routing using Jac's
 
 ---
 
-##  Table of Contents
+## Table of Contents
 
 - [What is Routing?](#what-is-routing)
 - [Getting Started](#getting-started)
@@ -25,6 +25,7 @@ Learn how to create multi-page applications with client-side routing using Jac's
 Routing allows you to create multi-page applications where different URLs display different components without page refreshes.
 
 **Key Benefits:**
+
 - **Single Page Application (SPA)**: No page refreshes when navigating
 - **Declarative Syntax**: Define routes using JSX components
 - **URL Parameters**: Dynamic routes with params like `/user/:id`
@@ -52,6 +53,7 @@ cl import from "@jac-client/utils" {
 ```
 
 **Core Components:**
+
 - **`<Router>`**: Container that wraps your entire application
 - **`<Routes>`**: Groups multiple routes together
 - **`<Route>`**: Defines a single route with path and element
@@ -59,6 +61,7 @@ cl import from "@jac-client/utils" {
 - **`<Navigate>`**: Component for conditional redirects
 
 **Hooks:**
+
 - **`useNavigate()`**: Get navigate function for programmatic navigation
 - **`useLocation()`**: Access current location and pathname
 - **`useParams()`**: Access URL parameters from dynamic routes
@@ -119,6 +122,7 @@ cl {
 ```
 
 **How It Works:**
+
 1. **`<Router>`** wraps your entire app and manages routing state
 2. **`<Routes>`** contains all your route definitions
 3. **`<Route>`** maps a URL path to an element (note: `element={<Component />}`)
@@ -126,9 +130,10 @@ cl {
 5. URLs will be hash-based: `#/`, `#/about`, `#/contact`
 
 **Key Points:**
--  Use `element={<Home />}` to render components
--  No configuration needed - just wrap and go
--  Hash-based URLs work everywhere
+
+- Use `element={<Home />}` to render components
+- No configuration needed - just wrap and go
+- Hash-based URLs work everywhere
 
 ---
 
@@ -145,6 +150,7 @@ The `<Router>` component is the top-level container for your app:
 ```
 
 **Features:**
+
 - Hash-based URLs (e.g., `#/about`, `#/contact`)
 - No props needed - it just works!
 - Manages routing state automatically
@@ -171,6 +177,7 @@ Each `<Route>` defines a single route:
 ```
 
 **Props:**
+
 - **`path`**: The URL path (must start with `/`)
 - **`element`**: The JSX element to render (note: call the component with `<>`)
 - **`index`**: Boolean for index routes (optional)
@@ -199,6 +206,7 @@ The `<Link>` component creates clickable navigation links:
 ```
 
 **Props:**
+
 - **`to`**: The destination path (e.g., `"/"`, `"/about"`)
 - **`style`**: Optional CSS styles for the link
 - **`className`**: Optional CSS class name
@@ -304,11 +312,13 @@ cl {
 ```
 
 **useNavigate() Features:**
+
 - **Hook-based API**: Modern React pattern
 - **Type-safe**: Works seamlessly with TypeScript/Jac types
 - **Replace option**: Use `navigate("/path", { replace: true })` to replace history entry
 
 **Common Use Cases:**
+
 - After form submission
 - After authentication
 - Conditional navigation based on logic
@@ -348,6 +358,7 @@ cl {
 ```
 
 **URL Pattern Examples:**
+
 - `/user/:id` → Access via `params.id`
 - `/posts/:postId/comments/:commentId` → Access via `params.postId` and `params.commentId`
 - `/products/:category/:productId` → Multiple parameters
@@ -375,6 +386,7 @@ cl {
 ```
 
 **Location Object Properties:**
+
 - **`pathname`**: Current path (e.g., `/about`)
 - **`search`**: Query string (e.g., `?page=2`)
 - **`hash`**: URL hash (e.g., `#section1`)
@@ -437,6 +449,7 @@ cl {
 ```
 
 **Protected Route Pattern:**
+
 1. Check authentication at the start of the component
 2. Return `<Navigate to="/login" />` if not authenticated
 3. Return protected content if authenticated
@@ -559,6 +572,7 @@ cl {
 ## Best Practices
 
 ### 1. **Use Correct Route Syntax**
+
 ```jac
 #  CORRECT - Use element prop with JSX
 <Route path="/" element={<Home />} />
@@ -568,6 +582,7 @@ cl {
 ```
 
 ### 2. **Import All Needed Components**
+
 ```jac
 cl import from "@jac-client/utils" {
     Router,
@@ -582,6 +597,7 @@ cl import from "@jac-client/utils" {
 ```
 
 ### 3. **Use Hooks for Navigation**
+
 ```jac
 #  CORRECT - Use useNavigate hook
 def MyComponent() -> any {
@@ -594,6 +610,7 @@ navigate("/dashboard");
 ```
 
 ### 4. **Protected Routes Pattern**
+
 ```jac
 #  CORRECT - Check auth in component
 def ProtectedPage() -> any {
@@ -605,6 +622,7 @@ def ProtectedPage() -> any {
 ```
 
 ### 5. **Use Link for Navigation**
+
 ```jac
 #  CORRECT - Use Link component
 <Link to="/about">About</Link>
@@ -614,6 +632,7 @@ def ProtectedPage() -> any {
 ```
 
 ### 6. **Dynamic Routes with Parameters**
+
 ```jac
 # Define route with parameter
 <Route path="/user/:id" element={<UserProfile />} />
@@ -627,6 +646,7 @@ def UserProfile() -> any {
 ```
 
 ### 7. **Active Link Styling**
+
 ```jac
 def Navigation() -> any {
     location = useLocation();

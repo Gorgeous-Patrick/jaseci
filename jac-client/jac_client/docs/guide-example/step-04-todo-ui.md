@@ -1,12 +1,12 @@
 # Step 4: Building the Complete Todo UI
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll put all your components together to create the full todo application interface!
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 4.1: Complete App with All Components
 
@@ -209,7 +209,7 @@ cl {
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### Component Hierarchy
 
@@ -242,6 +242,7 @@ def TodoList() -> any {
 ```
 
 This pattern makes it easy to:
+
 - Add/remove todos (just add/remove `<TodoItem>` components)
 - Style the list container separately from items
 - Handle empty states
@@ -365,19 +366,19 @@ Using consistent colors makes your app look polished!
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  Building a complete UI by composing components
--  Component hierarchy and organization
--  Container components that render lists
--  Conditional rendering for empty states
--  Centered card layout pattern
--  Consistent spacing and colors
--  Props flow from parent to child
+- Building a complete UI by composing components
+- Component hierarchy and organization
+- Container components that render lists
+- Conditional rendering for empty states
+- Centered card layout pattern
+- Consistent spacing and colors
+- Props flow from parent to child
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: Components overlapping
 
@@ -392,6 +393,7 @@ Using consistent colors makes your app look polished!
 ### Issue: Layout looks broken
 
 **Check:**
+
 - Is `maxWidth` set on the container?
 - Is `margin: "0 auto"` used for centering?
 - Does the container have `padding`?
@@ -410,7 +412,7 @@ return <div>Show todos</div>;  # This only runs if hasTodos is true
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try customizing your app:
 
@@ -468,7 +470,7 @@ def app() -> any {
 
 ---
 
-##  Next Step
+## Next Step
 
 Excellent! Your UI is complete and looks great. But it's all static - clicking buttons does nothing!
 

@@ -86,20 +86,24 @@ In two's complement, `~x` always equals `-(x + 1)`.
 **Combined Bitwise Operations**
 
 Lines 30-31 demonstrate combining bitwise operations. Line 30 uses parentheses to control order:
+
 1. `8 | 4` = 12 (binary: 1000 | 0100 = 1100)
 2. `12 & 12` = 12 (binary: 1100 & 1100 = 1100)
 
 Line 31 follows operator precedence (AND before XOR):
+
 1. `3 & 7` = 3 (binary: 0011 & 0111 = 0011)
 2. `5 ^ 3` = 6 (binary: 0101 ^ 0011 = 0110)
 
 **Chained Bitwise Operations**
 
 Lines 34-35 show chaining operators. Line 34: AND has higher precedence than OR:
+
 1. `15 & 7` = 7 (binary: 1111 & 0111 = 0111)
 2. `7 | 8` = 15 (binary: 0111 | 1000 = 1111)
 
 Line 35: Shifts have equal precedence, evaluated left-to-right:
+
 1. `5 << 1` = 10 (double: 0101 → 1010)
 2. `10 >> 1` = 5 (halve: 1010 → 0101)
 
@@ -123,6 +127,7 @@ graph TD
 **Bitwise Operator Precedence**
 
 From highest to lowest precedence:
+
 1. `~` (NOT) - unary operator
 2. `<<`, `>>` (shifts)
 3. `&` (AND)

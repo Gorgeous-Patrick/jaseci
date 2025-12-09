@@ -5,11 +5,13 @@ Welcome! This guide will teach you how to build a **complete full-stack Todo app
 ## What is Full-Stack Development?
 
 Think of building a house:
+
 - **Frontend** = The interior design (what users see and interact with)
 - **Backend** = The plumbing and electricity (where data is stored and processed)
 - **Full-Stack** = Building both the interior AND the infrastructure
 
 Traditionally, you'd need:
+
 - **JavaScript/React** for frontend
 - **Python/Node.js** for backend
 - **SQL** for database
@@ -21,13 +23,13 @@ With **Jac**, you write **everything in one language**, in **one file**!
 
 By the end of this guide, you'll have a fully functional Todo app with:
 
--  **Beautiful UI** - Modern, responsive interface
--  **User Authentication** - Signup and login
--  **Protected Routes** - Private pages only for logged-in users
--  **Full CRUD** - Create, Read, Update, Delete todos
--  **Real Backend** - Data persists even after refresh
--  **Filtering** - View all, active, or completed todos
--  **Multiple Pages** - Routing without page reloads
+- **Beautiful UI** - Modern, responsive interface
+- **User Authentication** - Signup and login
+- **Protected Routes** - Private pages only for logged-in users
+- **Full CRUD** - Create, Read, Update, Delete todos
+- **Real Backend** - Data persists even after refresh
+- **Filtering** - View all, active, or completed todos
+- **Multiple Pages** - Routing without page reloads
 
 All of this in approximately **735 lines of Jac code**!
 
@@ -67,8 +69,8 @@ pip install jac-client
 
 Each step builds on the previous one, gradually creating the complete app. Every step has **two parts**:
 
-1. ** Part 1: Building the App** - Hands-on coding, building the actual app
-2. ** Part 2: Understanding the Concepts** - Optional deeper knowledge
+1. **Part 1: Building the App** - Hands-on coding, building the actual app
+2. **Part 2: Understanding the Concepts** - Optional deeper knowledge
 
 **Want to just build?** Follow only Part 1 of each step and skip all Part 2 sections. You'll still have a working app!
 

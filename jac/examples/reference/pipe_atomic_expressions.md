@@ -21,6 +21,7 @@ graph LR
 ```
 
 The execution flows left-to-right:
+
 1. Start with the string `"Test"`
 2. Pipe it to `type()`, which returns the type object `<class 'str'>`
 3. Pipe that type object to `print()`, which displays it
@@ -40,6 +41,7 @@ Lines 11-12 show using pipes with lambda expressions for custom transformations.
 The value 5 is doubled to 10, then increased by 10 to get a final result of 20.
 
 The lambda syntax `(lambda x: int : x * 2)` defines an anonymous function:
+
 - `lambda` keyword starts the lambda
 - `x` is the parameter name
 - `: int` is the return type annotation
@@ -68,6 +70,7 @@ The piped version reads like a recipe: "Take the value, apply func1, then func2,
 **Practical Applications**
 
 Atomic pipes are especially useful for:
+
 - Data transformation pipelines
 - Method chaining alternatives
 - Functional programming patterns

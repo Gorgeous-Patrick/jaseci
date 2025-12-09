@@ -135,6 +135,7 @@ graph TD
 ```
 
 Examples:
+
 - `not False and True` is evaluated as `(not False) and True` = `True and True` = `True`
 - `True or False and False` is evaluated as `True or (False and False)` = `True or False` = `True`
 

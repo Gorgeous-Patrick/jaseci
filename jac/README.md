@@ -31,7 +31,6 @@ This is the main source code repository for the [Jac] programming language. It c
 
 - **Jac Improves on Python** - Jac makes multiple thoughtful quality-of-life improvements/additions to Python. These include new modern operators, new types of comprehensions, new ways of organizing modules (i.e., separating implementations from declarations), etc.
 
-
 ## Quick Start
 
 To install Jac, run:
@@ -39,6 +38,7 @@ To install Jac, run:
 ```bash
 pip install jaclang
 ```
+
 Run `jac` in the terminal to see whether it is installed correctly.
 
 Read ["Getting Started"] from [Docs] for more information.

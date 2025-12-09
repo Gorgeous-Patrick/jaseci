@@ -3,6 +3,7 @@
 ## Repository Structure
 
 This monorepo contains:
+
 - `jac/`: Jac language compiler, runtime, and language server
 - `jac-byllm/`: LLM integration and model-driven features
 - `jac-cloud/`: Cloud deployment and orchestration
@@ -14,16 +15,19 @@ This monorepo contains:
 ## Common Workflows
 
 Run tests for a specific package:
+
 ```bash
 pytest -n auto <package-name>
 ```
 
 Run pre-commit checks (formatting, linting):
+
 ```bash
 ./scripts/check.sh
 ```
 
 Full test suite across all packages:
+
 ```bash
 ./scripts/tests.sh
 ```
@@ -31,6 +35,7 @@ Full test suite across all packages:
 ## Package-Specific Notes
 
 ### jac/ (Compiler & Runtime)
+
 - Grammar: `jac/jaclang/compiler/jac.lark`
 - IR: `unitree.py` (UniTree nodes)
 - Passes: `jac/jaclang/compiler/passes/main/`
@@ -40,29 +45,35 @@ Full test suite across all packages:
 - For type system work, see `.github/agents/type-system-agent.md`
 
 ### jac-byllm/ (LLM Features)
+
 - Core logic: `byllm/lib.py`, `llm_connector.py`
 - Schema definitions: `schema.py`
 - Examples: `examples/agentic_ai/`, `examples/tool_calling/`
 
 ### jac-cloud/ (Cloud Platform)
+
 - Runner: `jac_cloud/runner.py`
 - Core services: `jac_cloud/core/`, `jac_cloud/jaseci/`
 
 ### jac-streamlit/ (Streamlit Integration)
+
 - Main plugin: `jaclang_streamlit/`
 
 ### jac-client/ (Client SDKs)
+
 - Plugin: `jac_client/plugin/`
 
 ## Jac Language Conventions
 
 Import syntax:
+
 ```jac
 import from module { symbol, another_symbol }
 import module as alias;
 ```
 
 Entry point:
+
 ```jac
 with entry { /* ... */ }
 ```

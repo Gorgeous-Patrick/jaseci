@@ -19,6 +19,7 @@ graph LR
 ```
 
 The choice between operators is often stylistic:
+
 - Forward `value :> function` - emphasizes data transformation
 - Backward `function <: value` - emphasizes function receiving data
 
@@ -50,6 +51,7 @@ The lambda receives 10 as its argument `x`, multiplies it by 3, and returns 30. 
 **When to Use Backward Pipes**
 
 The backward pipe can feel more natural when:
+
 - The function is the focus of the statement
 - You're used to reading right-to-left in certain contexts
 - You want to emphasize what's being done rather than what's being transformed

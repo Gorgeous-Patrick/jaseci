@@ -3,6 +3,7 @@
 ## Running Jac Code
 
 Make sure node modules are installed:
+
 ```bash
 npm install
 ```
@@ -18,6 +19,7 @@ jac serve app.jac
 This project includes TypeScript support. You can create TypeScript components in the `components/` directory and import them in your Jac files.
 
 Example:
+
 ```jac
 cl import from ".components/Button.tsx" { Button }
 ```

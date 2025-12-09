@@ -5,6 +5,7 @@ Entry blocks refer to executable code blocks at the module level, primarily usin
 **Module Organization**
 
 A typical Jac module follows this structure (lines 3-21):
+
 1. Import statements (line 3)
 2. Object definitions (lines 5-10)
 3. Function definitions (lines 12-14)
@@ -19,6 +20,7 @@ Line 3 imports the `math` module to access mathematical constants and functions 
 **Object Definition**
 
 Lines 5-10 define a `Circle` object with two members:
+
 - `has radius: float` (line 6): Declares a typed member variable
 - `def area -> float` (lines 7-9): A method that calculates the circle's area using `math.pi * self.radius ** 2`
 
@@ -35,6 +37,7 @@ Lines 17-21 demonstrate the `with entry` block, which executes when the module r
 Line 19: `print(square(7))` - Calls the square function with 7, printing 49
 
 Line 20: `print(int(Circle(radius=10).area()))` - Demonstrates chained operations:
+
 1. Creates a Circle with radius 10
 2. Calls the `.area()` method
 3. Converts the float result to int with `int(...)`
@@ -45,6 +48,7 @@ Line 20: `print(int(Circle(radius=10).area()))` - Demonstrates chained operation
 Lines 24-26 show the `__main__` entry point using `with entry:__main__`:
 
 The `__main__` entry point only executes when the module is run directly (not when imported). This is similar to Python's `if __name__ == "__main__":` pattern and is useful for:
+
 - Command-line scripts that can also be imported as libraries
 - Test code that shouldn't run during imports
 - Module demonstrations and examples
@@ -72,6 +76,7 @@ flowchart TD
 **Use Cases for Entry Blocks**
 
 Entry blocks are useful for:
+
 - **Main program logic**: Implementing the primary functionality in executable scripts
 - **Module initialization**: Setting up module-level state
 - **Testing and examples**: Demonstrating API usage
@@ -80,6 +85,7 @@ Entry blocks are useful for:
 **Access to Module Definitions**
 
 The entry block has access to all module-level definitions (lines 18-20):
+
 - Functions defined in the module (`square`)
 - Objects defined in the module (`Circle`)
 - Imported modules (`math` via the Circle definition)

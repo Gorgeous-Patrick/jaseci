@@ -1,12 +1,12 @@
 # Step 10: Adding Routing
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll add multiple pages to your app so users can navigate between login, signup, and todos!
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 10.1: Import Routing Components
 
@@ -241,18 +241,20 @@ def app() -> any {
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### What is Routing?
 
 Routing = Different URLs show different pages
 
 **Traditional websites:**
+
 - `/login` → Server sends login.html
 - `/todos` → Server sends todos.html
 - Every click = full page reload
 
 **Single-Page Apps (SPAs):**
+
 - `/login` → JavaScript shows login component
 - `/todos` → JavaScript shows todos component
 - No page reload = instant and smooth!
@@ -268,6 +270,7 @@ Routing = Different URLs show different pages
 ```
 
 **Think of it like:**
+
 ```python
 # Python routing (Flask)
 @app.route("/login")
@@ -293,6 +296,7 @@ def login():
 ```
 
 **What happens:**
+
 - `Router` manages the current URL
 - `Navigation` is always visible
 - `Routes` shows ONE matching route
@@ -305,6 +309,7 @@ def login():
 ```
 
 **Breakdown:**
+
 - `path="/login"` - URL pattern to match
 - `element={<LoginPage />}` - Component to show (must be JSX!)
 
@@ -342,6 +347,7 @@ def TodosPage() -> any {
 **Purpose:** Redirect programmatically
 
 **When to use:**
+
 - Protecting routes (if not logged in, redirect)
 - After form submission
 - Conditional redirects
@@ -386,6 +392,7 @@ def ProtectedPage() -> any {
 ```
 
 This pattern:
+
 1. Checks authentication
 2. Redirects if not logged in
 3. Shows content if logged in
@@ -463,23 +470,24 @@ def handleLogout() -> None {
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  What client-side routing is
--  Setting up Router, Routes, and Route
--  Creating navigation with Link
--  Programmatic navigation with Navigate
--  Protected routes with authentication checks
--  Conditional navigation based on auth status
--  Common routing patterns
+- What client-side routing is
+- Setting up Router, Routes, and Route
+- Creating navigation with Link
+- Programmatic navigation with Navigate
+- Protected routes with authentication checks
+- Conditional navigation based on auth status
+- Common routing patterns
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: Links don't work
 
 **Check:**
+
 - Is everything wrapped in `<Router>`?
 - Are you using `<Link>` not `<a>`?
 - Is the `to` prop correct? `to="/login"` not `href="/login"`
@@ -499,19 +507,21 @@ def handleLogout() -> None {
 ### Issue: Navigate not working
 
 **Check:**
+
 - Is `<Navigate>` inside a component rendered by `<Route>`?
 - Is it wrapped in `<Router>`?
 
 ### Issue: Can't access protected page when logged in
 
 **Check:**
+
 - Is `jacIsLoggedIn()` returning true?
 - Did you successfully login?
 - Check browser console for errors
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try adding a 404 page for unknown routes:
 
@@ -532,7 +542,7 @@ def NotFoundPage() -> any {
 
 ---
 
-##  Next Step
+## Next Step
 
 Congratulations! You've learned all the key concepts. Now let's put everything together into the **complete, final app**!
 

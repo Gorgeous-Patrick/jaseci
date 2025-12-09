@@ -14,11 +14,13 @@ This guide covers two main aspects of file organization:
 ### Backend/Frontend Separation
 
 Jac allows you to organize code by execution environment:
+
 - Use `.jac` files for backend logic (nodes, walkers)
 - Use `.cl.jac` files for frontend-only code
 - Or mix both in the same file using `cl` blocks
 
 **Example:**
+
 ```jac
 # Backend
 node Todo { has text: str; }
@@ -36,6 +38,7 @@ cl {
 Jac preserves folder structure during compilation, allowing you to organize code in nested folders:
 
 **Example:**
+
 ```jac
 # From level1/Button.jac importing from root
 cl import from ..ButtonRoot { ButtonRoot }

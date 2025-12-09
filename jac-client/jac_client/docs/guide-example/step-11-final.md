@@ -1,12 +1,12 @@
 # Step 11: Final Integration - Complete App
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 Congratulations!  In this final step, you'll see the complete, production-ready todo application with all features integrated!
 
 ---
 
-##  Part 1: The Complete App
+## Part 1: The Complete App
 
 ### Complete `app.jac` File
 
@@ -692,11 +692,13 @@ cl {
 1. **Save the code** to `app.jac`
 
 2. **Start the server:**
+
    ```bash
    jac serve app.jac
    ```
 
 3. **Open in browser:**
+
    ```
    http://localhost:8000/page/app
    ```
@@ -712,15 +714,16 @@ cl {
 
 ---
 
-** You did it!** You've built a complete full-stack app. The rest of this page explains what you built and what to do next.
+**You did it!** You've built a complete full-stack app. The rest of this page explains what you built and what to do next.
 
 ---
 
-##  Part 2: What You Built
+## Part 2: What You Built
 
 ### Features Checklist
 
  **Authentication:**
+
 - User signup
 - User login
 - Logout
@@ -728,6 +731,7 @@ cl {
 - Protected routes
 
  **Todo Management:**
+
 - Create todos
 - Mark as complete/incomplete
 - Delete todos
@@ -736,6 +740,7 @@ cl {
 - Empty state handling
 
  **UI/UX:**
+
 - Responsive design
 - Modern styling
 - Form validation
@@ -744,6 +749,7 @@ cl {
 - Smooth navigation
 
  **Backend:**
+
 - Data persistence with walkers
 - User isolation (each user sees only their data)
 - Graph-based data structure
@@ -752,18 +758,21 @@ cl {
 ### Technology Stack
 
 **Frontend:**
+
 - React (via Jac's `cl` blocks)
 - React Router (for navigation)
 - Inline CSS styling
 - JSX syntax
 
 **Backend:**
+
 - Jac walkers (backend functions)
 - Jac nodes (data structures)
 - Graph database (automatic)
 - Built-in authentication
 
 **Architecture:**
+
 - Single-page application (SPA)
 - Client-side routing
 - RESTful-like walker calls
@@ -800,13 +809,14 @@ app.jac
 
 ---
 
-##  What's Next?
+## What's Next?
 
 You've completed the tutorial! Here are some ideas to continue learning:
 
 ### 1. Enhance Your App
 
 **Easy additions:**
+
 - Edit todo text
 - Add due dates
 - Priority levels (high/medium/low)
@@ -814,6 +824,7 @@ You've completed the tutorial! Here are some ideas to continue learning:
 - Search functionality
 
 **Medium difficulty:**
+
 - Drag-and-drop reordering
 - Dark mode toggle
 - Keyboard shortcuts
@@ -821,6 +832,7 @@ You've completed the tutorial! Here are some ideas to continue learning:
 - Export/import todos
 
 **Advanced features:**
+
 - Real-time collaboration
 - Recurring todos
 - Notifications
@@ -830,6 +842,7 @@ You've completed the tutorial! Here are some ideas to continue learning:
 ### 2. Improve the UI
 
 **Styling:**
+
 - Add CSS animations
 - Use a CSS framework (Tailwind CSS)
 - Better mobile responsiveness
@@ -837,6 +850,7 @@ You've completed the tutorial! Here are some ideas to continue learning:
 - Icons library (React Icons)
 
 **UX improvements:**
+
 - Smooth transitions
 - Better loading states
 - Toast notifications
@@ -846,6 +860,7 @@ You've completed the tutorial! Here are some ideas to continue learning:
 ### 3. Deploy Your App
 
 **Deployment options:**
+
 - Jac Cloud (easiest)
 - Vercel
 - Netlify
@@ -853,6 +868,7 @@ You've completed the tutorial! Here are some ideas to continue learning:
 - AWS
 
 **Steps:**
+
 ```bash
 # Install Jac Cloud
 pip install jac-cloud
@@ -866,6 +882,7 @@ jac cloud deploy app.jac
 ### 4. Learn Advanced Jac Features
 
 **Explore:**
+
 - AI features with byLLM
 - Complex graph structures
 - Advanced walker patterns
@@ -876,6 +893,7 @@ jac cloud deploy app.jac
 ### 5. Build Something New
 
 Apply what you learned:
+
 - Blog platform
 - E-commerce store
 - Social media app
@@ -885,19 +903,22 @@ Apply what you learned:
 
 ---
 
-##  Resources
+## Resources
 
 **Official Documentation:**
+
 - [Jac Documentation](https://www.jac-lang.org)
 - [Jac Examples](https://github.com/Jaseci-Labs/jaclang)
 - [React Docs](https://react.dev) (underlying framework)
 
 **Community:**
+
 - Jac Discord/Forum
 - GitHub Issues
 - Stack Overflow (tag: jac-lang)
 
 **Tutorials:**
+
 - Jac AI Features
 - Advanced Graph Patterns
 - Deployment Guides
@@ -905,23 +926,24 @@ Apply what you learned:
 
 ---
 
-##  What You Learned
+## What You Learned
 
 Looking back at all 11 steps:
 
-1.  Project setup and structure
-2.  Components and props
-3.  Styling with inline CSS
-4.  Building complex UIs
-5.  State management with useState
-6.  Event handlers
-7.  Side effects with useEffect
-8.  Backend with walkers and nodes
-9.  User authentication
-10.  Client-side routing
-11.  Complete full-stack integration
+1. Project setup and structure
+2. Components and props
+3. Styling with inline CSS
+4. Building complex UIs
+5. State management with useState
+6. Event handlers
+7. Side effects with useEffect
+8. Backend with walkers and nodes
+9. User authentication
+10. Client-side routing
+11. Complete full-stack integration
 
 **Key concepts mastered:**
+
 - Full-stack development in one language
 - React component patterns
 - State management
@@ -934,25 +956,27 @@ Looking back at all 11 steps:
 
 ---
 
-##  Congratulations!
+## Congratulations!
 
 You built a **complete, production-ready full-stack application** from scratch!
 
 **What makes this special:**
--  **735 lines** of code (compared to 2000+ in traditional stacks)
--  **One language** (compared to 3-4: JavaScript, Python, SQL, HTML/CSS)
--  **One file** (compared to dozens of files)
--  **Zero configuration** (no webpack, babel, etc.)
--  **Built-in auth** (no OAuth setup needed)
--  **Automatic backend** (no Express/Flask setup)
+
+- **735 lines** of code (compared to 2000+ in traditional stacks)
+- **One language** (compared to 3-4: JavaScript, Python, SQL, HTML/CSS)
+- **One file** (compared to dozens of files)
+- **Zero configuration** (no webpack, babel, etc.)
+- **Built-in auth** (no OAuth setup needed)
+- **Automatic backend** (no Express/Flask setup)
 
 You're now ready to build amazing full-stack applications with Jac!
 
 ---
 
-##  Share Your Success!
+## Share Your Success!
 
 Built something cool? Share it:
+
 - Tag #JacLang on social media
 - Contribute to Jac examples
 - Write a blog post

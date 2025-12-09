@@ -9,6 +9,7 @@ The Expression Problem is a fundamental challenge in programming language design
 > *How can we add both new types and new operations to a program without modifying existing code, while maintaining type safety and modularity?*
 
 Traditional approaches have inherent limitations:
+
 - **Object-Oriented Programming**: Easy to add new types, difficult to add new operations
 - **Functional Programming**: Easy to add new operations, difficult to add new types
 

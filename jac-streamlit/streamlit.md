@@ -1,4 +1,5 @@
 # Jac-Streamlit Plugin
+
 `pip install .` command in the `plugins/streamlit` installs the jac-streamlit, which creates CLI commands shown below, which are associated with jac streamlit.
 
 ## 1. To streamlit the specified .jac file.
@@ -6,6 +7,7 @@
 ```
 jac streamlit [-h] filename
 ```
+
 and
 
 ## 2. To visualize the jac graph of a specified .jac file.
@@ -13,8 +15,11 @@ and
 ```
 jac dot_view [-h] filename
 ```
+
 ## Examlpe Usage
+>
 >### Below is examlpe.jac using jac's data spatial features
+>
 >```
 >walker Creator {
 >    can create with `root entry;
@@ -38,7 +43,11 @@ jac dot_view [-h] filename
 >```
 >
 >### Output of `jac dot_view examlpe.jac`
+>
 >### With Interactive View
+>
 >![Interactive](./assets/interactive%20view.png)
+>
 >### With Static View
+>
 >![Static](./assets/static%20view.png)

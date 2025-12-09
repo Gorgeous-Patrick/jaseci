@@ -24,16 +24,19 @@ import-alias/
 ## Running the Example
 
 1. Make sure node modules are installed:
+
 ```bash
 npm install
 ```
 
-2. Run the Jac server:
+1. Run the Jac server:
+
 ```bash
 jac serve app.jac
 ```
 
-3. Open your browser and navigate to:
+1. Open your browser and navigate to:
+
 ```
 http://localhost:8000/page/app
 ```

@@ -4,7 +4,7 @@ This guide covers all styling approaches available in Jac web applications. Each
 
 ## Quick Navigation
 
-###  Available Examples
+### Available Examples
 
 | Styling Approach | Documentation | Example Location |
 |------------------|---------------|------------------|
@@ -18,21 +18,25 @@ This guide covers all styling approaches available in Jac web applications. Each
 ## Styling Approaches Overview
 
 ### Traditional CSS
+
 - **Pure CSS:** Standard CSS with external stylesheets
   - Maximum control, minimal dependencies
   - Perfect for simple projects and learning
 
 ### CSS Preprocessors
+
 - **Sass/SCSS:** Variables, nesting, mixins, and functions
   - Better organization for large projects
   - DRY principles with reusable code
 
 ### Utility-First CSS
+
 - **Tailwind CSS:** On-demand utility classes
   - Rapid UI development
   - Consistent design system
 
 ### CSS-in-JS Libraries
+
 - **Styled Components:** CSS-in-JS with template literals
   - Component-scoped styles
   - Dynamic styling with props
@@ -42,6 +46,7 @@ This guide covers all styling approaches available in Jac web applications. Each
   - Dynamic styles based on state
 
 ### Component Libraries
+
 - **Material-UI:** Comprehensive React component library
   - Pre-built, accessible components
   - Material Design system
@@ -64,31 +69,37 @@ This guide covers all styling approaches available in Jac web applications. Each
 ### Quick Decision Guide
 
 **Choose Pure CSS if**:
+
 - Building a simple application
 - Wanting minimal dependencies
 - Learning CSS fundamentals
 
 **Choose Tailwind CSS if**:
+
 - Building modern UIs quickly
 - Preferring utility classes
 - Needing responsive design
 
 **Choose Sass/SCSS if**:
+
 - Working on large projects
 - Needing variables and mixins
 - Wanting better organization
 
 **Choose Styled Components if**:
+
 - Wanting component-scoped styles
 - Needing dynamic styling
 - Preferring CSS-in-JS
 
 **Choose JavaScript Styling if**:
+
 - Needing dynamic styles
 - Preferring JavaScript
 - Building component libraries
 
 **Choose Material-UI if**:
+
 - Wanting pre-built components
 - Needing accessibility
 - Preferring Material Design
@@ -143,7 +154,6 @@ npm install
 jac serve app.jac
 ```
 
-
 ## Best Practices
 
 ### General Styling
@@ -182,7 +192,7 @@ jac serve app.jac
 - [Lifecycle Hooks](../lifecycle-hooks.md)
 - [Complete Example Guide](../guide-example/intro.md)
 
->  **Upcoming Styling Patterns**
+> **Upcoming Styling Patterns**
 
 <div style="border: 1.5px solid #ffa500; background: #fff4cc; color: #333; padding: 1.2em 1.4em; border-radius: 8px; margin: 2em 0;">
 

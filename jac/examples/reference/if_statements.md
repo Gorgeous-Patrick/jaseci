@@ -102,6 +102,7 @@ flowchart TD
 Jac follows Python's truthiness rules:
 
 **Falsy values:**
+
 - `False`
 - `None`
 - `0` (numeric zero)
@@ -110,6 +111,7 @@ Jac follows Python's truthiness rules:
 - `{}` (empty dict)
 
 **Truthy values:**
+
 - Everything else
 
 Example:

@@ -14,6 +14,7 @@ The `del` statement removes bindings, deletes collection elements, or removes ob
 **Deleting List Elements (Lines 4-8)**
 
 Lines 5-8:
+
 - Line 5: Creates list `[1, 2, 3, 4, 5]`
 - Line 7: `del x[2]` removes element at index 2 (value 3)
 - Result: `[1, 2, 4, 5]`
@@ -33,6 +34,7 @@ graph LR
 **Deleting Variables (Lines 10-13)**
 
 Lines 11-13:
+
 - Line 11: Creates variable binding `y = 100`
 - Line 13: `del y` removes the binding completely
 - Variable name no longer exists in scope
@@ -42,6 +44,7 @@ Lines 11-13:
 **Deleting Dictionary Items (Lines 15-19)**
 
 Lines 16-19:
+
 - Line 16: Creates dictionary with three key-value pairs
 - Line 18: `del d["b"]` removes the key "b" and its value
 - Result: `{"a": 1, "c": 3}`
@@ -50,6 +53,7 @@ Lines 16-19:
 **Deleting Slices (Lines 21-25)**
 
 Lines 22-25:
+
 - Line 22: Creates list with 10 elements
 - Line 24: `del numbers[2:5]` removes elements at indices 2, 3, 4
 - Slice syntax: `[start:stop]` removes range [start, stop)
@@ -70,6 +74,7 @@ graph TD
 **Deleting Nested Elements (Lines 27-31)**
 
 Lines 28-31:
+
 - Line 28: Creates 2D list (list of lists)
 - Line 30: `del matrix[1]` removes entire second row `[3, 4]`
 - Result: `[[1, 2], [5, 6]]`
@@ -78,6 +83,7 @@ Lines 28-31:
 **Multiple Sequential Deletions (Lines 33-36)**
 
 Lines 34-36:
+
 - Line 34: Initial list `[10, 20, 30]`
 - Line 35: `del lst[1]` removes 20
 - Result: `[10, 30]`
@@ -86,6 +92,7 @@ Lines 34-36:
 **Multiple Deletions with Index Shifts (Lines 38-42)**
 
 Lines 39-42:
+
 - Line 39: Initial `[0, 1, 2, 3, 4, 5]`
 - Line 40: `del data[0]` removes 0 → `[1, 2, 3, 4, 5]`
 - Line 41: `del data[2]` removes element at index 2 (which is now 3) → `[1, 2, 4, 5]`
@@ -105,22 +112,26 @@ graph TD
 **Delete Semantics Summary**
 
 **Variable deletion**:
+
 - Removes name from namespace
 - Value may be garbage collected
 - Cannot use variable after deletion
 
 **List element deletion**:
+
 - Removes element at index
 - All subsequent elements shift left
 - Indices are renumbered
 - Raises `IndexError` if index out of range
 
 **List slice deletion**:
+
 - Removes range [start:stop)
 - Remaining elements shift to fill gap
 - No error if slice is empty
 
 **Dictionary deletion**:
+
 - Removes key-value pair
 - Other pairs unaffected
 - Raises `KeyError` if key doesn't exist
@@ -157,6 +168,7 @@ Remove from end (efficient):
 **Memory Management**
 
 Deleting a variable removes the binding, not necessarily the object:
+
 - If other references exist, object persists
 - When reference count reaches zero, object is garbage collected
 - `del` doesn't directly free memory - it removes references
@@ -171,6 +183,7 @@ Safe deletion patterns:
 **When to Use Del**
 
 Use `del` when:
+
 - Removing specific list elements by index
 - Deleting dictionary entries
 - Freeing large data structures from memory
@@ -178,6 +191,7 @@ Use `del` when:
 - Cleaning up temporary variables
 
 Avoid `del` when:
+
 - Filtering lists (use list comprehensions)
 - Removing by value (use `list.remove()`)
 - Need the deleted value (use `pop()`)

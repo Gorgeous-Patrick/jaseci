@@ -15,6 +15,7 @@ Line 11 demonstrates the basic usage: `result = "hello" by "world"`. This compos
 **Chained By Expressions**
 
 Line 15 shows chained `by` operators: `result2 = "a" by "b" by "c"`. Due to right-associativity:
+
 1. First, `"b" by "c"` is evaluated
 2. Then, `"a" by (result of step 1)` is evaluated
 
@@ -25,6 +26,7 @@ Line 19 demonstrates `by` with arithmetic expressions: `result3 = (1 + 2) by (3 
 **Common Use Cases**
 
 The `by` operator is commonly used with:
+
 - LLM function calls: `def process(input: str) -> str by llm()`
 - Function composition patterns
 - Data transformation pipelines

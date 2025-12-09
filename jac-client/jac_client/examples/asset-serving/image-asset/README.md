@@ -24,16 +24,19 @@ image-asset/
 ## Running the Example
 
 1. Make sure node modules are installed:
+
 ```bash
 npm install
 ```
 
-2. Run the Jac server:
+1. Run the Jac server:
+
 ```bash
 jac serve app.jac
 ```
 
-3. Open your browser and navigate to:
+1. Open your browser and navigate to:
+
 ```
 http://localhost:8000/page/app
 ```
@@ -49,6 +52,7 @@ http://localhost:8000/page/app
 ### Server Configuration
 
 The server automatically serves files from:
+
 - `dist/` directory (Vite-bundled assets)
 - `assets/` directory (user-provided static assets)
 
@@ -72,16 +76,19 @@ Both directories are checked when serving `/static/*` requests.
 ### Use Cases
 
 **Direct Image References:**
+
 ```jac
 <img src="/static/assets/logo.png" alt="Logo" />
 ```
 
 **CSS Background Images:**
+
 ```jac
 <div style={{backgroundImage: "url('/static/assets/hero.jpg')"}} />
 ```
 
 **Dynamic Asset Paths:**
+
 ```jac
 let imagePath = `/static/assets/${imageName}.png`;
 <img src={imagePath} />
@@ -105,12 +112,14 @@ let imagePath = `/static/assets/${imageName}.png`;
 ## When to Use
 
 **Choose Static Path if:**
+
 - Building a quick prototype
 - Assets don't need optimization
 - Want immediate results
 - Working with simple, small assets
 
 **Consider Import Methods if:**
+
 - Building for production
 - Need automatic optimization
 - Want cache busting

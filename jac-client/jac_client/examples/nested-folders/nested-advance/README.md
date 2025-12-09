@@ -18,6 +18,7 @@ nested-advance/
 ## Import Patterns Demonstrated
 
 ### 1. Root Level (`app.jac`)
+
 ```jac
 # Import from root
 cl import from .ButtonRoot { ButtonRoot }
@@ -30,13 +31,16 @@ cl import from .level1.level2.ButtonThirdL { ButtonThirdL }
 ```
 
 ### 2. Second Level (`level1/ButtonSecondL.jac`)
+
 ```jac
 # Import from root (go up one level with ..)
 cl import from ..ButtonRoot { ButtonRoot }
 ```
 
 ### 3. Card Component (`level1/Card.jac`)
+
 This demonstrates importing from both above and below:
+
 ```jac
 # Import from root (go up two levels with ..)
 cl import from ..ButtonRoot { ButtonRoot }
@@ -46,6 +50,7 @@ cl import from .level2.ButtonThirdL { ButtonThirdL }
 ```
 
 ### 4. Third Level (`level1/level2/ButtonThirdL.jac`)
+
 ```jac
 # Import from root (go up three levels with ...)
 cl import from ...ButtonRoot { ButtonRoot }
@@ -57,11 +62,13 @@ cl import from ..ButtonSecondL { ButtonSecondL }
 ## Running the Example
 
 Make sure node modules are installed:
+
 ```bash
 npm install
 ```
 
 To run your Jac code, use the Jac CLI:
+
 ```bash
 jac serve app.jac
 ```

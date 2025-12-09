@@ -95,6 +95,7 @@ Assets can be referenced in CSS files using static paths.
 ### Usage
 
 **CSS File (`styles.css`):**
+
 ```css
 .container {
     background-image: url('/static/assets/burger.png');
@@ -110,6 +111,7 @@ Assets can be referenced in CSS files using static paths.
 ```
 
 **Jac File:**
+
 ```jac
 cl import "./styles.css";
 
@@ -166,22 +168,26 @@ jac serve app.jac
 ## Quick Reference
 
 ### Remote URLs
+
 ```jac
 <img src="https://example.com/image.jpg" alt="Image" />
 ```
 
 ### Static Path
+
 ```jac
 <img src="/static/assets/logo.png" alt="Logo" />
 ```
 
 ### Import Alias
+
 ```jac
 cl import from "@jac-client/assets/logo.png" { default as logo }
 <img src={logo} />
 ```
 
 ### CSS Assets
+
 ```css
 .hero {
     background-image: url('/static/assets/hero.jpg');
@@ -191,14 +197,17 @@ cl import from "@jac-client/assets/logo.png" { default as logo }
 ## Troubleshooting
 
 **Asset not found (404)**
+
 - Verify file exists in `assets/` or `dist/` directory
 - Check path matches file location exactly
 
 **Import not resolving**
+
 - Ensure `vite.config.js` has `@jac-client/assets` alias configured
 - Verify assets are copied to `compiled/assets/` during build
 
 **CSS background image not showing**
+
 - Use `/static/` prefix in CSS `url()` paths
 - Verify asset file exists in `assets/` directory
 

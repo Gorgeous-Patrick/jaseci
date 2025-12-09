@@ -21,6 +21,7 @@ with entry {
 5. **Reset When Stuck**: Use the Reset button to start with a clean slate
 
 ## Debug Mode
+
 Debug Mode transforms the Jac Playground into a powerful development environment with advanced debugging capabilities. When enabled, the interface splits into two main sections: the code editor on the left and the **Jaclang Graph Visualizer** on the right.
 
 ### Jaclang Graph Visualizer
@@ -37,10 +38,10 @@ Debug Mode transforms the Jac Playground into a powerful development environment
 
 The Graph Visualizer makes Jac's spatial programming concepts tangible, allowing you to see exactly how your objects, walkers, and edges interact during program execution.
 
-
 ## Interface Overview
 
 ### Main Editor
+
 The left side of the screen contains the code editor where you can write your Jac programs. The editor features:
 
 - Syntax highlighting for Jac language
@@ -48,6 +49,7 @@ The left side of the screen contains the code editor where you can write your Ja
 - Auto-indentation and bracket matching
 
 ### Control Panel
+
 At the top of the editor, you'll find:
 
 - **Run Button** ▶️ - Execute your Jac program
@@ -68,6 +70,7 @@ When Debug Mode is active, you'll notice additional controls in the Run Mode too
 The Graph Visualizer is one of Jac's most powerful debugging features, providing a real-time visual representation of your program's execution flow. This unique tool shows:
 
 ### Output Panel
+
 The bottom section displays the output of your program, including:
 
 - Print statements and results
@@ -75,9 +78,11 @@ The bottom section displays the output of your program, including:
 - Program execution feedback
 
 ### Example Library
+
 The right sidebar contains a collection of sample programs organized by category:
 
 #### Basic Examples
+
 - **For Loop** - Learn iteration with for loops
 - **While Loop** - Understand conditional looping
 - **Archetypes** - Explore Jac's type system
@@ -86,6 +91,7 @@ The right sidebar contains a collection of sample programs organized by category
 - **Conditional Statements** - If/else logic and branching
 
 #### Object Spatial Programming
+
 - **Reference** - Understanding object references and relationships
 
 ## Tips for New Users
@@ -99,9 +105,11 @@ The right sidebar contains a collection of sample programs organized by category
 ## Example Categories Explained
 
 ### Basic Programming Concepts
+
 These examples cover fundamental programming constructs that are essential for any Jac programmer.
 
 ### Object Spatial Programming
+
 Jac's unique approach to spatial programming and object relationships. These advanced examples show how Jac handles complex data structures and spatial reasoning.
 
 ## Getting Help

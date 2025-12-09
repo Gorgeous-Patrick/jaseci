@@ -21,6 +21,7 @@ Lines 19-27 demonstrate handling different exception types:
 | 25 | `Exception` | Any other exception |
 
 Line 20 attempts `int("not a number")`, which raises `ValueError`. The except clauses are checked in order:
+
 - Line 21 catches `ValueError` (matches) - executes line 22
 - Lines 23-24 would catch `TypeError` (skipped)
 - Lines 25-26 would catch any other `Exception` (skipped)
@@ -30,6 +31,7 @@ Only the first matching except clause executes.
 **Try-Except-Else**
 
 Lines 30-36 demonstrate the `else` clause. The else block (lines 34-35) executes only if no exception occurred in the try block. Line 31 succeeds, so line 35 executes. The else clause is useful for:
+
 - Code that should only run on success
 - Distinguishing setup (try) from success handling (else)
 - Keeping exception-prone code isolated in the try block
@@ -37,6 +39,7 @@ Lines 30-36 demonstrate the `else` clause. The else block (lines 34-35) executes
 **Try-Finally**
 
 Lines 39-45 demonstrate the `finally` clause. The finally block (lines 43-44) always executes, whether an exception occurred or not. Line 44 runs after the try block completes successfully. Finally clauses are essential for:
+
 - Cleanup operations (closing files, releasing resources)
 - Ensuring critical code runs regardless of errors
 - Logging or auditing that must happen
@@ -56,6 +59,7 @@ graph TD
 ```
 
 Execution order:
+
 1. Try block (lines 48-50) - Attempt operation
 2. If exception: matching except block (lines 51-52)
 3. If no exception: else block (lines 53-54)
@@ -82,12 +86,14 @@ Lines 67-75 demonstrate nested exception handling. Line 69 raises `ZeroDivisionE
 **Exception Hierarchy**
 
 When using multiple except clauses:
+
 - More specific exceptions should come first
 - `Exception` catches most exceptions, so it should be last
 - Python checks except clauses sequentially
 - First match wins
 
 Example order:
+
 1. `ValueError` (specific)
 2. `TypeError` (specific)
 3. `Exception` (general)
@@ -95,6 +101,7 @@ Example order:
 **Best Practices**
 
 The examples demonstrate several best practices:
+
 - Catch specific exceptions rather than broad catches
 - Use else for code that should only run on success
 - Use finally for cleanup that must always occur

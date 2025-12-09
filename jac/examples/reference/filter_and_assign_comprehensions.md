@@ -14,12 +14,14 @@ Special comprehensions are unique Jac constructs that provide concise filtering 
 Line 46 demonstrates the fundamental syntax: `filtered = items(?x >= 10, y < 15);`
 
 The components are:
+
 - `items` - The collection to filter
 - `?` - Filter operator
 - `x >= 10, y < 15` - Conditions (both must be true)
 - Conditions reference object attributes directly without prefixes
 
 Filter semantics:
+
 1. For each object in the collection
 2. Evaluate ALL conditions against that object's attributes
 3. Include object only if ALL conditions are True (AND logic)
@@ -38,6 +40,7 @@ Even with a single condition, the `?` operator is required. This finds all items
 Line 54 demonstrates multi-condition filtering: `complex_filter = items(?x >= 5, x <= 15, y > 10);`
 
 All three conditions must be satisfied:
+
 - `x >= 5` - Lower bound on x
 - `x <= 15` - Upper bound on x
 - `y > 10` - Constraint on y
@@ -62,11 +65,13 @@ Lines 158-167 demonstrate all available operators:
 Lines 64-65 demonstrate attribute assignment: `objs(=y=100, z=200);`
 
 The syntax pattern is:
+
 - `objs` - Collection to modify
 - `=` prefix - Indicates assign comprehension
 - `y=100, z=200` - Attribute assignments (comma-separated)
 
 Assign semantics:
+
 1. For each object in the collection
 2. Set each specified attribute to its value
 3. Mutations occur in-place on original objects
@@ -79,6 +84,7 @@ Line 65 confirms this is a mutating operation - the original objects are changed
 Line 76 demonstrates powerful composition: `people(?age >= 30)(=score=95);`
 
 Execution flow:
+
 1. `people(?age >= 30)` - Filter people with age >= 30
 2. Returns filtered subset (Bob and Charlie)
 3. `(=score=95)` - Assign score=95 to filtered objects
@@ -91,6 +97,7 @@ Lines 78-80 show results: only Bob and Charlie (age >= 30) have scores updated t
 Line 85 shows sequential filtering: `result = data(?x > 2)(?y < 15)(?z >= 6);`
 
 Each filter narrows results:
+
 1. `(?x > 2)` - First filter
 2. `(?y < 15)` - Applied to previous result
 3. `(?z >= 6)` - Final filter on remaining items
@@ -100,6 +107,7 @@ Order matters - each filter receives output of the previous filter. Line 86 show
 **Filter on Edge Traversal Results**
 
 Lines 115-117 demonstrate the critical spatial programming pattern. This is where comprehensions become essential for OSP:
+
 - `[-->]` traverses outgoing edges, returns target nodes
 - Result is a collection of nodes (Employee objects)
 - `(?salary > 75000)` filters nodes by attribute
@@ -115,6 +123,7 @@ graph LR
 **Typed Edge with Node Filter**
 
 Lines 121-123 combine edge type filtering with node attribute filtering. Workflow:
+
 - `[->:ReportsTo:->]` - Traverse only ReportsTo-typed edges
 - Returns nodes connected via those specific edges
 - `(?department == "Engineering")` - Filter nodes by attribute
@@ -124,6 +133,7 @@ This dual-level filtering (structural + property) is a hallmark of Jac's spatial
 **Assign on Edge Results**
 
 Lines 129-130 demonstrate spatial bulk updates. Pattern:
+
 1. Get nodes via edge traversal: `[-->]`
 2. Modify all retrieved nodes in bulk
 
@@ -168,6 +178,7 @@ Traditional Python list comprehension:
 Jac filter comprehension:
 
 Differences:
+
 - Jac: More concise, no explicit iteration
 - Jac: Direct attribute access (no `obj.` prefix)
 - Jac: Integrates seamlessly with edge traversal
@@ -180,12 +191,14 @@ Jac:
 **Use Cases**
 
 Filter comprehensions excel at:
+
 - Finding specific nodes: `[-->](?dept=="Engineering")`
 - Graph queries: "find all X connected to Y where Z"
 - Selecting subsets: `candidates(?score > threshold)`
 - Filtering walker targets: `visit [-->](?active==True);`
 
 Assign comprehensions excel at:
+
 - Bulk state updates: `affected_nodes(=processed=True)`
 - Initialization: `new_nodes(=status="pending", priority=0)`
 - Propagating changes: `downstream(=needs_update=True)`

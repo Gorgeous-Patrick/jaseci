@@ -102,11 +102,13 @@ build-backend = "setuptools.build_meta"
 ### Step 4: Install and Test Your Plugin
 
 1. Install the plugin in development mode:
+
    ```bash
    pip install -e .
    ```
 
 2. Create a test Jaclang file to verify plugin functionality:
+
    ```jaclang
    import:py from byllm, Model;
 
@@ -125,6 +127,7 @@ build-backend = "setuptools.build_meta"
    ```
 
 3. Run the test:
+
    ```bash
    jac run test.jac
    ```
@@ -416,6 +419,7 @@ for plugin in plugin_manager.get_plugins():
 byLLM plugins extend Jaclang's LLM capabilities through a clean, extensible plugin system. Plugins can add caching, logging, custom providers, and other functionality to enhance the LLM experience.
 
 Key considerations:
+
 - Follow the hook specification exactly
 - Test thoroughly with different scenarios
 - Document plugin functionality

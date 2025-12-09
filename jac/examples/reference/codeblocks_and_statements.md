@@ -27,6 +27,7 @@ graph TD
 ```
 
 Every code block has:
+
 - Opening brace `{`
 - Zero or more statements
 - Closing brace `}`
@@ -66,11 +67,13 @@ graph LR
 **Semicolons in Jac**
 
 Jac requires semicolons to terminate most statements:
+
 - Assignment statements: `x = 42;`
 - Expression statements: `print(...);`
 - Return statements: `return value;`
 
 Semicolons are not used after code blocks themselves:
+
 - Function definitions: `def foo() { ... }` (no semicolon after `}`)
 - If statements: `if x > 0 { ... }` (no semicolon after `}`)
 - Loops: `while x < 10 { ... }` (no semicolon after `}`)
@@ -90,6 +93,7 @@ Code blocks can contain:
 **Scope and Code Blocks**
 
 Code blocks create scope boundaries for variables:
+
 - Variables defined in a block are local to that block
 - Nested blocks can access variables from outer blocks
 - Outer blocks cannot access variables from inner blocks

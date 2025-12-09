@@ -4,7 +4,7 @@ Learn how to use React's `useEffect` and `useState` hooks to manage component st
 
 ---
 
-##  Table of Contents
+## Table of Contents
 
 - [What are Lifecycle Hooks?](#what-are-lifecycle-hooks)
 - [React Hooks (Recommended)](#react-hooks-recommended)
@@ -20,15 +20,18 @@ Learn how to use React's `useEffect` and `useState` hooks to manage component st
 ## What are Lifecycle Hooks?
 
 Lifecycle hooks are functions that let you run code at specific points in a component's lifecycle:
+
 - **When component mounts**: Run initialization code once
 - **When component updates**: React to state changes
 - **When component unmounts**: Clean up resources
 
 **Jac uses React hooks as the standard approach:**
+
 - **useState**: Manage component state
 - **useEffect**: Handle side effects, lifecycle events, and cleanup
 
 **Key Benefits:**
+
 - **Initialization**: Load data when component appears
 - **Side Effects**: Set up subscriptions, timers, or listeners
 - **Reactive Updates**: Run code when specific dependencies change
@@ -65,6 +68,7 @@ cl {
 ```
 
 **Key Points:**
+
 - Import `useState` from `react`
 - Returns an array: `[currentValue, setterFunction]`
 - Use destructuring to get the value and setter
@@ -115,6 +119,7 @@ cl {
 ```
 
 **Key Points:**
+
 - Import `useEffect` from `react`
 - First argument: function to run
 - Second argument: dependency array

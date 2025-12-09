@@ -1,12 +1,12 @@
 # Step 5: Local State
 
-> ** Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
+> **Quick Tip:** Each step has two parts. **Part 1** shows you what to build. **Part 2** explains why it works. Want to just build? Skip all Part 2 sections!
 
 In this step, you'll learn about **state** - the data that makes your app interactive and dynamic!
 
 ---
 
-##  Part 1: Building the App
+## Part 1: Building the App
 
 ### Step 5.1: First, Let's See Why Normal Variables Don't Work
 
@@ -58,6 +58,7 @@ cl {
 ```
 
 **What's happening:**
+
 - `useState([])` creates state with initial value `[]` (empty array)
 - Returns two things:
   - `todos` - The current value (read-only)
@@ -271,7 +272,7 @@ cl {
 
 ---
 
-##  Part 2: Understanding the Concepts
+## Part 2: Understanding the Concepts
 
 ### What is State?
 
@@ -306,6 +307,7 @@ def app() -> any {
 ```
 
 **Returns a pair:**
+
 1. `value` - Current state value (read-only, don't modify directly!)
 2. `setValue` - Function to update state
 
@@ -404,6 +406,7 @@ items = [TodoItem(text=todo["text"]) for todo in todos]
 ```
 
 **Breakdown:**
+
 - `todos.map(...)` - Loop through each todo
 - `lambda todo: any -> any { ... }` - Function that runs for each item
 - `return <TodoItem ... />` - Returns a component for each item
@@ -446,19 +449,19 @@ The child receives state but **cannot modify** the parent's state directly (we'l
 
 ---
 
-##  What You've Learned
+## What You've Learned
 
--  What state is and why we need it
--  How to use the `useState` hook
--  Creating multiple state variables
--  State naming conventions
--  Using `.map()` to render lists
--  State is immutable (don't modify directly)
--  Passing state to child components via props
+- What state is and why we need it
+- How to use the `useState` hook
+- Creating multiple state variables
+- State naming conventions
+- Using `.map()` to render lists
+- State is immutable (don't modify directly)
+- Passing state to child components via props
 
 ---
 
-##  Common Issues
+## Common Issues
 
 ### Issue: UI not updating when state changes
 
@@ -494,7 +497,7 @@ cl import from react {useState}
 
 ---
 
-##  Quick Exercise
+## Quick Exercise
 
 Try adding more initial todos:
 
@@ -521,7 +524,7 @@ return <div>
 
 ---
 
-##  Next Step
+## Next Step
 
 Great! You now have state in your app, but you can't change it yet. Clicking buttons does nothing!
 

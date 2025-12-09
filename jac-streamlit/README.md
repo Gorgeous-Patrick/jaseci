@@ -34,6 +34,7 @@ jac dot_view app.jac
 ```
 
 This opens a Streamlit application with two visualization modes:
+
 - **Interactive View**: Using streamlit-agraph for dynamic graph exploration
 - **Static View**: Using pygraphviz for traditional graph rendering
 

@@ -4,7 +4,7 @@ Learn how to manage complex state in Jac using React hooks, combining multiple s
 
 ---
 
-##  Table of Contents
+## Table of Contents
 
 - [React Hooks Overview](#react-hooks-overview)
 - [Multiple State Variables](#multiple-state-variables)
@@ -109,6 +109,7 @@ cl {
 ```
 
 **Benefits:**
+
 - **Separation of Concerns**: Each state variable manages one aspect
 - **Selective Updates**: Only components using specific state re-render
 - **Type Safety**: Each variable has its own type

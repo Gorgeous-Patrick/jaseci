@@ -91,12 +91,14 @@ For complex logic requiring multiple statements or control flow, use regular `de
 **When to Use Lambdas**
 
 Lambdas are appropriate for:
+
 - Simple, one-line operations
 - Inline function definitions for `map`, `filter`, `sorted`, etc.
 - Callback functions that are used only once
 - Closures with simple logic
 
 Regular functions are appropriate for:
+
 - Multiple statements or complex logic
 - Better documentation with docstrings
 - Reusable code that appears in multiple places

@@ -4,11 +4,11 @@ This document provides a comprehensive checklist of all import patterns needed i
 
 ## Quick Reference
 
--  **Working** - Fully implemented and tested
--  **In Progress** - Partially implemented or under development
--  **Not Implemented** - Not yet supported
+- **Working** - Fully implemented and tested
+- **In Progress** - Partially implemented or under development
+- **Not Implemented** - Not yet supported
 - ️ **Generates Invalid** - Generates code but produces invalid JavaScript
--  **Proposed** - Design proposed, not yet implemented
+- **Proposed** - Design proposed, not yet implemented
 
 ---
 
@@ -60,7 +60,6 @@ This document provides a comprehensive checklist of all import patterns needed i
 | `import { helper } from './utils'` | `cl import from .utils { helper }` |  Working | `import { helper } from "./utils";` | Current directory |
 | `import { format } from '../lib'` | `cl import from ..lib { format }` |  Working | `import { format } from "../lib";` | Parent directory |
 | `import { settings } from '../../config'` | `cl import from ...config { settings }` |  Working | `import { settings } from "../../config";` | Grandparent directory |
-
 
 ---
 
@@ -204,7 +203,8 @@ This document provides a comprehensive checklist of all import patterns needed i
 
 ## Implementation Summary
 
-###  Fully Implemented (9 patterns)
+### Fully Implemented (9 patterns)
+
 1. Named imports (single, multiple, with aliases)
 2. Default imports
 3. Namespace imports
@@ -212,7 +212,8 @@ This document provides a comprehensive checklist of all import patterns needed i
 5. Relative path imports (., .., ..., etc.)
 6. String literal imports (hyphenated packages)
 
-###  Not Yet Implemented (45+ patterns)
+### Not Yet Implemented (45+ patterns)
+
 1. **Asset imports**: CSS, images (PNG, JPG, SVG, WebP, GIF), fonts (WOFF2, TTF), videos, audio, PDFs
 2. **Data imports**: JSON, raw text files, markdown, shaders
 3. **Dynamic imports**: Async imports, conditional imports
@@ -225,6 +226,7 @@ This document provides a comprehensive checklist of all import patterns needed i
 **Note**: TypeScript-specific type imports are not needed as JAC provides native type safety.
 
 ### ️ Known Issues
+
 1. Named + Namespace mix generates invalid JavaScript
 
 ---
@@ -232,6 +234,7 @@ This document provides a comprehensive checklist of all import patterns needed i
 ## Priority Recommendations
 
 ### High Priority (Essential for most FE projects)
+
 1. **CSS imports** - Critical for styling
 2. **Image imports** (PNG, JPG, SVG) - Essential for UI
 3. **Side-effect imports** - Needed for polyfills and initialization
@@ -239,6 +242,7 @@ This document provides a comprehensive checklist of all import patterns needed i
 5. **Dynamic imports** - Code splitting and lazy loading
 
 ### Medium Priority (Common in modern projects)
+
 1. **SVG as React components** - Popular in React projects
 2. **CSS Modules** - Modern styling approach
 3. **Scoped packages** (@company/pkg) - Monorepos and private packages
@@ -246,6 +250,7 @@ This document provides a comprehensive checklist of all import patterns needed i
 5. **Re-exports/Barrel files** - Code organization
 
 ### Low Priority (Advanced/Specialized)
+
 1. **Web Workers** - Performance optimization
 2. **WebAssembly** - Specialized use cases
 3. **Import assertions** - Emerging standard

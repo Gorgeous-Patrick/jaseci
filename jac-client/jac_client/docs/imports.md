@@ -4,7 +4,7 @@ Learn how to import third-party libraries, other Jac files, and JavaScript modul
 
 ---
 
-##  Table of Contents
+## Table of Contents
 
 - [Importing Jac-Client Utilities](#importing-jac-client-utilities)
 - [Working with Third-Party Node Modules](#working-with-third-party-node-modules)
@@ -69,6 +69,7 @@ cl {
 ```
 
 **Signature:**
+
 ```jac
 jacSpawn(walker_name: str, node_id: str, params: dict) -> any
 ```
@@ -475,6 +476,7 @@ Before importing third-party libraries, you need:
 ### Why Third-Party Libraries?
 
 Third-party libraries provide:
+
 - **UI Components**: React component libraries (Ant Design, Material-UI, etc.)
 - **Utilities**: Helper functions and utilities (lodash, date-fns, etc.)
 - **Tools**: Development and production tools
@@ -503,6 +505,7 @@ npm install antd react-icons date-fns
 ```
 
 **What Happens:**
+
 - Package is downloaded to `node_modules/`
 - Package is added to `package.json` dependencies
 - Package becomes available for import
@@ -520,6 +523,7 @@ ls node_modules | grep antd
 ```
 
 **package.json Example:**
+
 ```json
 {
   "name": "my-app",
@@ -552,6 +556,7 @@ cl import from package_name {
 ```
 
 **Key Points:**
+
 - Use `cl import` for client-side imports
 - `from package_name` - the npm package name (no quotes)
 - `{ ... }` - list of exports to import (comma-separated)
@@ -773,6 +778,7 @@ cl import from .module_name {
 ```
 
 **Key Points:**
+
 - Use `.` for relative imports (same directory or subdirectory)
 - `.module_name` - the Jac file name without `.jac` extension
 - `{ ... }` - list of exports to import
@@ -780,6 +786,7 @@ cl import from .module_name {
 ### Example: Importing from Same Directory
 
 **button.jac:**
+
 ```jac
 """Button component."""
 
@@ -817,6 +824,7 @@ cl def PrimaryButton(props: dict) -> any {
 ```
 
 **app.jac:**
+
 ```jac
 """Main application."""
 
@@ -852,6 +860,7 @@ You can import functions, classes, and constants from local JavaScript files.
 ### JavaScript File Structure
 
 **utils.js:**
+
 ```javascript
 // Export individual functions
 export function formatMessage(name) {
@@ -1099,11 +1108,13 @@ cl def ContactForm() -> any {
 ### Issue: Module Not Found
 
 **Problem:**
+
 ```
 Error: Cannot find module 'antd'
 ```
 
 **Solution:**
+
 ```bash
 # Install the missing package
 npm install antd
@@ -1115,6 +1126,7 @@ npm install antd
 Imported component is `undefined`
 
 **Solution:**
+
 - Check the export name matches exactly
 - Verify the file path is correct
 - Ensure the file exports the component/function
@@ -1125,6 +1137,7 @@ Imported component is `undefined`
 Type errors with imported functions
 
 **Solution:**
+
 - Check function signatures match
 - Verify parameter types
 - Review library documentation

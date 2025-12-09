@@ -54,6 +54,7 @@ The example demonstrates several assertion patterns:
 **When to Use Assertions**
 
 Assertions are perfect for:
+
 - Validating function preconditions (input requirements)
 - Checking function postconditions (output guarantees)
 - Verifying internal invariants (conditions that should always be true)
@@ -62,6 +63,7 @@ Assertions are perfect for:
 **Assertions vs Exceptions**
 
 Unlike regular exceptions, assertions should be used for:
+
 - Debugging during development
 - Catching programming errors (not user errors)
 - Validating assumptions in code
