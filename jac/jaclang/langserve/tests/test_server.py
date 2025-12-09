@@ -152,6 +152,12 @@ def test_go_to_definition(fixture_path: Callable[[str], str]) -> None:
         assert "fixtures/goto_def_tests.jac:0:5-0:13" in str(
             lsp.get_definition(goto_defs_file, lspt.Position(11, 21))
         )
+
+        # Test when the left of assignment is a list.
+        assert "fixtures/goto_def_tests.jac:16:5-16:8" in str(
+            lsp.get_definition(goto_defs_file, lspt.Position(17, 10))
+        )
+
     finally:
         lsp.shutdown()
 
