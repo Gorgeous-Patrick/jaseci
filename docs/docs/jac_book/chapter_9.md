@@ -7,7 +7,7 @@ This chapter will show you how to define these core components and how to give y
 
 ## Node Abilities
 ---
-So far, we have seen how walkers can be programmed with intelligence to traverse a graph and collect information. But in Jac, nodes are not just passive data containers. They can have their own abilities—methods that are specifically designed to trigger when a certain type of walker arrives.
+So far, we have seen how walkers can be programmed with intelligence to traverse a graph and collect information. But in Jac, nodes are not just passive data containers. They can have their own abilities, methods that are specifically designed to trigger when a certain type of walker arrives.
 This two-way dynamic enables powerful, flexible interactions between walkers and the graph they explore.
 
 ### Usecase: Uninformed State Agent
@@ -127,11 +127,11 @@ This pattern is incredibly powerful. It allows you to build a complex world of s
 ## Node Inheritance
 ---
 
-In Jac, nodes are more than just data—they can encapsulate behavior and interact with walkers. When building modular systems, it’s often useful to group nodes by type or functionality. This is where node inheritance comes in.
+In Jac, nodes are more than just data. They can encapsulate behavior and interact with walkers. When building modular systems, it’s often useful to group nodes by type or functionality. This is where node inheritance comes in.
 
 Let’s revisit the `Weather` and `Time` nodes from the previous example. While they each provide different types of information, they serve a common purpose: delivering contextual data to an agent. In Jac, we can express this shared role using inheritance, just like in traditional object-oriented programming.
 
-We define a base node archetype called `Service`. This acts as a common interface for all context-providing nodes. Any node that inherits from `Service` is guaranteed to support certain interactions—either by shared methods or simply by tagging it with a common type.
+We define a base node archetype called `Service`. This acts as a common interface for all context-providing nodes. Any node that inherits from `Service` is guaranteed to support certain interactions, either by shared methods or simply by tagging it with a common type.
 
 ```jac
 node Service {}
@@ -205,7 +205,7 @@ glob npc_model = Model(model_name="gpt-4.1-mini");
 """Adjusts the tone or personality of the shop keeper npc depending on weather/time."""
 def get_ambient_mood(state: dict) -> str by npc_model();
 ```
-This function, `get_ambient_mood`, takes a dictionary (the walker’s state) and sends it to the model. The model interprets the contents like `temperature` and `time`—and returns a textual mood that fits the situation.
+This function, `get_ambient_mood`, takes a dictionary (the walker’s state) and sends it to the model. The model interprets the contents like `temperature` and `time`, and then returns a textual mood that fits the situation.
 
 #### Step 2 - The NPC Node
 
@@ -220,7 +220,7 @@ node NPC {
     }
 }
 ```
-This is where the NPC’s personality is generated—based entirely on the graph-derived context.
+This is where the NPC’s personality is generated, based entirely on the graph-derived context.
 
 
 #### Walker Composition
@@ -394,7 +394,7 @@ science_lab: The starting node (the "source" of the edge).
 
 ## Graph Navigation and Filtering
 ---
-Jac provides powerful and expressive syntax for navigating and querying graph structures. Walkers can traverse connections directionally—forward or backward—and apply filters to control exactly which nodes or edges should be visited.
+Jac provides powerful and expressive syntax for navigating and querying graph structures. Walkers can traverse connections directionally(forward or backward) and apply filters to control exactly which nodes or edges should be visited.
 
 ### Directional Traversal
 - `-->` : Follows outgoing edges from the current node.

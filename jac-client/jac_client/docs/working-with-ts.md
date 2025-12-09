@@ -1,6 +1,6 @@
 # Working with TypeScript in Jac
 
-> **⚠️ Warning: TypeScript as Last Resort**
+> **️ Warning: TypeScript as Last Resort**
 >
 > **Always prefer writing code in Jac when possible.** TypeScript support is provided for cases where you need to:
 > - Integrate existing TypeScript/React component libraries
@@ -43,12 +43,12 @@ The simplest way to add TypeScript support is during project creation using the 
    ```
 
 That's it! The CLI will automatically:
-- ✅ Install TypeScript dependencies
-- ✅ Create `tsconfig.json` with proper configuration
-- ✅ Update `vite.config.js` with TypeScript support
-- ✅ Create a `components/` directory with a sample `Button.tsx` component
-- ✅ Update `app.jac` with a TypeScript import example
-- ✅ Update `README.md` with TypeScript instructions
+-  Install TypeScript dependencies
+-  Create `tsconfig.json` with proper configuration
+-  Update `vite.config.js` with TypeScript support
+-  Create a `components/` directory with a sample `Button.tsx` component
+-  Update `app.jac` with a TypeScript import example
+-  Update `README.md` with TypeScript instructions
 
 ### What Gets Created
 
@@ -328,4 +328,4 @@ jac create_jac_app my-app
 4. Create `components/` directory
 5. Start creating TypeScript components!
 
-Happy coding with TypeScript and Jac! 🚀
+Happy coding with TypeScript and Jac!

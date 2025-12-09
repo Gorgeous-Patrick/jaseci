@@ -25,7 +25,7 @@ git checkout main
 
 ---
 
-## 📦 Install Dependencies
+##  Install Dependencies
 
 Make sure you have **Python 3.12+** installed. Then:
 
@@ -46,7 +46,7 @@ pip install pygame jac-lang byllm
 
 ---
 
-## 🔑 Set Your API Keys
+##  Set Your API Keys
 
 ### For OpenAI (default model: `gpt-4o`)
 
@@ -89,7 +89,7 @@ jac run main.jac
 
 ---
 
-## 📁 Asset Paths
+##  Asset Paths
 
 The game loads its images and fonts from:
 ```
@@ -100,7 +100,7 @@ Do **not** move these folders, or you will get "file not found" errors.
 
 ---
 
-## 🛠 Troubleshooting
+##  Troubleshooting
 
 - **File not found errors** → Make sure you run `jac run main.jac` from the `jac_impl_6` folder.
 - **Pygame errors** → Ensure `pygame` installed correctly: `pip show pygame`.
@@ -108,5 +108,5 @@ Do **not** move these folders, or you will get "file not found" errors.
 
 ---
 
-## 📜 License
+##  License
 This project follows the [Jaseci Labs license](https://github.com/jaseci-labs/jaseci/blob/main/.github/LICENSE).

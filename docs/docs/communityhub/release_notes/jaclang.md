@@ -139,9 +139,9 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jaclang 0.8.3
 
-- **JacMachine Interface Reorganization**: The machine and interface have been refactored to maintain a shared global state—similar to Python's `sys.modules`—removing the need to explicitly pass execution context and dramatically improving performance.
+- **JacMachine Interface Reorganization**: The machine and interface have been refactored to maintain a shared global state(similar to Python's `sys.modules`) removing the need to explicitly pass execution context and dramatically improving performance.
 - **Native Jac Imports**: Native import statements can now be used to import Jac modules seamlessly into python code, eliminating the need to use `_.jac_import()`.
-- **Unicode String Literal Support**: Fixed unicode character handling in string literals. Unicode characters like "✓", "○", emojis, and other international characters are now properly preserved during compilation instead of being corrupted into byte sequences.
+- **Unicode String Literal Support**: Fixed unicode character handling in string literals. Unicode characters like "", "○", emojis, and other international characters are now properly preserved during compilation instead of being corrupted into byte sequences.
 - **Removed Ignore Statements**: The `ignore` keyword and ignore statements have been removed as this functionality can be achieved more elegantly by modifying path collection expressions directly in visit statements.
 
 ## jaclang 0.8.1

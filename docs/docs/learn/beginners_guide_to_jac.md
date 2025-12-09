@@ -2577,23 +2577,23 @@ with entry {
 Congratulations! You've learned programming from the ground up using Jac. Here's what you've mastered:
 
 ### Traditional Programming Concepts
-- ✓ Variables and data types
-- ✓ Operators and expressions
-- ✓ Control flow (if/elif/else)
-- ✓ Loops (while, for)
-- ✓ Functions
-- ✓ Collections (lists, dictionaries, tuples)
-- ✓ Classes and objects
-- ✓ Inheritance
+-  Variables and data types
+-  Operators and expressions
+-  Control flow (if/elif/else)
+-  Loops (while, for)
+-  Functions
+-  Collections (lists, dictionaries, tuples)
+-  Classes and objects
+-  Inheritance
 
 ### Object-Spatial Programming (Unique to Jac!)
-- ✓ Graphs (nodes and edges)
-- ✓ First-class relationships
-- ✓ Walkers (mobile computation)
-- ✓ Abilities (automatic event handling)
-- ✓ Graph traversal (visit statements)
-- ✓ Edge references (declarative queries)
-- ✓ Bidirectional polymorphism
+-  Graphs (nodes and edges)
+-  First-class relationships
+-  Walkers (mobile computation)
+-  Abilities (automatic event handling)
+-  Graph traversal (visit statements)
+-  Edge references (declarative queries)
+-  Bidirectional polymorphism
 
 ### The Progression You Followed
 
@@ -2739,7 +2739,7 @@ This makes you uniquely prepared to:
 
 This simple idea unlocks powerful new ways to solve problems, especially when data has complex relationships.
 
-Keep practicing, keep building, and welcome to the world of programming! 🚀
+Keep practicing, keep building, and welcome to the world of programming!
 
 ---
 
@@ -2972,4 +2972,4 @@ with entry {
 
 ---
 
-**Happy coding! May your graphs be well-connected and your walkers always find their way! 🎉**
+**Happy coding! May your graphs be well-connected and your walkers always find their way! **

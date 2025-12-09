@@ -26,4 +26,4 @@ See `components/Button.tsx` for an example TypeScript component.
 
 For more information, see the [TypeScript guide](../../docs/working-with-ts.md).
 
-Happy coding with Jac and TypeScript! 🚀
+Happy coding with Jac and TypeScript!

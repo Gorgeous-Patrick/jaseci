@@ -18,31 +18,31 @@ This guide covers all styling approaches available in Jac web applications. Each
 ## Styling Approaches Overview
 
 ### Traditional CSS
-- **Pure CSS** — Standard CSS with external stylesheets
+- **Pure CSS:** Standard CSS with external stylesheets
   - Maximum control, minimal dependencies
   - Perfect for simple projects and learning
 
 ### CSS Preprocessors
-- **Sass/SCSS** — Variables, nesting, mixins, and functions
+- **Sass/SCSS:** Variables, nesting, mixins, and functions
   - Better organization for large projects
   - DRY principles with reusable code
 
 ### Utility-First CSS
-- **Tailwind CSS** — On-demand utility classes
+- **Tailwind CSS:** On-demand utility classes
   - Rapid UI development
   - Consistent design system
 
 ### CSS-in-JS Libraries
-- **Styled Components** — CSS-in-JS with template literals
+- **Styled Components:** CSS-in-JS with template literals
   - Component-scoped styles
   - Dynamic styling with props
 
-- **JavaScript Styling** — Inline styles using JavaScript objects
+- **JavaScript Styling:** Inline styles using JavaScript objects
   - Programmatic style generation
   - Dynamic styles based on state
 
 ### Component Libraries
-- **Material-UI** — Comprehensive React component library
+- **Material-UI:** Comprehensive React component library
   - Pre-built, accessible components
   - Material Design system
 
@@ -192,46 +192,46 @@ The following styling approaches are <strong>planned</strong> for documentation 
 
 <strong>CSS-in-JS Libraries</strong>
 <ul>
-  <li><strong>Emotion</strong> — CSS-in-JS with similar API to styled-components</li>
-  <li><strong>Styled JSX</strong> — CSS-in-JS (Next.js style)</li>
+  <li><strong>Emotion:</strong> CSS-in-JS with similar API to styled-components</li>
+  <li><strong>Styled JSX:</strong> CSS-in-JS (Next.js style)</li>
 </ul>
 
 <strong>CSS Modules</strong>
 <ul>
-  <li><strong>CSS Modules</strong> — Scoped CSS with local class names</li>
+  <li><strong>CSS Modules:</strong> Scoped CSS with local class names</li>
 </ul>
 
 <strong>Modern CSS</strong>
 <ul>
-  <li><strong>CSS Variables (Custom Properties)</strong> — Native CSS variables for theming</li>
-  <li><strong>PostCSS</strong> — CSS transformations and plugins</li>
+  <li><strong>CSS Variables (Custom Properties):</strong> Native CSS variables for theming</li>
+  <li><strong>PostCSS:</strong> CSS transformations and plugins</li>
 </ul>
 
 <strong>Component Libraries</strong>
 <ul>
-  <li><strong>Chakra UI</strong> — Modular and accessible component library</li>
-  <li><strong>Ant Design</strong> — Enterprise-focused component library</li>
-  <li><strong>Radix UI</strong> — Unstyled, accessible primitives</li>
-  <li><strong>Mantine</strong> — Full-featured React components</li>
+  <li><strong>Chakra UI:</strong> Modular and accessible component library</li>
+  <li><strong>Ant Design:</strong> Enterprise-focused component library</li>
+  <li><strong>Radix UI:</strong> Unstyled, accessible primitives</li>
+  <li><strong>Mantine:</strong> Full-featured React components</li>
 </ul>
 
 <strong>CSS Frameworks</strong>
 <ul>
-  <li><strong>Bulma</strong> — Flexbox-based CSS framework</li>
-  <li><strong>Foundation</strong> — Responsive framework</li>
-  <li><strong>Semantic UI</strong> — Natural language class names</li>
+  <li><strong>Bulma:</strong> Flexbox-based CSS framework</li>
+  <li><strong>Foundation:</strong> Responsive framework</li>
+  <li><strong>Semantic UI:</strong> Natural language class names</li>
 </ul>
 
 <strong>Zero-runtime CSS-in-JS</strong>
 <ul>
-  <li><strong>Vanilla Extract</strong> — Type-safe, zero-runtime CSS-in-JS</li>
-  <li><strong>Linaria</strong> — Zero-runtime CSS-in-JS</li>
-  <li><strong>Stitches</strong> — CSS-in-JS with variants API</li>
+  <li><strong>Vanilla Extract</strong> Type-safe, zero-runtime CSS-in-JS</li>
+  <li><strong>Linaria</strong> Zero-runtime CSS-in-JS</li>
+  <li><strong>Stitches</strong> CSS-in-JS with variants API</li>
 </ul>
 
 <strong>Utility-first</strong>
 <ul>
-  <li><strong>UnoCSS</strong> — On-demand atomic CSS engine</li>
+  <li><strong>UnoCSS</strong> On-demand atomic CSS engine</li>
 </ul>
 
 <em>Examples for these patterns will be added soon.</em>

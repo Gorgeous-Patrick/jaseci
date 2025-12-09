@@ -536,7 +536,7 @@ with entry {
 
 ## Project Structure Conventions
 ---
-As your Jac programs grow, keeping your code organized is key to making it easy to manage and update. Jac encourages a project structure that separates the what from the how—that is, separating the definition of your objects from the code that makes them work.
+As your Jac programs grow, keeping your code organized is key to making it easy to manage and update. Jac encourages a project structure that separates the what from the how, separating the definition of your objects from the code that makes them work.
 
 A good way to structure your project is to create different folders for your main program logic, your data models, and any utility functions you might need.
 
@@ -556,7 +556,7 @@ my_project/
 <br />
 
 ### Interface and Implementation Separation
-You'll notice that for our User model, we have two files: `user.jac` and `user.impl.jac`. This is a recommended practice in Jac for keeping your code clean. `user.jac` and `user.impl.jac`. The interface file (.jac) is like a blueprint. It defines what an object looks like—its attributes and the methods it should have. The implementation file (.impl.jac) contains the actual code that makes the methods work.
+You'll notice that for our User model, we have two files: `user.jac` and `user.impl.jac`. This is a recommended practice in Jac for keeping your code clean. `user.jac` and `user.impl.jac`. The interface file (.jac) is like a blueprint. It defines what an object looks like, the attributes and the methods it should have. The implementation file (.impl.jac) contains the actual code that makes the methods work.
 
 Let's look at an example. We want to create a User object that has a `name` and an `email`. We also need methods to validate the user's information and to get a nicely formatted display name.
 

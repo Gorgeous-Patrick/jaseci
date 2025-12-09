@@ -188,10 +188,10 @@ project/
                 task = models.Task(title=self.title);
                 here ++> task;
                 desc = utils.generate_desc(self.title);
-                print(f"✓ Created: {task.title}");
+                print(f" Created: {task.title}");
                 print(f"  AI: {desc}");
             } else {
-                print("✗ Title too short!");
+                print(" Title too short!");
             }
         }
     }
@@ -268,10 +268,10 @@ project/
                 task = models.Task(title=task_data["title"]);
                 here ++> task;
                 desc = generate_desc(task.title);
-                print(f"✓ Created: {task.title}");
+                print(f" Created: {task.title}");
                 print(f"  AI: {desc}");
             } else {
-                print("✗ Title invalid!");
+                print(" Title invalid!");
             }
         }
     }
@@ -328,10 +328,10 @@ project/
                 task = models.Task(title=self.title);
                 here ++> task;
                 desc = generate_desc(task.title);
-                print(f"✓ Created: {task.title}");
+                print(f" Created: {task.title}");
                 print(f"  AI: {desc}");
             } else {
-                print("✗ Title too short!");
+                print(" Title too short!");
             }
         }
     }
@@ -394,7 +394,7 @@ project/
     def create_task(title: str):
         """Python function using Jac features."""
         if not validate_title(title):
-            print("✗ Title too short!")
+            print(" Title too short!")
             return
 
         # Use Jac walker
@@ -433,7 +433,7 @@ project/
         can create with `root entry {
             task = Task(title=self.title);
             here ++> task;
-            print(f"✓ Created: {task.title}");
+            print(f" Created: {task.title}");
         }
     }
 
@@ -487,10 +487,10 @@ project/
             if validate_title(self.title):
                 task = Task(title=self.title)
                 connect(here, task)
-                print(f"✓ Created: {task.title}")
+                print(f" Created: {task.title}")
                 # Note: AI features require .jac syntax
             else:
-                print("✗ Title too short!")
+                print(" Title too short!")
 
     if __name__ == "__main__":
         creator = TaskCreator(title="Build API")

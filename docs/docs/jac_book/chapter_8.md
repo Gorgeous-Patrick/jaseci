@@ -45,7 +45,7 @@ Here, we define a node using the `node` keyword, which is similar to defining a 
 
 When the entry point is executed, it creates a root node on the Jac graph, which can be accessed using the `root` variable. This root node serves as the starting point for the program's graph structure, enabling traversal and manipulation of connected nodes.
 
-In the example above, we create a new node `node_a` with the name "A". However, this node is not automatically part of the graph—it exists in isolation. To incorporate it into the graph, we need to connect it to an existing node using an `edge`.
+In the example above, we create a new node `node_a` with the name "A". However, this node is not automatically part of the graph, it exists in isolation. To incorporate it into the graph, we need to connect it to an existing node using an `edge`.
 
 This is where the `++>` operator comes in. It creates a directional edge from the root node to `node_a`, effectively linking the two and adding `node_a` into the graph.
 
@@ -130,7 +130,7 @@ Walkers are more than simple graph crawlers. Because they are a subtype of the `
 - Execute Logic: A walker has methods (can abilities) that are automatically triggered when it "lands on" a specific type of node or edge.
 - Make Decisions: Based on the data it finds at its current location, a walker can decide where to go next.
 
-This paradigm shift—from centralized logic to distributed, mobile computation—is what makes OSP so powerful for modeling complex, real-world systems.
+This paradigm shift is what makes OSP so powerful for modeling complex, real-world systems.
 
 
 Getting back to our graph structure, lets define a simple walker that will traverse our graph and gather the names of the nodes it visits. When it reaches the terminal node, it will stop and return the collected names as a string:
@@ -193,7 +193,7 @@ To understand how walkers move through the graph, it's important to break down t
 
 In Jac, visit tells the walker to continue its traversal along the graph. What makes this powerful is the use of edge selectors inside the square brackets, like `[-->]`, which control how and where the walker moves.
 
-The `-->` symbol represents a forward edge in the graph—specifically, an edge from the current node (`here`) to any of its connected child nodes. So when you write visit `[-->];`, you're instructing the walker to follow all outgoing edges from the current node to the next set of reachable nodes.
+The `-->` symbol represents a forward edge in the graph. Specifically, an edge from the current node (`here`) to any of its connected child nodes. So when you write visit `[-->];`, you're instructing the walker to follow all outgoing edges from the current node to the next set of reachable nodes.
 
 Let's walk through what each part means:
 

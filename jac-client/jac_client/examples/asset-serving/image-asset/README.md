@@ -116,4 +116,4 @@ let imagePath = `/static/assets/${imageName}.png`;
 - Want cache busting
 - Prefer type-safe references
 
-Happy coding with Jac! 🍔
+Happy coding with Jac!

@@ -1,6 +1,6 @@
 # Jac-Client Roadmap
 
-## 🎯 High level roadmap
+##  High level roadmap
 
 1. Relative path resolving - @Jason - Done
 2. Bundler Plugin POC - Done
@@ -21,71 +21,71 @@
 
 ---
 
-## ✅ Completed Features
+##  Completed Features
 
 ### Core Runtime
-- ✅ JSX Factory (`__jacJsx`) - React.createElement integration
-- ✅ Fragment support (`<></>`)
-- ✅ Spread props
-- ✅ React 19 createRoot rendering
-- ✅ Full React hooks support (useState, useEffect, useReducer, useContext, useMemo, useCallback, useRef)
-- ✅ Event handling (onClick, onChange, onSubmit, onKeyPress, etc.)
+-  JSX Factory (`__jacJsx`) - React.createElement integration
+-  Fragment support (`<></>`)
+-  Spread props
+-  React 19 createRoot rendering
+-  Full React hooks support (useState, useEffect, useReducer, useContext, useMemo, useCallback, useRef)
+-  Event handling (onClick, onChange, onSubmit, onKeyPress, etc.)
 
 ### Routing (@jac-client/utils)
-- ✅ Declarative components: `<Router>`, `<Routes>`, `<Route>`, `<Link>`, `<Navigate>`
-- ✅ Routing hooks: `useNavigate()`, `useLocation()`, `useRouter()`
-- ✅ Programmatic navigation: `navigate(path)`
-- ✅ Hash-based routing (#/path)
-- ✅ Browser history integration
-- ✅ Basename support
+-  Declarative components: `<Router>`, `<Routes>`, `<Route>`, `<Link>`, `<Navigate>`
+-  Routing hooks: `useNavigate()`, `useLocation()`, `useRouter()`
+-  Programmatic navigation: `navigate(path)`
+-  Hash-based routing (#/path)
+-  Browser history integration
+-  Basename support
 - ⏳ URL params, query strings - Planned
 - ⏳ Nested routes - Planned
 
 ### Backend Communication (@jac-client/utils)
-- ✅ `jacSpawn(walker, node_id, params)` - Walker calling
-- ✅ Automatic JWT token injection
-- ✅ Async/await support
+-  `jacSpawn(walker, node_id, params)` - Walker calling
+-  Automatic JWT token injection
+-  Async/await support
 - ⏳ Retry logic - Planned
 - ⏳ Timeouts - Planned
 - ⏳ Request cancellation - Planned
 
 ### Authentication (@jac-client/utils)
-- ✅ `jacLogin(username, password)`
-- ✅ `jacSignup(username, password)`
-- ✅ `jacLogout()`
-- ✅ `jacIsLoggedIn()`
-- ✅ Automatic token management
+-  `jacLogin(username, password)`
+-  `jacSignup(username, password)`
+-  `jacLogout()`
+-  `jacIsLoggedIn()`
+-  Automatic token management
 - ⏳ Token refresh - ?
 - ⏳ Session expiration handling - ?
 
 ### Build & Bundling
-- ✅ Vite bundler integration
-- ✅ Babel compilation
-- ✅ Tree-shaking and optimization (vite)
-- ✅ External library support (npm packages)
-- ✅ `@jac-client/utils` alias resolution
-- ✅ Production builds with hashing
+-  Vite bundler integration
+-  Babel compilation
+-  Tree-shaking and optimization (vite)
+-  External library support (npm packages)
+-  `@jac-client/utils` alias resolution
+-  Production builds with hashing
 
 ### CLI
-- ✅ `jac create_jac_app <name>` - Project scaffolding
-- ✅ `jac serve <file.jac>` - Dev server
-- ✅ Automatic bundling
+-  `jac create_jac_app <name>` - Project scaffolding
+-  `jac serve <file.jac>` - Dev server
+-  Automatic bundling
 - ⏳ HMR (Hot Module Replacement) - Planned
 - ⏳ `jac install` - Universal package manager - Planned
 
 ### Examples
-- ✅ basic/ - Counter with React hooks
-- ✅ with-router/ - Multi-page navigation
-- ✅ basic-full-stack/ - Todo app with backend
-- ✅ little-x/ - Social media app (complex)
+-  basic/ - Counter with React hooks
+-  with-router/ - Multi-page navigation
+-  basic-full-stack/ - Todo app with backend
+-  little-x/ - Social media app (complex)
 
 ### Legacy APIs (Deprecated but Supported)
-- ⚠️ `createSignal()` → Use `useState`
-- ⚠️ `createState()` → Use `useState`
-- ⚠️ `onMount()` → Use `useEffect`
-- ⚠️ `initRouter()` → Use `<Router>` components
+- ️ `createSignal()` → Use `useState`
+- ️ `createState()` → Use `useState`
+- ️ `onMount()` → Use `useEffect`
+- ️ `initRouter()` → Use `<Router>` components
 
-## 📋 Testing Coverage Needed
+##  Testing Coverage Needed
 
 ### High Priority
 - [ ] Component rendering (nested, props, conditional, lists)
@@ -107,7 +107,7 @@
 - [ ] Source maps verification
 
 
-## 📦 Planned Features ( TO be validated)
+##  Planned Features ( TO be validated)
 
 ### High Priority
 - [ ] **URL params & query strings** - Routing enhancement
@@ -126,7 +126,7 @@
 ### Low Priority
 - [ ] **Component memoization** - Auto-optimization
 
-## 📚 Documentation
+##  Documentation
 
 See `jac_client/docs/` for detailed guides:
 - README.md - Getting started tutorial

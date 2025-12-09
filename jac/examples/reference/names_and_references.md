@@ -8,11 +8,11 @@ Special references are keywords that Jac makes available automatically in certai
 
 | Reference | Object Methods | Walker Abilities | Node Abilities | What It Refers To |
 |-----------|---------------|------------------|----------------|-------------------|
-| `self` | ✓ | ✓ | ✓ | Current instance (object/walker/node) |
-| `super` | ✓ | ✓ | ✓ | Parent class for inheritance |
-| `here` | ✗ | ✓ | ✓ | Current node being visited |
-| `visitor` | ✗ | ✗ | ✓ | Current walker (only in node abilities) |
-| `root` | ✗ | ✓ | ✓ | Root node (persistence anchor) |
+| `self` |  |  |  | Current instance (object/walker/node) |
+| `super` |  |  |  | Parent class for inheritance |
+| `here` |  |  |  | Current node being visited |
+| `visitor` |  |  |  | Current walker (only in node abilities) |
+| `root` |  |  |  | Root node (persistence anchor) |
 
 **self - The Instance Reference**
 
@@ -121,21 +121,21 @@ This two-phase initialization enables:
 **Context Matters: When References Are Available**
 
 In walker abilities (lines 12-14, 17-21):
-- ✓ `self` - the walker instance
-- ✓ `here` - the current node being visited
-- ✓ `root` - the root node
-- ✗ `visitor` - NOT available (the walker IS the visitor)
+-  `self` - the walker instance
+-  `here` - the current node being visited
+-  `root` - the root node
+-  `visitor` - NOT available (the walker IS the visitor)
 
 In node abilities (lines 43-46):
-- ✓ `self` - the node instance (same as `here`)
-- ✓ `here` - also the node instance
-- ✓ `visitor` - the walker that's visiting
-- ✓ `root` - the root node
+-  `self` - the node instance (same as `here`)
+-  `here` - also the node instance
+-  `visitor` - the walker that's visiting
+-  `root` - the root node
 
 In regular object methods (lines 7-10):
-- ✓ `self` - the object instance
-- ✓ `super` - parent class
-- ✗ Spatial references (`here`, `visitor`, `root`) - NOT available
+-  `self` - the object instance
+-  `super` - parent class
+-  Spatial references (`here`, `visitor`, `root`) - NOT available
 
 **Common Patterns**
 

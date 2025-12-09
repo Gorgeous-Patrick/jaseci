@@ -109,4 +109,4 @@ The `tsconfig.json` is configured for:
 - **Reusability**: Share TypeScript components across Jac applications
 - **Modern Tooling**: Leverage the full TypeScript ecosystem
 
-Happy coding with Jac and TypeScript! 🚀
+Happy coding with Jac and TypeScript!

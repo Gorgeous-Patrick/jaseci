@@ -182,20 +182,20 @@ When a walker spawns, this sequence occurs:
 **Common Mistakes to Avoid**
 
 1. **Wrong operator syntax**:
-   - ✗ Wrong: `root spawn :> Walker()`
-   - ✓ Right: `root spawn :> Walker`
+   -  Wrong: `root spawn :> Walker()`
+   -  Right: `root spawn :> Walker`
 
 2. **Assuming operators control traversal**:
-   - ✗ Wrong assumption: `:>` does depth-first automatically
-   - ✓ Reality: Queue is FIFO; control traversal with visit logic
+   -  Wrong assumption: `:>` does depth-first automatically
+   -  Reality: Queue is FIFO; control traversal with visit logic
 
 3. **Forgetting visit statements**:
    - Without `visit [-->]`, walker only executes on spawn node
    - No visits = no traversal
 
 4. **Not capturing return value**:
-   - ✗ `root spawn Collector();` loses walker state
-   - ✓ `result = root spawn Collector();` can access collected data
+   -  `root spawn Collector();` loses walker state
+   -  `result = root spawn Collector();` can access collected data
 
 **The Computation-to-Data Paradigm**
 

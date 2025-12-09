@@ -184,9 +184,9 @@ Both Python and Jac support the same f-string syntax with minor differences:
 |---------|--------|-----|
 | Statement termination | Optional | Required `;` |
 | Syntax | `f"text {expr}"` | `f"text {expr}";` |
-| All formatting features | ✅ | ✅ |
-| Raw f-strings | ✅ | ✅ |
-| Nested f-strings | ✅ | ✅ |
+| All formatting features |  |  |
+| Raw f-strings |  |  |
+| Nested f-strings |  |  |
 
 ## Best Practices
 

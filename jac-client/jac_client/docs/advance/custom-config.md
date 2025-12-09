@@ -340,8 +340,8 @@ The default configuration handles most use cases. Only add customizations when n
 }
 ```
 
-✅ **Good**: Only adds Tailwind plugin
-❌ **Bad**: Copying entire default config unnecessarily
+ **Good**: Only adds Tailwind plugin
+ **Bad**: Copying entire default config unnecessarily
 
 ### 2. Keep Plugins and Imports in Sync
 
@@ -370,13 +370,13 @@ For `build`, `server`, and `resolve`, use object format:
 }
 ```
 
-✅ **Good**: Object format
-❌ **Bad**: String format for these keys
+ **Good**: Object format
+ **Bad**: String format for these keys
 
 ### 4. Version Control
 
-- ✅ **Commit**: `config.json` (your customizations)
-- ❌ **Don't commit**: `.jac-client.configs/` (generated files)
+-  **Commit**: `config.json` (your customizations)
+-  **Don't commit**: `.jac-client.configs/` (generated files)
 
 The `.gitignore` automatically excludes generated configs.
 

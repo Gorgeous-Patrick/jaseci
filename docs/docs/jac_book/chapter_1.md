@@ -349,7 +349,7 @@ This familiar foundation makes it easier for you to get started and begin buildi
 ## Simple Friend Network Example
 ---
 
-Let's walk through building a complete friend network from scratch. This will show you how Jac's core concepts—nodes, edges, and walkers—work together in a practical example.
+Let's walk through building a complete friend network from scratch. This will show you how Jac's core concepts(nodes, edges, and walkers) work together in a practical example.
 
 ### Step 1: Define Your Nodes and Edges
 First, we need to define the structure of our data. We'll create a `Person` node to hold information about each individual and a `FriendsWith` edge to represent their relationships.

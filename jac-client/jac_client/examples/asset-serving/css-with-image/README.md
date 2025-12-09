@@ -88,4 +88,4 @@ cl import from "./assets/images/hero.jpg" { default as hero }
 3. Keep relative paths simple and clear
 4. Use consistent naming conventions
 
-Happy coding with Jac! 🍔
+Happy coding with Jac!

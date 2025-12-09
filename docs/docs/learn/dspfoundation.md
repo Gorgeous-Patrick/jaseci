@@ -417,7 +417,7 @@ To maintain object-spatial graph consistency and support higher-order topologica
 
 4. **Walker Instantiation**: An instance $w$ of a walker class $\tau_{\text{walker}}$ can be instantiated as a standard object without an initial location. In this state, the walker functions as a regular object with all its properties and methods accessible, but it does not participate in object-spatial traversal until activated via the spawn operator.
 
-These instantiation rules ensure that all object-spatial elements—from individual nodes and edges to higher-order path collections—maintain topological consistency while providing flexible construction mechanisms. The rules for path collections are particularly important as they bridge between the static topological structure and the dynamic execution patterns of walkers, allowing for complex traversal strategies to be expressed concisely while preserving the integrity of the object-spatial model.
+These instantiation rules ensure that all object-spatial elements, from individual nodes and edges to higher-order path collections, maintain topological consistency while providing flexible construction mechanisms. The rules for path collections are particularly important as they bridge between the static topological structure and the dynamic execution patterns of walkers, allowing for complex traversal strategies to be expressed concisely while preserving the integrity of the object-spatial model.
 
 ### Lifecycle Management
 

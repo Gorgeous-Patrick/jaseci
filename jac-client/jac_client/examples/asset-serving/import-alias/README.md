@@ -80,4 +80,4 @@ resolve: {
 3. Let Vite handle optimization and caching
 4. Use descriptive variable names for imported assets
 
-Happy coding with Jac! 🍔
+Happy coding with Jac!

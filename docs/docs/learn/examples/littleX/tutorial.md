@@ -461,4 +461,4 @@ Jaseci's graph-based approach works well for social networks where relationships
 
 ---
 
-> **Happy coding with Jaseci!** 🚀
+> **Happy coding with Jaseci!**

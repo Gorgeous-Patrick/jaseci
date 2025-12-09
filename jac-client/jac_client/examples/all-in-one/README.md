@@ -30,4 +30,4 @@ cl import from ".components/Card.tsx" { Card }
 
 See the TypeScript component in action on the Home page!
 
-Happy coding with Jac! 🚀
+Happy coding with Jac!

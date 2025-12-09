@@ -189,10 +189,10 @@ If you run into issues:
 
 Your application exposes these main endpoints:
 
-- `POST /user/register` — Create a new user account
-- `POST /user/login` — Login and get an access token
-- `POST /walker/upload_file` — Upload files (requires authentication)
-- `POST /walker/interact` — Chat with the AI (requires authentication)
+- `POST /user/register`: Create a new user account
+- `POST /user/login`: Login and get an access token
+- `POST /walker/upload_file`: Upload files (requires authentication)
+- `POST /walker/interact`: Chat with the AI (requires authentication)
 
 Visit `http://localhost:8000/docs` to see the full API documentation.
 

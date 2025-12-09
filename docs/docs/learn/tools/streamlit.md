@@ -36,7 +36,7 @@ A basic calculator demonstrating form handling and user interaction:
 import streamlit as st;
 
 def simple_calculator() {
-    st.title("🧮 Simple Calculator");
+    st.title(" Simple Calculator");
     st.write("A basic calculator built with Jac and Streamlit");
 
     # Create two columns for inputs
@@ -89,7 +89,7 @@ def simple_calculator() {
 
     # Show calculation history
     if "history" in st.session_state and st.session_state.history {
-        st.subheader("📝 History");
+        st.subheader(" History");
         for calc in st.session_state.history {
             st.write("• " + calc);
         }
@@ -118,7 +118,7 @@ A todo application showcasing session state management:
 import streamlit as st;
 
 def todo_app() {
-    st.title("📋 Todo App");
+    st.title(" Todo App");
     st.write("A simple todo application built with Jac and Streamlit");
 
     # Initialize session state
@@ -138,7 +138,7 @@ def todo_app() {
 
     # Display todos
     if st.session_state.todos {
-        st.subheader("📝 Your Todos");
+        st.subheader(" Your Todos");
 
         todos_to_remove = [];
 

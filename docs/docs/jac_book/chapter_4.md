@@ -260,7 +260,7 @@ with entry {
 
 ## Decorators for Enhanced Functionality
 ---
-As your programs grow, you'll often need to add cross-cutting functionality—like logging, timing, or caching—to multiple functions. Modifying each function directly would be repetitive and error-prone. Decorators solve this problem by providing a clean way to wrap a function with extra behavior.
+As your programs grow, you'll often need to add cross-cutting functionality, such as logging, timing, or caching, to multiple functions. Modifying each function directly would be repetitive and error-prone. Decorators solve this problem by providing a clean way to wrap a function with extra behavior.
 
 A decorator is a function that takes another function as an argument, adds some functionality, and returns a new function.
 
@@ -551,7 +551,7 @@ Some tasks, like network requests or reading large files, are I/O-bound. This me
 
 Jac's support for async functions allows your program to perform other work while it waits, leading to significant performance improvements for I/O-bound applications. This is known as concurrency.
 
-- `async def`: Marks a function as a "coroutine"—a special function that can be paused and resumed.
+- `async def`: Marks a function as a "coroutine", a special function that can be paused and resumed.
 - `await`: Pauses the execution of the current coroutine, allowing the program to work on other tasks until the awaited operation (e.g., a network call) is complete.
 
 ### Basic Async Functions

@@ -4,22 +4,22 @@ A lightweight AI-powered task management system that intelligently routes user r
 
 ## Features
 
-### 🤖 Intelligent Routing
+###  Intelligent Routing
 - Automatically determines the best handler for your request
 - Routes to specialized nodes: TaskHandling, EmailHandling, or GeneralChat
 - Uses AI-powered classification for accurate routing
 
-### 📋 Task Management
+###  Task Management
 - **Add Tasks**: Create tasks with dates and times
 - **Task Summarization**: Get summaries of all scheduled tasks
 - **Smart Extraction**: Automatically extracts task details from natural language
 
-### 📧 Email Writing
+###  Email Writing
 - Generate professional emails for various purposes
 - Context-aware email content creation
 - Support for different email types (meetings, follow-ups, etc.)
 
-### 💬 General Chat
+###  General Chat
 - Ask questions and get intelligent responses
 - Get advice on productivity and time management
 - General AI assistance for various topics
@@ -65,20 +65,20 @@ A lightweight AI-powered task management system that intelligently routes user r
 
 ## Frontend Features
 
-### 🖥️ Web Interface
+### ️ Web Interface
 - Clean, intuitive Streamlit-based UI
 - Example request buttons for quick access
 - Real-time processing with loading indicators
 
-### 📊 Activity History
+###  Activity History
 - View recent requests and responses
 - Color-coded node type indicators
 - Copy functionality for responses
 
-### 🎯 Visual Feedback
-- **📋 Blue**: Task Management operations
-- **📧 Green**: Email Writing operations
-- **💬 Orange**: General Chat operations
+###  Visual Feedback
+- ** Blue**: Task Management operations
+- ** Green**: Email Writing operations
+- ** Orange**: General Chat operations
 
 ## Requirements
 

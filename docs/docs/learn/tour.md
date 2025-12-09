@@ -73,7 +73,7 @@ Jac is perfect for rapid prototyping and iteration. One or two engineers can bui
 Jac is AI-first: language-level constructs and runtime that use machine learning models seamlessly, reducing prompt engineering and making agent workflows natural. Ideal for building LLM agents, multimodal systems, and graph-based reasoning pipelines.
 
 - **Experienced Developers and Large Teams**
-For developers who want modern language features—optional type checking, cleaner syntax, structural modeling via OSP, and strong tooling—while keeping full access to Python’s ecosystem.
+For developers who want modern language features, such as optional type checking, cleaner syntax, structural modeling via OSP, and strong tooling, while keeping full access to Python’s ecosystem.
 
 - **Frontend Engineers who want to expand to full-stack**
 A great fit if you want to move into full-stack development without heavy backend or DevOps work. Jac lets developers build backend logic, manage state, integrate AI, and deploy, using a Python-like syntax.

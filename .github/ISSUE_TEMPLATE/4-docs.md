@@ -1,5 +1,5 @@
 ---
-name: "📚 Documentation"
+name: " Documentation"
 about: "Request documentation improvements, additions, or report documentation issues."
 title: "[Docs] "
 labels: "Type: Documentation"

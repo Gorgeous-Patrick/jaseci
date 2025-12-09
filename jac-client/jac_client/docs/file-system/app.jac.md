@@ -68,7 +68,7 @@ cl {
 
 **Missing `app()` function:**
 ```jac
-# ❌ WRONG - No app() function
+#  WRONG - No app() function
 cl {
     def HomePage() -> any {
         return <div>Home</div>;
@@ -78,7 +78,7 @@ cl {
 
 **Wrong function name:**
 ```jac
-# ❌ WRONG - Function named 'main' instead of 'app'
+#  WRONG - Function named 'main' instead of 'app'
 cl {
     def main() -> any {
         return <div>App</div>;
@@ -88,7 +88,7 @@ cl {
 
 **Not in `cl` block:**
 ```jac
-# ❌ WRONG - app() not in cl block
+#  WRONG - app() not in cl block
 def app() -> any {
     return <div>App</div>;
 }
@@ -100,7 +100,7 @@ Your project structure should look like this:
 
 ```
 my-app/
-├── app.jac              # ✅ Required entry point
+├── app.jac              #  Required entry point
 ├── package.json
 ├── vite.config.js
 └── ...

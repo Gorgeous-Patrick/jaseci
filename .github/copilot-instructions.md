@@ -3,13 +3,13 @@
 ## Repository Structure
 
 This monorepo contains:
-- `jac/` — Jac language compiler, runtime, and language server
-- `jac-byllm/` — LLM integration and model-driven features
-- `jac-cloud/` — Cloud deployment and orchestration
-- `jac-streamlit/` — Streamlit integration for Jac applications
-- `jac-client/` — Client libraries and SDKs
-- `docs/` — Documentation site and reference materials
-- `scripts/` — Build, test, and maintenance scripts
+- `jac/`: Jac language compiler, runtime, and language server
+- `jac-byllm/`: LLM integration and model-driven features
+- `jac-cloud/`: Cloud deployment and orchestration
+- `jac-streamlit/`: Streamlit integration for Jac applications
+- `jac-client/`: Client libraries and SDKs
+- `docs/`: Documentation site and reference materials
+- `scripts/`: Build, test, and maintenance scripts
 
 ## Common Workflows
 

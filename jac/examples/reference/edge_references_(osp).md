@@ -195,12 +195,12 @@ All edge references return lists (collections):
 **Common Mistakes to Avoid**
 
 1. **Filtering on wrong attributes**:
-   - ✗ Wrong: `[->:Friend:->](?since < 2020)` - this is comprehension syntax
-   - ✓ Right: `[->:Friend:since < 2020:->]` - edge attribute filter
+   -  Wrong: `[->:Friend:->](?since < 2020)` - this is comprehension syntax
+   -  Right: `[->:Friend:since < 2020:->]` - edge attribute filter
 
 2. **Incorrect chaining**:
-   - ✗ Wrong: `[-->][-->]` - can't concatenate brackets
-   - ✓ Right: `[here --> -->]` or `[here ->:T1:-> ->:T2:->]` - chain within brackets
+   -  Wrong: `[-->][-->]` - can't concatenate brackets
+   -  Right: `[here --> -->]` or `[here ->:T1:-> ->:T2:->]` - chain within brackets
 
 3. **Context confusion**:
    - Edge reference `[-->]` in walker evaluates from `here`, not spawn point

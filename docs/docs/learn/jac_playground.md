@@ -51,8 +51,8 @@ The left side of the screen contains the code editor where you can write your Ja
 At the top of the editor, you'll find:
 
 - **Run Button** ▶️ - Execute your Jac program
-- **Reset Button** 🔄 - Clear the editor and start fresh
-- **Debug Mode Toggle** 🐛 - Enable debugging features for step-by-step execution
+- **Reset Button**  - Clear the editor and start fresh
+- **Debug Mode Toggle**  - Enable debugging features for step-by-step execution
 
 ### Debug Controls
 
@@ -62,7 +62,7 @@ When Debug Mode is active, you'll notice additional controls in the Run Mode too
 - **Step Over** ⏭️ - Execute the next line of code
 - **Step Into** ⬇️ - Move deeper into function calls
 - **Step Out** ⬆️ - Move up from current execution context
-- **Restart** 🔄 - Reset the debug session
+- **Restart**  - Reset the debug session
 - **Stop** ⏹️ - Terminate the current debug session
 
 The Graph Visualizer is one of Jac's most powerful debugging features, providing a real-time visual representation of your program's execution flow. This unique tool shows:
@@ -108,4 +108,4 @@ Jac's unique approach to spatial programming and object relationships. These adv
 
 If you encounter issues or want to learn more about specific Jac language features, refer to the official Jac documentation or community resources.
 
-Happy coding with Jac! 🚀
+Happy coding with Jac!

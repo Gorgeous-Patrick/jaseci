@@ -106,7 +106,7 @@ The `jac` CLI is your primary interface for interacting with the Jaseci ecosyste
 ---
 
 
-## 🚀 Awesome Jaseci Projects
+##  Awesome Jaseci Projects
 
 Explore these impressive projects built with Jaseci! These innovative applications showcase the power and versatility of the Jaseci ecosystem. Consider supporting these projects or getting inspired to build your own.
 
@@ -122,13 +122,13 @@ Explore these impressive projects built with Jaseci! These innovative applicatio
 
 ---
 
-## 🤝 Join the Community & Contribute
+##  Join the Community & Contribute
 
 We are building the future of AI development, and we welcome all contributors.
 
-*   **`💬` Join our Discord:** The best place to ask questions, share ideas, and collaborate is our [**Discord Server**](https://discord.gg/6j3QNdtcN6).
-*   **`🐞` Report Bugs:** Find a bug? Please create an issue in this repository with a clear description.
-*   **`💡` Submit PRs:** Check out our [**Contributing Guide**](https://www.jac-lang.org/internals/contrib/) for details on our development process.
+*   **`` Join our Discord:** The best place to ask questions, share ideas, and collaborate is our [**Discord Server**](https://discord.gg/6j3QNdtcN6).
+*   **`` Report Bugs:** Find a bug? Please create an issue in this repository with a clear description.
+*   **`` Submit PRs:** Check out our [**Contributing Guide**](https://www.jac-lang.org/internals/contrib/) for details on our development process.
 
 <br>
 

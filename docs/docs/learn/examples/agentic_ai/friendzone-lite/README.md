@@ -4,23 +4,23 @@ An AI-powered memory capture and organization system that helps you extract, ref
 
 ## Features
 
-### 🖼️ Image-Based Memory Extraction
+### ️ Image-Based Memory Extraction
 - Upload images via URL to start memory capture sessions
 - AI analyzes visual content to understand the context
 - Extracts initial memory details from image content
 
-### 💭 Interactive Memory Refinement
+###  Interactive Memory Refinement
 - Conversational interface to gather missing details
 - AI asks targeted follow-up questions
 - Progressive refinement of memory information
 
-### 📝 Structured Memory Organization
+###  Structured Memory Organization
 - **When**: Date information (YYYY-MM-DD format)
 - **Who**: People involved in the memory
 - **Where**: Locations relevant to the memory
 - **What**: Description of what the memory is about
 
-### ✅ Completion Tracking
+###  Completion Tracking
 - Real-time progress indication
 - Summary generation when details are complete
 - Clear completion status with final memory summary
@@ -60,22 +60,22 @@ obj Response {
 
 ## Frontend Features
 
-### 🖥️ Web Interface
+### ️ Web Interface
 - Clean Streamlit-based UI
 - Image URL input with validation
 - Real-time conversation interface
 
-### 📊 Memory Progress Tracking
+###  Memory Progress Tracking
 - Visual display of memory details (When, Who, Where, What)
 - Progress indicators for memory completion
 - Structured information layout
 
-### 💬 Interactive Chat
+###  Interactive Chat
 - Chat-style conversation interface
 - Message history display
 - User-friendly input controls
 
-### 🔄 Session Management
+###  Session Management
 - Start new memory sessions
 - Reset current session
 - Persistent conversation history
@@ -103,7 +103,7 @@ Image URL: https://example.com/vacation-beach.jpg
 
 ### Final Output
 ```
-✅ Final Memory Summary:
+ Final Memory Summary:
 When: 2024-07-15
 Who: [John, Sarah, Mike]
 Where: [Santa Monica Beach, California]

@@ -371,7 +371,7 @@ Scaling happens in two natural steps:
 
 1. **Run locally with jac serve**: This turns your Jac program into a live HTTP API at localhost:8000.
 
-2. **Deploy to the cloud using the same code**: Because the app is already an API server, deploying it simply moves it from local mode to a scalable cloud environment—where load balancing and autoscaling can support thousands or millions of users.
+2. **Deploy to the cloud using the same code**: Because the app is already an API server, deploying it simply moves it from local mode to a scalable cloud environment, allowing load balancing and autoscaling to support thousands or millions of users.
 
 #### Calling EmailBuddy Walkers via API
 
