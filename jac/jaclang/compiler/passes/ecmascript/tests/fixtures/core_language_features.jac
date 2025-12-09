@@ -118,6 +118,28 @@ cl {
         };
     }
 
+    # Switch case test cases
+    def switch_case(fruit: str) {
+        switch fruit {
+            case "apple":
+                print("Matched case for value: apple");
+                break;
+
+            case "banana":
+
+            case "orange":
+                print("Matched case for value: banana, orange");
+
+            case "grape":
+                print("Matched case for value: grape");
+                break;
+
+            default:
+                print("Matched case for value: kiwi");
+
+        }
+    }
+
     # Object definitions
     obj Person {
         has name: str;

@@ -1386,8 +1386,37 @@ class EsastGenPass(BaseAstGenPass[es.Statement]):
         )
         node.gen.es_ast = expr_stmt
 
+    def exit_switch_stmt(self, node: uni.SwitchStmt) -> None:
+        """Process switch statement."""
+        test = self._get_ast_or_default(
+            node.target, default_factory=lambda _src: es.Literal(value=None)
+        )
+
+        cases: list[es.SwitchCase] = []
+
+        for stmt in node.cases:
+            if stmt.gen.es_ast and isinstance(stmt.gen.es_ast, es.SwitchCase):
+                switch_case = cast(es.SwitchCase, stmt.gen.es_ast)
+                cases.append(switch_case)
+        node.gen.es_ast = self.sync_loc(
+            es.SwitchStatement(discriminant=test, cases=cases), jac_node=node
+        )
+
     # Expressions
     # ===========
+
+    def exit_switch_case(self, node: uni.SwitchCase) -> None:
+        """Process switch case."""
+        case_test: es.Expression | None = None
+        if node.pattern and isinstance(node.pattern, uni.MatchValue):
+            case_test = self._get_ast_or_default(
+                node.pattern.value, default_factory=lambda _src: es.Literal(value=None)
+            )
+        body_stmts = self._collect_stmt_body(node.body)
+        node.gen.es_ast = self.sync_loc(
+            es.SwitchCase(test=case_test, consequent=body_stmts),
+            jac_node=node,
+        )
 
     def exit_binary_expr(self, node: uni.BinaryExpr) -> None:
         """Process binary expression."""

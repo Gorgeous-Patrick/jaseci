@@ -118,6 +118,11 @@ def test_core_fixture_emits_expected_constructs(
     for op in ["===", "!==", "&&", "||"]:
         assert op in js_code
 
+    # Switch Statement
+    assert "switch (fruit)" in js_code
+    for case in ['case "apple":', 'case "banana":', "default:"]:
+        assert case in js_code
+
     # Classes and enums
     for pattern in [
         "class Person",
