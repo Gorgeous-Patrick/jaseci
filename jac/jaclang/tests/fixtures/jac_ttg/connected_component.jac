@@ -1,11 +1,13 @@
 import random;
-import from jaclang.runtimelib.machine {JacMachine}
+import from jaclang.runtimelib.machine { JacMachine }
 import struct;
 node Data {
-   has id: int; 
-   def get_byte_stream() {
-       return struct.pack("<Q", self.id);
-   }
+    has id: int;
+
+    def get_byte_stream() {
+        return struct.pack("<Q", self.id);
+    }
+
     def get_type_def() {
         return "uint64_t id;";
     }
@@ -13,6 +15,7 @@ node Data {
 
 walker Finder {
     has id: int = 0;
+
     can up with Data entry {
         if (len([-->]) == 0) {
             print(f"Found Node {here.id}");
@@ -20,12 +23,15 @@ walker Finder {
             visit [-->];
         }
     }
+
     def get_type_def() {
         return "uint64_t id;";
     }
+
     def get_byte_stream() {
         return struct.pack("<Q", self.id);
     }
+
     def get_impl_up_on_Data() {
         return """
         #ifdef DEBUG
@@ -51,10 +57,9 @@ def random_tree(nodes: list) -> None {
         u = nodes[i];
         v = nodes[i // 2];
         u ++> v;
-        print(f"{u.id} -> {v.id}"); }
+        print(f"{u.id} -> {v.id}");
+    }
 }
-
-
 
 with entry {
     NUM_NODES_PER_TREE = 128;
@@ -62,7 +67,10 @@ with entry {
     random.seed(0);
     all_nodes = [];
     for i in range(NUM_TREE) {
-        nodes = [Data(id = id) for id in range(i * NUM_NODES_PER_TREE, (i + 1) * NUM_NODES_PER_TREE)];
+        nodes = [
+            Data(id=id)
+            for id in range(i * NUM_NODES_PER_TREE, (i + 1) * NUM_NODES_PER_TREE)
+        ];
         for node in nodes {
             root ++> node;
         }
@@ -74,7 +82,12 @@ with entry {
     # JacMachine.jacpim_spawn(Finder(), all_nodes[NUM_NODES_PER_TREE * NUM_TREE - 1]);
     for i in range(NUM_TREE) {
         wlk = Finder();
-        JacMachine.jacpim_spawn(wlk, all_nodes[i * NUM_NODES_PER_TREE + (random.randint(0, NUM_NODES_PER_TREE - 1))]);
+        JacMachine.jacpim_spawn(
+            wlk,
+            all_nodes[
+                i * NUM_NODES_PER_TREE + (random.randint(0, NUM_NODES_PER_TREE - 1))
+            ]
+        );
     }
     JacMachine.jacpim_start();
 }
