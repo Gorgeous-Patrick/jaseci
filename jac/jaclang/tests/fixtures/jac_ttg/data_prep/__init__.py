@@ -6,6 +6,7 @@ import urllib.request
 
 import networkx as nx
 from tqdm import tqdm
+from .store_experiment import append_to_json_list
 
 
 def download_and_cache(

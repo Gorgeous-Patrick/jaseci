@@ -554,24 +554,32 @@ class JacWalker:
     ) -> WalkerArchetype:
         """Jac's spawn operator feature."""
         from jaclang.runtimelib.utils import all_issubclass
+        from datetime import datetime
 
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
 
-        warch.__ttg__ = JacTTGGenerator.get_ttg(warch, current_loc)
+        warch.__ttg_start_time__ = datetime.now()
+
+        warch.__ttg__, warch.__ttg_visited__ = JacTTGGenerator.get_ttg(warch, current_loc)
         warch.__ttg_dict__ = lambda : asdict(warch.__ttg__) 
 
+        warch.__ttg_end_time__ = datetime.now()
+        warch.__traversal_start_time__ = datetime.now()
+        warch.__traversal_visited__ = set()
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
                 i.func(warch, current_loc)
             if walker.disengaged:
+                warch.__traversal_end_time__ = datetime.now()
                 return warch
 
         while len(walker.next):
             if current_loc := walker.next.pop(0).archetype:
                 # walker ability with loc entry
+                warch.__traversal_visited__.add(current_loc)
                 for i in warch._jac_entry_funcs_:
                     if (
                         i.trigger
@@ -583,6 +591,7 @@ class JacWalker:
                     ):
                         i.func(warch, current_loc)
                     if walker.disengaged:
+                        warch.__traversal_end_time__ = datetime.now()
                         return warch
 
                 # loc ability with any entry
@@ -590,6 +599,7 @@ class JacWalker:
                     if not i.trigger:
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        warch.__traversal_end_time__ = datetime.now()
                         return warch
 
                 # loc ability with walker entry
@@ -601,6 +611,7 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        warch.__traversal_end_time__ = datetime.now()
                         return warch
 
                 # loc ability with walker exit
@@ -612,6 +623,7 @@ class JacWalker:
                     ):
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        warch.__traversal_end_time__ = datetime.now()
                         return warch
 
                 # loc ability with any exit
@@ -619,6 +631,7 @@ class JacWalker:
                     if not i.trigger:
                         i.func(current_loc, warch)
                     if walker.disengaged:
+                        warch.__traversal_end_time__ = datetime.now()
                         return warch
 
                 # walker ability with loc exit
@@ -633,15 +646,18 @@ class JacWalker:
                     ):
                         i.func(warch, current_loc)
                     if walker.disengaged:
+                        warch.__traversal_end_time__ = datetime.now()
                         return warch
         # walker ability with any exit
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
                 i.func(warch, current_loc)
             if walker.disengaged:
+                warch.__traversal_end_time__ = datetime.now()
                 return warch
 
         walker.ignores = []
+        warch.__traversal_end_time__ = datetime.now()
         return warch
 
     @staticmethod
@@ -2157,7 +2173,7 @@ class JacTTGGenerator:
     @classmethod
     def get_ttg(
         cls, walker: WalkerArchetype, start_node: NodeArchetype
-    ) -> TypedWalkerState:
+    ) -> tuple[TypedWalkerState, set[NodeArchetype]]:
         """Get the set based TTG for multiple walker spawns."""
         ttg_root = JacTTGGenerator.TypedWalkerState(
             walker_type=JacTTGGenerator.extract_type_name(walker),
@@ -2201,7 +2217,7 @@ class JacTTGGenerator:
                 )
                 state.children.append(new_walker_state)
                 walker_states.append(new_walker_state)
-        return ttg_root
+        return ttg_root, visited_nodes
 
 
 class JacRuntimeInterface(
