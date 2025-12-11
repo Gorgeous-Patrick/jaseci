@@ -14,6 +14,7 @@ edge Post {}
 
 walker LoadFeed {
     has visiting_neighbors: bool = False;
+
     def get_byte_stream() {
         return struct.pack("<q", self.visiting_neighbors);
     }
