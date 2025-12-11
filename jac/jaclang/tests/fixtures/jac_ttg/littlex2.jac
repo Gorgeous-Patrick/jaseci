@@ -1,12 +1,12 @@
 import random;
 import os;
+import json;
 node Profile {
     has id: int;
 }
 
 node Tweet {
     has id: int;
-    has content_32: str;
 }
 
 edge Follow {}
@@ -29,7 +29,7 @@ walker LoadFeed {
     }
 
     can calc with Tweet entry {
-        print(here.id, here.content_32);
+        print(here.id);
     }
 }
 
@@ -41,13 +41,13 @@ with entry {
     if (EDGE_NUM is None) {
         exit(1);
     }
-    TWEET_NUM = 2;
+    TWEET_NUM = int(os.environ.get("JAC_TWEET_NUM"));
     for i in range(NODE_NUM) {
         nodes.append(Profile(id=i));
         root ++> nodes[i];
         for j in range(TWEET_NUM) {
             nodes[i] +>: Post :+> Tweet(
-                id=NODE_NUM + TWEET_NUM * i + j, content_32="hello world"
+                id=NODE_NUM + TWEET_NUM * i + j
             );
         }
     }
@@ -69,9 +69,13 @@ with entry {
         nodes[src] +>: Follow :+> nodes[dst];
         available_edges.remove((src, dst));
     }
+    ttg_list = [];
 
     for i in range(NODE_NUM) {
         wlk = LoadFeed();
         wlk = wlk spawn nodes[i];
+        ttg_list.append(wlk.__ttg_dict__());
     }
+    print(printgraph());
+    json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
 }

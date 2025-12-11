@@ -5,13 +5,14 @@ from __future__ import annotations
 import fnmatch
 import html
 import inspect
+import json
 import os
 import sys
 import types
 from collections import OrderedDict
 from collections.abc import Callable, Coroutine, Mapping, Sequence
 from concurrent.futures import Future
-from dataclasses import MISSING, dataclass, field
+from dataclasses import MISSING, asdict, dataclass, field
 from functools import wraps
 from inspect import getfile
 from logging import getLogger
@@ -559,6 +560,7 @@ class JacWalker:
         current_loc = node.archetype
 
         warch.__ttg__ = JacTTGGenerator.get_ttg(warch, current_loc)
+        warch.__ttg_dict__ = lambda : asdict(warch.__ttg__) 
 
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
@@ -2092,7 +2094,6 @@ class JacTTGGenerator:
 
     class PossibleVisitsInWalkers:
         # Mapping walker type and node type to visit types.
-        # TODO: Find a better representation of types.
         visits: dict[
             tuple[unitree.Archetype, unitree.Archetype], list[JacTTGGenerator.VisitType]
         ] = {}
