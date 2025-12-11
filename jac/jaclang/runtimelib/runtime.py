@@ -2171,7 +2171,7 @@ class JacTTGGenerator:
         existing_edges: set[tuple[NodeArchetype, NodeArchetype]] = set()
 
         # TODO: DETERMINE A BETTER THRESHOLD HERE.
-        while walker_states and len(visited_nodes) < 100:
+        while walker_states:
             state = walker_states.pop(0)
             node = state.node
             visited_nodes.add(node)
