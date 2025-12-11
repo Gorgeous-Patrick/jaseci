@@ -2065,7 +2065,7 @@ class JacTTGGenerator:
 
     @classmethod
     def extract_type_name(cls, input: Archetype) -> str:
-        """Split the name by left bracket."""
+        """Get name of the type."""
         return type(input).__name__
 
     @classmethod
