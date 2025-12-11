@@ -5,7 +5,6 @@ from __future__ import annotations
 import fnmatch
 import html
 import inspect
-import json
 import os
 import sys
 import types
@@ -560,7 +559,7 @@ class JacWalker:
         current_loc = node.archetype
 
         warch.__ttg__ = JacTTGGenerator.get_ttg(warch, current_loc)
-        warch.__ttg_dict__ = lambda : asdict(warch.__ttg__) 
+        warch.__ttg_dict__ = lambda: asdict(warch.__ttg__)
 
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:

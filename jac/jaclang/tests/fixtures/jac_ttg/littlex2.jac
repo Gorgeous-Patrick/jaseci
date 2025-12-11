@@ -47,9 +47,7 @@ with entry {
         nodes.append(Profile(id=i));
         root ++> nodes[i];
         for j in range(TWEET_NUM) {
-            nodes[i] +>: Post :+> Tweet(
-                id=NODE_NUM + TWEET_NUM * i + j
-            );
+            nodes[i] +>: Post :+> Tweet(id=NODE_NUM + TWEET_NUM * i + j);
         }
     }
 
