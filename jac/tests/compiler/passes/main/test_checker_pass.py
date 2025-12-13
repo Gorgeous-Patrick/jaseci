@@ -813,3 +813,32 @@ def test_agentvisitor_connect_no_errors(fixture_path: Callable[[str], str]) -> N
     TypeCheckPass(ir_in=mod, prog=program)
     assert len(program.errors_had) == 0
     assert len(program.warnings_had) == 0
+
+
+def test_union_reassignment(fixture_path: Callable[[str], str]) -> None:
+    """Test union type reassignment checking."""
+    program = JacProgram()
+    mod = program.compile(fixture_path("checker_union_reassignment.jac"))
+    TypeCheckPass(ir_in=mod, prog=program)
+    assert len(program.errors_had) == 3
+    _assert_error_pretty_found(
+        """
+        fb = 42;  # <-- Error
+        ^^^^^^^^
+    """,
+        program.errors_had[0].pretty_print(),
+    )
+    _assert_error_pretty_found(
+        """
+        a = "";  # <-- Error
+        ^^^^^^^
+    """,
+        program.errors_had[1].pretty_print(),
+    )
+    _assert_error_pretty_found(
+        """
+        a = Foo();  # <-- Error
+        ^^^^^^^^^^
+    """,
+        program.errors_had[2].pretty_print(),
+    )

@@ -194,7 +194,7 @@ class TypeEvaluator {
         self.prefetch.none_type_class = get_types_type("NoneType");
         self.prefetch.object_class = get_builtin_type("object");
         self.prefetch.type_class = get_builtin_type("type");
-        # self.prefetch.union_type_class =
+        self.prefetch.union_type_class = get_types_type("UnionType");
         # self.prefetch.awaitable_class =
         # self.prefetch.function_class =
         # self.prefetch.method_class =
@@ -690,6 +690,17 @@ class TypeEvaluator {
 
         if src_type == dest_type {
             return True;
+        }
+
+        # If destination is a union type, check if source is compatible with any of the
+        # constituent types.
+        if isinstance(dest_type, types.UnionType) {
+            for union_type in dest_type.types {
+                new_dest_type = self._convert_to_instance(union_type);
+                if self.assign_type(src_type, new_dest_type) {
+                    return True;
+                }
+            }
         }
 
         if dest_type.is_class_instance() and src_type.is_class_instance() {
