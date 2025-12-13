@@ -543,7 +543,12 @@ class TypeEvaluator {
         }
 
         if not isinstance(node_.signature, uni.FuncSignature) {
-            node_.name_spec.type = types.UnknownType();
+            func_type = types.FunctionType(
+                func_name=node_.name_spec.sym_name,
+                return_type=types.UnknownType(),
+                parameters=None,
+            );
+            node_.name_spec.type = func_type;
             return node_.name_spec.type;
         }
 

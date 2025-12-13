@@ -65,6 +65,14 @@ def test_infer_type_of_assignment(fixture_path: Callable[[str], str]) -> None:
     )
 
 
+def test_bug_in_walker_ability(fixture_path: Callable[[str], str]) -> None:
+    program = JacProgram()
+    mod = program.compile(fixture_path("checker_bug_return_in_walker_ability.jac"))
+    TypeCheckPass(ir_in=mod, prog=program)
+    # There shouln't be any errors in this file
+    assert len(program.errors_had) == 0
+
+
 def test_member_access_type_resolve(fixture_path: Callable[[str], str]) -> None:
     program = JacProgram()
     mod = program.compile(fixture_path("member_access_type_resolve.jac"))
