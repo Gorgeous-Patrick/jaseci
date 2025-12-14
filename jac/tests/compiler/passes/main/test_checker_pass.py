@@ -3,7 +3,7 @@
 from collections.abc import Callable
 
 from jaclang.compiler.passes.main import TypeCheckPass
-from jaclang.compiler.program import JacProgram
+from jaclang.pycore.program import JacProgram
 
 
 def _assert_error_pretty_found(needle: str, haystack: str) -> None:

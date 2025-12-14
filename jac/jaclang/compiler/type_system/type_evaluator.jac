@@ -12,18 +12,18 @@ import from dataclasses { dataclass }
 import from pathlib { Path }
 import from typing { Callable, TYPE_CHECKING, cast }
 
-import jaclang.compiler.unitree as uni;
-import from jaclang.compiler.parser { TOKEN_MAP }
-import from jaclang.compiler.constant { SymbolType, Tokens as Tok }
+import jaclang.pycore.unitree as uni;
+import from jaclang.pycore.jac_parser { TOKEN_MAP }
+import from jaclang.pycore.constant { SymbolType, Tokens as Tok }
 import from jaclang.compiler.passes.main.pyast_load_pass { PyastBuildPass }
-import from jaclang.compiler.passes.main.sym_tab_build_pass { SymTabBuildPass }
+import from jaclang.pycore.passes.sym_tab_build_pass { SymTabBuildPass }
 import from jaclang.compiler.type_system { types }
 import from jaclang.runtimelib.utils { read_file_with_encoding }
-import from jaclang.settings { settings }
+import from jaclang.pycore.settings { settings }
 
 with entry {
     if TYPE_CHECKING {
-        import from jaclang.compiler.program { JacProgram }
+        import from jaclang.pycore.program { JacProgram }
     }
 }
 
