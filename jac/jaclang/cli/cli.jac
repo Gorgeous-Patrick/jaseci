@@ -30,9 +30,11 @@ def gen_parser()  -> str {
     return 'Parser generated.';
 }
 
-"""Format .jac files with improved code style.\n\n    Applies consistent formatting to Jac code files to improve readability and\n    maintain a standardized code style across your project.\n\n    Args:\n        paths: One or more paths to .jac files or directories containing .jac files\n        outfile: Optional output file path (only valid when formatting a single file)\n        to_screen: Print formatted code to stdout instead of writing to file\n\n    Examples:\n        jac format myfile.jac\n        jac format file1.jac file2.jac file3.jac\n        jac format myproject/\n        jac format myfile.jac --outfile formatted.jac\n        jac format myfile.jac --to_screen\n    """
+"""Format .jac files with improved code style.\n\n    Applies consistent formatting to Jac code files to improve readability and\n    maintain a standardized code style across your project. Optionally applies\n    automatic linting corrections (e.g., converting with entry blocks to glob\n    declarations where appropriate) when --lint flag is provided.\n\n    Args:\n        paths: One or more paths to .jac files or directories containing .jac files\n        outfile: Optional output file path (only valid when formatting a single file)\n        to_screen: Print formatted code to stdout instead of writing to file\n        lint: Apply auto-linting corrections before formatting (default: False)\n\n    Examples:\n        jac format myfile.jac\n        jac format file1.jac file2.jac file3.jac\n        jac format myproject/\n        jac format myfile.jac --outfile formatted.jac\n        jac format myfile.jac --to_screen\n        jac format myfile.jac --lint\n    """
 @cmd_registry.register
-def format(paths: list, outfile: str = '', to_screen: bool = False) -> None {
+def format(
+    paths: list, outfile: str = '', to_screen: bool = False, lint: bool = False
+) -> None {
     import from jaclang.pycore.program { JacProgram }
     if isinstance(paths, str) {
         paths = [paths];
@@ -61,7 +63,7 @@ def format(paths: list, outfile: str = '', to_screen: bool = False) -> None {
             return (False, False);
         }
         try {
-            prog = JacProgram.jac_file_formatter(str(path_obj));
+            prog = JacProgram.jac_file_formatter(str(path_obj), auto_lint=lint);
             if prog.errors_had {
                 for error in prog.errors_had {
                     print(f"{error}", file=sys.stderr);
