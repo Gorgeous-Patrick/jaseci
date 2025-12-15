@@ -558,8 +558,13 @@ class JacWalker:
         walker.path = []
         current_loc = node.archetype
 
-        warch.__ttg__ = JacTTGGenerator.get_ttg(warch, current_loc)
-        warch.__ttg_dict__ = lambda: asdict(warch.__ttg__)
+        try:
+            warch.__ttg__ = JacTTGGenerator.get_ttg(warch, current_loc)
+            warch.__ttg_dict__ = lambda: asdict(warch.__ttg__)
+        except RuntimeError:
+            # TODO: TTG does not support some programs
+            warch.__ttg__ = None
+            warch.__ttg_dict__ = None
 
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
@@ -2080,10 +2085,10 @@ class JacTTGGenerator:
     def resolve_to_archetype(cls, scope_src: unitree.UniNode, name: str) -> Archetype:
         scope = scope_src.find_parent_of_type(unitree.UniScopeNode)
         if scope is None:
-            raise RuntimeError("Lookup failed")
+            raise RuntimeError(f"Lookup failed. Name: {name}")
         result = scope.lookup(name)
         if result is None:
-            raise RuntimeError("Lookup failed")
+            raise RuntimeError(f"Lookup failed. Name: {name}")
         return result.decl.find_parent_of_type(unitree.Archetype)
 
     @classmethod
