@@ -2209,12 +2209,10 @@ class JacTTGGenerator:
             ]
 
             for neighbor in filtered_neighbors:
-                # archetypes = network.get_edge_data(node, neighbor)[0].get("archetype")
                 visited_nodes.add(neighbor)
                 if (node, neighbor) in existing_edges:
                     continue
                 existing_edges.add((node, neighbor))
-                # print(f"DEBUG: Edge from {node} to {neighbor}")
                 new_walker_state = JacTTGGenerator.TypedWalkerState(
                     node=neighbor,
                     walker_type=state.walker_type,

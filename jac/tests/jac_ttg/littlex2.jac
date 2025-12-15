@@ -15,10 +15,6 @@ edge Post {}
 walker LoadFeed {
     has visiting_neighbors: bool = False;
 
-    def get_byte_stream() {
-        return struct.pack("<q", self.visiting_neighbors);
-    }
-
     can load with Profile entry {
         if (not self.visiting_neighbors) {
             self.visiting_neighbors = True;
@@ -30,7 +26,7 @@ walker LoadFeed {
     }
 
     can calc with Tweet entry {
-        print(here.id);
+        # print(here.id);
     }
 }
 
@@ -64,7 +60,6 @@ with entry {
 
     for i in range(EDGE_NUM) {
         (src, dst) = random.choice(list(available_edges));
-        print(f"Adding edge from {src} to {dst}");
         nodes[src] +>: Follow :+> nodes[dst];
         available_edges.remove((src, dst));
     }
@@ -73,8 +68,6 @@ with entry {
     for i in range(NODE_NUM) {
         wlk = LoadFeed();
         wlk = wlk spawn nodes[i];
-        ttg_list.append(wlk.__ttg_dict__());
+        print(wlk.__ttg__);
     }
-    print(printgraph());
-    json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
 }
