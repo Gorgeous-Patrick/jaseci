@@ -5,7 +5,6 @@ from __future__ import annotations
 import fnmatch
 import html
 import inspect
-import json
 import os
 import sys
 import types
@@ -553,8 +552,9 @@ class JacWalker:
         node: NodeAnchor | EdgeAnchor,
     ) -> WalkerArchetype:
         """Jac's spawn operator feature."""
-        from jaclang.runtimelib.utils import all_issubclass
         from datetime import datetime
+
+        from jaclang.runtimelib.utils import all_issubclass
 
         warch = walker.archetype
         walker.path = []
@@ -562,8 +562,10 @@ class JacWalker:
 
         warch.__ttg_start_time__ = datetime.now()
 
-        warch.__ttg__, warch.__ttg_visited__ = JacTTGGenerator.get_ttg(warch, current_loc)
-        warch.__ttg_dict__ = lambda : asdict(warch.__ttg__) 
+        warch.__ttg__, warch.__ttg_visited__ = JacTTGGenerator.get_ttg(
+            warch, current_loc
+        )
+        warch.__ttg_dict__ = lambda: asdict(warch.__ttg__)
 
         warch.__ttg_end_time__ = datetime.now()
         warch.__traversal_start_time__ = datetime.now()

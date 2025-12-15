@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
-from typing import Any
 
-def append_to_json_list(path: str | Path, item: Any) -> None:
+
+def append_to_json_list(path: str | Path, item: dict) -> None:
     path = Path(path)
 
     if path.exists():

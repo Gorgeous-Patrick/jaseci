@@ -1,7 +1,7 @@
 import random;
 import os;
 import json;
-import from data_prep {append_to_json_list}
+import from data_prep { append_to_json_list }
 node Profile {
     has id: int;
 }
@@ -48,9 +48,7 @@ with entry {
         nodes.append(Profile(id=i));
         root ++> nodes[i];
         for j in range(TWEET_NUM) {
-            nodes[i] +>: Post :+> Tweet(
-                id=NODE_NUM + TWEET_NUM * i + j
-            );
+            nodes[i] +>: Post :+> Tweet(id=NODE_NUM + TWEET_NUM * i + j);
         }
     }
 
@@ -65,7 +63,6 @@ with entry {
         }
     }
 
-
     for i in range(EDGE_NUM) {
         (src, dst) = random.choice(list(available_edges));
         print(f"Adding edge from {src} to {dst}");
@@ -78,18 +75,21 @@ with entry {
         wlk = LoadFeed();
         wlk = wlk spawn nodes[i];
         ttg_list.append(wlk.__ttg_dict__());
-        append_to_json_list("timer.json", {
-            "JAC_NODE_NUM": NODE_NUM,
-            "JAC_EDGE_NUM": EDGE_NUM,
-            "JAC_TWEET_NUM": TWEET_NUM,
-            "ttg_start_time": wlk.__ttg_start_time__.timestamp(),
-            "ttg_end_time": wlk.__ttg_end_time__.timestamp(),
-            "ttg_visited_num": len(wlk.__ttg_visited__),
-            "traversal_start_time": wlk.__traversal_start_time__.timestamp(),
-            "traversal_end_time": wlk.__traversal_end_time__.timestamp(),
-            "traversal_visited_num": len(wlk.__traversal_visited__),
-        });
+        append_to_json_list(
+            "timer.json",
+            {
+                "JAC_NODE_NUM": NODE_NUM,
+                "JAC_EDGE_NUM": EDGE_NUM,
+                "JAC_TWEET_NUM": TWEET_NUM,
+                "ttg_start_time": wlk.__ttg_start_time__.timestamp(),
+                "ttg_end_time": wlk.__ttg_end_time__.timestamp(),
+                "ttg_visited_num": len(wlk.__ttg_visited__),
+                "traversal_start_time": wlk.__traversal_start_time__.timestamp(),
+                "traversal_end_time": wlk.__traversal_end_time__.timestamp(),
+                "traversal_visited_num": len(wlk.__traversal_visited__),
+
+            }
+        );
     }
     print(printgraph());
-    json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
 }
