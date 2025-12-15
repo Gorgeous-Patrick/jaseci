@@ -2173,7 +2173,6 @@ class JacTTGGenerator:
         while walker_states:
             state = walker_states.pop(0)
             node = state.node
-            visited_nodes.add(node)
             walker_code = JacTTGGenerator.get_type_definition(walker)
             filtered_neighbors: list[NodeArchetype] = [
                 neighbor
@@ -2188,6 +2187,7 @@ class JacTTGGenerator:
 
             for neighbor in filtered_neighbors:
                 # archetypes = network.get_edge_data(node, neighbor)[0].get("archetype")
+                visited_nodes.add(neighbor)
                 if (node, neighbor) in existing_edges:
                     continue
                 existing_edges.add((node, neighbor))
