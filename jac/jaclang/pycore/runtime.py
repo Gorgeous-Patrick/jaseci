@@ -2042,7 +2042,10 @@ class JacTTGGenerator:
         node: NodeArchetype
         edges: set[JacTTGGenerator.TTGNode]
 
-    VisitType = str | None
+    @dataclass(frozen=True)
+    class VisitType:
+        from_node_type: unitree.Archetype
+        edge_type: unitree.Archetype | None
 
     class FilteredNeighborCtx:
         cache: dict[tuple[int, JacTTGGenerator.VisitType], list[NodeArchetype]] = {}
@@ -2057,8 +2060,9 @@ class JacTTGGenerator:
             edges: list[EdgeAnchor] = anchor.edges
             for edge in edges:
                 if (
-                    visit is None
-                    or JacTTGGenerator.extract_type_name(edge.archetype) == visit
+                    visit.edge_type is None
+                    or JacTTGGenerator.extract_type_name(edge.archetype)
+                    == visit.edge_type
                 ):
                     filtered_neighbors.append(edge.target.archetype)
             # Get all neighbors
@@ -2106,21 +2110,29 @@ class JacTTGGenerator:
 
     class PossibleVisitsInWalkers:
         # Mapping walker type and node type to visit types.
-        visits: dict[
-            tuple[unitree.Archetype, unitree.Archetype], list[JacTTGGenerator.VisitType]
-        ] = {}
+        visits: dict[unitree.Archetype, list[JacTTGGenerator.VisitType]] = {}
 
         @classmethod
         def _get_to_edge_type_of_visit(
-            cls, visit_stmt: unitree.VisitStmt
+            cls, from_node_type: unitree.Archetype, visit_stmt: unitree.VisitStmt
         ) -> JacTTGGenerator.VisitType:
             filters = visit_stmt.get_all_sub_nodes(unitree.FilterCompr)
             if len(filters) == 0:
-                return None
-            return filters[0].get_all_sub_nodes(unitree.Name)[0].value
+                return JacTTGGenerator.VisitType(
+                    from_node_type=from_node_type, edge_type=None
+                )
+            # return
+            edge_type_name = filters[0].get_all_sub_nodes(unitree.Name)[0].value
+            edge_type = JacTTGGenerator.resolve_to_archetype(visit_stmt, edge_type_name)
+            return JacTTGGenerator.VisitType(
+                from_node_type=from_node_type, edge_type=edge_type
+            )
 
         @classmethod
-        def _set_all_visits_for_a_walker(cls, walker: unitree.Archetype):
+        def _get_all_visits_for_a_walker(
+            cls, walker: unitree.Archetype
+        ) -> list[JacTTGGenerator.VisitType]:
+            res = []
             abilities = walker.get_all_sub_nodes(unitree.Ability)
             for ability in abilities:
                 if len(ability.get_all_sub_nodes(unitree.EventSignature)) == 0:
@@ -2133,28 +2145,26 @@ class JacTTGGenerator:
                 node_type = JacTTGGenerator.resolve_to_archetype(
                     node_type_name, node_type_name.value
                 )
-
-                res = [
-                    cls._get_to_edge_type_of_visit(visit_stmt)
+                res += [
+                    cls._get_to_edge_type_of_visit(node_type, visit_stmt)
                     for visit_stmt in ability.get_all_sub_nodes(unitree.VisitStmt)
                 ]
-                cls.visits[(walker, node_type)] = res
+            return res
 
         @classmethod
         def get(
-            cls, walker: unitree.Archetype, node: NodeArchetype
+            cls, walker: unitree.Archetype, target_node: NodeArchetype
         ) -> list[JacTTGGenerator.VisitType]:
-            # node_type = walker.lookup(
-            #     JacTTGGenerator.extract_name(node)
-            # ).decl.find_parent_of_type(unitree.Archetype)
-            node_type = JacTTGGenerator.resolve_to_archetype(
-                walker, JacTTGGenerator.extract_type_name(node)
+            target_node_type = JacTTGGenerator.resolve_to_archetype(
+                walker, JacTTGGenerator.extract_type_name(target_node)
             )
-            if node_type is None:
-                raise RuntimeError("Node type not found")
-            if cls.visits.get((walker, node_type)) is None:
-                cls._set_all_visits_for_a_walker(walker)
-            res = cls.visits[(walker, node_type)]
+            if cls.visits.get(walker) is None:
+                cls.visits[walker] = cls._get_all_visits_for_a_walker(walker)
+            res = [
+                visit
+                for visit in cls.visits[walker]
+                if visit.from_node_type == target_node_type
+            ]
             return res
 
     @dataclass
