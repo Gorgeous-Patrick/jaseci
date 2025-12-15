@@ -1,13 +1,12 @@
 """Pass to inject comments using token-level precision.\n\nThis pass injects comments into the DocIR structure by:\n1. Categorizing comments as inline (same line as token) or standalone\n2. Injecting inline comments after their anchor tokens\n3. Injecting standalone comments at appropriate positions (module, body, params)\n4. Handling spacing adjustments for empty structures that receive comments\n"""
-import from __future__ { annotations }
 import from bisect { bisect_left }
 import from collections.abc { Sequence }
 import from dataclasses { dataclass }
 import from typing { NamedTuple }
 import jaclang.compiler.passes.tool.doc_ir as doc;
-import jaclang.compiler.unitree as uni;
-import from jaclang.compiler.constant { Tokens as Tok }
-import from jaclang.compiler.passes { Transform }
+import jaclang.pycore.unitree as uni;
+import from jaclang.pycore.constant { Tokens as Tok }
+import from jaclang.pycore.passes { Transform }
 """Information about a pair of delimiters and their positions."""
 class DelimiterInfo(NamedTuple) {
     with entry {
