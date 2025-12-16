@@ -1899,3 +1899,18 @@ def test_by_operator(fixture_path: Callable[[str], str]) -> None:
     assert "by" in stdout_value.lower()
     assert "not" in stdout_value.lower()
     assert "implemented" in stdout_value.lower()
+
+
+def test_ttg_generator(
+    fixture_path: Callable[[str], str],
+    capture_stdout: Callable[[], AbstractContextManager[io.StringIO]],
+) -> None:
+    """Test the TTG generator."""
+
+    with capture_stdout() as captured_output:
+        cli.run(fixture_path("jac_ttg/basic.jac"))
+
+    stdout_value = captured_output.getvalue()
+    assert stdout_value == (
+        """JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=0, jac_node_size=8), depth=0, children=[JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=0, jac_node_size=8), depth=1, children=[]), JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=1, jac_node_size=8), depth=1, children=[JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=3, jac_node_size=8), depth=2, children=[]), JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=4, jac_node_size=8), depth=2, children=[])]), JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=2, jac_node_size=8), depth=1, children=[])])"""
+    )

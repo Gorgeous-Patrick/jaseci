@@ -9,7 +9,6 @@ walker BFS {
     has visited_512: list[bool] = [False] * 512;
 
     can run with BFSNode entry {
-        print("Visited node ID: %d" % here.id);
         if (self.visited_512[here.id]) {
             return;
         }
