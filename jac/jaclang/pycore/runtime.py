@@ -2047,6 +2047,13 @@ class JacTTGGenerator:
         from_node_type: unitree.Archetype
         edge_type: unitree.Archetype | None
 
+        def __str__(self) -> str:
+            if self.edge_type is None:
+                edge_name = "GenericEdge"
+            else:
+                edge_name = self.edge_type.name.value
+            return f"Visit(from={self.from_node_type.name.value}, edge={edge_name})"
+
     class FilteredNeighborCtx:
         cache: dict[tuple[int, JacTTGGenerator.VisitType], list[NodeArchetype]] = {}
 
@@ -2061,7 +2068,7 @@ class JacTTGGenerator:
             for edge in edges:
                 if (
                     visit.edge_type is None
-                    or JacTTGGenerator.extract_type_name(edge.archetype)
+                    or JacTTGGenerator.get_type_definition(edge.archetype)
                     == visit.edge_type
                 ):
                     filtered_neighbors.append(edge.target.archetype)
