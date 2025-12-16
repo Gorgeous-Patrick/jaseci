@@ -41,7 +41,7 @@ with entry {
     TWEET_NUM = int(os.environ.get("JAC_TWEET_NUM"));
     for i in range(NODE_NUM) {
         nodes.append(Profile(id=i));
-        root ++> nodes[i];
+        root +>: Post :+> nodes[i];
         for j in range(TWEET_NUM) {
             nodes[i] +>: Post :+> Tweet(id=NODE_NUM + TWEET_NUM * i + j);
         }
