@@ -10,10 +10,10 @@ import from concurrent.futures { ThreadPoolExecutor }
 import from queue { Queue, Empty }
 import from typing { Callable, Optional }
 
-import jaclang.compiler.unitree as uni;
+import jaclang.pycore.unitree as uni;
 import from jaclang { JacRuntimeInterface as Jac }
-import from jaclang.compiler.constant { SymbolType }
-import from jaclang.compiler.program { JacProgram }
+import from jaclang.pycore.constant { SymbolType }
+import from jaclang.pycore.program { JacProgram }
 import from jaclang.compiler.type_system.type_utils { get_completion_items }
 import from jaclang.compiler.type_system.types {
     ClassType,
@@ -21,7 +21,7 @@ import from jaclang.compiler.type_system.types {
     ModuleType,
     TypeBase
 }
-import from jaclang.compiler.unitree { UniScopeNode }
+import from jaclang.pycore.unitree { UniScopeNode }
 import from .sem_manager { SemTokManager }
 import from jaclang.vendor.pygls { uris }
 import from jaclang.vendor.pygls.server { LanguageServer }
@@ -520,7 +520,9 @@ class JacLangServer(JacProgram , LanguageServer) {
             return make_location(parent.decl_link.sym.decl);
         }
         if isinstance(parent, uni.AstImplNeedingNode) and parent.body {
-            return make_location(parent.body.sym.decl);
+            if isinstance(parent.body, uni.ImplDef) {
+                return make_location(parent.body.sym.decl);
+            }
         }
         if not node_selected or not node_selected.type {
             return None;

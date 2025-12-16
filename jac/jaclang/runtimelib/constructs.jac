@@ -1,5 +1,4 @@
 """Core constructs for Jac Language."""
-import from __future__ { annotations }
 import from .archetype {
     AccessLevel,
     Anchor,
@@ -15,7 +14,7 @@ import from .archetype {
     WalkerArchetype
 }
 import from .memory { Memory, ShelfStorage }
-import from .mtp { MTIR }
+import from .mtp { MTIR, MTRuntime }
 with entry {
     __all__ = [
         'AccessLevel',
@@ -30,6 +29,7 @@ with entry {
         'GenericEdge',
         'Root',
         'MTIR',
+        'MTRuntime',
         'ObjectSpatialFunction',
         'Memory',
         'ShelfStorage'
