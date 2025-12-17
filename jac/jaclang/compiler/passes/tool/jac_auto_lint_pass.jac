@@ -5,6 +5,7 @@ This pass applies automatic linting corrections to Jac code, including:
 - Combining consecutive `has` statements with same modifiers into single statement
 - Converting `def __init__` to `can init` (Jac style)
 - Converting `def __post_init__` to `can postinit` (Jac style)
+- Removing empty parentheses from function/method declarations (def foo() -> def foo)
 - (Future) Import organization
 - (Future) Redundant code removal
 """
@@ -248,6 +249,58 @@ class JacAutoLintPass(UniPass) {
                     ability_node.kid[idx] = special_ref;
                     break;
                 }
+            }
+        }
+    }
+
+    """Remove empty parentheses from function signatures with no parameters.
+
+    This handles both cases:
+    - No params, no return type: Remove the entire signature from the ability
+    - No params, with return type: Remove just LPAREN/RPAREN, keep return type
+    """
+    def exit_ability(self: JacAutoLintPass, ability_node: uni.Ability) -> None {
+        if not self.lint_enabled {
+            return;
+        }
+        sig = ability_node.signature;
+        if not isinstance(sig, uni.FuncSignature) {
+            return;
+        }
+        # Check if signature has any parameters
+        has_params = bool(
+            sig.posonly_params
+            or sig.params
+            or sig.varargs
+            or sig.kwonlyargs
+            or sig.kwargs
+        );
+        if has_params {
+            return;
+        }
+        # No parameters - handle based on whether there's a return type
+        if sig.return_type is None {
+            # No params and no return type - remove signature entirely
+            ability_node.signature = None;
+            # Remove signature from ability's kid list
+            new_kid: list = [];
+            for kid in ability_node.kid {
+                if kid is not sig {
+                    new_kid.append(kid);
+                }
+            }
+            ability_node.kid = new_kid;
+        } else {
+            # Has return type - remove just the parentheses tokens
+            new_kid: list = [];
+            for kid in sig.kid {
+                if isinstance(kid, uni.Token) and kid.name in (Tok.LPAREN, Tok.RPAREN) {
+                    continue;
+                }
+                new_kid.append(kid);
+            }
+            if len(new_kid) != len(sig.kid) and len(new_kid) > 0 {
+                sig.set_kids(nodes=new_kid);
             }
         }
     }

@@ -271,3 +271,68 @@ class TestFormatCommandIntegration:
 
         # Linting should have been applied
         assert "glob" in formatted
+
+
+class TestRemoveEmptyParens:
+    """Tests for removing empty parentheses from function declarations."""
+
+    def test_empty_parens_removed(
+        self, auto_lint_fixture_path: Callable[[str], str]
+    ) -> None:
+        """Test that empty parentheses are removed from function declarations."""
+        input_path = auto_lint_fixture_path("empty_parens.jac")
+
+        prog = JacProgram.jac_file_formatter(input_path, auto_lint=True)
+        formatted = prog.mod.main.gen.jac
+
+        # Functions with no params should have parens removed
+        assert "def no_params {" in formatted
+        assert "def no_params()" not in formatted
+
+        # Functions with params should keep parens
+        assert "def with_params(x: int)" in formatted
+
+        # Functions with no params but return type should have parens removed
+        assert "def no_params_with_return -> int" in formatted
+        assert "def no_params_with_return()" not in formatted
+
+        # Functions with params and return type should keep parens
+        assert "def with_params_and_return(" in formatted
+        assert "x: int" in formatted
+
+    def test_method_parens_preserved_when_has_self(
+        self, auto_lint_fixture_path: Callable[[str], str]
+    ) -> None:
+        """Test that method parentheses are preserved when they have self parameter."""
+        input_path = auto_lint_fixture_path("empty_parens.jac")
+
+        prog = JacProgram.jac_file_formatter(input_path, auto_lint=True)
+        formatted = prog.mod.main.gen.jac
+
+        # Methods with self should keep parens
+        assert "def method_with_self(self: MyClass)" in formatted
+
+        # Methods with self and other params should keep parens
+        assert (
+            "def method_with_params(self: MyClass, a: int, b: int) -> int" in formatted
+        )
+
+    def test_obj_method_parens_removed(
+        self, auto_lint_fixture_path: Callable[[str], str]
+    ) -> None:
+        """Test that empty parentheses are removed from obj method declarations."""
+        input_path = auto_lint_fixture_path("empty_parens.jac")
+
+        prog = JacProgram.jac_file_formatter(input_path, auto_lint=True)
+        formatted = prog.mod.main.gen.jac
+
+        # obj methods with no params should have parens removed
+        assert "def reset {" in formatted
+        assert "def reset()" not in formatted
+
+        # obj methods with params should keep parens
+        assert "def increment(amount: int)" in formatted
+
+        # obj methods with no params but return type should have parens removed
+        assert "def get_count -> int" in formatted
+        assert "def get_count()" not in formatted
