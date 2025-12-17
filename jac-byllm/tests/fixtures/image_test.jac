@@ -13,7 +13,8 @@ glob llm = MockLLM(
 
 def explain_the_image(image: Image) -> str by llm();
 
+glob image = Image(os.path.join(os.path.dirname(__file__), 'image.jpg'));
+
 with entry {
-    image = Image(os.path.join(os.path.dirname(__file__), 'image.jpg'));
     print(explain_the_image(image));
 }

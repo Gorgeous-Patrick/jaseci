@@ -16,7 +16,7 @@ glob llm = Model(
 );
 
 """Get the current date and time."""
-def get_current_datetime()  -> str {
+def get_current_datetime -> str {
     return datetime.now().strftime("%d-%m-%Y %H:%M:%S");
 }
 
@@ -44,8 +44,11 @@ with entry {
     print("=" * 70);
     print("\nThis will make real API calls and stream the response token-by-token!");
     print("\nWatch closely - you should see the text appear gradually...\n");
+}
 
-    question = "What is the current date and time, and what is 127 multiplied by 89?";
+glob question = "What is the current date and time, and what is 127 multiplied by 89?";
+
+with entry {
     print(f"Question: {question}\n");
     print("Answer (streaming in real-time): ");
     print("-" * 70);

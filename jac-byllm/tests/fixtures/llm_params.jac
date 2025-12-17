@@ -20,7 +20,8 @@ def get_wind_speed_report(city: str) -> str by MockLLM(
     tools=[get_live_wind_speed]
 );
 
+glob result = get_wind_speed_report("Puttalam");
+
 with entry {
-    result = get_wind_speed_report("Puttalam");
     print(result);
 }

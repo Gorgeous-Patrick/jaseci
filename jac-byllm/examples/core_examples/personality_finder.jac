@@ -23,8 +23,9 @@ def get_person_info(name: str) -> Person by llm(
     incl_info={"personality_examples": personality_examples}
 );
 
+glob person_obj = get_person_info('Martin Luther King Jr.');
+
 with entry {
-    person_obj = get_person_info('Martin Luther King Jr.');
     print(
         f"{person_obj.full_name} was a {person_obj.personality} person who died in {person_obj.yod}"
     );

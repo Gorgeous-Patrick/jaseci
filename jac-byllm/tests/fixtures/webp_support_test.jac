@@ -30,10 +30,10 @@ glob llm = MockLLM(
 
 def get_person_info(image_content: Image) -> Person by llm();
 
+glob person_image = Image(
+    os.path.join(os.path.dirname(__file__), 'webp_image_of_person.webp')
+) , person_obj = get_person_info(person_image);
+
 with entry {
-    person_image = Image(
-        os.path.join(os.path.dirname(__file__), 'webp_image_of_person.webp')
-    );
-    person_obj = get_person_info(person_image);
     print(person_obj);
 }

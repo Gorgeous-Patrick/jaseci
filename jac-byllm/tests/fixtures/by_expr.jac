@@ -50,10 +50,14 @@ code is correct and return the python code.
 """
 def generate_greeting_code(name: str) -> str by models["code-gen"];
 
-with entry {
-    greeting = generate_greeting_text("Alice");
-    print(f"Generated greeting: {greeting}");
+glob greeting = generate_greeting_text("Alice");
 
-    greeting_code = generate_greeting_code("Alice");
+with entry {
+    print(f"Generated greeting: {greeting}");
+}
+
+glob greeting_code = generate_greeting_code("Alice");
+
+with entry {
     print(f"Generated greeting code: {greeting_code}");
 }

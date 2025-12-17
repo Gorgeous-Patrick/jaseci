@@ -20,12 +20,12 @@ Captures the callable, its arguments, and call parameters to construct
 an MTRuntime instance on demand via the runtime property.
 """
 obj MTIR {
-    has caller: Callable;
-    has args: dict[int | str, object];
-    has call_params: dict[str, object];
+    has caller: Callable,
+        args: dict[(int | str, object)],
+        call_params: dict[(str, object)];
 
     @property
-    def runtime()  -> MTRuntime {
+    def runtime -> MTRuntime {
         return MTRuntime.factory(self.caller, self.args, self.call_params);
     }
 }
@@ -36,21 +36,21 @@ Manages the message history, tools, response type, and streaming state
 for a single LLM invocation. Created via the factory method from an MTIR.
 """
 obj MTRuntime {
-    has messages: list[MessageType];
-    has resp_type: type | None;
-    has stream: bool;
-    has tools: list[Tool];
-    has call_params: dict[str, object];
+    has messages: list[MessageType],
+        resp_type: type | None,
+        stream: bool,
+        tools: list[Tool],
+        call_params: dict[(str, object)];
 
     static def factory(
         caller: Callable, args: dict[int | str, object], call_params: dict[str, object]
     ) -> MTRuntime;
 
-    def dispatch_params()  -> dict[str, object];
+    def dispatch_params -> dict[str, object];
     def add_message(message: MessageType) -> None;
-    def get_msg_list()  -> list[dict[str, object] | LiteLLMMessage];
+    def get_msg_list -> list[dict[str, object] | LiteLLMMessage];
     def parse_response(response: str) -> object;
     def get_tool(tool_name: str) -> Tool | None;
-    def get_tool_list()  -> list[dict];
-    def get_output_schema()  -> dict | None;
+    def get_tool_list -> list[dict];
+    def get_output_schema -> dict | None;
 }

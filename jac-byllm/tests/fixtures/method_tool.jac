@@ -21,8 +21,8 @@ node Calculator {
     );
 }
 
+glob calc = Calculator() , result = calc.eval_expr("What is 12 + 34?");
+
 with entry {
-    calc = Calculator();
-    result = calc.eval_expr("What is 12 + 34?");
     print(f"Result: {result}");
 }

@@ -12,11 +12,10 @@ glob llm = MockLLM(
 
 def explain_the_video(video: Video) -> str by llm();
 
+glob video_file_path = os.path.join(
+    os.path.dirname(__file__), "SampleVideo_1280x720_2mb.mp4"
+) , target_fps = 1 , video = Video(path=video_file_path, fps=target_fps);
+
 with entry {
-    video_file_path = os.path.join(
-        os.path.dirname(__file__), "SampleVideo_1280x720_2mb.mp4"
-    );
-    target_fps = 1;
-    video = Video(path=video_file_path, fps=target_fps);
     print(explain_the_video(video));
 }

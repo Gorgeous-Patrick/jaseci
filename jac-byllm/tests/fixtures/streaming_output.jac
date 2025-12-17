@@ -13,9 +13,9 @@ glob llm = MockLLM(
 """ Generate short essay (less than 300 words) about the given topic """
 def generate_essay(topic: str) -> str by llm(stream=True);
 
+glob topic = "The orca whale and its hunting techniques" , resp = generate_essay(topic);
+
 with entry {
-    topic = "The orca whale and its hunting techniques";
-    resp = generate_essay(topic);
     assert resp is not str;
     for tok in resp {
         print(tok, end='', flush=True);

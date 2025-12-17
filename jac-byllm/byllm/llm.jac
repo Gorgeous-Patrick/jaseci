@@ -33,8 +33,7 @@ with entry {
     os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True";
 }
 
-glob DEFAULT_BASE_URL = "http://localhost:4000";
-glob MODEL_MOCK = "mockllm";
+glob DEFAULT_BASE_URL = "http://localhost:4000" , MODEL_MOCK = "mockllm";
 
 """Base class for LLM implementations.
 
@@ -43,10 +42,10 @@ Subclasses must implement model_call_no_stream and model_call_with_stream
 to define how the actual LLM API is called.
 """
 obj BaseLLM {
-    has model_name: str;
-    has config: dict = {};
-    has api_key: str = "";
-    has call_params: dict[str, object] = {};
+    has model_name: str,
+        config: dict = {},
+        api_key: str = "",
+        call_params: dict[(str, object)] = {};
 
     def __call__( **kwargs: object)  -> BaseLLM;
     def invoke(mtir: MTRuntime) -> object;
@@ -79,8 +78,8 @@ and proxy-based routing. Automatically delegates to MockLLM when model_name
 is 'mockllm'.
 """
 obj Model(BaseLLM) {
-    has proxy: bool = False;
-    has _mock_delegate: MockLLM | None = None;
+    has proxy: bool = False,
+        _mock_delegate: MockLLM | None = None;
 
     def postinit -> None;
     override def invoke(mtir: MTRuntime) -> object;

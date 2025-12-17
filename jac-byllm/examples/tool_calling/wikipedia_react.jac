@@ -18,8 +18,8 @@ sem get_wikipedia_summary= """Get the summary of the related article from Wikipe
 
 def get_answer(question: str) -> str by llm(tools=[get_wikipedia_summary]);
 
+glob question = "Who is Jason Mars?" , answer = get_answer(question);
+
 with entry {
-    question = "Who is Jason Mars?";
-    answer = get_answer(question);
     print(answer);
 }

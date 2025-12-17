@@ -2,9 +2,9 @@ import from byllm.lib { MockLLM }
 import from os { path }
 
 obj Email {
-    has sender: str;
-    has subject: str;
-    has body: str;
+    has sender: str,
+        subject: str,
+        body: str;
 }
 
 # Need to define this after email is defined.
@@ -49,15 +49,16 @@ glob llm = MockLLM(
     },
 );
 
-def generate_random_mails()  -> list[Email] by llm();
+def generate_random_mails -> list[Email] by llm();
 sem generate_random_mails= "Generate 5 random emails.";
 
 def summerize_email(email: Email) -> str by llm();
 
 sem summerize_email= "Gets an email instance and summerize the mail and return.";
 
+glob emails = generate_random_mails();
+
 with entry {
-    emails = generate_random_mails();
     for email in emails {
         print(f"Sender: {email.sender}");
         print(f"Subject: {email.subject}");

@@ -3,7 +3,7 @@ import from byllm.lib { Model, MockToolCall }
 import from datetime { datetime }
 
 # Mock function that will be used as a tool
-def get_current_date()  -> str {
+def get_current_date -> str {
     return "29-10-2025";
 }
 
@@ -48,18 +48,26 @@ def answer_question(question: str) -> str by llm(
 
 with entry {
     print("Testing ReAct with streaming...\n");
+}
 
-    question = "What is today's date and what is 25 * 4?";
+glob question = "What is today's date and what is 25 * 4?";
+
+with entry {
     print(f"Question: {question}\n");
     print("Answer (streaming): ");
+}
 
-    result = answer_question(question);
+glob result = answer_question(question);
 
-    # Result should be a generator (for streaming)
+# Result should be a generator (for streaming)
+with entry {
     assert result is not str , "Expected generator for streaming, got string";
+}
 
-    # Collect all chunks
-    full_response = "";
+# Collect all chunks
+glob full_response = "";
+
+with entry {
     for chunk in result {
         print(chunk, end='', flush=True);
         full_response += chunk;

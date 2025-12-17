@@ -34,19 +34,19 @@ enum MessageRole ( StrEnum ) {
 
 """Message class for LLM interactions."""
 obj Message {
-    has role: MessageRole;
-    has content: str | list[Media];
+    has role: MessageRole,
+        content: str | list[Media];
 
-    def to_dict()  -> dict[str, object];
+    def to_dict -> dict[str, object];
 }
 
 """Result of a tool call in LLM interactions."""
 obj ToolCallResultMsg(Message) {
-    has tool_call_id: str;
-    has name: str;  # Function name.
+    has tool_call_id: str,
+        name: str;
 
-    def postinit()  -> None;
-    def to_dict()  -> dict[str, object];
+    def postinit -> None;
+    def to_dict -> dict[str, object];
 }
 
 """Tool class for LLM interactions.
@@ -55,17 +55,17 @@ Wraps a callable function to be used as a tool in LLM interactions.
 Provides JSON schema generation, argument parsing, and invocation capabilities.
 """
 obj Tool {
-    has func: Callable;
-    has description: str = "";
-    has params_desc: dict[str, str] = None;  # type: ignore
+    has func: Callable,
+        description: str = "",
+        params_desc: dict[(str, str)] = None;
 
-    def postinit()  -> None;
+    def postinit -> None;
     def __call__( *args: list , **kwargs: dict)  -> object;
-    def get_name()  -> str;
+    def get_name -> str;
     static def get_func_description(func: Callable) -> str;
     static def make_finish_tool(resp_type: type) -> Tool;
-    def is_finish_tool()  -> bool;
-    def get_json_schema()  -> dict[str, object];
+    def is_finish_tool -> bool;
+    def get_json_schema -> dict[str, object];
     def parse_arguments(args_json: dict) -> dict;
 }
 
@@ -75,14 +75,14 @@ Represents an invocation of a tool with specific arguments.
 Created from LLM responses and can be executed to get results.
 """
 obj ToolCall {
-    has call_id: str;
-    has tool: Tool;
-    has args: dict;
+    has call_id: str,
+        tool: Tool,
+        args: dict;
 
-    def __call__()  -> ToolCallResultMsg;
-    def __str__()  -> str;
-    def is_finish_call()  -> bool;
-    def get_output()  -> object;
+    def __call__ -> ToolCallResultMsg;
+    def __str__ -> str;
+    def is_finish_call -> bool;
+    def get_output -> object;
 }
 
 """Mock tool call for testing purposes.
@@ -90,16 +90,16 @@ obj ToolCall {
 Used with MockLLM to simulate tool calls in tests without actual LLM invocation.
 """
 obj MockToolCall {
-    has tool: Callable;
-    has args: dict;
+    has tool: Callable,
+        args: dict;
 
-    def to_tool_call()  -> ToolCall;
+    def to_tool_call -> ToolCall;
 }
 
 """Result of the completion from the LLM."""
 obj CompletionResult {
-    has output: object;
-    has tool_calls: list[ToolCall];
+    has output: object,
+        tool_calls: list[ToolCall];
 }
 
 # -----------------------------------------------------------------------------
@@ -111,14 +111,14 @@ Abstract base for all media types that can be included in LLM messages.
 Subclasses must implement to_dict() for serialization.
 """
 obj Media {
-    def to_dict()  -> list[dict];
+    def to_dict -> list[dict];
 }
 
 """Text content in a message."""
 obj Text(Media) {
     has text: str;
 
-    def to_dict()  -> list[dict];
+    def to_dict -> list[dict];
 }
 
 """Image content in a message.
@@ -132,14 +132,13 @@ obj Image(Media) {
         (
             "str | bytes | bytearray | memoryview | BytesIO | IO[bytes] | "
             "os.PathLike[str] | os.PathLike[bytes] | PILImageCls"
-        );  # type: ignore[name-defined]
+        ),
+        mime_type: str | None = None;
 
-    has mime_type: str | None = None;
-
-    def postinit()  -> None;
+    def postinit -> None;
     def _format_to_mime(fmt: str | None) -> str;
     def _data_url_from_bytes(data: bytes, fmt: str | None) -> str;
-    def to_dict()  -> list[dict];
+    def to_dict -> list[dict];
 }
 
 # Ref: https://cookbook.openai.com/examples/gpt_with_vision_for_video_understanding
@@ -149,11 +148,11 @@ Extracts frames at a specified FPS and encodes them as base64 images
 for LLM processing. See OpenAI cookbook for vision with video understanding.
 """
 obj Video(Media) {
-    has path: str;
-    has fps: int = 1;
-    has _base64frames: list[str] | None = None;
+    has path: str,
+        fps: int = 1,
+        _base64frames: list[str] | None = None;
 
-    def postinit()  -> None;
-    def load_frames()  -> None;
-    def to_dict()  -> list[dict];
+    def postinit -> None;
+    def load_frames -> None;
+    def to_dict -> list[dict];
 }
