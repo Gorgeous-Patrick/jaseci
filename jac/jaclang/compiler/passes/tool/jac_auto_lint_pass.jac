@@ -2,6 +2,7 @@
 
 This pass applies automatic linting corrections to Jac code, including:
 - Converting `with entry` blocks to `glob` declarations (in-place)
+- Converting `@staticmethod` decorator to `static` keyword
 - Combining consecutive `has` statements with same modifiers into single statement
 - Converting `def __init__` to `can init` (Jac style)
 - Converting `def __post_init__` to `can postinit` (Jac style)
@@ -267,9 +268,44 @@ class JacAutoLintPass(UniPass) {
         }
     }
 
-    """Process ability nodes to convert __init__/__post_init__ to init/postinit."""
+    """Process ability to convert @staticmethod decorator to static keyword and __init__/__post_init__ to init/postinit."""
     def enter_ability(self: JacAutoLintPass, ability_node: uni.Ability) -> None {
-        if not self.lint_enabled or not ability_node.is_method {
+        if not self.lint_enabled {
+            return;
+        }
+
+        # Handle @staticmethod decorator conversion
+        if ability_node.decorators {
+            has_staticmethod = False;
+            for dec in ability_node.decorators {
+                if isinstance(dec, uni.Name) and dec.value == "staticmethod" {
+                    has_staticmethod = True;
+                    break;
+                }
+            }
+            if has_staticmethod {
+                # Set static flag if not already set
+                if not ability_node.is_static {
+                    ability_node.is_static = True;
+                }
+                # Remove @staticmethod from decorators list
+                new_decorators: list[uni.Expr] = [
+                    dec
+                    for dec in ability_node.decorators
+                    if not (isinstance(dec, uni.Name) and dec.value == "staticmethod")
+                ];
+                ability_node.decorators = new_decorators if new_decorators else None;
+            }
+        }
+
+        # Surgically remove @staticmethod tokens from kids list
+        # (preserves original tokens for comment associations)
+        if ability_node.is_static {
+            self._remove_staticmethod_from_kids(ability_node);
+        }
+
+        # Handle __init__ and __post_init__ conversion
+        if not ability_node.is_method {
             return;
         }
         if not isinstance(ability_node.name_ref, uni.Name)
@@ -297,6 +333,81 @@ class JacAutoLintPass(UniPass) {
                 }
             }
         }
+    }
+
+    """Remove @staticmethod decorator tokens and add static keyword to ability's kid list.
+
+    This preserves original token objects (for comment associations) while
+    removing only the @staticmethod decorator tokens and inserting the static keyword.
+    """
+    def _remove_staticmethod_from_kids(
+        self: JacAutoLintPass, ability_node: uni.Ability
+    ) -> None {
+        new_kids: list[uni.UniNode] = [];
+        i = 0;
+        kids = ability_node.kid;
+        skip_next_ws = False;
+        has_static_kw = False;
+        staticmethod_loc: (uni.Name | None) = None;
+
+        # First pass: check if static keyword already exists and find @staticmethod location
+        for kid in kids {
+            if isinstance(kid, uni.Token) and kid.name == Tok.KW_STATIC {
+                has_static_kw = True;
+            }
+            if isinstance(kid, uni.Name) and kid.value == "staticmethod" {
+                staticmethod_loc = kid;
+            }
+        }
+
+        while i < len(kids) {
+            kid = kids[i];
+
+            # Check for @ followed by staticmethod Name
+            if (
+                isinstance(kid, uni.Token) and kid.value == "@" and (i + 1) < len(kids)
+            ) {
+                next_kid = kids[i + 1];
+                if isinstance(next_kid, uni.Name) and next_kid.value == "staticmethod" {
+                    # Skip both @ and staticmethod
+                    i += 2;
+                    skip_next_ws = True;
+                    continue;
+                }
+            }
+
+            # Skip whitespace/newline after removed decorator
+            if skip_next_ws and isinstance(kid, uni.Token) {
+                if kid.name in ("WS", "NL", "NEWLINE") or kid.value in ("\n", " ", "") {
+                    i += 1;
+                    skip_next_ws = False;
+                    continue;
+                }
+            }
+            skip_next_ws = False;
+
+            # Insert static keyword before def/can if not already present
+            if (
+                not has_static_kw
+                and isinstance(kid, uni.Token)
+                and kid.name in (Tok.KW_DEF, Tok.KW_CAN)
+            ) {
+                static_kw = ability_node.gen_token(Tok.KW_STATIC);
+                # Copy location from @staticmethod for comment association
+                if staticmethod_loc {
+                    static_kw.line_no = staticmethod_loc.loc.first_line;
+                    static_kw.c_start = staticmethod_loc.loc.col_start;
+                    static_kw.c_end = static_kw.c_start + len("static");
+                }
+                new_kids.append(static_kw);
+                has_static_kw = True;
+            }
+
+            new_kids.append(kid);
+            i += 1;
+        }
+
+        ability_node.kid = new_kids;
     }
 
     """Remove empty parentheses from function signatures with no parameters.
