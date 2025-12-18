@@ -8,7 +8,7 @@ fi
 NODE_NUM=${NODE_NUM:-250}         # number of nodes (can override: NODE_NUM=100 ./sweep.sh)
 STEP=${STEP:-1}                   # edge step size      (override: STEP=10 ./sweep.sh)
 TWEET_NUM=${TWEET_NUM:-1}         # JAC_TWEET_NUM
-JAC_FILE=${JAC_FILE:-jac/jaclang/tests/fixtures/jac_ttg/littlex2.jac}
+JAC_FILE=${JAC_FILE:-jac/tests/language/fixtures/jac_ttg/littlex2.jac}
 # =====================================
 
 # Fully connected directed graph (no self-loops):
