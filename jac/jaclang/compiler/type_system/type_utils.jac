@@ -47,11 +47,9 @@ class ParamAssignmentTracker {
 """A completion item."""
 @dataclass
 class CompletionItem {
-    with entry {
-        label: str;
-        kind: int;
+    has label: str,
+        kind: int,
         detail: (str | None) = None;
-    }
 }
 
 """The kind of a completion entry."""

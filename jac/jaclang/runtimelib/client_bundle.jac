@@ -20,30 +20,24 @@ class ClientBundleError(RuntimeError) {}
 
 """Result of processing client imports."""
 class ProcessedImports(NamedTuple) {
-    with entry {
-        import_pieces: list[str];
+    has import_pieces: list[str],
         bundled_module_names: set[str];
-    }
 }
 
 """Container for a compiled client bundle."""
 @dataclass(slots=True)
 class ClientBundle {
-    with entry {
-        module_name: str;
-        code: str;
-        client_functions: list[str];
-        client_globals: list[str];
+    has module_name: str,
+        code: str,
+        client_functions: list[str],
+        client_globals: list[str],
         hash: str;
-    }
 }
 
 @dataclass(slots=True)
 class _CachedBundle {
-    with entry {
-        signature: str;
+    has signature: str,
         bundle: ClientBundle;
-    }
 }
 
 """Compile Jac modules and runtime support into a browser-ready bundle."""

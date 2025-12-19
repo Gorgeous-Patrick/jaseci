@@ -29,21 +29,17 @@ glob JsonValue: TypeAlias = None | str | int | float | bool | <>list['JsonValue'
 """Base response container."""
 @dataclass(frozen=True, slots=True)
 class Response {
-    with entry {
-        status: StatusCode;
-        body: JsonValue;
+    has status: StatusCode,
+        body: JsonValue,
         content_type: str = 'application/json';
-    }
 }
 
 """User authentication data."""
 @dataclass(frozen=True, slots=True)
 class UserData {
-    with entry {
-        username: str;
-        token: str;
+    has username: str,
+        token: str,
         root_id: str;
-    }
 }
 
 """Type-safe serializer for Jac objects."""
@@ -55,14 +51,12 @@ class JacSerializer {
 """Manage users and their persistent roots."""
 @dataclass(slots=True)
 class UserManager {
-    with entry {
-        session_path: str;
+    has session_path: str,
         _users: dict[(str, dict[(str, str)])] = field(
             default_factory=<>dict, <>init=False
-        );
-        _tokens: dict[(str, str)] = field(default_factory=<>dict, <>init=False);
+        ),
+        _tokens: dict[(str, str)] = field(default_factory=<>dict, <>init=False),
         _db_path: str = field(<>init=False);
-    }
 
     def postinit(self: UserManager) -> None;
     def _load_db(self: UserManager) -> None;
@@ -102,30 +96,28 @@ class ExecutionManager {
 """Introspects and caches module metadata."""
 @dataclass(slots=True)
 class ModuleIntrospector {
-    with entry {
-        module_name: str;
-        base_path: (str | None);
-        _module: Any = field(<>default=None, <>init=False);
+    has module_name: str,
+        base_path: (str | None),
+        _module: Any = field(<>default=None, <>init=False),
         _functions: dict[(str, Callable[(..., Any)])] = field(
             default_factory=<>dict, <>init=False
-        );
+        ),
         _walkers: dict[(str, type[WalkerArchetype])] = field(
             default_factory=<>dict, <>init=False
-        );
+        ),
         _client_functions: dict[(str, Callable[(..., Any)])] = field(
             default_factory=<>dict, <>init=False
-        );
+        ),
         _client_manifest: dict[(str, Any)] = field(
             default_factory=<>dict, <>init=False
-        );
-        _bundle: Any = field(<>default=None, <>init=False);
-        _bundle_error: (str | None) = field(<>default=None, <>init=False);
-        _bundle_builder: Any = field(<>default=None, <>init=False);
+        ),
+        _bundle: Any = field(<>default=None, <>init=False),
+        _bundle_error: (str | None) = field(<>default=None, <>init=False),
+        _bundle_builder: Any = field(<>default=None, <>init=False),
         _function_access: dict[(str, bool)] = field(
             default_factory=<>dict, <>init=False
-        );
+        ),
         _walker_access: dict[(str, bool)] = field(default_factory=<>dict, <>init=False);
-    }
 
     def postinit(self: ModuleIntrospector) -> None;
     def load(self: ModuleIntrospector, force_reload: bool = False) -> None;

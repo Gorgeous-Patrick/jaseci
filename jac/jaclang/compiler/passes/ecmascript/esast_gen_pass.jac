@@ -90,52 +90,42 @@ glob _T = TypeVar('_T', bound=es.Node),
 """Track declarations within a lexical scope."""
 @dataclass
 class ScopeInfo {
-    with entry {
-        <>node: uni.UniScopeNode;
-        declared: set[str] = field(default_factory=<>set);
+    has <>node: uni.UniScopeNode,
+        declared: set[str] = field(default_factory=<>set),
         hoisted: list[es.Statement] = field(default_factory=<>list);
-    }
 }
 
 """Container for processed assignment targets."""
 @dataclass
 class AssignmentTargetInfo {
-    with entry {
-        <>node: uni.Expr;
-        left: (es.Pattern | es.Expression);
-        reference: (es.Expression | None);
-        decl_name: (str | None);
-        pattern_names: list[tuple[(str, uni.Name)]];
+    has <>node: uni.Expr,
+        left: (es.Pattern | es.Expression),
+        reference: (es.Expression | None),
+        decl_name: (str | None),
+        pattern_names: list[tuple[(str, uni.Name)]],
         is_first: bool;
-    }
 }
 
 """Describes the walker-side of a spawn expression."""
 @dataclass
 class SpawnWalkerInfo {
-    with entry {
-        call_node: uni.FuncCall;
-        walker_name: str;
+    has call_node: uni.FuncCall,
+        walker_name: str,
         fields_object: es.ObjectExpression;
-    }
 }
 
 """Describes the target-side of a spawn expression."""
 @dataclass
 class SpawnTargetInfo {
-    with entry {
-        <>node: uni.Expr;
+    has <>node: uni.Expr,
         expression: es.Expression;
-    }
 }
 
 """Deconstructed spawn expression ready for runtime lowering."""
 @dataclass
 class SpawnCallParts {
-    with entry {
-        <>walker: SpawnWalkerInfo;
+    has <>walker: SpawnWalkerInfo,
         target: SpawnTargetInfo;
-    }
 }
 
 """Jac to ECMAScript AST transpilation pass."""
