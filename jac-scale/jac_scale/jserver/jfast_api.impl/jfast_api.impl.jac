@@ -262,34 +262,34 @@ impl JFastApiServer._create_endpoint_function(
         ];
         declared_params_str = repr(declared_params);
         extra_query_params_code = f"""
-    # Extract additional query parameters not explicitly declared
-    declared_params = set({declared_params_str})
-    for key, value in request.query_params.items():
-        if key not in declared_params:
-            callback_args[key] = value
+        # Extract additional query parameters not explicitly declared
+        declared_params = set({declared_params_str})
+        for key, value in request.query_params.items():
+            if key not in declared_params:
+                callback_args[key] = value
 """;
     }
     if inspect.iscoroutinefunction(callback) {
         func_code = f"""
 async def endpoint_wrapper({params}):
-try:
-    callback_args: Dict[str, Any] = {{}}
+    try:
+        callback_args: Dict[str, Any] = {{}}
 {callback_args_str}{extra_query_params_code}
-    result = await callback(**callback_args)
-    return result
-except Exception as e:
-    raise HTTPException(status_code=500, detail=str(e))
+        result = await callback(**callback_args)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 """;
     } else {
         func_code = f"""
 def endpoint_wrapper({params}):
-try:
-    callback_args: Dict[str, Any] = {{}}
+    try:
+        callback_args: Dict[str, Any] = {{}}
 {callback_args_str}{extra_query_params_code}
-    result = callback(**callback_args)
-    return result
-except Exception as e:
-    raise HTTPException(status_code=500, detail=str(e))
+        result = callback(**callback_args)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 """;
     }
     exec_globals: dict[(str, Any)] = {
