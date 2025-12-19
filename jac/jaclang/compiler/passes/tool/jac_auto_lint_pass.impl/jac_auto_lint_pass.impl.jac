@@ -491,3 +491,79 @@ impl JacAutoLintPass.enter_module(self: JacAutoLintPass, node: uni.Module) -> No
     self.recalculate_parents(module);
     module.normalize(deep=False);
 }
+
+"""Remove unnecessary <> from names that are not actual keywords.
+
+Names only need <> escaping if they conflict with:
+- Python keywords (and, or, if, else, etc.)
+- Jac reserved keywords from the grammar
+
+This also handles SpecialVarRef where the underlying name should
+never have <> since it's already recognized as a special keyword.
+"""
+impl JacAutoLintPass.enter_name(self: JacAutoLintPass, <>node: uni.Name) -> None {
+    if not self.lint_enabled {
+        return;
+    }
+    # Skip if not escaped or if it's a SpecialVarRef (handled separately)
+    if not <>node.is_kwesc or isinstance(<>node, uni.SpecialVarRef) {
+        return;
+    }
+    jac_keywords = set(TOKEN_MAP.values());
+    python_keywords = set(keyword.kwlist);
+    reserved = jac_keywords | python_keywords;
+    # If the name value is NOT a reserved keyword, remove the <>
+    if <>node.value not in reserved {
+        <>node.is_kwesc = False;
+        # Also update the token name from KWESC_NAME to NAME
+        if <>node.name == Tok.KWESC_NAME {
+            <>node.name = Tok.NAME;
+        }
+    }
+}
+
+"""Remove <> from SpecialVarRef's underlying name.
+
+SpecialVarRef wraps special keywords like init, postinit, self, super,
+root, here, visitor. The underlying Name should never have <> escaping
+since these are already recognized as special tokens in the grammar.
+"""
+impl JacAutoLintPass.enter_special_var_ref(
+    self: JacAutoLintPass, <>node: uni.SpecialVarRef
+) -> None {
+    if not self.lint_enabled {
+        return;
+    }
+    if <>node.orig.is_kwesc {
+        <>node.orig.is_kwesc = False;
+        if <>node.orig.name == Tok.KWESC_NAME {
+            <>node.orig.name = Tok.NAME;
+        }
+    }
+    # Also check if the SpecialVarRef itself has is_kwesc set (it inherits from Name)
+    if <>node.is_kwesc {
+        <>node.is_kwesc = False;
+    }
+}
+
+"""Remove <> from BuiltinType nodes.
+
+BuiltinType represents built-in types like str, int, float, bool, etc.
+These should never have <> escaping since they are recognized as
+built-in type tokens in the grammar.
+"""
+impl JacAutoLintPass.enter_builtin_type(
+    self: JacAutoLintPass, <>node: uni.BuiltinType
+) -> None {
+    if not self.lint_enabled {
+        return;
+    }
+    # BuiltinType inherits from Name, so it has is_kwesc
+    # Built-in types should never be escaped
+    if <>node.is_kwesc {
+        <>node.is_kwesc = False;
+        if <>node.name == Tok.KWESC_NAME {
+            <>node.name = Tok.NAME;
+        }
+    }
+}
