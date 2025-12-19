@@ -13,6 +13,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Python `-m` Module Execution Support**: Added ability for Jac modules to be executed directly via `python -m module_name`. When jaclang is auto-imported at Python startup (via a `.pth` file like `jaclang_hook.pth`), both single-file Jac modules and Jac packages (with `__main__.jac`) can be run using Python's standard `-m` flag.
 - **Standalone `.cl.jac` Module Detection**: `.cl.jac` files are now recognized as Jac modules both as standalone import targets (when no `.jac` exists) and as attachable client annexes.
 - **Strings supported without escaping within jsx**: Strings supported without escaping within jsx. Example usage: `<h1> "Authentication" App </h1>`
+- **Support output format for dot command**: Output format for dot command is supported. Example Usage: `jac dot filename.jac --format json`
 
 ## jaclang 0.9.3 (Latest Release)
 
