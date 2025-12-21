@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import os
 import shutil
 import socket
 import tempfile
 import time
+from http.client import RemoteDisconnected
 from subprocess import PIPE, Popen, run
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -51,6 +53,57 @@ def _wait_for_port(
 
     raise TimeoutError(
         f"Timed out waiting for {host}:{port} to become available. Last error: {last_err}"
+    )
+
+
+def _wait_for_endpoint(
+    url: str,
+    timeout: float = 120.0,
+    poll_interval: float = 2.0,
+    request_timeout: float = 30.0,
+) -> bytes:
+    """Block until an HTTP endpoint returns a successful response or timeout.
+
+    Retries on 503 Service Unavailable and connection errors.
+
+    Returns:
+        The response body as bytes.
+
+    Raises:
+        TimeoutError: if the endpoint does not return success within timeout.
+        HTTPError: if the endpoint returns a non-retryable error.
+    """
+    deadline = time.time() + timeout
+    last_err: Exception | None = None
+
+    while time.time() < deadline:
+        try:
+            with urlopen(url, timeout=request_timeout) as resp:
+                return resp.read()
+        except HTTPError as exc:
+            if exc.code == 503:
+                # Service Unavailable - retry
+                # Close the underlying response to release the socket
+                exc.close()
+                last_err = exc
+                print(f"[DEBUG] Endpoint {url} returned 503, retrying...")
+                time.sleep(poll_interval)
+            else:
+                # Other HTTP errors should not be retried
+                raise
+        except URLError as exc:
+            # Connection errors - retry
+            last_err = exc
+            print(f"[DEBUG] Endpoint {url} connection error: {exc}, retrying...")
+            time.sleep(poll_interval)
+        except RemoteDisconnected as exc:
+            # Server closed connection - retry
+            last_err = exc
+            print(f"[DEBUG] Endpoint {url} remote disconnected: {exc}, retrying...")
+            time.sleep(poll_interval)
+
+    raise TimeoutError(
+        f"Timed out waiting for {url} to become available. Last error: {last_err}"
     )
 
 
@@ -186,23 +239,27 @@ def test_all_in_one_app_endpoints() -> None:
                     pytest.fail(f"Failed to GET root endpoint: {exc}")
 
                 # "/page/app" – main page is loading
+                # Note: This endpoint may return 503 while the page is being compiled,
+                # so we use _wait_for_endpoint to retry until it's ready.
                 try:
-                    print("[DEBUG] Sending GET request to /page/app endpoint")
-                    with urlopen(
+                    print(
+                        "[DEBUG] Sending GET request to /page/app endpoint (with retry)"
+                    )
+                    page_bytes = _wait_for_endpoint(
                         "http://127.0.0.1:8000/page/app",
-                        timeout=200,
-                    ) as resp_page:
-                        page_body = resp_page.read().decode("utf-8", errors="ignore")
-                        print(
-                            "[DEBUG] Received response from /page/app endpoint\n"
-                            f"Status: {resp_page.status}\n"
-                            f"Body (truncated to 500 chars):\n{page_body[:500]}"
-                        )
-                        assert resp_page.status == 200
-                        assert "<html" in page_body.lower()
-                except (URLError, HTTPError) as exc:
+                        timeout=120.0,
+                        poll_interval=2.0,
+                        request_timeout=30.0,
+                    )
+                    page_body = page_bytes.decode("utf-8", errors="ignore")
+                    print(
+                        "[DEBUG] Received response from /page/app endpoint\n"
+                        f"Body (truncated to 500 chars):\n{page_body[:500]}"
+                    )
+                    assert "<html" in page_body.lower()
+                except (URLError, HTTPError, TimeoutError, RemoteDisconnected) as exc:
                     print(f"[DEBUG] Error while requesting /page/app endpoint: {exc}")
-                    pytest.fail("Failed to GET /page/app endpoint")
+                    pytest.fail(f"Failed to GET /page/app endpoint: {exc}")
 
                 # "/page/app#/nested" – relative paths / nested route
                 # (hash fragment is client-side only but server should still serve the app shell)
@@ -433,6 +490,8 @@ def test_all_in_one_app_endpoints() -> None:
                         print(
                             f"[DEBUG] Expected error for invalid login: {http_err.code} {http_err.reason}"
                         )
+                        # Close the underlying response to release the socket
+                        http_err.close()
                         assert http_err.code in (400, 401, 403), (
                             f"Expected 400/401/403 for invalid login, got {http_err.code}"
                         )
@@ -454,6 +513,13 @@ def test_all_in_one_app_endpoints() -> None:
                             "[DEBUG] Server did not terminate cleanly, killing process"
                         )
                         server.kill()
+                        server.wait(timeout=5)
+                    # Allow time for sockets to fully close and run garbage collection
+                    # to clean up any lingering socket objects before temp dir cleanup
+                    time.sleep(1)
+                    gc.collect()
         finally:
             print(f"[DEBUG] Restoring original working directory to {original_cwd}")
             os.chdir(original_cwd)
+            # Final garbage collection to ensure all resources are released
+            gc.collect()
