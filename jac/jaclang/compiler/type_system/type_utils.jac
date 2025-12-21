@@ -11,7 +11,12 @@ import from jaclang.pycore.unitree { Symbol }
 import from . { types }
 """Represents a member of a class."""
 class ClassMember {
-    def init(self: ClassMember, symbol: Symbol, class_type: types.ClassType) -> None;
+    def init(
+        self: ClassMember,
+        symbol: Symbol,
+        class_type: types.ClassType,
+        overloads: list[Symbol]
+    ) -> None;
 }
 
 def compute_mro_linearization(cls: types.ClassType) -> None;

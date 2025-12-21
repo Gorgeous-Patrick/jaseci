@@ -110,7 +110,7 @@ impl JacLangServer.get_definition(
             return make_location(node_selected, is_module=True);
         } elif isinstance(node_type, ClassType) {
             return make_location(node_selected.sym.decl);
-        } elif isinstance(node_type, FunctionType) {
+        } elif isinstance(node_type, (FunctionType, OverloadedType)) {
             return make_location(node_selected.sym.decl);
         }
     }

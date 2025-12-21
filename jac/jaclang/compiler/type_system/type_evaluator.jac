@@ -221,11 +221,19 @@ class TypeEvaluator {
     ) -> type_utils.ClassMember | None;
 
     def match_args_to_params(
-        self: TypeEvaluator, expr: uni.FuncCall, func_type: types.FunctionType
+        self: TypeEvaluator,
+        expr: uni.FuncCall,
+        func_type: types.FunctionType,
+        checking_overload: bool = False,
     ) -> MatchArgsToParamsResult;
 
     def validate_call_args(self: TypeEvaluator, expr: uni.FuncCall) -> TypeBase;
-    def validate_arg_types(self: TypeEvaluator, args: MatchArgsToParamsResult) -> None;
+    def validate_arg_types(
+        self: TypeEvaluator,
+        args: MatchArgsToParamsResult,
+        checking_overload: bool = False
+    ) -> None;
+
     def _create_dataclass_init_method(
         self: TypeEvaluator, class_type: types.ClassType
     ) -> types.FunctionType;

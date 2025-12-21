@@ -79,6 +79,11 @@ impl FunctionType.init(
     self.parameters = parameters or [];
 }
 
+impl OverloadedType.init(self: OverloadedType, overloads: list[FunctionType]) -> None {
+    super.init();
+    self.overloads = overloads;
+}
+
 """Initialize obviously."""
 impl Parameter.init(
     self: Parameter,
@@ -142,10 +147,16 @@ impl ClassType.is_builtin(self: ClassType, class_name: (str | None) = None) -> b
 }
 
 """Lookup a member in the class type."""
-impl ClassType.lookup_member_symbol(self: ClassType, member: str) -> (Symbol | None) {
+impl ClassType.lookup_member_symbol(
+    self: ClassType, member: str, r_overloaded: list | None = None
+) -> (Symbol | None) {
     for cls in self.shared.mro {
         members = cls.shared.symbol_table.names_in_scope;
+        overloads = cls.shared.symbol_table.names_in_scope_overload;
         if (member in members) {
+            if r_overloaded is not None and (member in overloads) {
+                r_overloaded.extend(overloads[member]);
+            }
             return members[member];
         }
     }

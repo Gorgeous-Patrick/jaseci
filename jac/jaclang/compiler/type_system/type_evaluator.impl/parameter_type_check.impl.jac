@@ -1,7 +1,8 @@
 """Validate that the argument types can be assigned to the parameter types."""
 impl TypeEvaluator.validate_arg_types(
-    self: TypeEvaluator, args: MatchArgsToParamsResult
-) -> None {
+    self: TypeEvaluator, args: MatchArgsToParamsResult, checking_overload: bool = False
+) -> bool {
+    has_errors: bool = False;
     for (arg, param) in args.arg_params.items() {
         if param is None or param.param_type is None {
             continue;
@@ -13,12 +14,18 @@ impl TypeEvaluator.validate_arg_types(
         }
 
         if not self.assign_type(arg_type, param.param_type) {
-            self.add_diagnostic(
-                arg,
-                f"Cannot assign {arg_type} to parameter '{param.name}' of type {param.param_type}",
-            );
+            has_errors = True;
+            # If we're checking overloads, we don't emit diagnostics here.
+            # cause we will try other overloads as well.
+            if not checking_overload {
+                self.add_diagnostic(
+                    arg,
+                    f"Cannot assign {arg_type} to parameter '{param.name}' of type {param.param_type}",
+                );
+            }
         }
     }
+    return not has_errors;
 }
 
 """
@@ -40,13 +47,32 @@ impl TypeEvaluator.validate_call_args(
         }
         return caller_type.return_type or types.UnknownType();
     }
-    # 2. Call to TypeVar.
+    # 2. Call to an overloaded function.
+    if isinstance(caller_type, types.OverloadedType) {
+        for overload in caller_type.overloads {
+            arg_param_match = self.match_args_to_params(
+                expr, overload, checking_overload=True
+            );
+            if not arg_param_match.argument_errors {
+                if self.validate_arg_types(arg_param_match, checking_overload=True) {
+                    return overload.return_type or types.UnknownType();
+                }
+            }
+        }
+        # If none of the overloads matched, emit a diagnostic.
+        self.add_diagnostic(
+            expr,
+            "No matching overload found for the function call with the given arguments",
+        );
+        return types.UnknownType();
+    }
+    # 3. Call to TypeVar.
     if isinstance(caller_type, types.ClassType)
     and caller_type.shared == (self.prefetch and self.prefetch.type_var_class.shared) {
         # TODO: validate the args and pass the typevar name.
         return types.TypeVarType();
     }
-    # 3. Call to an instantiable class.
+    # 4. Call to an instantiable class.
     if (
         isinstance(caller_type, types.ClassType)
         and caller_type.is_instantiable_class()
@@ -71,7 +97,7 @@ impl TypeEvaluator.validate_call_args(
         }
         return caller_type.clone_as_instance();
     }
-    # 4. Call to a callable object (__call__).
+    # 5. Call to a callable object (__call__).
     if caller_type.is_class_instance() {
         # TODO: validate args.
         magic_call_ret = self.get_type_of_magic_method_call(caller_type, "__call__");
@@ -90,7 +116,10 @@ validation is left to the caller.
 This logic is based on PEP 3102: https://www.python.org/dev/peps/pep-3102/
 """
 impl TypeEvaluator.match_args_to_params(
-    self: TypeEvaluator, expr: uni.FuncCall, func_type: types.FunctionType
+    self: TypeEvaluator,
+    expr: uni.FuncCall,
+    func_type: types.FunctionType,
+    checking_overload: bool = False,
 ) -> MatchArgsToParamsResult {
     arg_params: dict[uni.Expr | uni.KWPair, types.Parameter | None] = {};
     argument_errors = False;
@@ -127,17 +156,21 @@ impl TypeEvaluator.match_args_to_params(
                 arg_params[arg] = matching_param;
             }
         } except Exception as e {
-            self.add_diagnostic(arg, str(e));
+            if not checking_overload {
+                self.add_diagnostic(arg, str(e));
+            }
             argument_errors = True;
         }
     }
     if unmatched_params := param_tracker.get_unmatched_required_params() {
-        names = ", ".join([f"'{p.name}'" for p in unmatched_params]);
         argument_errors = True;
-        self.add_diagnostic(
-            expr,
-            f"Not all required parameters were provided in the function call: {names}",
-        );
+        names = ", ".join([f"'{p.name}'" for p in unmatched_params]);
+        if not checking_overload {
+            self.add_diagnostic(
+                expr,
+                f"Not all required parameters were provided in the function call: {names}",
+            );
+        }
     }
     return MatchArgsToParamsResult(
         arg_params=arg_params, argument_errors=argument_errors

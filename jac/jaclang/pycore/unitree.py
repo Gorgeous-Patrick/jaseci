@@ -350,6 +350,7 @@ class UniScopeNode(UniNode):
         self.parent_scope = parent_scope
         self.kid_scope: list[UniScopeNode] = []
         self.names_in_scope: dict[str, Symbol] = {}
+        self.names_in_scope_overload: dict[str, list[Symbol]] = {}
         self.inherited_scope: list[InheritedSymbolTable] = []
 
     def get_type(self) -> SymbolType:
@@ -418,18 +419,24 @@ class UniScopeNode(UniNode):
             if single and node.sym_name in self.names_in_scope
             else None
         )
+
+        symbol = node.name_spec.create_symbol(
+            access=(
+                access_spec
+                if isinstance(access_spec, SymbolAccess)
+                else access_spec.access_type
+                if access_spec
+                else SymbolAccess.PUBLIC
+            ),
+            parent_tab=self,
+            imported=imported,
+        )
+
+        if node.sym_name in self.names_in_scope:
+            self.names_in_scope_overload.setdefault(node.sym_name, []).append(symbol)
+
         if force_overwrite or node.sym_name not in self.names_in_scope:
-            self.names_in_scope[node.sym_name] = node.name_spec.create_symbol(
-                access=(
-                    access_spec
-                    if isinstance(access_spec, SymbolAccess)
-                    else access_spec.access_type
-                    if access_spec
-                    else SymbolAccess.PUBLIC
-                ),
-                parent_tab=self,
-                imported=imported,
-            )
+            self.names_in_scope[node.sym_name] = symbol
         else:
             self.names_in_scope[node.sym_name].add_defn(node.name_spec)
         node.name_spec.sym = self.names_in_scope[node.sym_name]

@@ -54,8 +54,9 @@ impl TypeEvaluator._lookup_class_member(
     # NOTE: This is a simple implementation to make it work and more robust implementation will
     # be done in a future PR.
     for cls in base_type.shared.mro {
-        if sym := cls.lookup_member_symbol(member) {
-            return type_utils.ClassMember(sym, cls);
+        overloaded_syms: list[uni.Symbol] = [];
+        if sym := cls.lookup_member_symbol(member, overloaded_syms) {
+            return type_utils.ClassMember(sym, cls, overloaded_syms);
         }
     }
     return None;

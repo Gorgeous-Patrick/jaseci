@@ -60,11 +60,34 @@ impl TypeEvaluator._get_type_of_expression_core(
                     if member := self._lookup_object_member(
                         base_type, expr.right.value
                     ) {
-                        expr_type = self._set_symbol_to_expr(expr.right, member.symbol);
-                        if isinstance(expr_type, types.FunctionType) {
-                            expr_type = expr_type.specialize(base_type);
+                        overloaded_ty: types.OverloadedType | None = None;
+                        member_ty = self.get_type_of_symbol(member.symbol);
+                        if isinstance(member_ty, types.FunctionType) {
+                            member_ty = member_ty.specialize(base_type);
+                            overloaded_fns: list[types.FunctionType] = [member_ty];
+                            for overload in member.overloads {
+                                overload_member_ty = self.get_type_of_symbol(overload);
+                                if isinstance(overload_member_ty, types.FunctionType) {
+                                    overload_member_ty = overload_member_ty.specialize(
+                                        base_type
+                                    );
+                                    overloaded_fns.append(overload_member_ty);
+                                }
+                            }
+                            if len(overloaded_fns) > 1 {
+                                overloaded_ty = types.OverloadedType(overloaded_fns);
+                            }
                         }
-                        return expr_type;
+                        # NOTE: If this atom trailer is called `<atom_trailer>()` we can resolve
+                        # which overload is being called based on the arguments, and update the type
+                        # based on the call, maybe for future.
+                        #
+                        # This symbol.add_use is what makes the jump to definition work.
+                        #
+                        # expr_type = self._set_symbol_to_expr(expr.right, member.symbol);
+                        member.symbol.add_use(expr.right);
+                        expr.right.type = overloaded_ty or member_ty;
+                        return expr.right.type;
                     }
                     return types.UnknownType();
                 }
@@ -153,6 +176,7 @@ impl TypeEvaluator._get_type_of_expression_core(
             if expr.f_type {
                 filter_type = self.get_type_of_expression(expr.f_type);
                 if isinstance(filter_type, types.ClassType) {
+                    # Compute the MRO for the class.
                     # For each compare in the filter comprehension, set symbol to the right name.
                     for cmp in expr.compares {
                         if isinstance(cmp.left, uni.Name)
@@ -577,3 +601,5 @@ impl TypeEvaluator.init(self: TypeEvaluator, program: "JacProgram") -> None {
     );
     self._prefetch_types();
 }
+# Cache the type, pyright is doing invalidateTypeCacheIfCanceled()
+# we're not doing that any time sooner.

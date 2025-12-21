@@ -257,9 +257,13 @@ impl compute_mro_linearization(cls: types.ClassType) -> None {
 
 """Initialize obviously."""
 impl ClassMember.init(
-    self: ClassMember, symbol: Symbol, class_type: types.ClassType
+    self: ClassMember,
+    symbol: Symbol,
+    class_type: types.ClassType,
+    overloads: list[Symbol]
 ) -> None {
     self.symbol = symbol;
+    self.overloads = overloads;
     self.class_type = class_type;
     self.is_instance_member = True;
     self.is_class_member = False;
