@@ -636,11 +636,14 @@ impl JacAPIServer.init(
         allow_headers=['*']
     );
     self.SUPPORTED_PLATFORMS: dict = {};
+    # Load SSO config from jac.toml (already includes env var overrides)
+    sso_config = _sso_config;
     for platform in Platforms {
-        key = platform.upper();
+        key = platform.lower();
+        platform_config = sso_config.get(key, {});
 
-        client_id = getenv(f"SSO_{key}_CLIENT_ID");
-        client_secret = getenv(f"SSO_{key}_CLIENT_SECRET");
+        client_id = platform_config.get('client_id', '');
+        client_secret = platform_config.get('client_secret', '');
 
         if not client_id or not client_secret {
             continue;
