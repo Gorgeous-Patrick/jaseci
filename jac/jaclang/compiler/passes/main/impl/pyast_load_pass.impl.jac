@@ -14,7 +14,18 @@ impl PyastBuildPass.aug_op_map(
 
 """Convert a string to a docstring."""
 impl PyastBuildPass.convert_to_doc(self: PyastBuildPass, string: uni.String) -> None {
-    string.value = f'"""{string.value[1:-1]}"""';
+    import codecs;
+    # string.value is in repr format (e.g., 'line1\nline2' with escaped newlines)
+    # For docstrings, we need to decode escape sequences back to actual characters
+    content = string.value[1:-1];  # Remove surrounding quotes
+    try {
+        # Decode unicode escape sequences (\n, \t, etc.) to actual characters
+        # First encode to bytes (latin-1 preserves byte values), then decode unicode escapes
+        decoded = codecs.decode(content, 'unicode_escape');
+    } except Exception {
+        decoded = content;
+    }
+    string.value = f'"""{decoded}"""';
 }
 
 """

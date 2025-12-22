@@ -286,7 +286,9 @@ impl py2jac(filename: str) -> None {
         ).ir_out.unparse(
             requires_format=False
         );
-        prog = JacProgram.jac_str_formatter(source_str=code, file_path=filename);
+        prog = JacProgram.jac_str_formatter(
+            source_str=code, file_path=filename, auto_lint=True
+        );
         if prog.errors_had {
             print('Error converting Python code to Jac.', file=sys.stderr);
             <>exit(1);
