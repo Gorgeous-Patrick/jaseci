@@ -1158,18 +1158,29 @@ impl CommentStore.from_module(cls: Any, module: uni.Module) -> CommentStore {
         collection.sort(key=lambda  c: Any: (c.first_line, c.index));
     }
     standalone.sort(key=lambda  c: Any: (c.first_line, c.index));
-    return cls(inline, standalone);
+    return cls(_inline=inline, _standalone=standalone);
 }
 
 impl CommentStore.init(
     self: CommentStore,
-    inline: dict[(int, list[CommentInfo])],
-    standalone: list[CommentInfo]
+    _inline: dict[(int, list[CommentInfo])],
+    _standalone: list[CommentInfo]
 ) -> None {
-    self._inline: dict[(int, list[CommentInfo])] = inline;
-    self._standalone: list[CommentInfo] = standalone;
-    self._standalone_lines: list[int] = [c.first_line for c in standalone];
-    self._used: set[int] = <>set();
+    self._inline = _inline;
+    self._standalone = _standalone;
+    self._standalone_lines = [c.first_line for c in self._standalone];
+    self._used = set();
+}
+
+impl CommentInfo.init(
+    self: CommentInfo,
+    index: int,
+    token: uni.CommentToken,
+    anchor_token_id: (int | None)
+) -> None {
+    self.index = index;
+    self.token = token;
+    self.anchor_token_id = anchor_token_id;
 }
 
 """Return the final line this comment occupies."""
