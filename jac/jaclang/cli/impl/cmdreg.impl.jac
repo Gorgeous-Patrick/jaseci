@@ -112,12 +112,23 @@ impl CommandRegistry._bind_command_to_argparse(
         } elif first {
             arg_msg += f", default: {param.default}";
             first = False;
-            cmd_parser.add_argument(
-                f"{param_name}",
-                <>default=param.default,
-                <>type=eval(param.annotation),
-                help=arg_msg
-            );
+            # Handle list types with nargs='*' to allow zero or more arguments
+            annotation = eval(param.annotation)
+            if isinstance(param.annotation, str)
+            else param.annotation;
+            if annotation is list
+            or (hasattr(annotation, '__origin__') and annotation.__origin__ is list) {
+                cmd_parser.add_argument(
+                    f"{param_name}", <>default=param.default, nargs='*', help=arg_msg
+                );
+            } else {
+                cmd_parser.add_argument(
+                    f"{param_name}",
+                    <>default=param.default,
+                    <>type=annotation,
+                    help=arg_msg
+                );
+            }
         } else {
             arg_msg += f", default: {param.default}";
             if (param.annotation is bool or param.annotation == 'bool') {
