@@ -45,6 +45,36 @@ def discover_annex_files(source_path: str, suffix: str = ".impl.jac") -> list[st
     ]
 
 
+def discover_base_file(annex_path: str) -> str | None:
+    """Discover the base .jac file for an annex file (.impl.jac, .test.jac, .cl.jac).
+
+    Searches: same directory, module-specific folder (foo.impl/), shared folder (impl/).
+    For multi-part names like "foo.bar.impl.jac", only the first component is used.
+    """
+    src = Path(annex_path).resolve()
+    annex_types = {".impl.jac": ".impl", ".test.jac": ".test", ".cl.jac": ".cl"}
+
+    # Find matching annex type and extract base name
+    for suffix, folder_suffix in annex_types.items():
+        if src.name.endswith(suffix):
+            base_name = src.name[: -len(suffix)].split(".")[0]
+            parent = src.parent.name
+            # Build search candidates: (directory, base_name_to_search)
+            candidates = [(src.parent, base_name)]
+            if parent.endswith(folder_suffix):  # Module-specific folder
+                candidates.append((src.parent.parent, parent[: -len(folder_suffix)]))
+            if parent in {"impl", "test", "cl"}:  # Shared folder
+                candidates.append((src.parent.parent, base_name))
+            # Search for base file
+            for directory, name in candidates:
+                for ext in (".jac", ".cl.jac"):
+                    path = directory / f"{name}{ext}"
+                    if path.is_file() and path != src:
+                        return str(path)
+            break
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class CacheKey:
     """Immutable key identifying a cached bytecode entry.
