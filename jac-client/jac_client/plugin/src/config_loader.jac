@@ -1,21 +1,23 @@
 """Configuration loader for Jac Client build system.
 
-This module provides a thin wrapper around the core JacConfig,
-providing client-specific configuration access.
+This module provides configuration access for the client plugin.
+Configuration is loaded from jac.toml under [plugins.client] section.
+
+Inherits from PluginConfigBase to eliminate boilerplate code.
 """
 import from pathlib { Path }
 import from typing { Any }
-import from jaclang.project.config { JacConfig }
+import from jaclang.project.plugin_config { PluginConfigBase }
 
-"""Wrapper around core JacConfig for client-specific configuration."""
-class JacClientConfig {
-    def init(self: JacClientConfig, project_dir: Path);
-    def _get_default_config(self: JacClientConfig) -> dict[str, Any];
-    def load(self: JacClientConfig) -> dict[str, Any];
-    def _deep_merge(
-        self: JacClientConfig, base: dict[(str, Any)], override_dict: dict[(str, Any)]
-    ) -> dict[str, Any];
+"""Client-specific configuration loader.
 
+Provides access to vite, ts, and package configuration
+from the [plugins.client] section of jac.toml.
+"""
+class JacClientConfig(PluginConfigBase) {
+    override def get_plugin_name(self: JacClientConfig) -> str;
+    override def get_default_config(self: JacClientConfig) -> dict[str, Any];
+    override def load(self: JacClientConfig) -> dict[str, Any];
     def save(self: JacClientConfig) -> None;
     def get_vite_config(self: JacClientConfig) -> dict[str, Any];
     def get_ts_config(self: JacClientConfig) -> dict[str, Any];

@@ -1,40 +1,32 @@
 """Implementation of jac-byllm configuration loader.
 
-This delegates to the core JacConfig for all configuration operations,
-reading from [plugins.byllm] for model, call_params, and litellm config.
+This module provides the implementation for JacByllmConfig, which inherits
+from PluginConfigBase for common configuration loading functionality.
 
-Configuration is loaded purely from jac.toml - no environment variable fallbacks.
+The base class handles: init, load, get_jac_config, deep_merge, get_section.
+This file only implements plugin-specific methods.
 """
-import from jaclang.project.config { JacConfig }
 import from pathlib { Path }
 import from typing { Any }
 
-"""Initialize config loader with project directory."""
-impl JacByllmConfig.init(self: JacByllmConfig, project_dir: (Path | None) = None) {
-    if project_dir is None {
-        # Try to find project root from current working directory
-        self.project_dir = Path.cwd();
-    } else {
-        self.project_dir = project_dir;
-    }
-    self.config_file = self.project_dir / 'jac.toml';
-    self._config: (dict[(str, Any)] | None) = None;
-    self._jac_config: (JacConfig | None) = None;
+"""Get the plugin section name for byllm."""
+impl JacByllmConfig.get_plugin_name(self: JacByllmConfig) -> str {
+    return "byllm";
 }
 
-"""Get or load the core JacConfig."""
-def _get_jac_config(self: JacByllmConfig) -> JacConfig {
-    if self._jac_config is None {
-        if self.config_file.exists() {
-            self._jac_config = JacConfig.load(self.config_file);
-        } else {
-            # Create a new config with project root
-            self._jac_config = JacConfig();
-            self._jac_config.toml_path = self.config_file;
-            self._jac_config.project_root = self.project_dir;
-        }
-    }
-    return self._jac_config;
+"""Get default configuration structure for byllm."""
+impl JacByllmConfig.get_default_config(self: JacByllmConfig) -> dict[str, Any] {
+    return {
+        'model': {
+            'default_model': 'gpt-4o-mini',
+            'api_key': '',
+            'base_url': '',
+            'proxy': False,
+            'verbose': False
+        },
+        'call_params': {'temperature': 0.7, 'max_tokens': 0},
+        'litellm': {'local_cost_map': True, 'drop_params': True}
+    };
 }
 
 """Get model configuration from jac.toml."""
@@ -74,61 +66,8 @@ impl JacByllmConfig.get_litellm_config(self: JacByllmConfig) -> dict[str, Any] {
     };
 }
 
-"""Deep merge two dictionaries."""
-impl JacByllmConfig._deep_merge(
-    self: JacByllmConfig, base: dict[(str, Any)], override_dict: dict[(str, Any)]
-) -> dict[str, Any] {
-    result = base.copy();
-    for (key, value) in override_dict.items() {
-        if (
-            (key in result)
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ) {
-            result[key] = self._deep_merge(result[key], value);
-        } else {
-            result[key] = value;
-        }
-    }
-    return result;
-}
-
-"""Load configuration from jac.toml, merging with defaults."""
-impl JacByllmConfig.load(self: JacByllmConfig) -> dict[str, Any] {
-    if (self._config is not None) {
-        return self._config;
-    }
-    default_config = self._get_default_config();
-    jac_config = _get_jac_config(self);
-    # Get byllm plugin config from [plugins.byllm]
-    byllm_config = jac_config.get_plugin_config('byllm');
-    # Build user config in the expected internal format
-    user_config: dict[str, Any] = {
-        'model': byllm_config.get('model', {}),
-        'call_params': byllm_config.get('call_params', {}),
-        'litellm': byllm_config.get('litellm', {})
-    };
-    self._config = self._deep_merge(default_config, user_config);
-    return self._config;
-}
-
-"""Get default configuration structure."""
-impl JacByllmConfig._get_default_config(self: JacByllmConfig) -> dict[str, Any] {
-    return {
-        'model': {
-            'default_model': 'gpt-4o-mini',
-            'api_key': '',
-            'base_url': '',
-            'proxy': False,
-            'verbose': False
-        },
-        'call_params': {'temperature': 0.7, 'max_tokens': 0},
-        'litellm': {'local_cost_map': True, 'drop_params': True}
-    };
-}
-
 """Get or create the global JacByllmConfig instance."""
-impl get_byllm_config(project_dir: (Path | None) = None) -> JacByllmConfig {
+impl get_byllm_config(project_dir: Path | None = None) -> JacByllmConfig {
     global _byllm_config_instance;
     if _byllm_config_instance is None {
         _byllm_config_instance = JacByllmConfig(project_dir);
