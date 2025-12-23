@@ -1,4 +1,9 @@
 impl JacLangServer.shutdown(self: JacLangServer) -> None {
+    # Guard against double shutdown.
+    if self._shutdown_called {
+        return;
+    }
+    self._shutdown_called = True;
     try {
         if self?.worker_thread and self.worker_thread.is_alive() {
             self.queue.put(None);  # Signal the worker thread to exit
@@ -501,6 +506,7 @@ impl JacLangServer.init(self: JacLangServer) -> None {
     self.last_task: Task | None = None;
     self.worker_thread = threading.Thread(target=self.dispatcher);
     self.worker_thread.start();
+    self._shutdown_called = False;
 }
 
 impl Task.init(self: Task, file_uri: str) {
