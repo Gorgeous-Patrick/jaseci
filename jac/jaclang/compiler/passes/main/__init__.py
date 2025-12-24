@@ -1,28 +1,12 @@
 """Collection of passes for Jac IR.
 
 This module uses lazy imports to enable converting passes to Jac.
-Bootstrap-critical passes are loaded eagerly from pycore, while analysis passes
-that can be deferred are loaded lazily via __getattr__.
+The .jac passes are loaded lazily via __getattr__ to avoid circular imports.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-
-# Bootstrap-critical passes - all Python passes live in pycore
-from jaclang.pycore.passes import (
-    Alert,
-    BaseTransform,
-    DeclImplMatchPass,
-    JacAnnexPass,
-    PyastGenPass,
-    PyBytecodeGenPass,
-    SemanticAnalysisPass,
-    SymTabBuildPass,
-    SymTabLinkPass,
-    Transform,
-    UniPass,
-)
 
 # Passes that are imported lazily to allow .jac conversion
 # These are loaded on first access via __getattr__
@@ -96,21 +80,10 @@ def __getattr__(name: str) -> type:
 
 
 __all__ = [
-    "Alert",
-    "BaseTransform",
-    "Transform",
-    "UniPass",
-    "JacAnnexPass",
-    "JacImportDepsPass",
-    "TypeCheckPass",
-    "SymTabBuildPass",
-    "SymTabLinkPass",
-    "SemanticAnalysisPass",
-    "DeclImplMatchPass",
-    "SemDefMatchPass",
-    "PyastBuildPass",
-    "PyastGenPass",
-    "PyBytecodeGenPass",
     "CFGBuildPass",
+    "JacImportDepsPass",
+    "PyastBuildPass",
     "PyJacAstLinkPass",
+    "SemDefMatchPass",
+    "TypeCheckPass",
 ]

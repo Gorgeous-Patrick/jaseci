@@ -334,6 +334,44 @@ impl SemTokManager.gen_sem_tok_node(
     # Helper to resolve symbol from hub if not already set
     def resolve_symbol(nd: uni.NameAtom) -> None {
         if nd.sym is None and nd?.value {
+            # Check if this is a member access (right side of AtomTrailer)
+            parent = nd.parent;
+            if isinstance(parent, uni.AtomTrailer)
+            and parent.is_attr
+            and parent.right == nd {
+                # This is a member access like Task._task_id, resolve the target first
+                target = parent.target;
+                if isinstance(target, uni.NameAtom) and target.sym {
+                    # Get the symbol table of the target (class/obj)
+                    target_sym = target.sym;
+                    if target_sym.decl
+                    and isinstance(target_sym.decl.name_of, uni.Archetype) {
+                        archetype = target_sym.decl.name_of;
+                        # Look up the member in the archetype's symbol table
+                        if member_sym := archetype.lookup(nd.value, deep=False) {
+                            member_sym.add_use(nd);
+                            nd.sym = member_sym;
+                            if member_sym.decl and member_sym.decl.name_of {
+                                nd.name_of = member_sym.decl.name_of;
+                            }
+                            # Set sem_token based on symbol type
+                            if nd.sem_token is None
+                            and member_sym.decl
+                            and member_sym.decl.name_of {
+                                decl = member_sym.decl.name_of;
+                                if isinstance(decl, uni.HasVar) {
+                                    nd.sem_token = (JacSemTokenType.PROPERTY, 0);
+                                } elif isinstance(decl, uni.Ability) {
+                                    nd.sem_token = (JacSemTokenType.FUNCTION, 0);
+                                } else {
+                                    nd.sem_token = (JacSemTokenType.VARIABLE, 0);
+                                }
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
             # Try to find the symbol from all loaded modules in the hub
             for (path, mod) in hub.items() {
                 if symbol := mod.lookup(nd.value, deep=True, incl_inner_scope=True) {
@@ -434,6 +472,44 @@ impl SemTokManager.gen_sem_tokens(ir: uni.Module) -> list[int] {
     # Helper to resolve symbol from hub if not already set
     def resolve_symbol(nd: uni.NameAtom) -> None {
         if nd.sym is None and nd?.value {
+            # Check if this is a member access (right side of AtomTrailer)
+            parent = nd.parent;
+            if isinstance(parent, uni.AtomTrailer)
+            and parent.is_attr
+            and parent.right == nd {
+                # This is a member access like Task._task_id, resolve the target first
+                target = parent.target;
+                if isinstance(target, uni.NameAtom) and target.sym {
+                    # Get the symbol table of the target (class/obj)
+                    target_sym = target.sym;
+                    if target_sym.decl
+                    and isinstance(target_sym.decl.name_of, uni.Archetype) {
+                        archetype = target_sym.decl.name_of;
+                        # Look up the member in the archetype's symbol table
+                        if member_sym := archetype.lookup(nd.value, deep=False) {
+                            member_sym.add_use(nd);
+                            nd.sym = member_sym;
+                            if member_sym.decl and member_sym.decl.name_of {
+                                nd.name_of = member_sym.decl.name_of;
+                            }
+                            # Set sem_token based on symbol type
+                            if nd.sem_token is None
+                            and member_sym.decl
+                            and member_sym.decl.name_of {
+                                decl = member_sym.decl.name_of;
+                                if isinstance(decl, uni.HasVar) {
+                                    nd.sem_token = (JacSemTokenType.PROPERTY, 0);
+                                } elif isinstance(decl, uni.Ability) {
+                                    nd.sem_token = (JacSemTokenType.FUNCTION, 0);
+                                } else {
+                                    nd.sem_token = (JacSemTokenType.VARIABLE, 0);
+                                }
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
             # Try to find the symbol from all loaded modules in the hub
             for (path, mod) in hub.items() {
                 if symbol := mod.lookup(nd.value, deep=True, incl_inner_scope=True) {

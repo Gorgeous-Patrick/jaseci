@@ -145,6 +145,63 @@ impl TypeCheckPass.exit_ability(self: TypeCheckPass, <>node: uni.Ability) -> Non
                 }
             }
         }
+        # The ImplDef body is not in the Ability's kid list, so it's not traversed by the pass.
+        # We need to explicitly traverse the ImplDef body to evaluate types for hover/go-to-def.
+        self._traverse_impl_body(<>node.body);
+    }
+}
+
+"""Traverse an ImplDef body and evaluate types for all expression nodes."""
+impl TypeCheckPass._traverse_impl_body(
+    self: TypeCheckPass, impl_def: uni.ImplDef
+) -> None {
+    # Recursively traverse all nodes in the ImplDef body and call type evaluation
+    def traverse_node(node: uni.UniNode) -> None {
+        if node is None {
+            return;
+        }
+
+        # Call the appropriate exit handler for expression nodes
+        if isinstance(node, uni.SpecialVarRef) {
+            self.evaluator.get_type_of_expression(node);
+        } elif isinstance(node, uni.AtomTrailer) {
+            self.evaluator.get_type_of_expression(node);
+        } elif isinstance(node, uni.FuncCall) {
+            self.evaluator.get_type_of_expression(node);
+        } elif isinstance(node, uni.BinaryExpr) {
+            self.evaluator.get_type_of_expression(node);
+        } elif isinstance(node, uni.Assignment) {
+            # Handle assignments - evaluate both sides
+            for target in node.target {
+                self.evaluator.get_type_of_expression(target);
+            }
+            if node.value {
+                self.evaluator.get_type_of_expression(node.value);
+            }
+        } elif isinstance(node, uni.ReturnStmt) {
+            if node.expr {
+                self.evaluator.get_type_of_expression(node.expr);
+            }
+        } elif isinstance(node, uni.Name) {
+            if node.sym is None {
+                self.evaluator.get_type_of_expression(node);
+            }
+        }
+
+        # Recursively traverse children
+        if node?.kid {
+            for child in node.kid {
+                if child {
+                    traverse_node(child);
+                }
+            }
+        }
+    }
+    # Start traversing from the ImplDef's children
+    for child in impl_def.kid {
+        if child {
+            traverse_node(child);
+        }
     }
 }
 
