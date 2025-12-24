@@ -123,6 +123,31 @@ impl TypeCheckPass.enter_ability(self: TypeCheckPass, <>node: uni.Ability) -> No
     }
 }
 
+"""Exit an ability node - ensure parameter type annotations are evaluated."""
+impl TypeCheckPass.exit_ability(self: TypeCheckPass, <>node: uni.Ability) -> None {
+    # For abilities with ImplDef body (stubs linked to impl files), the original declaration's
+    # type annotation Name nodes are orphaned (not in the traversal tree). We need to explicitly
+    # process them to enable hover/go-to-definition on the declaration file.
+    if isinstance(<>node.body, uni.ImplDef) {
+        ability_start_line = <>node.loc.first_line;
+        ability_end_line = <>node.loc.last_line;
+        # Find orphaned Name nodes in type annotations at this ability's location
+        if module := <>node.find_parent_of_type(uni.Module) {
+            for nd in module._in_mod_nodes {
+                if (
+                    isinstance(nd, uni.Name)
+                    and nd.sym is None
+                    and ability_start_line <= nd.loc.first_line <= ability_end_line
+                    and isinstance(nd.parent, uni.SubTag)
+                ) {  # SubTag is the type annotation wrapper
+
+                    self.evaluator.get_type_of_expression(nd);
+                }
+            }
+        }
+    }
+}
+
 impl TypeCheckPass._insert_builtin_symbols(self: TypeCheckPass) -> None {
     if (self.ir_in == self.evaluator.builtins_module) {
         return;
