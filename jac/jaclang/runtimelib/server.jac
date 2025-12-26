@@ -143,8 +143,8 @@ obj AuthHandler {
         execution_manager: ExecutionManager,
         user_manager: UserManager;
 
-    def create_user(email: str, password: str) -> Response;
-    def login(email: str, password: str) -> Response;
+    def create_user(username: str, password: str) -> Response;
+    def login(username: str, password: str) -> Response;
 }
 
 """Handle introspection routes."""

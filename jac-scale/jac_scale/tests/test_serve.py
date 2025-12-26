@@ -244,13 +244,13 @@ class TestJacScaleServe:
         result = self._request(
             "POST",
             "/user/register",
-            {"email": "testuser1@example.com", "password": "testpass123"},
+            {"username": "testuser1", "password": "testpass123"},
         )
 
-        assert "email" in result
+        assert "username" in result
         assert "token" in result
         assert "root_id" in result
-        assert result["email"] == "testuser1@example.com"
+        assert result["username"] == "testuser1"
 
     def test_user_login(self) -> None:
         """Test user login endpoint."""
@@ -258,18 +258,18 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "loginuser@example.com", "password": "loginpass"},
+            {"username": "loginuser", "password": "loginpass"},
         )
 
         # Login with correct credentials
         login_result = self._request(
             "POST",
             "/user/login",
-            {"email": "loginuser@example.com", "password": "loginpass"},
+            {"username": "loginuser", "password": "loginpass"},
         )
 
         assert "token" in login_result
-        assert login_result["email"] == "loginuser@example.com"
+        assert login_result["username"] == "loginuser"
         assert login_result["root_id"] == create_result["root_id"]
 
     def test_user_login_wrong_password(self) -> None:
@@ -278,14 +278,14 @@ class TestJacScaleServe:
         self._request(
             "POST",
             "/user/register",
-            {"email": "failuser@example.com", "password": "correctpass"},
+            {"username": "failuser", "password": "correctpass"},
         )
 
         # Try to login with wrong password
         login_result = self._request(
             "POST",
             "/user/login",
-            {"email": "failuser@example.com", "password": "wrongpass"},
+            {"username": "failuser", "password": "wrongpass"},
         )
 
         assert "error" in login_result
@@ -321,7 +321,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "refresh_bearer@example.com", "password": "password123"},
+            {"username": "refresh_bearer", "password": "password123"},
         )
         original_token = create_result["token"]
 
@@ -375,13 +375,11 @@ class TestJacScaleServe:
         self._request(
             "POST",
             "/user/register",
-            {"email": "refresh_old@example.com", "password": "password123"},
+            {"username": "refresh_old", "password": "password123"},
         )
 
         # Create a very old token (15 days old, beyond refresh window)
-        very_old_token = self._create_very_old_token(
-            "refresh_old@example.com", days_ago=15
-        )
+        very_old_token = self._create_very_old_token("refresh_old", days_ago=15)
 
         # Try to refresh the very old token
         refresh_result = self._request(
@@ -396,7 +394,7 @@ class TestJacScaleServe:
     def test_refresh_token_with_nonexistent_user(self) -> None:
         """Test refreshing token for user that doesn't exist."""
         # Create token for non-existent user
-        fake_token = self._create_expired_token("nonexistent@example.com", days_ago=1)
+        fake_token = self._create_expired_token("nonexistent", days_ago=1)
 
         refresh_result = self._request(
             "POST",
@@ -413,7 +411,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "refresh_multi@example.com", "password": "password123"},
+            {"username": "refresh_multi", "password": "password123"},
         )
         token1 = create_result["token"]
 
@@ -439,11 +437,11 @@ class TestJacScaleServe:
     def test_refresh_token_preserves_username(self) -> None:
         """Test that refreshed token contains correct username."""
         # Create user
-        email = "refresh_preserve@example.com"
+        username = "refresh_preserve"
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": email, "password": "password123"},
+            {"username": username, "password": "password123"},
         )
         original_token = create_result["token"]
 
@@ -462,8 +460,8 @@ class TestJacScaleServe:
         original_payload = pyjwt.decode(original_token, secret, algorithms=[algorithm])
         new_payload = pyjwt.decode(new_token, secret, algorithms=[algorithm])
 
-        assert original_payload["username"] == email
-        assert new_payload["username"] == email
+        assert original_payload["username"] == username
+        assert new_payload["username"] == username
         assert original_payload["username"] == new_payload["username"]
 
     def test_refresh_token_updates_expiration(self) -> None:
@@ -472,7 +470,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "refresh_exp@example.com", "password": "password123"},
+            {"username": "refresh_exp", "password": "password123"},
         )
         original_token = create_result["token"]
 
@@ -522,7 +520,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "adduser@example.com", "password": "pass"},
+            {"username": "adduser", "password": "pass"},
         )
         token = create_result["token"]
 
@@ -543,7 +541,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "greetuser@example.com", "password": "pass"},
+            {"username": "greetuser", "password": "pass"},
         )
         token = create_result["token"]
 
@@ -564,7 +562,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "defuser@example.com", "password": "pass"},
+            {"username": "defuser", "password": "pass"},
         )
         token = create_result["token"]
 
@@ -585,7 +583,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "spawnuser@example.com", "password": "pass"},
+            {"username": "spawnuser", "password": "pass"},
         )
         token = create_result["token"]
 
@@ -606,19 +604,19 @@ class TestJacScaleServe:
 
         # Use unique emails to avoid conflicts with previous test runs
         unique_id = uuid.uuid4().hex[:8]
-        email1 = f"isolate1_{unique_id}@example.com"
-        email2 = f"isolate2_{unique_id}@example.com"
+        username1 = f"isolate1_{unique_id}"
+        username2 = f"isolate2_{unique_id}"
 
         # Create two users
         user1 = self._request(
             "POST",
             "/user/register",
-            {"email": email1, "password": "pass1"},
+            {"username": username1, "password": "pass1"},
         )
         user2 = self._request(
             "POST",
             "/user/register",
-            {"email": email2, "password": "pass2"},
+            {"username": username2, "password": "pass2"},
         )
 
         print(f"user1: {user1}")
@@ -637,7 +635,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "invalidfunc@example.com", "password": "pass"},
+            {"username": "invalidfunc", "password": "pass"},
         )
         token = create_result["token"]
 
@@ -657,7 +655,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "invalidwalk@example.com", "password": "pass"},
+            {"username": "invalidwalk", "password": "pass"},
         )
         token = create_result["token"]
 
@@ -677,7 +675,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "multuser@example.com", "password": "pass"},
+            {"username": "multuser", "password": "pass"},
         )
         token = create_result["token"]
 
@@ -696,29 +694,29 @@ class TestJacScaleServe:
         """Test POST /user/register returns 201 on successful registration."""
         response = requests.post(
             f"{self.base_url}/user/register",
-            json={"email": "status201@example.com", "password": "password123"},
+            json={"username": "status201", "password": "password123"},
             timeout=5,
         )
         assert response.status_code == 201
         data = response.json()
         assert "token" in data
-        assert "email" in data
-        assert data["email"] == "status201@example.com"
+        assert "username" in data
+        assert data["username"] == "status201"
 
     def test_status_code_user_register_400_already_exists(self) -> None:
         """Test POST /user/register returns 400 when user already exists."""
-        email = "status400exists@example.com"
+        username = "status400exists"
         # Create user first
         requests.post(
             f"{self.base_url}/user/register",
-            json={"email": email, "password": "password123"},
+            json={"username": username, "password": "password123"},
             timeout=5,
         )
 
         # Try to create again
         response = requests.post(
             f"{self.base_url}/user/register",
-            json={"email": email, "password": "password123"},
+            json={"username": username, "password": "password123"},
             timeout=5,
         )
         assert response.status_code == 400
@@ -727,18 +725,18 @@ class TestJacScaleServe:
 
     def test_status_code_user_login_200_success(self) -> None:
         """Test POST /user/login returns 200 on successful login."""
-        email = "status200login@example.com"
+        username = "status200login"
         # Create user first
         requests.post(
             f"{self.base_url}/user/register",
-            json={"email": email, "password": "password123"},
+            json={"username": username, "password": "password123"},
             timeout=5,
         )
 
         # Login
         response = requests.post(
             f"{self.base_url}/user/login",
-            json={"email": email, "password": "password123"},
+            json={"username": username, "password": "password123"},
             timeout=5,
         )
         assert response.status_code == 200
@@ -746,11 +744,11 @@ class TestJacScaleServe:
         assert "token" in data
 
     def test_status_code_user_login_400_missing_credentials(self) -> None:
-        """Test POST /user/login returns 400/422 when email or password is missing."""
+        """Test POST /user/login returns 400/422 when username or password is missing."""
         # Missing password - FastAPI returns 422 for validation errors
         response = requests.post(
             f"{self.base_url}/user/login",
-            json={"email": "test@example.com"},
+            json={"username": "test"},
             timeout=5,
         )
         assert response.status_code in [400, 422]  # 422 from FastAPI validation
@@ -758,7 +756,7 @@ class TestJacScaleServe:
         # Either custom error or FastAPI validation error
         assert "error" in data or "detail" in data
 
-        # Missing email
+        # Missing username
         response = requests.post(
             f"{self.base_url}/user/login",
             json={"password": "password123"},
@@ -777,27 +775,27 @@ class TestJacScaleServe:
         # Empty string values - should trigger custom 400 validation
         response = requests.post(
             f"{self.base_url}/user/login",
-            json={"email": "", "password": "password123"},
+            json={"username": "", "password": "password123"},
             timeout=5,
         )
         assert response.status_code == 400
         data = response.json()
-        assert data["error"] == "Email and password required"
+        assert data["error"] == "Username and password required"
 
     def test_status_code_user_login_401_invalid_credentials(self) -> None:
         """Test POST /user/login returns 401 for invalid credentials."""
-        email = "status401login@example.com"
+        username = "status401login"
         # Create user
         requests.post(
             f"{self.base_url}/user/register",
-            json={"email": email, "password": "correctpass"},
+            json={"username": username, "password": "correctpass"},
             timeout=5,
         )
 
         # Wrong password
         response = requests.post(
             f"{self.base_url}/user/login",
-            json={"email": email, "password": "wrongpass"},
+            json={"username": username, "password": "wrongpass"},
             timeout=5,
         )
         assert response.status_code == 401
@@ -807,7 +805,7 @@ class TestJacScaleServe:
         # Non-existent user
         response = requests.post(
             f"{self.base_url}/user/login",
-            json={"email": "nonexistent@example.com", "password": "password"},
+            json={"username": "nonexistent", "password": "password"},
             timeout=5,
         )
         assert response.status_code == 401
@@ -817,7 +815,7 @@ class TestJacScaleServe:
         # Create user and get token
         create_response = requests.post(
             f"{self.base_url}/user/register",
-            json={"email": "status200refresh@example.com", "password": "password123"},
+            json={"username": "status200refresh", "password": "password123"},
             timeout=5,
         )
         token = create_response.json()["token"]
@@ -878,7 +876,7 @@ class TestJacScaleServe:
         # Create user
         create_response = requests.post(
             f"{self.base_url}/user/register",
-            json={"email": "status200walker@example.com", "password": "password123"},
+            json={"username": "status200walker", "password": "password123"},
             timeout=5,
         )
         token = create_response.json()["token"]
@@ -897,7 +895,7 @@ class TestJacScaleServe:
         # Create user
         create_response = requests.post(
             f"{self.base_url}/user/register",
-            json={"email": "status200func@example.com", "password": "password123"},
+            json={"username": "status200func", "password": "password123"},
             timeout=5,
         )
         token = create_response.json()["token"]
@@ -986,12 +984,12 @@ class TestJacScaleServe:
 
     def test_status_code_integration_auth_flow(self) -> None:
         """Integration test for complete authentication flow with status codes."""
-        email = "integration_status@example.com"
+        username = "integration_status"
 
         # Register - 201
         register_response = requests.post(
             f"{self.base_url}/user/register",
-            json={"email": email, "password": "secure123"},
+            json={"username": username, "password": "secure123"},
             timeout=5,
         )
         assert register_response.status_code == 201
@@ -1000,7 +998,7 @@ class TestJacScaleServe:
         # Login - 200
         login_response = requests.post(
             f"{self.base_url}/user/login",
-            json={"email": email, "password": "secure123"},
+            json={"username": username, "password": "secure123"},
             timeout=5,
         )
         assert login_response.status_code == 200
@@ -1018,7 +1016,7 @@ class TestJacScaleServe:
         # Failed login - 401
         fail_response = requests.post(
             f"{self.base_url}/user/login",
-            json={"email": email, "password": "wrongpass"},
+            json={"username": username, "password": "wrongpass"},
             timeout=5,
         )
         assert fail_response.status_code == 401
@@ -1043,7 +1041,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "privateuser@example.com", "password": "password123"},
+            {"username": "privateuser", "password": "password123"},
         )
         token = create_result["token"]
 
@@ -1080,7 +1078,7 @@ class TestJacScaleServe:
         create_result = self._request(
             "POST",
             "/user/register",
-            {"email": "publicuser@example.com", "password": "password123"},
+            {"username": "publicuser", "password": "password123"},
         )
         token = create_result["token"]
 

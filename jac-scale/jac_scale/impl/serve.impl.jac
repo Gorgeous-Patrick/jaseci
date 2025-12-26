@@ -517,7 +517,7 @@ impl JacAPIServer.register_create_user_endpoint(self: JacAPIServer) -> None {
             callback=self.create_user,
             parameters=[
                 APIParameter(
-                    name='email',
+                    name='username',
                     data_type='string',
                     required=True,
                     default=None,
@@ -563,15 +563,15 @@ impl JacAPIServer.refresh_token(
 }
 
 impl JacAPIServer.create_user(
-    self: JacAPIServer, email: str, password: str
+    self: JacAPIServer, username: str, password: str
 ) -> JSONResponse {
     import traceback;
     try {
-        res = self.user_manager.create_user(email, password);
+        res = self.user_manager.create_user(username, password);
         if ('error' in res) {
             return JSONResponse(content=res, status_code=400);
         }
-        res['token'] = self.create_jwt_token(email);
+        res['token'] = self.create_jwt_token(username);
         return JSONResponse(content=res, status_code=201);
     } except Exception as e {
         error_trace = traceback.format_exc();
@@ -590,11 +590,11 @@ impl JacAPIServer.register_login_endpoint(self: JacAPIServer) -> None {
             callback=self.login,
             parameters=[
                 APIParameter(
-                    name='email',
+                    name='username',
                     data_type='string',
                     required=True,
                     default=None,
-                    description='Email for login',
+                    description='username for login',
                     type=ParameterType.BODY
                 ),
                 APIParameter(
@@ -614,17 +614,19 @@ impl JacAPIServer.register_login_endpoint(self: JacAPIServer) -> None {
     );
 }
 
-impl JacAPIServer.login(self: JacAPIServer, email: str, password: str) -> JSONResponse {
-    if (not email or not password) {
+impl JacAPIServer.login(
+    self: JacAPIServer, username: str, password: str
+) -> JSONResponse {
+    if (not username or not password) {
         return JSONResponse(
-            status_code=400, content={'error': 'Email and password required'}
+            status_code=400, content={'error': 'Username and password required'}
         );
     }
-    result = self.user_manager.authenticate(email, password);
+    result = self.user_manager.authenticate(username, password);
     if not result {
         return JSONResponse(status_code=401, content={'error': 'Invalid credentials'});
     }
-    result['token'] = self.create_jwt_token(email);
+    result['token'] = self.create_jwt_token(username);
     return JSONResponse(status_code=200, content=dict[(str, JsonValue)](result));
 }
 

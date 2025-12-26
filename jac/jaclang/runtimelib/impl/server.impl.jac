@@ -103,7 +103,7 @@ impl UserManager.create_user(username: str, password: str) -> dict[str, str] {
     };
     self._tokens[token] = username;
     self._persist();
-    return {'email': username, 'token': token, 'root_id': root_id};
+    return {'username': username, 'token': token, 'root_id': root_id};
 }
 
 """Authenticate a user and return their data."""
@@ -116,7 +116,11 @@ impl UserManager.authenticate(
     user = self._users[username];
     password_hash = hashlib.sha256(password.encode()).hexdigest();
     if (user['password_hash'] == password_hash) {
-        return {'email': username, 'token': user['token'], 'root_id': user['root_id']};
+        return {
+            'username': username,
+            'token': user['token'],
+            'root_id': user['root_id']
+        };
     }
     return None;
 }
@@ -578,11 +582,11 @@ impl ResponseBuilder._add_cors_headers(handler: BaseHTTPRequestHandler) -> None 
 }
 
 """Create new user."""
-impl AuthHandler.create_user(email: str, password: str) -> Response {
-    if (not email or not password) {
-        return Response(status=400, body={'error': 'Email and password required'});
+impl AuthHandler.create_user(username: str, password: str) -> Response {
+    if (not username or not password) {
+        return Response(status=400, body={'error': 'Username and password required'});
     }
-    result = self.user_manager.create_user(email, password);
+    result = self.user_manager.create_user(username, password);
     if ('error' in result) {
         return Response(status=400, body=result);
     }
@@ -590,11 +594,11 @@ impl AuthHandler.create_user(email: str, password: str) -> Response {
 }
 
 """Authenticate user."""
-impl AuthHandler.login(email: str, password: str) -> Response {
-    if (not email or not password) {
-        return Response(status=400, body={'error': 'Email and password required'});
+impl AuthHandler.login(username: str, password: str) -> Response {
+    if (not username or not password) {
+        return Response(status=400, body={'error': 'Username and password required'});
     }
-    result = self.user_manager.authenticate(email, password);
+    result = self.user_manager.authenticate(username, password);
     if not result {
         return Response(status=401, body={'error': 'Invalid credentials'});
     }
@@ -921,14 +925,14 @@ impl JacAPIServer.create_handler -> type[BaseHTTPRequestHandler] {
             }
             if (path == '/user/register') {
                 response = server.auth_handler.create_user(
-                    data.get('email', ''), data.get('password', '')
+                    data.get('username', ''), data.get('password', '')
                 );
                 self._send_response(response);
                 return;
             }
             if (path == '/user/login') {
                 response = server.auth_handler.login(
-                    data.get('email', ''), data.get('password', '')
+                    data.get('username', ''), data.get('password', '')
                 );
                 self._send_response(response);
                 return;
@@ -1106,13 +1110,13 @@ impl print_endpoint_docs(server: JacAPIServer) -> None {
         'POST',
         '/user/register',
         'Create new user account',
-        'Body: { "email": str, "password": str }'
+        'Body: { "username": str, "password": str }'
     );
     endpoint(
         'POST',
         '/user/login',
         'Authenticate and get token',
-        'Body: { "email": str, "password": str }'
+        'Body: { "username": str, "password": str }'
     );
     section('INTROSPECTION', 'Authenticated');
     endpoint('GET', '/functions', 'List all functions → string[]');
