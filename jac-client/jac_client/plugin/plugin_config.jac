@@ -80,7 +80,7 @@ class JacClientPluginConfig {
             "name": "npm",
             "dev_name": "npm.dev",
             "cli_flag": "--cl",
-            "install_dir": ".jac-client.configs",
+            "install_dir": ".client-build/.jac-client.configs",
             "install_handler": _npm_install_handler,
             "install_all_handler": _npm_install_all_handler,
             "remove_handler": _npm_remove_handler

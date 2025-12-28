@@ -47,7 +47,7 @@ pip install jac-client
 
 ### Create a New Jac App
 
-Use the `jac create --cl` command to scaffold a new client-side application: (* we can name our app however we want, here we are using `todo-app)
+Use the `jac create --cl` command to scaffold a new client-side application. You can name your app however you want (here we're using `todo-app`):
 
 ```bash
 jac create --cl todo-app
@@ -59,6 +59,29 @@ This command will:
 - Set up an organized project structure with `src/` folder
 - Create a starter `src/app.jac` file with a sample component
 - Include a sample TypeScript component
+- **Automatically install default npm packages** (React, TypeScript, Vite, etc.) in the `.client-build/` directory
+
+#### Skipping Package Installation
+
+If you want to skip the automatic installation of default packages, use the `--skip` flag:
+
+```bash
+jac create --cl --skip todo-app
+```
+
+**When to use `--skip`:**
+
+- You want to manually control when packages are installed
+- You're setting up the project in an environment without npm/Node.js initially
+- You want to customize the package.json before installation
+
+**Note:** If you use `--skip`, you'll need to install packages manually later using:
+
+```bash
+jac add --cl <package-name>
+```
+
+Or you can manually run `npm install` in the `.client-build/` directory after the project is created.
 
 **What gets created:**
 
@@ -667,7 +690,7 @@ To run this example:
 
 ```bash
 # From the todo-app directory
-jac serve app.jac
+jac serve src/app.jac
 ```
 
 Then visit `http://localhost:8000` in your browser.

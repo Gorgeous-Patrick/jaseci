@@ -1,8 +1,13 @@
 [project]
 name = "all-in-one"
 version = "1.0.0"
-description = "Jac application: all-in-one"
-entry-point = "app.jac"
+description = "Jac client application: all-in-one"
+entry-point = "src/app.jac"
+
+[plugins.client]
+# Vite bundler configuration (optional overrides)
+# vite.plugins = []
+# vite.build = {}
 
 [dependencies.npm]
 react = "^18.2.0"

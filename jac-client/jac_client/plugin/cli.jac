@@ -8,6 +8,8 @@ import os;
 import re;
 import sys;
 import pathlib;
+import subprocess;
+import shutil;
 import from jaclang.cli.cmdreg { cmd_registry, CommandPriority }
 import from jaclang.pycore.runtime { hookimpl }
 import from jaclang.project.config { JacConfig, find_project_root }
@@ -19,7 +21,12 @@ class JacCmd {
     static def create_cmd -> None {
         """Override core create command to add --cl flag for client-side setup.""";
 
-        def create(name: str = 'main', force: bool = False, cl: bool = False) -> None {
+        def create(
+            name: str = 'main',
+            force: bool = False,
+            cl: bool = False,
+            skip: bool = False
+        ) -> None {
             """Initialize a new Jac project.
 
             Creates a jac.toml configuration file and basic project structure.
@@ -29,17 +36,19 @@ class JacCmd {
                 name: Project name (default: 'main')
                 force: Overwrite existing jac.toml if present
                 cl: Include client-side (frontend) setup
+                skip: Skip installing default packages (only for --cl projects)
 
             Examples:
                 jac create
                 jac create myapp
                 jac create --cl myapp
+                jac create --cl --skip myapp
                 jac create --force
             """;
             cwd = pathlib.Path(os.getcwd());
 
             if cl {
-                _create_client_project(cwd, name, force);
+                _create_client_project(cwd, name, force, skip);
             } else {
                 _create_core_project(cwd, name, force);
             }
@@ -107,7 +116,9 @@ with entry {{
 }
 
 """Create a client-side Jac project with organized folder structure."""
-def _create_client_project(cwd: pathlib.Path, name: str, force: bool) -> None {
+def _create_client_project(
+    cwd: pathlib.Path, name: str, force: bool, skip: bool = False
+) -> None {
     project_name = name or cwd.name;
 
     if not project_name or project_name == 'main' {
@@ -157,7 +168,7 @@ def _create_client_project(cwd: pathlib.Path, name: str, force: bool) -> None {
     assets_dir = project_path / "assets";
     assets_dir.mkdir(parents=True, exist_ok=True);
 
-    (project_path / "build").mkdir(parents=True, exist_ok=True);
+    (project_path / ".client-build").mkdir(parents=True, exist_ok=True);
 
     toml_path = project_path / "jac.toml";
     toml_content = f'''[project]
@@ -180,7 +191,7 @@ entry-point = "src/app.jac"
 
 # Client-side imports
 cl import from react { useState, useEffect }
-cl import from "./components/Button.tsx" { Button }
+cl import from ".components/Button.tsx" { Button }
 
 # Client-side component
 cl {
@@ -318,6 +329,12 @@ jac add --cl react-router-dom
 
     _create_gitignore(project_path, client=True);
 
+    # Install default packages unless --skip is specified
+    if not skip {
+        print("\nInstalling default packages...");
+        _install_default_packages(project_path);
+    }
+
     print(f"\nProject '{project_name}' created successfully!");
     if name and name != cwd.name {
         print("\nNext steps:");
@@ -359,9 +376,7 @@ def _create_gitignore(project_path: pathlib.Path, client: bool = False) -> None 
                 "node_modules/",
                 "",
                 "# Jac Client",
-                ".jac-client.configs/",
-                "build/",
-                "dist/",
+                ".client-build/",
                 "*.session",
                 "*.session.*"
             ]
@@ -390,5 +405,92 @@ def _create_gitignore(project_path: pathlib.Path, client: bool = False) -> None 
             f.write("\n".join(gitignore_entries) + "\n");
         }
         print("Created .gitignore");
+    }
+}
+
+"""Install default npm packages in .client-build directory."""
+def _install_default_packages(project_path: pathlib.Path) -> None {
+    import from jac_client.plugin.src.vite_bundler { ViteBundler }
+
+    try {
+        # Verify jac.toml exists
+        toml_path = project_path / "jac.toml";
+        if not toml_path.exists() {
+            print(
+                "Warning: jac.toml not found, skipping package installation",
+                file=sys.stderr
+            );
+            return;
+        }
+
+        # Get project name from jac.toml or use directory name
+        project_name = project_path.name;
+
+        # Create ViteBundler instance (it will load config internally)
+        bundler = ViteBundler(project_path);
+
+        # Generate package.json with default packages (defaults are added automatically)
+        bundler.create_package_json(project_name=project_name);
+
+        # Ensure .client-build directory exists
+        build_dir = project_path / '.client-build';
+        build_dir.mkdir(parents=True, exist_ok=True);
+
+        # Copy package.json to .client-build/ for npm install
+        configs_package_json = build_dir / '.jac-client.configs' / 'package.json';
+        build_package_json = build_dir / 'package.json';
+
+        if not configs_package_json.exists() {
+            print(
+                "Warning: package.json was not generated, skipping package installation",
+                file=sys.stderr
+            );
+            return;
+        }
+
+        # Always copy the generated package.json to .client-build/ for npm install
+        shutil.copy2(configs_package_json, build_package_json);
+
+        # Run npm install in .client-build/ directory
+        try {
+            subprocess.run(
+                ['npm', 'install'],
+                cwd=build_dir,
+                check=True,
+                capture_output=True,
+                text=True
+            );
+
+            # Move package-lock.json to .jac-client.configs/ if it was created
+            build_package_lock = build_dir / 'package-lock.json';
+            configs_dir = build_dir / '.jac-client.configs';
+            configs_package_lock = configs_dir / 'package-lock.json';
+            if build_package_lock.exists() {
+                configs_dir.mkdir(parents=True, exist_ok=True);
+                if configs_package_lock.exists() {
+                    configs_package_lock.unlink();
+                }
+                shutil.move(str(build_package_lock), str(configs_package_lock));
+            }
+
+            print("Default packages installed successfully");
+        } except subprocess.CalledProcessError as e {
+            print(f"Warning: Failed to install packages: {e.stderr}", file=sys.stderr);
+            print("You can install packages later with: jac add --cl", file=sys.stderr);
+        } except FileNotFoundError {
+            print(
+                "Warning: npm command not found. Install Node.js and npm to install packages.",
+                file=sys.stderr
+            );
+            print("You can install packages later with: jac add --cl", file=sys.stderr);
+        } finally {
+            # Clean up temporary package.json in .client-build/
+            if build_package_json.exists() {
+                build_package_json.unlink();
+            }
+        }
+    } except Exception as e {
+        print(f"Warning: Could not install default packages: {e}", file=sys.stderr);
+        print("You can install packages later with: jac add --cl", file=sys.stderr);
     }
 }

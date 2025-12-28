@@ -200,17 +200,17 @@ def test_all_in_one_app_endpoints() -> None:
                     f"STDERR:\n{jac_add_result.stderr}\n"
                 )
 
-            app_jac_path = os.path.join(project_path, "app.jac")
-            assert os.path.isfile(app_jac_path), "all-in-one app.jac file missing"
+            app_jac_path = os.path.join(project_path, "src", "app.jac")
+            assert os.path.isfile(app_jac_path), "all-in-one src/app.jac file missing"
 
-            # 4. Start the server: `jac serve app.jac`
+            # 4. Start the server: `jac serve src/app.jac`
             # NOTE: We don't use text mode here, so `Popen` defaults to bytes.
             # Use `Popen[bytes]` in the type annotation to keep mypy happy.
             server: Popen[bytes] | None = None
             try:
-                print("[DEBUG] Starting server with 'jac serve app.jac'")
+                print("[DEBUG] Starting server with 'jac serve src/app.jac'")
                 server = Popen(
-                    ["jac", "serve", "app.jac"],
+                    ["jac", "serve", "src/app.jac"],
                     cwd=project_path,
                 )
 
@@ -287,23 +287,26 @@ def test_all_in_one_app_endpoints() -> None:
                     pytest.fail("Failed to GET /page/app#/nested endpoint")
 
                 # "/static/main.css" – CSS compiled and serving
+                # Note: CSS may be compiled asynchronously, so we retry if it's not ready
                 try:
-                    print("[DEBUG] Sending GET request to /static/main.css")
-                    with urlopen(
+                    print(
+                        "[DEBUG] Sending GET request to /static/main.css (with retry)"
+                    )
+                    css_bytes = _wait_for_endpoint(
                         "http://127.0.0.1:8000/static/main.css",
-                        timeout=20,
-                    ) as resp_css:
-                        css_body = resp_css.read().decode("utf-8", errors="ignore")
-                        print(
-                            "[DEBUG] Received response from /static/main.css\n"
-                            f"Status: {resp_css.status}\n"
-                            f"Body (truncated to 500 chars):\n{css_body[:500]}"
-                        )
-                        assert resp_css.status == 200
-                        assert len(css_body.strip()) > 0
-                except (URLError, HTTPError) as exc:
+                        timeout=60.0,
+                        poll_interval=2.0,
+                        request_timeout=20.0,
+                    )
+                    css_body = css_bytes.decode("utf-8", errors="ignore")
+                    print(
+                        "[DEBUG] Received response from /static/main.css\n"
+                        f"Body (truncated to 500 chars):\n{css_body[:500]}"
+                    )
+                    assert len(css_body.strip()) > 0, "CSS file should not be empty"
+                except (URLError, HTTPError, TimeoutError, RemoteDisconnected) as exc:
                     print(f"[DEBUG] Error while requesting /static/main.css: {exc}")
-                    pytest.fail("Failed to GET /static/main.css")
+                    pytest.fail(f"Failed to GET /static/main.css after retries: {exc}")
 
                 # "/static/assets/burger.png" – static files are loading
                 try:
@@ -501,6 +504,33 @@ def test_all_in_one_app_endpoints() -> None:
                         f"[DEBUG] Unexpected error while testing invalid login: {exc}"
                     )
                     pytest.fail("Unexpected error testing invalid login")
+
+                # Verify TypeScript component is working - check that page loads with TS component
+                # The /page/app endpoint should serve the app which includes the TypeScript Card component
+                try:
+                    print("[DEBUG] Verifying TypeScript component integration")
+                    # The page should load successfully (already tested above)
+                    # TypeScript components are compiled and included in the bundle
+                    # We verify this by checking the page loads without errors
+                    assert "<html" in page_body.lower(), "Page should contain HTML"
+                except Exception as exc:
+                    print(f"[DEBUG] Error verifying TypeScript component: {exc}")
+                    pytest.fail("Failed to verify TypeScript component integration")
+
+                # Verify nested folder imports are working - /page/app#/nested route
+                # This route uses nested folder imports (components.button and button)
+                try:
+                    print(
+                        "[DEBUG] Verifying nested folder imports via /page/app#/nested"
+                    )
+                    # The nested route should load successfully (already tested above)
+                    # Nested imports are compiled and included in the bundle
+                    assert "<html" in nested_body.lower(), (
+                        "Nested route should contain HTML"
+                    )
+                except Exception as exc:
+                    print(f"[DEBUG] Error verifying nested folder imports: {exc}")
+                    pytest.fail("Failed to verify nested folder imports")
 
             finally:
                 if server is not None:

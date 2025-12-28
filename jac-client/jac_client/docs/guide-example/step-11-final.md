@@ -694,7 +694,7 @@ cl {
 2. **Start the server:**
 
    ```bash
-   jac serve app.jac
+   jac serve src/app.jac
    ```
 
 3. **Open in browser:**
