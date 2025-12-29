@@ -222,6 +222,23 @@ impl TypeEvaluator._get_type_of_expression_core(
                                     );
                                 }
                                 return type_arch_inst;
+                            } else {
+                                cls_: uni.Archetype | None = self._get_enclosing_class(
+                                    expr
+                                );
+                                if cls_ {
+                                    if cls_.sym_category == uni.SymbolType.WALKER {
+                                        self._set_symbol_to_expr(
+                                            expr,
+                                            self.prefetch.node_class.get_class_symbol(),
+                                        );
+                                    } elif cls_.sym_category == uni.SymbolType.NODE_ARCH {
+                                        self._set_symbol_to_expr(
+                                            expr,
+                                            self.prefetch.walker_class.get_class_symbol(),
+                                        );
+                                    }
+                                }
                             }
                         }
                     }
@@ -558,6 +575,8 @@ impl TypeEvaluator._prefetch_types(self: TypeEvaluator) {
     self.prefetch.any_class = get_typing_type("Any");
     self.prefetch.root_class = get_jac_builtin_type("Root");
     self.prefetch.root_class.shared.is_root_class = True;
+    self.prefetch.node_class = get_jac_builtin_type("Node");
+    self.prefetch.walker_class = get_jac_builtin_type("Walker");
 }
 
 """Load and return builtins stub module."""
