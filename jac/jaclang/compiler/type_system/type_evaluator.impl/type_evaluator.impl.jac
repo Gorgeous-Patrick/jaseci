@@ -266,7 +266,42 @@ impl TypeEvaluator._get_type_of_expression_core(
                             expr.name_of = symbol.decl.name_of;
                         }
                     }
-                    return self.get_type_of_symbol(symbol);
+                    # Check for function overloads
+                    symbol_type = self.get_type_of_symbol(symbol);
+                    if isinstance(symbol_type, types.FunctionType) {
+                        overloaded_ty: types.OverloadedType | None = None;
+                        overloaded_fns: list[types.FunctionType] = [symbol_type];
+                        # Find the scope where the symbol is defined to check for overloads
+                        symbol_scope: uni.UniScopeNode | None = symbol.parent_tab;
+                        if symbol_scope is None {
+                            # If parent_tab is None, try to find the scope from the declaration
+                            if symbol.decl
+                            and symbol.decl.find_parent_of_type(uni.UniScopeNode) {
+                                symbol_scope = symbol.decl.find_parent_of_type(
+                                    uni.UniScopeNode
+                                );
+                            }
+                        }
+                        # Check if there are overloads in the symbol's scope
+                        if symbol_scope
+                        and expr.value in symbol_scope.names_in_scope_overload {
+                            for overload_symbol in symbol_scope.names_in_scope_overload[
+                                expr.value
+                            ] {
+                                overload_type = self.get_type_of_symbol(
+                                    overload_symbol
+                                );
+                                if isinstance(overload_type, types.FunctionType) {
+                                    overloaded_fns.append(overload_type);
+                                }
+                            }
+                        }
+                        if len(overloaded_fns) > 1 {
+                            overloaded_ty = types.OverloadedType(overloaded_fns);
+                        }
+                        return overloaded_ty or symbol_type;
+                    }
+                    return symbol_type;
                 }
             }
 
