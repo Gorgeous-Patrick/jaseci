@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast as py_ast
 import marshal
-import os
 import types
 from threading import Event
 from typing import TYPE_CHECKING
@@ -267,17 +266,7 @@ class JacProgram:
                      This avoids circular imports for bootstrap-critical modules.
             cancel_token: Optional event to cancel compilation.
         """
-        if use_str:
-            keep_str = use_str
-        elif not os.path.exists(file_path):
-            if file_path.endswith(".jac") and os.path.exists(
-                file_path[:-4] + ".cl.jac"
-            ):
-                keep_str = ""
-            else:
-                raise OSError(f"File {file_path} does not exist.")
-        else:
-            keep_str = read_file_with_encoding(file_path)
+        keep_str = use_str or read_file_with_encoding(file_path)
         mod_targ = self.parse_str(keep_str, file_path, cancel_token=cancel_token)
         if symtab_ir_only:
             # only build symbol table and match decl/impl (skip semantic analysis and CFG)
