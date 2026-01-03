@@ -1021,3 +1021,12 @@ def test_function_overload_decorator(fixture_path: Callable[[str], str]) -> None
     """,
         cast_error,
     )
+
+
+def test_builtin_constructors(fixture_path: Callable[[str], str]) -> None:
+    """Test that builtin constructors (set(), list(), dict()) work correctly."""
+    program = JacProgram()
+    mod = program.compile(fixture_path("checker_builtin_constructors.jac"))
+    TypeCheckPass(ir_in=mod, prog=program)
+    # All constructors should work without errors
+    assert len(program.errors_had) == 0
