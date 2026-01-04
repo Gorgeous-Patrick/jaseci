@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-import jaclang.pycore.unitree as uni
 from jaclang.pycore.program import JacProgram
 
 
@@ -288,30 +287,6 @@ class TestCombineConsecutiveGlob:
         assert "glob x = 1;" in formatted
         assert "glob y = 2;" in formatted
         assert "glob z = 3;" in formatted
-
-
-class TestIsPureExpression:
-    """Unit tests for the is_pure_expression method."""
-
-    def _create_test_pass(self) -> object:
-        """Create a JacAutoLintPass instance for testing."""
-        from jaclang.compiler.passes.tool.jac_auto_lint_pass import JacAutoLintPass
-
-        prog = JacProgram()
-        # We need to create a stub module
-        module = uni.Module.make_stub()
-        return JacAutoLintPass(ir_in=module, prog=prog)
-
-    def test_literals_are_pure(self) -> None:
-        """Test that literal values are considered pure."""
-        # This is a conceptual test - the actual implementation
-        # checks isinstance against AST node types
-        pass  # Covered by integration tests above
-
-    def test_function_calls_not_pure(self) -> None:
-        """Test that function calls are NOT considered pure."""
-        # Covered by non_extractable integration test
-        pass
 
 
 class TestStaticmethodConversion:
@@ -609,46 +584,31 @@ class TestSignatureMismatchFix:
         self, auto_lint_fixture_path: Callable[[str], str]
     ) -> None:
         """Test that impl signatures are fixed to match declarations."""
-        from jaclang.compiler.passes.tool.jac_auto_lint_pass import JacAutoLintPass
-        from jaclang.pycore.passes.sym_tab_build_pass import SymTabBuildPass
-
         input_path = auto_lint_fixture_path("sig_mismatch.jac")
 
-        # Parse and build symbol table (discovers impl files)
-        from jaclang.pycore.helpers import read_file_with_encoding
-
-        prog = JacProgram()
-        source = read_file_with_encoding(input_path)
-        mod = prog.parse_str(source, input_path)
-        SymTabBuildPass(ir_in=mod, prog=prog)
+        prog = JacProgram.jac_file_formatter(input_path, auto_lint=True)
 
         # Verify impl module is discovered
-        assert len(mod.impl_mod) == 1, "Should have one impl module"
+        assert len(prog.mod.main.impl_mod) == 1, "Should have one impl module"
 
-        # Run the auto lint pass (before DeclImplMatchPass)
-        lint_pass = JacAutoLintPass(ir_in=mod, prog=prog)
-        mod = lint_pass.ir_out
+        # Check the impl signatures were fixed by examining the AST
+        impl_mod = prog.mod.main.impl_mod[0]
+        impl_output = impl_mod.unparse()
 
-        # Check the impl signatures in impl_mod
-        impl_mod = mod.impl_mod[0]
-        for stmt in impl_mod.body:
-            if isinstance(stmt, uni.ImplDef) and isinstance(
-                stmt.spec, uni.FuncSignature
-            ):
-                sig_str = stmt.spec.unparse()
-                target_str = ".".join([t.sym_name for t in stmt.target])
-                if "add" in target_str:
-                    # Should have x, y params (from decl), not a, b
-                    assert "x" in sig_str, f"add should have x param, got: {sig_str}"
-                    assert "y" in sig_str, f"add should have y param, got: {sig_str}"
-                elif "multiply" in target_str:
-                    # Should have a, b params (from decl)
-                    assert "a" in sig_str, (
-                        f"multiply should have a param, got: {sig_str}"
-                    )
-                    assert "b" in sig_str, (
-                        f"multiply should have b param, got: {sig_str}"
-                    )
+        # add should have x, y params (from decl), not a, b
+        assert "add(x: int, y: int)" in impl_output, (
+            f"add should have x, y params from decl, got: {impl_output}"
+        )
+
+        # multiply should have a, b params (from decl)
+        assert "multiply(a: int, b: int)" in impl_output, (
+            f"multiply should have a, b params from decl, got: {impl_output}"
+        )
+
+        # no_change should remain unchanged (already matches)
+        assert "no_change(val: int)" in impl_output, (
+            f"no_change should have val param, got: {impl_output}"
+        )
 
 
 class TestRemoveImportSemicolons:
