@@ -79,6 +79,7 @@ class TypeBase(ABC) {
     def is_instance(self: TypeBase) -> bool;
     def is_instantiable_class(self: TypeBase) -> bool;
     def is_class_instance(self: TypeBase) -> bool;
+    def is_any_type(self: TypeBase) -> bool;
 }
 
 """Represents a type that is not bound to a specific value or context."""

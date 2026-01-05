@@ -304,3 +304,16 @@ impl TypeBase.category(self: TypeBase) -> TypeCategory {
 impl TypeBase.init(self: TypeBase, flags: TypeFlags = TypeFlags.Null) -> None {
     self.flags: TypeFlags = flags;
 }
+
+"""Return true if this type is UnknownType, AnyType, TypeVarType, or object."""
+impl TypeBase.is_any_type(self: TypeBase) -> bool {
+    # Check for UnknownType, AnyType, or TypeVarType using category
+    if self.category in (TypeCategory.Unknown, TypeCategory.Any, TypeCategory.TypeVar) {
+        return True;
+    }
+    # Check for object type
+    if isinstance(self, ClassType) {
+        return self.is_builtin("object");
+    }
+    return False;
+}
