@@ -1026,22 +1026,11 @@ with entry {{
         }
         print(f"Created {main_jac}");
     }
-    # Create packages directory
-    packages_dir = cwd / "packages";
-    if not packages_dir.exists() {
-        packages_dir.mkdir(parents=True, exist_ok=True);
-        print(f"Created {packages_dir}/");
-    }
     # Create or update .gitignore
     gitignore_path = cwd / ".gitignore";
     gitignore_entries = [
-        "# Jac project",
-        "packages/",
-        ".jac_cache/",
-        "*.jbc",
-        "*.jir",
-        "*.session",
-        "__jaccache__/",
+        "# Jac build artifacts",
+        ".jac/",
         "",
         "# Python",
         "__pycache__/",

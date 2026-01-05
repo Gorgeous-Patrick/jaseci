@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import jaclang.pycore.unitree as uni
 from jaclang.pycore.program import JacProgram
 
 
@@ -651,7 +652,6 @@ class TestSignatureMismatchFix:
         self, auto_lint_fixture_path: Callable[[str], str]
     ) -> None:
         """Test that impl signatures are fixed to match declarations."""
-        from jaclang.pycore import unitree as uni
 
         input_path = auto_lint_fixture_path("sig_mismatch.jac")
 
@@ -730,7 +730,6 @@ class TestNestedClassSignatureFix:
         e.g., for `impl OuterClass.InnerClass.init`, it would look up
         `OuterClass.init` instead of `OuterClass.InnerClass.init`.
         """
-        from jaclang.pycore import unitree as uni
 
         input_path = auto_lint_fixture_path("nested_class_sig.jac")
 
