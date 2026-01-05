@@ -1083,3 +1083,12 @@ def test_union_type_annotation(fixture_path: Callable[[str], str]) -> None:
     TypeCheckPass(ir_in=mod, prog=program)
     # Should have no errors - int | None annotation should be valid
     assert len(program.errors_had) == 0
+
+
+def test_range_function(fixture_path: Callable[[str], str]) -> None:
+    """Test that range() function works correctly with different argument counts."""
+    program = JacProgram()
+    mod = program.compile(fixture_path("checker_range.jac"))
+    TypeCheckPass(ir_in=mod, prog=program)
+    # Should have no errors - range() should work with 1 or 2 arguments
+    assert len(program.errors_had) == 0

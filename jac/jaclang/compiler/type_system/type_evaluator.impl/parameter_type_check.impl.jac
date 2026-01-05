@@ -84,9 +84,24 @@ impl TypeEvaluator.validate_call_args(
             # Only validate __new__ if it's not from object (the base class)
             # object.__new__ accepts (*args, **kwargs) which matches anything
             is_from_object = new_method.class_type.shared.class_name == "object";
+            # TODO: This bellow logic to extract overloads is also used in another place
+            # unify them and place them in a helper method.
+            method_ty = self.get_type_of_symbol(new_method.symbol);
+            overloaded_fns: list[types.FunctionType] = [method_ty];
+            for overload in new_method.overloads {
+                overload_member_ty = self.get_type_of_symbol(overload);
+                if isinstance(overload_member_ty, types.FunctionType) {
+                    overload_member_ty = overload_member_ty.specialize(caller_type);
+                    overloaded_fns.append(overload_member_ty);
+                }
+            }
+            overloaded_ty: types.OverloadedType | None = None;
+            if len(overloaded_fns) > 1 {
+                overloaded_ty = types.OverloadedType(overloaded_fns);
+            }
             if not is_from_object {
                 validated = self._validate_constructor_method(
-                    expr, self.get_type_of_symbol(new_method.symbol)
+                    expr, overloaded_ty or method_ty
                 );
             }
         }
