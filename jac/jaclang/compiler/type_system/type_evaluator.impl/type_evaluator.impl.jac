@@ -50,7 +50,13 @@ impl TypeEvaluator._get_type_of_expression_core(expr: uni.Expr) -> TypeBase {
                 } elif base_type.is_instantiable_class() {
                     assert isinstance(base_type, types.ClassType);
                     if member := self._lookup_class_member(base_type, expr.right.value) {
-                        return self._set_symbol_to_expr(expr.right, member.symbol);
+                        value = self._set_symbol_to_expr(expr.right, member.symbol);
+                        if base_type.is_enum_class() {
+                            # Because enum values are instances of the enum class,
+                            # we need to return the enum class as an instance type.
+                            return base_type.clone_as_instance();
+                        }
+                        return value;
                     }
                     return types.UnknownType();
                 } elif base_type.is_class_instance() {
