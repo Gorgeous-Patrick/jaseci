@@ -115,11 +115,13 @@ nav:
         - The app.jac Entry Point: "jac-client/file-system/app.jac.md"
       - Handling Assets: "jac-client/asset-serving/intro.md"
       - TypeScript: "jac-client/working-with-ts.md"
+      - Exporting Functions & Variables: "jac-client/exporting-functions-and-variables.md"
       - Advanced:
         - Introduction: "jac-client/advance/intro.md"
         - Configuration System Overview: "jac-client/advance/configuration-overview.md"
         - Custom Configuration: "jac-client/advance/custom-config.md"
         - Package Management: "jac-client/advance/package-management.md"
+        - Custom Assets Handling: "jac-client/advance/custom-assets-handling.md"
     - Jac Scale:
       - Getting Started: "jac-scale/README.md"
       - Quickstart: "jac-scale/quickstart.md"
@@ -143,6 +145,21 @@ nav:
       - Aider Genius Lite: "learn/examples/agentic_ai/aider-genius-lite/aider-genius-lite.md"
       - Task Manager Lite: "learn/examples/agentic_ai/task-manager-lite/task-manager-lite.md"
       - EmailBuddy: "learn/examples/EmailBuddy/tutorial.md"
+  - Quick Reference:
+    - Getting Started: "getting-started/index.md"
+    - Language Guide:
+      - Overview: "language/index.md"
+      - Syntax & Basics: "language/syntax/index.md"
+      - Object-Spatial Programming: "language/osp/index.md"
+      - Enhanced OOP: "language/oop/index.md"
+    - AI Integration (byLLM): "ai-integration/index.md"
+    - Full-Stack (jac-client): "full-stack/index.md"
+    - Production (jac-scale): "production/index.md"
+    - CLI Reference: "cli/index.md"
+    - Configuration: "configuration/index.md"
+    - Testing & Debugging: "testing-debugging/index.md"
+    - Advanced Topics: "advanced/index.md"
+    - Contributing: "contributing/index.md"
   - Full Jac Specification:
     - Introduction: "learn/jac_ref.md"
     - Base Module structure: "learn/jac_ref/base_module_structure.md"
@@ -177,6 +194,7 @@ nav:
     - Walker visit and disengage (OSP): "learn/jac_ref/walker_visit_and_disengage_(osp).md"
     - Assignments: "learn/jac_ref/assignments.md"
     - Expressions: "learn/jac_ref/expressions.md"
+    - By expressions: "learn/jac_ref/by_expressions.md"
     - Concurrent expressions: "learn/jac_ref/concurrent_expressions.md"
     - Walrus assignments: "learn/jac_ref/walrus_assignments.md"
     - Lambda expressions: "learn/jac_ref/lambda_expressions.md"
@@ -340,6 +358,11 @@ plugins:
   - redirects:
       redirect_maps:
         index.md: learn/installation.md
+        # jac-cloud redirects to production docs
+        learn/jac-cloud/introduction.md: production/index.md
+        learn/jac-cloud/quickstart.md: production/index.md
+        learn/jac-cloud/permission.md: production/index.md
+        learn/jac-cloud/deployment.md: production/index.md
 
 hooks:
   - scripts/handle_jac_compile_data.py
