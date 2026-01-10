@@ -1114,3 +1114,18 @@ class TestJacScaleServe:
         data = response.json()["reports"][0]
         assert "message" in data
         assert data["message"] == "This is a public endpoint"
+
+    def test_custom_response_headers_from_config(self) -> None:
+        """Test that custom response headers from jac.toml are applied."""
+        # Make a request and check for custom headers defined in fixtures/jac.toml
+        response = requests.get(f"{self.base_url}/docs", timeout=5)
+
+        # Check for custom headers configured in jac.toml [environments.response.headers]
+        assert "x-custom-test-header" in response.headers
+        assert response.headers["x-custom-test-header"] == "test-value"
+
+        # Check for COOP/COEP headers (needed for SharedArrayBuffer support)
+        assert "cross-origin-opener-policy" in response.headers
+        assert response.headers["cross-origin-opener-policy"] == "same-origin"
+        assert "cross-origin-embedder-policy" in response.headers
+        assert response.headers["cross-origin-embedder-policy"] == "require-corp"
