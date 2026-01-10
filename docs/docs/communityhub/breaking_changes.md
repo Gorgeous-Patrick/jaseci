@@ -98,7 +98,6 @@ The `let` keyword has been removed from Jaclang. Variable declarations now use d
 with entry {
     let x = 10;
     let name = "Alice";
-    let [count, setCount] = useState(0);
 }
 ```
 
@@ -108,7 +107,6 @@ with entry {
 with entry {
     x = 10;
     name = "Alice";
-    [count, setCount] = useState(0);
 }
 ```
 
@@ -117,6 +115,8 @@ with entry {
 - Remove the `let` keyword from all variable declarations
 - Use direct assignment (`x = value`) instead of `let x = value`
 - This applies to all contexts including destructuring assignments
+
+> **Note for client-side code:** In `cl {}` blocks and `.cl.jac` files, prefer using `has` for reactive state (see v0.9.5 reactive state feature) instead of explicit `useState` destructuring.
 
 ### Version 0.8.10
 
