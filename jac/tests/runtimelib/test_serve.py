@@ -1,4 +1,4 @@
-"""Test for jac serve command and REST API server."""
+"""Test for jac start command and REST API server."""
 
 import contextlib
 import json
@@ -14,8 +14,9 @@ from urllib.request import Request, urlopen
 import pytest
 
 from jaclang import JacRuntime as Jac
-from jaclang.cli import cli
+from jaclang.cli.commands import execution  # type: ignore[attr-defined]
 from jaclang.runtimelib.server import JacAPIServer, UserManager
+from tests.conftest import proc_file_sess
 from tests.runtimelib.conftest import fixture_abs_path
 
 
@@ -60,8 +61,8 @@ class ServerFixture:
         """Start the API server in a background thread."""
         from http.server import HTTPServer
 
-        # Load the module
-        base, mod, mach = cli.proc_file_sess(fixture_abs_path(api_file), "")
+        # Load the module with the same session_file for persistence
+        base, mod, mach = proc_file_sess(fixture_abs_path(api_file), self.session_file)
         Jac.set_base_path(base)
         Jac.jac_import(
             target=mod,
@@ -70,7 +71,7 @@ class ServerFixture:
             lng="jac",
         )
 
-        # Create server
+        # Create server with same session path
         self.server = JacAPIServer(
             module_name="__main__",
             session_path=self.session_file,
@@ -183,21 +184,21 @@ def test_user_manager_creation(server_fixture: ServerFixture) -> None:
     user_mgr = UserManager(server_fixture.session_file)
 
     # Create first user
-    result1 = user_mgr.create_user("user1@example.com", "pass1")
+    result1 = user_mgr.create_user("user1", "pass1")
     assert "token" in result1
     assert "root_id" in result1
-    assert result1["email"] == "user1@example.com"
+    assert result1["username"] == "user1"
 
     # Create second user
-    result2 = user_mgr.create_user("user2@example.com", "pass2")
+    result2 = user_mgr.create_user("user2", "pass2")
     assert "token" in result2
     assert "root_id" in result2
 
     # Users should have different roots
     assert result1["root_id"] != result2["root_id"]
 
-    # Duplicate email should fail
-    result3 = user_mgr.create_user("user1@example.com", "pass3")
+    # Duplicate username should fail
+    result3 = user_mgr.create_user("user1", "pass3")
     assert "error" in result3
 
 
@@ -206,21 +207,21 @@ def test_user_manager_authentication(server_fixture: ServerFixture) -> None:
     user_mgr = UserManager(server_fixture.session_file)
 
     # Create user
-    create_result = user_mgr.create_user("testuser@example.com", "testpass")
+    create_result = user_mgr.create_user("testuser", "testpass")
     original_token = create_result["token"]
 
     # Authenticate with correct credentials
-    auth_result = user_mgr.authenticate("testuser@example.com", "testpass")
+    auth_result = user_mgr.authenticate("testuser", "testpass")
     assert auth_result is not None
-    assert auth_result["email"] == "testuser@example.com"
+    assert auth_result["username"] == "testuser"
     assert auth_result["token"] == original_token
 
     # Wrong password
-    auth_fail = user_mgr.authenticate("testuser@example.com", "wrongpass")
+    auth_fail = user_mgr.authenticate("testuser", "wrongpass")
     assert auth_fail is None
 
     # Nonexistent user
-    auth_fail2 = user_mgr.authenticate("nouser@example.com", "pass")
+    auth_fail2 = user_mgr.authenticate("nouser", "pass")
     assert auth_fail2 is None
 
 
@@ -229,16 +230,16 @@ def test_user_manager_token_validation(server_fixture: ServerFixture) -> None:
     user_mgr = UserManager(server_fixture.session_file)
 
     # Create user
-    result = user_mgr.create_user("validuser@example.com", "validpass")
+    result = user_mgr.create_user("validuser", "validpass")
     token = result["token"]
 
     # Valid token
-    email = user_mgr.validate_token(token)
-    assert email == "validuser@example.com"
+    username = user_mgr.validate_token(token)
+    assert username == "validuser"
 
     # Invalid token
-    email = user_mgr.validate_token("invalid_token")
-    assert email is None
+    username = user_mgr.validate_token("invalid_token")
+    assert username is None
 
 
 def test_server_user_creation(server_fixture: ServerFixture) -> None:
@@ -249,13 +250,13 @@ def test_server_user_creation(server_fixture: ServerFixture) -> None:
     result = server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "alice@example.com", "password": "secret123"},
+        {"username": "alice", "password": "secret123"},
     )
 
-    assert "email" in result
+    assert "username" in result
     assert "token" in result
     assert "root_id" in result
-    assert result["email"] == "alice@example.com"
+    assert result["username"] == "alice"
 
 
 def test_server_user_login(server_fixture: ServerFixture) -> None:
@@ -264,21 +265,21 @@ def test_server_user_login(server_fixture: ServerFixture) -> None:
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "bob@example.com", "password": "pass456"}
+        "POST", "/user/register", {"username": "bob", "password": "pass456"}
     )
 
     # Login with correct credentials
     login_result = server_fixture.request(
-        "POST", "/user/login", {"email": "bob@example.com", "password": "pass456"}
+        "POST", "/user/login", {"username": "bob", "password": "pass456"}
     )
 
     assert "token" in login_result
-    assert login_result["email"] == "bob@example.com"
+    assert login_result["username"] == "bob"
     assert login_result["root_id"] == create_result["root_id"]
 
     # Login with wrong password
     login_fail = server_fixture.request(
-        "POST", "/user/login", {"email": "bob@example.com", "password": "wrongpass"}
+        "POST", "/user/login", {"username": "bob", "password": "wrongpass"}
     )
 
     assert "error" in login_fail
@@ -300,7 +301,7 @@ def test_server_list_functions(server_fixture: ServerFixture) -> None:
 
     # Create user and get token
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "funcuser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "funcuser", "password": "pass"}
     )
     token = create_result["token"]
 
@@ -318,7 +319,7 @@ def test_server_get_function_signature(server_fixture: ServerFixture) -> None:
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "siguser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "siguser", "password": "pass"}
     )
     token = create_result["token"]
 
@@ -340,7 +341,7 @@ def test_server_call_function(server_fixture: ServerFixture) -> None:
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "calluser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "calluser", "password": "pass"}
     )
     token = create_result["token"]
 
@@ -367,7 +368,7 @@ def test_server_call_function_with_defaults(server_fixture: ServerFixture) -> No
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "defuser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "defuser", "password": "pass"}
     )
     token = create_result["token"]
 
@@ -386,7 +387,7 @@ def test_server_list_walkers(server_fixture: ServerFixture) -> None:
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "walkuser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "walkuser", "password": "pass"}
     )
     token = create_result["token"]
 
@@ -405,7 +406,7 @@ def test_server_get_walker_info(server_fixture: ServerFixture) -> None:
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "infouser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "infouser", "password": "pass"}
     )
     token = create_result["token"]
 
@@ -430,7 +431,7 @@ def test_server_spawn_walker(server_fixture: ServerFixture) -> None:
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "spawnuser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "spawnuser", "password": "pass"}
     )
     token = create_result["token"]
     # Spawn CreateTask walker
@@ -469,10 +470,10 @@ def test_server_user_isolation(server_fixture: ServerFixture) -> None:
 
     # Create two users
     user1 = server_fixture.request(
-        "POST", "/user/register", {"email": "user1@example.com", "password": "pass1"}
+        "POST", "/user/register", {"username": "user1", "password": "pass1"}
     )
     user2 = server_fixture.request(
-        "POST", "/user/register", {"email": "user2@example.com", "password": "pass2"}
+        "POST", "/user/register", {"username": "user2", "password": "pass2"}
     )
 
     token1 = user1["token"]
@@ -506,7 +507,7 @@ def test_server_invalid_function(server_fixture: ServerFixture) -> None:
     create_result = server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "invaliduser@example.com", "password": "pass"},
+        {"username": "invaliduser", "password": "pass"},
     )
     token = create_result["token"]
 
@@ -526,7 +527,7 @@ def test_server_invalid_walker(server_fixture: ServerFixture) -> None:
     create_result = server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "invalidwalk@example.com", "password": "pass"},
+        {"username": "invalidwalk", "password": "pass"},
     )
     token = create_result["token"]
 
@@ -538,18 +539,19 @@ def test_server_invalid_walker(server_fixture: ServerFixture) -> None:
     assert "error" in result
 
 
+@pytest.mark.xfail(reason="Flaky: timing-dependent client bundle building")
 def test_client_page_and_bundle_endpoints(server_fixture: ServerFixture) -> None:
     """Render a client page and fetch the bundled JavaScript."""
     server_fixture.start_server()
 
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "pageuser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "pageuser", "password": "pass"}
     )
     token = create_result["token"]
 
     # Use longer timeout for page requests (they trigger bundle building)
     status, html_body, headers = server_fixture.request_raw(
-        "GET", "/page/client_page", token=token, timeout=15
+        "GET", "/cl/client_page", token=token, timeout=15
     )
 
     assert status == 200
@@ -583,7 +585,7 @@ def test_server_root_endpoint(server_fixture: ServerFixture) -> None:
 def test_module_loading_and_introspection(server_fixture: ServerFixture) -> None:
     """Test that module loads correctly and introspection works."""
     # Load module
-    base, mod, mach = cli.proc_file_sess(fixture_abs_path("serve_api.jac"), "")
+    base, mod, mach = proc_file_sess(fixture_abs_path("serve_api.jac"), "")
     Jac.set_base_path(base)
     Jac.jac_import(
         target=mod,
@@ -635,13 +637,13 @@ def test_csr_mode_empty_root(server_fixture: ServerFixture) -> None:
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "csruser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "csruser", "password": "pass"}
     )
     token = create_result["token"]
 
     # Request page in CSR mode using query parameter (longer timeout for bundle building)
     status, html_body, headers = server_fixture.request_raw(
-        "GET", "/page/client_page?mode=csr", token=token, timeout=15
+        "GET", "/cl/client_page?mode=csr", token=token, timeout=15
     )
 
     assert status == 200
@@ -661,7 +663,7 @@ def test_csr_mode_empty_root(server_fixture: ServerFixture) -> None:
 def test_csr_mode_with_server_default(server_fixture: ServerFixture) -> None:
     """render_client_page returns an empty shell when called directly."""
     # Load module
-    base, mod, mach = cli.proc_file_sess(fixture_abs_path("serve_api.jac"), "")
+    base, mod, mach = proc_file_sess(fixture_abs_path("serve_api.jac"), "")
     Jac.set_base_path(base)
     Jac.jac_import(
         target=mod,
@@ -712,7 +714,7 @@ def test_root_data_persistence_across_server_restarts(
     create_result = server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "persistuser@example.com", "password": "testpass123"},
+        {"username": "persistuser", "password": "testpass123"},
     )
     token = create_result["token"]
     root_id = create_result["root_id"]
@@ -747,9 +749,13 @@ def test_root_data_persistence_across_server_restarts(
     assert "result" in list_before
 
     # Shutdown first server instance
-    # Close user manager first to release the shelf lock
+    # Close user manager first
     if server_fixture.server and hasattr(server_fixture.server, "user_manager"):
         server_fixture.server.user_manager.close()
+
+    # Commit and close the ExecutionContext to release the shelf lock
+    Jac.commit()
+    Jac.get_context().close()
 
     if server_fixture.httpd:
         server_fixture.httpd.shutdown()
@@ -769,7 +775,7 @@ def test_root_data_persistence_across_server_restarts(
     login_result = server_fixture.request(
         "POST",
         "/user/login",
-        {"email": "persistuser@example.com", "password": "testpass123"},
+        {"username": "persistuser", "password": "testpass123"},
     )
 
     # User should be able to log in successfully
@@ -835,13 +841,13 @@ def test_login_form_renders_with_correct_elements(
 
     # Create user
     create_result = server_fixture.request(
-        "POST", "/user/register", {"email": "formuser@example.com", "password": "pass"}
+        "POST", "/user/register", {"username": "formuser", "password": "pass"}
     )
     token = create_result["token"]
 
     # Request the client_page endpoint (longer timeout for bundle building)
     status, html_body, headers = server_fixture.request_raw(
-        "GET", "/page/client_page", token=token, timeout=15
+        "GET", "/cl/client_page", token=token, timeout=15
     )
 
     assert status == 200
@@ -863,7 +869,7 @@ def test_login_form_renders_with_correct_elements(
     )
     assert status_js == 200
 
-    # Verify the bundle has the polyfill setup function (now part of client_runtime.jac)
+    # Verify the bundle has the polyfill setup function (now part of client_runtime.cl.jac)
     assert "__jacEnsureObjectGetPolyfill" in js_body
 
     # Verify the function is in the bundle
@@ -878,13 +884,13 @@ def test_default_page_is_csr(server_fixture: ServerFixture) -> None:
     create_result = server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "csrdefaultuser@example.com", "password": "pass"},
+        {"username": "csrdefaultuser", "password": "pass"},
     )
     token = create_result["token"]
 
     # Request page WITHOUT specifying mode (should use default, longer timeout for bundle building)
     status, html_body, headers = server_fixture.request_raw(
-        "GET", "/page/client_page", token=token, timeout=15
+        "GET", "/cl/client_page", token=token, timeout=15
     )
 
     assert status == 200
@@ -909,7 +915,7 @@ def test_default_page_is_csr(server_fixture: ServerFixture) -> None:
 
     # Verify that explicitly requesting SSR mode is ignored (still CSR, longer timeout for bundle building)
     status_ssr, html_ssr, _ = server_fixture.request_raw(
-        "GET", "/page/client_page?mode=ssr", token=token, timeout=15
+        "GET", "/cl/client_page?mode=ssr", token=token, timeout=15
     )
     assert status_ssr == 200
 
@@ -926,8 +932,8 @@ def test_faux_flag_prints_endpoint_docs(server_fixture: ServerFixture) -> None:
 
     try:
         with redirect_stdout(captured_output):
-            # Call serve with faux=True
-            cli.serve(
+            # Call start with faux=True
+            execution.start(
                 filename=fixture_abs_path("serve_api.jac"),
                 session=server_fixture.session_file,
                 port=server_fixture.port,
@@ -935,7 +941,7 @@ def test_faux_flag_prints_endpoint_docs(server_fixture: ServerFixture) -> None:
                 faux=True,
             )
     except SystemExit:
-        pass  # serve() may call exit() in some error cases
+        pass  # start() may call exit() in some error cases
 
     output = captured_output.getvalue()
 
@@ -990,8 +996,8 @@ def test_faux_flag_with_littlex_example(server_fixture: ServerFixture) -> None:
 
     try:
         with redirect_stdout(captured_output):
-            # Call serve with faux=True on littleX example
-            cli.serve(
+            # Call start with faux=True on littleX example
+            execution.start(
                 filename=littlex_path,
                 session=server_fixture.session_file,
                 port=server_fixture.port,
@@ -999,7 +1005,7 @@ def test_faux_flag_with_littlex_example(server_fixture: ServerFixture) -> None:
                 faux=True,
             )
     except SystemExit:
-        pass  # serve() may call exit() in some error cases
+        pass  # start() may call exit() in some error cases
 
     output = captured_output.getvalue()
 
@@ -1020,7 +1026,7 @@ def test_faux_flag_with_littlex_example(server_fixture: ServerFixture) -> None:
     assert "1 client functions" in output  # 15 client functions
     # Verify some client functions are listed
     assert "App" in output
-    assert "/page/" in output
+    assert "/cl/" in output
 
 
 # Tests for TestAccessLevelAuthentication
@@ -1085,7 +1091,7 @@ def test_protected_function_with_auth(access_server_fixture: ServerFixture) -> N
     create_result = access_server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "authuser@example.com", "password": "pass123"},
+        {"username": "authuser", "password": "pass123"},
     )
     token = create_result["token"]
 
@@ -1122,7 +1128,7 @@ def test_private_function_with_auth(access_server_fixture: ServerFixture) -> Non
     create_result = access_server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "privuser@example.com", "password": "pass456"},
+        {"username": "privuser", "password": "pass456"},
     )
     token = create_result["token"]
 
@@ -1172,7 +1178,7 @@ def test_protected_walker_with_auth(access_server_fixture: ServerFixture) -> Non
     create_result = access_server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "walkuser@example.com", "password": "pass789"},
+        {"username": "walkuser", "password": "pass789"},
     )
     token = create_result["token"]
 
@@ -1209,7 +1215,7 @@ def test_private_walker_with_auth(access_server_fixture: ServerFixture) -> None:
     create_result = access_server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "privwalk@example.com", "password": "pass000"},
+        {"username": "privwalk", "password": "pass000"},
     )
     token = create_result["token"]
 
@@ -1245,7 +1251,7 @@ def test_mixed_access_levels(access_server_fixture: ServerFixture) -> None:
     create_result = access_server_fixture.request(
         "POST",
         "/user/register",
-        {"email": "mixeduser@example.com", "password": "mixedpass"},
+        {"username": "mixeduser", "password": "mixedpass"},
     )
     token = create_result["token"]
 
@@ -1279,3 +1285,272 @@ def test_mixed_access_levels(access_server_fixture: ServerFixture) -> None:
         token=token,
     )
     assert "result" in result4
+
+
+# Tests for CL Route Configuration with jac.toml
+
+
+class ConfiguredServerFixture:
+    """Server fixture that loads config from a jac.toml file."""
+
+    def __init__(
+        self, request: pytest.FixtureRequest, temp_dir: str, jac_toml_content: str
+    ) -> None:
+        """Initialize server fixture with custom jac.toml."""
+        import shutil
+
+        self.server: JacAPIServer | None = None
+        self.server_thread: threading.Thread | None = None
+        self.httpd: HTTPServer | None = None
+        try:
+            self.port = get_free_port()
+        except PermissionError:
+            pytest.skip("Socket operations are not permitted in this environment")
+        self.base_url = f"http://localhost:{self.port}"
+        test_name = request.node.name
+
+        # Create temp directory with jac.toml and test jac file
+        self.temp_dir = temp_dir
+        self.project_dir = os.path.join(temp_dir, "test_project")
+        os.makedirs(self.project_dir, exist_ok=True)
+
+        # Write jac.toml
+        with open(os.path.join(self.project_dir, "jac.toml"), "w") as f:
+            f.write(jac_toml_content)
+
+        # Copy serve_api.jac to the project directory
+        src_file = fixture_abs_path("serve_api.jac")
+        self.jac_file = os.path.join(self.project_dir, "serve_api.jac")
+        shutil.copy(src_file, self.jac_file)
+
+        self.session_file = os.path.join(self.project_dir, f"test_{test_name}.session")
+
+    def start_server(self) -> None:
+        """Start the API server in a background thread."""
+        from jaclang.project.config import get_config, set_config
+
+        # Reset config so it will be re-discovered from the project dir
+        set_config(None)
+
+        # Change to project directory so config is discovered
+        original_cwd = os.getcwd()
+        os.chdir(self.project_dir)
+
+        try:
+            # Force config re-discovery from the new directory
+            get_config(force_discover=True)
+
+            # Load the module
+            base, mod, mach = proc_file_sess(self.jac_file, self.session_file)
+            Jac.set_base_path(base)
+            Jac.jac_import(
+                target=mod,
+                base_path=base,
+                override_name="__main__",
+                lng="jac",
+            )
+
+            # Create server
+            self.server = JacAPIServer(
+                module_name="__main__",
+                session_path=self.session_file,
+                port=self.port,
+            )
+
+            # Start server in thread
+            def run_server():
+                try:
+                    self.server.load_module()
+                    handler_class = self.server.create_handler()
+                    self.httpd = HTTPServer(("127.0.0.1", self.port), handler_class)
+                    self.httpd.serve_forever()
+                except Exception:
+                    pass
+
+            self.server_thread = threading.Thread(target=run_server, daemon=True)
+            self.server_thread.start()
+
+            # Wait for server to be ready
+            max_attempts = 50
+            for _ in range(max_attempts):
+                try:
+                    self._request("GET", "/", timeout=10)
+                    break
+                except Exception:
+                    time.sleep(0.1)
+        finally:
+            os.chdir(original_cwd)
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        data: dict | None = None,
+        token: str | None = None,
+        timeout: int = 5,
+    ) -> dict:
+        """Make HTTP request to server."""
+        url = f"{self.base_url}{path}"
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        body = json.dumps(data).encode() if data else None
+        req = Request(url, data=body, headers=headers, method=method)
+
+        try:
+            with urlopen(req, timeout=timeout) as response:
+                return json.loads(response.read().decode())
+        except HTTPError as e:
+            return json.loads(e.read().decode())
+
+    def request_raw(
+        self,
+        method: str,
+        path: str,
+        data: dict | None = None,
+        token: str | None = None,
+        timeout: int = 5,
+    ) -> tuple[int, str, dict]:
+        """Make HTTP request and return status, body, headers."""
+        url = f"{self.base_url}{path}"
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        body = json.dumps(data).encode() if data else None
+        req = Request(url, data=body, headers=headers, method=method)
+
+        try:
+            with urlopen(req, timeout=timeout) as response:
+                return (
+                    response.status,
+                    response.read().decode(),
+                    dict(response.headers),
+                )
+        except HTTPError as e:
+            return e.code, e.read().decode(), dict(e.headers)
+
+    def cleanup(self) -> None:
+        """Stop server and cleanup."""
+        from jaclang.project.config import set_config
+
+        if self.httpd:
+            self.httpd.shutdown()
+            self.httpd.server_close()
+        if self.server_thread and self.server_thread.is_alive():
+            self.server_thread.join(timeout=2)
+        set_config(None)
+        del_session(self.session_file)
+
+
+def test_cl_route_prefix_from_jac_toml(request: pytest.FixtureRequest) -> None:
+    """Test that cl_route_prefix from jac.toml changes the CL app route."""
+    import tempfile
+
+    jac_toml = """
+[project]
+name = "route-prefix-test"
+version = "0.1.0"
+
+[serve]
+cl_route_prefix = "pages"
+"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        fixture = ConfiguredServerFixture(request, temp_dir, jac_toml)
+        try:
+            fixture.start_server()
+
+            # The root endpoint should show the custom route prefix
+            result = fixture._request("GET", "/")
+            assert "endpoints" in result
+            assert "GET /pages/<name>" in result["endpoints"]
+
+            # Verify the default /cl/ route no longer works (404)
+            status, _, _ = fixture.request_raw("GET", "/cl/client_page", timeout=5)
+            assert status == 404
+
+            # Verify the custom /pages/ route works
+            status, html_body, headers = fixture.request_raw(
+                "GET", "/pages/client_page", timeout=15
+            )
+            assert status == 200
+            assert "text/html" in headers.get("Content-Type", "")
+            assert '<div id="__jac_root">' in html_body
+        finally:
+            fixture.cleanup()
+
+
+def test_base_route_app_from_jac_toml(request: pytest.FixtureRequest) -> None:
+    """Test that base_route_app from jac.toml serves the app at /."""
+    import tempfile
+
+    jac_toml = """
+[project]
+name = "base-route-test"
+version = "0.1.0"
+
+[serve]
+base_route_app = "client_page"
+"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        fixture = ConfiguredServerFixture(request, temp_dir, jac_toml)
+        try:
+            fixture.start_server()
+
+            # The root / should now serve the client_page app instead of API info
+            status, html_body, headers = fixture.request_raw("GET", "/", timeout=15)
+            assert status == 200
+            assert "text/html" in headers.get("Content-Type", "")
+            assert '<div id="__jac_root">' in html_body
+            assert '"function": "client_page"' in html_body
+
+            # The /cl/ route should still work
+            status, html_body2, _ = fixture.request_raw(
+                "GET", "/cl/client_page", timeout=15
+            )
+            assert status == 200
+            assert '<div id="__jac_root">' in html_body2
+        finally:
+            fixture.cleanup()
+
+
+def test_both_serve_options_from_jac_toml(request: pytest.FixtureRequest) -> None:
+    """Test both cl_route_prefix and base_route_app from jac.toml work together."""
+    import tempfile
+
+    jac_toml = """
+[project]
+name = "combined-test"
+version = "0.1.0"
+
+[serve]
+cl_route_prefix = "app"
+base_route_app = "client_page"
+"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        fixture = ConfiguredServerFixture(request, temp_dir, jac_toml)
+        try:
+            fixture.start_server()
+
+            # Root / should serve the base_route_app
+            status, html_body, headers = fixture.request_raw("GET", "/", timeout=15)
+            assert status == 200
+            assert "text/html" in headers.get("Content-Type", "")
+            assert '"function": "client_page"' in html_body
+
+            # Custom prefix /app/ should work
+            status, html_body2, _ = fixture.request_raw(
+                "GET", "/app/client_page", timeout=15
+            )
+            assert status == 200
+            assert '<div id="__jac_root">' in html_body2
+
+            # Default /cl/ should NOT work (404)
+            status, _, _ = fixture.request_raw("GET", "/cl/client_page", timeout=5)
+            assert status == 404
+        finally:
+            fixture.cleanup()

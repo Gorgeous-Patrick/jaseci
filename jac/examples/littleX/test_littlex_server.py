@@ -5,15 +5,31 @@ import os
 import socket
 import threading
 import time
-from typing import TypedDict
+from typing import Any, TypedDict
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import pytest
 
-from jaclang.cli import cli
 from jaclang import JacRuntime as Jac
 from jaclang.runtimelib.server import JacAPIServer
+
+
+def proc_file_sess(
+    filename: str, session: str, root: str | None = None
+) -> tuple[str, str, Any]:
+    """Create JacRuntime and return the base path, module name, and runtime state."""
+    base, mod = os.path.split(filename)
+    base = base or "./"
+    if filename.endswith(".jac") or filename.endswith(".jir"):
+        mod = mod[:-4]
+    elif filename.endswith(".py"):
+        mod = mod[:-3]
+    else:
+        raise ValueError("Not a valid file! Only supports `.jac`, `.jir`, and `.py`")
+    mach = Jac.create_j_context(session=session, root=root)
+    Jac.set_context(mach)
+    return (base, mod, mach)
 
 
 def get_free_port() -> int:
@@ -63,7 +79,7 @@ def littlex_server():
 
         # Load the module
         jac_file = os.path.join(os.path.dirname(__file__), "littleX_single_nodeps.jac")
-        base, mod, mach = cli.proc_file_sess(jac_file, "")
+        base, mod, mach = proc_file_sess(jac_file, "")
         Jac.set_base_path(base)
         Jac.jac_import(
             target=mod,
@@ -118,11 +134,11 @@ def littlex_server():
         except HTTPError as e:
             return json.loads(e.read().decode())
 
-    def _create_user(email: str, password: str) -> dict:
+    def _create_user(username: str, password: str) -> dict:
         """Helper to create a user and store credentials."""
-        result = _request("POST", "/user/register", {"email": email, "password": password})
+        result = _request("POST", "/user/register", {"username": username, "password": password})
         if "token" in result:
-            server_data["users"][email] = {
+            server_data["users"][username] = {
                 "password": password,
                 "token": result["token"],
                 "root_id": result["root_id"],
@@ -174,9 +190,9 @@ def test_user_creation_and_login(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create three users
-    user1 = littlex_server["create_user"]("alice@example.com", "pass123")
-    user2 = littlex_server["create_user"]("bob@example.com", "pass456")
-    user3 = littlex_server["create_user"]("charlie@example.com", "pass789")
+    user1 = littlex_server["create_user"]("alice", "pass123")
+    user2 = littlex_server["create_user"]("bob", "pass456")
+    user3 = littlex_server["create_user"]("charlie", "pass789")
 
     assert "token" in user1
     assert "token" in user2
@@ -185,12 +201,12 @@ def test_user_creation_and_login(littlex_server) -> None:
     assert user2["root_id"] != user3["root_id"]
 
     # Test login
-    login_result = littlex_server["request"]("POST", "/user/login", {"email": "alice@example.com", "password": "pass123"})
+    login_result = littlex_server["request"]("POST", "/user/login", {"username": "alice", "password": "pass123"})
     assert "token" in login_result
-    assert login_result["email"] == "alice@example.com"
+    assert login_result["username"] == "alice"
 
     # Test wrong password
-    login_fail = littlex_server["request"]("POST", "/user/login", {"email": "bob@example.com", "password": "wrongpass"})
+    login_fail = littlex_server["request"]("POST", "/user/login", {"username": "bob", "password": "wrongpass"})
     assert "error" in login_fail
 
     print("✓ User creation and login test passed")
@@ -201,11 +217,11 @@ def test_profile_creation_and_update(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create users
-    littlex_server["create_user"]("alice@example.com", "pass123")
-    littlex_server["create_user"]("bob@example.com", "pass456")
+    littlex_server["create_user"]("alice", "pass123")
+    littlex_server["create_user"]("bob", "pass456")
 
-    alice_token = littlex_server["users"]["alice@example.com"]["token"]
-    bob_token = littlex_server["users"]["bob@example.com"]["token"]
+    alice_token = littlex_server["users"]["alice"]["token"]
+    bob_token = littlex_server["users"]["bob"]["token"]
 
     # Update Alice's profile
     update_result = littlex_server["request"](
@@ -237,12 +253,12 @@ def test_follow_unfollow_users(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create users
-    littlex_server["create_user"]("alice@example.com", "pass123")
-    littlex_server["create_user"]("bob@example.com", "pass456")
-    littlex_server["create_user"]("charlie@example.com", "pass789")
+    littlex_server["create_user"]("alice", "pass123")
+    littlex_server["create_user"]("bob", "pass456")
+    littlex_server["create_user"]("charlie", "pass789")
 
-    alice_token = littlex_server["users"]["alice@example.com"]["token"]
-    bob_token = littlex_server["users"]["bob@example.com"]["token"]
+    alice_token = littlex_server["users"]["alice"]["token"]
+    bob_token = littlex_server["users"]["bob"]["token"]
 
     # Update usernames first
     littlex_server["request"](
@@ -271,8 +287,8 @@ def test_create_and_list_tweets(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create user
-    littlex_server["create_user"]("alice@example.com", "pass123")
-    alice_token = littlex_server["users"]["alice@example.com"]["token"]
+    littlex_server["create_user"]("alice", "pass123")
+    alice_token = littlex_server["users"]["alice"]["token"]
 
     # Update profile first
     littlex_server["request"](
@@ -315,11 +331,11 @@ def test_like_and_unlike_tweets(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create users
-    littlex_server["create_user"]("alice@example.com", "pass123")
-    littlex_server["create_user"]("bob@example.com", "pass456")
+    littlex_server["create_user"]("alice", "pass123")
+    littlex_server["create_user"]("bob", "pass456")
 
-    alice_token = littlex_server["users"]["alice@example.com"]["token"]
-    bob_token = littlex_server["users"]["bob@example.com"]["token"]
+    alice_token = littlex_server["users"]["alice"]["token"]
+    bob_token = littlex_server["users"]["bob"]["token"]
 
     # Update profiles
     littlex_server["request"](
@@ -352,11 +368,11 @@ def test_comment_on_tweets(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create users
-    littlex_server["create_user"]("alice@example.com", "pass123")
-    littlex_server["create_user"]("bob@example.com", "pass456")
+    littlex_server["create_user"]("alice", "pass123")
+    littlex_server["create_user"]("bob", "pass456")
 
-    alice_token = littlex_server["users"]["alice@example.com"]["token"]
-    bob_token = littlex_server["users"]["bob@example.com"]["token"]
+    alice_token = littlex_server["users"]["alice"]["token"]
+    bob_token = littlex_server["users"]["bob"]["token"]
 
     # Update profiles
     littlex_server["request"](
@@ -390,11 +406,11 @@ def test_multi_user_social_activity(littlex_server) -> None:
 
     # Create 5 users
     users = [
-        "alice@example.com",
-        "bob@example.com",
-        "charlie@example.com",
-        "diana@example.com",
-        "eve@example.com",
+        "alice",
+        "bob",
+        "charlie",
+        "diana",
+        "eve",
     ]
     for user in users:
         littlex_server["create_user"](user, f"pass_{user.split('@')[0]}")
@@ -433,7 +449,7 @@ def test_multi_user_social_activity(littlex_server) -> None:
         "POST",
         "/walker/load_feed",
         {},  # Empty search to get all tweets
-        token=littlex_server["users"]["alice@example.com"]["token"],
+        token=littlex_server["users"]["alice"]["token"],
     )
 
     # Debug output
@@ -459,7 +475,7 @@ def test_load_all_user_profiles(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create multiple users
-    users = ["alice@example.com", "bob@example.com", "charlie@example.com"]
+    users = ["alice", "bob", "charlie"]
     for user in users:
         littlex_server["create_user"](user, f"pass_{user.split('@')[0]}")
 
@@ -479,7 +495,7 @@ def test_load_all_user_profiles(littlex_server) -> None:
         "POST",
         "/walker/load_user_profiles",
         {},
-        token=littlex_server["users"]["alice@example.com"]["token"],
+        token=littlex_server["users"]["alice"]["token"],
     )
 
     if "result" in profiles_result:
@@ -494,11 +510,11 @@ def test_user_isolation(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create two users
-    littlex_server["create_user"]("alice@example.com", "pass123")
-    littlex_server["create_user"]("bob@example.com", "pass456")
+    littlex_server["create_user"]("alice", "pass123")
+    littlex_server["create_user"]("bob", "pass456")
 
-    alice_token = littlex_server["users"]["alice@example.com"]["token"]
-    bob_token = littlex_server["users"]["bob@example.com"]["token"]
+    alice_token = littlex_server["users"]["alice"]["token"]
+    bob_token = littlex_server["users"]["bob"]["token"]
 
     # Update profiles
     littlex_server["request"](
@@ -537,7 +553,7 @@ def test_user_isolation(littlex_server) -> None:
     )
 
     # Verify different root IDs
-    assert littlex_server["users"]["alice@example.com"]["root_id"] != littlex_server["users"]["bob@example.com"]["root_id"]
+    assert littlex_server["users"]["alice"]["root_id"] != littlex_server["users"]["bob"]["root_id"]
 
     print("✓ User isolation test passed")
 
@@ -547,9 +563,9 @@ def test_data_persistence(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Create user and tweets
-    littlex_server["create_user"]("alice@example.com", "pass123")
-    alice_token = littlex_server["users"]["alice@example.com"]["token"]
-    alice_root = littlex_server["users"]["alice@example.com"]["root_id"]
+    littlex_server["create_user"]("alice", "pass123")
+    alice_token = littlex_server["users"]["alice"]["token"]
+    alice_root = littlex_server["users"]["alice"]["root_id"]
 
     # Update profile
     littlex_server["request"](
@@ -585,7 +601,7 @@ def test_data_persistence(littlex_server) -> None:
     littlex_server["start_server"]()
 
     # Login again
-    login_result = littlex_server["request"]("POST", "/user/login", {"email": "alice@example.com", "password": "pass123"})
+    login_result = littlex_server["request"]("POST", "/user/login", {"username": "alice", "password": "pass123"})
 
     assert "token" in login_result
     assert login_result["root_id"] == alice_root

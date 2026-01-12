@@ -2,19 +2,36 @@
 
 This document provides a summary of new features, improvements, and bug fixes in each version of **Jac-Client**. For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](../breaking_changes.md) page.
 
-## jac-client 0.2.4 (Unreleased)
+## jac-client 0.2.8 (Unreleased)
+
+## jac-client 0.2.7 (Latest Release)
+
+- **Reactive State Variables**: The `jac create --cl` template now uses the new `has` keyword for React state management. Instead of `[count, setCount] = useState(0);`, you can write `has count: int = 0;` and use direct assignment `count = count + 1;`. The compiler automatically generates the `useState` destructuring and transforms assignments to setter calls, providing cleaner and more intuitive state management syntax.
+- **Simplified Project Structure**: Reorganized the default project structure created by `jac create --cl`. The entry point is now `main.jac` at the project root instead of `src/app.jac`, and the `components/` directory is now at the project root instead of `src/components/`. This flatter structure reduces nesting and aligns with modern frontend project conventions. Existing projects using the `src/` structure continue to work but new projects use the simplified layout.
+
+- **Configurable Client Route Prefix**: Changed the default URL path for client-side apps from `/page/<app>` to `/cl/<app>`. The route prefix is now configurable via `cl_route_prefix` in the `[serve]` section of `jac.toml`. This allows customizing the URL structure for client apps (e.g., `/pages/MyApp` instead of `/cl/MyApp`). [Documentation](https://docs.jaseci.org/learn/tools/jac_serve/#routing-configuration)
+
+- **Base Route App Configuration**: Added `base_route_app` option in `jac.toml` `[serve]` section to serve a client app directly at the root `/` path. When configured, visiting `/` renders the specified client app instead of the API info page, making it easy to create single-page applications with clean URLs. Projects created with `jac create --cl` now default to `base_route_app = "app"`, so the app is served at `/` out of the box. [Documentation](https://docs.jaseci.org/learn/tools/project_config/#serve-section)
+
+## jac-client 0.2.4
+
+- **`jac-client-node` and `@jac-client/dev-deps` npm packages**: Introduced the new npm libraries  to centralize and abstract default dependencies for Jac client applications. These two package includes React, Vite, Babel, TypeScript, and other essential dependencies.
+
+- **Explicit Export Requirement**: Functions and variables must now be explicitly exported using the `:pub` modifier to be available for import. In previous versions (< 0.2.4), all `def` functions were automatically exported and variables (globals) could not be exported. Starting with 0.2.4, functions and variables are private by default and must be marked with `:pub` to be importable. This provides better control over module APIs and prevents accidental exports. The `app()` function in your entry file must be exported as `def:pub app()`. [Breaking Change - See Migration Guide]
 
 - **Authentication API Update**: Updated authentication functions (`jacLogin` and `jacSignup`) to use `email` instead of `username` for user identification. This change aligns with standard authentication practices and improves security. All authentication examples and documentation have been updated to reflect this change. The `/user/register` and `/user/login` endpoints now accept `email` in the request payload. End-to-end tests have been added to verify authentication endpoint functionality. [Breaking Change - See Migration Guide]
 
-- **JSON-Based Configuration System**: Introduced a flexible JSON-based configuration system that allows developers to customize Vite build settings, add plugins, and override build options through a simple `config.json` file in the project root. The system automatically generates `vite.config.js` in `.jac-client.configs/` directory, keeping the project root clean while preserving all essential defaults. Supports custom plugins (e.g., Tailwind CSS), build options, server configuration, and resolve options. [Documentation](https://docs.jaseci.org/jac-client/advance/custom-config/)
+- **Centralized Configuration Management**: Introduced a unified configuration system through `config.json` that serves as the single source of truth for all project settings. The system automatically creates `config.json` when you run `jac create_jac_app`, eliminating the need for manual setup. All build configurations (Vite plugins, build options, server settings) and package dependencies are managed through this centralized file. The system automatically generates `vite.config.js` and `package.json` in `.jac-client.configs/` directory, keeping the project root clean while preserving all essential defaults. [Documentation](https://docs.jaseci.org/jac-client/advance/configuration-overview/)
 
-- **CLI Command for Config Generation**: Added `jac generate_client_config` command to create a default `config.json` file with the proper structure, making it easy for developers to start customizing their build configuration. The command prevents accidental overwrites of existing config files.
+- **Package Management Through config.json**: Implemented configuration-first package management where all npm dependencies are managed through `config.json` instead of `package.json`. Use `jac add --cl <package>` to add packages and `jac remove --cl <package>` to remove them. Running `jac add --cl` without a package name installs all packages listed in `config.json`. The system automatically regenerates `package.json` from `config.json` and runs npm install, ensuring consistency between configuration and installed packages. Supports both regular and scoped packages with version specification. [Documentation](https://docs.jaseci.org/jac-client/advance/package-management/)
+
+- **CLI Command for Config Generation**: Added `jac generate_client_config` command for legacy projects (pre-0.2.4) to create a default `config.json` file with the proper structure. For new projects, `config.json` is automatically created with `jac create_jac_app`. The command prevents accidental overwrites of existing config files.
 
 - **Centralized Babel Configuration**: Moved Babel configuration from separate `.babelrc` files into `package.json`, centralizing project configuration and reducing file clutter in the project root.
 
-- **TypeScript Support**: Added comprehensive TypeScript support for Jac client projects, enabling integration of TypeScript/TSX components alongside Jac code. TypeScript files (`.ts`, `.tsx`) are now automatically copied during the build process and properly handled by Vite bundling. The `jac create_jac_app` CLI now includes an interactive prompt to set up TypeScript support during project creation, automatically configuring `tsconfig.json`, `vite.config.js`, and `package.json` with necessary TypeScript dependencies. [Documentation](https://docs.jaseci.org/jac-client/working-with-ts/)
+- **TypeScript Support (Enabled by Default)**: TypeScript is now automatically supported in all Jac projects by default. No configuration or prompts needed - TypeScript dependencies are automatically included in `package.json` during build time, and `tsconfig.json` is automatically generated during the first build. TypeScript files (`.ts`, `.tsx`) are automatically processed by Vite bundling, enabling seamless integration of TypeScript/TSX components alongside Jac code. The `components/` directory with a sample `Button.tsx` component is created automatically during project setup. [Documentation](https://docs.jaseci.org/jac-client/working-with-ts/)
 
-## jac-client 0.2.3 (Latest Release)
+## jac-client 0.2.3
 
 - **Nested Folder Structure Preservation**: Implemented folder structure preservation during compilation, similar to TypeScript transpilation. Files in nested directories now maintain their relative paths in the compiled output, enabling proper relative imports across multiple directory levels and preventing file name conflicts. This allows developers to organize code in nested folders just like in modern JavaScript/TypeScript projects.
 

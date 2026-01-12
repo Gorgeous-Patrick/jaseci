@@ -2,7 +2,21 @@
 
 This document provides a summary of new features, improvements, and bug fixes in each version of **Jaclang**. For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](../breaking_changes.md) page.
 
-## jaclang 0.9.4 (Unreleased)
+## jaclang 0.9.8 (Unreleased)
+
+## jaclang 0.9.7 (Latest Release)
+
+- **Unified `jac start` Command**: The `jac serve` command has been renamed to `jac start`. The `jac scale` command (from jac-scale plugin) now uses `jac start --scale` instead of a separate command. This provides a unified interface for running Jac applications locally or deploying to Kubernetes.
+- **Eager Client Bundle Loading**: The `jac start` command now builds the client bundle at server startup instead of lazily on first request.
+- **Configuration Management CLI**: Added `jac config` command for viewing and modifying `jac.toml` project settings. Supports actions: `show` (display explicitly set values), `list` (display all settings including defaults), `get`/`set`/`unset` (manage individual settings), `path` (show config file location), and `groups` (list available configuration sections). Output formats include table, JSON, and TOML. Filter by configuration group with `-g` flag.
+- **Reactive State Variables in Client Context**: The `has` keyword now supports reactive state in client-side code. When used inside a `cl {}` block, `has count: int = 0;` automatically generates `const [count, setCount] = useState(0);`, and assignments like `count = count + 1;` are transformed to `setCount(count + 1);`. This provides a cleaner, more declarative syntax for React state management without explicit `useState` destructuring.
+- **Consolidated Build Artifacts Directory**: All Jac project build artifacts are now organized under a single `.jac/` directory instead of being scattered across the project root. This includes bytecode cache (`.jac/cache/`), Python packages (`.jac/packages/`), client build artifacts (`.jac/client/`), and runtime data like ShelfDB (`.jac/data/`). The base directory is configurable via `[build].dir` in `jac.toml`. This simplifies `.gitignore` to a single entry and provides cleaner project structures.
+- **Format Command Auto-Formats Related Files**: The `jac format` command now automatically formats all associated annex files (`.impl.jac` and `.cl.jac`) when formatting a main `.jac` file. The format passes traverse impl modules in a single pass, and all related files are written together, ensuring consistent formatting across module boundaries.
+- **Auto-Lint: Empty Parentheses Removal for Impl Blocks**: The `jac format --fix` command now removes unnecessary empty parentheses from `impl` block signatures, matching the existing behavior for function declarations. For example, `impl Foo.bar() -> int` becomes `impl Foo.bar -> int`.
+- **Enhanced Plugin Management CLI**: The `jac plugins` command now provides comprehensive plugin management with `list`, `disable`, `enable`, and `disabled` subcommands. Plugins are displayed organized by PyPI package with fully qualified names (`package:plugin`) for unambiguous identification. Plugin settings persist in `jac.toml` under `[plugins].disabled`, and the `JAC_DISABLED_PLUGINS` environment variable provides runtime override support. Use `*` to disable all external plugins, or `package:*` to disable all plugins from a specific package.
+- **Simplified NonGPT Implementation**: NonGPT is now a native default that activates automatically when no LLM plugin is installed. The implementation no longer fakes the `byllm` import, providing cleaner behavior out of the box.
+
+## jaclang 0.9.4
 
 - **`let` Keyword Removed**: The `let` keyword has been removed from Jaclang. Variable declarations now use direct assignment syntax (e.g., `x = 10` instead of `let x = 10`), aligning with Python's approach to variable binding.
 - **Py2Jac Robustness Improvements**: Improved reliability of Python-to-Jac conversion with better handling of f-strings (smart quote switching, no keyword escaping in interpolations), match pattern class names, attribute access formatting (no extra spaces around dots), and nested docstrings in classes and functions.
@@ -11,8 +25,22 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Support JS Switch Statement**: Javascript transpilation for switch statement is supported.
 - **F-String Escape Sequence Fix**: Fixed a bug where escape sequences like `\n`, `\t`, etc. inside f-strings were not being properly decoded, causing literal backslash-n to appear in output instead of actual newlines. The fix correctly decodes escape sequences for f-string literal fragments in `unitree.py`.
 - **Python `-m` Module Execution Support**: Added ability for Jac modules to be executed directly via `python -m module_name`. When jaclang is auto-imported at Python startup (via a `.pth` file like `jaclang_hook.pth`), both single-file Jac modules and Jac packages (with `__main__.jac`) can be run using Python's standard `-m` flag.
+- **Use Keywords as variable**: Developers can now use any jaclang keywords as variable by using escape character `<>`. Example: `<>from`.
+- **Props support**: Support Component props system with Python kwargs style with `props` keyword. Ex: `props.children`.
+- **Standalone `.cl.jac` Module Detection**: `.cl.jac` files are now recognized as Jac modules both as standalone import targets (when no `.jac` exists) and as attachable client annexes.
+- **Use Keywords as variable**: Developers can now use any jaclang keywords as variable by using escape character `<>`. Example: `<>from`.
+- **Strings supported without escaping within jsx**: Strings supported without escaping within jsx. Example usage: `<h1> "Authentication" App </h1>`
+- **Support output format for dot command**: Output format for dot command is supported. Example Usage: `jac dot filename.jac --format json`
+- **Shared `impl/` Folder for Annex Discovery**: Impl files can now be organized in a shared `impl/` folder within the same directory as the target module. For example, `impl/foo.impl.jac` will be discovered and attached to `foo.jac`, alongside the existing discovery methods (same directory and module-specific `.impl/` folders).
+- **Type Checking Enhancements**: Added type checking support for `Final` type hint.
+- **Unified Plugin Configuration System**: Introduced a standardized configuration interface for Jac plugins through `jac.toml`. Plugins can now register configuration schemas via `get_plugin_metadata()` and `get_config_schema()` hooks, with settings defined under `[plugins.<plugin_name>]` sections. This replaces environment variable-based configuration with a centralized, type-safe approach. Applied to jac-client, jac-scale and jac-byllm plugins.
+- **Auto-Lint: hasattr to Null-Safe Conversion**: The `jac format --fix` command now automatically converts `hasattr(obj, "attr")` patterns to null-safe access syntax (`obj?.attr`). This applies to hasattr calls in conditionals, boolean expressions (`and`/`or`), and ternary expressions. Additionally, patterns like `obj.attr if hasattr(obj, "attr") else default` are fully converted to `obj?.attr if obj?.attr else default`, ensuring consistent null-safe access throughout the expression.
+- **Auto-Lint: Ternary to Or Expression Simplification**: The auto-lint pass now simplifies redundant ternary expressions where the value and condition are identical. Patterns like `x if x else default` are automatically converted to the more concise `x or default`. This works with any expression type including null-safe access (e.g., `obj?.attr if obj?.attr else fallback` becomes `obj?.attr or fallback`).
+- **Improved Null-Safe Subscript Operator `?[]`**: The null-safe subscript operator now safely handles invalid subscripts in addition to None containers (e.g., `list?[10]` returns `None` instead of raising an error; `dict?["missing"]` returns `None` for missing keys). This applies to all subscriptable types and makes `?[]` a fully safe access operator, preventing index and key errors.
+- **Support cl File without Main File**: Developers can write only cl file without main jac files whenever main file is not required.
+- **Support Custom headers to Response**: Custom headers can be added by using an enviornmental variable `[environments.response.headers]` and mentioning the custom headers (Ex: `"Cross-Origin-Opener-Policy" = "same-origin"`).
 
-## jaclang 0.9.3 (Latest Release)
+## jaclang 0.9.3
 
 - **Fixed JSX Text Parsing for Keywords**: Fixed a parser issue where keywords like `to`, `as`, `in`, `is`, `for`, `if`, etc. appearing as text content within JSX elements would cause parse errors. The grammar now correctly recognizes these common English words as valid JSX text content.
 - **Support iter for statement**: Iter for statement is supported in order to utilize traditional for loop in javascript.
@@ -38,7 +66,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Generics TypeChecking**: Type checking for generics in vscode extension has implemented, i.e. `dict[int, str]` can be now checked by the lsp.
 - **Plugin Architecture for Server Rendering**: Added extensible plugin system for server-side page rendering, allowing custom rendering engines and third-party templating integration with transform, cache, and customization capabilities.
 - **Improvements to Runtime Error reporting**: Made various improvements to runtime error CLI reporting.
-- **Node Spawn Walker supported**: Spawning walker on a node with `jac serve` is supported.
+- **Node Spawn Walker supported**: Spawning walker on a node with `jac start` (formerly `jac serve`) is supported.
 
 ## jaclang 0.8.10
 
@@ -74,7 +102,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Better Syntax Error Messages**: Initial improvements to syntax error diagnostics, providing clearer and more descriptive messages that highlight the location and cause of errors (e.g., `Missing semicolon`).
 - **Check Statements Removed**: The `check` keyword has been removed from Jaclang. All testing functionality previously provided by `check` statements is now handled by `assert` statements within test blocks. Assert statements now behave differently depending on context: in regular code they raise `AssertionError` exceptions, while within `test` blocks they integrate with Jac's testing framework to report test failures. This unification simplifies the language by using a single construct for both validation and testing purposes.
 - **Jac Import of Python Files**: This upgrade allows Python files in the current working directory to be imported using the Jac import system by running `export JAC_PYFILE_RAISE=true`. To extend Jac import functionality to all Python files, including those in site-packages, developers can enable it by running `export JAC_PYFILE_RAISE_ALL=true`.
-- **Consistent Jac Code Execution**: Fixed an issue allowing Jac code to be executed both as a standalone program and as an application. Running `jac run` now executes the `main()` function, while `jac serve` launches the application without invoking `main()`.
+- **Consistent Jac Code Execution**: Fixed an issue allowing Jac code to be executed both as a standalone program and as an application. Running `jac run` now executes the `main()` function, while `jac start` (formerly `jac serve`) launches the application without invoking `main()`.
 - **Run transformed pytorch codes**: With `export JAC_PREDYNAMO_PASS=true`, pytorch breaking if statements will be transformed into non breaking torch.where statements. It improves the efficiency of pytorch programs.
 - **Complete Python Function Parameter Syntax Support**: Added full support for advanced Python function parameter patterns including positional-only parameters (`/` separator), keyword-only parameters (`*` separator without type hints), and complex parameter combinations (e.g., `def foo(a, b, /, *, c, d=1, **kwargs): ...`). This enhancement enables seamless Python-to-Jac conversion (`py2jac`) by supporting the complete Python function signature syntax.
 - **Type Checking Enhancements**:

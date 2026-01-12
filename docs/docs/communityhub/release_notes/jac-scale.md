@@ -15,6 +15,8 @@ First release of **Jac-Scale** - a scalable runtime framework for distributed Ja
 - Auto-partitioned graph storage
 - Performance monitoring and auto-scaling
 - YAML-based configuration
+- Username-based user management for authentication
+- **Custom Response Headers**: Configure custom HTTP response headers via `[environments.response.headers]` in `jac.toml`. Useful for security headers like COOP/COEP (required for `SharedArrayBuffer` support in libraries like monaco-editor).
 
 ### Installation
 
