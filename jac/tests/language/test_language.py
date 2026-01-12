@@ -1926,7 +1926,10 @@ def test_ttg_generator(
     with capture_stdout() as captured_output:
         execution.run(fixture_path("jac_ttg/basic.jac"))
 
-    stdout_value = captured_output.getvalue()
-    assert stdout_value == (
+    stdout_value = captured_output.getvalue().strip()
+    correct_output_value = (
         """JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=0, jac_node_size=8), depth=0, children=[JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=0, jac_node_size=8), depth=1, children=[]), JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=1, jac_node_size=8), depth=1, children=[JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=3, jac_node_size=8), depth=2, children=[]), JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=4, jac_node_size=8), depth=2, children=[])]), JacTTGGenerator.TypedWalkerState(walker_type='BFS', node=BFSNode(id=2, jac_node_size=8), depth=1, children=[])])"""
-    )
+    ).strip()
+    print(stdout_value)
+    print()
+    assert stdout_value == correct_output_value

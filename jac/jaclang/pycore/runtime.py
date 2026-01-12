@@ -2010,7 +2010,15 @@ class JacTTGGenerator:
             if program is None:
                 raise RuntimeError("Jac program is not attached to the runtime.")
             file_path = str(walker_module.__file__)
-            code = program.mod.hub[file_path]
+            code = program.mod.hub.get(file_path)
+            if code is None:
+                # TODO: FIGURE OUT WHYY THIS HAPPENS SOMETIMES
+                print(
+                    f"Warning: Walker code for {extracted_name} not found in program hub."
+                )
+                raise RuntimeError(
+                    f"Walker code for {extracted_name} not loaded from {file_path}."
+                )
             for walker_code in code.get_all_sub_nodes(unitree.Archetype):
                 if walker_code.name.value == JacTTGGenerator.extract_type_name(obj):
                     return walker_code
@@ -2043,12 +2051,15 @@ class JacTTGGenerator:
             res = []
             abilities = walker.get_all_sub_nodes(unitree.Ability)
             for ability in abilities:
-                if len(ability.get_all_sub_nodes(unitree.EventSignature)) == 0:
+                event_sigs = ability.get_all_sub_nodes(unitree.EventSignature)
+                if len(event_sigs) == 0:
                     continue
                 # Get the name of the node type
-                node_type_name = ability.get_all_sub_nodes(unitree.EventSignature)[
-                    0
-                ].get_all_sub_nodes(unitree.Name)[0]
+                node_type_names = event_sigs[0].get_all_sub_nodes(unitree.Name)
+                # TODO: SUPPORT SPECIFIC NODE EVENT SIGNATURES.
+                if len(node_type_names) == 0:
+                    raise RuntimeError("Visit event missing node type name.")
+                node_type_name = node_type_names[0]
 
                 node_type = JacTTGGenerator.resolve_to_archetype(
                     node_type_name, node_type_name.value
