@@ -112,7 +112,7 @@ class TestMemoryHierarchy:
         jac_executable = Path(sys.executable).parent / "jac"
         cmd = [
             str(jac_executable),
-            "serve",
+            "start",
             str(cls.jac_file.name),
             "--port",
             str(cls.port),
@@ -139,7 +139,7 @@ class TestMemoryHierarchy:
 
         stdout, stderr = cls.server.communicate(timeout=2)
         raise RuntimeError(
-            f"jac serve failed to start\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            f"jac start failed to start\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
         )
 
     def _register(self, username: str, password: str = "password123") -> str:
@@ -163,7 +163,7 @@ class TestMemoryHierarchy:
         assert res.status_code == 200
         return res.json()
 
-    # TODO: delete method in jac serve is not working as expected. will be fixed in a separate PR and a test case will be added
+    # TODO: delete method in jac start is not working as expected. will be fixed in a separate PR and a test case will be added
 
     def test_read_and_write(self) -> None:
         db = self.mongo_client["jac_db"]
