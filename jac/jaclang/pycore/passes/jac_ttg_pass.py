@@ -7,7 +7,11 @@ original Jac sources.
 
 from __future__ import annotations
 
+from collections import defaultdict
+
 import jaclang.pycore.unitree as uni
+from jaclang.pycore.constant import TTG_VISIT_FIELD
+from jaclang.pycore.constant import Tokens as Tok
 from jaclang.pycore.passes.transform import Transform
 
 
@@ -24,11 +28,22 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
         return ir_in
 
     def _annotate_module(self, module: uni.Module) -> None:
-        """Populate visit counts on each ability within a module."""
+        """Populate aggregate visit counts on each walker within a module."""
+        walker_totals: dict[uni.Archetype, int] = defaultdict(int)
         for ability in module.get_all_sub_nodes(uni.Ability):
             self.cur_node = ability
             visit_count = len(ability.get_all_sub_nodes(uni.VisitStmt))
-            ability.gen.visits = visit_count
+            walker = ability.find_parent_of_type(uni.Archetype)
+            if not walker or walker.arch_type.name != Tok.KW_WALKER:
+                continue
+            walker_totals[walker] += visit_count
+
+        for walker in module.get_all_sub_nodes(uni.Archetype):
+            if walker.arch_type.name != Tok.KW_WALKER:
+                continue
+            total_visits = walker_totals.get(walker, 0)
+            setattr(walker, TTG_VISIT_FIELD, total_visits)
+            self.cur_node = walker
             self.log_info(
-                f"Annotated ability {ability.sym_name} with {visit_count} visits"
+                f"Annotated walker {walker.name.sym_name} with {total_visits} visits"
             )

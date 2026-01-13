@@ -775,3 +775,7 @@ class TsModifier(StrEnum):
     EXPORT = "export"
     DEFAULT = "default"
     OVERRIDE = "override"
+
+
+# TTG metadata helpers
+TTG_VISIT_FIELD = "_jac_ttg_visits"

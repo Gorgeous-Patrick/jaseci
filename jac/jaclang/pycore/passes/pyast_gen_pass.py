@@ -26,8 +26,8 @@ from dataclasses import dataclass
 from typing import ClassVar, TypeVar, cast
 
 import jaclang.pycore.unitree as uni
+from jaclang.pycore.constant import TTG_VISIT_FIELD, EdgeDir
 from jaclang.pycore.constant import Constants as Con
-from jaclang.pycore.constant import EdgeDir
 from jaclang.pycore.constant import Tokens as Tok
 from jaclang.pycore.passes.ast_gen import BaseAstGenPass
 from jaclang.pycore.passes.ast_gen.jsx_processor import PyJsxProcessor
@@ -874,6 +874,24 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                     )
                 ),
             )
+
+        if node.arch_type.name == Tok.KW_WALKER:
+            visit_default = int(getattr(node, TTG_VISIT_FIELD, 0))
+            visits_field = self.sync(
+                ast3.AnnAssign(
+                    target=self.sync(ast3.Name(id=TTG_VISIT_FIELD, ctx=ast3.Store())),
+                    annotation=self.sync(ast3.Name(id="int", ctx=ast3.Load())),
+                    value=self.sync(ast3.Constant(value=visit_default)),
+                    simple=1,
+                ),
+                jac_node=node,
+            )
+            insert_idx = 0
+            if node.is_async:
+                insert_idx += 1
+            if node.doc:
+                insert_idx += 1
+            body.insert(insert_idx, visits_field)
 
         decorators = (
             [cast(ast3.expr, i.gen.py_ast[0]) for i in node.decorators]
