@@ -778,4 +778,4 @@ class TsModifier(StrEnum):
 
 
 # TTG metadata helpers
-TTG_VISIT_FIELD = "_jac_ttg_visits"
+TTG_VISIT_FIELD = "__jac_ttg_visits__"

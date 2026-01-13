@@ -876,12 +876,38 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
             )
 
         if node.arch_type.name == Tok.KW_WALKER:
-            visit_default = int(getattr(node, TTG_VISIT_FIELD, 0))
+            self.needs_typing()
+            visit_list_type = self.sync(
+                ast3.Subscript(
+                    value=self.sync(ast3.Name(id="list", ctx=ast3.Load())),
+                    slice=self.sync(
+                        ast3.Attribute(
+                            value=self.jaclib_obj("Walker"),
+                            attr="VisitType",
+                            ctx=ast3.Load(),
+                        )
+                    ),
+                    ctx=ast3.Load(),
+                )
+            )
+            visit_annotation = self.sync(
+                ast3.Subscript(
+                    value=self.sync(
+                        ast3.Attribute(
+                            value=self.sync(ast3.Name(id="typing", ctx=ast3.Load())),
+                            attr="ClassVar",
+                            ctx=ast3.Load(),
+                        )
+                    ),
+                    slice=visit_list_type,
+                    ctx=ast3.Load(),
+                )
+            )
             visits_field = self.sync(
                 ast3.AnnAssign(
                     target=self.sync(ast3.Name(id=TTG_VISIT_FIELD, ctx=ast3.Store())),
-                    annotation=self.sync(ast3.Name(id="int", ctx=ast3.Load())),
-                    value=self.sync(ast3.Constant(value=visit_default)),
+                    annotation=visit_annotation,
+                    value=self.sync(ast3.List(elts=[], ctx=ast3.Load())),
                     simple=1,
                 ),
                 jac_node=node,

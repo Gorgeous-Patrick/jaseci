@@ -410,8 +410,16 @@ class EdgeArchetype(Archetype):
 class WalkerArchetype(Archetype):
     """Walker Archetype Protocol."""
 
+    @dataclass(frozen=True)
+    class VisitType:
+        """Lightweight carrier for walker visit metadata."""
+
+        from_node_type: type[NodeArchetype]
+        edge_type: type[EdgeArchetype] | None
+
     __jac_async__: ClassVar[bool] = False
     __jac_base__: ClassVar[bool] = True
+    __jac_ttg_visits__: ClassVar[list[VisitType]] = []
 
     if TYPE_CHECKING:
         __ttg__: JacTTGGenerator.TypedWalkerState | None
