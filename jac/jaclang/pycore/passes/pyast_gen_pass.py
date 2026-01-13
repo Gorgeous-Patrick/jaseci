@@ -903,11 +903,69 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                     ctx=ast3.Load(),
                 )
             )
+            visit_payload = getattr(node, TTG_VISIT_FIELD, None)
+            visit_elements: list[ast3.expr] = []
+            if isinstance(visit_payload, list):
+                for visit_info in visit_payload:
+                    from_arch = getattr(visit_info, "from_node_type", None)
+                    if from_arch is None or getattr(from_arch, "name", None) is None:
+                        continue
+                    from_name = getattr(
+                        from_arch.name, "sym_name", from_arch.name.value
+                    )
+                    from_ref = self.sync(
+                        ast3.Name(
+                            id=from_name,
+                            ctx=ast3.Load(),
+                        )
+                    )
+                    edge_arch = getattr(visit_info, "edge_type", None)
+                    edge_ref = (
+                        self.sync(
+                            ast3.Name(
+                                id=getattr(
+                                    edge_arch.name, "sym_name", edge_arch.name.value
+                                ),
+                                ctx=ast3.Load(),
+                            )
+                        )
+                        if edge_arch is not None and getattr(edge_arch, "name", None)
+                        else self.sync(ast3.Constant(value=None))
+                    )
+                    visit_elements.append(
+                        self.sync(
+                            ast3.Call(
+                                func=self.sync(
+                                    ast3.Attribute(
+                                        value=self.jaclib_obj("Walker"),
+                                        attr="VisitType",
+                                        ctx=ast3.Load(),
+                                    )
+                                ),
+                                args=[],
+                                keywords=[
+                                    self.sync(
+                                        ast3.keyword(
+                                            arg="from_node_type",
+                                            value=from_ref,
+                                        )
+                                    ),
+                                    self.sync(
+                                        ast3.keyword(
+                                            arg="edge_type",
+                                            value=edge_ref,
+                                        )
+                                    ),
+                                ],
+                            )
+                        )
+                    )
+            visit_value = self.sync(ast3.List(elts=visit_elements, ctx=ast3.Load()))
             visits_field = self.sync(
                 ast3.AnnAssign(
                     target=self.sync(ast3.Name(id=TTG_VISIT_FIELD, ctx=ast3.Store())),
                     annotation=visit_annotation,
-                    value=self.sync(ast3.List(elts=[], ctx=ast3.Load())),
+                    value=visit_value,
                     simple=1,
                 ),
                 jac_node=node,
