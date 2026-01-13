@@ -7,7 +7,6 @@ original Jac sources.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 
 from jaclang.pycore import unitree as uni
@@ -20,7 +19,7 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
     """Annotate abilities with visit counts for TTG generation."""
 
     @dataclass(frozen=True)
-    class VisitType:
+    class VisitTypeAST:
         from_node_type: uni.Archetype
         edge_type: uni.Archetype | None
 
@@ -45,16 +44,16 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
 
     def _get_to_edge_type_of_visit(
         self, from_node_type: uni.Archetype, visit_stmt: uni.VisitStmt
-    ) -> VisitType:
+    ) -> VisitTypeAST:
         filters = visit_stmt.get_all_sub_nodes(uni.FilterCompr)
         if len(filters) == 0:
-            return self.VisitType(from_node_type=from_node_type, edge_type=None)
+            return self.VisitTypeAST(from_node_type=from_node_type, edge_type=None)
         # return
         edge_type_name = filters[0].get_all_sub_nodes(uni.Name)[0].value
         edge_type = self.resolve_to_archetype(visit_stmt, edge_type_name)
-        return self.VisitType(from_node_type=from_node_type, edge_type=edge_type)
+        return self.VisitTypeAST(from_node_type=from_node_type, edge_type=edge_type)
 
-    def _get_all_visits_for_a_walker(self, walker: uni.Archetype) -> list[VisitType]:
+    def _get_all_visits_for_a_walker(self, walker: uni.Archetype) -> list[VisitTypeAST]:
         res = []
         abilities = walker.get_all_sub_nodes(uni.Ability)
         for ability in abilities:
@@ -85,22 +84,13 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
         return ir_in
 
     def _annotate_module(self, module: uni.Module) -> None:
-        """Populate aggregate visit counts on each walker within a module."""
-        walker_totals: dict[uni.Archetype, int] = defaultdict(int)
-        for ability in module.get_all_sub_nodes(uni.Ability):
-            self.cur_node = ability
-            visit_count = len(ability.get_all_sub_nodes(uni.VisitStmt))
-            walker = ability.find_parent_of_type(uni.Archetype)
-            if not walker or walker.arch_type.name != Tok.KW_WALKER:
-                continue
-            walker_totals[walker] += visit_count
-
+        """Populate visit metadata on each walker within a module."""
         for walker in module.get_all_sub_nodes(uni.Archetype):
             if walker.arch_type.name != Tok.KW_WALKER:
                 continue
-            total_visits = walker_totals.get(walker, 0)
-            setattr(walker, TTG_VISIT_FIELD, total_visits)
+            visit_types = self._get_all_visits_for_a_walker(walker)
+            setattr(walker, TTG_VISIT_FIELD, visit_types)
             self.cur_node = walker
             self.log_info(
-                f"Annotated walker {walker.name.sym_name} with {total_visits} visits"
+                f"Annotated walker {walker.name.sym_name} with {len(visit_types)} visits"
             )
