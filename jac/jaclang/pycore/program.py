@@ -20,6 +20,7 @@ from jaclang.pycore.passes import (
     Alert,
     DeclImplMatchPass,
     JacAnnexPass,
+    JacTTGPass,
     PyastGenPass,
     PyBytecodeGenPass,
     SemanticAnalysisPass,
@@ -46,6 +47,7 @@ def get_ir_gen_sched() -> list[type[Transform[uni.Module, uni.Module]]]:
         SymTabBuildPass,
         DeclImplMatchPass,
         SemanticAnalysisPass,
+        JacTTGPass,
         SemDefMatchPass,
         CFGBuildPass,
     ]
@@ -72,7 +74,7 @@ def get_minimal_ir_gen_sched() -> list[type[Transform[uni.Module, uni.Module]]]:
     This schedule is used for bootstrap-critical modules that need basic
     semantic analysis but don't need full control flow analysis.
     """
-    return [SymTabBuildPass, DeclImplMatchPass, SemanticAnalysisPass]
+    return [SymTabBuildPass, DeclImplMatchPass, SemanticAnalysisPass, JacTTGPass]
 
 
 def get_minimal_py_code_gen() -> list[type[Transform[uni.Module, uni.Module]]]:
