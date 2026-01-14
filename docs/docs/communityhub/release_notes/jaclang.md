@@ -9,6 +9,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Default Watchdog Dependency**: The `jac create` command now includes `watchdog` in `[dev-dependencies]` by default, enabling HMR support out of the box. Install with `jac install --dev`.
 - **Simplified `.jac` Directory Gitignore**: The `jac create` command now creates a `.gitignore` file inside the `.jac/` directory containing `*` to ignore all build artifacts, instead of modifying the project root `.gitignore`. This keeps project roots cleaner and makes the `.jac` directory self-contained.
 - **Ignore Patterns for Type Checking**: Added `--ignore` flag to the `jac check` command, allowing users to exclude specific files or folders from type checking. The flag accepts a comma-separated list of patterns (e.g., `--ignore fixtures,tests,__pycache__`). Patterns are matched against path components, so `--ignore tests` will exclude any file or folder named `tests` at any depth in the directory tree.
+- **Project Clean Command**: Added `jac clean` command to remove build artifacts from the `.jac/` directory. By default, it cleans the data directory (`.jac/data`). Use `--all` to clean all artifacts (data, cache, packages, client), or specify individual directories with `--data`, `--cache`, or `--packages` flags. The `--force` flag skips the confirmation prompt.
 
 ## jaclang 0.9.7 (Latest Release)
 
