@@ -85,7 +85,6 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
         modules = [ir_in, *ir_in.get_all_sub_nodes(uni.Module)]
         for module in modules:
             self.cur_node = module
-            self.log_info(f"JacTTGPass processing module {module.loc.mod_path}")
             self._annotate_module(module)
         return ir_in
 
@@ -97,6 +96,3 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
             visit_types = self._get_all_visits_for_a_walker(walker)
             setattr(walker, TTG_VISIT_FIELD, visit_types)
             self.cur_node = walker
-            self.log_info(
-                f"Annotated walker {walker.name.sym_name} with {len(visit_types)} visits"
-            )
