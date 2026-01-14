@@ -20,7 +20,7 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
 
     @dataclass(frozen=True)
     class VisitTypeAST:
-        from_node_type: uni.Archetype
+        from_node_type: uni.Archetype | None
         edge_type: uni.Archetype | None
 
         def __str__(self) -> str:
@@ -28,7 +28,10 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
                 edge_name = "GenericEdge"
             else:
                 edge_name = self.edge_type.name.value
-            return f"Visit(from={self.from_node_type.name.value}, edge={edge_name})"
+            from_name = (
+                self.from_node_type.name.value if self.from_node_type else "None"
+            )
+            return f"Visit(from={from_name}, edge={edge_name})"
 
     def resolve_to_archetype(self, scope_src: uni.UniNode, name: str) -> uni.Archetype:
         scope = scope_src.find_parent_of_type(uni.UniScopeNode)
@@ -43,7 +46,7 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
         return archetype
 
     def _get_to_edge_type_of_visit(
-        self, from_node_type: uni.Archetype, visit_stmt: uni.VisitStmt
+        self, from_node_type: uni.Archetype | None, visit_stmt: uni.VisitStmt
     ) -> VisitTypeAST:
         filters = visit_stmt.get_all_sub_nodes(uni.FilterCompr)
         if len(filters) == 0:
@@ -63,11 +66,14 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
             # Get the name of the node type
             node_type_names = event_sigs[0].get_all_sub_nodes(uni.Name)
             # TODO: SUPPORT SPECIFIC NODE EVENT SIGNATURES.
-            if len(node_type_names) == 0:
-                raise RuntimeError("Visit event missing node type name.")
-            node_type_name = node_type_names[0]
+            if len(node_type_names) > 0:
+                node_type_name = node_type_names[0]
 
-            node_type = self.resolve_to_archetype(node_type_name, node_type_name.value)
+                node_type = self.resolve_to_archetype(
+                    node_type_name, node_type_name.value
+                )
+            else:
+                node_type = None
             res += [
                 self._get_to_edge_type_of_visit(node_type, visit_stmt)
                 for visit_stmt in ability.get_all_sub_nodes(uni.VisitStmt)

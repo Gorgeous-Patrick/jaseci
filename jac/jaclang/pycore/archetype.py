@@ -414,7 +414,7 @@ class WalkerArchetype(Archetype):
     class VisitType:
         """Lightweight carrier for walker visit metadata."""
 
-        from_node_type: type[NodeArchetype]
+        from_node_type: type[NodeArchetype] | None
         edge_type: type[EdgeArchetype] | None
 
     __jac_async__: ClassVar[bool] = False

@@ -908,16 +908,17 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
             if isinstance(visit_payload, list):
                 for visit_info in visit_payload:
                     from_arch = getattr(visit_info, "from_node_type", None)
-                    if from_arch is None or getattr(from_arch, "name", None) is None:
-                        continue
-                    from_name = getattr(
-                        from_arch.name, "sym_name", from_arch.name.value
-                    )
-                    from_ref = self.sync(
-                        ast3.Name(
-                            id=from_name,
-                            ctx=ast3.Load(),
+                    from_ref = (
+                        self.sync(
+                            ast3.Name(
+                                id=getattr(
+                                    from_arch.name, "sym_name", from_arch.name.value
+                                ),
+                                ctx=ast3.Load(),
+                            )
                         )
+                        if from_arch is not None and getattr(from_arch, "name", None)
+                        else self.sync(ast3.Constant(value=None))
                     )
                     edge_arch = getattr(visit_info, "edge_type", None)
                     edge_ref = (
@@ -1001,6 +1002,10 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
             )
         )
         node.gen.py_ast = [class_def]
+
+        # print un parsed code here for debugging
+        printed_code = ast3.unparse(node.gen.py_ast[0])
+        print(f"Generated code for archetype {node.name.sym_name}:\n{printed_code}")
 
     def enter_enum(self, node: uni.Enum) -> None:
         if isinstance(node.body, uni.ImplDef):
