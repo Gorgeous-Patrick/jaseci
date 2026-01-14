@@ -1933,35 +1933,41 @@ class JacTTGGenerator:
         edges: set[JacTTGGenerator.TTGNode]
 
     class FilteredNeighborCtx:
-        cache: dict[
-            tuple[NodeArchetype, WalkerArchetype.VisitType], list[NodeArchetype]
-        ] = {}
+        cache: dict[NodeArchetype, list[NodeArchetype]] = {}
 
         @classmethod
         def _filter_neighbors(
-            cls, node: NodeArchetype, visit: WalkerArchetype.VisitType
+            cls, node: NodeArchetype, visits: list[WalkerArchetype.VisitType]
         ) -> list[NodeArchetype]:
             """Filter neighbors based on visit info and walker type."""
             filtered_neighbors = []
             anchor = node.__jac__
             edges: list[EdgeAnchor] = anchor.edges
+            visits = [
+                visit
+                for visit in visits
+                if visit.from_node_type is None
+                or isinstance(node, visit.from_node_type)
+            ]
             for edge in edges:
-                if visit.edge_type is None or isinstance(
-                    edge.archetype, visit.edge_type
-                ):
-                    filtered_neighbors.append(edge.target.archetype)
-            # Get all neighbors
+                for visit in visits:
+                    if (
+                        visit.edge_type is None
+                        or isinstance(edge.archetype, visit.edge_type)
+                    ) and edge.target.archetype not in filtered_neighbors:
+                        filtered_neighbors.append(edge.target.archetype)
+                # Get all neighbors
             return filtered_neighbors
 
         @classmethod
         def filter_neighbors(
-            cls, node: NodeArchetype, visit: WalkerArchetype.VisitType
+            cls, node: NodeArchetype, visits: list[WalkerArchetype.VisitType]
         ) -> list[NodeArchetype]:
             """Filter neighbors with caching."""
-            key = (node, visit)
+            key = node
             if key in cls.cache:
                 return cls.cache[key]
-            result = cls._filter_neighbors(node, visit)
+            result = cls._filter_neighbors(node, visits)
             cls.cache[key] = result
             return result
 
@@ -2001,9 +2007,8 @@ class JacTTGGenerator:
             node = state.node
             filtered_neighbors: list[NodeArchetype] = [
                 neighbor
-                for visit in walker.__jac_ttg_visits__
                 for neighbor in JacTTGGenerator.FilteredNeighborCtx.filter_neighbors(
-                    node, visit
+                    node, walker.__jac_ttg_visits__
                 )
                 if neighbor not in visited_nodes
             ]
