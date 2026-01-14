@@ -31,7 +31,6 @@ from typing import (
 )
 from uuid import UUID
 
-from jaclang.pycore import unitree
 from jaclang.pycore.archetype import (
     GenericEdge,
     ObjectSpatialDestination,
@@ -1933,36 +1932,22 @@ class JacTTGGenerator:
         node: NodeArchetype
         edges: set[JacTTGGenerator.TTGNode]
 
-    @dataclass(frozen=True)
-    class VisitType:
-        from_node_type: unitree.Archetype
-        edge_type: unitree.Archetype | None
-
-        def __str__(self) -> str:
-            if self.edge_type is None:
-                edge_name = "GenericEdge"
-            else:
-                edge_name = self.edge_type.name.value
-            return f"Visit(from={self.from_node_type.name.value}, edge={edge_name})"
-
     class FilteredNeighborCtx:
         cache: dict[
-            tuple[NodeArchetype, JacTTGGenerator.VisitType], list[NodeArchetype]
+            tuple[NodeArchetype, WalkerArchetype.VisitType], list[NodeArchetype]
         ] = {}
 
         @classmethod
         def _filter_neighbors(
-            cls, node: NodeArchetype, visit: JacTTGGenerator.VisitType
+            cls, node: NodeArchetype, visit: WalkerArchetype.VisitType
         ) -> list[NodeArchetype]:
             """Filter neighbors based on visit info and walker type."""
             filtered_neighbors = []
             anchor = node.__jac__
             edges: list[EdgeAnchor] = anchor.edges
             for edge in edges:
-                if (
-                    visit.edge_type is None
-                    or JacTTGGenerator.get_type_definition(edge.archetype)
-                    == visit.edge_type
+                if visit.edge_type is None or isinstance(
+                    edge.archetype, visit.edge_type
                 ):
                     filtered_neighbors.append(edge.target.archetype)
             # Get all neighbors
@@ -1970,7 +1955,7 @@ class JacTTGGenerator:
 
         @classmethod
         def filter_neighbors(
-            cls, node: NodeArchetype, visit: JacTTGGenerator.VisitType
+            cls, node: NodeArchetype, visit: WalkerArchetype.VisitType
         ) -> list[NodeArchetype]:
             """Filter neighbors with caching."""
             key = (node, visit)
@@ -1984,107 +1969,6 @@ class JacTTGGenerator:
     def extract_type_name(cls, input: Archetype) -> str:
         """Get name of the type."""
         return type(input).__name__
-
-    @classmethod
-    def resolve_to_archetype(
-        cls, scope_src: unitree.UniNode, name: str
-    ) -> unitree.Archetype:
-        scope = scope_src.find_parent_of_type(unitree.UniScopeNode)
-        if scope is None:
-            raise RuntimeError(f"Lookup failed. Name: {name}")
-        result = scope.lookup(name)
-        if result is None:
-            raise RuntimeError(f"Lookup failed. Name: {name}")
-        archetype = result.decl.find_parent_of_type(unitree.Archetype)
-        if archetype is None:
-            raise RuntimeError(f"Archetype lookup failed. Name: {name}")
-        return archetype
-
-    @classmethod
-    def get_type_definition(cls, obj: Archetype) -> unitree.Archetype:
-        """Get the walker type code from walker instance."""
-        walker_module = JacRuntime.loaded_modules.get(type(obj).__module__)
-        extracted_name = JacTTGGenerator.extract_type_name(obj)
-        if walker_module and hasattr(walker_module, "__file__"):
-            program = JacRuntime.program
-            if program is None:
-                raise RuntimeError("Jac program is not attached to the runtime.")
-            file_path = str(walker_module.__file__)
-            code = program.mod.hub.get(file_path)
-            if code is None:
-                # TODO: FIGURE OUT WHYY THIS HAPPENS SOMETIMES
-                print(
-                    f"Warning: Walker code for {extracted_name} not found in program hub."
-                )
-                raise RuntimeError(
-                    f"Walker code for {extracted_name} not loaded from {file_path}."
-                )
-            for walker_code in code.get_all_sub_nodes(unitree.Archetype):
-                if walker_code.name.value == JacTTGGenerator.extract_type_name(obj):
-                    return walker_code
-        raise ValueError(f"Walker code for {extracted_name} not found in program.")
-
-    class PossibleVisitsInWalkers:
-        # Mapping walker type and node type to visit types.
-        visits: dict[unitree.Archetype, list[JacTTGGenerator.VisitType]] = {}
-
-        @classmethod
-        def _get_to_edge_type_of_visit(
-            cls, from_node_type: unitree.Archetype, visit_stmt: unitree.VisitStmt
-        ) -> JacTTGGenerator.VisitType:
-            filters = visit_stmt.get_all_sub_nodes(unitree.FilterCompr)
-            if len(filters) == 0:
-                return JacTTGGenerator.VisitType(
-                    from_node_type=from_node_type, edge_type=None
-                )
-            # return
-            edge_type_name = filters[0].get_all_sub_nodes(unitree.Name)[0].value
-            edge_type = JacTTGGenerator.resolve_to_archetype(visit_stmt, edge_type_name)
-            return JacTTGGenerator.VisitType(
-                from_node_type=from_node_type, edge_type=edge_type
-            )
-
-        @classmethod
-        def _get_all_visits_for_a_walker(
-            cls, walker: unitree.Archetype
-        ) -> list[JacTTGGenerator.VisitType]:
-            res = []
-            abilities = walker.get_all_sub_nodes(unitree.Ability)
-            for ability in abilities:
-                event_sigs = ability.get_all_sub_nodes(unitree.EventSignature)
-                if len(event_sigs) == 0:
-                    continue
-                # Get the name of the node type
-                node_type_names = event_sigs[0].get_all_sub_nodes(unitree.Name)
-                # TODO: SUPPORT SPECIFIC NODE EVENT SIGNATURES.
-                if len(node_type_names) == 0:
-                    raise RuntimeError("Visit event missing node type name.")
-                node_type_name = node_type_names[0]
-
-                node_type = JacTTGGenerator.resolve_to_archetype(
-                    node_type_name, node_type_name.value
-                )
-                res += [
-                    cls._get_to_edge_type_of_visit(node_type, visit_stmt)
-                    for visit_stmt in ability.get_all_sub_nodes(unitree.VisitStmt)
-                ]
-            return res
-
-        @classmethod
-        def get(
-            cls, walker: unitree.Archetype, target_node: NodeArchetype
-        ) -> list[JacTTGGenerator.VisitType]:
-            target_node_type = JacTTGGenerator.resolve_to_archetype(
-                walker, JacTTGGenerator.extract_type_name(target_node)
-            )
-            if cls.visits.get(walker) is None:
-                cls.visits[walker] = cls._get_all_visits_for_a_walker(walker)
-            res = [
-                visit
-                for visit in cls.visits[walker]
-                if visit.from_node_type == target_node_type
-            ]
-            return res
 
     @dataclass
     class TypedWalkerState:
@@ -2115,12 +1999,9 @@ class JacTTGGenerator:
         while walker_states:
             state = walker_states.pop(0)
             node = state.node
-            walker_code = JacTTGGenerator.get_type_definition(walker)
             filtered_neighbors: list[NodeArchetype] = [
                 neighbor
-                for visit in JacTTGGenerator.PossibleVisitsInWalkers.get(
-                    walker_code, node
-                )
+                for visit in walker.__jac_ttg_visits__
                 for neighbor in JacTTGGenerator.FilteredNeighborCtx.filter_neighbors(
                     node, visit
                 )
