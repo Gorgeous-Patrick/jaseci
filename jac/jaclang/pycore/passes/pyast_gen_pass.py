@@ -1003,10 +1003,6 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
         )
         node.gen.py_ast = [class_def]
 
-        # print un parsed code here for debugging
-        printed_code = ast3.unparse(node.gen.py_ast[0])
-        print(f"Generated code for archetype {node.name.sym_name}:\n{printed_code}")
-
     def enter_enum(self, node: uni.Enum) -> None:
         if isinstance(node.body, uni.ImplDef):
             self.traverse(node.body)
