@@ -49,16 +49,12 @@ cl {
                     addTodo();
                 }}}
             />
-            <button
-                onClick={addTodo}
-            >
+            <button onClick={addTodo}>
                 Add Todo
             </button>
             <div>
                 {todos.map(
-                    lambda todo: any  -> any { return <div
-                        key={todo._jac_id}
-                    >
+                    lambda todo: any  -> any { return <div key={todo._jac_id}>
                         <span>
                             {todo.text}
                         </span>

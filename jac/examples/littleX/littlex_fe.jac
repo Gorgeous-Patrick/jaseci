@@ -46,25 +46,17 @@ cl {
             >
                 @{tweet.username}
             </div>
-            <div
-                class="tweet-content"
-                style={{"marginBottom": "12px"}}
-            >
+            <div class="tweet-content" style={{"marginBottom": "12px"}}>
                 {tweet.content}
             </div>
-            <div
-                class="tweet-actions"
-                style={{"display": "flex", "gap": "15px"}}
-            >
+            <div class="tweet-actions" style={{"display": "flex", "gap": "15px"}}>
                 <button
                     onclick={like_tweet_action(tweet.id)}
                     style={{"padding": "5px 10px", "cursor": "pointer"}}
                 >
                     Like ({tweet.likes.length})
                 </button>
-                <button
-                    style={{"padding": "5px 10px"}}
-                >
+                <button style={{"padding": "5px 10px"}}>
                     Comment ({tweet.comments.length})
                 </button>
             </div>
@@ -98,9 +90,7 @@ cl {
                 class="feed-header"
                 style={{"padding": "20px", "borderBottom": "1px solid #e1e8ed"}}
             >
-                <h1
-                    style={{"margin": "0"}}
-                >
+                <h1 style={{"margin": "0"}}>
                     LittleX Feed
                 </h1>
             </div>
@@ -123,20 +113,12 @@ cl {
                 "fontFamily": "sans-serif"
             }}
         >
-            <h2
-                style={{"marginTop": "0"}}
-            >
+            <h2 style={{"marginTop": "0"}}>
                 Login to LittleX
             </h2>
-            <form
-                onsubmit={handle_login}
-            >
-                <div
-                    style={{"marginBottom": "15px"}}
-                >
-                    <label
-                        style={{"display": "block", "marginBottom": "5px"}}
-                    >
+            <form onsubmit={handle_login}>
+                <div style={{"marginBottom": "15px"}}>
+                    <label style={{"display": "block", "marginBottom": "5px"}}>
                         Username:
                     </label>
                     <input
@@ -149,12 +131,8 @@ cl {
                         }}
                     />
                 </div>
-                <div
-                    style={{"marginBottom": "15px"}}
-                >
-                    <label
-                        style={{"display": "block", "marginBottom": "5px"}}
-                    >
+                <div style={{"marginBottom": "15px"}}>
+                    <label style={{"display": "block", "marginBottom": "5px"}}>
                         Password:
                     </label>
                     <input
@@ -182,9 +160,7 @@ cl {
                     Login
                 </button>
             </form>
-            <div
-                style={{"marginTop": "15px", "textAlign": "center"}}
-            >
+            <div style={{"marginTop": "15px", "textAlign": "center"}}>
                 <Link href="/signup">
                     Don't have an account? Sign up
                 </Link>
@@ -218,20 +194,12 @@ cl {
                 "fontFamily": "sans-serif"
             }}
         >
-            <h2
-                style={{"marginTop": "0"}}
-            >
+            <h2 style={{"marginTop": "0"}}>
                 Sign Up for LittleX
             </h2>
-            <form
-                onsubmit={handle_signup}
-            >
-                <div
-                    style={{"marginBottom": "15px"}}
-                >
-                    <label
-                        style={{"display": "block", "marginBottom": "5px"}}
-                    >
+            <form onsubmit={handle_signup}>
+                <div style={{"marginBottom": "15px"}}>
+                    <label style={{"display": "block", "marginBottom": "5px"}}>
                         Username:
                     </label>
                     <input
@@ -245,12 +213,8 @@ cl {
                         }}
                     />
                 </div>
-                <div
-                    style={{"marginBottom": "15px"}}
-                >
-                    <label
-                        style={{"display": "block", "marginBottom": "5px"}}
-                    >
+                <div style={{"marginBottom": "15px"}}>
+                    <label style={{"display": "block", "marginBottom": "5px"}}>
                         Password:
                     </label>
                     <input
@@ -264,12 +228,8 @@ cl {
                         }}
                     />
                 </div>
-                <div
-                    style={{"marginBottom": "15px"}}
-                >
-                    <label
-                        style={{"display": "block", "marginBottom": "5px"}}
-                    >
+                <div style={{"marginBottom": "15px"}}>
+                    <label style={{"display": "block", "marginBottom": "5px"}}>
                         Confirm Password:
                     </label>
                     <input
@@ -298,9 +258,7 @@ cl {
                     Sign Up
                 </button>
             </form>
-            <div
-                style={{"marginTop": "15px", "textAlign": "center"}}
-            >
+            <div style={{"marginTop": "15px", "textAlign": "center"}}>
                 <Link href="/login">
                     Already have an account? Login
                 </Link>

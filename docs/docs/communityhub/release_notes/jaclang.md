@@ -4,6 +4,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jaclang 0.9.9 (Unreleased)
 
+- **Improved JSX Formatter**: The JSX formatter now uses soft line breaks with automatic line-length detection instead of forcing multiline formatting. Attributes stay on the same line when they fit within the line width limit (88 characters), producing more compact and readable output. For example, `<button id="submit" disabled />` now stays on one line instead of breaking each attribute onto separate lines.
+
 - **Secure by Default API Endpoints**: Walkers and functions exposed as API endpoints via `jac start` now **require authentication by default**. Previously, endpoints without an explicit access modifier were treated as public. Now, only endpoints explicitly marked with `: pub` are publicly accessible without authentication. This "secure by default" approach prevents accidental exposure of sensitive endpoints. Use `: pub` to make endpoints public (e.g., `walker : pub MyPublicWalker { ... }`).
 
 - **Default `main.jac` for `jac start`**: The `jac start` command now defaults to `main.jac` when no filename is provided, making it easier to start applications in standard project structures. You can still specify a different file explicitly (e.g., `jac start app.jac`), and the command provides helpful error messages if `main.jac` is not found.
