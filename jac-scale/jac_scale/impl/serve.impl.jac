@@ -1200,10 +1200,22 @@ This enables HMR since introspector.load() is called per-request.
 """
 impl JacAPIServer.register_dynamic_walker_endpoint(self: JacAPIServer) -> None {
     import from jaclang.runtimelib.transport { TransportResponse, Meta }
+    import from fastapi { Request }
     # Dynamic handler that looks up walker at request time
-    def dynamic_walker_handler(
-        walker_name: str, node: str | None = None, **kwargs: JsonValue
+    async def dynamic_walker_handler(
+        request: Request,
+        walker_name: str,
+        node: str | None = None,
+        Authorization: str | None = None
     ) -> TransportResponse {
+        # Parse request body to get walker fields
+        try {
+            body = await request.json();
+        } except Exception {
+            body = {};
+        }
+        kwargs: dict[str, Any] = dict(body) if body else {};
+
         # Reload introspector if files changed (HMR)
         if self._hmr_pending {
             self.introspector.load(force_reload=True);
@@ -1222,17 +1234,17 @@ impl JacAPIServer.register_dynamic_walker_endpoint(self: JacAPIServer) -> None {
             );
         }
 
-        # Handle authentication - always pop Authorization to prevent it from being passed to walker
+        # Handle authentication
         username: str | None = None;
         authorization = kwargs.pop('Authorization', None);
         if self.introspector.is_auth_required_for_walker(walker_name) {
             token: str | None = None;
             if (
-                authorization
-                and isinstance(authorization, str)
-                and authorization.startswith('Bearer ')
+                Authorization
+                and isinstance(Authorization, str)
+                and Authorization.startswith('Bearer ')
             ) {
-                token = authorization[7:];
+                token = Authorization[7:];
             }
             username = self.validate_jwt_token(token) if token else None;
             if not username {
@@ -1340,10 +1352,19 @@ Similar to dynamic walker routing, this enables HMR for functions.
 """
 impl JacAPIServer.register_dynamic_function_endpoint(self: JacAPIServer) -> None {
     import from fastapi.responses { JSONResponse }
+    import from fastapi { Request }
     import from jaclang.runtimelib.transport { TransportResponse, Meta }
-    def dynamic_function_handler(
-        function_name: str, **kwargs: JsonValue
+    async def dynamic_function_handler(
+        request: Request, function_name: str, Authorization: str | None = None
     ) -> TransportResponse {
+        # Parse request body to get function arguments
+        try {
+            body = await request.json();
+        } except Exception {
+            body = {};
+        }
+        kwargs: dict[str, Any] = dict(body) if body else {};
+
         # Reload introspector if files changed (HMR)
         if self._hmr_pending {
             self.introspector.load(force_reload=True);
@@ -1362,17 +1383,17 @@ impl JacAPIServer.register_dynamic_function_endpoint(self: JacAPIServer) -> None
             );
         }
 
-        # Handle authentication - always pop Authorization to prevent it from being passed to function
+        # Handle authentication
         username: str | None = None;
         authorization = kwargs.pop('Authorization', None);
         if self.introspector.is_auth_required_for_function(function_name) {
             token: str | None = None;
             if (
-                authorization
-                and isinstance(authorization, str)
-                and authorization.startswith('Bearer ')
+                Authorization
+                and isinstance(Authorization, str)
+                and Authorization.startswith('Bearer ')
             ) {
-                token = authorization[7:];
+                token = Authorization[7:];
             }
             username = self.validate_jwt_token(token) if token else None;
             if not username {
