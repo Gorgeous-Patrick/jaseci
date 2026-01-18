@@ -13,7 +13,7 @@ import pytest
 import jaclang
 import jaclang.pycore.lark_jac_parser as jl
 import jaclang.pycore.unitree as uni
-from jaclang.pycore.constant import Tokens
+from jaclang.pycore.constant import CodeContext, Tokens
 from jaclang.pycore.jac_parser import JacParser
 from jaclang.pycore.program import JacProgram
 from jaclang.pycore.unitree import Source
@@ -386,7 +386,9 @@ cl {
         "ClientBlock",
     ]
     assert [
-        isinstance(stmt, uni.ClientFacingNode) and stmt.is_client_decl for stmt in body
+        isinstance(stmt, uni.ClientFacingNode)
+        and stmt.code_context == CodeContext.CLIENT
+        for stmt in body
     ] == [
         True,
         False,
@@ -398,7 +400,7 @@ cl {
     assert len(client_block.body) == 2
     assert [type(stmt).__name__ for stmt in client_block.body] == ["GlobalVars", "Test"]
     assert all(
-        stmt.is_client_decl
+        stmt.code_context == CodeContext.CLIENT
         for stmt in client_block.body
         if isinstance(stmt, uni.ClientFacingNode)
     )
@@ -421,7 +423,7 @@ cl {
     # Check the ClientBlock's body has 4 statements
     assert len(body[0].body) == 4
     assert all(
-        stmt.is_client_decl
+        stmt.code_context == CodeContext.CLIENT
         for stmt in body[0].body
         if isinstance(stmt, uni.ClientFacingNode)
     )
@@ -445,7 +447,8 @@ cl {
     assert isinstance(body[1], uni.GlobalVars)
     assert isinstance(body[2], uni.ClientBlock)
     assert not (
-        isinstance(body[1], uni.ClientFacingNode) and body[1].is_client_decl
+        isinstance(body[1], uni.ClientFacingNode)
+        and body[1].code_context == CodeContext.CLIENT
     )  # glob b is not client
 
     # Test 4: Empty client block
@@ -461,7 +464,10 @@ glob x = 1;
     assert isinstance(body[0], uni.ClientBlock)
     assert len(body[0].body) == 0  # Empty
     assert isinstance(body[1], uni.GlobalVars)
-    assert not (isinstance(body[1], uni.ClientFacingNode) and body[1].is_client_decl)
+    assert not (
+        isinstance(body[1], uni.ClientFacingNode)
+        and body[1].code_context == CodeContext.CLIENT
+    )
 
     # Test 5: Various statement types with single cl marker
     source = """
@@ -474,7 +480,9 @@ cl test my_test {}
 
     assert len(body) == 3
     assert all(
-        stmt.is_client_decl for stmt in body if isinstance(stmt, uni.ClientFacingNode)
+        stmt.code_context == CodeContext.CLIENT
+        for stmt in body
+        if isinstance(stmt, uni.ClientFacingNode)
     )
 
 
@@ -614,7 +622,9 @@ cl import from jac:client_runtime {
     assert isinstance(import_stmt, uni.Import)
 
     # Check that it's a client import
-    assert import_stmt.is_client_decl, "Import should be marked as client-side"
+    assert import_stmt.code_context == CodeContext.CLIENT, (
+        "Import should be marked as client-side"
+    )
 
     # Check the from_loc has the prefix
     assert import_stmt.from_loc is not None, "Import should have from_loc"
