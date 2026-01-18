@@ -51,36 +51,43 @@ impl JacSerializer._serialize_archetype(arch: Archetype) -> dict[str, JsonValue]
 }
 
 impl UserManager.postinit -> None {
+    import sqlite3;
     data_dir = os.path.join(self.base_path, ".jac", "data");
     os.makedirs(data_dir, exist_ok=True);
-    self._db_path = os.path.join(data_dir, "users.json");
-    self._load_db();
+    self._db_path = os.path.join(data_dir, "main.db");
+    self._conn = None;
 }
 
-"""Load user data from persistent storage."""
-impl UserManager._load_db -> None {
-    try {
-        with open(self._db_path, encoding='utf-8') as fh {
-            data = json.load(fh);
-            self._users = data.get('__jac_users__', {});
-            self._tokens = data.get('__jac_tokens__', {});
-        }
-    } except Exception {
-        (self._users, self._tokens) = ({}, {});
+"""Lazily initialize SQLite connection when first needed."""
+impl UserManager._ensure_connection -> None {
+    import sqlite3;
+    if self._conn is not None {
+        return;
     }
-}
-
-"""Save user data to persistent storage."""
-impl UserManager._persist -> None {
-    with open(self._db_path, 'w', encoding='utf-8') as fh {
-        json.dump({'__jac_users__': self._users, '__jac_tokens__': self._tokens}, fh);
-    }
+    self._conn = sqlite3.connect(self._db_path, check_same_thread=False);
+    self._conn.execute("PRAGMA journal_mode=WAL");
+    self._conn.execute("PRAGMA synchronous=NORMAL");
+    self._conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY,
+            password_hash TEXT NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            root_id TEXT NOT NULL
+        )
+        """
+    );
+    self._conn.execute("CREATE INDEX IF NOT EXISTS idx_users_token ON users(token)");
+    self._conn.commit();
 }
 
 """Create a new user with their own root node. Returns dict with user data or error."""
 impl UserManager.create_user(username: str, password: str) -> dict[str, str] {
     import from jaclang.pycore.constructs { Root }
-    if (username in self._users) {
+    self._ensure_connection();
+    # Check if user already exists
+    cursor = self._conn.execute("SELECT 1 FROM users WHERE username = ?", (username, ));
+    if cursor.fetchone() {
         return {'error': 'User already exists'};
     }
     # Use existing context instead of creating new one (avoids shelf locking issues)
@@ -92,13 +99,11 @@ impl UserManager.create_user(username: str, password: str) -> dict[str, str] {
     root_id = root_anchor.id.hex;
     token = secrets.token_urlsafe(32);
     password_hash = hashlib.sha256(password.encode()).hexdigest();
-    self._users[username] = {
-        'password_hash': password_hash,
-        'token': token,
-        'root_id': root_id
-    };
-    self._tokens[token] = username;
-    self._persist();
+    self._conn.execute(
+        "INSERT INTO users (username, password_hash, token, root_id) VALUES (?, ?, ?, ?)",
+        (username, password_hash, token, root_id)
+    );
+    self._conn.commit();
     return {'username': username, 'token': token, 'root_id': root_id};
 }
 
@@ -106,43 +111,65 @@ impl UserManager.create_user(username: str, password: str) -> dict[str, str] {
 impl UserManager.authenticate(
     username: str, password: str
 ) -> (dict[(str, str)] | None) {
-    if (username not in self._users) {
-        return None;
-    }
-    user = self._users[username];
+    self._ensure_connection();
     password_hash = hashlib.sha256(password.encode()).hexdigest();
-    if (user['password_hash'] == password_hash) {
-        return {
-            'username': username,
-            'token': user['token'],
-            'root_id': user['root_id']
-        };
+    cursor = self._conn.execute(
+        "SELECT token, root_id FROM users WHERE username = ? AND password_hash = ?",
+        (username, password_hash)
+    );
+    row = cursor.fetchone();
+    if row {
+        return {'username': username, 'token': row[0], 'root_id': row[1]};
     }
     return None;
 }
 
 """Validate token and return username."""
 impl UserManager.validate_token(token: str) -> (str | None) {
-    return self._tokens.get(token);
+    self._ensure_connection();
+    cursor = self._conn.execute(
+        "SELECT username FROM users WHERE token = ?", (token, )
+    );
+    row = cursor.fetchone();
+    return row[0] if row else None;
 }
 
 """Get user's root node ID."""
 impl UserManager.get_root_id(username: str) -> (str | None) {
-    return self._users[username]['root_id'] if (username in self._users) else None;
+    self._ensure_connection();
+    cursor = self._conn.execute(
+        "SELECT root_id FROM users WHERE username = ?", (username, )
+    );
+    row = cursor.fetchone();
+    return row[0] if row else None;
 }
 
 """Get user data by username."""
 impl UserManager.get_user(username: str) -> (dict[(str, str)] | None) {
-    if (username not in self._users) {
+    self._ensure_connection();
+    cursor = self._conn.execute(
+        "SELECT token, root_id FROM users WHERE username = ?", (username, )
+    );
+    row = cursor.fetchone();
+    if not row {
         return None;
     }
-    user = self._users[username];
-    return {'email': username, 'token': user['token'], 'root_id': user['root_id']};
+    return {'email': username, 'token': row[0], 'root_id': row[1]};
 }
 
-"""Close and persist user data."""
+"""Check if a user exists."""
+impl UserManager.user_exists(username: str) -> bool {
+    self._ensure_connection();
+    cursor = self._conn.execute("SELECT 1 FROM users WHERE username = ?", (username, ));
+    return cursor.fetchone() is not None;
+}
+
+"""Close SQLite connection."""
 impl UserManager.close -> None {
-    self._persist();
+    if self._conn {
+        self._conn.close();
+        self._conn = None;
+    }
 }
 
 """Execute a function in user's context."""
@@ -982,7 +1009,7 @@ impl JacAPIServer.create_handler -> type[BaseHTTPRequestHandler] {
                     username = self._authenticate();
                     if not username {
                         username = '__guest__';
-                        if (username not in server.user_manager._users) {
+                        if not server.user_manager.user_exists(username) {
                             server.user_manager.create_user(
                                 username, '__no_password__'
                             );
@@ -1031,7 +1058,7 @@ impl JacAPIServer.create_handler -> type[BaseHTTPRequestHandler] {
                 username = self._authenticate();
                 if not username {
                     username = '__guest__';
-                    if (username not in server.user_manager._users) {
+                    if not server.user_manager.user_exists(username) {
                         server.user_manager.create_user(username, '__no_password__');
                     }
                 }
@@ -1133,7 +1160,7 @@ impl JacAPIServer.create_handler -> type[BaseHTTPRequestHandler] {
                     username = self._authenticate();
                     if not username {
                         username = '__guest__';
-                        if (username not in server.user_manager._users) {
+                        if not server.user_manager.user_exists(username) {
                             server.user_manager.create_user(
                                 username, '__no_password__'
                             );
@@ -1159,7 +1186,7 @@ impl JacAPIServer.create_handler -> type[BaseHTTPRequestHandler] {
                     username = self._authenticate();
                     if not username {
                         username = '__guest__';
-                        if (username not in server.user_manager._users) {
+                        if not server.user_manager.user_exists(username) {
                             server.user_manager.create_user(
                                 username, '__no_password__'
                             );

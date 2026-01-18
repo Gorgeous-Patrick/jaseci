@@ -53,21 +53,20 @@ obj JacSerializer {
     static def _serialize_archetype(arch: Archetype) -> dict[str, JsonValue];
 }
 
-"""Manage users and their persistent roots."""
+"""Manage users and their persistent roots (SQLite-backed)."""
 obj UserManager {
     has base_path: str,
-        _users: dict[(str, dict[(str, str)])] = {},
-        _tokens: dict[(str, str)] = {},
-        _db_path: str = "";
+        _db_path: str = "",
+        _conn: Any = None;
 
     def postinit -> None;
-    def _load_db -> None;
-    def _persist -> None;
+    def _ensure_connection -> None;
     def create_user(username: str, password: str) -> dict[str, str];
     def authenticate(username: str, password: str) -> (dict[(str, str)] | None);
     def validate_token(token: str) -> (str | None);
     def get_root_id(username: str) -> (str | None);
     def get_user(username: str) -> (dict[(str, str)] | None);
+    def user_exists(username: str) -> bool;
     def close -> None;
 }
 
