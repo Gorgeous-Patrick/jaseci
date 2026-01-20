@@ -20,6 +20,7 @@ from jaclang.pycore.jac_parser import JacParser
 from jaclang.pycore.passes import (
     DeclImplMatchPass,
     JacAnnexPass,
+    JacTTGPass,
     PyastGenPass,
     PyBytecodeGenPass,
     SemanticAnalysisPass,
@@ -46,6 +47,7 @@ def get_ir_gen_sched() -> list[type[Transform[uni.Module, uni.Module]]]:
         DeclImplMatchPass,
         SemanticAnalysisPass,
         SemDefMatchPass,
+        JacTTGPass,
         CFGBuildPass,
     ]
 
