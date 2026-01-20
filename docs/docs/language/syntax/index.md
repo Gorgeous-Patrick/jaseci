@@ -46,9 +46,15 @@ with entry {
 glob VERSION: str = "1.0.0";
 glob MAX_ITEMS: int = 100;
 
+# Reading globals works directly
 def get_version() -> str {
-    :g: VERSION;  # Access global
     return VERSION;
+}
+
+# Modifying globals requires the 'global' keyword
+def increment_max_items() -> None {
+    global MAX_ITEMS;
+    MAX_ITEMS += 1;
 }
 ```
 
@@ -101,6 +107,71 @@ async def fetch_data(url: str) -> str {
     # Async operations
     return "data";
 }
+```
+
+### Lambda Expressions
+
+Jac supports lambda expressions with explicit type annotations.
+
+```jac
+# Without parameters
+callback = lambda -> None { print("Hello"); };
+
+# With single parameter
+double = lambda x: int -> int { return x * 2; };
+
+# With multiple parameters
+add = lambda x: int, y: int -> int { return x + y; };
+```
+
+**Common Use Cases:**
+
+```jac
+with entry {
+    numbers: list[int] = [1, 2, 3, 4, 5];
+
+    # Map operation
+    doubled = [x * 2 for x in numbers];
+
+    # Filter with lambda
+    evens = list(filter(lambda x: int -> bool { return x % 2 == 0; }, numbers));
+
+    # Sort with key
+    items: list[str] = ["banana", "apple", "cherry"];
+    items.sort(key=lambda s: str -> int { return len(s); });
+}
+```
+
+**In Client-Side Code (JSX):**
+
+When using lambdas in client-side `cl { }` blocks for event handlers:
+
+```jac
+cl {
+    def:pub app() -> any {
+        has count: int = 0;
+
+        return <div>
+            # No parameters
+            <button onClick={lambda -> None { count = count + 1; }}>
+                Increment
+            </button>
+
+            # With event parameter
+            <input onChange={lambda e: any -> None { console.log(e.target.value); }} />
+        </div>;
+    }
+}
+```
+
+**Multi-statement Lambdas:**
+
+```jac
+process = lambda x: int -> int {
+    doubled = x * 2;
+    result = doubled + 1;
+    return result;
+};
 ```
 
 ---
@@ -260,7 +331,7 @@ import requests;
 import numpy as np;
 
 # Import from Jac files (no extension needed)
-import from mymodule { MyClass, my_function };
+import from mymodule { MyClass, my_function }
 ```
 
 ---

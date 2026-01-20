@@ -17,7 +17,7 @@ glob registry = get_registry();
             "name",
             kind=ArgKind.POSITIONAL,
             default="",
-            help="Project name (uses current directory if empty)"
+            help="Project name (defaults to 'jactastic' with incrementing number if exists)"
         ),
         Arg.create(
             "force",
@@ -26,17 +26,42 @@ glob registry = get_registry();
             help="Overwrite existing jac.toml",
             short="f"
         ),
+        Arg.create(
+            "use",
+            default="default",
+            help="Jacpack template: name, file path, or URL",
+            short="u"
+        ),
+        Arg.create(
+            "list_jacpacks",
+            typ=bool,
+            default=False,
+            help="List available jacpack templates",
+            short="l"
+        ),
 
     ],
     examples=[
-        ("jac create", "Create project in current directory"),
+        (
+            "jac create",
+            "Create new jactastic/ directory (or jactastic1/, jactastic2/, etc.)"
+        ),
         ("jac create myapp", "Create new myapp/ directory"),
         ("jac create --force", "Reinitialize existing project"),
+        ("jac create myapp --use client", "Create with client jacpack template"),
+        ("jac create --use ./my.jacpack", "Create from local .jacpack file"),
+        ("jac create --use https://example.com/t.jacpack", "Create from URL"),
+        ("jac create --list-jacpacks", "List available jacpack templates"),
 
     ],
     group="project"
 )
-def create(name: str = "", force: bool = False) -> int;
+def create(
+    name: str = "",
+    force: bool = False,
+    use: str = "default",
+    list_jacpacks: bool = False
+) -> int;
 
 """Install all dependencies from jac.toml."""
 @registry.command(
@@ -148,3 +173,96 @@ def remove(packages: list = [], dev: bool = False, cl: bool = False) -> int;
     group="project"
 )
 def script(name: str = "", list_scripts: bool = False) -> int;
+
+"""Clean project build artifacts."""
+@registry.command(
+    name="clean",
+    help="Clean project build artifacts",
+    args=[
+        Arg.create(
+            "all",
+            typ=bool,
+            default=False,
+            help="Clean all .jac artifacts (data, cache, packages, client)",
+            short="a"
+        ),
+        Arg.create(
+            "data",
+            typ=bool,
+            default=False,
+            help="Clean data directory (.jac/data)",
+            short="d"
+        ),
+        Arg.create(
+            "cache",
+            typ=bool,
+            default=False,
+            help="Clean cache directory (.jac/cache)",
+            short="c"
+        ),
+        Arg.create(
+            "packages",
+            typ=bool,
+            default=False,
+            help="Clean packages directory (.jac/packages)",
+            short="p"
+        ),
+        Arg.create(
+            "force",
+            typ=bool,
+            default=False,
+            help="Force clean without confirmation",
+            short="f"
+        ),
+
+    ],
+    examples=[
+        ("jac clean", "Clean data directory (default)"),
+        ("jac clean --all", "Clean all .jac artifacts"),
+        ("jac clean --cache", "Clean only cache directory"),
+        ("jac clean --data --cache", "Clean data and cache directories"),
+
+    ],
+    group="project"
+)
+def clean(
+    all: bool = False,
+    data: bool = False,
+    cache: bool = False,
+    packages: bool = False,
+    force: bool = False
+) -> int;
+
+"""Bundle a template directory into a distributable .jacpack file."""
+@registry.command(
+    name="jacpack",
+    help="Manage project templates (.jacpack files)",
+    args=[
+        Arg.create(
+            "action", kind=ArgKind.POSITIONAL, default="", help="Action: pack, list"
+        ),
+        Arg.create(
+            "path",
+            kind=ArgKind.POSITIONAL,
+            default="",
+            help="Template directory path (for pack) or .jacpack path (for info)"
+        ),
+        Arg.create(
+            "output",
+            default="",
+            help="Output file path for bundled template",
+            short="o"
+        ),
+
+    ],
+    examples=[
+        (
+            "jac jacpack pack ./my-template -o my-template.jacpack",
+            "Bundle a template directory"
+        ),
+        ("jac jacpack list", "List available templates"),
+
+    ],
+    group="project"
+)
+def jacpack(action: str = "", path: str = "", output: str = "") -> int;

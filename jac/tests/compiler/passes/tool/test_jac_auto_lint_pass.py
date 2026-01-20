@@ -226,7 +226,7 @@ class TestCombineConsecutiveHas:
         assert "email: str;" in formatted
 
         # Public has statements should be combined separately
-        assert "has : pub address: str," in formatted
+        assert "has:pub address: str," in formatted
         assert "phone: str;" in formatted
 
         # Static has statements should be combined
@@ -239,10 +239,50 @@ class TestCombineConsecutiveHas:
         assert "has city: str = " in formatted
 
         # Verify statements were actually combined (count semicolons in has statements)
-        # Before: 6 separate has statements, After: 4 combined has statements
+        # Before: 6 separate has statements, After: 3 combined has statements
         person_section = formatted.split("obj Person")[1].split("obj Config")[0]
-        has_count = person_section.count("has ")
+        # Count both "has " and "has:" patterns (access modifiers use has:pub format)
+        has_count = person_section.count("has ") + person_section.count("has:")
         assert has_count == 3, f"Expected 3 has statements in Person, got {has_count}"
+
+    def test_consecutive_has_combined_in_ability(
+        self, auto_lint_fixture_path: Callable[[str], str]
+    ) -> None:
+        """Test that consecutive has statements in abilities (functions) are combined."""
+        input_path = auto_lint_fixture_path("ability_has.jac")
+
+        prog = JacProgram.jac_file_formatter(input_path, auto_lint=True)
+        formatted = prog.mod.main.gen.jac
+
+        # has statements in app function should be combined
+        assert "has count: int = 0," in formatted
+        assert "name: str = " in formatted
+        assert "enabled: bool = True;" in formatted
+
+        # has statements in client-side counter function should be combined
+        assert "has value: int = 0," in formatted
+        assert "label: str = " in formatted
+        assert "visible: bool = True;" in formatted
+
+        # has statements in Widget.render method should be combined
+        assert "has prefix: str = " in formatted
+        assert "suffix: str = " in formatted
+        assert "content: str = " in formatted
+
+        # Verify statements were actually combined (count has statements)
+        # app function: 1 combined has statement (originally 3)
+        app_section = formatted.split("def app")[1].split("}")[0]
+        app_has_count = app_section.count("has ")
+        assert app_has_count == 1, (
+            f"Expected 1 has statement in app, got {app_has_count}"
+        )
+
+        # render method: 1 combined has statement (originally 3)
+        render_section = formatted.split("def render")[1].split("}")[0]
+        render_has_count = render_section.count("has ")
+        assert render_has_count == 1, (
+            f"Expected 1 has statement in render, got {render_has_count}"
+        )
 
 
 class TestCombineConsecutiveGlob:
@@ -263,16 +303,16 @@ class TestCombineConsecutiveGlob:
         assert "glob x = 1,\n     y = 2,\n     z = 3;" in formatted
 
         # Public glob statements should be combined separately
-        assert "glob : pub a = 10,\n     b = 20;" in formatted
+        assert "glob:pub a = 10,\n     b = 20;" in formatted
 
         # Protected glob statements should be combined separately
-        assert "glob : protect c = 100,\n     d = 200,\n     e = 300;" in formatted
+        assert "glob:protect c = 100,\n     d = 200,\n     e = 300;" in formatted
 
         # Mixed modifiers should NOT be combined together
         # Each should be its own statement
         assert "glob m1 = 1;" in formatted
-        assert "glob : pub m2 = 2;" in formatted
-        assert "glob : protect m3 = 3;" in formatted
+        assert "glob:pub m2 = 2;" in formatted
+        assert "glob:protect m3 = 3;" in formatted
 
         # Non-consecutive globs should NOT be combined
         assert "glob before = 0;" in formatted
@@ -573,10 +613,12 @@ class TestHasattrConversion:
         # Step 2: becomes obj?.attr or default (ternary-to-or optimization)
         assert "instance?.value or 0" in formatted
         assert 'instance?.name or "default"' in formatted
+        assert "instance?.name" in formatted
 
         # Check that we don't have "instance.value if" (non-null-safe value with null-safe condition)
         assert "instance.value if instance?.value" not in formatted
         assert "instance.name if instance?.name" not in formatted
+        assert "instance?.name or None" not in formatted
 
         # Binary expressions with hasattr should be converted
         assert (
@@ -622,6 +664,10 @@ class TestTernaryToOrConversion:
         # Null-safe ternary should be converted
         assert 'instance?.name or "default"' in formatted
         assert 'instance?.name if instance?.name else "default"' not in formatted
+
+        # Null-safe ternary with None default should be converted
+        assert "instance?.value" in formatted
+        assert "instance?.value or None" not in formatted
 
         # Different value and condition should NOT be converted
         assert "if instance.name else" in formatted

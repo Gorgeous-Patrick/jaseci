@@ -132,7 +132,7 @@ impl EsastGenPass.exit_non_local_stmt(<>node: uni.NonLocalStmt) -> None {
 
 """Process global variables."""
 impl EsastGenPass.exit_global_vars(<>node: uni.GlobalVars) -> None {
-    if getattr(<>node, 'is_client_decl', False) {
+    if <>node.code_context == CodeContext.CLIENT {
         self.client_manifest.has_client = True;
         for assignment in <>node.assignments {
             for target in assignment.target {
@@ -723,13 +723,13 @@ impl EsastGenPass.exit_func_call(<>node: uni.FuncCall) -> None {
         <>node.gen.es_ast = typeof_expr;
         return;
     }
-    if (self._is_in_client_scope() and isinstance(<>node.target, uni.Name)) {
+    if (<>node.in_client_context() and isinstance(<>node.target, uni.Name)) {
         target_sym = getattr(<>node.target, 'sym', None);
         if (target_sym and target_sym.defn) {
             defn_node = target_sym.defn[0];
             if isinstance(defn_node.parent, uni.Ability) {
                 ability_node = defn_node.parent;
-                is_server_func = not getattr(ability_node, 'is_client_decl', False);
+                is_server_func = ability_node.code_context != CodeContext.CLIENT;
                 if is_server_func {
                     func_name = <>node.target.sym_name;
                     param_names: list[str] = [];
@@ -912,7 +912,7 @@ impl EsastGenPass.exit_assignment(<>node: uni.Assignment) -> None {
                 value_expr
                 or self._get_ast_or_default(
                     <>node.value,
-                    default_factory=lambda  _src: Any: es.Identifier(name='undefined')
+                    default_factory=lambda _src: Any : es.Identifier(name='undefined')
                 )
             )
         );
@@ -957,7 +957,7 @@ impl EsastGenPass.exit_assignment(<>node: uni.Assignment) -> None {
             value_expr
             or self._get_ast_or_default(
                 <>node.value,
-                default_factory=lambda  _src: Any: es.Identifier(name='undefined')
+                default_factory=lambda _src: Any : es.Identifier(name='undefined')
             )
         )
     );
@@ -1128,7 +1128,7 @@ impl EsastGenPass.exit_unary_expr(<>node: uni.UnaryExpr) -> None {
     operand = cast(
         es.Expression,
         self._get_ast_or_default(
-            <>node.operand, default_factory=lambda  _src: Any: es.Literal(value=0)
+            <>node.operand, default_factory=lambda _src: Any : es.Literal(value=0)
         )
     );
     op_tok = Tok(<>node.op.name) if (<>node.op.name in Tok.__members__) else None;
@@ -1152,7 +1152,7 @@ impl EsastGenPass.exit_compare_expr(<>node: uni.CompareExpr) -> None {
         es.Expression,
         self._get_ast_or_default(
             <>node.left,
-            default_factory=lambda  src: Any:
+            default_factory=lambda src: Any :
                 es.Identifier(name=src.sym_name)
                 if isinstance(src, uni.Name)
                 else es.Identifier(name='left')
@@ -1163,7 +1163,7 @@ impl EsastGenPass.exit_compare_expr(<>node: uni.CompareExpr) -> None {
             es.Expression,
             self._get_ast_or_default(
                 right_node,
-                default_factory=lambda  src: Any:
+                default_factory=lambda src: Any :
                     es.Identifier(name=src.sym_name)
                     if isinstance(src, uni.Name)
                     else es.Identifier(name='right')
@@ -1217,14 +1217,14 @@ impl EsastGenPass.exit_bool_expr(<>node: uni.BoolExpr) -> None {
     result: es.Expression = cast(
         es.Expression,
         self._get_ast_or_default(
-            <>node.values[0], default_factory=lambda  _src: Any: es.Literal(value=None)
+            <>node.values[0], default_factory=lambda _src: Any : es.Literal(value=None)
         )
     );
     for val in <>node.values[1:] {
         right = cast(
             es.Expression,
             self._get_ast_or_default(
-                val, default_factory=lambda  _src: Any: es.Literal(value=None)
+                val, default_factory=lambda _src: Any : es.Literal(value=None)
             )
         );
         result = self.sync_loc(
@@ -1241,7 +1241,7 @@ impl EsastGenPass.exit_binary_expr(<>node: uni.BinaryExpr) -> None {
         es.Expression,
         self._get_ast_or_default(
             <>node.left,
-            default_factory=lambda  src: Any:
+            default_factory=lambda src: Any :
                 es.Identifier(name=src.sym_name)
                 if isinstance(src, uni.Name)
                 else es.Literal(value=0)
@@ -1251,7 +1251,7 @@ impl EsastGenPass.exit_binary_expr(<>node: uni.BinaryExpr) -> None {
         es.Expression,
         self._get_ast_or_default(
             <>node.right,
-            default_factory=lambda  src: Any:
+            default_factory=lambda src: Any :
                 es.Identifier(name=src.sym_name)
                 if isinstance(src, uni.Name)
                 else es.Literal(value=0)
@@ -1299,7 +1299,7 @@ impl EsastGenPass.exit_switch_case(<>node: uni.SwitchCase) -> None {
     if (<>node.pattern and isinstance(<>node.pattern, uni.MatchValue)) {
         case_test = self._get_ast_or_default(
             <>node.pattern.value,
-            default_factory=lambda  _src: Any: es.Literal(value=None)
+            default_factory=lambda _src: Any : es.Literal(value=None)
         );
     }
     body_stmts = self._collect_stmt_body(<>node.body);
@@ -1311,7 +1311,7 @@ impl EsastGenPass.exit_switch_case(<>node: uni.SwitchCase) -> None {
 """Process switch statement."""
 impl EsastGenPass.exit_switch_stmt(<>node: uni.SwitchStmt) -> None {
     <>test = self._get_ast_or_default(
-        <>node.target, default_factory=lambda  _src: Any: es.Literal(value=None)
+        <>node.target, default_factory=lambda _src: Any : es.Literal(value=None)
     );
     cases: list[es.SwitchCase] = [];
     for stmt in <>node.cases {
@@ -1330,7 +1330,7 @@ impl EsastGenPass.exit_expr_stmt(<>node: uni.ExprStmt) -> None {
     expr = cast(
         es.Expression,
         self._get_ast_or_default(
-            <>node.expr, default_factory=lambda  _src: Any: es.Literal(value=None)
+            <>node.expr, default_factory=lambda _src: Any : es.Literal(value=None)
         )
     );
     expr_stmt = self.sync_loc(es.ExpressionStatement(expression=expr), jac_node=<>node);
@@ -1540,7 +1540,7 @@ impl EsastGenPass.exit_iter_for_stmt(<>node: uni.IterForStmt) -> None {
 """Process while statement."""
 impl EsastGenPass.exit_while_stmt(<>node: uni.WhileStmt) -> None {
     <>test = self._get_ast_or_default(
-        <>node.condition, default_factory=lambda  _src: Any: es.Literal(value=True)
+        <>node.condition, default_factory=lambda _src: Any : es.Literal(value=True)
     );
     body = self._build_block_statement(<>node, <>node.body);
     while_stmt = self.sync_loc(
@@ -1560,7 +1560,7 @@ impl EsastGenPass.exit_else_stmt(<>node: uni.ElseStmt) -> None {
 """Process else-if clause."""
 impl EsastGenPass.exit_else_if(<>node: uni.ElseIf) -> None {
     <>test = self._get_ast_or_default(
-        <>node.condition, default_factory=lambda  _src: Any: es.Literal(value=True)
+        <>node.condition, default_factory=lambda _src: Any : es.Literal(value=True)
     );
     consequent = self._build_block_statement(<>node, <>node.body);
     alternate: (es.Statement | None) = None;
@@ -1577,7 +1577,7 @@ impl EsastGenPass.exit_else_if(<>node: uni.ElseIf) -> None {
 """Process if statement."""
 impl EsastGenPass.exit_if_stmt(<>node: uni.IfStmt) -> None {
     <>test = self._get_ast_or_default(
-        <>node.condition, default_factory=lambda  _src: Any: es.Literal(value=True)
+        <>node.condition, default_factory=lambda _src: Any : es.Literal(value=True)
     );
     consequent = self._build_block_statement(<>node, <>node.body);
     alternate: (es.Statement | None) = None;
@@ -1634,6 +1634,20 @@ impl EsastGenPass._get_setter_name(var_name: str) -> str {
     return f"set{var_name[0].upper()}{var_name[1:]}";
 }
 
+"""Check if useState is already imported (either by user or auto-injection)."""
+impl EsastGenPass._has_usestate_import -> bool {
+    for import_decl in self.imports {
+        for spec in import_decl.specifiers {
+            if isinstance(spec, es.ImportSpecifier) {
+                if spec.local and spec.local.name == 'useState' {
+                    return True;
+                }
+            }
+        }
+    }
+    return False;
+}
+
 """Auto-inject useState import from @jac-client/utils when reactive has variables are used."""
 impl EsastGenPass._inject_usestate_import(<>node: uni.UniNode) -> None {
     # Create: import { useState } from "@jac-client/utils";
@@ -1657,14 +1671,13 @@ impl EsastGenPass._inject_usestate_import(<>node: uni.UniNode) -> None {
 
 """Process class field declarations - generates useState for client-side reactive state."""
 impl EsastGenPass.exit_arch_has(<>node: uni.ArchHas) -> None {
-    # Check if this is client-side reactive state (inside a cl {} block)
-    is_client = <>node.find_parent_of_type(uni.ClientBlock) is not None;
-    if not is_client {
+    # Check if this is client-side reactive state (works for both cl {} and .cl.jac)
+    if not <>node.in_client_context() {
         <>node.gen.es_ast = None;
         return;
     }
-    # Auto-inject useState import if not already done
-    if not self.has_injected_usestate {
+    # Auto-inject useState import if not already done and user hasn't imported it
+    if not self.has_injected_usestate and not self._has_usestate_import() {
         self._inject_usestate_import(<>node);
         self.has_injected_usestate = True;
     }
@@ -1746,7 +1759,7 @@ impl EsastGenPass.exit_func_signature(<>node: uni.FuncSignature) -> None {
 
 """Process ability (function/method) declaration."""
 impl EsastGenPass.exit_ability(<>node: uni.Ability) -> None {
-    if (getattr(<>node, 'is_client_decl', False) and not <>node.is_method) {
+    if (<>node.code_context == CodeContext.CLIENT and not <>node.is_method) {
         self.client_manifest.has_client = True;
         name = <>node.name_ref.sym_name;
         self.client_manifest.exports.append(name);
@@ -1864,15 +1877,10 @@ impl EsastGenPass.exit_ability(<>node: uni.Ability) -> None {
             <>node.gen.es_ast = func_decl;
         }
     }
-    if self.client_scope_stack {
-        self.client_scope_stack.pop();
-    }
 }
 
-"""Track entry into ability to manage client scope."""
+"""Ensure ImplDef body is properly parented for traversal."""
 impl EsastGenPass.enter_ability(<>node: uni.Ability) -> None {
-    is_client = getattr(<>node, 'is_client_decl', False);
-    self.client_scope_stack.append(is_client);
     if isinstance(<>node.body, uni.ImplDef) and (<>node.body not in <>node.kid) {
         <>node.body.parent = <>node;
         <>node.kid.append(<>node.body);
@@ -1942,7 +1950,7 @@ impl EsastGenPass.exit_enum(<>node: uni.Enum) -> None {
 
 """Process archetype (class) declaration."""
 impl EsastGenPass.exit_archetype(<>node: uni.Archetype) -> None {
-    if getattr(<>node, 'is_client_decl', False) {
+    if <>node.code_context == CodeContext.CLIENT {
         self.client_manifest.has_client = True;
         self.client_manifest.exports.append(<>node.name.sym_name);
     }
@@ -2122,13 +2130,28 @@ impl EsastGenPass.exit_archetype(<>node: uni.Archetype) -> None {
 
 """Process import statement."""
 impl EsastGenPass.exit_import(<>node: uni.Import) -> None {
-    if (<>node.from_loc and <>node.items and <>node.is_client_decl) {
+    # Only process client-side imports for JavaScript generation
+    if <>node.code_context != CodeContext.CLIENT {
+        # Server-side import (sv keyword or default) - skip JS generation
+        return;
+    }
+    if (<>node.from_loc and <>node.items) {
         resolved_path = <>node.from_loc.resolve_relative_path();
         import_key = <>node.from_loc.dot_path_str;
         self.client_manifest.imports[import_key] = resolved_path;
         self.client_manifest.has_client = True;
-        js_import_path = convert_to_js_import_path(<>node.from_loc.dot_path_str);
-    } elif (not <>node.from_loc and <>node.items and <>node.is_client_decl) {
+        # Prepend dot for local Jac modules to make them relative imports in JS
+        # Skip for jac: prefixed imports (built-in runtime modules)
+        import_path = <>node.from_loc.dot_path_str;
+        has_jac_prefix = <>node.from_loc.prefix
+        and <>node.from_loc.prefix.value == 'jac';
+        if resolved_path.endswith('.jac')
+        and not import_path.startswith('.')
+        and not has_jac_prefix {
+            import_path = '.' + import_path;
+        }
+        js_import_path = convert_to_js_import_path(import_path);
+    } elif (not <>node.from_loc and <>node.items) {
         self.client_manifest.has_client = True;
         first_item = <>node.items[0];
         if (isinstance(first_item, uni.ModulePath) and first_item.path) {
@@ -2141,7 +2164,15 @@ impl EsastGenPass.exit_import(<>node: uni.Import) -> None {
         }
         resolved_path = resolve_relative_path(import_key, <>node.loc.mod_path);
         self.client_manifest.imports[import_key] = resolved_path;
-        js_import_path = convert_to_js_import_path(import_key);
+        # Prepend dot for local Jac modules to make them relative imports in JS
+        import_path = import_key;
+        if resolved_path.endswith('.jac') and not import_path.startswith('.') {
+            import_path = '.' + import_path;
+        }
+        js_import_path = convert_to_js_import_path(import_path);
+    } else {
+        # No valid import to process
+        return;
     }
     source = self.sync_loc(es.Literal(value=js_import_path), jac_node=<>node.from_loc);
     specifiers:
@@ -2258,7 +2289,7 @@ impl EsastGenPass.exit_module(<>node: uni.Module) -> None {
     fallback_items: list[es.Statement | list[es.Statement] | None] = [];
     for stmt in merged_body {
         if stmt.gen.es_ast {
-            if getattr(stmt, 'is_client_decl', True) {
+            if getattr(stmt, 'code_context', CodeContext.CLIENT) == CodeContext.CLIENT {
                 client_items.append(cast(es.Statement, stmt.gen.es_ast));
             } else {
                 ;
@@ -2414,14 +2445,24 @@ impl EsastGenPass._resolve_spawn_walker(
         return None;
     }
     target_symbol = self._resolve_expr_symbol(stripped_node.target);
-    if (not target_symbol or (target_symbol.sym_type != SymbolType.WALKER_ARCH)) {
-        return None;
+    # If symbol is found and is a walker, use it
+    if target_symbol and (target_symbol.sym_type == SymbolType.WALKER_ARCH) {
+        walker_name = target_symbol.sym_name;
+        fields_obj = self._build_spawn_arg_object(stripped_node, target_symbol);
+        return SpawnWalkerInfo(
+            call_node=stripped_node, walker_name=walker_name, fields_object=fields_obj
+        );
     }
-    walker_name = target_symbol.sym_name;
-    fields_obj = self._build_spawn_arg_object(stripped_node, target_symbol);
-    return SpawnWalkerInfo(
-        call_node=stripped_node, walker_name=walker_name, fields_object=fields_obj
-    );
+    # Allow function calls that look like walker constructors (server walkers from sv imports)
+    # These are validated at runtime via API calls
+    if isinstance(stripped_node.target, uni.Name) {
+        walker_name = stripped_node.target.sym_name;
+        fields_obj = self._build_spawn_arg_object(stripped_node, None);
+        return SpawnWalkerInfo(
+            call_node=stripped_node, walker_name=walker_name, fields_object=fields_obj
+        );
+    }
+    return None;
 }
 
 """Convert walker constructor arguments into a JSON payload."""
@@ -2497,7 +2538,7 @@ impl EsastGenPass._expr_from_node(
     <>node: (uni.UniNode | None), <>default: LiteralValue = None
 ) -> es.Expression {
     generated = self._get_ast_or_default(
-        <>node, default_factory=lambda  src: Any: es.Literal(value=<>default)
+        <>node, default_factory=lambda src: Any : es.Literal(value=<>default)
     );
     if isinstance(generated, es.Expression) {
         return generated;
@@ -2576,11 +2617,6 @@ impl EsastGenPass._strip_spawn_await(
         }
     }
     return (cur_node, cur_es);
-}
-
-"""Check if we're currently in a client-side function."""
-impl EsastGenPass._is_in_client_scope -> bool {
-    return <>any(self.client_scope_stack);
 }
 
 """Insert hoisted declarations, if any, ahead of the given statements."""
@@ -2674,8 +2710,8 @@ impl EsastGenPass.sync_loc(es_node: _T, jac_node: (uni.UniNode | None) = None) -
 impl EsastGenPass.exit_node(<>node: uni.UniNode) -> None {
     if (
         isinstance(<>node, uni.ElementStmt)
-        and isinstance(<>node, uni.ClientFacingNode)
-        and not <>node.is_client_decl
+        and isinstance(<>node, uni.ContextAwareNode)
+        and <>node.code_context != CodeContext.CLIENT
         and ((<>node.parent is None) or isinstance(<>node.parent, uni.Module))
     ) {
         return;
@@ -2690,8 +2726,8 @@ impl EsastGenPass.exit_node(<>node: uni.UniNode) -> None {
 impl EsastGenPass.enter_node(<>node: uni.UniNode) -> None {
     if (
         isinstance(<>node, uni.ElementStmt)
-        and isinstance(<>node, uni.ClientFacingNode)
-        and not <>node.is_client_decl
+        and isinstance(<>node, uni.ContextAwareNode)
+        and <>node.code_context != CodeContext.CLIENT
         and ((<>node.parent is None) or isinstance(<>node.parent, uni.Module))
     ) {
         self.prune();
@@ -2716,7 +2752,6 @@ impl EsastGenPass.before_pass -> None {
     self.scope_stack: list[ScopeInfo] = [];
     self.scope_map: dict[(uni.UniScopeNode, ScopeInfo)] = {};
     self.client_manifest = ClientManifest();
-    self.client_scope_stack: list[bool] = [];
     self.jsx_processor = EsJsxProcessor(self);
     # Track reactive state variables: maps var_name -> setter_name (e.g., "count" -> "setCount")
     self.reactive_vars: dict[str, str] = {};

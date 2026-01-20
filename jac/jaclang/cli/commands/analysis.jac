@@ -1,6 +1,6 @@
-"""Analysis commands: check, build, format, test, gen_parser.
+"""Analysis commands: check, format, test, gen_parser.
 
-Commands for analyzing, building, and testing Jac code.
+Commands for analyzing and testing Jac code.
 """
 
 import from jaclang.cli.command { Arg, ArgKind }
@@ -30,6 +30,12 @@ glob registry = get_registry();
             help="Treat errors as warnings",
             short="w"
         ),
+        Arg.create(
+            "ignore",
+            typ=str,
+            default="",
+            help="Comma-separated list of files/folders to ignore"
+        ),
 
     ],
     examples=[
@@ -37,35 +43,14 @@ glob registry = get_registry();
         ("jac check file1.jac file2.jac", "Check multiple files"),
         ("jac check myproject/", "Check all files in directory"),
         ("jac check myprogram.jac --warnonly", "Report but don't fail on errors"),
+        ("jac check myproject/ --ignore fixtures", "Check excluding folders,files"),
 
     ],
     group="analysis"
 )
-def check(paths: list, print_errs: bool = True, warnonly: bool = False) -> int;
-
-"""Build the specified .jac file."""
-@registry.command(
-    name="build",
-    help="Compile Jac to .jir format",
-    args=[
-        Arg.create("filename", kind=ArgKind.POSITIONAL, help="Path to .jac file"),
-        Arg.create(
-            "typecheck",
-            typ=bool,
-            default=False,
-            help="Perform type checking",
-            short="t"
-        ),
-
-    ],
-    examples=[
-        ("jac build myprogram.jac", "Build without type checking"),
-        ("jac build myprogram.jac --typecheck", "Build with type checking"),
-
-    ],
-    group="analysis"
-)
-def build(filename: str, typecheck: bool = False) -> int;
+def check(
+    paths: list, print_errs: bool = True, warnonly: bool = False, ignore: str = ""
+) -> int;
 
 """Format .jac files with improved code style."""
 @registry.command(

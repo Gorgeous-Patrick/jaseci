@@ -4,18 +4,21 @@ import contextlib
 import inspect
 import io
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import traceback
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from pathlib import Path
 
 import pytest
 
 from jaclang.cli.commands import (  # type: ignore[attr-defined]
     analysis,  # type: ignore[attr-defined]
     execution,  # type: ignore[attr-defined]
+    project,  # type: ignore[attr-defined]
     tools,  # type: ignore[attr-defined]
     transform,  # type: ignore[attr-defined]
 )
@@ -275,22 +278,6 @@ def test_del_clean(
 
     stdout_value = output.getvalue()
     assert "0 errors, 0 warnings" in stdout_value
-
-
-def test_build_and_run(
-    fixture_path: Callable[[str], str],
-    capture_stdout: Callable[[], AbstractContextManager[io.StringIO]],
-) -> None:
-    """Testing for print AstTool."""
-    if os.path.exists(f"{fixture_path('needs_import.jir')}"):
-        os.remove(f"{fixture_path('needs_import.jir')}")
-    with capture_stdout() as output:
-        analysis.build(f"{fixture_path('needs_import.jac')}")
-        execution.run(f"{fixture_path('needs_import.jir')}")
-
-    stdout_value = output.getvalue()
-    assert "Errors: 0, Warnings: 0" in stdout_value
-    assert "<module 'pyfunc' from" in stdout_value
 
 
 def test_run_test(fixture_path: Callable[[str], str]) -> None:
@@ -569,18 +556,6 @@ def test_cli_error_exit_codes(fixture_path: Callable[[str], str]) -> None:
     )
     assert "Error" in stderr
 
-    # Test build command with syntax error
-    process = subprocess.Popen(
-        ["jac", "build", fixture_path("err2.jac")],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    stdout, stderr = process.communicate()
-    assert process.returncode == 1, (
-        "build command should exit with code 1 on compilation error"
-    )
-
     # Test check command with syntax error
     process = subprocess.Popen(
         ["jac", "check", fixture_path("err2.jac")],
@@ -668,7 +643,8 @@ def test_positional_args_with_defaults() -> None:
     assert process.returncode == 0, (
         f"'jac plugins' should work without action argument, got: {stderr}"
     )
-    assert "Installed Jac plugins" in stdout, (
+    # Check for plugins list output (case-insensitive, handles Rich formatting)
+    assert "installed jac plugin" in stdout.lower(), (
         "Output should show installed plugins list"
     )
 
@@ -709,8 +685,10 @@ def test_format_tracks_changed_files() -> None:
 
         # Exit code 1 indicates files were changed (useful for pre-commit hooks)
         assert process.returncode == 1
-        assert "2/2" in stderr
-        assert "(1 changed)" in stderr
+        # Output may go to stdout or stderr depending on console implementation
+        combined_output = stdout + stderr
+        assert "2/2" in combined_output
+        assert "(1 changed)" in combined_output
 
 
 def test_jac_create_and_run_no_root_files() -> None:
@@ -762,6 +740,21 @@ def test_jac_create_and_run_no_root_files() -> None:
             f"jac run created unexpected files in project root: {new_files}. "
             "All runtime files should be in .jac/ directory."
         )
+
+
+def test_jac_create_default_name_jactastic(cli_test_dir: Path) -> None:
+    """Test that jac create without a name defaults to 'jactastic' with incrementing numbers."""
+    # First create should use 'jactastic'
+    assert project.create() == 0
+    assert (cli_test_dir / "jactastic").is_dir()
+
+    # Second create should use 'jactastic1'
+    assert project.create() == 0
+    assert (cli_test_dir / "jactastic1").is_dir()
+
+    # Third create should use 'jactastic2'
+    assert project.create() == 0
+    assert (cli_test_dir / "jactastic2").is_dir()
 
 
 class TestConfigCommand:
@@ -958,3 +951,239 @@ verbose = true
                 or "not found" in stdout.lower()
                 or process.returncode != 0
             )
+
+
+def _run_jac_check(test_dir: str, ignore_pattern: str = "") -> int:
+    """Run jac check and return file count."""
+    cmd = ["jac", "check", test_dir]
+    if ignore_pattern:
+        cmd.extend(["--ignore", ignore_pattern])
+
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    stdout, stderr = process.communicate()
+    match = re.search(r"Checked (\d+)", stdout + stderr)
+    return int(match.group(1)) if match else 0
+
+
+def test_jac_cli_check_ignore_patterns(fixture_path: Callable[[str], str]) -> None:
+    """Test --ignore flag with exact pattern matching (combined patterns)."""
+    test_dir = fixture_path("deep")
+    result_count = _run_jac_check(test_dir, "deeper,one_lev_dup.jac,one_lev.jac,mycode")
+    # Only mycode.jac is checked; all other files are ignored
+    assert result_count == 1
+
+
+class TestCleanCommand:
+    """Tests for the jac clean CLI command."""
+
+    @staticmethod
+    def _create_project(tmpdir: str) -> str:
+        """Create a minimal jac project structure for testing."""
+        project_path = os.path.join(tmpdir, "testproj")
+        os.makedirs(project_path, exist_ok=True)
+
+        # Create minimal jac.toml
+        toml_content = """\
+[project]
+name = "testproj"
+version = "0.1.0"
+"""
+        with open(os.path.join(project_path, "jac.toml"), "w") as f:
+            f.write(toml_content)
+
+        # Create .jac directory structure
+        os.makedirs(os.path.join(project_path, ".jac"), exist_ok=True)
+
+        return project_path
+
+    def test_clean_no_project(self) -> None:
+        """Test jac clean fails when no jac.toml exists."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            process = subprocess.Popen(
+                ["jac", "clean", "--force"],
+                cwd=tmpdir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = process.communicate()
+            assert process.returncode == 1
+            assert "No jac.toml found" in stderr
+
+    def test_clean_nothing_to_clean(self) -> None:
+        """Test jac clean when no build artifacts exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_path = self._create_project(tmpdir)
+
+            # Remove the .jac/data directory if it exists (keep only cache from build)
+            data_dir = os.path.join(project_path, ".jac", "data")
+            if os.path.exists(data_dir):
+                import shutil
+
+                shutil.rmtree(data_dir)
+
+            process = subprocess.Popen(
+                ["jac", "clean", "--force"],
+                cwd=project_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = process.communicate()
+            assert process.returncode == 0
+            assert "Nothing to clean" in stdout
+
+    def test_clean_data_directory(self) -> None:
+        """Test jac clean removes the data directory by default."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_path = self._create_project(tmpdir)
+
+            # Create .jac/data directory with some files
+            data_dir = os.path.join(project_path, ".jac", "data")
+            os.makedirs(data_dir, exist_ok=True)
+            test_file = os.path.join(data_dir, "test.db")
+            with open(test_file, "w") as f:
+                f.write("test data")
+
+            assert os.path.exists(data_dir)
+
+            process = subprocess.Popen(
+                ["jac", "clean", "--force"],
+                cwd=project_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = process.communicate()
+            assert process.returncode == 0
+            assert "Removed data:" in stdout
+            assert not os.path.exists(data_dir)
+
+    def test_clean_cache_directory(self) -> None:
+        """Test jac clean --cache removes the cache directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_path = self._create_project(tmpdir)
+
+            # jac create already creates .jac/cache, but let's ensure it has content
+            cache_dir = os.path.join(project_path, ".jac", "cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            test_file = os.path.join(cache_dir, "cached.pyc")
+            with open(test_file, "w") as f:
+                f.write("cached bytecode")
+
+            assert os.path.exists(cache_dir)
+
+            process = subprocess.Popen(
+                ["jac", "clean", "--cache", "--force"],
+                cwd=project_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = process.communicate()
+            assert process.returncode == 0
+            assert "Removed cache:" in stdout
+            assert not os.path.exists(cache_dir)
+
+    def test_clean_all_directories(self) -> None:
+        """Test jac clean --all removes all build artifact directories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_path = self._create_project(tmpdir)
+
+            # Create all .jac subdirectories with content
+            jac_dir = os.path.join(project_path, ".jac")
+            dirs_to_create = ["data", "cache", "packages", "client"]
+            for dir_name in dirs_to_create:
+                dir_path = os.path.join(jac_dir, dir_name)
+                os.makedirs(dir_path, exist_ok=True)
+                # Add a file to each directory
+                with open(os.path.join(dir_path, "test.txt"), "w") as f:
+                    f.write("test")
+
+            for dir_name in dirs_to_create:
+                assert os.path.exists(os.path.join(jac_dir, dir_name))
+
+            process = subprocess.Popen(
+                ["jac", "clean", "--all", "--force"],
+                cwd=project_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = process.communicate()
+            assert process.returncode == 0
+            assert "Clean completed successfully" in stdout
+
+            # Verify all directories are removed
+            for dir_name in dirs_to_create:
+                assert not os.path.exists(os.path.join(jac_dir, dir_name))
+
+    def test_clean_multiple_specific_directories(self) -> None:
+        """Test jac clean with multiple specific flags."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_path = self._create_project(tmpdir)
+
+            # Create .jac subdirectories with content
+            jac_dir = os.path.join(project_path, ".jac")
+            data_dir = os.path.join(jac_dir, "data")
+            cache_dir = os.path.join(jac_dir, "cache")
+            packages_dir = os.path.join(jac_dir, "packages")
+
+            for dir_path in [data_dir, cache_dir, packages_dir]:
+                os.makedirs(dir_path, exist_ok=True)
+                with open(os.path.join(dir_path, "test.txt"), "w") as f:
+                    f.write("test")
+
+            process = subprocess.Popen(
+                ["jac", "clean", "--data", "--cache", "--force"],
+                cwd=project_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = process.communicate()
+            assert process.returncode == 0
+            assert "Removed data:" in stdout
+            assert "Removed cache:" in stdout
+            # Packages should NOT be removed
+            assert os.path.exists(packages_dir)
+            assert not os.path.exists(data_dir)
+            assert not os.path.exists(cache_dir)
+
+
+def test_error_traceback_shows_source_code(fixture_path: Callable[[str], str]) -> None:
+    """Test that runtime errors show source code context and line numbers."""
+    # Test that import errors show the problematic line with context
+    process = subprocess.Popen(
+        ["jac", "run", fixture_path("import_error_traceback.jac")],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    stdout, stderr = process.communicate()
+
+    # Should exit with error
+    assert process.returncode == 1, (
+        "run command should exit with code 1 on import error"
+    )
+
+    # Should show the error message
+    assert "Error" in stderr, "stderr should contain 'Error'"
+    assert "attempted relative import" in stderr or "ImportError" in stderr, (
+        "stderr should contain import error message"
+    )
+
+    # Should show the source code line that caused the error
+    assert "import from .nonexistent_module" in stderr, (
+        "stderr should show the problematic import statement"
+    )
+
+    # Should show the file path and line number
+    assert "import_error_traceback.jac" in stderr, (
+        "stderr should contain the source file name"
+    )
+    assert ":7" in stderr or "line 7" in stderr, (
+        "stderr should indicate line number 7 where the error occurred"
+    )

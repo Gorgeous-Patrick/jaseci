@@ -1,21 +1,40 @@
-"""Implementation of analysis commands.
+"""Implementation of analysis commands (check, format, test, gen_parser).
 
 Direct implementations - no delegation to cli.jac.
 """
 
 import sys;
 import from pathlib { Path }
+import from jaclang.cli.console { console }
 
 """Run type checker for specified .jac files."""
-impl check(paths: list, print_errs: bool = True, warnonly: bool = False) -> int {
+impl check(
+    paths: list, print_errs: bool = True, warnonly: bool = False, ignore: str = ""
+) -> int {
     import from jaclang.pycore.program { JacProgram }
     if isinstance(paths, str) {
         paths = [paths];
     }
+    ignore_list = [
+        pattern.strip()
+        for pattern in ignore.split(",")
+        if pattern.strip()
+    ]
+    if ignore
+    else [];
+    def ignore_check(file_path: str, ignore_patterns: list) -> bool {
+        path_parts = Path(file_path).parts;
+        for pattern in ignore_patterns {
+            if str(pattern).strip() in path_parts {
+                return True;
+            }
+        }
+        return False;
+    }
     def check_single_file(prog: JacProgram, file_path: str) -> tuple[bool, int, int] {
         path_obj = Path(file_path);
         if not path_obj.exists() {
-            print(f"Error: File '{file_path}' does not exist.", file=sys.stderr);
+            console.error(f"File '{file_path}' does not exist.");
             return (False, 1, 0);
         }
         try {
@@ -25,15 +44,15 @@ impl check(paths: list, print_errs: bool = True, warnonly: bool = False) -> int 
             new_warnings = prog.warnings_had[warn_start:];
             if print_errs {
                 for e in new_errors {
-                    print(f"Error: {e}", file=sys.stderr);
+                    console.error(f"{e}");
                 }
                 for w in new_warnings {
-                    print(f"Warning: {w}", file=sys.stderr);
+                    console.warning(f"{w}");
                 }
             }
             return ((len(new_errors) == 0), len(new_errors), len(new_warnings));
         } except Exception as e {
-            print(f"Error checking '{file_path}': {e}", file=sys.stderr);
+            console.error(f"Error checking '{file_path}': {e}");
             return (False, 1, 0);
         }
     }
@@ -42,59 +61,41 @@ impl check(paths: list, print_errs: bool = True, warnonly: bool = False) -> int 
     for path in paths {
         path_obj = Path(path);
         if path.endswith('.jac') {
-            total_files += 1;
-            (success, errs, warns) = check_single_file(prog, path);
-            total_errors += errs;
-            total_warnings += warns;
-            if not success {
-                failed_files += 1;
-            }
-        } elif path_obj.is_dir() {
-            for jac_file in path_obj.glob('**/*.jac') {
+            if not ignore_check(path, ignore_list) {
                 total_files += 1;
-                (success, errs, warns) = check_single_file(prog, str(jac_file));
+                (success, errs, warns) = check_single_file(prog, path);
                 total_errors += errs;
                 total_warnings += warns;
                 if not success {
                     failed_files += 1;
                 }
             }
+        } elif path_obj.is_dir() {
+            for jac_file in path_obj.glob('**/*.jac') {
+                if not ignore_check(str(jac_file), ignore_list) {
+                    total_files += 1;
+                    (success, errs, warns) = check_single_file(prog, str(jac_file));
+                    total_errors += errs;
+                    total_warnings += warns;
+                    if not success {
+                        failed_files += 1;
+                    }
+                }
+            }
         } else {
-            print(f"Error: '{path}' is not a .jac file or directory.", file=sys.stderr);
+            console.error(f"'{path}' is not a .jac file or directory.");
             failed_files += 1;
             total_errors += 1;
         }
     }
-    print(
-        f"Checked {total_files} '.jac' files: {(total_files - failed_files)} passed, {failed_files} with errors ({total_errors} errors, {total_warnings} warnings).",
-        file=sys.stderr if total_errors else sys.stdout
-    );
+    summary_msg = f"Checked {total_files} '.jac' files: {(total_files - failed_files)} passed, {failed_files} with errors ({total_errors} errors, {total_warnings} warnings).";
+    if total_errors {
+        console.error(summary_msg);
+    } else {
+        console.success(summary_msg);
+    }
     if (total_errors > 0 and not warnonly) {
         return 1;
-    }
-    return 0;
-}
-
-"""Build the specified .jac file."""
-impl build(filename: str, typecheck: bool = False) -> int {
-    import pickle;
-    import from jaclang.pycore.program { JacProgram }
-    if not filename.endswith('.jac') {
-        print('Not a .jac file.', file=sys.stderr);
-        return 1;
-    }
-    (out := JacProgram()).compile(file_path=filename, type_check=typecheck);
-    errs = len(out.errors_had);
-    warnings = len(out.warnings_had);
-    print(f"Errors: {errs}, Warnings: {warnings}");
-    for alrt in (out.errors_had + out.warnings_had) {
-        print(alrt.pretty_print(), file=sys.stderr);
-    }
-    if (errs > 0) {
-        return 1;
-    }
-    with open((filename[:-4] + '.jir'), 'wb') as f {
-        pickle.dump(out, f);
     }
     return 0;
 }
@@ -117,14 +118,14 @@ impl format(paths: list, to_screen: bool = False, fix: bool = False) -> int {
     def format_single_file(file_path: str) -> tuple[bool, bool] {
         path_obj = Path(file_path);
         if not path_obj.exists() {
-            print(f"Error: File '{file_path}' does not exist.", file=sys.stderr);
+            console.error(f"File '{file_path}' does not exist.");
             return (False, False);
         }
         try {
             prog = JacProgram.jac_file_formatter(str(path_obj), auto_lint=fix);
             if prog.errors_had {
                 for error in prog.errors_had {
-                    print(f"{error}", file=sys.stderr);
+                    console.error(f"{error}");
                 }
                 return (False, False);
             }
@@ -134,7 +135,7 @@ impl format(paths: list, to_screen: bool = False, fix: bool = False) -> int {
             changed = formatted_code != original_code;
             write_formatted_code(formatted_code, str(path_obj));
 
-            # Write impl modules (.impl.jac, .cl.jac files)
+            # Write impl modules (.impl.jac files)
             for impl_mod in prog.mod.main.impl_mod {
                 impl_path = impl_mod.loc.mod_path;
                 impl_formatted = impl_mod.gen.jac;
@@ -146,7 +147,7 @@ impl format(paths: list, to_screen: bool = False, fix: bool = False) -> int {
             }
             return (True, changed);
         } except Exception as e {
-            print(f"Error formatting '{file_path}': {e}", file=sys.stderr);
+            console.error(f"Error formatting '{file_path}': {e}");
             return (False, False);
         }
     }
@@ -174,15 +175,17 @@ impl format(paths: list, to_screen: bool = False, fix: bool = False) -> int {
                 }
             }
         } else {
-            print(f"Error: '{path}' is not a .jac file or directory.", file=sys.stderr);
+            console.error(f"'{path}' is not a .jac file or directory.");
             failed_files += 1;
         }
     }
     if (((len(paths) == 1) and Path(paths[0]).is_dir()) or (failed_files > 0)) {
-        print(
-            f"Formatted {(total_files - failed_files)}/{total_files} '.jac' files ({changed_files} changed).",
-            file=sys.stderr
-        );
+        summary_msg = f"Formatted {(total_files - failed_files)}/{total_files} '.jac' files ({changed_files} changed).";
+        if failed_files > 0 {
+            console.error(summary_msg);
+        } else {
+            console.success(summary_msg);
+        }
     }
     if (changed_files > 0) {
         return 1;
@@ -212,7 +215,7 @@ impl test(
         verbose=verbose
     );
     if failcount {
-        print(f"Tests failed: {failcount}", file=sys.stderr);
+        console.error(f"Tests failed: {failcount}");
         return 1;
     }
     return 0;
@@ -222,6 +225,6 @@ impl test(
 impl gen_parser -> int {
     import from jaclang.compiler { gen_all_parsers }
     gen_all_parsers();
-    print('Parser generated.');
+    console.success('Parser generated.');
     return 0;
 }

@@ -90,6 +90,30 @@ impl TypeEvaluator._get_type_of_expression_core(expr: uni.Expr) -> TypeBase {
                                 );
                             }
                         }
+                        # Check if this member is a property. If so, return the property's
+                        # return type instead of the FunctionType.
+                        if self._is_symbol_property(member.symbol) {
+                            if overloaded_ty {
+                                # For overloaded properties, use the return type from the first overload
+                                # TODO: In the future, we might want to union the return types
+                                if overloaded_ty.overloads
+                                and len(overloaded_ty.overloads) > 0 {
+                                    prop_return_type = overloaded_ty.overloads[0].return_type;
+                                    if prop_return_type {
+                                        member.symbol.add_use(expr.right);
+                                        expr.right.type = prop_return_type;
+                                        return expr.right.type;
+                                    }
+                                }
+                            } elif isinstance(member_ty, types.FunctionType) {
+                                prop_return_type = member_ty.return_type;
+                                if prop_return_type {
+                                    member.symbol.add_use(expr.right);
+                                    expr.right.type = prop_return_type;
+                                    return expr.right.type;
+                                }
+                            }
+                        }
                         # NOTE: If this atom trailer is called `<atom_trailer>()` we can resolve
                         # which overload is being called based on the arguments, and update the type
                         # based on the call, maybe for future.
@@ -169,6 +193,11 @@ impl TypeEvaluator._get_type_of_expression_core(expr: uni.Expr) -> TypeBase {
                         }
                     }
                     return base_type.specialize_generics(type_args);
+                }
+                # Case: <expr>[<expr>:<expr>] slice of the expression.
+                if isinstance(expr.right, uni.IndexSlice) and expr.right.is_range {
+                    # TODO: Validate the slice type arguments.
+                    return self.get_type_of_expression(expr.target);
                 }
                 # Regular <expr>[<expr>] case, we need to call __getitem__()
                 return self.get_type_of_magic_method_call(
@@ -561,13 +590,8 @@ impl TypeEvaluator.get_type_of_magic_method_call(
                     }
                 }
                 # If we reached here, none of the overloads matched.
-                if node_for_error {
-                    self.add_diagnostic(
-                        node_for_error,
-                        f'No matching overload found for method "{method_name}" with the given arguments',
-                    );
-                }
-                return types.UnknownType();
+                # Return None to allow fallback to reverse magic method (e.g., __radd__).
+                return None;
             }
             # If we reached here, magic method is not a function.
             # 1. recursively check __call__() on the type, TODO
@@ -710,13 +734,13 @@ impl TypeEvaluator.get_index_of_symbol_resolution(symbol: uni.Symbol) -> int | N
 
 """Return the prefetched types for the type evaluator."""
 impl TypeEvaluator._prefetch_types{
-    get_types_type = lambda  type_name: str  -> types.TypeBase:
+    get_types_type = lambda type_name: str  -> types.TypeBase :
         self._get_type_from_module(self.types_module, type_name);
-    get_typing_type = lambda  type_name: str  -> types.TypeBase:
+    get_typing_type = lambda type_name: str  -> types.TypeBase :
         self._get_type_from_module(self.typing_module, type_name);
-    get_builtin_type = lambda  type_name: str  -> types.TypeBase:
+    get_builtin_type = lambda type_name: str  -> types.TypeBase :
         self._get_type_from_module(self.builtins_module, type_name);
-    get_jac_builtin_type = lambda  type_name: str  -> types.TypeBase:
+    get_jac_builtin_type = lambda type_name: str  -> types.TypeBase :
         self._get_type_from_module(self.jac_builtins_module, type_name);
     # TODO: Pyright first try load NoneType from typeshed and if it cannot
     # then it set to unknown type.

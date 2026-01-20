@@ -65,9 +65,11 @@ impl __jacSpawn(left: str, right: str = "", fields: dict = {}) -> any {
     );
     if not response.ok {
         error_text = await response.json();
-        raise Exception(f"Walker {walker} failed: {error_text}") ;
+        walker_name = f"{left}/{right}" if right else left;
+        raise Exception(f"Walker {walker_name} failed: {error_text}") ;
     }
-    return await response.json();
+    payload = await response.json();
+    return payload["data"] if payload["data"] else {};
 }
 
 impl jacSpawn(left: str, right: str = "", fields: dict = {}) -> any {
@@ -87,12 +89,18 @@ impl __jacCallFunction(function_name: str, args: dict = {}) -> any {
             "body": JSON.stringify({"args": args})
         }
     );
-    if not response.ok {
-        error_text = await response.text();
-        raise Exception(f"Function {function_name} failed: {error_text}") ;
+    payload = await response.json();
+    if not payload["ok"] {
+        error_msg = payload["error"] if payload["error"] else "Unknown error";
+        raise Exception(f"Function {function_name} failed: {error_msg}") ;
     }
-    data = JSON.parse(await response.text());
-    return data["result"];
+    result = None;
+    try {
+        if payload["data"] and payload["data"]["result"] {
+            result = payload["data"]["result"];
+        }
+    } except Exception { }
+    return result;
 }
 
 impl jacSignup(username: str, password: str) -> dict {
@@ -106,7 +114,10 @@ impl jacSignup(username: str, password: str) -> dict {
     );
     if response.ok {
         data = JSON.parse(await response.text());
-        token = data["token"];
+        token = None;
+        if data["data"] and data["data"]["token"] {
+            token = data["data"]["token"];
+        }
         if token {
             __setLocalStorage("jac_token", token);
             return {"success": True, "token": token, "username": username};
@@ -139,7 +150,14 @@ impl jacLogin(username: str, password: str) -> bool {
     );
     if response.ok {
         data = JSON.parse(await response.text());
-        token = data["token"];
+        console.log("data", data);
+        token = None;
+        try {
+            if data["data"] and data["data"]["token"] {
+                token = data["data"]["token"];
+            }
+        } except Exception { }
+        console.log("token", token);
         if token {
             __setLocalStorage("jac_token", token);
             return True;
@@ -174,4 +192,70 @@ impl __removeLocalStorage(key: str) -> None {
     if storage {
         storage.removeItem(key);
     }
+}
+
+impl ErrorFallback(error: str, resetErrorBoundary: any) -> any {
+    return
+        <div
+            role="alert"
+            style={{
+                minHeight: "100vh",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: "#f9fafb",
+                fontFamily: "system-ui, sans-serif",
+
+            }}
+        >
+            <div
+                role="alert"
+                style={{
+                    minHeight: "100vh",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "#f9fafb",
+                    fontFamily: "system-ui, sans-serif",
+
+                }}
+            >
+                <h2 style={{color: "#dc2626", marginBottom: "12px"}}>
+                    🚨 Something went wrong
+                </h2>
+                <p style={{color: "#374151", marginBottom: "16px"}}>
+                    An unexpected error occurred. Please try again.
+                </p>
+                <pre
+                    style={{
+                        color: "#991b1b",
+                        background: "#fee2e2",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        overflowX: "auto",
+                        marginBottom: "16px",
+
+                    }}
+                >
+                    {error.error.message}
+                </pre>
+                <button
+                    onClick={lambda -> None { error.resetErrorBoundary();}}
+                    style={{
+                        backgroundColor: "#2563eb",
+                        color: "#fff",
+                        padding: "10px 16px",
+                        borderRadius: "8px",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "14px",
+
+                    }}
+                >
+                    🔄 Try again
+                </button>
+            </div>
+        </div>;
 }
