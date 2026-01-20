@@ -2,6 +2,8 @@
 
 The Jac CLI provides commands for running, building, testing, and deploying Jac applications.
 
+> **💡 Enhanced Output**: For beautiful, colorful terminal output with Rich formatting, install the optional `jac-super` plugin: `pip install jac-super`. All CLI commands will automatically use enhanced output with themes, panels, and spinners.
+
 ## Quick Reference
 
 | Command | Description |
@@ -422,9 +424,18 @@ jac plugins list
 # Install a plugin
 jac plugins install jac-scale
 
+# Install jac-super for enhanced console output
+jac plugins install jac-super
+
 # Uninstall
 jac plugins uninstall byllm
 ```
+
+> **💡 Popular Plugins**:
+>
+> - **jac-super**: Enhanced console output with Rich formatting, colors, and spinners (`pip install jac-super`)
+> - **jac-client**: Full-stack web development with client-side rendering (`pip install jac-client`)
+> - **jac-scale**: Kubernetes deployment and scaling (`pip install jac-scale`)
 
 ---
 
