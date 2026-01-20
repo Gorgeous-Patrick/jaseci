@@ -35,34 +35,42 @@ impl create(
         }
         return 0;
     }
+    # If no name specified and not listing templates, show usage error
+    if not name {
+        print("Error: Project name is required.", file=sys.stderr);
+        print("\nUsage: jac create <name> [--use <template>]", file=sys.stderr);
+        print("\nExamples:", file=sys.stderr);
+        print(
+            "  jac create myproject              # Create with default template",
+            file=sys.stderr
+        );
+        print(
+            "  jac create myapp --use client     # Create with 'client' template",
+            file=sys.stderr
+        );
+        print(
+            "  jac create --list-jacpacs         # List available templates",
+            file=sys.stderr
+        );
+        return 1;
+    }
     # Resolve template from --use (supports: registered names, file paths, URLs)
     tmpl = _resolve_template(use, registry);
     if tmpl is None {
         return 1;
     }
     cwd = Path.cwd();
-    project_name = name or cwd.name;
+    project_name = name;
     # Validate/create project directory
-    if name {
-        project_path = cwd / name;
-        if project_path.exists() and not force {
-            print(
-                f"Directory '{name}' already exists. Use --force to overwrite.",
-                file=sys.stderr
-            );
-            return 1;
-        }
-        project_path.mkdir(parents=True, exist_ok=True);
-    } else {
-        project_path = cwd;
-        existing = find_project_root(cwd);
-        if existing and not force {
-            (project_root, toml_path) = existing;
-            print(f"Already in a Jac project: {toml_path}", file=sys.stderr);
-            print("Use --force to reinitialize.", file=sys.stderr);
-            return 1;
-        }
+    project_path = cwd / name;
+    if project_path.exists() and not force {
+        print(
+            f"Directory '{name}' already exists. Use --force to overwrite.",
+            file=sys.stderr
+        );
+        return 1;
     }
+    project_path.mkdir(parents=True, exist_ok=True);
     toml_path = project_path / "jac.toml";
     if toml_path.exists() and not force {
         print(f"jac.toml already exists. Use --force to overwrite.", file=sys.stderr);
@@ -122,9 +130,7 @@ impl create(
     }
     print(f"\nProject '{project_name}' created successfully!");
     print("\nNext steps:");
-    if name {
-        print(f"  cd {name}");
-    }
+    print(f"  cd {name}");
     print("  jac run main.jac    # Run the main entry point");
     print("  jac add <package>   # Add dependencies");
     print("  jac install         # Install all dependencies");
