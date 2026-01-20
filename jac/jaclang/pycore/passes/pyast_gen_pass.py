@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import ClassVar, TypeVar, cast
 
 import jaclang.pycore.unitree as uni
-from jaclang.pycore.constant import TTG_VISIT_FIELD, EdgeDir, CodeContext
+from jaclang.pycore.constant import TTG_VISIT_FIELD, CodeContext, EdgeDir
 from jaclang.pycore.constant import Constants as Con
 from jaclang.pycore.constant import Tokens as Tok
 from jaclang.pycore.passes.ast_gen import BaseAstGenPass

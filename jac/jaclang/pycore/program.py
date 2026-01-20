@@ -13,15 +13,11 @@ from typing import TYPE_CHECKING
 import jaclang.pycore.unitree as uni
 from jaclang.pycore.bccache import (
     BytecodeCache,
-    CacheKey,
     get_bytecode_cache,
 )
-from jaclang.pycore.helpers import read_file_with_encoding
-from jaclang.pycore.jac_parser import JacParser
 from jaclang.pycore.passes import (
     Alert,
     DeclImplMatchPass,
-    JacAnnexPass,
     JacTTGPass,
     PyastGenPass,
     PyBytecodeGenPass,
@@ -29,7 +25,6 @@ from jaclang.pycore.passes import (
     SymTabBuildPass,
     Transform,
 )
-from jaclang.pycore.tsparser import TypeScriptParser
 
 if TYPE_CHECKING:
     from jaclang.compiler.type_system.type_evaluator import TypeEvaluator
@@ -88,6 +83,7 @@ def get_minimal_py_code_gen() -> list[type[Transform[uni.Module, uni.Module]]]:
     be compiled without triggering imports that could cause circular dependencies.
     """
     return [PyastGenPass, PyBytecodeGenPass]
+
 
 class JacProgram:
     """JacProgram holds the state of a compiled Jac program.
