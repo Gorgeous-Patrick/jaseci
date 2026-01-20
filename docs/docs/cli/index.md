@@ -693,28 +693,33 @@ jac jacpac [action] [path] [-o OUTPUT]
 
 A template directory should contain:
 
-- `jacpac.toml` - Template manifest with metadata and configuration
+- `jac.toml` - Project config with a `[jacpac]` section for metadata
 - Template files (`.jac`, `.md`, etc.) with `{{name}}` placeholders
 
-**Example `jacpac.toml`:**
+To make any Jac project packable as a template, simply add a `[jacpac]` section to your `jac.toml`. All other sections become the config for created projects.
+
+**Example `jac.toml` for a template:**
 
 ```toml
-[template]
-name = "mytemplate"
-description = "My custom project template"
-jaclang = "0.9.0"
-
-[[template.plugins]]
-name = "jac-client"
-version = "0.1.0"
-
-[config]
-[config.project]
+# Standard project config (becomes the created project's jac.toml)
+[project]
 name = "{{name}}"
 version = "0.1.0"
 entry-point = "main.jac"
 
-[options]
+[dependencies]
+
+# Jacpac metadata - used when packing, stripped from created projects
+[jacpac]
+name = "mytemplate"
+description = "My custom project template"
+jaclang = "0.9.0"
+
+[[jacpac.plugins]]
+name = "jac-client"
+version = "0.1.0"
+
+[jacpac.options]
 directories = [".jac"]
 gitignore_entries = ["*"]
 root_gitignore_entries = [".jac/", "*.jir"]

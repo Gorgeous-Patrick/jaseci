@@ -721,13 +721,13 @@ impl jacpac(action: str = "", path: str = "", output: str = "") -> int {
             output_path = Path(output);
         } else {
             # Default to <template-name>.jacpac in current directory
-            manifest_path = template_dir / "jacpac.toml";
-            if manifest_path.exists() {
+            jac_toml_path = template_dir / "jac.toml";
+            if jac_toml_path.exists() {
                 import tomllib;
-                with open(manifest_path, "rb") as f {
-                    manifest = tomllib.load(f);
+                with open(jac_toml_path, "rb") as f {
+                    jac_config = tomllib.load(f);
                 }
-                name = manifest.get("template", {}).get("name", template_dir.name);
+                name = jac_config.get("jacpac", {}).get("name", template_dir.name);
             } else {
                 name = template_dir.name;
             }
