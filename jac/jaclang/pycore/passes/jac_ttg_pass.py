@@ -53,7 +53,10 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
             return self.VisitTypeAST(from_node_type=from_node_type, edge_type=None)
         # return
         edge_type_name = filters[0].get_all_sub_nodes(uni.Name)[0].value
-        edge_type = self.resolve_to_archetype(visit_stmt, edge_type_name)
+        try:
+            edge_type = self.resolve_to_archetype(visit_stmt, edge_type_name)
+        except RuntimeError:
+            edge_type = None
         return self.VisitTypeAST(from_node_type=from_node_type, edge_type=edge_type)
 
     def _get_all_visits_for_a_walker(self, walker: uni.Archetype) -> list[VisitTypeAST]:
@@ -68,10 +71,12 @@ class JacTTGPass(Transform[uni.Module, uni.Module]):
             # TODO: SUPPORT SPECIFIC NODE EVENT SIGNATURES.
             if len(node_type_names) > 0:
                 node_type_name = node_type_names[0]
-
-                node_type = self.resolve_to_archetype(
-                    node_type_name, node_type_name.value
-                )
+                try:
+                    node_type = self.resolve_to_archetype(
+                        node_type_name, node_type_name.value
+                    )
+                except RuntimeError:
+                    node_type = None
             else:
                 node_type = None
             res += [
