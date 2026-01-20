@@ -3,15 +3,15 @@
 import io
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from pathlib import Path
 
 import pytest
 
 from jaclang import JacRuntime as Jac
 from jaclang import JacRuntimeInterface
-from jaclang.cli import cli
+from jaclang.cli.commands import execution  # type: ignore[attr-defined]
 from jaclang.pycore.program import JacProgram
-from jaclang.pycore.settings import settings
 
 
 @pytest.fixture
@@ -34,12 +34,9 @@ def fixture_abs_path() -> Callable[[str], str]:
 
 
 @pytest.fixture(autouse=True)
-def reset_jac_machine():
-    """Reset Jac machine before each test."""
-    Jac.reset_machine()
+def setup_fresh_jac(fresh_jac_context: Path) -> Generator[None, None, None]:
+    """Provide fresh Jac context for each test."""
     yield
-    # Optional cleanup after test
-    Jac.reset_machine()
 
 
 def test_import_basic_python(fixture_abs_path: Callable[[str], str]) -> None:
@@ -78,7 +75,7 @@ def test_jac_py_import() -> None:
     )
     captured_output = io.StringIO()
     sys.stdout = captured_output
-    cli.run(fixture_file)
+    execution.run(fixture_file)
     sys.stdout = sys.__stdout__
     stdout_value = captured_output.getvalue()
     assert "Hello World!" in stdout_value
@@ -97,7 +94,7 @@ def test_jac_py_import_auto() -> None:
     )
     captured_output = io.StringIO()
     sys.stdout = captured_output
-    cli.run(fixture_file)
+    execution.run(fixture_file)
     sys.stdout = sys.__stdout__
     stdout_value = captured_output.getvalue()
     assert "Hello World!" in stdout_value
@@ -138,7 +135,7 @@ def test_import_with_jacpath(fixture_abs_path: Callable[[str], str]) -> None:
             JacProgram(),
         )
         Jac.jac_import(module_name, base_path=__file__)
-        cli.run(jac_file_path)
+        execution.run(jac_file_path)
 
         # Reset stdout and get the output
         sys.stdout = sys.__stdout__
@@ -157,7 +154,7 @@ def test_importer_with_submodule_jac(fixture_abs_path: Callable[[str], str]) -> 
     """Test basic self loading."""
     captured_output = io.StringIO()
     sys.stdout = captured_output
-    cli.run(fixture_abs_path("pkg_import_main.jac"))
+    execution.run(fixture_abs_path("pkg_import_main.jac"))
     sys.stdout = sys.__stdout__
     stdout_value = captured_output.getvalue()
     assert "Helper function called" in stdout_value
@@ -167,7 +164,7 @@ def test_importer_with_submodule_jac(fixture_abs_path: Callable[[str], str]) -> 
 def test_importer_with_submodule_py(fixture_abs_path: Callable[[str], str]) -> None:
     captured_output = io.StringIO()
     sys.stdout = captured_output
-    cli.run(fixture_abs_path("pkg_import_main_py.jac"))
+    execution.run(fixture_abs_path("pkg_import_main_py.jac"))
     sys.stdout = sys.__stdout__
     stdout_value = captured_output.getvalue()
     assert "Helper function called" in stdout_value
@@ -271,52 +268,54 @@ def test_python_dash_m_jac_package(fixture_abs_path: Callable[[str], str]) -> No
         assert "package main works" in result.stdout
 
 
-def test_jac_import_py_files(fixture_abs_path: Callable[[str], str]) -> None:
-    """Test importing Python files using Jac import system."""
-    captured_output = io.StringIO()
-    sys.stdout = captured_output
-    os.environ["JAC_PYFILE_RAISE"] = "True"
-    settings.load_env_vars()
-    original_cwd = os.getcwd()
+def test_compiler_separates_internal_from_user_modules() -> None:
+    """Test that jaclang.* modules go to compiler's hub, not user's program hub.
+
+    This integration test runs a jac file and verifies that:
+    1. User modules end up in the user program's module hub
+    2. Internal jaclang modules end up in the compiler's internal hub
+    """
+    import tempfile
+
+    # Create a user jac file that uses jaclang runtime features
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as tmp_file:
+        tmp_file.write('with entry { "hello" :> print; }\n')
+        user_file = tmp_file.name
+
     try:
-        os.chdir(os.path.dirname(fixture_abs_path("jac_import_py_files.py")))
-        Jac.set_base_path(fixture_abs_path("jac_import_py_files.py"))
-        JacRuntimeInterface.attach_program(JacProgram())
-        Jac.jac_import(
-            "jac_import_py_files",
-            base_path=fixture_abs_path("jac_import_py_files.py"),
-            lng="py",
-        )
-        cli.run(fixture_abs_path("jac_import_py_files.py"))
+        # Capture output and run the file
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        execution.run(user_file)
         sys.stdout = sys.__stdout__
-        stdout_value = captured_output.getvalue()
-        assert "This is main test file for jac import of python files" in stdout_value
-        assert "python_module <jaclang.pycore.unitree.Module object" in str(
-            Jac.program.mod.hub
-        )
-        assert "jac_module <jaclang.pycore.unitree.Module object" in str(
-            Jac.program.mod.hub
-        )
-        os.environ["JAC_PYFILE_RAISE"] = "false"
-        settings.load_env_vars()
-        os.chdir(os.path.dirname(fixture_abs_path("jac_import_py_files.py")))
-        Jac.reset_machine()
-        Jac.set_base_path(fixture_abs_path("jac_import_py_files.py"))
-        JacRuntimeInterface.attach_program(JacProgram())
-        Jac.jac_import(
-            "jac_import_py_files",
-            base_path=fixture_abs_path("jac_import_py_files.py"),
-            lng="py",
-        )
-        cli.run(fixture_abs_path("jac_import_py_files.py"))
-        sys.stdout = sys.__stdout__
-        stdout_value = captured_output.getvalue()
-        assert "This is main test file for jac import of python files" in stdout_value
-        assert "python_module <jaclang.pycore.unitree.Module object" not in str(
-            Jac.program.mod.hub
-        )
-        assert "jac_module <jaclang.pycore.unitree.Module object" in str(
-            Jac.program.mod.hub
-        )
+
+        # Verify output worked
+        assert "hello" in captured_output.getvalue()
+
+        # Now verify the module hub separation
+        compiler = Jac.get_compiler()
+        user_program = Jac.get_program()
+        jaclang_root = compiler._get_jaclang_root()
+
+        # Get the hub paths
+        internal_hub_paths = list(compiler.internal_program.mod.hub.keys())
+        user_hub_paths = list(user_program.mod.hub.keys())
+
+        # User hub must be non-empty (the test file was compiled)
+        assert len(user_hub_paths) > 0, "User program hub should not be empty"
+        # Note: internal hub may be empty if jaclang modules came from disk cache
+
+        # All paths in compiler's internal hub must be jaclang paths
+        for path in internal_hub_paths:
+            assert path.startswith(jaclang_root), (
+                f"Non-jaclang path {path} found in compiler's internal hub"
+            )
+
+        # No jaclang paths should be in user's program hub
+        for path in user_hub_paths:
+            assert not path.startswith(jaclang_root), (
+                f"Jaclang internal path {path} found in user's program hub"
+            )
+
     finally:
-        os.chdir(original_cwd)
+        os.unlink(user_file)

@@ -19,9 +19,11 @@ from typing import (
     cast,
 )
 
+from jaclang.pycore.bccache import discover_base_file
 from jaclang.pycore.codeinfo import CodeGenTarget, CodeLocInfo
 from jaclang.pycore.constant import (
     DELIM_MAP,
+    CodeContext,
     EdgeDir,
     SymbolAccess,
     SymbolType,
@@ -36,7 +38,7 @@ from jaclang.pycore.constant import (
     JacSemTokenType as SemTokType,
 )
 from jaclang.pycore.constant import Tokens as Tok
-from jaclang.pycore.module_resolver import resolve_relative_path
+from jaclang.pycore.modresolver import resolve_relative_path
 
 if TYPE_CHECKING:
     from jaclang.compiler.type_system.types import TypeBase
@@ -216,6 +218,31 @@ class UniNode:
         else:
             raise ValueError(f"Parent of type {typ} not found from {type(self)}.")
 
+    def in_client_context(self) -> bool:
+        """Check if this node is in a client-side context.
+
+        This covers:
+        - Nodes inside an explicit cl {} block in a .jac file
+        - Nodes inside a function marked with CLIENT context in .cl.jac files
+        - Overridden by sv {} blocks (server takes precedence)
+
+        Uses single traversal for efficiency since this is called frequently.
+        """
+        node: UniNode | None = self.parent
+        while node is not None:
+            # ServerBlock overrides - explicit server context
+            if isinstance(node, ServerBlock):
+                return False
+            # ClientBlock marks client context
+            if isinstance(node, ClientBlock):
+                return True
+            # Check for client-marked Ability (.cl.jac files) - stop at first Ability
+            if isinstance(node, Ability):
+                context = getattr(node, "code_context", CodeContext.SERVER)
+                return context == CodeContext.CLIENT
+            node = node.parent
+        return False
+
     def to_dict(self) -> dict[str, str]:
         """Return dict representation of node."""
         ret = {
@@ -350,6 +377,7 @@ class UniScopeNode(UniNode):
         self.parent_scope = parent_scope
         self.kid_scope: list[UniScopeNode] = []
         self.names_in_scope: dict[str, Symbol] = {}
+        self.names_in_scope_overload: dict[str, list[Symbol]] = {}
         self.inherited_scope: list[InheritedSymbolTable] = []
 
     def get_type(self) -> SymbolType:
@@ -418,18 +446,24 @@ class UniScopeNode(UniNode):
             if single and node.sym_name in self.names_in_scope
             else None
         )
+
+        symbol = node.name_spec.create_symbol(
+            access=(
+                access_spec
+                if isinstance(access_spec, SymbolAccess)
+                else access_spec.access_type
+                if access_spec
+                else SymbolAccess.PUBLIC
+            ),
+            parent_tab=self,
+            imported=imported,
+        )
+
+        if node.sym_name in self.names_in_scope:
+            self.names_in_scope_overload.setdefault(node.sym_name, []).append(symbol)
+
         if force_overwrite or node.sym_name not in self.names_in_scope:
-            self.names_in_scope[node.sym_name] = node.name_spec.create_symbol(
-                access=(
-                    access_spec
-                    if isinstance(access_spec, SymbolAccess)
-                    else access_spec.access_type
-                    if access_spec
-                    else SymbolAccess.PUBLIC
-                ),
-                parent_tab=self,
-                imported=imported,
-            )
+            self.names_in_scope[node.sym_name] = symbol
         else:
             self.names_in_scope[node.sym_name].add_defn(node.name_spec)
         node.name_spec.sym = self.names_in_scope[node.sym_name]
@@ -649,21 +683,21 @@ class AstAccessNode(UniNode):
 T = TypeVar("T", bound=UniNode)
 
 
-class ClientFacingNode(UniNode):
-    """Base class for nodes that can be marked as client-facing declarations."""
+class ContextAwareNode(UniNode):
+    """Base class for nodes that can be marked with execution context (client/server)."""
 
-    def __init__(self, is_client_decl: bool = False) -> None:
-        self.is_client_decl = is_client_decl
+    def __init__(self, code_context: CodeContext = CodeContext.SERVER) -> None:
+        """Initialize with code context.
 
-    @property
-    def in_client_block(self) -> bool:
-        """Return True when this node is nested inside a client block."""
-        return self.find_parent_of_type(ClientBlock) is not None
+        Args:
+            code_context: Code execution context (SERVER or CLIENT), defaults to SERVER
+        """
+        self.code_context = code_context
 
-    def _source_client_token(self) -> Token | None:
-        """Return the original client token if present on this node."""
+    def _source_context_token(self) -> Token | None:
+        """Return the original context token (cl or sv) if present on this node."""
         for kid in self.kid:
-            if isinstance(kid, Token) and kid.name == Tok.KW_CLIENT:
+            if isinstance(kid, Token) and kid.name in (Tok.KW_CLIENT, Tok.KW_SERVER):
                 return kid
         return None
 
@@ -998,38 +1032,17 @@ class Module(AstDocNode, UniScopeNode):
 
     @property
     def annexable_by(self) -> str | None:
-        """Get annexable by."""
-        if not self.stub_only and (
-            self.loc.mod_path.endswith(".impl.jac")
-            or self.loc.mod_path.endswith(".test.jac")
-            or self.loc.mod_path.endswith(".cl.jac")
-        ):
-            head_mod_name = self.name.split(".")[0]
-            potential_path = os.path.join(
-                os.path.dirname(self.loc.mod_path),
-                f"{head_mod_name}.jac",
-            )
-            if os.path.exists(potential_path) and potential_path != self.loc.mod_path:
-                return potential_path
-            annex_dir = os.path.split(os.path.dirname(self.loc.mod_path))[-1]
-            if (
-                annex_dir.endswith(".impl")
-                or annex_dir.endswith(".test")
-                or annex_dir.endswith(".cl")
-            ):
-                head_mod_name = os.path.split(os.path.dirname(self.loc.mod_path))[
-                    -1
-                ].split(".")[0]
-                potential_path = os.path.join(
-                    os.path.dirname(os.path.dirname(self.loc.mod_path)),
-                    f"{head_mod_name}.jac",
-                )
-                if (
-                    os.path.exists(potential_path)
-                    and potential_path != self.loc.mod_path
-                ):
-                    return potential_path
-        return None
+        """Get the base module path that this annex file belongs to.
+
+        Uses discover_base_file to find the base .jac file for annex files
+        (.impl.jac, .test.jac). Handles all discovery scenarios:
+        - Same directory: foo.impl.jac -> foo.jac
+        - Module-specific folder: foo.impl/bar.impl.jac -> foo.jac
+        - Shared folder: impl/foo.impl.jac -> foo.jac
+        """
+        if self.stub_only:
+            return None
+        return discover_base_file(self.loc.mod_path)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1105,7 +1118,7 @@ class ProgramModule(UniNode):
         self.hub: dict[str, Module] = {self.loc.mod_path: main_mod} if main_mod else {}
 
 
-class GlobalVars(ClientFacingNode, ElementStmt, AstAccessNode):
+class GlobalVars(ContextAwareNode, ElementStmt, AstAccessNode):
     """GlobalVars node type for Jac Ast."""
 
     def __init__(
@@ -1121,7 +1134,7 @@ class GlobalVars(ClientFacingNode, ElementStmt, AstAccessNode):
         UniNode.__init__(self, kid=kid)
         AstAccessNode.__init__(self, access=access)
         AstDocNode.__init__(self, doc=doc)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1133,8 +1146,10 @@ class GlobalVars(ClientFacingNode, ElementStmt, AstAccessNode):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
-        client_tok = self._source_client_token()
-        if self.is_client_decl and (client_tok is not None or not self.in_client_block):
+        client_tok = self._source_context_token()
+        if self.code_context == CodeContext.CLIENT and (
+            client_tok is not None or not self.in_client_context()
+        ):
             new_kid.append(client_tok if client_tok else self.gen_token(Tok.KW_CLIENT))
         new_kid.append(self.gen_token(Tok.KW_GLOBAL))
         if self.access:
@@ -1147,7 +1162,7 @@ class GlobalVars(ClientFacingNode, ElementStmt, AstAccessNode):
         return res
 
 
-class Test(ClientFacingNode, AstSymbolNode, ElementStmt, UniScopeNode):
+class Test(ContextAwareNode, AstSymbolNode, ElementStmt, UniScopeNode):
     """Test node type for Jac Ast."""
 
     TEST_COUNT = 0
@@ -1193,7 +1208,7 @@ class Test(ClientFacingNode, AstSymbolNode, ElementStmt, UniScopeNode):
         )
         AstDocNode.__init__(self, doc=doc)
         UniScopeNode.__init__(self, name=self.sym_name)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1205,8 +1220,10 @@ class Test(ClientFacingNode, AstSymbolNode, ElementStmt, UniScopeNode):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
-        client_tok = self._source_client_token()
-        if self.is_client_decl and (client_tok is not None or not self.in_client_block):
+        client_tok = self._source_context_token()
+        if self.code_context == CodeContext.CLIENT and (
+            client_tok is not None or not self.in_client_context()
+        ):
             new_kid.append(client_tok if client_tok else self.gen_token(Tok.KW_CLIENT))
         new_kid.append(self.gen_token(Tok.KW_TEST))
         new_kid.append(self.name)
@@ -1218,7 +1235,7 @@ class Test(ClientFacingNode, AstSymbolNode, ElementStmt, UniScopeNode):
         return res
 
 
-class ModuleCode(ClientFacingNode, ElementStmt, ArchBlockStmt, EnumBlockStmt):
+class ModuleCode(ContextAwareNode, ElementStmt, ArchBlockStmt, EnumBlockStmt):
     """ModuleCode node type for Jac Ast."""
 
     def __init__(
@@ -1234,7 +1251,7 @@ class ModuleCode(ClientFacingNode, ElementStmt, ArchBlockStmt, EnumBlockStmt):
         UniNode.__init__(self, kid=kid)
         AstDocNode.__init__(self, doc=doc)
         EnumBlockStmt.__init__(self, is_enum_stmt=is_enum_stmt)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1246,8 +1263,10 @@ class ModuleCode(ClientFacingNode, ElementStmt, ArchBlockStmt, EnumBlockStmt):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
-        client_tok = self._source_client_token()
-        if self.is_client_decl and (client_tok is not None or not self.in_client_block):
+        client_tok = self._source_context_token()
+        if self.code_context == CodeContext.CLIENT and (
+            client_tok is not None or not self.in_client_context()
+        ):
             new_kid.append(client_tok if client_tok else self.gen_token(Tok.KW_CLIENT))
         new_kid.append(self.gen_token(Tok.KW_WITH))
         new_kid.append(self.gen_token(Tok.KW_ENTRY))
@@ -1269,8 +1288,10 @@ class ClientBlock(ElementStmt):
         self,
         body: Sequence[ElementStmt],
         kid: Sequence[UniNode],
+        implicit: bool = False,
     ) -> None:
         self.body = list(body)
+        self.implicit = implicit
         UniNode.__init__(self, kid=kid)
 
     def normalize(self, deep: bool = False) -> bool:
@@ -1279,11 +1300,65 @@ class ClientBlock(ElementStmt):
             for stmt in self.body:
                 res = res and stmt.normalize(deep)
         new_kid: list[UniNode] = []
-        new_kid.append(self.gen_token(Tok.KW_CLIENT))
-        new_kid.append(self.gen_token(Tok.LBRACE))
-        for stmt in self.body:
-            new_kid.append(stmt)
-        new_kid.append(self.gen_token(Tok.RBRACE))
+        parent_mod = self.find_parent_of_type(Module)
+        is_implicit_top_level_cl_module = (
+            self.implicit
+            and parent_mod is not None
+            and parent_mod.loc.mod_path.endswith(".cl.jac")
+            and parent_mod.body == [self]
+        )
+        if is_implicit_top_level_cl_module:
+            if self.body:
+                new_kid.extend(self.body)
+            else:
+                new_kid.append(EmptyToken())
+        else:
+            new_kid.append(self.gen_token(Tok.KW_CLIENT))
+            new_kid.append(self.gen_token(Tok.LBRACE))
+            for stmt in self.body:
+                new_kid.append(stmt)
+            new_kid.append(self.gen_token(Tok.RBRACE))
+        self.set_kids(nodes=new_kid)
+        return res
+
+
+class ServerBlock(ElementStmt):
+    """ServerBlock node type for sv { ... } blocks in Jac Ast."""
+
+    def __init__(
+        self,
+        body: Sequence[ElementStmt],
+        kid: Sequence[UniNode],
+        implicit: bool = False,
+    ) -> None:
+        self.body = list(body)
+        self.implicit = implicit
+        UniNode.__init__(self, kid=kid)
+
+    def normalize(self, deep: bool = False) -> bool:
+        res = True
+        if deep:
+            for stmt in self.body:
+                res = res and stmt.normalize(deep)
+        new_kid: list[UniNode] = []
+        parent_mod = self.find_parent_of_type(Module)
+        is_implicit_top_level_sv_module = (
+            self.implicit
+            and parent_mod is not None
+            and parent_mod.loc.mod_path.endswith(".sv.jac")
+            and parent_mod.body == [self]
+        )
+        if is_implicit_top_level_sv_module:
+            if self.body:
+                new_kid.extend(self.body)
+            else:
+                new_kid.append(EmptyToken())
+        else:
+            new_kid.append(self.gen_token(Tok.KW_SERVER))
+            new_kid.append(self.gen_token(Tok.LBRACE))
+            for stmt in self.body:
+                new_kid.append(stmt)
+            new_kid.append(self.gen_token(Tok.RBRACE))
         self.set_kids(nodes=new_kid)
         return res
 
@@ -1317,7 +1392,7 @@ class PyInlineCode(ElementStmt, ArchBlockStmt, EnumBlockStmt, CodeBlockStmt):
         return res
 
 
-class Import(ClientFacingNode, ElementStmt, CodeBlockStmt):
+class Import(ContextAwareNode, ElementStmt, CodeBlockStmt):
     """Import node type for Jac Ast."""
 
     def __init__(
@@ -1335,7 +1410,7 @@ class Import(ClientFacingNode, ElementStmt, CodeBlockStmt):
         UniNode.__init__(self, kid=kid)
         AstDocNode.__init__(self, doc=doc)
         CodeBlockStmt.__init__(self)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     @property
     def is_py(self) -> bool:
@@ -1359,22 +1434,29 @@ class Import(ClientFacingNode, ElementStmt, CodeBlockStmt):
     def __jac_detected(self) -> bool:
         """Check if import is jac."""
         if self.from_loc:
-            if self.from_loc.resolve_relative_path().endswith(".jac"):
+            if self.from_loc.resolve_relative_path().endswith((".jac", ".cl.jac")):
                 return True
             if os.path.isdir(self.from_loc.resolve_relative_path()):
                 if os.path.exists(
                     os.path.join(self.from_loc.resolve_relative_path(), "__init__.jac")
                 ):
                     return True
+                if os.path.exists(
+                    os.path.join(
+                        self.from_loc.resolve_relative_path(), "__init__.cl.jac"
+                    )
+                ):
+                    return True
                 for i in self.items:
                     if isinstance(
                         i, ModuleItem
                     ) and self.from_loc.resolve_relative_path(i.name.value).endswith(
-                        ".jac"
+                        (".jac", ".cl.jac")
                     ):
                         return True
         return any(
-            isinstance(i, ModulePath) and i.resolve_relative_path().endswith(".jac")
+            isinstance(i, ModulePath)
+            and i.resolve_relative_path().endswith((".jac", ".cl.jac"))
             for i in self.items
         )
 
@@ -1389,8 +1471,10 @@ class Import(ClientFacingNode, ElementStmt, CodeBlockStmt):
         new_kid: list[UniNode] = []
         if self.doc:
             new_kid.append(self.doc)
-        client_tok = self._source_client_token()
-        if self.is_client_decl and (client_tok is not None or not self.in_client_block):
+        client_tok = self._source_context_token()
+        if self.code_context == CodeContext.CLIENT and (
+            client_tok is not None or not self.in_client_context()
+        ):
             new_kid.append(client_tok if client_tok else self.gen_token(Tok.KW_CLIENT))
         if self.is_absorb:
             new_kid.append(self.gen_token(Tok.KW_INCLUDE))
@@ -1459,10 +1543,13 @@ class ModulePath(UniNode):
             runtime_dir = os.path.dirname(jaclang.runtimelib.__file__)
             # Handle both .jac and .js file extensions
             if not (target.endswith(".jac") or target.endswith(".js")):
-                # Try .jac first, then .js
+                # Try .jac first, then .cl.jac, then .js
                 jac_path = os.path.join(runtime_dir, target + ".jac")
                 if os.path.exists(jac_path):
                     return jac_path
+                cl_jac_path = os.path.join(runtime_dir, target + ".cl.jac")
+                if os.path.exists(cl_jac_path):
+                    return cl_jac_path
                 js_path = os.path.join(runtime_dir, target + ".js")
                 if os.path.exists(js_path):
                     return js_path
@@ -1556,7 +1643,7 @@ class ModuleItem(UniNode):
 
 
 class Archetype(
-    ClientFacingNode,
+    ContextAwareNode,
     ArchSpec,
     AstAccessNode,
     ArchBlockStmt,
@@ -1598,7 +1685,7 @@ class Archetype(
         ArchSpec.__init__(self, decorators=decorators)
         UniScopeNode.__init__(self, name=self.sym_name)
         CodeBlockStmt.__init__(self)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     def _get_impl_resolved_body(self) -> list:
         return (
@@ -1661,8 +1748,10 @@ class Archetype(
             # make the docstring a standalone statement so it doesn't merge with code.
             if not isinstance(self.parent, (Module, Archetype, Enum)):
                 new_kid.append(self.gen_token(Tok.SEMI))
-        client_tok = self._source_client_token()
-        if self.is_client_decl and (client_tok is not None or not self.in_client_block):
+        client_tok = self._source_context_token()
+        if self.code_context == CodeContext.CLIENT and (
+            client_tok is not None or not self.in_client_context()
+        ):
             new_kid.append(client_tok if client_tok else self.gen_token(Tok.KW_CLIENT))
         if self.decorators:
             new_kid.append(self.gen_token(Tok.DECOR_OP))
@@ -1699,7 +1788,7 @@ class Archetype(
 
 
 class ImplDef(
-    ClientFacingNode,
+    ContextAwareNode,
     CodeBlockStmt,
     ElementStmt,
     ArchBlockStmt,
@@ -1733,7 +1822,7 @@ class ImplDef(
         )
         CodeBlockStmt.__init__(self)
         UniScopeNode.__init__(self, name=self.sym_name)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     def create_impl_name_node(self) -> Name:
         ret = Name(
@@ -1864,7 +1953,7 @@ class SemDef(ElementStmt, AstSymbolNode, UniScopeNode):
 
 
 class Enum(
-    ClientFacingNode,
+    ContextAwareNode,
     ArchSpec,
     AstAccessNode,
     AstImplNeedingNode,
@@ -1897,7 +1986,7 @@ class Enum(
         AstDocNode.__init__(self, doc=doc)
         ArchSpec.__init__(self, decorators=decorators)
         UniScopeNode.__init__(self, name=self.sym_name)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     def normalize(self, deep: bool = False) -> bool:
         res = True
@@ -1925,8 +2014,10 @@ class Enum(
                     new_kid.append(self.gen_token(Tok.DECOR_OP))
         if self.doc:
             new_kid.append(self.doc)
-        client_tok = self._source_client_token()
-        if self.is_client_decl and (client_tok is not None or not self.in_client_block):
+        client_tok = self._source_context_token()
+        if self.code_context == CodeContext.CLIENT and (
+            client_tok is not None or not self.in_client_context()
+        ):
             new_kid.append(client_tok if client_tok else self.gen_token(Tok.KW_CLIENT))
         new_kid.append(self.gen_token(Tok.KW_ENUM))
         if self.access:
@@ -1958,7 +2049,7 @@ class Enum(
 
 
 class Ability(
-    ClientFacingNode,
+    ContextAwareNode,
     AstAccessNode,
     ElementStmt,
     AstAsyncNode,
@@ -2040,7 +2131,7 @@ class Ability(
         AstAsyncNode.__init__(self, is_async=is_async)
         UniScopeNode.__init__(self, name=self.sym_name)
         CodeBlockStmt.__init__(self)
-        ClientFacingNode.__init__(self)
+        ContextAwareNode.__init__(self)
 
     @property
     def is_method(self) -> bool:
@@ -2135,8 +2226,10 @@ class Ability(
             # make the docstring a standalone statement so it doesn't merge with code.
             if not isinstance(self.parent, (Module, Archetype, Enum)):
                 new_kid.append(self.gen_token(Tok.SEMI))
-        client_tok = self._source_client_token()
-        if self.is_client_decl and (client_tok is not None or not self.in_client_block):
+        client_tok = self._source_context_token()
+        if self.code_context == CodeContext.CLIENT and (
+            client_tok is not None or not self.in_client_context()
+        ):
             new_kid.append(client_tok if client_tok else self.gen_token(Tok.KW_CLIENT))
         if self.decorators:
             new_kid.append(self.gen_token(Tok.DECOR_OP))
@@ -5177,6 +5270,8 @@ class SpecialVarRef(Name):
     def py_resolve_name(self) -> str:
         if self.orig.name == Tok.KW_SELF:
             return "self"
+        if self.orig.name == Tok.KW_PROPS:
+            return "props"
         elif self.orig.name == Tok.KW_SUPER:
             return "super"
         elif self.orig.name == Tok.KW_ROOT:

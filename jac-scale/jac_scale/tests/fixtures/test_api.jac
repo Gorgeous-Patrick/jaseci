@@ -72,3 +72,38 @@ walker GetTask {
         report here ;
     }
 }
+
+walker : priv PrivateCreateTask {
+    has title: str;
+    has priority: int = 1;
+
+    can create with `root entry {
+        new_task = here ++> Task(title=self.title, priority=self.priority);
+        report {"message": "Private task created", "task": new_task} ;
+    }
+}
+
+walker : pub PublicInfo {
+    can get_info with `root entry {
+        report {"message": "This is a public endpoint", "auth_required": False} ;
+    }
+}
+
+# Async Walker Test
+import asyncio;
+
+"""Async walker that creates a task with simulated async delay."""
+async walker AsyncCreateTask {
+    has title: str;
+    has delay_ms: int = 100;
+
+    async can create with `root entry {
+        report {"status": "started", "title": self.title};
+        # Simulate async operation (e.g., external API call, DB operation)
+        delay_seconds = float(self.delay_ms) / 1000.0;
+        await asyncio.sleep(delay_seconds);
+        report {"status": "after_async_wait"};
+        new_task = here ++> Task(title=self.title, priority=1);
+        report {"status": "completed", "task": new_task};
+    }
+}

@@ -5,14 +5,20 @@ from __future__ import annotations
 import fnmatch
 import html
 import inspect
+import json
 import os
 import sys
 import types
 from collections import OrderedDict
-from collections.abc import Callable, Coroutine, Mapping, Sequence
-from concurrent.futures import Future
-from dataclasses import MISSING, asdict, dataclass, field
+from collections.abc import Callable, Coroutine, Iterator, Mapping, Sequence
+
+# Direct imports from runtimelib (no longer lazy - these are now pure Python)
+from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import contextmanager, suppress
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from functools import wraps
+from http.server import HTTPServer
 from inspect import getfile
 from logging import getLogger
 from pathlib import Path
@@ -28,161 +34,39 @@ from typing import (
 )
 from uuid import UUID
 
-from jaclang.pycore import unitree
-from jaclang.pycore.constant import Constants as Con
+from jaclang.pycore.archetype import (
+    GenericEdge,
+    ObjectSpatialDestination,
+    ObjectSpatialFunction,
+    ObjectSpatialPath,
+    Root,
+)
 from jaclang.pycore.constant import EdgeDir, colors
-from jaclang.pycore.module_resolver import infer_language
+from jaclang.pycore.constructs import (
+    AccessLevel,
+    Anchor,
+    Archetype,
+    EdgeAnchor,
+    EdgeArchetype,
+    NodeAnchor,
+    NodeArchetype,
+    WalkerAnchor,
+    WalkerArchetype,
+)
+from jaclang.pycore.modresolver import infer_language
+from jaclang.pycore.mtp import MTIR, MTRuntime
 from jaclang.vendor import pluggy
 
-# Flag to track if lazy imports have been initialized
-_lazy_imports_initialized = False
-
-# Type hints for lazy imports - these are only for static type checking
 if TYPE_CHECKING:
-    from concurrent.futures import ThreadPoolExecutor
     from http.server import BaseHTTPRequestHandler
 
+    from jaclang.cli.console import JacConsole as ConsoleImpl
+    from jaclang.pycore.compiler import JacCompiler
     from jaclang.pycore.program import JacProgram
-    from jaclang.runtimelib.archetype import (
-        ObjectSpatialDestination,
-        ObjectSpatialFunction,
-        ObjectSpatialPath,
-    )
     from jaclang.runtimelib.client_bundle import ClientBundle, ClientBundleBuilder
-    from jaclang.runtimelib.constructs import (
-        AccessLevel,
-        Anchor,
-        Archetype,
-        EdgeAnchor,
-        EdgeArchetype,
-        GenericEdge,
-        NodeAnchor,
-        NodeArchetype,
-        Root,
-        WalkerAnchor,
-        WalkerArchetype,
-    )
-    from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
-    from jaclang.runtimelib.mtp import MTIR, MTRuntime
+    from jaclang.runtimelib.context import ExecutionContext
+    from jaclang.runtimelib.server import JacAPIServer as JacServer
     from jaclang.runtimelib.server import ModuleIntrospector
-else:
-    # Module-level placeholders for lazy imports (populated by _init_lazy_imports)
-    AccessLevel = Anchor = Archetype = EdgeAnchor = EdgeArchetype = GenericEdge = None  # type: ignore
-    NodeAnchor = NodeArchetype = Root = WalkerAnchor = WalkerArchetype = None  # type: ignore
-    Memory = Shelf = ShelfStorage = MTRuntime = MTIR = None  # type: ignore
-    _GenericEdge = _Root = ObjectSpatialDestination = ObjectSpatialFunction = (
-        ObjectSpatialPath
-    ) = None  # type: ignore
-
-
-def _init_lazy_imports() -> None:
-    """Initialize lazy imports on first access.
-
-    This function imports the .jac modules and adds them to the module namespace.
-    It's called lazily when runtime functionality is first accessed.
-    """
-    global _lazy_imports_initialized
-    global AccessLevel, Anchor, Archetype, EdgeAnchor, EdgeArchetype, GenericEdge
-    global NodeAnchor, NodeArchetype, Root, WalkerAnchor, WalkerArchetype
-    global Memory, Shelf, ShelfStorage, MTRuntime, MTIR
-    global \
-        _GenericEdge, \
-        _Root, \
-        ObjectSpatialDestination, \
-        ObjectSpatialFunction, \
-        ObjectSpatialPath
-
-    if _lazy_imports_initialized:
-        return
-
-    # Check if we're being called during module initialization (circular import)
-    import sys
-
-    if "jaclang.runtimelib.constructs" in sys.modules:
-        mod = sys.modules["jaclang.runtimelib.constructs"]
-        if not hasattr(mod, "AccessLevel"):
-            # Module is being loaded, skip initialization to avoid circular import
-            return
-
-    try:
-        from jaclang.runtimelib.archetype import (
-            GenericEdge as _GenericEdge,
-        )
-        from jaclang.runtimelib.archetype import (
-            ObjectSpatialDestination,
-            ObjectSpatialFunction,
-            ObjectSpatialPath,
-        )
-        from jaclang.runtimelib.archetype import (
-            Root as _Root,
-        )
-        from jaclang.runtimelib.constructs import (
-            AccessLevel,
-            Anchor,
-            Archetype,
-            EdgeAnchor,
-            EdgeArchetype,
-            GenericEdge,
-            NodeAnchor,
-            NodeArchetype,
-            Root,
-            WalkerAnchor,
-            WalkerArchetype,
-        )
-        from jaclang.runtimelib.memory import Memory, Shelf, ShelfStorage
-        from jaclang.runtimelib.mtp import MTIR, MTRuntime
-
-        _lazy_imports_initialized = True
-    except ImportError:
-        # If we get an import error during circular import, just skip
-        # The imports will be retried later
-        pass
-
-
-class _LazyProgramDescriptor:
-    """Descriptor for lazy JacProgram instantiation.
-
-    This delays importing the compiler module until the program is actually needed,
-    allowing more modules to be converted to Jac (since they won't be in the
-    eager import chain).
-    """
-
-    _instance: JacProgram | None = None
-
-    def __get__(self, obj: object, objtype: type | None = None) -> JacProgram:
-        """Lazily create and return JacProgram instance."""
-        if _LazyProgramDescriptor._instance is None:
-            from jaclang.pycore.program import JacProgram
-
-            _LazyProgramDescriptor._instance = JacProgram()
-        return _LazyProgramDescriptor._instance
-
-    def __set__(self, obj: object, value: JacProgram) -> None:
-        """Set the JacProgram instance."""
-        _LazyProgramDescriptor._instance = value
-
-
-class _LazyThreadPoolDescriptor:
-    """Descriptor for lazy ThreadPoolExecutor instantiation.
-
-    This delays importing concurrent.futures until the pool is actually needed,
-    allowing more modules to be converted to Jac.
-    """
-
-    _instance: ThreadPoolExecutor | None = None
-
-    def __get__(self, obj: object, objtype: type | None = None) -> ThreadPoolExecutor:
-        """Lazily create and return ThreadPoolExecutor instance."""
-        if _LazyThreadPoolDescriptor._instance is None:
-            from concurrent.futures import ThreadPoolExecutor
-
-            _LazyThreadPoolDescriptor._instance = ThreadPoolExecutor()
-        return _LazyThreadPoolDescriptor._instance
-
-    def __set__(self, obj: object, value: ThreadPoolExecutor) -> None:
-        """Set the ThreadPoolExecutor instance."""
-        _LazyThreadPoolDescriptor._instance = value
-
 
 plugin_manager = pluggy.PluginManager("jac")
 hookspec = pluggy.HookspecMarker("jac")
@@ -197,59 +81,8 @@ JsonValue: TypeAlias = (
 StatusCode: TypeAlias = Literal[200, 201, 400, 401, 404, 500, 503]
 
 
-class ExecutionContext:
-    """Execution Context."""
-
-    def __init__(
-        self,
-        session: str | None = None,
-        root: str | None = None,
-    ) -> None:
-        """Initialize JacRuntime."""
-        _init_lazy_imports()  # Ensure lazy imports are loaded
-        self.mem: Memory = ShelfStorage(session)
-        self.reports: list[Any] = []
-        self.custom: Any = MISSING
-        system_root = self.mem.find_by_id(UUID(Con.SUPER_ROOT_UUID))
-        if not isinstance(system_root, NodeAnchor):
-            system_root = cast(NodeAnchor, Root().__jac__)
-            system_root.id = UUID(Con.SUPER_ROOT_UUID)
-            self.mem.set(system_root)
-        self.system_root: NodeAnchor = system_root
-        self.entry_node = self.root_state = (
-            self._get_anchor(root) if root else self.system_root
-        )
-
-    def _get_anchor(self, anchor_id: str) -> NodeAnchor:
-        """Get anchor by ID or raise error."""
-        anchor = self.mem.find_by_id(UUID(anchor_id))
-        if not isinstance(anchor, NodeAnchor):
-            raise ValueError(f"Invalid anchor id {anchor_id} !")
-        return anchor
-
-    def set_entry_node(self, entry_node: str | None) -> None:
-        """Override entry node."""
-        self.entry_node = (
-            self._get_anchor(entry_node) if entry_node else self.root_state
-        )
-
-    def close(self) -> None:
-        """Close current ExecutionContext."""
-        self.mem.close()
-
-    def get_root(self) -> Root:
-        """Get current root."""
-        return cast(Root, self.root_state.archetype)
-
-
 class JacAccessValidation:
     """Jac Access Validation Specs."""
-
-    @staticmethod
-    def elevate_root() -> None:
-        """Elevate context root to system_root."""
-        jctx = JacRuntimeInterface.get_context()
-        jctx.root_state = jctx.system_root
 
     @staticmethod
     def allow_root(
@@ -261,11 +94,24 @@ class JacAccessValidation:
         if level is None:
             level = AccessLevel.READ
         level = AccessLevel.cast(level)
-        access = archetype.__jac__.access.roots
 
+        # Get the anchor and ensure we're modifying the one in memory
+        anchor = archetype.__jac__
+        jctx = JacRuntimeInterface.get_context()
+
+        # If there's already an anchor in memory for this ID, use that one
+        # This ensures we don't have stale anchor objects with different access
+        mem_anchor = jctx.mem.get(anchor.id)
+        if mem_anchor and mem_anchor is not anchor:
+            # Use the memory anchor's access, but update it
+            anchor = mem_anchor
+
+        access = anchor.access.roots
         _root_id = str(root_id)
         if level != access.anchors.get(_root_id, AccessLevel.NO_ACCESS):
             access.anchors[_root_id] = level
+            # Ensure the modified anchor is in memory so it gets synced
+            jctx.mem.put(anchor)
 
     @staticmethod
     def disallow_root(
@@ -277,36 +123,69 @@ class JacAccessValidation:
         if level is None:
             level = AccessLevel.READ
         level = AccessLevel.cast(level)
-        access = archetype.__jac__.access.roots
 
+        # Get the anchor and ensure we're modifying the one in memory
+        anchor = archetype.__jac__
+        jctx = JacRuntimeInterface.get_context()
+
+        # If there's already an anchor in memory for this ID, use that one
+        mem_anchor = jctx.mem.get(anchor.id)
+        if mem_anchor and mem_anchor is not anchor:
+            anchor = mem_anchor
+
+        access = anchor.access.roots
         access.anchors.pop(str(root_id), None)
+        # Ensure the modified anchor is in memory so it gets synced
+        jctx.mem.put(anchor)
 
     @staticmethod
     def perm_grant(
         archetype: Archetype, level: AccessLevel | int | str | None = None
     ) -> None:
         """Allow everyone to access current Archetype."""
-        anchor = archetype.__jac__
         if level is None:
             level = AccessLevel.READ
         level = AccessLevel.cast(level)
+
+        # Get the anchor and ensure we're modifying the one in memory
+        anchor = archetype.__jac__
+        jctx = JacRuntimeInterface.get_context()
+
+        # If there's already an anchor in memory for this ID, use that one
+        # This ensures we don't have stale anchor objects with different access
+        mem_anchor = jctx.mem.get(anchor.id)
+        if mem_anchor and mem_anchor is not anchor:
+            anchor = mem_anchor
+
         if level != anchor.access.all:
             anchor.access.all = level
+            # Ensure the modified anchor is in memory so it gets synced
+            jctx.mem.put(anchor)
 
     @staticmethod
     def perm_revoke(archetype: Archetype) -> None:
         """Disallow others to access current Archetype."""
+        # Get the anchor and ensure we're modifying the one in memory
         anchor = archetype.__jac__
+        jctx = JacRuntimeInterface.get_context()
+
+        # If there's already an anchor in memory for this ID, use that one
+        # This ensures we don't have stale anchor objects with different access
+        mem_anchor = jctx.mem.get(anchor.id)
+        if mem_anchor and mem_anchor is not anchor:
+            anchor = mem_anchor
+
         if anchor.access.all > AccessLevel.NO_ACCESS:
             anchor.access.all = AccessLevel.NO_ACCESS
+            # Ensure the modified anchor is in memory so it gets synced
+            jctx.mem.put(anchor)
 
     @staticmethod
     def check_read_access(to: Anchor) -> bool:
         """Read Access Validation."""
-        if not (
-            access_level := JacRuntimeInterface.check_access_level(to)
-            > AccessLevel.NO_ACCESS
-        ):
+        raw_level = JacRuntimeInterface.check_access_level(to)
+        access_level = raw_level > AccessLevel.NO_ACCESS
+        if not access_level:
             logger.info(
                 "Current root doesn't have read access to "
                 f"{to.__class__.__name__} {to.archetype.__class__.__name__}[{to.id}]"
@@ -347,10 +226,10 @@ class JacAccessValidation:
 
         jctx = JacRuntimeInterface.get_context()
 
-        jroot = jctx.root_state
+        jroot = jctx.user_root
 
-        # if current root is system_root
-        # if current root id is equal to target anchor's root id
+        # if current root is system_root (superuser)
+        # if current root id is equal to target anchor's root id (ownership)
         # if current root is the target anchor
         if jroot == jctx.system_root or jroot.id == to.root or jroot == to:
             return AccessLevel.WRITE
@@ -369,7 +248,8 @@ class JacAccessValidation:
 
         # if target anchor's root have set allowed roots
         # if current root is allowed to the whole graph of target anchor's root
-        if to.root and isinstance(to_root := jctx.mem.find_one(to.root), Anchor):
+        # Use get() instead of find_one() to check persistence for root lookup
+        if to.root and isinstance(to_root := jctx.mem.get(to.root), Anchor):
             if to_root.access.all > access_level:
                 access_level = to_root.access.all
 
@@ -520,10 +400,16 @@ class JacWalker:
             | list[EdgeArchetype]
             | NodeArchetype
             | EdgeArchetype
+            | ObjectSpatialPath
         ),
         insert_loc: int = -1,
     ) -> bool:  # noqa: ANN401
         """Jac's visit stmt feature."""
+        # Resolve ObjectSpatialPath to list of nodes/edges
+        if isinstance(expr, ObjectSpatialPath):
+            expr.from_visit = True
+            expr = JacRuntimeInterface.refs(expr)
+
         if isinstance(walker, WalkerArchetype):
             """Walker visits node."""
             wanch = walker.__jac__
@@ -547,32 +433,161 @@ class JacWalker:
             raise TypeError("Invalid walker object")
 
     @staticmethod
+    def _execute_entries(
+        warch: WalkerArchetype,
+        walker: WalkerAnchor,
+        current_loc: NodeArchetype | EdgeArchetype,
+    ) -> bool:
+        """Execute all entry abilities for current location.
+
+        Returns True if walker should continue, False if disengaged.
+        """
+        from jaclang.runtimelib.utils import all_issubclass
+
+        # walker ability with loc entry
+        for i in warch._jac_entry_funcs_:
+            if (
+                i.trigger
+                and (
+                    all_issubclass(i.trigger, NodeArchetype)
+                    or all_issubclass(i.trigger, EdgeArchetype)
+                )
+                and isinstance(current_loc, i.trigger)
+            ):
+                i.func(warch, current_loc)
+            if walker.disengaged:
+                return False
+
+        # loc ability with any entry
+        for i in current_loc._jac_entry_funcs_:
+            if not i.trigger:
+                i.func(current_loc, warch)
+            if walker.disengaged:
+                return False
+
+        # loc ability with walker entry
+        for i in current_loc._jac_entry_funcs_:
+            if (
+                i.trigger
+                and all_issubclass(i.trigger, WalkerArchetype)
+                and isinstance(warch, i.trigger)
+            ):
+                i.func(current_loc, warch)
+            if walker.disengaged:
+                return False
+
+        return True
+
+    @staticmethod
+    def _execute_exits(
+        warch: WalkerArchetype,
+        walker: WalkerAnchor,
+        current_loc: NodeArchetype | EdgeArchetype,
+    ) -> bool:
+        """Execute all exit abilities for current location.
+
+        Returns True if walker should continue, False if disengaged.
+        """
+        from jaclang.runtimelib.utils import all_issubclass
+
+        # loc ability with walker exit
+        for i in current_loc._jac_exit_funcs_:
+            if (
+                i.trigger
+                and all_issubclass(i.trigger, WalkerArchetype)
+                and isinstance(warch, i.trigger)
+            ):
+                i.func(current_loc, warch)
+            if walker.disengaged:
+                return False
+
+        # loc ability with any exit
+        for i in current_loc._jac_exit_funcs_:
+            if not i.trigger:
+                i.func(current_loc, warch)
+            if walker.disengaged:
+                return False
+
+        # walker ability with loc exit
+        for i in warch._jac_exit_funcs_:
+            if (
+                i.trigger
+                and (
+                    all_issubclass(i.trigger, NodeArchetype)
+                    or all_issubclass(i.trigger, EdgeArchetype)
+                )
+                and isinstance(current_loc, i.trigger)
+            ):
+                i.func(warch, current_loc)
+            if walker.disengaged:
+                return False
+
+        return True
+
+    @staticmethod
+    def _visit_node_recursive(
+        warch: WalkerArchetype,
+        walker: WalkerAnchor,
+        anchor: NodeAnchor | EdgeAnchor,
+    ) -> bool:
+        """Recursively visit a node with DFS semantics.
+
+        1. Execute entries for this node
+        2. Recursively visit all children added during entry
+        3. Execute exits for this node (post-order)
+
+        Returns True if walker should continue, False if disengaged.
+        """
+        current_loc = anchor.archetype
+        if not current_loc:
+            return True
+
+        # Track in path for debugging/introspection
+        walker.path.append(anchor)
+
+        # Phase 1: Execute entry abilities
+        if not JacWalker._execute_entries(warch, walker, current_loc):
+            return False
+
+        # Phase 2: Process children (nodes added to walker.next during entries)
+        # We drain the queue here - children added during entry are processed recursively
+        while walker.next:
+            child_anchor = walker.next.pop(0)
+            if (
+                child_anchor not in walker.ignores
+                and not JacWalker._visit_node_recursive(warch, walker, child_anchor)
+            ):
+                return False
+
+        # Phase 3: Execute exit abilities (post-order - after all descendants)
+        return JacWalker._execute_exits(warch, walker, current_loc)
+
+    @staticmethod
     def spawn_call(
         walker: WalkerAnchor,
         node: NodeAnchor | EdgeAnchor,
     ) -> WalkerArchetype:
-        """Jac's spawn operator feature."""
-        from datetime import datetime
+        """Jac's spawn operator feature with recursive DFS semantics.
 
-        from jaclang.runtimelib.utils import all_issubclass
-
+        Entry abilities execute when entering a node, exit abilities execute
+        after all descendants are visited (post-order/LIFO).
+        """
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
 
         warch.__ttg_start_time__ = datetime.now()
         try:
-            warch.__ttg__ = JacTTGGenerator.get_ttg(warch, current_loc)
-            warch.__ttg_dict__ = lambda: asdict(warch.__ttg__)
+            current_node = node if isinstance(node, NodeAnchor) else node.target
+            current_node_loc = current_node.archetype
+            ttg_state, ttg_visited = JacTTGGenerator.get_ttg(warch, current_node_loc)
+            warch.__ttg__ = ttg_state
+            warch.__ttg_visited__ = ttg_visited
+            warch.__ttg_dict__ = lambda: asdict(ttg_state)
         except RuntimeError:
             # TODO: TTG does not support some programs
             warch.__ttg__ = None
             warch.__ttg_dict__ = None
-
-        warch.__ttg__, warch.__ttg_visited__ = JacTTGGenerator.get_ttg(
-            warch, current_loc
-        )
-        warch.__ttg_dict__ = lambda: asdict(warch.__ttg__)
 
         warch.__ttg_end_time__ = datetime.now()
         warch.__traversal_start_time__ = datetime.now()
@@ -582,199 +597,219 @@ class JacWalker:
             if not i.trigger:
                 i.func(warch, current_loc)
             if walker.disengaged:
-                warch.__traversal_end_time__ = datetime.now()
+                walker.ignores = []
                 return warch
 
-        while len(walker.next):
-            if current_loc := walker.next.pop(0).archetype:
-                # walker ability with loc entry
-                warch.__traversal_visited__.add(current_loc)
-                for i in warch._jac_entry_funcs_:
-                    if (
-                        i.trigger
-                        and (
-                            all_issubclass(i.trigger, NodeArchetype)
-                            or all_issubclass(i.trigger, EdgeArchetype)
-                        )
-                        and isinstance(current_loc, i.trigger)
-                    ):
-                        i.func(warch, current_loc)
-                    if walker.disengaged:
-                        warch.__traversal_end_time__ = datetime.now()
-                        return warch
+        # Traverse recursively (walker.next is already set by spawn())
+        while walker.next:
+            next_anchor = walker.next.pop(0)
+            if (
+                next_anchor not in walker.ignores
+                and not JacWalker._visit_node_recursive(warch, walker, next_anchor)
+            ):
+                break
 
-                # loc ability with any entry
-                for i in current_loc._jac_entry_funcs_:
-                    if not i.trigger:
-                        i.func(current_loc, warch)
-                    if walker.disengaged:
-                        warch.__traversal_end_time__ = datetime.now()
-                        return warch
-
-                # loc ability with walker entry
-                for i in current_loc._jac_entry_funcs_:
-                    if (
-                        i.trigger
-                        and all_issubclass(i.trigger, WalkerArchetype)
-                        and isinstance(warch, i.trigger)
-                    ):
-                        i.func(current_loc, warch)
-                    if walker.disengaged:
-                        warch.__traversal_end_time__ = datetime.now()
-                        return warch
-
-                # loc ability with walker exit
-                for i in current_loc._jac_exit_funcs_:
-                    if (
-                        i.trigger
-                        and all_issubclass(i.trigger, WalkerArchetype)
-                        and isinstance(warch, i.trigger)
-                    ):
-                        i.func(current_loc, warch)
-                    if walker.disengaged:
-                        warch.__traversal_end_time__ = datetime.now()
-                        return warch
-
-                # loc ability with any exit
-                for i in current_loc._jac_exit_funcs_:
-                    if not i.trigger:
-                        i.func(current_loc, warch)
-                    if walker.disengaged:
-                        warch.__traversal_end_time__ = datetime.now()
-                        return warch
-
-                # walker ability with loc exit
-                for i in warch._jac_exit_funcs_:
-                    if (
-                        i.trigger
-                        and (
-                            all_issubclass(i.trigger, NodeArchetype)
-                            or all_issubclass(i.trigger, EdgeArchetype)
-                        )
-                        and isinstance(current_loc, i.trigger)
-                    ):
-                        i.func(warch, current_loc)
-                    if walker.disengaged:
-                        warch.__traversal_end_time__ = datetime.now()
-                        return warch
-        # walker ability with any exit
+        # Walker ability with any exit (runs once after traversal completes)
+        if walker.path:
+            current_loc = walker.path[-1].archetype
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
                 i.func(warch, current_loc)
             if walker.disengaged:
-                warch.__traversal_end_time__ = datetime.now()
-                return warch
+                break
 
         walker.ignores = []
         warch.__traversal_end_time__ = datetime.now()
         return warch
 
     @staticmethod
+    async def _async_execute_entries(
+        warch: WalkerArchetype,
+        walker: WalkerAnchor,
+        current_loc: NodeArchetype | EdgeArchetype,
+    ) -> bool:
+        """Async version: Execute all entry abilities for current location.
+
+        Returns True if walker should continue, False if disengaged.
+        """
+        from jaclang.runtimelib.utils import all_issubclass
+
+        # walker ability with loc entry
+        for i in warch._jac_entry_funcs_:
+            if (
+                i.trigger
+                and (
+                    all_issubclass(i.trigger, NodeArchetype)
+                    or all_issubclass(i.trigger, EdgeArchetype)
+                )
+                and isinstance(current_loc, i.trigger)
+            ):
+                result = i.func(warch, current_loc)
+                if isinstance(result, Coroutine):
+                    await result
+            if walker.disengaged:
+                return False
+
+        # loc ability with any entry
+        for i in current_loc._jac_entry_funcs_:
+            if not i.trigger:
+                result = i.func(current_loc, warch)
+                if isinstance(result, Coroutine):
+                    await result
+            if walker.disengaged:
+                return False
+
+        # loc ability with walker entry
+        for i in current_loc._jac_entry_funcs_:
+            if (
+                i.trigger
+                and all_issubclass(i.trigger, WalkerArchetype)
+                and isinstance(warch, i.trigger)
+            ):
+                result = i.func(current_loc, warch)
+                if isinstance(result, Coroutine):
+                    await result
+            if walker.disengaged:
+                return False
+
+        return True
+
+    @staticmethod
+    async def _async_execute_exits(
+        warch: WalkerArchetype,
+        walker: WalkerAnchor,
+        current_loc: NodeArchetype | EdgeArchetype,
+    ) -> bool:
+        """Async version: Execute all exit abilities for current location.
+
+        Returns True if walker should continue, False if disengaged.
+        """
+        from jaclang.runtimelib.utils import all_issubclass
+
+        # loc ability with walker exit
+        for i in current_loc._jac_exit_funcs_:
+            if (
+                i.trigger
+                and all_issubclass(i.trigger, WalkerArchetype)
+                and isinstance(warch, i.trigger)
+            ):
+                result = i.func(current_loc, warch)
+                if isinstance(result, Coroutine):
+                    await result
+            if walker.disengaged:
+                return False
+
+        # loc ability with any exit
+        for i in current_loc._jac_exit_funcs_:
+            if not i.trigger:
+                result = i.func(current_loc, warch)
+                if isinstance(result, Coroutine):
+                    await result
+            if walker.disengaged:
+                return False
+
+        # walker ability with loc exit
+        for i in warch._jac_exit_funcs_:
+            if (
+                i.trigger
+                and (
+                    all_issubclass(i.trigger, NodeArchetype)
+                    or all_issubclass(i.trigger, EdgeArchetype)
+                )
+                and isinstance(current_loc, i.trigger)
+            ):
+                result = i.func(warch, current_loc)
+                if isinstance(result, Coroutine):
+                    await result
+            if walker.disengaged:
+                return False
+
+        return True
+
+    @staticmethod
+    async def _async_visit_node_recursive(
+        warch: WalkerArchetype,
+        walker: WalkerAnchor,
+        anchor: NodeAnchor | EdgeAnchor,
+    ) -> bool:
+        """Async version: Recursively visit a node with DFS semantics.
+
+        1. Execute entries for this node
+        2. Recursively visit all children added during entry
+        3. Execute exits for this node (post-order)
+
+        Returns True if walker should continue, False if disengaged.
+        """
+        current_loc = anchor.archetype
+        if not current_loc:
+            return True
+
+        # Track in path for debugging/introspection
+        walker.path.append(anchor)
+
+        # Phase 1: Execute entry abilities
+        if not await JacWalker._async_execute_entries(warch, walker, current_loc):
+            return False
+
+        # Phase 2: Process children (nodes added to walker.next during entries)
+        while walker.next:
+            child_anchor = walker.next.pop(0)
+            if (
+                child_anchor not in walker.ignores
+                and not await JacWalker._async_visit_node_recursive(
+                    warch, walker, child_anchor
+                )
+            ):
+                return False
+
+        # Phase 3: Execute exit abilities (post-order - after all descendants)
+        return await JacWalker._async_execute_exits(warch, walker, current_loc)
+
+    @staticmethod
     async def async_spawn_call(
         walker: WalkerAnchor,
         node: NodeAnchor | EdgeAnchor,
     ) -> WalkerArchetype:
-        """Jac's spawn operator feature."""
-        from jaclang.runtimelib.utils import all_issubclass
+        """Jac's async spawn operator feature with recursive DFS semantics.
 
+        Entry abilities execute when entering a node, exit abilities execute
+        after all descendants are visited (post-order/LIFO).
+        """
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
 
-        # walker ability on any entry
+        # Walker ability on any entry (runs once at spawn, before traversal)
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
                 result = i.func(warch, current_loc)
                 if isinstance(result, Coroutine):
                     await result
             if walker.disengaged:
+                walker.ignores = []
                 return warch
 
-        while len(walker.next):
-            if current_loc := walker.next.pop(0).archetype:
-                # walker ability with loc entry
-                for i in warch._jac_entry_funcs_:
-                    if (
-                        i.trigger
-                        and (
-                            all_issubclass(i.trigger, NodeArchetype)
-                            or all_issubclass(i.trigger, EdgeArchetype)
-                        )
-                        and isinstance(current_loc, i.trigger)
-                    ):
-                        result = i.func(warch, current_loc)
-                        if isinstance(result, Coroutine):
-                            await result
-                    if walker.disengaged:
-                        return warch
+        # Traverse recursively (walker.next is already set by spawn())
+        while walker.next:
+            next_anchor = walker.next.pop(0)
+            if (
+                next_anchor not in walker.ignores
+                and not await JacWalker._async_visit_node_recursive(
+                    warch, walker, next_anchor
+                )
+            ):
+                break
 
-                # loc ability with any entry
-                for i in current_loc._jac_entry_funcs_:
-                    if not i.trigger:
-                        result = i.func(current_loc, warch)
-                        if isinstance(result, Coroutine):
-                            await result
-                    if walker.disengaged:
-                        return warch
-
-                # loc ability with walker entry
-                for i in current_loc._jac_entry_funcs_:
-                    if (
-                        i.trigger
-                        and all_issubclass(i.trigger, WalkerArchetype)
-                        and isinstance(warch, i.trigger)
-                    ):
-                        result = i.func(current_loc, warch)
-                        if isinstance(result, Coroutine):
-                            await result
-                    if walker.disengaged:
-                        return warch
-
-                # loc ability with walker exit
-                for i in current_loc._jac_exit_funcs_:
-                    if (
-                        i.trigger
-                        and all_issubclass(i.trigger, WalkerArchetype)
-                        and isinstance(warch, i.trigger)
-                    ):
-                        result = i.func(current_loc, warch)
-                        if isinstance(result, Coroutine):
-                            await result
-                    if walker.disengaged:
-                        return warch
-
-                # loc ability with any exit
-                for i in current_loc._jac_exit_funcs_:
-                    if not i.trigger:
-                        result = i.func(current_loc, warch)
-                        if isinstance(result, Coroutine):
-                            await result
-                    if walker.disengaged:
-                        return warch
-
-                # walker ability with loc exit
-                for i in warch._jac_exit_funcs_:
-                    if (
-                        i.trigger
-                        and (
-                            all_issubclass(i.trigger, NodeArchetype)
-                            or all_issubclass(i.trigger, EdgeArchetype)
-                        )
-                        and isinstance(current_loc, i.trigger)
-                    ):
-                        result = i.func(warch, current_loc)
-                        if isinstance(result, Coroutine):
-                            await result
-                    if walker.disengaged:
-                        return warch
-        # walker ability with any exit
+        # Walker ability with any exit (runs once after traversal completes)
+        if walker.path:
+            current_loc = walker.path[-1].archetype
         for i in warch._jac_exit_funcs_:
             if not i.trigger:
                 result = i.func(warch, current_loc)
                 if isinstance(result, Coroutine):
                     await result
             if walker.disengaged:
-                return warch
+                break
 
         walker.ignores = []
         return warch
@@ -838,85 +873,18 @@ class JacWalker:
         return True
 
 
-class _JacClassReferencesMeta(type):
-    """Metaclass for JacClassReferences to enable lazy class attribute loading."""
-
-    def __getattr__(cls, name: str) -> type:
-        """Lazily load class references to avoid bootstrap dependency."""
-        # Import from archetype module
-        if name == "DSFunc":
-            from jaclang.runtimelib.archetype import ObjectSpatialFunction
-
-            cls.DSFunc = ObjectSpatialFunction
-            return ObjectSpatialFunction
-        elif name == "OPath":
-            from jaclang.runtimelib.archetype import ObjectSpatialPath
-
-            cls.OPath = ObjectSpatialPath
-            return ObjectSpatialPath
-        elif name == "Root":
-            from jaclang.runtimelib.archetype import Root as _Root
-
-            cls.Root = _Root
-            return _Root
-        elif name == "GenericEdge":
-            from jaclang.runtimelib.archetype import GenericEdge as _GenericEdge
-
-            cls.GenericEdge = _GenericEdge
-            return _GenericEdge
-        # Import from constructs module
-        elif name == "Obj":
-            from jaclang.runtimelib.constructs import Archetype
-
-            cls.Obj = Archetype
-            return Archetype
-        elif name == "Node":
-            from jaclang.runtimelib.constructs import NodeArchetype
-
-            cls.Node = NodeArchetype
-            return NodeArchetype
-        elif name == "Edge":
-            from jaclang.runtimelib.constructs import EdgeArchetype
-
-            cls.Edge = EdgeArchetype
-            return EdgeArchetype
-        elif name == "Walker":
-            from jaclang.runtimelib.constructs import WalkerArchetype
-
-            cls.Walker = WalkerArchetype
-            return WalkerArchetype
-        raise AttributeError(f"JacClassReferences has no attribute '{name}'")
-
-
-class JacClassReferences(metaclass=_JacClassReferencesMeta):
-    """Default Classes References with lazy loading."""
+class JacClassReferences:
+    """Default Classes References - direct class attributes (no lazy loading)."""
 
     TYPE_CHECKING: bool = TYPE_CHECKING
-    if TYPE_CHECKING:
-        from jaclang.runtimelib.archetype import (
-            ObjectSpatialFunction as DSFunc,
-        )
-        from jaclang.runtimelib.archetype import (
-            ObjectSpatialPath as OPath,
-        )
-        from jaclang.runtimelib.archetype import (
-            Root,
-        )
-        from jaclang.runtimelib.constructs import (
-            Archetype as Obj,
-        )
-        from jaclang.runtimelib.constructs import (
-            EdgeArchetype as Edge,
-        )
-        from jaclang.runtimelib.constructs import (
-            GenericEdge,
-        )
-        from jaclang.runtimelib.constructs import (
-            NodeArchetype as Node,
-        )
-        from jaclang.runtimelib.constructs import (
-            WalkerArchetype as Walker,
-        )
+    DSFunc = ObjectSpatialFunction
+    OPath = ObjectSpatialPath
+    Root = Root
+    GenericEdge = GenericEdge
+    Obj = Archetype
+    Node = NodeArchetype
+    Edge = EdgeArchetype
+    Walker = WalkerArchetype
 
 
 class JacBuiltin:
@@ -1035,7 +1003,7 @@ class JacBasics:
     def get_context() -> ExecutionContext:
         """Get current execution context."""
         if JacRuntime.exec_ctx is None:
-            JacRuntime.exec_ctx = JacRuntimeInterface.create_j_context()
+            JacRuntime.exec_ctx = JacRuntimeInterface.create_j_context(user_root=None)
         return JacRuntime.exec_ctx
 
     @staticmethod
@@ -1044,28 +1012,45 @@ class JacBasics:
         if isinstance(anchor, Archetype):
             anchor = anchor.__jac__
 
-        mem = JacRuntimeInterface.get_context().mem
-        mem.commit(anchor)
+        ctx = JacRuntimeInterface.get_context()
+        # Orchestrator handles commit to all storage backends
+        ctx.mem.commit(anchor)
 
     @staticmethod
     def reset_graph(root: Root | None = None) -> int:
         """Purge current or target graph."""
+        import pickle
+        import sqlite3
+
         ctx = JacRuntimeInterface.get_context()
-        mem = cast(ShelfStorage, ctx.mem)
-        ranchor = root.__jac__ if root else ctx.root_state
+        mem = ctx.mem
+        ranchor = root.__jac__ if root else ctx.user_root
 
         deleted_count = 0
-        for anchor in (
-            anchors.values()
-            if isinstance(anchors := mem.__shelf__, Shelf)
-            else mem.__mem__.values()
-        ):
+        deleted_ids: set[UUID] = set()
+        # Get anchors from persistence if available, otherwise from memory
+        # Convert to list to avoid modifying during iteration
+        persistence = mem.l3
+        conn = getattr(persistence, "__conn__", None) if persistence else None
+        if conn and isinstance(conn, sqlite3.Connection):
+            cursor = conn.execute("SELECT data FROM anchors")
+            anchors = [pickle.loads(row[0]) for row in cursor.fetchall()]
+        else:
+            anchors = list(mem.get_mem().values())
+
+        # Direct bulk deletion - skip destroy/detach logic since we're purging everything
+        for anchor in anchors:
             if anchor == ranchor or anchor.root != ranchor.id:
                 continue
+            deleted_ids.add(anchor.id)
+            mem.delete(anchor.id)
+            deleted_count += 1
 
-            if loaded_anchor := mem.find_by_id(anchor.id):
-                deleted_count += 1
-                JacRuntimeInterface.destroy([loaded_anchor])
+        # Clean up root anchor's edges that reference deleted edge anchors
+        ranchor.edges = [e for e in ranchor.edges if e.id not in deleted_ids]
+
+        # Persist root anchor changes so next session sees cleaned up edges
+        mem.commit(ranchor)
 
         return deleted_count
 
@@ -1073,8 +1058,8 @@ class JacBasics:
     def get_object(id: str) -> Archetype | None:
         """Get object given id."""
         if id == "root":
-            return JacRuntimeInterface.get_context().root_state.archetype
-        elif obj := JacRuntimeInterface.get_context().mem.find_by_id(UUID(id)):
+            return JacRuntimeInterface.get_context().user_root.archetype
+        elif obj := JacRuntimeInterface.get_context().mem.get(UUID(id)):
             return obj.archetype
 
         return None
@@ -1087,10 +1072,10 @@ class JacBasics:
     @staticmethod
     def make_archetype(cls: type[Archetype]) -> type[Archetype]:
         """Create a obj archetype."""
-        entries: OrderedDict[str, JacRuntimeInterface.DSFunc] = OrderedDict(
+        entries: OrderedDict[str, ObjectSpatialFunction] = OrderedDict(
             (fn.name, fn) for fn in cls._jac_entry_funcs_
         )
-        exits: OrderedDict[str, JacRuntimeInterface.DSFunc] = OrderedDict(
+        exits: OrderedDict[str, ObjectSpatialFunction] = OrderedDict(
             (fn.name, fn) for fn in cls._jac_exit_funcs_
         )
         for func in cls.__dict__.values():
@@ -1190,9 +1175,8 @@ class JacBasics:
         if lng is None:
             lng = infer_language(target, base_path)
 
-        # JacRuntime.program is lazy - accessing it will create if needed
-        # This check ensures the program exists before we use it
-        _ = JacRuntime.program
+        # Ensure the program exists before we use it
+        _ = JacRuntime.get_program()
 
         # Compute the module name
         # Convert relative imports (e.g., ".foo") to absolute
@@ -1285,10 +1269,16 @@ class JacBasics:
             elif reload_module and module_name in sys.modules:
                 # Handle reload case
                 module = importlib.reload(sys.modules[module_name])
+                # Update loaded_modules with the new module object
+                JacRuntimeInterface.load_module(module_name, module, force=True)
             else:
                 # Use Python's standard import machinery
                 # This will invoke JacMetaImporter.find_spec() and exec_module()
                 module = importlib.import_module(module_name)
+                # If reload was requested but module wasn't in sys.modules (e.g., HMR cleared it),
+                # still force update loaded_modules with the newly imported module
+                if reload_module:
+                    JacRuntimeInterface.load_module(module_name, module, force=True)
 
             # Handle selective item imports
             if items:
@@ -1437,6 +1427,11 @@ class JacBasics:
             ctx.reports.append(expr)
 
     @staticmethod
+    def log_report_yield(expr: Any, custom: bool = False) -> None:  # noqa: ANN401
+        """Jac's async report stmt feature."""
+        pass
+
+    @staticmethod
     def refs(
         path: ObjectSpatialPath | NodeArchetype | list[NodeArchetype],
     ) -> (
@@ -1564,6 +1559,14 @@ class JacBasics:
         return target
 
     @staticmethod
+    def safe_subscript(obj: Any, key: Any) -> Any:  # noqa: ANN401
+        """Jac's safe subscript feature."""
+        try:
+            return obj[key]
+        except (KeyError, IndexError, TypeError):
+            return None
+
+    @staticmethod
     def root() -> Root:
         """Jac's root getter."""
         return JacRuntime.get_context().get_root()
@@ -1572,7 +1575,7 @@ class JacBasics:
     def get_all_root() -> list[Root]:
         """Get all the roots."""
         jmem = JacRuntimeInterface.get_context().mem
-        return list(jmem.all_root())
+        return list(jmem.get_roots())
 
     @staticmethod
     def build_edge(
@@ -1618,9 +1621,9 @@ class JacBasics:
 
         if not anchor.persistent and not anchor.root:
             anchor.persistent = True
-            anchor.root = jctx.root_state.id
+            anchor.root = jctx.user_root.id
 
-        jctx.mem.set(anchor)
+        jctx.mem.put(anchor)
 
         match anchor:
             case NodeAnchor():
@@ -1654,7 +1657,7 @@ class JacBasics:
                     case _:
                         pass
 
-                JacRuntimeInterface.get_context().mem.remove(anchor.id)
+                JacRuntimeInterface.get_context().mem.delete(anchor.id)
 
     @staticmethod
     def on_entry(func: Callable) -> Callable:
@@ -1689,18 +1692,87 @@ class JacClientBundle:
         return builder.build(module, force=force)
 
 
+class JacConsole:
+    """Jac Console Operations - Generic interface for console output."""
+
+    @staticmethod
+    def get_console() -> ConsoleImpl:
+        """Get the console instance to use for CLI output.
+
+        Plugins can override this hook to provide their own console implementation.
+        The returned instance should be compatible with the JacConsole interface.
+        """
+        from jaclang.cli.console import JacConsole
+
+        return JacConsole()
+
+
 class JacAPIServer:
     """Jac API Server Operations - Generic interface for API server."""
 
     @staticmethod
-    def get_module_introspector(
-        module_name: str,
-        base_path: str | None = None,
-    ) -> ModuleIntrospector:
-        from jaclang.runtimelib.server import ModuleIntrospector
+    def get_api_server_class() -> type:
+        """Get the JacAPIServer class to use for serve command.
 
-        """Get the module introspector instance."""
-        return ModuleIntrospector(module_name, base_path)
+        Plugins can override this hook to provide their own server class.
+        The returned class should be compatible with the JacAPIServer interface.
+        """
+        from jaclang.runtimelib.server import JacAPIServer
+
+        return JacAPIServer
+
+    @staticmethod
+    def create_server(
+        jac_server: JacServer,
+        host: str,
+        port: int,
+    ) -> HTTPServer:
+        """Create the API server instance."""
+        handler_class = jac_server.create_handler()
+        return HTTPServer((host, port), handler_class)
+
+    @staticmethod
+    def render_page(
+        introspector: ModuleIntrospector,
+        function_name: str,
+        args: dict[(str, Any)],
+        username: str,
+    ) -> dict[str, Any]:
+        """Render HTML page for client function."""
+        from jaclang.runtimelib.server import JacSerializer
+
+        introspector.load()
+        available_exports = set(
+            introspector._client_manifest.get("exports", [])
+        ) or set(introspector.get_client_functions().keys())
+        if function_name not in available_exports:
+            raise ValueError(f"Client function '{function_name}' not found")
+        bundle_hash = introspector.ensure_bundle()
+        arg_order = list(
+            introspector._client_manifest.get("params", {}).get(function_name, [])
+        )
+        globals_payload = {
+            name: JacSerializer.serialize(value)
+            for name, value in introspector._collect_client_globals().items()
+        }
+        initial_state = {
+            "module": introspector._module.__name__
+            if introspector._module
+            else introspector.module_name,
+            "function": function_name,
+            "args": {
+                key: JacSerializer.serialize(value) for key, value in args.items()
+            },
+            "globals": globals_payload,
+            "argOrder": arg_order,
+        }
+        safe_initial_json = json.dumps(initial_state).replace("</", "<\\/")
+        page = f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>{html.escape(function_name)}</title></head><body><div id="__jac_root"></div><script id="__jac_init__" type="application/json">{safe_initial_json}</script><script src="/static/client.js?hash={bundle_hash}" defer></script></body></html>'
+        return {
+            "html": page,
+            "bundle_hash": bundle_hash,
+            "bundle_code": introspector._bundle.code,
+        }
 
 
 class JacResponseBuilder:
@@ -1772,7 +1844,11 @@ class JacByLLM:
 
     @staticmethod
     def call_llm(model: object, mtir: MTRuntime) -> Any:  # noqa: ANN401
-        """Call the LLM model."""
+        """Call the LLM model.
+
+        This is the fallback implementation when no LLM plugin (like byllm) is installed.
+        It uses NonGPT to generate random values matching the return type.
+        """
         from jaclang.utils import NonGPT  # type: ignore[attr-defined]
 
         try:
@@ -1824,11 +1900,41 @@ class JacByLLM:
         return _decorator
 
     @staticmethod
-    def by_operator(left: Any, right: Any) -> Any:  # noqa: ANN401
+    def filter_visitable_by(
+        connected_nodes: list[NodeArchetype], model: object, descriptions: str = ""
+    ) -> list[NodeArchetype]:
+        from .helpers import _describe_nodes_list
+
+        visitable_list: list = []
+
+        @JacByLLM.by(model=model)
+        def _filter_visitable_by(
+            connected_nodes: list[NodeArchetype], descriptions: str = ""
+        ) -> list[int]:
+            """
+            Determine which connected nodes are visitable using an LLM.
+
+            The input represents structurally reachable nodes. This function applies
+            semantic reasoning to decide which of those nodes a walker is allowed
+            or intended to visit, returning their indexes in priority order.
+
+            Returns an empty list if no nodes are deemed visitable.
+            """
+            return []
+
+        descriptions = _describe_nodes_list(connected_nodes)
+        indexes = _filter_visitable_by(connected_nodes, descriptions)
+        for idx in indexes:
+            visitable_list.append(connected_nodes[idx])
+
+        return visitable_list
+
+    @staticmethod
+    def by_operator(lhs: Any, rhs: Any) -> Any:  # noqa: ANN401
         """by operator feature for expression composition.
 
         Currently not implemented - raises NotImplementedError.
-        The exact execution behavior is not yet defined.
+        Plugins like byllm can override this via the plugin hook system.
         """
         raise NotImplementedError(
             "The 'by' operator is not yet implemented. "
@@ -1840,16 +1946,34 @@ class JacUtils:
     """Jac Machine Utilities."""
 
     @staticmethod
-    def create_j_context(
-        session: str | None = None, root: str | None = None
-    ) -> ExecutionContext:
-        """Hook for initialization or custom greeting logic."""
-        return ExecutionContext(session=session, root=root)
+    def create_j_context(user_root: str | None) -> ExecutionContext:
+        """Create a new execution context.
+
+        Args:
+            user_root: User root ID for permission boundary. Required parameter.
+                       Pass None for CLI/system contexts (uses system_root).
+                       Pass user's root ID for authenticated server requests.
+
+        Storage backend is configured via plugins/environment, not per-context.
+        For file backend: auto-generates path from JacRuntime.base_path_dir.
+        For database backends (jac-scale): configured via environment variables.
+        """
+        from jaclang.runtimelib.context import ExecutionContext
+
+        ctx = ExecutionContext()
+        if user_root is not None:
+            ctx.set_user_root(user_root)
+        return ctx
 
     @staticmethod
     def attach_program(jac_program: JacProgram) -> None:
         """Attach a JacProgram to the machine."""
         JacRuntime.program = jac_program
+
+    @staticmethod
+    def attach_compiler(jac_compiler: JacCompiler) -> None:
+        """Attach a JacCompiler to the machine."""
+        JacRuntime.compiler = jac_compiler
 
     @staticmethod
     def load_module(
@@ -1982,7 +2106,7 @@ class JacUtils:
                 # Use jac_import with reload flag
                 result = JacRuntimeInterface.jac_import(
                     target=module_name,
-                    base_path=JacRuntime.base_path_dir,
+                    base_path=JacRuntime.base_path_dir or os.getcwd(),
                     items=items,
                     reload_module=True,
                     lng="jac",
@@ -2063,48 +2187,42 @@ class JacTTGGenerator:
         node: NodeArchetype
         edges: set[JacTTGGenerator.TTGNode]
 
-    @dataclass(frozen=True)
-    class VisitType:
-        from_node_type: unitree.Archetype
-        edge_type: unitree.Archetype | None
-
-        def __str__(self) -> str:
-            if self.edge_type is None:
-                edge_name = "GenericEdge"
-            else:
-                edge_name = self.edge_type.name.value
-            return f"Visit(from={self.from_node_type.name.value}, edge={edge_name})"
-
     class FilteredNeighborCtx:
-        cache: dict[tuple[int, JacTTGGenerator.VisitType], list[NodeArchetype]] = {}
+        cache: dict[NodeArchetype, list[NodeArchetype]] = {}
 
         @classmethod
         def _filter_neighbors(
-            cls, node: NodeArchetype, visit: JacTTGGenerator.VisitType
+            cls, node: NodeArchetype, visits: list[WalkerArchetype.VisitType]
         ) -> list[NodeArchetype]:
             """Filter neighbors based on visit info and walker type."""
             filtered_neighbors = []
             anchor = node.__jac__
             edges: list[EdgeAnchor] = anchor.edges
+            visits = [
+                visit
+                for visit in visits
+                if visit.from_node_type is None
+                or isinstance(node, visit.from_node_type)
+            ]
             for edge in edges:
-                if (
-                    visit.edge_type is None
-                    or JacTTGGenerator.get_type_definition(edge.archetype)
-                    == visit.edge_type
-                ):
-                    filtered_neighbors.append(edge.target.archetype)
-            # Get all neighbors
+                for visit in visits:
+                    if (
+                        visit.edge_type is None
+                        or isinstance(edge.archetype, visit.edge_type)
+                    ) and edge.target.archetype not in filtered_neighbors:
+                        filtered_neighbors.append(edge.target.archetype)
+                # Get all neighbors
             return filtered_neighbors
 
         @classmethod
         def filter_neighbors(
-            cls, node: NodeArchetype, visit: JacTTGGenerator.VisitType
+            cls, node: NodeArchetype, visits: list[WalkerArchetype.VisitType]
         ) -> list[NodeArchetype]:
             """Filter neighbors with caching."""
-            key = (node, visit)
+            key = node
             if key in cls.cache:
                 return cls.cache[key]
-            result = cls._filter_neighbors(node, visit)
+            result = cls._filter_neighbors(node, visits)
             cls.cache[key] = result
             return result
 
@@ -2112,88 +2230,6 @@ class JacTTGGenerator:
     def extract_type_name(cls, input: Archetype) -> str:
         """Get name of the type."""
         return type(input).__name__
-
-    @classmethod
-    def resolve_to_archetype(cls, scope_src: unitree.UniNode, name: str) -> Archetype:
-        scope = scope_src.find_parent_of_type(unitree.UniScopeNode)
-        if scope is None:
-            raise RuntimeError(f"Lookup failed. Name: {name}")
-        result = scope.lookup(name)
-        if result is None:
-            raise RuntimeError(f"Lookup failed. Name: {name}")
-        return result.decl.find_parent_of_type(unitree.Archetype)
-
-    @classmethod
-    def get_type_definition(cls, obj: Archetype) -> unitree.Archetype:
-        """Get the walker type code from walker instance."""
-        walker_module = JacRuntime.loaded_modules.get(type(obj).__module__)
-        extracted_name = JacTTGGenerator.extract_type_name(obj)
-        if walker_module and hasattr(walker_module, "__file__"):
-            file_path = str(walker_module.__file__)
-            code = JacRuntime.program.mod.hub[file_path]
-            for walker_code in code.get_all_sub_nodes(unitree.Archetype):
-                if walker_code.name.value == JacTTGGenerator.extract_type_name(obj):
-                    return walker_code
-        raise ValueError(f"Walker code for {extracted_name} not found in program.")
-
-    class PossibleVisitsInWalkers:
-        # Mapping walker type and node type to visit types.
-        visits: dict[unitree.Archetype, list[JacTTGGenerator.VisitType]] = {}
-
-        @classmethod
-        def _get_to_edge_type_of_visit(
-            cls, from_node_type: unitree.Archetype, visit_stmt: unitree.VisitStmt
-        ) -> JacTTGGenerator.VisitType:
-            filters = visit_stmt.get_all_sub_nodes(unitree.FilterCompr)
-            if len(filters) == 0:
-                return JacTTGGenerator.VisitType(
-                    from_node_type=from_node_type, edge_type=None
-                )
-            # return
-            edge_type_name = filters[0].get_all_sub_nodes(unitree.Name)[0].value
-            edge_type = JacTTGGenerator.resolve_to_archetype(visit_stmt, edge_type_name)
-            return JacTTGGenerator.VisitType(
-                from_node_type=from_node_type, edge_type=edge_type
-            )
-
-        @classmethod
-        def _get_all_visits_for_a_walker(
-            cls, walker: unitree.Archetype
-        ) -> list[JacTTGGenerator.VisitType]:
-            res = []
-            abilities = walker.get_all_sub_nodes(unitree.Ability)
-            for ability in abilities:
-                if len(ability.get_all_sub_nodes(unitree.EventSignature)) == 0:
-                    continue
-                # Get the name of the node type
-                node_type_name = ability.get_all_sub_nodes(unitree.EventSignature)[
-                    0
-                ].get_all_sub_nodes(unitree.Name)[0]
-
-                node_type = JacTTGGenerator.resolve_to_archetype(
-                    node_type_name, node_type_name.value
-                )
-                res += [
-                    cls._get_to_edge_type_of_visit(node_type, visit_stmt)
-                    for visit_stmt in ability.get_all_sub_nodes(unitree.VisitStmt)
-                ]
-            return res
-
-        @classmethod
-        def get(
-            cls, walker: unitree.Archetype, target_node: NodeArchetype
-        ) -> list[JacTTGGenerator.VisitType]:
-            target_node_type = JacTTGGenerator.resolve_to_archetype(
-                walker, JacTTGGenerator.extract_type_name(target_node)
-            )
-            if cls.visits.get(walker) is None:
-                cls.visits[walker] = cls._get_all_visits_for_a_walker(walker)
-            res = [
-                visit
-                for visit in cls.visits[walker]
-                if visit.from_node_type == target_node_type
-            ]
-            return res
 
     @dataclass
     class TypedWalkerState:
@@ -2224,14 +2260,10 @@ class JacTTGGenerator:
         while walker_states:
             state = walker_states.pop(0)
             node = state.node
-            walker_code = JacTTGGenerator.get_type_definition(walker)
             filtered_neighbors: list[NodeArchetype] = [
                 neighbor
-                for visit in JacTTGGenerator.PossibleVisitsInWalkers.get(
-                    walker_code, node
-                )
                 for neighbor in JacTTGGenerator.FilteredNeighborCtx.filter_neighbors(
-                    node, visit
+                    node, walker.__jac_ttg_visits__
                 )
                 if neighbor not in visited_nodes
             ]
@@ -2252,6 +2284,103 @@ class JacTTGGenerator:
         return ttg_root, visited_nodes
 
 
+class JacPluginConfig:
+    """Plugin configuration hooks for jac.toml integration.
+
+    Plugins can implement these hooks to register their configuration schemas
+    and receive configuration values from jac.toml.
+    """
+
+    @staticmethod
+    def get_plugin_metadata() -> dict[str, Any] | None:
+        """Return plugin metadata.
+
+        Returns:
+            dict with keys:
+                - name: Plugin name (used in [plugins.<name>])
+                - version: Plugin version
+                - description: Brief description
+        """
+        return None
+
+    @staticmethod
+    def get_config_schema() -> dict[str, Any] | None:
+        """Return the plugin's configuration schema.
+
+        Returns:
+            dict with keys:
+                - section: Section name in jac.toml (e.g., 'byllm' for [plugins.byllm])
+                - options: dict mapping option names to their specs:
+                    {
+                        'option_name': {
+                            'type': 'str' | 'int' | 'float' | 'bool' | 'list' | 'dict',
+                            'default': <default_value>,
+                            'description': 'Description of the option',
+                            'env_var': 'OPTIONAL_ENV_VAR_OVERRIDE',
+                            'required': False,
+                        }
+                    }
+        """
+        return None
+
+    @staticmethod
+    def on_config_loaded(config: dict[str, Any]) -> None:
+        """Called when plugin configuration is loaded from jac.toml.
+
+        Args:
+            config: The plugin's configuration values from [plugins.<name>]
+        """
+        pass
+
+    @staticmethod
+    def validate_config(config: dict[str, Any]) -> list[str]:
+        """Validate plugin configuration.
+
+        Args:
+            config: The plugin's configuration values
+
+        Returns:
+            List of error messages (empty if valid)
+        """
+        return []
+
+    @staticmethod
+    def register_dependency_type() -> dict[str, Any] | None:
+        """Register a custom dependency type.
+
+        Allows plugins to extend [dependencies.*] sections in jac.toml.
+
+        Returns:
+            dict with keys:
+                - name: Dependency type name (e.g., 'npm' for [dependencies.npm])
+                - dev_name: Dev dependency section (e.g., 'npm.dev')
+                - cli_flag: CLI flag for 'jac add' (e.g., '--cl')
+                - install_dir: Directory for installed deps (e.g., 'client')
+                - install_handler: Callable to install packages
+                - remove_handler: Callable to remove packages
+        """
+        return None
+
+    @staticmethod
+    def register_project_template() -> dict[str, Any] | None:
+        """Register a project template for jac create.
+
+        Allows plugins to provide custom project templates that can be
+        selected via `jac create --use <name>`.
+
+        Returns:
+            dict with keys:
+                - name: Template name (e.g., 'client')
+                - description: Human-readable description
+                - config: dict for jac.toml content (with {{name}} placeholders)
+                - files: dict[path, content] with {{name}} placeholders
+                - directories: list of directories to create
+                - gitignore_entries: list of .gitignore entries
+                - post_create: optional callable(project_path, project_name)
+        """
+        return None
+
+
 class JacRuntimeInterface(
     JacClassReferences,
     JacAccessValidation,
@@ -2262,12 +2391,13 @@ class JacRuntimeInterface(
     JacCmd,
     JacBasics,
     JacClientBundle,
+    JacConsole,
     JacAPIServer,
     JacByLLM,
     JacResponseBuilder,
     JacUtils,
     JacTTGGenerator,
-    metaclass=_JacClassReferencesMeta,
+    JacPluginConfig,
 ):
     """Jac Feature."""
 
@@ -2372,7 +2502,6 @@ def generate_plugin_helpers(
     proxy_namespace.update(proxy_methods)
 
     # Use the original class's metaclass when creating the proxy class
-    # This preserves custom metaclasses like _JacClassReferencesMeta
     original_metaclass: type = cast(type, type(plugin_class))
     proxy_cls = original_metaclass(
         f"{plugin_class.__name__}", (object,), proxy_namespace
@@ -2390,64 +2519,90 @@ plugin_manager.add_hookspecs(JacRuntimeSpec)
 class JacRuntime(JacRuntimeInterface):
     """Jac Machine State."""
 
-    base_path_dir: str = os.getcwd()
-    program: JacProgram = _LazyProgramDescriptor()  # type: ignore[assignment]
-    pool: ThreadPoolExecutor = _LazyThreadPoolDescriptor()  # type: ignore[assignment]
+    base_path_dir: str | None = os.getcwd()
+    compiler: JacCompiler | None = None
+    program: JacProgram | None = None
+    pool: ThreadPoolExecutor = ThreadPoolExecutor()
     exec_ctx: ExecutionContext | None = None
     loaded_modules: dict[str, types.ModuleType] = {}
 
+    @classmethod
+    def get_compiler(cls) -> JacCompiler:
+        """Get or create the JacCompiler singleton.
+
+        The compiler is separate from the program and handles all compilation
+        operations. It persists across program resets and can be reused.
+        """
+        if cls.compiler is None:
+            from jaclang.pycore.compiler import JacCompiler
+
+            cls.compiler = JacCompiler()
+        return cls.compiler
+
+    @classmethod
+    def get_program(cls) -> JacProgram:
+        """Get or create the JacProgram instance."""
+        if cls.program is None:
+            from jaclang.pycore.program import JacProgram
+
+            cls.program = JacProgram()
+        return cls.program
+
     @staticmethod
-    def set_base_path(base_path: str) -> None:
-        """Set the base path for the machine."""
-        JacRuntime.base_path_dir = (
-            base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
-        )
+    def set_base_path(base_path: str | None) -> None:
+        """Set the base path for the machine.
+
+        When base_path is None, L3 persistence is disabled (faster for tests).
+        """
+        if base_path is None:
+            JacRuntime.base_path_dir = None
+        else:
+            JacRuntime.base_path_dir = (
+                base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
+            )
 
     @staticmethod
     def set_context(context: ExecutionContext) -> None:
         """Set the context for the machine."""
         JacRuntime.exec_ctx = context
 
-    @staticmethod
-    def reset_machine() -> None:
-        """Reset the machine."""
-        from jaclang.pycore.program import JacProgram
 
-        # Remove Jac modules from sys.modules, but skip special module names
-        # that Python relies on (like __main__, __mp_main__, etc.)
-        # Also skip runtime library modules (archetype, constructs, memory, mtp)
-        # to prevent class redefinition issues with pickle
-        special_modules = {
-            "__main__",
-            "__mp_main__",
-            "builtins",
-            "jaclang.runtimelib.archetype",
-            "jaclang.runtimelib.constructs",
-            "jaclang.runtimelib.memory",
-            "jaclang.runtimelib.mtp",
-            "jaclang.runtimelib.test",
-            "jaclang.compiler.passes.tool.doc_ir",
-            # Keep language server + type-system modules stable across resets.
-            # These are imported at module scope in tests and rely on `isinstance`
-            # checks against types defined in these modules.
-            "jaclang.langserve.engine",
-            "jaclang.compiler.type_system.types",
-            "jaclang.compiler.type_system.type_evaluator",
-            "jaclang.compiler.type_system.type_utils",
-            # ES AST nodes are stored in compiled program state and may be pickled.
-            # Keep their defining module stable across resets to avoid class identity
-            # mismatches during pickling.
-            "jaclang.compiler.passes.ecmascript.estree",
-        }
-        for i in JacRuntime.loaded_modules.values():
-            if i.__name__ not in special_modules:
-                sys.modules.pop(i.__name__, None)
-        JacRuntime.loaded_modules.clear()
-        JacRuntime.base_path_dir = os.getcwd()
-        JacRuntime.program = JacProgram()
-        from concurrent.futures import ThreadPoolExecutor
+@contextmanager
+def without_plugins() -> Iterator[None]:
+    """Context manager to temporarily disable external plugins.
 
-        JacRuntime.pool = ThreadPoolExecutor()
-        if JacRuntime.exec_ctx is not None:
-            JacRuntime.exec_ctx.mem.close()
-        JacRuntime.exec_ctx = JacRuntimeInterface.create_j_context()
+    Useful for tests that need to run without plugin interference.
+    Core JacRuntimeImpl is preserved, only external plugins are disabled.
+
+    Usage:
+        from jaclang.pycore.runtime import without_plugins
+
+        def test_something():
+            with without_plugins():
+                # Test code runs without external plugins
+                pass
+
+        # Or as a pytest fixture:
+        @pytest.fixture
+        def no_plugins():
+            with without_plugins():
+                yield
+    """
+    # Store external plugins to restore later
+    external_plugins: list[tuple[str, Any]] = []
+
+    # Identify and unregister external plugins
+    for name, plugin in list(plugin_manager.list_name_plugin()):
+        # Keep JacRuntimeImpl (the core implementation)
+        if plugin is JacRuntimeImpl or name == "JacRuntimeImpl":
+            continue
+        external_plugins.append((name, plugin))
+        plugin_manager.unregister(plugin=plugin, name=name)
+
+    try:
+        yield
+    finally:
+        # Re-register all external plugins
+        for name, plugin in external_plugins:
+            with suppress(ValueError):
+                plugin_manager.register(plugin, name=name)

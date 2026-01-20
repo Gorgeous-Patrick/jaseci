@@ -55,7 +55,7 @@ Jac is an innovative programming language that extends Python's semantics while 
 
 - **Python Superset:** Use the entire Python ecosystem (`pip`, `numpy`, `pandas`, etc.) without friction. All valid Python code is also valid Jac code, ensuring a gentle learning curve.
 
-- **Cloud-Native:** Deploy your application as a production-ready API server with a single `jac serve` command, scaling from local prototype development to a distributed cloud environment with zero code changes.
+- **Cloud-Native:** Deploy your application as a production-ready API server with a single `jac start` command, scaling from local prototype development to a distributed cloud environment with zero code changes.
 
 ---
 
@@ -84,7 +84,7 @@ This is the fastest way to get started with building applications.
 If you plan to contribute to Jaseci, install it in editable mode from a cloned repository:
 
 ```bash
-git clone https://github.com/Jaseci-Labs/jaseci.git
+git clone --recurse --depth 1 --single-branch https://github.com/jaseci-labs/jaseci
 cd jaseci
 ```
 
@@ -100,7 +100,7 @@ The `jac` CLI is your primary interface for interacting with the Jaseci ecosyste
 | :--- | :--- |
 | **`jac run <file.jac>`** | Executes a Jac file, much like `python3`. |
 | **`jac build <file.jac>`** | Builds a self-contained Jac application from a source file. |
-| **`jac serve <file.jac>`** | Executes a Jac file to the cloud. |
+| **`jac start <file.jac>`** | Starts a REST API server for a Jac program. |
 
 ---
 

@@ -15,8 +15,9 @@ Modules:
 - runtime: Runtime bootstrap infrastructure
 - helpers: Utility functions
 - log: Logging utilities
-- module_resolver: Module resolution utilities
+- modresolver: Module resolution utilities
 - treeprinter: AST tree printing utilities
 - settings: Configuration settings
-- program: JacProgram class
+- compiler: JacCompiler class (compilation singleton)
+- program: JacProgram class (program state)
 """

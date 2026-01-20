@@ -2,19 +2,34 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
 from jaclang import JacRuntime as Jac
+from jaclang.pycore.program import JacProgram
 
 
 @pytest.fixture(scope="class", autouse=True)
-def reset_machine_class():
-    """Reset machine once for all tests in this class."""
-    Jac.reset_machine()
+def setup_jac_class(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[None, None, None]:
+    """Set up fresh Jac context once for all tests in this class."""
+    tmp_dir = tmp_path_factory.mktemp("client_bundle")
+    # Close existing context if any
+    if Jac.exec_ctx is not None:
+        Jac.exec_ctx.mem.close()
+    Jac.loaded_modules.clear()
+    Jac.base_path_dir = str(tmp_dir)
+    Jac.program = JacProgram()
+    Jac.pool = ThreadPoolExecutor()
+    Jac.exec_ctx = Jac.create_j_context(user_root=None)
     yield
-    Jac.reset_machine()
+    if Jac.exec_ctx is not None:
+        Jac.exec_ctx.mem.close()
+    Jac.loaded_modules.clear()
 
 
 def test_build_bundle_for_module():
@@ -216,7 +231,7 @@ def test_bundle_size_reasonable():
 
 def test_import_path_conversion():
     """Test that Jac-style import paths are converted to JS paths."""
-    from jaclang.pycore.module_resolver import convert_to_js_import_path
+    from jaclang.pycore.modresolver import convert_to_js_import_path
 
     # Test single dot (current directory)
     assert convert_to_js_import_path(".module") == "./module.js"

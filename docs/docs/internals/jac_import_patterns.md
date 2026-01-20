@@ -140,7 +140,7 @@ All patterns tested and verified in:
 ```jac
 cl {
     # Named imports
-    import from react { useState, useEffect, useRef }
+    import from react { useEffect, useRef }
     import from lodash { map as mapArray, filter }
 
     # Default imports
@@ -157,7 +157,7 @@ cl {
     import from "react-router-dom" { BrowserRouter, Route }
 
     # Mixed imports
-    import from react { default as React, useState, useEffect }
+    import from react { default as React, useEffect }
 
     # Relative paths
     import from .components.Button { default as Button }
@@ -165,8 +165,10 @@ cl {
     import from ...config.constants { API_URL }
 
     def MyComponent() {
-        let [count, setCount] = useState(0);
-        let now = DateFns.format(new Date());
+        # Reactive state - auto-generates useState
+        has count: int = 0;
+
+        now = DateFns.format(new Date());
         axios.get(API_URL);
 
         return count;
@@ -174,10 +176,13 @@ cl {
 }
 ```
 
+> **Note:** Inside `cl {}` blocks and `.cl.jac` files, use `has` variables for reactive state instead of explicit `useState` calls. The compiler automatically generates `const [count, setCount] = useState(0);`, auto-injects the `useState` import from `@jac-client/utils`, and transforms assignments to setter calls.
+
 ### Generated JavaScript Output
 
 ```javascript
-import { useState, useEffect, useRef } from "react";
+import { useState } from "@jac-client/utils";  // Auto-injected for `has` variables
+import { useEffect, useRef } from "react";
 import { map as mapArray, filter } from "lodash";
 import React from "react";
 import axios from "axios";
@@ -186,14 +191,15 @@ import * as Utils from "./utils";
 import { render, hydrate } from "react-dom";
 import styled from "styled-components";
 import { BrowserRouter, Route } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import Button from "./components.Button";
 import { formatDate } from "../lib.helpers";
 import { API_URL } from "../../config.constants";
 
 function MyComponent() {
-  let [count, setCount] = useState(0);
-  let now = DateFns.format(new Date());
+  // Generated from `has count: int = 0;` (useState import auto-injected from @jac-client/utils)
+  const [count, setCount] = useState(0);
+  now = DateFns.format(new Date());
   axios.get(API_URL);
   return count;
 }

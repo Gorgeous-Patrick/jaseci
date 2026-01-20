@@ -1,3 +1,5 @@
+edge BasicEdge {}
+
 node BFSNode {
     has id: int;
     has jac_node_size: int = 8;
@@ -13,7 +15,7 @@ walker BFS {
             return;
         }
         self.visited_512[here.id] = True;
-        visit [-->];
+        visit [->:BasicEdge:->];
         visit [->:JunkEdge:->];
     }
 }
@@ -21,11 +23,11 @@ walker BFS {
 with entry {
     nodes = [BFSNode(id=0), BFSNode(id=1), BFSNode(id=2), BFSNode(id=3), BFSNode(id=4)];
     junk = BFSNode(id=5);  # To ensure IDs are not reused
-    root ++> nodes[0];
-    nodes[0] ++> nodes[1];
-    nodes[0] ++> nodes[2];
-    nodes[1] ++> nodes[3];
-    nodes[1] ++> nodes[4];
+    root +>: BasicEdge :+> nodes[0];
+    nodes[0] +>: BasicEdge :+> nodes[1];
+    nodes[0] +>: BasicEdge :+> nodes[2];
+    nodes[1] +>: BasicEdge :+> nodes[3];
+    nodes[1] +>: BasicEdge :+> nodes[4];
     BFS();
     wlk = BFS() spawn nodes[0];
     print(wlk.__ttg__);

@@ -7,7 +7,9 @@ import io
 import os
 import re
 import sys
+from collections.abc import Generator
 from contextlib import redirect_stdout
+from pathlib import Path
 from types import CodeType
 
 import pytest
@@ -15,20 +17,18 @@ import pytest
 import jaclang
 from jaclang import JacRuntime as Jac
 from jaclang.pycore.program import JacProgram
+from jaclang.pycore.runtime import JacRuntimeInterface
+from tests.fixtures_list import REFERENCE_JAC_FILES
 
 
 def get_reference_jac_files() -> list[str]:
-    """Get all .jac files from examples/reference directory."""
-    files = []
-    ref_dir = os.path.join(
-        os.path.dirname(os.path.dirname(jaclang.__file__)),
-        "examples/reference",
-    )
-    for root, _, filenames in os.walk(ref_dir):
-        for name in filenames:
-            if name.endswith(".jac") and not name.startswith("err"):
-                files.append(os.path.normpath(os.path.join(root, name)))
-    return files
+    """Get all .jac files from examples/reference directory.
+
+    Uses a fixed list of files from fixtures_list.py for deterministic testing.
+    To add new test files, update REFERENCE_JAC_FILES in tests/fixtures_list.py.
+    """
+    base_dir = os.path.dirname(os.path.dirname(jaclang.__file__))
+    return [os.path.normpath(os.path.join(base_dir, f)) for f in REFERENCE_JAC_FILES]
 
 
 def execute_and_capture_output(code: str | bytes | CodeType, filename: str = "") -> str:
@@ -51,20 +51,26 @@ def normalize_function_addresses(text: str) -> str:
 
 
 @pytest.fixture(autouse=True)
-def reset_jac_runtime():
-    """Reset Jac runtime before and after each test."""
-    Jac.reset_machine()
-    yield
-    Jac.reset_machine()
+def reset_jac_runtime(fresh_jac_context: Path) -> Generator[Path, None, None]:
+    """Reset Jac runtime before and after each test.
+
+    Uses fresh_jac_context fixture to provide isolated state.
+    Yields the tmp_path for use in tests.
+    """
+    yield fresh_jac_context
 
 
 @pytest.mark.parametrize("filename", get_reference_jac_files())
-def test_reference_file(filename: str) -> None:
+def test_reference_file(filename: str, reset_jac_runtime: Path) -> None:
     """Test reference .jac file against its .py equivalent."""
     if "tests.jac" in filename or "check_statements.jac" in filename:
         pytest.skip("Skipping test file")
     if "by_expressions.jac" in filename:
         pytest.skip("Skipping by_expressions - by operator not yet implemented")
+    if "semstrings.jac" in filename:
+        pytest.skip("Skipping semstrings - byllm not installed")
+
+    tmp_path = reset_jac_runtime
 
     try:
         jacast = JacProgram().compile(filename)
@@ -76,7 +82,22 @@ def test_reference_file(filename: str) -> None:
             mode="exec",
         )
         output_jac = execute_and_capture_output(code_obj, filename=filename)
-        Jac.reset_machine()
+
+        # Clear state between .jac and .py runs
+        # Remove user .jac modules from sys.modules so they don't interfere with .py run
+        for mod in list(Jac.loaded_modules.values()):
+            if not mod.__name__.startswith("jaclang."):
+                sys.modules.pop(mod.__name__, None)
+        Jac.loaded_modules.clear()
+        Jac.attach_program(JacProgram())
+
+        # Reset execution context with a NEW base path to get completely fresh storage
+        if Jac.exec_ctx is not None:
+            Jac.exec_ctx.mem.close()
+        py_run_path = tmp_path / "py_run"
+        py_run_path.mkdir(exist_ok=True)
+        Jac.base_path_dir = str(py_run_path)
+        Jac.exec_ctx = JacRuntimeInterface.create_j_context(user_root=None)
 
         # Clear byllm modules from cache
         sys.modules.pop("byllm", None)

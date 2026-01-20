@@ -26,8 +26,8 @@ from dataclasses import dataclass
 from typing import ClassVar, TypeVar, cast
 
 import jaclang.pycore.unitree as uni
+from jaclang.pycore.constant import TTG_VISIT_FIELD, CodeContext, EdgeDir
 from jaclang.pycore.constant import Constants as Con
-from jaclang.pycore.constant import EdgeDir
 from jaclang.pycore.constant import Tokens as Tok
 from jaclang.pycore.passes.ast_gen import BaseAstGenPass
 from jaclang.pycore.passes.ast_gen.jsx_processor import PyJsxProcessor
@@ -132,12 +132,10 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
 
     def enter_node(self, node: uni.UniNode) -> None:
         """Enter node."""
-        if isinstance(node, uni.ClientBlock):
-            self.prune()
-            return
-        if (
-            isinstance(node, uni.ClientFacingNode)
-            and node.is_client_decl
+        # Prune ClientBlocks from Python generation
+        if isinstance(node, uni.ClientBlock) or (
+            isinstance(node, uni.ContextAwareNode)
+            and node.code_context == CodeContext.CLIENT
             and (node.parent is None or isinstance(node.parent, uni.Module))
         ):
             self.prune()
@@ -149,12 +147,13 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
 
     def exit_node(self, node: uni.UniNode) -> None:
         """Exit node."""
-        # ClientBlock already handled in enter_node
+        # ClientBlock handled in enter_node (pruned)
+        # ServerBlock has its own exit handler (exit_server_block)
         if isinstance(node, uni.ClientBlock):
             return
         if (
-            isinstance(node, uni.ClientFacingNode)
-            and node.is_client_decl
+            isinstance(node, uni.ContextAwareNode)
+            and node.code_context == CodeContext.CLIENT
             and (node.parent is None or isinstance(node.parent, uni.Module))
         ):
             return
@@ -574,7 +573,7 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
             self.preamble.append(
                 self.sync(
                     ast3.ImportFrom(
-                        module="jaclang.lib",
+                        module="jaclang.pycore.jaclib",
                         names=[
                             self.sync(ast3.alias(name=name, asname=None))
                             for name in sorted(self.jaclib_imports)
@@ -586,15 +585,19 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
             )
 
         merged_body = self._merge_module_bodies(node)
-        body_items: list[ast3.AST | list[ast3.AST] | None] = [*self.preamble]
-        body_items.extend(item.gen.py_ast for item in merged_body)
+        body_items: list[ast3.AST | list[ast3.AST] | None] = []
 
+        # If there's a docstring, it must come first (before __future__ imports)
         if node.doc:
             doc_stmt = self.sync(
                 ast3.Expr(value=cast(ast3.expr, node.doc.gen.py_ast[0])),
                 jac_node=node.doc,
             )
-            body_items.insert(0, doc_stmt)
+            body_items.append(doc_stmt)
+
+        # Add preamble (which includes __future__ imports) after docstring
+        body_items.extend(self.preamble)
+        body_items.extend(item.gen.py_ast for item in merged_body)
 
         new_body = self._flatten_ast_list(body_items)
         node.gen.py_ast = [
@@ -704,6 +707,13 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
         # py_ast already set to [] in enter_node, nothing to do here
         pass
 
+    def exit_server_block(self, node: uni.ServerBlock) -> None:
+        """Handle ServerBlock - unwrap its children to module level."""
+        # Collect all py_ast from children to expose at module level
+        node.gen.py_ast = self._flatten_ast_list(
+            [item.gen.py_ast for item in node.body]
+        )
+
     def exit_py_inline_code(self, node: uni.PyInlineCode) -> None:
         if node.doc:
             doc = self.sync(
@@ -724,6 +734,14 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
 
     def exit_import(self, node: uni.Import) -> None:
         """Exit import node."""
+        # Skip __future__ imports as we always add them in the preamble
+        # This prevents duplicate __future__ imports which cause SyntaxError
+        if node.from_loc and node.from_loc.path:
+            module_parts = [p.value for p in node.from_loc.path if hasattr(p, "value")]
+            if module_parts == ["__future__"]:
+                node.gen.py_ast = []
+                return
+
         py_nodes: list[ast3.AST] = []
         if node.doc:
             py_nodes.append(
@@ -792,7 +810,7 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
         if node.path and len(node.path) == 1 and isinstance(node.path[0], uni.String):
             # String literal imports are only supported in client (cl) imports
             import_node = node.parent_of_type(uni.Import)
-            if import_node and not import_node.is_client_decl:
+            if import_node and import_node.code_context != CodeContext.CLIENT:
                 self.log_error(
                     f'String literal imports (e.g., from "{node.path[0].lit_value}") are only supported '
                     f"in client (cl) imports, not Python imports. "
@@ -813,7 +831,7 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
         # Validate that default and namespace imports are only used in cl imports
         if isinstance(node.name, uni.Token) and node.name.value in ["default", "*"]:
             import_node = node.from_parent
-            if not import_node.is_client_decl:
+            if import_node.code_context != CodeContext.CLIENT:
                 import_type = "Default" if node.name.value == "default" else "Namespace"
                 self.log_error(
                     f"{import_type} imports (using '{node.name.value}') are only supported "
@@ -862,6 +880,109 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                     )
                 ),
             )
+
+        if node.arch_type.name == Tok.KW_WALKER:
+            self.needs_typing()
+            visit_list_type = self.sync(
+                ast3.Subscript(
+                    value=self.sync(ast3.Name(id="list", ctx=ast3.Load())),
+                    slice=self.sync(
+                        ast3.Attribute(
+                            value=self.jaclib_obj("Walker"),
+                            attr="VisitType",
+                            ctx=ast3.Load(),
+                        )
+                    ),
+                    ctx=ast3.Load(),
+                )
+            )
+            visit_annotation = self.sync(
+                ast3.Subscript(
+                    value=self.sync(
+                        ast3.Attribute(
+                            value=self.sync(ast3.Name(id="typing", ctx=ast3.Load())),
+                            attr="ClassVar",
+                            ctx=ast3.Load(),
+                        )
+                    ),
+                    slice=visit_list_type,
+                    ctx=ast3.Load(),
+                )
+            )
+            visit_payload = getattr(node, TTG_VISIT_FIELD, None)
+            visit_elements: list[ast3.expr] = []
+            if isinstance(visit_payload, list):
+                for visit_info in visit_payload:
+                    from_arch = getattr(visit_info, "from_node_type", None)
+                    from_ref = (
+                        self.sync(
+                            ast3.Name(
+                                id=getattr(
+                                    from_arch.name, "sym_name", from_arch.name.value
+                                ),
+                                ctx=ast3.Load(),
+                            )
+                        )
+                        if from_arch is not None and getattr(from_arch, "name", None)
+                        else self.sync(ast3.Constant(value=None))
+                    )
+                    edge_arch = getattr(visit_info, "edge_type", None)
+                    edge_ref = (
+                        self.sync(
+                            ast3.Name(
+                                id=getattr(
+                                    edge_arch.name, "sym_name", edge_arch.name.value
+                                ),
+                                ctx=ast3.Load(),
+                            )
+                        )
+                        if edge_arch is not None and getattr(edge_arch, "name", None)
+                        else self.sync(ast3.Constant(value=None))
+                    )
+                    visit_elements.append(
+                        self.sync(
+                            ast3.Call(
+                                func=self.sync(
+                                    ast3.Attribute(
+                                        value=self.jaclib_obj("Walker"),
+                                        attr="VisitType",
+                                        ctx=ast3.Load(),
+                                    )
+                                ),
+                                args=[],
+                                keywords=[
+                                    self.sync(
+                                        ast3.keyword(
+                                            arg="from_node_type",
+                                            value=from_ref,
+                                        )
+                                    ),
+                                    self.sync(
+                                        ast3.keyword(
+                                            arg="edge_type",
+                                            value=edge_ref,
+                                        )
+                                    ),
+                                ],
+                            )
+                        )
+                    )
+            visit_value = self.sync(ast3.List(elts=visit_elements, ctx=ast3.Load()))
+            visits_field = self.sync(
+                ast3.AnnAssign(
+                    target=self.sync(ast3.Name(id=TTG_VISIT_FIELD, ctx=ast3.Store())),
+                    annotation=visit_annotation,
+                    value=visit_value,
+                    simple=1,
+                ),
+                jac_node=node,
+            )
+            insert_idx = 0
+            if node.is_async:
+                insert_idx += 1
+            if node.doc:
+                insert_idx += 1
+            body.insert(insert_idx, visits_field)
 
         decorators = (
             [cast(ast3.expr, i.gen.py_ast[0]) for i in node.decorators]
@@ -1955,13 +2076,17 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
         node.gen.py_ast = [self.sync(destroy_expr), self.sync(delete_stmt)]
 
     def exit_report_stmt(self, node: uni.ReportStmt) -> None:
+        if isinstance(node.expr, uni.YieldExpr):
+            fun_name = "log_report_yield"
+        else:
+            fun_name = "log_report"
         node.gen.py_ast = [
             self.sync(
                 ast3.Expr(
                     value=self.sync(
                         self.sync(
                             ast3.Call(
-                                func=self.jaclib_obj("log_report"),
+                                func=self.jaclib_obj(fun_name),
                                 args=cast(list[ast3.expr], node.expr.gen.py_ast),
                                 keywords=[],
                             )
@@ -2848,18 +2973,14 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                     )
                 )
             elif isinstance(node.gen.py_ast[0], ast3.Call):
-                # For FilterCompr and AssignCompr, update the relevant argument(s) to use tmp_ref
                 call_node = node.gen.py_ast[0]
-                # Check if this is a filter_on call (FilterCompr)
                 if isinstance(call_node.func, ast3.Attribute) or (
                     isinstance(call_node.func, ast3.Name)
                     and call_node.func.id == "filter_on"
                 ):
-                    # Replace the 'items' keyword argument with tmp_ref
                     for kw in call_node.keywords:
                         if kw.arg == "items":
                             kw.value = tmp_ref
-                # Check if this is an assign_all call (AssignCompr)
                 if (
                     isinstance(call_node.func, ast3.Attribute)
                     or (
@@ -2870,10 +2991,21 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                     call_node.args[0] = tmp_ref
                 body_expr = cast(ast3.expr, call_node)
             else:
-                # For subscripts and other operations, update reference and use as-is
-                if isinstance(node.gen.py_ast[0], (ast3.Attribute, ast3.Subscript)):
-                    node.gen.py_ast[0].value = tmp_ref
-                body_expr = cast(ast3.expr, node.gen.py_ast[0])
+                if isinstance(node.gen.py_ast[0], ast3.Subscript):
+                    # Use safe_subscript helper that handles all cases safely
+                    index_expr = node.gen.py_ast[0].slice
+
+                    body_expr = self.sync(
+                        ast3.Call(
+                            func=self.jaclib_obj("safe_subscript"),
+                            args=[tmp_ref, index_expr],
+                            keywords=[],
+                        )
+                    )
+                else:
+                    # Fallback for any other operation type
+                    node.gen.py_ast[0].value = tmp_ref  # type: ignore[attr-defined]
+                    body_expr = cast(ast3.expr, node.gen.py_ast[0])
 
             # Generate: body_expr if (__jac_tmp := target) is not None else None
             node.gen.py_ast = [

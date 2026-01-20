@@ -46,6 +46,8 @@ Lifecycle hooks are functions that let you run code at specific points in a comp
 
 The `useState` hook lets you add state to your components.
 
+> **Note:** When using `has` variables in Jac, `useState` is automatically injected. You only need to explicitly import `useState` when using the React hooks pattern directly.
+
 #### Basic Usage
 
 ```jac
@@ -295,7 +297,7 @@ cl {
 
         return <div>
             <h1>{profile.username}</h1>
-            <p>{profile.email}</p>
+            <p>{profile.bio}</p>
         </div>;
     }
 }

@@ -93,12 +93,32 @@ class Constants(StrEnum):
     ROOT = "root"
     VISITOR = "visitor"
     JAC_CHECK = "_check"
-    JAC_MYPY_CACHE = ".jac_mypy_cache"
     SUPER_ROOT_UUID = "00000000-0000-0000-0000-000000000000"
 
     def __str__(self) -> str:
         """Return the string representation of the token."""
         return self.value
+
+
+class CodeContext(Enum):
+    """Code execution context for client/server separation."""
+
+    SERVER = "server"  # Default: runs on server (Python)
+    CLIENT = "client"  # Runs on client (JavaScript/browser)
+
+    def __str__(self) -> str:
+        """Return the string representation of the context."""
+        return self.value
+
+    @property
+    def is_server(self) -> bool:
+        """Check if this is server context."""
+        return self == CodeContext.SERVER
+
+    @property
+    def is_client(self) -> bool:
+        """Check if this is client context."""
+        return self == CodeContext.CLIENT
 
 
 class EdgeDir(Enum):
@@ -243,6 +263,7 @@ class Tokens(str, Enum):
     KW_CASE = "KW_CASE"
     KW_DEFAULT = "KW_DEFAULT"
     KW_CLIENT = "KW_CLIENT"
+    KW_SERVER = "KW_SERVER"
     PLUS = "PLUS"
     MINUS = "MINUS"
     STAR_MUL = "STAR_MUL"
@@ -279,6 +300,7 @@ class Tokens(str, Enum):
     KW_HERE = "KW_HERE"
     KW_VISITOR = "KW_VISITOR"
     KW_SELF = "KW_SELF"
+    KW_PROPS = "KW_PROPS"
     KW_INIT = "KW_INIT"
     KW_SUPER = "KW_SUPER"
     KW_ROOT = "KW_ROOT"
@@ -775,3 +797,7 @@ class TsModifier(StrEnum):
     EXPORT = "export"
     DEFAULT = "default"
     OVERRIDE = "override"
+
+
+# TTG metadata helpers
+TTG_VISIT_FIELD = "__jac_ttg_visits__"

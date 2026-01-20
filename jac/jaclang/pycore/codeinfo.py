@@ -48,6 +48,7 @@ class CodeGenTarget:
         self.py_ast: list[ast3.AST] = []
         self.py_bytecode: bytes | None = None
         self.es_ast: EsNode | Sequence[EsNode] | SliceInfo | IndexInfo | None = None
+        self.visits: int = 0
 
     @property
     def doc_ir(self) -> Doc:
