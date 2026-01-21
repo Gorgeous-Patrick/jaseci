@@ -392,6 +392,21 @@ class JacEdge:
 class JacWalker:
     """Jac Edge Operations."""
 
+    _global_cache: Cache[int] | None = None
+
+    @classmethod
+    def _get_cache(cls) -> Cache[int]:
+        if cls._global_cache is None:
+            cache_size = int(os.environ.get("JAC_CACHE_SIZE", "10"))
+            cls._global_cache = Cache[int](cache_size=cache_size)
+        return cls._global_cache
+
+    @classmethod
+    def get_cache_stats(cls) -> tuple[int, int]:
+        """Expose aggregate cache stats for diagnostics."""
+
+        return cls._get_cache().get_stats()
+
     @staticmethod
     def visit(
         walker: WalkerArchetype,
@@ -587,8 +602,7 @@ class JacWalker:
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
-        cache_size = int(os.environ.get("JAC_CACHE_SIZE", "10"))
-        cache = Cache[int](cache_size=cache_size)
+        cache = JacWalker._get_cache()
 
         warch.__ttg_start_time__ = datetime.now()
         try:
@@ -640,7 +654,6 @@ class JacWalker:
 
         walker.ignores = []
         warch.__traversal_end_time__ = datetime.now()
-        cache.get_stats()
         return warch
 
     @staticmethod
