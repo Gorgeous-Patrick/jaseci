@@ -98,6 +98,5 @@ with entry {
             "total_acc": total_acc,
         }
     );
-    print(printgraph());
     json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
 }
