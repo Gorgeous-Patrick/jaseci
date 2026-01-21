@@ -461,19 +461,19 @@ class JacWalker:
         """
         from jaclang.runtimelib.utils import all_issubclass
 
+        node_arch = (
+            current_loc
+            if isinstance(current_loc, NodeArchetype)
+            else current_loc.__jac__.target.archetype
+        )
+        cache.write(id(node_arch))
+        if os.environ.get("JAC_PREFETCH", "0") == "1":
+            child_map = warch.__ttg_children__ or {}
+            child_nodes = child_map.get(node_arch, [])
+            cache.prefetch(id(child) for child in child_nodes)
+
         # walker ability with loc entry
         for i in warch._jac_entry_funcs_:
-            node_arch = (
-                current_loc
-                if isinstance(current_loc, NodeArchetype)
-                else current_loc.__jac__.target.archetype
-            )
-            cache.write(id(node_arch))
-            if os.environ.get("JAC_PREFETCH", "0") == "1":
-                child_map = warch.__ttg_children__ or {}
-                child_nodes = child_map.get(node_arch, [])
-                cache.prefetch(id(child) for child in child_nodes)
-
             if (
                 i.trigger
                 and (

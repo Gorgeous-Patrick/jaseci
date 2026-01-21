@@ -99,6 +99,7 @@ class Cache(Generic[K]):
 
     def read(self, key: K) -> tuple[bool, K | None]:
         """Record an access and return (hit?, evicted key)."""
+        print(f"READ: {key}")
 
         self.total_accesses += 1
         cached = self.lru.get(key)
@@ -110,6 +111,7 @@ class Cache(Generic[K]):
 
     def write(self, key: K) -> K | None:
         """Insert/touch a key; hit if it already resides in cache."""
+        print(f"WRITE: {key}")
 
         self.total_accesses += 1
         cached = self.lru.get(key)
@@ -120,6 +122,7 @@ class Cache(Generic[K]):
 
     def prefetch(self, keys: Iterable[K]) -> list[K]:
         """Warm cache entries without mutating hit statistics."""
+        print(f"PREFETCH: {keys}")
 
         evicted: list[K] = []
         for key in keys:
