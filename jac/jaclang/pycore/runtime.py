@@ -594,14 +594,18 @@ class JacWalker:
         try:
             current_node = node if isinstance(node, NodeAnchor) else node.target
             current_node_loc = current_node.archetype
-            ttg_state, ttg_visited = JacTTGGenerator.get_ttg(warch, current_node_loc)
+            ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
+                warch, current_node_loc
+            )
             warch.__ttg__ = ttg_state
             warch.__ttg_visited__ = ttg_visited
             warch.__ttg_dict__ = lambda: asdict(ttg_state)
+            warch.__ttg_children__ = ttg_child_map
         except RuntimeError:
             # TODO: TTG does not support some programs
             warch.__ttg__ = None
             warch.__ttg_dict__ = None
+            warch.__ttg_children__ = None
 
         warch.__ttg_end_time__ = datetime.now()
         warch.__traversal_start_time__ = datetime.now()
@@ -2260,7 +2264,9 @@ class JacTTGGenerator:
     @classmethod
     def get_ttg(
         cls, walker: WalkerArchetype, start_node: NodeArchetype
-    ) -> tuple[TypedWalkerState, set[NodeArchetype]]:
+    ) -> tuple[
+        TypedWalkerState, set[NodeArchetype], dict[NodeArchetype, list[NodeArchetype]]
+    ]:
         """Get the set based TTG for multiple walker spawns."""
         ttg_root = JacTTGGenerator.TypedWalkerState(
             walker_type=JacTTGGenerator.extract_type_name(walker),
@@ -2272,6 +2278,7 @@ class JacTTGGenerator:
 
         visited_nodes: set[NodeArchetype] = set()
         existing_edges: set[tuple[NodeArchetype, NodeArchetype]] = set()
+        child_map: dict[NodeArchetype, list[NodeArchetype]] = {}
 
         # TODO: DETERMINE A BETTER THRESHOLD HERE.
         while walker_states:
@@ -2290,6 +2297,7 @@ class JacTTGGenerator:
                 if (node, neighbor) in existing_edges:
                     continue
                 existing_edges.add((node, neighbor))
+                child_map.setdefault(node, []).append(neighbor)
                 new_walker_state = JacTTGGenerator.TypedWalkerState(
                     node=neighbor,
                     walker_type=state.walker_type,
@@ -2298,7 +2306,7 @@ class JacTTGGenerator:
                 )
                 state.children.append(new_walker_state)
                 walker_states.append(new_walker_state)
-        return ttg_root, visited_nodes
+        return ttg_root, visited_nodes, child_map
 
 
 class JacPluginConfig:

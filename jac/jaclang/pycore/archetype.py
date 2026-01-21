@@ -426,6 +426,7 @@ class WalkerArchetype(Archetype):
         __ttg__: JacTTGGenerator.TypedWalkerState | None
         __ttg_dict__: Callable[[], dict[str, Any]] | None
         __ttg_visited__: set[NodeArchetype]
+        __ttg_children__: dict[NodeArchetype, list[NodeArchetype]] | None
         __ttg_start_time__: datetime
         __ttg_end_time__: datetime
         __traversal_start_time__: datetime
@@ -437,6 +438,7 @@ class WalkerArchetype(Archetype):
         self.__ttg__ = None
         self.__ttg_dict__ = None
         self.__ttg_visited__ = set()
+        self.__ttg_children__ = None
 
     @cached_property
     def __jac__(self) -> WalkerAnchor:
