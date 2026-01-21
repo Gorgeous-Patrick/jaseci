@@ -33,7 +33,7 @@ for (( edges=0; edges<=MAX_EDGES; edges+=STEP )); do
     JAC_EDGE_NUM="${edges}" \
     JAC_TWEET_NUM="${TWEET_NUM}" \
     JAC_CACHE_SIZE="${CACHE_SIZE}" \
-        jac run "${JAC_FILE}"  --no-cache > out.txt
+        jac run "${JAC_FILE}" > out.txt
 
     echo "------------------------------------------------------"
 done

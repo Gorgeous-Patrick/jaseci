@@ -466,7 +466,7 @@ class JacWalker:
             if isinstance(current_loc, NodeArchetype)
             else current_loc.__jac__.target.archetype
         )
-        cache.write(id(node_arch))
+        cache.read(id(node_arch))
         if os.environ.get("JAC_PREFETCH", "0") == "1":
             child_map = warch.__ttg_children__ or {}
             child_nodes = child_map.get(node_arch, [])
@@ -484,6 +484,7 @@ class JacWalker:
             ):
                 i.func(warch, current_loc)
             if walker.disengaged:
+                cache.write(id(node_arch))
                 return False
 
         # loc ability with any entry
@@ -491,6 +492,7 @@ class JacWalker:
             if not i.trigger:
                 i.func(current_loc, warch)
             if walker.disengaged:
+                cache.write(id(node_arch))
                 return False
 
         # loc ability with walker entry
@@ -502,8 +504,10 @@ class JacWalker:
             ):
                 i.func(current_loc, warch)
             if walker.disengaged:
+                cache.write(id(node_arch))
                 return False
 
+        cache.write(id(node_arch))
         return True
 
     @staticmethod
