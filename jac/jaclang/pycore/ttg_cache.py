@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
@@ -87,56 +87,48 @@ class LRUCache(Generic[K, V]):
         return None
 
 
-class Cache(Generic[K, V]):
+class Cache(Generic[K]):
     def __init__(self, cache_size: int):
-        self.lru: LRUCache[K, V] = LRUCache(cache_size)
-        self.database: dict[K, V] = {}
+        self.lru: LRUCache[K, bool] = LRUCache(cache_size)
         self.cache_hits = 0
         self.total_accesses = 0
 
-    def write(self, key: K, value: V) -> None:
-        evicted = self.lru.put(key, value)
-        if evicted is None:
-            self.cache_hits += 1
-        else:
-            old_key, old_value = evicted
-            self.database[old_key] = old_value
-        self.total_accesses += 1
+    def _insert(self, key: K) -> K | None:
+        evicted = self.lru.put(key, True)
+        return evicted[0] if evicted else None
 
-    def read(self, key: K) -> V:
-        cached = self.lru.get(key)
+    def read(self, key: K) -> tuple[bool, K | None]:
+        """Record an access and return (hit?, evicted key)."""
+
         self.total_accesses += 1
+        cached = self.lru.get(key)
         if cached is not None:
             self.cache_hits += 1
-            return cached
-        if key not in self.database:
-            raise KeyError(f"Key {key!r} not present in backing store")
-        value = self.database[key]
-        evicted = self.lru.put(key, value)
-        if evicted is not None:
-            old_key, old_value = evicted
-            self.database[old_key] = old_value
-        return value
+            return True, None
+        evicted_key = self._insert(key)
+        return False, evicted_key
 
-    def prefetch(
-        self, keys: Iterable[K], loader: Callable[[K], V] | None = None
-    ) -> None:
+    def write(self, key: K) -> K | None:
+        """Insert/touch a key; hit if it already resides in cache."""
+
+        self.total_accesses += 1
+        cached = self.lru.get(key)
+        if cached is not None:
+            self.cache_hits += 1
+            return None
+        return self._insert(key)
+
+    def prefetch(self, keys: Iterable[K]) -> list[K]:
         """Warm cache entries without mutating hit statistics."""
 
+        evicted: list[K] = []
         for key in keys:
             if self.lru.get(key) is not None:
                 continue
-            if key in self.database:
-                value = self.database[key]
-            elif loader is not None:
-                value = loader(key)
-                self.database[key] = value
-            else:
-                raise KeyError(f"Cannot prefetch missing key {key!r} without a loader")
-            evicted = self.lru.put(key, value)
-            if evicted is not None:
-                old_key, old_value = evicted
-                self.database[old_key] = old_value
+            popped = self._insert(key)
+            if popped is not None:
+                evicted.append(popped)
+        return evicted
 
     def get_stats(self) -> tuple[int, int]:
         print(
