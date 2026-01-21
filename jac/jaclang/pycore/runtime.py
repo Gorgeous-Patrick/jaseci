@@ -602,7 +602,7 @@ class JacWalker:
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
-        cache = JacWalker._get_cache()
+        cache = JacRuntime._get_cache()
 
         warch.__ttg_start_time__ = datetime.now()
         try:
