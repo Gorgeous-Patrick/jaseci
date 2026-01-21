@@ -2,6 +2,7 @@ import random;
 import os;
 import json;
 import from util { append_to_json_list }
+import from jaclang.pycore.runtime {JacRuntime}
 node Profile {
     has id: int;
 }
@@ -86,6 +87,17 @@ with entry {
             }
         );
     }
+    (hit, total_acc) = JacRuntime.get_cache_stats();
+    append_to_json_list(
+        "cache_stats.json",
+        {
+            "JAC_NODE_NUM": NODE_NUM,
+            "JAC_EDGE_NUM": EDGE_NUM,
+            "JAC_TWEET_NUM": TWEET_NUM,
+            "hit": hit,
+            "total_acc": total_acc,
+        }
+    );
     print(printgraph());
     json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
 }

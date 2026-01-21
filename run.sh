@@ -8,6 +8,7 @@ fi
 NODE_NUM=${NODE_NUM:-250}         # number of nodes (can override: NODE_NUM=100 ./sweep.sh)
 STEP=${STEP:-1}                   # edge step size      (override: STEP=10 ./sweep.sh)
 TWEET_NUM=${TWEET_NUM:-1}         # JAC_TWEET_NUM
+CACHE_SIZE=${CACHE_SIZE:-10}      # JAC_CACHE_SIZE for walker cache
 JAC_FILE=${JAC_FILE:-jac/tests/language/fixtures/jac_ttg/littlex2.jac}
 # =====================================
 
@@ -28,6 +29,7 @@ for (( edges=0; edges<=MAX_EDGES; edges+=STEP )); do
     JAC_NODE_NUM="${NODE_NUM}" \
     JAC_EDGE_NUM="${edges}" \
     JAC_TWEET_NUM="${TWEET_NUM}" \
+    JAC_CACHE_SIZE="${CACHE_SIZE}" \
         jac run "${JAC_FILE}" > /dev/null
 
     echo "------------------------------------------------------"
