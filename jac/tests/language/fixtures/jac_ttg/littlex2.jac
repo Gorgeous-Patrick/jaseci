@@ -87,7 +87,8 @@ with entry {
             }
         );
     }
-    (hit, total_acc) = JacRuntime.get_cache_stats();
+    cache = JacRuntime._get_cache();
+    (hit, total_acc) = cache.get_stats();
     append_to_json_list(
         "cache_stats.json",
         {
@@ -96,6 +97,7 @@ with entry {
             "JAC_TWEET_NUM": TWEET_NUM,
             "hit": hit,
             "total_acc": total_acc,
+            "cache_size": cache.lru.capacity,
         }
     );
     json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
