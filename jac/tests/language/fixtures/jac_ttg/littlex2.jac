@@ -89,6 +89,7 @@ with entry {
     }
     cache = JacRuntime._get_cache();
     (hit, total_acc) = cache.get_stats();
+    prefetch_enabled = int(os.environ.get("JAC_PREFETCH", "0"));
     append_to_json_list(
         "cache_stats.json",
         {
@@ -98,6 +99,7 @@ with entry {
             "hit": hit,
             "total_acc": total_acc,
             "cache_size": cache.lru.capacity,
+            "jac_prefetch": prefetch_enabled,
         }
     );
     json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);

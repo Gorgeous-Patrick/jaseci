@@ -13,6 +13,7 @@ STEP=${STEP:-250}                   # edge step size      (override: STEP=10 ./s
 TWEET_NUM=${TWEET_NUM:-1}         # JAC_TWEET_NUM
 CACHE_SIZE=${CACHE_SIZE:-10}      # JAC_CACHE_SIZE for walker cache
 CACHE_SIZES=${CACHE_SIZES:-${CACHE_SIZE}}
+PREFETCH_VALUES=${PREFETCH_VALUES:-"0 1"}
 JAC_FILE=${JAC_FILE:-jac/tests/language/fixtures/jac_ttg/littlex2.jac}
 # =====================================
 
@@ -26,20 +27,25 @@ echo "  NODE_NUM  = ${NODE_NUM}"
 echo "  STEP      = ${STEP}"
 echo "  MAX_EDGES = ${MAX_EDGES}"
 echo "  CACHE_SIZES = ${CACHE_SIZES}"
+echo "  PREFETCH_VALUES = ${PREFETCH_VALUES}"
 echo "  JAC_FILE  = ${JAC_FILE}"
 echo
 
-for cache_size in ${CACHE_SIZES}; do
-  echo "==> Sweeping edges with JAC_CACHE_SIZE=${cache_size}"
-  for (( edges=0; edges<=MAX_EDGES; edges+=STEP )); do
-    echo "Running with JAC_NODE_NUM=${NODE_NUM}, JAC_EDGE_NUM=${edges}, JAC_TWEET_NUM=${TWEET_NUM}"
+for prefetch in ${PREFETCH_VALUES}; do
+  echo "==> Sweeping with JAC_PREFETCH=${prefetch}"
+  for cache_size in ${CACHE_SIZES}; do
+    echo "  -> JAC_CACHE_SIZE=${cache_size}"
+    for (( edges=0; edges<=MAX_EDGES; edges+=STEP )); do
+      echo "Running with JAC_NODE_NUM=${NODE_NUM}, JAC_EDGE_NUM=${edges}, JAC_TWEET_NUM=${TWEET_NUM}"
 
-    JAC_NODE_NUM="${NODE_NUM}" \
-    JAC_EDGE_NUM="${edges}" \
-    JAC_TWEET_NUM="${TWEET_NUM}" \
-    JAC_CACHE_SIZE="${cache_size}" \
-      jac run "${JAC_FILE}" > out.txt
+      JAC_NODE_NUM="${NODE_NUM}" \
+      JAC_EDGE_NUM="${edges}" \
+      JAC_TWEET_NUM="${TWEET_NUM}" \
+      JAC_CACHE_SIZE="${cache_size}" \
+      JAC_PREFETCH="${prefetch}" \
+        jac run "${JAC_FILE}" > out.txt
 
-    echo "------------------------------------------------------"
+      echo "------------------------------------------------------"
+    done
   done
 done
