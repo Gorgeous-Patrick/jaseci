@@ -16,8 +16,9 @@ JAC_FILE=${JAC_FILE:-jac/tests/language/fixtures/jac_ttg/littlex2.jac}
 # =====================================
 
 # Fully connected directed graph (no self-loops):
-# max_edges = N * (N - 1)
-MAX_EDGES=$(( NODE_NUM * (NODE_NUM - 1) ))
+# max_edges = N * (N - 1) unless overridden via MAX_EDGES
+FULLY_CONNECTED_EDGES=$(( NODE_NUM * (NODE_NUM - 1) ))
+MAX_EDGES=${MAX_EDGES:-${FULLY_CONNECTED_EDGES}}
 
 echo "Sweeping graph density:"
 echo "  NODE_NUM  = ${NODE_NUM}"
