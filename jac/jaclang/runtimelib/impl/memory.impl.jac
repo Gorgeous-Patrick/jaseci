@@ -568,11 +568,9 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not ids_to_fetch {
         return;
     }
-    # Load from L3 persistence
-    for id in ids_to_fetch {
-        if (anchor := self.l3.get(id)) {
-            # Store to L2 cache only (don't pollute L1)
-            self.l2.put(anchor);
-        }
+    # Load from L3 persistence in batch to minimize roundtrips
+    for anchor in self.l3.find(ids_to_fetch) {
+        # Store to L2 cache only (don't pollute L1)
+        self.l2.put(anchor);
     }
 }
