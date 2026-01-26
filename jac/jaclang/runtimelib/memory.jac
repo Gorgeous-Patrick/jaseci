@@ -84,6 +84,9 @@ obj Memory {
 
     """Commit/sync pending changes. For write-through this flushes to durable storage."""
     def commit(anchor: (Anchor | None) = None) -> None abs;
+
+    """Prefetch multiple anchors for performance optimization."""
+    def prefetch(ids: Iterable[UUID]) -> None abs;
 }
 
 """Cache Memory Interface.
@@ -240,4 +243,5 @@ obj TieredMemory(VolatileMemory) {
     def close -> None;
     def has(id: UUID) -> bool;
     def commit(anchor: (Anchor | None) = None) -> None;
+    def prefetch(ids: Iterable[UUID]) -> None;
 }

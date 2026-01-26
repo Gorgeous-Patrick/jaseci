@@ -553,3 +553,26 @@ impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
         self.l3.sync();
     }
 }
+
+"""Prefetch - load from L3 and store to L2."""
+impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
+    if not self.l3 or not self.l2 {
+        return;
+    }
+    # Only prefetch IDs not already in L1 or L2
+    ids_to_fetch = [
+        id
+        for id in ids
+        if id not in self.__mem__ and not self.l2.exists(id)
+    ];
+    if not ids_to_fetch {
+        return;
+    }
+    # Load from L3 persistence
+    for id in ids_to_fetch {
+        if (anchor := self.l3.get(id)) {
+            # Store to L2 cache only (don't pollute L1)
+            self.l2.put(anchor);
+        }
+    }
+}
