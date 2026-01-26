@@ -99,8 +99,6 @@ class Cache(Generic[K]):
 
     def read(self, key: K) -> tuple[bool, K | None]:
         """Record an access and return (hit?, evicted key)."""
-        print(f"READ: {key}")
-
         self.total_accesses += 1
         cached = self.lru.get(key)
         if cached is not None:
@@ -111,8 +109,6 @@ class Cache(Generic[K]):
 
     def write(self, key: K) -> K | None:
         """Insert/touch a key; hit if it already resides in cache."""
-        print(f"WRITE: {key}")
-
         self.total_accesses += 1
         cached = self.lru.get(key)
         if cached is not None:
