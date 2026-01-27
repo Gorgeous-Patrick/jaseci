@@ -9,23 +9,17 @@ fi
 
 # ====== Configurable parameters ======
 NODE_NUM=${NODE_NUM:-250}         # number of nodes (can override: NODE_NUM=100 ./sweep.sh)
-STEP=${STEP:-250}                   # edge step size      (override: STEP=10 ./sweep.sh)
 TWEET_NUM=${TWEET_NUM:-1}         # JAC_TWEET_NUM
 CACHE_SIZE=${CACHE_SIZE:-10}      # JAC_CACHE_SIZE for walker cache
 CACHE_SIZES=${CACHE_SIZES:-${CACHE_SIZE}}
+EDGE_NUMS=${EDGE_NUMS:-"0 250 500 750 1000"}  # List of edge numbers to iterate over
 PREFETCH_VALUES=${PREFETCH_VALUES:-"0 1"}
 JAC_FILE=${JAC_FILE:-jac/tests/language/fixtures/jac_ttg/littlex2.jac}
 # =====================================
 
-# Fully connected directed graph (no self-loops):
-# max_edges = N * (N - 1) unless overridden via MAX_EDGES
-FULLY_CONNECTED_EDGES=$(( NODE_NUM * (NODE_NUM - 1) ))
-MAX_EDGES=${MAX_EDGES:-${FULLY_CONNECTED_EDGES}}
-
 echo "Sweeping graph density:"
 echo "  NODE_NUM  = ${NODE_NUM}"
-echo "  STEP      = ${STEP}"
-echo "  MAX_EDGES = ${MAX_EDGES}"
+echo "  EDGE_NUMS = ${EDGE_NUMS}"
 echo "  CACHE_SIZES = ${CACHE_SIZES}"
 echo "  PREFETCH_VALUES = ${PREFETCH_VALUES}"
 echo "  JAC_FILE  = ${JAC_FILE}"
@@ -35,7 +29,7 @@ for prefetch in ${PREFETCH_VALUES}; do
   echo "==> Sweeping with JAC_PREFETCH=${prefetch}"
   for cache_size in ${CACHE_SIZES}; do
     echo "  -> JAC_CACHE_SIZE=${cache_size}"
-    for (( edges=0; edges<=MAX_EDGES; edges+=STEP )); do
+    for edges in ${EDGE_NUMS}; do
       echo "Running with JAC_NODE_NUM=${NODE_NUM}, JAC_EDGE_NUM=${edges}, JAC_TWEET_NUM=${TWEET_NUM}"
 
       JAC_NODE_NUM="${NODE_NUM}" \
