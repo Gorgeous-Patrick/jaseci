@@ -468,8 +468,9 @@ class JacWalker:
         )
         cache.read(id(node_arch))
         if os.environ.get("JAC_PREFETCH", "0") == "1":
-            child_map = warch.__ttg_children__ or {}
-            child_nodes = child_map.get(node_arch, [])
+            child_nodes = JacTTGGenerator.get_prefetch_list(
+                node_arch, warch.__ttg_children__ or {}
+            )
             cache.prefetch(id(child) for child in child_nodes)
 
         # walker ability with loc entry
@@ -619,10 +620,10 @@ class JacWalker:
             ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
                 warch, current_node_loc
             )
+            warch.__ttg_children__ = ttg_child_map
             warch.__ttg__ = ttg_state
             warch.__ttg_visited__ = ttg_visited
             warch.__ttg_dict__ = lambda: asdict(ttg_state)
-            warch.__ttg_children__ = ttg_child_map
         except RuntimeError:
             # TODO: TTG does not support some programs
             warch.__ttg__ = None
@@ -2328,6 +2329,26 @@ class JacTTGGenerator:
                 state.children.append(new_walker_state)
                 walker_states.append(new_walker_state)
         return ttg_root, visited_nodes, child_map
+
+    @classmethod
+    def get_prefetch_list(
+        cls,
+        start: NodeArchetype,
+        ttg_children: dict[NodeArchetype, list[NodeArchetype]],
+    ) -> list[NodeArchetype]:
+        """Get prefetch list from TTG root."""
+        prefetch_list: list[NodeArchetype] = []
+        states_to_process: list[NodeArchetype] = [start]
+        max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "10"))
+
+        while states_to_process:
+            current_state = states_to_process.pop(0)
+            prefetch_list.append(current_state)
+            states_to_process.extend(ttg_children[current_state])
+            if len(prefetch_list) >= max_length:
+                break
+
+        return prefetch_list[:max_length]
 
 
 class JacPluginConfig:
