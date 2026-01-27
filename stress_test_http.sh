@@ -88,11 +88,14 @@ make_request() {
   local node_id=$2
   local start_time=$(date +%s%N)
 
-  http_code=$(curl -s -w "%{http_code}" -o /dev/null --max-time 30 \
-    -X POST "http://localhost:$PORT/walker/BFS" \
+  response=$(curl -s -w "\n%{http_code}" --max-time 30 \
+    -X POST "http://localhost:$PORT/walker/BFS/$node_id" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
-    -d "{\"nd\": \"$node_id\"}" 2>/dev/null || echo "000")
+    -d "{}" 2>/dev/null || echo "\n000")
+
+  http_code=$(echo "$response" | tail -1)
+  response_body=$(echo "$response" | sed '$d')
 
   end_time=$(date +%s%N)
   elapsed_ms=$(( (end_time - start_time) / 1000000 ))
@@ -101,6 +104,9 @@ make_request() {
 
   if [ "$http_code" != "200" ]; then
     echo "  [WARN] Request $req_id (node ${node_id:0:8}...) failed with code $http_code"
+    if [ -n "$response_body" ]; then
+      echo "  [WARN] Response: $response_body"
+    fi
   fi
 }
 
