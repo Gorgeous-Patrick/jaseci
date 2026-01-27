@@ -19,8 +19,7 @@ walker BFS {
         visit [->:JunkEdge:->];
     }
 }
-
-with entry {
+def create_node() -> list[str] {
     nodes = [BFSNode(id=0), BFSNode(id=1), BFSNode(id=2), BFSNode(id=3), BFSNode(id=4)];
     junk = BFSNode(id=5);  # To ensure IDs are not reused
     root +>: BasicEdge :+> nodes[0];
@@ -28,7 +27,13 @@ with entry {
     nodes[0] +>: BasicEdge :+> nodes[2];
     nodes[1] +>: BasicEdge :+> nodes[3];
     nodes[1] +>: BasicEdge :+> nodes[4];
-    BFS();
-    wlk = BFS() spawn nodes[0];
-    print(wlk.__ttg__);
+    result = [];
+    for n in nodes {
+        result.append(str(n.__jac__.id));
+    }
+    return result;
+}
+
+with entry {
+    print(create_node());
 }

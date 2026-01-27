@@ -52,40 +52,68 @@ fi
 
 echo "✓ Token received: ${TOKEN:0:30}..."
 
+# Create nodes and get their IDs
+echo "Creating nodes via create_node function..."
+CREATE_RESPONSE=$(curl -s -X POST "http://localhost:$PORT/function/create_node" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}')
+
+echo $CREATE_RESPONSE
+
+NODE_IDS=$(echo "$CREATE_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin).get('data', {}).get('result', []); print(' '.join(data))" 2>/dev/null || echo "")
+
+if [ -z "$NODE_IDS" ]; then
+  echo "ERROR: Failed to create nodes"
+  echo "Response: $CREATE_RESPONSE"
+  exit 1
+fi
+
+# Convert to array
+NODE_IDS_ARRAY=($NODE_IDS)
+echo "✓ Created ${#NODE_IDS_ARRAY[@]} nodes"
+echo "  First node ID: ${NODE_IDS_ARRAY[0]:0:30}..."
+
 # Create results directory
 mkdir -p stress_test_results
 RESULTS_DIR="stress_test_results/http_$(date +%s)"
 mkdir -p "$RESULTS_DIR"
 
 # Write CSV header
-echo "req_id,http_code,time_ms" > "$RESULTS_DIR/results.csv"
+echo "req_id,node_id,http_code,time_ms" > "$RESULTS_DIR/results.csv"
 
-# Concurrent request function
+# Concurrent request function - spawn walker on specific node
 make_request() {
   local req_id=$1
+  local node_id=$2
   local start_time=$(date +%s%N)
 
   http_code=$(curl -s -w "%{http_code}" -o /dev/null --max-time 30 \
     -X POST "http://localhost:$PORT/walker/BFS" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
-    -d '{}' 2>/dev/null || echo "000")
+    -d "{\"nd\": \"$node_id\"}" 2>/dev/null || echo "000")
 
   end_time=$(date +%s%N)
   elapsed_ms=$(( (end_time - start_time) / 1000000 ))
 
-  echo "$req_id,$http_code,$elapsed_ms" >> "$RESULTS_DIR/results.csv"
+  echo "$req_id,${node_id:0:8}...,$http_code,$elapsed_ms" >> "$RESULTS_DIR/results.csv"
 
   if [ "$http_code" != "200" ]; then
-    echo "  [WARN] Request $req_id failed with code $http_code"
+    echo "  [WARN] Request $req_id (node ${node_id:0:8}...) failed with code $http_code"
   fi
 }
 
 echo "Running ${NUM_REQUESTS} concurrent HTTP requests (concurrency=${CONCURRENCY})..."
+echo "  Spawning walkers on ${#NODE_IDS_ARRAY[@]} nodes in round-robin..."
 
-# Run requests with controlled concurrency
+# Run requests with controlled concurrency - round-robin across nodes
 for ((i=1; i<=NUM_REQUESTS; i++)); do
-  make_request "$i" &
+  # Pick node in round-robin fashion
+  node_index=$(( (i - 1) % ${#NODE_IDS_ARRAY[@]} ))
+  node_id="${NODE_IDS_ARRAY[$node_index]}"
+
+  make_request "$i" "$node_id" &
 
   # Limit concurrent jobs
   if (( i % CONCURRENCY == 0 )); then
