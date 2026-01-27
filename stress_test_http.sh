@@ -104,21 +104,19 @@ make_request() {
   fi
 }
 
-echo "Running ${NUM_REQUESTS} concurrent HTTP requests (concurrency=${CONCURRENCY})..."
-echo "  Spawning walkers on ${#NODE_IDS_ARRAY[@]} nodes in round-robin..."
+echo "Spawning walker on each of the ${#NODE_IDS_ARRAY[@]} nodes..."
 
-# Run requests with controlled concurrency - round-robin across nodes
-for ((i=1; i<=NUM_REQUESTS; i++)); do
-  # Pick node in round-robin fashion
-  node_index=$(( (i - 1) % ${#NODE_IDS_ARRAY[@]} ))
-  node_id="${NODE_IDS_ARRAY[$node_index]}"
+# Spawn one walker per node (ignore NUM_REQUESTS, just use actual nodes)
+for ((i=0; i<${#NODE_IDS_ARRAY[@]}; i++)); do
+  node_id="${NODE_IDS_ARRAY[$i]}"
+  req_id=$((i + 1))
 
-  make_request "$i" "$node_id" &
+  make_request "$req_id" "$node_id" &
 
   # Limit concurrent jobs
-  if (( i % CONCURRENCY == 0 )); then
+  if (( (i + 1) % CONCURRENCY == 0 )); then
     wait
-    echo "  Completed batch: $((i - CONCURRENCY + 1))-$i"
+    echo "  Completed batch: $((i - CONCURRENCY + 2))-$((i + 1))"
   fi
 done
 
