@@ -81,6 +81,8 @@ mkdir -p "$RESULTS_DIR"
 
 # Write CSV header
 echo "req_id,node_id,http_code,time_ms" > "$RESULTS_DIR/results.csv"
+# Track raw HTTP codes from curl
+> "$RESULTS_DIR/http_codes.log"
 
 # Concurrent request function - spawn walker on specific node
 make_request() {
@@ -101,6 +103,7 @@ make_request() {
   elapsed_ms=$(( (end_time - start_time) / 1000000 ))
 
   echo "$req_id,${node_id:0:8}...,$http_code,$elapsed_ms" >> "$RESULTS_DIR/results.csv"
+  echo "$http_code" >> "$RESULTS_DIR/http_codes.log"
 
   if [ "$http_code" != "200" ]; then
     echo "  [WARN] Request $req_id (node ${node_id:0:8}...) failed with code $http_code"
@@ -133,8 +136,8 @@ echo
 echo "Results saved to: $RESULTS_DIR"
 echo
 echo "=== Summary ==="
-total_requests=$(awk 'NR>1' "$RESULTS_DIR/results.csv" | wc -l)
-success_count=$(awk -F',' '$2==200' "$RESULTS_DIR/results.csv" | wc -l)
+total_requests=$(wc -l < "$RESULTS_DIR/http_codes.log")
+success_count=$(grep -c '^200$' "$RESULTS_DIR/http_codes.log" || true)
 failed_count=$((total_requests - success_count))
 
 echo "Total Requests: $total_requests"
