@@ -467,10 +467,12 @@ class JacWalker:
             else current_loc.__jac__.target.archetype
         )
         cache.read(id(node_arch))
+        print(warch.__ttg_children__)
         if os.environ.get("JAC_PREFETCH", "0") == "1":
             child_nodes = JacTTGGenerator.get_prefetch_list(
                 node_arch, warch.__ttg_children__ or {}
             )
+            print(f"child_nodes: {child_nodes}")
             cache.prefetch(id(child) for child in child_nodes)
 
         # walker ability with loc entry
@@ -2340,15 +2342,21 @@ class JacTTGGenerator:
         prefetch_list: list[NodeArchetype] = []
         states_to_process: list[NodeArchetype] = [start]
         max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "10"))
+        visited: list[NodeArchetype] = []
 
         while states_to_process:
             current_state = states_to_process.pop(0)
             prefetch_list.append(current_state)
-            states_to_process.extend(ttg_children[current_state])
+            children = ttg_children.get(current_state, [])
+            unvisited_children = [child for child in children if child not in visited]
+            states_to_process.extend(unvisited_children)
+            visited.extend(unvisited_children)
+
             if len(prefetch_list) >= max_length:
                 break
+        length = min(max_length, len(prefetch_list))
 
-        return prefetch_list[:max_length]
+        return prefetch_list[:length]
 
 
 class JacPluginConfig:
