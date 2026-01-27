@@ -1,60 +1,40 @@
 #!/bin/bash
 
-# HTTP API stress test for basic.jac with Redis backend
-# Uses `jac start` (not --scale) to avoid K8s deployment
+# HTTP API stress test for basic.jac
 # Tests walker invocation via REST API under concurrent load
+# NOTE: Start the server manually before running this script
 
 set -euo pipefail
 
-REDIS_URL=${REDIS_URL:-"redis://localhost:6379"}
 PORT=${PORT:-8000}
 # Use unique username to avoid conflicts between runs
 USERNAME="stresstest_$(date +%s%N | md5sum | cut -c1-8)"
 PASSWORD=${PASSWORD:-"password123"}
 NUM_REQUESTS=${NUM_REQUESTS:-50}
 CONCURRENCY=${CONCURRENCY:-5}
-JAC_FILE="jac/tests/language/fixtures/jac_ttg/basic.jac"
 
-echo "=== HTTP API Stress Test for basic.jac (Redis backend) ==="
-echo "REDIS_URL: ${REDIS_URL}"
+echo "=== HTTP API Stress Test for basic.jac ==="
 echo "PORT: ${PORT}"
 echo "CONCURRENCY: ${CONCURRENCY}"
 echo "TOTAL_REQUESTS: ${NUM_REQUESTS}"
 echo
 
-# Start server in background
-echo "Starting jac server with Redis backend..."
-REDIS_URL="$REDIS_URL" \
-  jac start "$JAC_FILE" --port "$PORT" > /tmp/jac_server.log 2>&1 &
-SERVER_PID=$!
-
-# Wait for server to be ready
-echo "Waiting for server to start (PID: $SERVER_PID)..."
-sleep 5
-
-if ! kill -0 $SERVER_PID 2>/dev/null; then
-  echo "ERROR: Server failed to start"
-  cat /tmp/jac_server.log
-  exit 1
-fi
-
 # Check if server is responding
-for i in {1..10}; do
+echo "Checking if server is running on port $PORT..."
+for i in {1..5}; do
   if curl -s "http://localhost:$PORT/docs" > /dev/null 2>&1; then
-    echo "Server is ready!"
+    echo "✓ Server is ready!"
     break
   fi
-  if [ $i -eq 10 ]; then
-    echo "ERROR: Server not responding after 10 attempts"
-    cat /tmp/jac_server.log
-    kill $SERVER_PID 2>/dev/null || true
+  if [ $i -eq 5 ]; then
+    echo "✗ ERROR: Server not responding at http://localhost:$PORT"
+    echo "Start the server first:"
+    echo "  REDIS_URL=redis://localhost:6379 jac start jac/tests/language/fixtures/jac_ttg/basic.jac --port $PORT"
     exit 1
   fi
-  echo "Attempt $i/10: Server not ready yet..."
+  echo "  Attempt $i/5..."
   sleep 1
 done
-
-trap "echo 'Shutting down server...'; kill $SERVER_PID 2>/dev/null || true; wait $SERVER_PID 2>/dev/null || true" EXIT
 
 # Register user
 echo "Registering test user: $USERNAME"
@@ -67,12 +47,10 @@ TOKEN=$(echo "$REGISTER_RESPONSE" | python3 -c "import sys, json; data=json.load
 if [ -z "$TOKEN" ]; then
   echo "ERROR: Failed to get authentication token"
   echo "Response: $REGISTER_RESPONSE"
-  echo "Server logs:"
-  tail -30 /tmp/jac_server.log
   exit 1
 fi
 
-echo "Token received: ${TOKEN:0:30}..."
+echo "✓ Token received: ${TOKEN:0:30}..."
 
 # Create results directory
 mkdir -p stress_test_results
