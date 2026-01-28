@@ -67,7 +67,7 @@ if [ "$NODE_IDS" = "[]" ]; then
 fi
 
 # Convert to array and display
-NODE_IDS_ARRAY=($(echo "$NODE_IDS" | python3 -c "import sys, json; print(' '.join(json.load(sys.stdin)))"))
+NODE_IDS_ARRAY=($(echo "$NODE_IDS" | python3 -c "import sys, json; data=json.load(sys.stdin); print(' '.join([str(x) for x in data]))"))
 echo "✓ Created ${#NODE_IDS_ARRAY[@]} nodes"
 
 # Save to file

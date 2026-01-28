@@ -442,6 +442,8 @@ impl TieredMemory.postinit -> None {
     # Initialize L1 (inherited from VolatileMemory)
     self.__mem__ = {};
     self.__gc__ = set();
+    self.__hit__ = 0;
+    self.__miss__ = 0;
     # Initialize L2 cache if requested
     if self.use_cache {
         self.l2 = LocalCacheMemory();
@@ -465,9 +467,11 @@ impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     }
     # L2 hit with promotion to L1
     if self.l2 and (anchor := self.l2.get(id)) {
+        self.__hit__ += 1;
         self.__mem__[anchor.id] = anchor;
         return anchor;
     }
+    self.__miss__ += 1;
     # L3 fallback with promotion to L1 (and L2 if enabled)
     if self.l3 and (anchor := self.l3.get(id)) {
         self.__mem__[anchor.id] = anchor;

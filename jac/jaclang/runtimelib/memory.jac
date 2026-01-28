@@ -23,7 +23,6 @@ import from pickle { dumps, loads }
 import from uuid { UUID }
 
 import from jaclang.pycore.archetype { Anchor, NodeAnchor, Root }
-
 glob logger = logging.getLogger(__name__),
      __all__ = [
          'Memory',
@@ -233,7 +232,9 @@ obj TieredMemory(VolatileMemory) {
     has base_path: (str | None) = None,
         l2: (CacheMemory | None) = None,
         l3: (PersistentMemory | None) = None,
-        use_cache: bool = False;
+        use_cache: bool = False,
+        __hit__: int = 0,
+        __miss__: int = 0;
 
     def postinit -> None;
     # Override only methods that need tiering logic

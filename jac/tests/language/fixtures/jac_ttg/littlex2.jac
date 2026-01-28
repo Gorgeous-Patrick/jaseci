@@ -68,4 +68,5 @@ def create_node() -> list[str] {
         available_edges.remove((src, dst));
         print(f"Created edge {i} (Total {EDGE_NUM}) from {src} to {dst}");
     }
+    return [str(n.__jac__.id) for n in nodes];
 }

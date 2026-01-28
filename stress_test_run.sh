@@ -58,7 +58,7 @@ make_request() {
   local start_time=$(date +%s%N)
 
   response=$(curl -s -w "\n%{http_code}" --max-time 30 \
-    -X POST "http://localhost:$PORT/walker/BFS/$node_id" \
+    -X POST "http://localhost:$PORT/walker/LoadFeed/$node_id" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d "{}" 2>/dev/null || echo "\n000")
