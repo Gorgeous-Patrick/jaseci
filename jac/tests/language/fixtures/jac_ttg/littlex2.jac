@@ -18,6 +18,7 @@ walker LoadFeed {
     has visiting_neighbors: bool = False;
 
     can load with Profile entry {
+        print("RUNNNN");
         if (not self.visiting_neighbors) {
             self.visiting_neighbors = True;
             visit [->:Post:->];
@@ -32,7 +33,7 @@ walker LoadFeed {
     }
 }
 
-with entry {
+def create_node() -> list[str] {
     random.seed(0);
     nodes = [];
     NODE_NUM = int(os.environ.get("JAC_NODE_NUM"));
@@ -47,6 +48,7 @@ with entry {
         for j in range(TWEET_NUM) {
             nodes[i] +>: Post :+> Tweet(id=NODE_NUM + TWEET_NUM * i + j);
         }
+        print(f"Created node {i} (Total {NODE_NUM}) with tweets");
     }
 
     available_edges = set();
@@ -64,43 +66,6 @@ with entry {
         (src, dst) = random.choice(list(available_edges));
         nodes[src] +>: Follow :+> nodes[dst];
         available_edges.remove((src, dst));
+        print(f"Created edge {i} (Total {EDGE_NUM}) from {src} to {dst}");
     }
-    ttg_list = [];
-
-    for i in range(NODE_NUM) {
-        wlk = LoadFeed();
-        wlk = wlk spawn nodes[i];
-        ttg_list.append(wlk.__ttg_dict__());
-        append_to_json_list(
-            "timer.json",
-            {
-                "JAC_NODE_NUM": NODE_NUM,
-                "JAC_EDGE_NUM": EDGE_NUM,
-                "JAC_TWEET_NUM": TWEET_NUM,
-                "ttg_start_time": wlk.__ttg_start_time__.timestamp(),
-                "ttg_end_time": wlk.__ttg_end_time__.timestamp(),
-                "ttg_visited_num": len(wlk.__ttg_visited__),
-                "traversal_start_time": wlk.__traversal_start_time__.timestamp(),
-                "traversal_end_time": wlk.__traversal_end_time__.timestamp(),
-                "traversal_visited_num": len(wlk.__traversal_visited__),
-
-            }
-        );
-    }
-    cache = JacRuntime._get_cache();
-    (hit, total_acc) = cache.get_stats();
-    prefetch_enabled = int(os.environ.get("JAC_PREFETCH", "0"));
-    append_to_json_list(
-        "cache_stats.json",
-        {
-            "JAC_NODE_NUM": NODE_NUM,
-            "JAC_EDGE_NUM": EDGE_NUM,
-            "JAC_TWEET_NUM": TWEET_NUM,
-            "hit": hit,
-            "total_acc": total_acc,
-            "cache_size": cache.lru.capacity,
-            "jac_prefetch": prefetch_enabled,
-        }
-    );
-    json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
 }
