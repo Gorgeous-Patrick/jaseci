@@ -619,7 +619,6 @@ class JacWalker:
             warch.__ttg_visited__ = ttg_visited
             warch.__ttg_dict__ = lambda: asdict(ttg_state)
 
-            print(warch.__ttg_children__)
             if os.environ.get("JAC_PREFETCH", "0") == "1":
                 child_nodes = JacTTGGenerator.get_prefetch_list(
                     current_node_loc, warch.__ttg_children__ or {}
