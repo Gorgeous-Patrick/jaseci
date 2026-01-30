@@ -2342,10 +2342,11 @@ class JacTTGGenerator:
         prefetch_list: list[NodeArchetype] = []
         states_to_process: list[NodeArchetype] = [start]
         max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "100"))
-        visited: list[NodeArchetype] = []
+        visited: list[NodeArchetype] = [start]
 
         while states_to_process:
             current_state = states_to_process.pop(0)
+            assert current_state not in prefetch_list
             prefetch_list.append(current_state)
             children = ttg_children.get(current_state, [])
             unvisited_children = [child for child in children if child not in visited]

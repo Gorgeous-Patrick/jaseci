@@ -7,17 +7,11 @@ node Profile {
     has id: int;
 }
 
-node Tweet {
-    has id: int;
-}
-
 edge Follow {}
-edge Post {}
 
 walker LoadFeed {
     has visiting_neighbors: bool = False;
     has visited: int = 0;
-
     can load with Profile entry {
         self.visited += 1;
         if (self.visited >= 100) {
@@ -25,19 +19,9 @@ walker LoadFeed {
         }
         if (not self.visiting_neighbors) {
             self.visiting_neighbors = True;
-            visit [->:Post:->];
             visit [->:Follow:->];
-        } else {
-            visit [->:Post:->];
         }
-    }
 
-    can calc with Tweet entry {
-        self.visited += 1;
-        if (self.visited >= 100) {
-            return;
-        }
-        # print(here.id);
     }
 }
 
@@ -52,10 +36,6 @@ with entry {
     TWEET_NUM = int(os.environ.get("JAC_TWEET_NUM"));
     for i in range(NODE_NUM) {
         nodes.append(Profile(id=i));
-        root +>: Post :+> nodes[i];
-        for j in range(TWEET_NUM) {
-            nodes[i] +>: Post :+> Tweet(id=NODE_NUM + TWEET_NUM * i + j);
-        }
     }
 
     available_edges = set();
@@ -79,6 +59,7 @@ with entry {
     for i in range(NODE_NUM) {
         wlk = LoadFeed();
         wlk = wlk spawn nodes[i];
+        print();
         ttg_list.append(wlk.__ttg_dict__());
         append_to_json_list(
             "timer.json",
