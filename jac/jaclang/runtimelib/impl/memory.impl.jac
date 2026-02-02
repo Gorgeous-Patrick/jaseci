@@ -455,6 +455,7 @@ impl TieredMemory.postinit -> None {
     self.__gc__ = set();
     self.__hit__ = 0;
     self.__miss__ = 0;
+    self.__bypass_l2__ = False;
     # Initialize L2 cache if requested
     if self.use_cache {
         self.l2 = LocalCacheMemory();
