@@ -21,6 +21,11 @@ glob logger = logging.getLogger(__name__);
 """Prefetch - not supported by default (tiered memory overrides)."""
 impl Memory.prefetch(ids: Iterable[UUID]) -> None { }
 
+"""Set L2 bypass mode - only supported by TieredMemory."""
+impl Memory.set_bypass_l2(bypass: bool) -> None {
+    raise NotImplementedError('set_bypass_l2() is only supported by TieredMemory.') ;
+}
+
 # =============================================================================
 # VolatileMemory Implementation (L1)
 # =============================================================================
@@ -584,4 +589,9 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
         # Store to L2 cache only (don't pollute L1)
         self.l2.put(anchor);
     }
+}
+
+"""Set L2 cache bypass mode."""
+impl TieredMemory.set_bypass_l2(bypass: bool) -> None {
+    self.__bypass_l2__ = bypass;
 }

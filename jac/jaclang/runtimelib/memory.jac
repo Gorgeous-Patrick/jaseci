@@ -86,6 +86,9 @@ obj Memory {
 
     """Prefetch multiple anchors for performance optimization (no-op by default)."""
     def prefetch(ids: Iterable[UUID]) -> None;
+
+    """Set L2 cache bypass mode (only supported by TieredMemory)."""
+    def set_bypass_l2(bypass: bool) -> None;
 }
 
 """Cache Memory Interface.
@@ -234,7 +237,8 @@ obj TieredMemory(VolatileMemory) {
         l3: (PersistentMemory | None) = None,
         use_cache: bool = False,
         __hit__: int = 0,
-        __miss__: int = 0;
+        __miss__: int = 0,
+        __bypass_l2__: bool = False;
 
     def postinit -> None;
     # Override only methods that need tiering logic
@@ -245,4 +249,5 @@ obj TieredMemory(VolatileMemory) {
     def has(id: UUID) -> bool;
     def commit(anchor: (Anchor | None) = None) -> None;
     def prefetch(ids: Iterable[UUID]) -> None;
+    def set_bypass_l2(bypass: bool) -> None;
 }
