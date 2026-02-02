@@ -592,9 +592,6 @@ class JacWalker:
         walker.path = []
         current_loc = node.archetype
 
-        # By pass L2
-        JacRuntimeInterface.get_context().mem.set_bypass_l2(True)
-
         warch.__ttg_start_time__ = datetime.now()
         try:
             current_node = node if isinstance(node, NodeAnchor) else node.target
@@ -620,8 +617,6 @@ class JacWalker:
             warch.__ttg__ = None
             warch.__ttg_dict__ = None
             warch.__ttg_children__ = None
-        finally:
-            JacRuntimeInterface.get_context().mem.set_bypass_l2(False)
 
         warch.__ttg_end_time__ = datetime.now()
         warch.__traversal_start_time__ = datetime.now()
