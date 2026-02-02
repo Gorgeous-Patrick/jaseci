@@ -438,8 +438,8 @@ class WalkerArchetype(Archetype):
     if TYPE_CHECKING:
         __ttg__: JacTTGGenerator.TypedWalkerState | None
         __ttg_dict__: Callable[[], dict[str, Any]] | None
-        __ttg_visited__: set[NodeArchetype]
-        __ttg_children__: dict[NodeArchetype, list[NodeArchetype]] | None
+        __ttg_visited__: set[UUID]
+        __ttg_children__: dict[UUID, list[UUID]] | None
         __ttg_start_time__: datetime
         __ttg_end_time__: datetime
         __traversal_start_time__: datetime
