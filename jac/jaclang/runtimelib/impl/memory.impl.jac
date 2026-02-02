@@ -477,17 +477,17 @@ impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     if (anchor := self.__mem__.get(id)) {
         return anchor;
     }
-    # L2 hit with promotion to L1
-    if self.l2 and (anchor := self.l2.get(id)) {
+    # L2 hit with promotion to L1 (skip if bypassing L2)
+    if self.l2 and not self.__bypass_l2__ and (anchor := self.l2.get(id)) {
         self.__hit__ += 1;
         self.__mem__[anchor.id] = anchor;
         return anchor;
     }
     self.__miss__ += 1;
-    # L3 fallback with promotion to L1 (and L2 if enabled)
+    # L3 fallback with promotion to L1 (and L2 if enabled and not bypassed)
     if self.l3 and (anchor := self.l3.get(id)) {
         self.__mem__[anchor.id] = anchor;
-        if self.l2 {
+        if self.l2 and not self.__bypass_l2__ {
             self.l2.put(anchor);
         }
         return anchor;
@@ -500,8 +500,8 @@ impl TieredMemory.put(anchor: Anchor) -> None {
     import from jaclang { JacRuntimeInterface as Jac }
     # Always write to L1 (self.__mem__ inherited from VolatileMemory)
     self.__mem__[anchor.id] = anchor;
-    # Write-through to L2 (cache) if enabled
-    if self.l2 {
+    # Write-through to L2 (cache) if enabled and not bypassed
+    if self.l2 and not self.__bypass_l2__ {
         self.l2.put(anchor);
     }
     # Write-through to L3 with access control check
@@ -520,8 +520,8 @@ impl TieredMemory.delete(id: UUID) -> None {
             self.__gc__.add(anchor);
         }
     }
-    # Invalidate L2 cache
-    if self.l2 {
+    # Invalidate L2 cache (skip if bypassing L2)
+    if self.l2 and not self.__bypass_l2__ {
         self.l2.invalidate(id);
     }
     # Delete from L3 persistence (only if we have persistent data)
@@ -552,8 +552,8 @@ impl TieredMemory.has(id: UUID) -> bool {
     if id in self.__mem__ {
         return True;
     }
-    # Check L2 cache
-    if self.l2 and self.l2.exists(id) {
+    # Check L2 cache (skip if bypassing L2)
+    if self.l2 and not self.__bypass_l2__ and self.l2.exists(id) {
         return True;
     }
     # Check L3 persistence
