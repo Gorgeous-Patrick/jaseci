@@ -473,6 +473,8 @@ class Root(NodeArchetype):
     """Generic Root Node."""
 
     __jac_base__: ClassVar[bool] = True
+    graph: list[tuple[UUID, UUID, UUID]] = field(default_factory=list)
+    type_map: dict[UUID, type] = field(default_factory=dict)
 
     @cached_property
     def __jac__(self) -> NodeAnchor:
