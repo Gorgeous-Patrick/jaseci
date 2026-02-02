@@ -398,7 +398,20 @@ class NodeArchetype(Archetype):
     @cached_property
     def __jac__(self) -> NodeAnchor:
         """Create default anchor."""
-        return NodeAnchor(archetype=self, edges=[])
+        anchor = NodeAnchor(archetype=self, edges=[])
+        # Register node in Root's type_map
+        from jaclang.pycore.runtime import JacRuntimeInterface as Jac
+
+        try:
+            root = Jac.get_context().get_root()
+            root.type_map[anchor.id] = type(self)
+            print(
+                f"Registered NodeArchetype {type(self).__name__} with id {anchor.id} in Root type_map."
+            )
+        except Exception:
+            # Context may not be available during initialization
+            pass
+        return anchor
 
 
 class EdgeArchetype(Archetype):

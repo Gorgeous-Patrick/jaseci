@@ -1624,6 +1624,15 @@ class JacBasics:
                 target=target,
                 is_undirected=is_undirected,
             )
+            # Register edge in Root's type_map and graph
+            try:
+                root = JacRuntimeInterface.get_context().get_root()
+                root.type_map[eanch.id] = type(edge)
+                root.graph.append((source.id, eanch.id, target.id))
+            except Exception:
+                # Context may not be available during initialization
+                pass
+            print(f"Registered edge: {source.id} -- {eanch.id} --> {target.id}")
             source.edges.append(eanch)
             target.edges.append(eanch)
 
