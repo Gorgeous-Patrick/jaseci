@@ -84,8 +84,8 @@ obj Memory {
     """Commit/sync pending changes. For write-through this flushes to durable storage."""
     def commit(anchor: (Anchor | None) = None) -> None abs;
 
-    """Prefetch multiple anchors for performance optimization."""
-    def prefetch(ids: Iterable[UUID]) -> None abs;
+    """Prefetch multiple anchors for performance optimization (no-op by default)."""
+    def prefetch(ids: Iterable[UUID]) -> None;
 }
 
 """Cache Memory Interface.

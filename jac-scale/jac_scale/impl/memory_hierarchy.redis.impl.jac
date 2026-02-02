@@ -23,16 +23,20 @@ impl RedisBackend.postinit -> None {
 
 """Check if Redis is available and connected."""
 impl RedisBackend.is_available -> bool {
+    print(f"Checking Redis availability...: {self.redis_url}");
     if not self.redis_url {
+        print("No Redis URL provided.");
         return False;
     }
     client = None;
     try {
         client = redis.from_url(self.redis_url);
         client.ping();
+        print("Redis is available.");
         return True;
     } except Exception as e {
         logger.debug(f"Redis availability check failed: {e}");
+        print("Redis ping failed.");
         return False;
     } finally {
         if client {

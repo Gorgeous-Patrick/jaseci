@@ -118,8 +118,6 @@ class Cache(Generic[K]):
 
     def prefetch(self, keys: Iterable[K]) -> list[K]:
         """Warm cache entries without mutating hit statistics."""
-        print(f"PREFETCH: {keys}")
-
         evicted: list[K] = []
         for key in keys:
             if self.lru.get(key) is not None:

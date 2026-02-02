@@ -16,6 +16,12 @@ import from jaclang.pycore.archetype { Anchor, NodeAnchor, Root }
 glob logger = logging.getLogger(__name__);
 
 # =============================================================================
+# Memory Default Implementations
+# =============================================================================
+"""Prefetch - not supported by default (tiered memory overrides)."""
+impl Memory.prefetch(ids: Iterable[UUID]) -> None { }
+
+# =============================================================================
 # VolatileMemory Implementation (L1)
 # =============================================================================
 """Initialize mutable defaults."""
@@ -560,6 +566,7 @@ impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 
 """Prefetch - load from L3 and store to L2."""
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
+    print(f"TieredMemory.prefetch: {list(ids)}");
     if not self.l3 or not self.l2 {
         return;
     }

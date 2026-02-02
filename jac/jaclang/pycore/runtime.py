@@ -619,13 +619,13 @@ class JacWalker:
             warch.__ttg_visited__ = ttg_visited
             warch.__ttg_dict__ = lambda: asdict(ttg_state)
 
-            print(warch.__ttg_children__)
             if os.environ.get("JAC_PREFETCH", "0") == "1":
                 child_nodes = JacTTGGenerator.get_prefetch_list(
                     current_node_loc, warch.__ttg_children__ or {}
                 )
-                print(f"child_nodes: {child_nodes}")
-                cache.prefetch(id(child) for child in child_nodes)
+                JacRuntimeInterface.get_context().mem.prefetch(
+                    child.__jac__.id for child in child_nodes
+                )
 
         except RuntimeError:
             # TODO: TTG does not support some programs
@@ -2343,7 +2343,7 @@ class JacTTGGenerator:
         prefetch_list: list[NodeArchetype] = []
         states_to_process: list[NodeArchetype] = [start]
         max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "100"))
-        visited: list[NodeArchetype] = []
+        visited: list[NodeArchetype] = [start]
 
         while states_to_process:
             current_state = states_to_process.pop(0)
