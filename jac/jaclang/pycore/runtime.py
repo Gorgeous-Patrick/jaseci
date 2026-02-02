@@ -453,7 +453,6 @@ class JacWalker:
         warch: WalkerArchetype,
         walker: WalkerAnchor,
         current_loc: NodeArchetype | EdgeArchetype,
-        cache: Cache[int],
     ) -> bool:
         """Execute all entry abilities for current location.
 
@@ -461,12 +460,6 @@ class JacWalker:
         """
         from jaclang.runtimelib.utils import all_issubclass
 
-        node_arch = (
-            current_loc
-            if isinstance(current_loc, NodeArchetype)
-            else current_loc.__jac__.target.archetype
-        )
-        cache.read(id(node_arch))
         # walker ability with loc entry
         for i in warch._jac_entry_funcs_:
             if (
@@ -479,7 +472,6 @@ class JacWalker:
             ):
                 i.func(warch, current_loc)
             if walker.disengaged:
-                cache.write(id(node_arch))
                 return False
 
         # loc ability with any entry
@@ -487,7 +479,6 @@ class JacWalker:
             if not i.trigger:
                 i.func(current_loc, warch)
             if walker.disengaged:
-                cache.write(id(node_arch))
                 return False
 
         # loc ability with walker entry
@@ -499,10 +490,8 @@ class JacWalker:
             ):
                 i.func(current_loc, warch)
             if walker.disengaged:
-                cache.write(id(node_arch))
                 return False
 
-        cache.write(id(node_arch))
         return True
 
     @staticmethod
@@ -556,7 +545,6 @@ class JacWalker:
         warch: WalkerArchetype,
         walker: WalkerAnchor,
         anchor: NodeAnchor | EdgeAnchor,
-        cache: Cache[int],
     ) -> bool:
         """Recursively visit a node with DFS semantics.
 
@@ -574,7 +562,7 @@ class JacWalker:
         walker.path.append(anchor)
 
         # Phase 1: Execute entry abilities
-        if not JacWalker._execute_entries(warch, walker, current_loc, cache):
+        if not JacWalker._execute_entries(warch, walker, current_loc):
             return False
 
         # Phase 2: Process children (nodes added to walker.next during entries)
@@ -583,9 +571,7 @@ class JacWalker:
             child_anchor = walker.next.pop(0)
             if (
                 child_anchor not in walker.ignores
-                and not JacWalker._visit_node_recursive(
-                    warch, walker, child_anchor, cache
-                )
+                and not JacWalker._visit_node_recursive(warch, walker, child_anchor)
             ):
                 return False
 
@@ -605,7 +591,9 @@ class JacWalker:
         warch = walker.archetype
         walker.path = []
         current_loc = node.archetype
-        cache = JacRuntime._get_cache()
+
+        # By pass L2
+        JacRuntimeInterface.get_context().mem.set_bypass_l2(True)
 
         warch.__ttg_start_time__ = datetime.now()
         try:
@@ -632,6 +620,8 @@ class JacWalker:
             warch.__ttg__ = None
             warch.__ttg_dict__ = None
             warch.__ttg_children__ = None
+        finally:
+            JacRuntimeInterface.get_context().mem.set_bypass_l2(False)
 
         warch.__ttg_end_time__ = datetime.now()
         warch.__traversal_start_time__ = datetime.now()
@@ -649,9 +639,7 @@ class JacWalker:
             next_anchor = walker.next.pop(0)
             if (
                 next_anchor not in walker.ignores
-                and not JacWalker._visit_node_recursive(
-                    warch, walker, next_anchor, cache
-                )
+                and not JacWalker._visit_node_recursive(warch, walker, next_anchor)
             ):
                 break
 
