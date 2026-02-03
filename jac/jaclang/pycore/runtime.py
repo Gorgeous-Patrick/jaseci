@@ -588,16 +588,15 @@ class JacWalker:
         Entry abilities execute when entering a node, exit abilities execute
         after all descendants are visited (post-order/LIFO).
         """
+        print("Starting spawn_call")
         warch = walker.archetype
         walker.path = []
-        current_loc = node.archetype
 
         warch.__ttg_start_time__ = datetime.now()
         try:
             current_node = node if isinstance(node, NodeAnchor) else node.target
-            current_node_loc = current_node.archetype
             ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
-                warch, current_node_loc.__jac__.id
+                warch, current_node.id
             )
             print(ttg_state)
             warch.__ttg_children__ = ttg_child_map
@@ -607,7 +606,7 @@ class JacWalker:
 
             if os.environ.get("JAC_PREFETCH", "0") == "1":
                 child_nodes = JacTTGGenerator.get_prefetch_list(
-                    current_node_loc.__jac__.id, warch.__ttg_children__ or {}
+                    current_node.id, warch.__ttg_children__ or {}
                 )
                 JacRuntimeInterface.get_context().mem.prefetch(
                     child for child in child_nodes
@@ -622,6 +621,7 @@ class JacWalker:
         warch.__ttg_end_time__ = datetime.now()
         warch.__traversal_start_time__ = datetime.now()
         warch.__traversal_visited__ = set()
+        current_loc = node.archetype
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -2223,7 +2223,7 @@ class JacUtils:
 
 class JacTTGGenerator:
     class FilteredNeighborCtx:
-        cache: dict[UUID, list[UUID]] = {}
+        cache: dict[UUID, list[tuple[UUID, UUID]]] = {}
 
         @classmethod
         def resolve_type(cls, type_name: str) -> type:
@@ -2241,9 +2241,9 @@ class JacTTGGenerator:
         @classmethod
         def _filter_neighbors(
             cls, node: UUID, visits: list[WalkerArchetype.VisitType]
-        ) -> list[UUID]:
+        ) -> list[tuple[UUID, UUID]]:
             """Filter neighbors based on visit info and walker type."""
-            filtered_neighbors = []
+            filtered_neighbors: list[tuple[UUID, UUID]] = []
             root = JacRuntimeInterface.root()
             edges_info: list[tuple[UUID, UUID, UUID]] = [
                 edge for edge in root.graph if edge[0] == node
@@ -2258,21 +2258,21 @@ class JacTTGGenerator:
             ]
             for edge_info in edges_info:
                 for visit in visits:
-                    source, edge, target = edge_info
+                    _, edge, target = edge_info
                     edge_type_name = root.type_map[edge]
                     edge_type = cls.resolve_type(edge_type_name)
                     if (
                         visit.edge_type is None
                         or issubclass(edge_type, visit.edge_type)
                     ) and target not in filtered_neighbors:
-                        filtered_neighbors.append(target)
+                        filtered_neighbors.append((edge, target))
                 # Get all neighbors
             return filtered_neighbors
 
         @classmethod
         def filter_neighbors(
             cls, node: UUID, visits: list[WalkerArchetype.VisitType]
-        ) -> list[UUID]:
+        ) -> list[tuple[UUID, UUID]]:
             """Filter neighbors with caching."""
             key = node
             if key in cls.cache:
@@ -2293,30 +2293,32 @@ class JacTTGGenerator:
         walker_type: str
         node: UUID
         depth: int
-        children: list[JacTTGGenerator.TypedWalkerState]
+        incoming_edge: UUID | None = None
+        children: list[JacTTGGenerator.TypedWalkerState] = field(default_factory=list)
 
     @classmethod
     def get_ttg(
         cls, walker: WalkerArchetype, start_node: UUID
-    ) -> tuple[TypedWalkerState, set[UUID], dict[UUID, list[UUID]]]:
+    ) -> tuple[TypedWalkerState, set[UUID], dict[UUID, list[tuple[UUID, UUID]]]]:
         """Get the set based TTG for multiple walker spawns."""
         ttg_root = JacTTGGenerator.TypedWalkerState(
             walker_type=JacTTGGenerator.extract_type_name(walker),
             depth=0,
             node=start_node,
+            incoming_edge=None,
             children=[],
         )
         walker_states = [ttg_root]
 
         visited_nodes: set[UUID] = set()
         existing_edges: set[tuple[UUID, UUID]] = set()
-        child_map: dict[UUID, list[UUID]] = {}
+        child_map: dict[UUID, list[tuple[UUID, UUID]]] = {}
 
         # TODO: DETERMINE A BETTER THRESHOLD HERE.
         while walker_states:
             state = walker_states.pop(0)
             node = state.node
-            filtered_neighbors: list[UUID] = [
+            filtered_neighbors: list[tuple[UUID, UUID]] = [
                 neighbor
                 for neighbor in JacTTGGenerator.FilteredNeighborCtx.filter_neighbors(
                     node, walker.__jac_ttg_visits__
@@ -2324,16 +2326,17 @@ class JacTTGGenerator:
                 if neighbor not in visited_nodes
             ]
 
-            for neighbor in filtered_neighbors:
+            for edge, neighbor in filtered_neighbors:
                 visited_nodes.add(neighbor)
                 if (node, neighbor) in existing_edges:
                     continue
                 existing_edges.add((node, neighbor))
-                child_map.setdefault(node, []).append(neighbor)
+                child_map.setdefault(node, []).append((edge, neighbor))
                 new_walker_state = JacTTGGenerator.TypedWalkerState(
                     node=neighbor,
                     walker_type=state.walker_type,
                     depth=state.depth + 1,
+                    incoming_edge=edge,
                     children=[],
                 )
                 state.children.append(new_walker_state)
@@ -2344,22 +2347,25 @@ class JacTTGGenerator:
     def get_prefetch_list(
         cls,
         start: UUID,
-        ttg_children: dict[UUID, list[UUID]],
+        ttg_children: dict[UUID, list[tuple[UUID, UUID]]],
     ) -> list[UUID]:
         """Get prefetch list from TTG root."""
         prefetch_list: list[UUID] = []
-        states_to_process: list[UUID] = [start]
+        states_to_process: list[tuple[UUID | None, UUID]] = [(None, start)]
         max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "100"))
-        visited: list[UUID] = [start]
+        visited: list[tuple[UUID | None, UUID]] = [(None, start)]
 
         while states_to_process:
-            current_state = states_to_process.pop(0)
-            prefetch_list.append(current_state)
-            children = ttg_children.get(current_state, [])
-            unvisited_children = [child for child in children if child not in visited]
+            (edge_id, node_id) = states_to_process.pop(0)
+            if edge_id is not None:
+                prefetch_list.append(edge_id)
+            prefetch_list.append(node_id)
+            children: list[tuple[UUID, UUID]] = ttg_children.get(node_id, [])
+            unvisited_children: list[tuple[UUID, UUID]] = [
+                child for child in children if child not in visited
+            ]
             states_to_process.extend(unvisited_children)
             visited.extend(unvisited_children)
-
             if len(prefetch_list) >= max_length:
                 break
         length = min(max_length, len(prefetch_list))
