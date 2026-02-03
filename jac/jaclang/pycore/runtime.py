@@ -593,31 +593,31 @@ class JacWalker:
         current_loc = node.archetype
 
         warch.__ttg_start_time__ = datetime.now()
-        # try:
-        current_node = node if isinstance(node, NodeAnchor) else node.target
-        current_node_loc = current_node.archetype
-        ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
-            warch, current_node_loc.__jac__.id
-        )
-        print(ttg_state)
-        warch.__ttg_children__ = ttg_child_map
-        warch.__ttg__ = ttg_state
-        warch.__ttg_visited__ = ttg_visited
-        warch.__ttg_dict__ = lambda: asdict(ttg_state)
-
-        if os.environ.get("JAC_PREFETCH", "0") == "1":
-            child_nodes = JacTTGGenerator.get_prefetch_list(
-                current_node_loc.__jac__.id, warch.__ttg_children__ or {}
+        try:
+            current_node = node if isinstance(node, NodeAnchor) else node.target
+            current_node_loc = current_node.archetype
+            ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
+                warch, current_node_loc.__jac__.id
             )
-            JacRuntimeInterface.get_context().mem.prefetch(
-                child for child in child_nodes
-            )
+            print(ttg_state)
+            warch.__ttg_children__ = ttg_child_map
+            warch.__ttg__ = ttg_state
+            warch.__ttg_visited__ = ttg_visited
+            warch.__ttg_dict__ = lambda: asdict(ttg_state)
 
-        # except RuntimeError:
-        #     # TODO: TTG does not support some programs
-        #     warch.__ttg__ = None
-        #     warch.__ttg_dict__ = None
-        #     warch.__ttg_children__ = None
+            if os.environ.get("JAC_PREFETCH", "0") == "1":
+                child_nodes = JacTTGGenerator.get_prefetch_list(
+                    current_node_loc.__jac__.id, warch.__ttg_children__ or {}
+                )
+                JacRuntimeInterface.get_context().mem.prefetch(
+                    child for child in child_nodes
+                )
+
+        except RuntimeError:
+            # TODO: TTG does not support some programs
+            warch.__ttg__ = None
+            warch.__ttg_dict__ = None
+            warch.__ttg_children__ = None
 
         warch.__ttg_end_time__ = datetime.now()
         warch.__traversal_start_time__ = datetime.now()
@@ -650,6 +650,8 @@ class JacWalker:
 
         walker.ignores = []
         warch.__traversal_end_time__ = datetime.now()
+        hits, misses = JacRuntimeInterface.get_context().mem.get_cache_stats()
+        print(f"MEM CACHE STATS: {hits} hits, {misses} misses")
         return warch
 
     @staticmethod
@@ -1628,7 +1630,7 @@ class JacBasics:
             # Register edge in Root's type_map and graph
             try:
                 root = JacRuntimeInterface.get_context().get_root()
-                root.type_map[eanch.id] = type(edge)
+                root.type_map[eanch.id] = type(edge).__name__
                 root.graph.append((source.id, eanch.id, target.id))
             except Exception:
                 # Context may not be available during initialization
@@ -2224,6 +2226,19 @@ class JacTTGGenerator:
         cache: dict[UUID, list[UUID]] = {}
 
         @classmethod
+        def resolve_type(cls, type_name: str) -> type:
+            """Resolve type name string to actual type object."""
+            # Try to get from current context's loaded modules
+            import sys
+
+            for module in sys.modules.values():
+                if module and hasattr(module, type_name):
+                    obj = getattr(module, type_name)
+                    if isinstance(obj, type):
+                        return obj
+            raise ValueError(f"Type '{type_name}' not found in loaded modules")
+
+        @classmethod
         def _filter_neighbors(
             cls, node: UUID, visits: list[WalkerArchetype.VisitType]
         ) -> list[UUID]:
@@ -2233,7 +2248,8 @@ class JacTTGGenerator:
             edges_info: list[tuple[UUID, UUID, UUID]] = [
                 edge for edge in root.graph if edge[0] == node
             ]
-            node_type = root.type_map[node]
+            node_type_name = root.type_map[node]
+            node_type = cls.resolve_type(node_type_name)
             visits = [
                 visit
                 for visit in visits
@@ -2243,7 +2259,8 @@ class JacTTGGenerator:
             for edge_info in edges_info:
                 for visit in visits:
                     source, edge, target = edge_info
-                    edge_type = root.type_map[edge]
+                    edge_type_name = root.type_map[edge]
+                    edge_type = cls.resolve_type(edge_type_name)
                     if (
                         visit.edge_type is None
                         or issubclass(edge_type, visit.edge_type)

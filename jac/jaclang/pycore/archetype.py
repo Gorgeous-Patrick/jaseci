@@ -404,7 +404,7 @@ class NodeArchetype(Archetype):
 
         try:
             root = Jac.get_context().get_root()
-            root.type_map[anchor.id] = type(self)
+            root.type_map[anchor.id] = type(self).__name__
             print(
                 f"Registered NodeArchetype {type(self).__name__} with id {anchor.id} in Root type_map."
             )
@@ -487,7 +487,7 @@ class Root(NodeArchetype):
 
     __jac_base__: ClassVar[bool] = True
     graph: list[tuple[UUID, UUID, UUID]] = field(default_factory=list)
-    type_map: dict[UUID, type] = field(default_factory=dict)
+    type_map: dict[UUID, str] = field(default_factory=dict)
 
     @cached_property
     def __jac__(self) -> NodeAnchor:

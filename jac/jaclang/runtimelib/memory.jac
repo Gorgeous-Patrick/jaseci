@@ -87,8 +87,8 @@ obj Memory {
     """Prefetch multiple anchors for performance optimization (no-op by default)."""
     def prefetch(ids: Iterable[UUID]) -> None;
 
-    """Set L2 cache bypass mode (only supported by TieredMemory)."""
-    def set_bypass_l2(bypass: bool) -> None;
+    """Get cache hit and miss counts (only meaningful for TieredMemory)."""
+    def get_cache_stats -> tuple[int, int];
 }
 
 """Cache Memory Interface.
@@ -249,5 +249,5 @@ obj TieredMemory(VolatileMemory) {
     def has(id: UUID) -> bool;
     def commit(anchor: (Anchor | None) = None) -> None;
     def prefetch(ids: Iterable[UUID]) -> None;
-    def set_bypass_l2(bypass: bool) -> None;
+    def get_cache_stats -> tuple[int, int];
 }

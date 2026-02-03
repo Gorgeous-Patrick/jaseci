@@ -21,9 +21,9 @@ glob logger = logging.getLogger(__name__);
 """Prefetch - not supported by default (tiered memory overrides)."""
 impl Memory.prefetch(ids: Iterable[UUID]) -> None { }
 
-"""Set L2 bypass mode - only supported by TieredMemory."""
-impl Memory.set_bypass_l2(bypass: bool) -> None {
-    raise NotImplementedError('set_bypass_l2() is only supported by TieredMemory.') ;
+"""Get cache statistics - only meaningful for TieredMemory."""
+impl Memory.get_cache_stats -> tuple[int, int] {
+    return (0, 0);
 }
 
 # =============================================================================
@@ -455,7 +455,6 @@ impl TieredMemory.postinit -> None {
     self.__gc__ = set();
     self.__hit__ = 0;
     self.__miss__ = 0;
-    self.__bypass_l2__ = False;
     # Initialize L2 cache if requested
     if self.use_cache {
         self.l2 = LocalCacheMemory();
@@ -477,17 +476,17 @@ impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     if (anchor := self.__mem__.get(id)) {
         return anchor;
     }
-    # L2 hit with promotion to L1 (skip if bypassing L2)
-    if self.l2 and not self.__bypass_l2__ and (anchor := self.l2.get(id)) {
+    # L2 hit with promotion to L1
+    if self.l2 and (anchor := self.l2.get(id)) {
         self.__hit__ += 1;
         self.__mem__[anchor.id] = anchor;
         return anchor;
     }
     self.__miss__ += 1;
-    # L3 fallback with promotion to L1 (and L2 if enabled and not bypassed)
+    # L3 fallback with promotion to L1 and L2
     if self.l3 and (anchor := self.l3.get(id)) {
         self.__mem__[anchor.id] = anchor;
-        if self.l2 and not self.__bypass_l2__ {
+        if self.l2 {
             self.l2.put(anchor);
         }
         return anchor;
@@ -500,8 +499,8 @@ impl TieredMemory.put(anchor: Anchor) -> None {
     import from jaclang { JacRuntimeInterface as Jac }
     # Always write to L1 (self.__mem__ inherited from VolatileMemory)
     self.__mem__[anchor.id] = anchor;
-    # Write-through to L2 (cache) if enabled and not bypassed
-    if self.l2 and not self.__bypass_l2__ {
+    # Write-through to L2 (cache) if enabled
+    if self.l2 {
         self.l2.put(anchor);
     }
     # Write-through to L3 with access control check
@@ -520,8 +519,8 @@ impl TieredMemory.delete(id: UUID) -> None {
             self.__gc__.add(anchor);
         }
     }
-    # Invalidate L2 cache (skip if bypassing L2)
-    if self.l2 and not self.__bypass_l2__ {
+    # Invalidate L2 cache
+    if self.l2 {
         self.l2.invalidate(id);
     }
     # Delete from L3 persistence (only if we have persistent data)
@@ -552,8 +551,8 @@ impl TieredMemory.has(id: UUID) -> bool {
     if id in self.__mem__ {
         return True;
     }
-    # Check L2 cache (skip if bypassing L2)
-    if self.l2 and not self.__bypass_l2__ and self.l2.exists(id) {
+    # Check L2 cache
+    if self.l2 and self.l2.exists(id) {
         return True;
     }
     # Check L3 persistence
@@ -572,27 +571,28 @@ impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 
 """Prefetch - load from L3 and store to L2."""
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
-    print(f"TieredMemory.prefetch: {list(ids)}");
+    ids_to_fetch = list(ids);
+    print(
+        f"TieredMemory.prefetch: {ids_to_fetch}. hit: {self.__hit__}, miss: {self.__miss__}"
+    );
+    print(f"l3: {self.l3 is not None}, l2: {self.l2 is not None}");
     if not self.l3 or not self.l2 {
         return;
     }
-    # Only prefetch IDs not already in L1 or L2
-    ids_to_fetch = [
-        id
-        for id in ids
-        if id not in self.__mem__ and not self.l2.exists(id)
-    ];
+    # TODO: Only prefetch IDs not already in L1 or L2
+    print(f"Prefetching IDs from L3: {ids_to_fetch}");
     if not ids_to_fetch {
         return;
     }
-    # Load from L3 persistence in batch to minimize roundtrips
-    for anchor in self.l3.find(ids_to_fetch) {
-        # Store to L2 cache only (don't pollute L1)
-        self.l2.put(anchor);
+    print(f"Prefetching {len(ids_to_fetch)} IDs from L3 to L2 cache.");
+    for id in ids_to_fetch {
+        if (anchor := self.l3.get(id)) {
+            self.l2.put(anchor);
+        }
     }
 }
 
-"""Set L2 cache bypass mode."""
-impl TieredMemory.set_bypass_l2(bypass: bool) -> None {
-    self.__bypass_l2__ = bypass;
+"""Get cache hit and miss statistics."""
+impl TieredMemory.get_cache_stats -> tuple[int, int] {
+    return (self.__hit__, self.__miss__);
 }
