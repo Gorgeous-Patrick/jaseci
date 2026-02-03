@@ -75,3 +75,4 @@ node_modules
 # Claude Code local instructions
 CLAUDE.local.md
 *.json
+stress_test_results/
