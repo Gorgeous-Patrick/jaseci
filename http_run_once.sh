@@ -80,9 +80,11 @@ echo
 echo "========== STEP 1: Setup Phase =========="
 echo
 
-# Start Redis in Docker
-echo "Starting Redis in Docker..."
-REDIS_CONTAINER=$(docker run -d -p 6379:6379 redis:latest)
+# Start Redis in Docker with custom config
+echo "Starting Redis in Docker with config (100MB limit, LRU eviction)..."
+REDIS_CONTAINER=$(docker run -d -p 6379:6379 \
+  -v "$(pwd)/redis.conf:/usr/local/etc/redis/redis.conf" \
+  redis:latest redis-server /usr/local/etc/redis/redis.conf)
 echo "✓ Redis started (container: $REDIS_CONTAINER)"
 sleep 2
 
@@ -134,9 +136,11 @@ sleep 2
 echo "✓ Servers terminated"
 echo
 
-# Restart Redis
-echo "Restarting Redis in Docker..."
-REDIS_CONTAINER=$(docker run -d -p 6379:6379 redis:latest)
+# Restart Redis with custom config
+echo "Restarting Redis in Docker with config (100MB limit, LRU eviction)..."
+REDIS_CONTAINER=$(docker run -d -p 6379:6379 \
+  -v "$(pwd)/redis.conf:/usr/local/etc/redis/redis.conf" \
+  redis:latest redis-server /usr/local/etc/redis/redis.conf)
 echo "✓ Redis restarted (container: $REDIS_CONTAINER)"
 sleep 2
 
