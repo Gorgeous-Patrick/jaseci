@@ -652,6 +652,20 @@ class JacWalker:
         warch.__traversal_end_time__ = datetime.now()
         hits, misses = JacRuntimeInterface.get_context().mem.get_cache_stats()
         print(f"MEM CACHE STATS: {hits} hits, {misses} misses")
+        from util import append_to_json_list
+
+        append_to_json_list(
+            "cache_stats.json",
+            {
+                "JAC_NODE_NUM": int(os.environ.get("JAC_NODE_NUM", "0")),
+                "JAC_EDGE_NUM": int(os.environ.get("JAC_EDGE_NUM", "0")),
+                "JAC_TWEET_NUM": int(os.environ.get("JAC_TWEET_NUM", "0")),
+                "hit": hits,
+                "total_acc": hits + misses,
+                "cache_size": 0,
+                "jac_prefetch": int(os.environ.get("JAC_PREFETCH", "0")),
+            },
+        )
         return warch
 
     @staticmethod
