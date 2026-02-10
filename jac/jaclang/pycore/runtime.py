@@ -592,7 +592,6 @@ class JacWalker:
         Entry abilities execute when entering a node, exit abilities execute
         after all descendants are visited (post-order/LIFO).
         """
-        print("Starting spawn_call")
         warch = walker.archetype
         walker.path = []
 
@@ -602,7 +601,6 @@ class JacWalker:
             ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
                 warch, current_node.id
             )
-            print(ttg_state)
             warch.__ttg_children__ = ttg_child_map
             warch.__ttg__ = ttg_state
             warch.__ttg_visited__ = ttg_visited
@@ -673,7 +671,6 @@ class JacWalker:
         )
 
         hits, misses = JacRuntimeInterface.get_context().mem.get_cache_stats()
-        print(f"MEM CACHE STATS: {hits} hits, {misses} misses")
 
         append_to_json_list(
             "cache_stats.json",
