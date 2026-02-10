@@ -476,26 +476,12 @@ impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     Jac._get_cache().read(id);
     # L1 hit (self.__mem__ inherited from VolatileMemory)
     if (anchor := self.__mem__.get(id)) {
-        if (str(anchor.archetype) == "Follow()") {
-            print(
-                f"TieredMemory.get: {id} - in L1: {anchor.archetype}, source: {anchor.source.id}, dest: {anchor.target.id}"
-            );
-        } else {
-            print(f"TieredMemory.get: {id} - in L1: {anchor.archetype}");
-        }
         return anchor;
     }
     # L2 hit with promotion to L1
     if self.l2 and (anchor := self.l2.get(id)) {
         self.__hit__ += 1;
         self.__mem__[anchor.id] = anchor;
-        if (str(anchor.archetype) == "Follow()") {
-            print(
-                f"TieredMemory.get: {id} - in L2: {anchor.archetype}, source: {anchor.source.id}, dest: {anchor.target.id}"
-            );
-        } else {
-            print(f"TieredMemory.get: {id} - in L2: {anchor.archetype}");
-        }
         return anchor;
     }
     self.__miss__ += 1;
@@ -505,16 +491,8 @@ impl TieredMemory.get(id: UUID) -> (Anchor | None) {
         if self.l2 {
             self.l2.put(anchor);
         }
-        if (str(anchor.archetype) == "Follow()") {
-            print(
-                f"TieredMemory.get: {id} - in L3: {anchor.archetype}, source: {anchor.source.id}, dest: {anchor.target.id}"
-            );
-        } else {
-            print(f"TieredMemory.get: {id} - in L3: {anchor.archetype}");
-        }
         return anchor;
     }
-    print(f"TieredMemory.get: {id} - MISS");
     return None;
 }
 

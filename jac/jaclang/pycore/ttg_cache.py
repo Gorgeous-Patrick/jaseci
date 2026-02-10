@@ -168,7 +168,7 @@ class TwoLevelCache(Generic[K]):
         Check L1 first. On L1 miss, check L2. On L2 hit, promote to L1.
         On full miss, insert into both levels (write-through).
         """
-        print(f"TwoLevelCache.read id: {key}")
+        # print(f"TwoLevelCache.read id: {key}")
         # L1 hit — no L2 access
         if self.l1.get(key) is not None:
             # Touch L2 to keep recency consistent.
