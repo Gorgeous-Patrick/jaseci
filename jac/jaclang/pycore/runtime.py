@@ -351,12 +351,12 @@ class JacNode:
                     (source := anchor.source)
                     and (target := anchor.target)
                     and destination.edge_filter(anchor.archetype)
-                    and source.archetype
-                    and target.archetype
                 ):
                     if (
                         destination.direction in [EdgeDir.OUT, EdgeDir.ANY]
                         and nanch == source
+                        and destination.node
+                        and target.archetype
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
                     ):
@@ -364,6 +364,8 @@ class JacNode:
                     if (
                         destination.direction in [EdgeDir.IN, EdgeDir.ANY]
                         and nanch == target
+                        and destination.node
+                        and source.archetype
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
                     ):
@@ -2366,23 +2368,43 @@ class JacTTGGenerator:
         """Get prefetch list from TTG root."""
         prefetch_list: list[UUID] = []
         states_to_process: list[tuple[UUID | None, UUID]] = [(None, start)]
-        max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "100"))
-        visited: list[tuple[UUID | None, UUID]] = [(None, start)]
+        max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "200"))
+
+        def add_uuid(obj: UUID) -> None:
+            if obj in prefetch_list:
+                return
+            prefetch_list.append(obj)
+
+        def visited(obj: UUID) -> bool:
+            return obj in prefetch_list
 
         while states_to_process:
             (edge_id, node_id) = states_to_process.pop(0)
             if edge_id is not None:
-                prefetch_list.append(edge_id)
-            prefetch_list.append(node_id)
-            children: list[tuple[UUID, UUID]] = ttg_children.get(node_id, [])
-            unvisited_children: list[tuple[UUID, UUID]] = [
-                child for child in children if child not in visited
+                add_uuid(edge_id)
+            add_uuid(node_id)
+            graph = JacRuntimeInterface.root().graph
+            related_edges = [
+                edge[1] for edge in graph if edge[0] == node_id or edge[2] == node_id
             ]
-            states_to_process.extend(unvisited_children)
-            visited.extend(unvisited_children)
-            if len(prefetch_list) >= max_length:
-                break
+            children: list[tuple[UUID, UUID]] = ttg_children.get(node_id, [])
+            for child in children:
+                if not visited(child[1]):
+                    states_to_process.append(child)
+
+            for related_edge in related_edges:
+                add_uuid(related_edge)
+
+            # unvisited_children: list[tuple[UUID, UUID]] = [
+            #     child for child in children if child not in visited
+            # ]
+            # states_to_process.extend(unvisited_children)
+            # visited.extend(unvisited_children)
+            # if len(prefetch_list) >= max_length:
+            #     break
         length = min(max_length, len(prefetch_list))
+
+        assert len(set(prefetch_list)) == len(prefetch_list)
 
         return prefetch_list[:length]
 
