@@ -574,19 +574,13 @@ impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 """Prefetch - load from L3 and store to L2."""
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     ids_to_fetch = list(ids);
-    print(
-        f"TieredMemory.prefetch: {ids_to_fetch}. hit: {self.__hit__}, miss: {self.__miss__}"
-    );
-    print(f"l3: {self.l3 is not None}, l2: {self.l2 is not None}");
     if not self.l3 or not self.l2 {
         return;
     }
     # TODO: Only prefetch IDs not already in L1 or L2
-    print(f"Prefetching IDs from L3: {ids_to_fetch}");
     if not ids_to_fetch {
         return;
     }
-    print(f"Prefetching {len(ids_to_fetch)} IDs from L3 to L2 cache.");
     for id in ids_to_fetch {
         if (anchor := self.l3.get(id)) {
             self.l2.put(anchor);
