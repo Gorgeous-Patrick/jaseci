@@ -472,6 +472,8 @@ impl TieredMemory.postinit -> None {
 
 """Get anchor with read-through: L1 -> L2 -> L3 with promotion."""
 impl TieredMemory.get(id: UUID) -> (Anchor | None) {
+    import from jaclang { JacRuntimeInterface as Jac }
+    Jac._get_cache().read(id);
     # L1 hit (self.__mem__ inherited from VolatileMemory)
     if (anchor := self.__mem__.get(id)) {
         if (str(anchor.archetype) == "Follow()") {

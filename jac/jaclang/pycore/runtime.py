@@ -55,7 +55,7 @@ from jaclang.pycore.constructs import (
 )
 from jaclang.pycore.modresolver import infer_language
 from jaclang.pycore.mtp import MTIR, MTRuntime
-from jaclang.pycore.ttg_cache import Cache
+from jaclang.pycore.ttg_cache import TwoLevelCache
 from jaclang.vendor import pluggy
 
 if TYPE_CHECKING:
@@ -394,13 +394,15 @@ class JacEdge:
 class JacWalker:
     """Jac Edge Operations."""
 
-    _global_cache: Cache[int] | None = None
+    _global_cache: TwoLevelCache[UUID] | None = None
 
     @classmethod
-    def _get_cache(cls) -> Cache[int]:
+    def _get_cache(cls) -> TwoLevelCache[UUID]:
         if cls._global_cache is None:
-            cache_size = int(os.environ.get("JAC_CACHE_SIZE", "10"))
-            cls._global_cache = Cache[int](cache_size=cache_size)
+            cache_size = int(os.environ.get("JAC_CACHE_SIZE", "10000"))
+            cls._global_cache = TwoLevelCache[UUID](
+                l1_size=cache_size, l2_size=cache_size
+            )
         return cls._global_cache
 
     @classmethod
@@ -610,6 +612,7 @@ class JacWalker:
                 child_nodes = JacTTGGenerator.get_prefetch_list(
                     current_node.id, warch.__ttg_children__ or {}
                 )
+                JacRuntimeInterface._get_cache().prefetch(child_nodes)
                 JacRuntimeInterface.get_context().mem.prefetch(
                     child for child in child_nodes
                 )
@@ -652,9 +655,25 @@ class JacWalker:
 
         walker.ignores = []
         warch.__traversal_end_time__ = datetime.now()
+        from util import append_to_json_list
+
+        hits, total = JacRuntimeInterface._get_cache().get_stats()
+        append_to_json_list(
+            "cache_stats.json",
+            {
+                "JAC_NODE_NUM": int(os.environ.get("JAC_NODE_NUM", "0")),
+                "JAC_EDGE_NUM": int(os.environ.get("JAC_EDGE_NUM", "0")),
+                "JAC_TWEET_NUM": int(os.environ.get("JAC_TWEET_NUM", "0")),
+                "simulated": True,
+                "hit": hits,
+                "total_acc": total,
+                "cache_size": 0,
+                "jac_prefetch": int(os.environ.get("JAC_PREFETCH", "0")),
+            },
+        )
+
         hits, misses = JacRuntimeInterface.get_context().mem.get_cache_stats()
         print(f"MEM CACHE STATS: {hits} hits, {misses} misses")
-        from util import append_to_json_list
 
         append_to_json_list(
             "cache_stats.json",
@@ -662,6 +681,7 @@ class JacWalker:
                 "JAC_NODE_NUM": int(os.environ.get("JAC_NODE_NUM", "0")),
                 "JAC_EDGE_NUM": int(os.environ.get("JAC_EDGE_NUM", "0")),
                 "JAC_TWEET_NUM": int(os.environ.get("JAC_TWEET_NUM", "0")),
+                "simulated": False,
                 "hit": hits,
                 "total_acc": hits + misses,
                 "cache_size": 0,
