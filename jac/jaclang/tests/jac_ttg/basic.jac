@@ -1,6 +1,6 @@
 node BFSNode {
-    has id: int;
-    has jac_node_size: int = 8;
+    has id: int,
+        jac_node_size: int = 8;
 }
 
 edge JunkEdge {}
@@ -18,15 +18,27 @@ walker BFS {
     }
 }
 
+glob nodes = [
+         BFSNode(id=0),
+         BFSNode(id=1),
+         BFSNode(id=2),
+         BFSNode(id=3),
+         BFSNode(id=4)
+     ],
+     junk = BFSNode(id=5);
+
 with entry {
-    nodes = [BFSNode(id=0), BFSNode(id=1), BFSNode(id=2), BFSNode(id=3), BFSNode(id=4)];
-    junk = BFSNode(id=5);  # To ensure IDs are not reused
     root ++> nodes[0];
     nodes[0] ++> nodes[1];
     nodes[0] ++> nodes[2];
     nodes[1] ++> nodes[3];
     nodes[1] ++> nodes[4];
     BFS();
-    wlk = BFS() spawn nodes[0];
+}
+
+glob wlk = BFS() spawn nodes[0];
+
+with entry {
     print(wlk.__ttg__);
 }
+# To ensure IDs are not reused

@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # HTTP API persistence test script
 # Tests the two-step workflow:
 # 1. Run redis + jac start + setup
@@ -9,7 +7,7 @@
 set -euo pipefail
 
 PORT=${PORT:-8000}
-JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_external_tools/jactastic"}
+JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_external_tools/littlex1"}
 REDIS_URL=${REDIS_URL:-"redis://localhost:6379"}
 SETUP_FILE=${SETUP_FILE:-"stress_test_data.json"}
 NUM_REQUESTS=${NUM_REQUESTS:-50}

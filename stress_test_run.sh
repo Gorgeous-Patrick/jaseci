@@ -1,6 +1,3 @@
-#!/bin/bash
-
-# Stress test runner script
 # - Reads token and node IDs from setup file
 # - Spawns walkers on each node
 
