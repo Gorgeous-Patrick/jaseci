@@ -11,7 +11,7 @@ JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_external_tools/jactastic"
 # =====================================
 
 rm -f "${JAC_FOLDER}/cache_stats.json"
-rm -f "${JAC_FOLDER}"/*.jac
+rm -f "${JAC_FOLDER}"/.jac
 
 echo "Sweeping graph density:"
 echo "  NODE_NUM  = ${NODE_NUM}"
