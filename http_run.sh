@@ -1,21 +1,17 @@
 set -euo pipefail
-if [ -f "timer.json" ]; then
-  rm timer.json
-fi
-if [ -f "cache_stats.json" ]; then
-  rm cache_stats.json
-fi
-
 
 # ====== Configurable parameters ======
 NODE_NUM=${NODE_NUM:-250}         # number of nodes (can override: NODE_NUM=100 ./sweep.sh)
 TWEET_NUM=${TWEET_NUM:-1}         # JAC_TWEET_NUM
-CACHE_SIZE=${CACHE_SIZE:-10}      # JAC_CACHE_SIZE for walker cache
+CACHE_SIZE=${CACHE_SIZE:-10000}      # JAC_CACHE_SIZE for walker cache
 CACHE_SIZES=${CACHE_SIZES:-${CACHE_SIZE}}
 EDGE_NUMS=${EDGE_NUMS:-"0 250 500 750 1000"}  # List of edge numbers to iterate over
 PREFETCH_VALUES=${PREFETCH_VALUES:-"0 1"}
 JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_external_tools/jactastic"}
 # =====================================
+
+rm -f "${JAC_FOLDER}/cache_stats.json"
+rm -f "${JAC_FOLDER}"/*.jac
 
 echo "Sweeping graph density:"
 echo "  NODE_NUM  = ${NODE_NUM}"
