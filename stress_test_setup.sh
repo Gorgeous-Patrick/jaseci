@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Setup script for stress test
 # - Registers a test user
 # - Creates nodes via create_node function

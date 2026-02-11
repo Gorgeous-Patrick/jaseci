@@ -54,7 +54,7 @@ make_request() {
   local node_id=$2
   local start_time=$(date +%s%N)
 
-  response=$(curl -s -w "\n%{http_code}" --max-time 30 \
+  response=$(curl -s -w "\n%{http_code}" \
     -X POST "http://localhost:$PORT/walker/LoadFeed/$node_id" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
