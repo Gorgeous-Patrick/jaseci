@@ -25,12 +25,12 @@ echo "  PREFETCH_VALUES = ${PREFETCH_VALUES}"
 echo "  JAC_FOLDER  = ${JAC_FOLDER}"
 echo
 
-for prefetch in ${PREFETCH_VALUES}; do
-  echo "==> Sweeping with JAC_PREFETCH=${prefetch}"
+for edges in ${EDGE_NUMS}; do
+  echo "==> Sweeping with JAC_EDGE_NUM=${edges}"
   for cache_size in ${CACHE_SIZES}; do
     echo "  -> JAC_CACHE_SIZE=${cache_size}"
-    for edges in ${EDGE_NUMS}; do
-      echo "Running with JAC_NODE_NUM=${NODE_NUM}, JAC_EDGE_NUM=${edges}, JAC_TWEET_NUM=${TWEET_NUM}"
+    for prefetch in ${PREFETCH_VALUES}; do
+      echo "Running with JAC_NODE_NUM=${NODE_NUM}, JAC_EDGE_NUM=${edges}, JAC_TWEET_NUM=${TWEET_NUM}, JAC_PREFETCH=${prefetch}"
 
       JAC_NODE_NUM="${NODE_NUM}" \
       JAC_EDGE_NUM="${edges}" \
