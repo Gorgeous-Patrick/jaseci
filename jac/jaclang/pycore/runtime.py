@@ -594,8 +594,10 @@ class JacWalker:
         """
         warch = walker.archetype
         walker.path = []
+        current_loc = node.archetype
 
-        warch.__ttg_start_time__ = datetime.now()
+        # === Phase 1: TTG Generation ===
+        ttg_start = datetime.now()
         try:
             current_node = node if isinstance(node, NodeAnchor) else node.target
             ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
@@ -605,26 +607,32 @@ class JacWalker:
             warch.__ttg__ = ttg_state
             warch.__ttg_visited__ = ttg_visited
             warch.__ttg_dict__ = lambda: asdict(ttg_state)
-
-            if os.environ.get("JAC_PREFETCH", "0") == "1":
-                child_nodes = JacTTGGenerator.get_prefetch_list(
-                    current_node.id, warch.__ttg_children__ or {}
-                )
-                JacRuntimeInterface._get_cache().prefetch(child_nodes)
-                JacRuntimeInterface.get_context().mem.prefetch(
-                    child for child in child_nodes
-                )
-
         except RuntimeError:
-            # TODO: TTG does not support some programs
+            # TTG generation failed - continue without it
             warch.__ttg__ = None
             warch.__ttg_dict__ = None
             warch.__ttg_children__ = None
+        ttg_end = datetime.now()
+        # Time in seconds (float)
+        warch.__ttg_generation_time__ = (ttg_end - ttg_start).total_seconds()
 
-        warch.__ttg_end_time__ = datetime.now()
-        warch.__traversal_start_time__ = datetime.now()
+        # === Phase 2: Prefetching (if enabled) ===
+        prefetch_start = datetime.now()
+        if os.environ.get("JAC_PREFETCH", "0") == "1" and warch.__ttg_children__:
+            child_nodes = JacTTGGenerator.get_prefetch_list(
+                current_node.id, warch.__ttg_children__
+            )
+            JacRuntimeInterface._get_cache().prefetch(child_nodes)
+            JacRuntimeInterface.get_context().mem.prefetch(
+                child for child in child_nodes
+            )
+        prefetch_end = datetime.now()
+        # Time in seconds (float)
+        warch.__prefetch_time__ = (prefetch_end - prefetch_start).total_seconds()
+
+        # === Phase 3: Graph Traversal ===
+        traversal_start = datetime.now()
         warch.__traversal_visited__ = set()
-        current_loc = node.archetype
         # walker ability on any entry
         for i in warch._jac_entry_funcs_:
             if not i.trigger:
@@ -652,26 +660,31 @@ class JacWalker:
                 break
 
         walker.ignores = []
-        warch.__traversal_end_time__ = datetime.now()
-        from util import append_to_json_list
+        traversal_end = datetime.now()
+        # Time in seconds (float)
+        warch.__traversal_time__ = (traversal_end - traversal_start).total_seconds()
 
-        hits, total = JacRuntimeInterface._get_cache().get_stats()
-        append_to_json_list(
-            "cache_stats.json",
-            {
-                "JAC_NODE_NUM": int(os.environ.get("JAC_NODE_NUM", "0")),
-                "JAC_EDGE_NUM": int(os.environ.get("JAC_EDGE_NUM", "0")),
-                "JAC_TWEET_NUM": int(os.environ.get("JAC_TWEET_NUM", "0")),
-                "simulated": True,
-                "hit": hits,
-                "total_acc": total,
-                "cache_size": 0,
-                "jac_prefetch": int(os.environ.get("JAC_PREFETCH", "0")),
-            },
-        )
+        # === Timing Summary (for easy access, all times in seconds) ===
+        # Get memory timing from TieredMemory
+        mem = JacRuntimeInterface.get_context().mem
+        memory_get_time = mem.__get_time__ if hasattr(mem, "__get_time__") else 0.0
+        memory_get_count = mem.__get_count__ if hasattr(mem, "__get_count__") else 0
 
+        warch.__timing__ = {
+            "ttg_generation": warch.__ttg_generation_time__,
+            "prefetching": warch.__prefetch_time__,
+            "traversal": warch.__traversal_time__,
+            "memory_get": memory_get_time,
+            "total": warch.__ttg_generation_time__
+            + warch.__prefetch_time__
+            + warch.__traversal_time__,
+        }
+
+        # === Collect Statistics ===
+        from .util import append_to_json_list
+
+        # Real memory cache stats
         hits, misses = JacRuntimeInterface.get_context().mem.get_cache_stats()
-
         append_to_json_list(
             "cache_stats.json",
             {
@@ -683,6 +696,11 @@ class JacWalker:
                 "total_acc": hits + misses,
                 "cache_size": 0,
                 "jac_prefetch": int(os.environ.get("JAC_PREFETCH", "0")),
+                "ttg_generation_time": warch.__ttg_generation_time__,
+                "prefetch_time": warch.__prefetch_time__,
+                "traversal_time": warch.__traversal_time__,
+                "memory_get_time": memory_get_time,
+                "memory_get_count": memory_get_count,
             },
         )
         return warch
@@ -2281,6 +2299,7 @@ class JacTTGGenerator:
             edges_info: list[tuple[UUID, UUID, UUID]] = [
                 edge for edge in root.graph if edge[0] == node
             ]
+            print(type(root).__name__)
             node_type_name = root.type_map[node]
             node_type = cls.resolve_type(node_type_name)
             visits = [

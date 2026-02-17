@@ -183,7 +183,7 @@ def dump_traceback(e: Exception) -> str:
 
     # Process and print frames, collapsing consecutive internal runtime calls
     seen_runtime_marker: bool = False
-    collapse_internal: bool = True
+    collapse_internal: bool = False  # Set to False to see full tracebacks
 
     for idx, frame in enumerate(tb.stack):
         is_internal: bool = is_internal_runtime_frame(frame.filename)

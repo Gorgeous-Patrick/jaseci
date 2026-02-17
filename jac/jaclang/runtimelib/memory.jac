@@ -238,7 +238,9 @@ obj TieredMemory(VolatileMemory) {
         use_cache: bool = False,
         __hit__: int = 0,
         __miss__: int = 0,
-        __bypass_l2__: bool = False;
+        __bypass_l2__: bool = False,
+        __get_time__: float = 0.0,
+        __get_count__: int = 0;
 
     def postinit -> None;
     # Override only methods that need tiering logic

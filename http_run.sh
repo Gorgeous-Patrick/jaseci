@@ -2,12 +2,12 @@ set -euo pipefail
 
 # ====== Configurable parameters ======
 NODE_NUM=${NODE_NUM:-250}         # number of nodes (can override: NODE_NUM=100 ./sweep.sh)
-TWEET_NUM=${TWEET_NUM:-1}         # JAC_TWEET_NUM
+TWEET_NUM=${TWEET_NUM:-9}         # JAC_TWEET_NUM
 CACHE_SIZE=${CACHE_SIZE:-10000}      # JAC_CACHE_SIZE for walker cache
 CACHE_SIZES=${CACHE_SIZES:-${CACHE_SIZE}}
-EDGE_NUMS=${EDGE_NUMS:-"0 250 500 750 1000"}  # List of edge numbers to iterate over
+EDGE_NUMS=${EDGE_NUMS:-"250 500 750 1000"}  # List of edge numbers to iterate over
 PREFETCH_VALUES=${PREFETCH_VALUES:-"0 1"}
-JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_external_tools/jactastic"}
+JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_env/jaseci_external_tools/littlex1"}
 # =====================================
 
 rm -f "${JAC_FOLDER}/cache_stats.json"
@@ -33,6 +33,7 @@ for edges in ${EDGE_NUMS}; do
       JAC_TWEET_NUM="${TWEET_NUM}" \
       JAC_CACHE_SIZE="${cache_size}" \
       JAC_PREFETCH="${prefetch}" \
+      JAC_FOLDER="$JAC_FOLDER" \
         ./http_run_once.sh
 
       echo "------------------------------------------------------"

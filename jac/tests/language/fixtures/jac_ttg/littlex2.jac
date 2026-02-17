@@ -16,9 +16,13 @@ edge Post {}
 
 walker LoadFeed {
     has visiting_neighbors: bool = False;
+    has visited: int = 0;
 
     can load with Profile entry {
-        print("RUNNNN");
+        self.visited += 1;
+        if (self.visited >= 100) {
+            return;
+        }
         if (not self.visiting_neighbors) {
             self.visiting_neighbors = True;
             visit [->:Post:->];
@@ -29,11 +33,15 @@ walker LoadFeed {
     }
 
     can calc with Tweet entry {
+        self.visited += 1;
+        if (self.visited >= 100) {
+            return;
+        }
         # print(here.id);
     }
 }
 
-def create_node() -> list[str] {
+with entry {
     random.seed(0);
     nodes = [];
     NODE_NUM = int(os.environ.get("JAC_NODE_NUM"));
@@ -48,7 +56,6 @@ def create_node() -> list[str] {
         for j in range(TWEET_NUM) {
             nodes[i] +>: Post :+> Tweet(id=NODE_NUM + TWEET_NUM * i + j);
         }
-        print(f"Created node {i} (Total {NODE_NUM}) with tweets");
     }
 
     available_edges = set();
@@ -66,7 +73,28 @@ def create_node() -> list[str] {
         (src, dst) = random.choice(list(available_edges));
         nodes[src] +>: Follow :+> nodes[dst];
         available_edges.remove((src, dst));
-        print(f"Created edge {i} (Total {EDGE_NUM}) from {src} to {dst}");
     }
-    return [str(n.__jac__.id) for n in nodes];
+    ttg_list = [];
+
+    for i in range(NODE_NUM) {
+        wlk = LoadFeed();
+        wlk = wlk spawn nodes[i];
+        ttg_list.append(wlk.__ttg_dict__());
+    }
+    cache = JacRuntime._get_cache();
+    (hit, total_acc) = cache.get_stats();
+    prefetch_enabled = int(os.environ.get("JAC_PREFETCH", "0"));
+    append_to_json_list(
+        "cache_stats.json",
+        {
+            "JAC_NODE_NUM": NODE_NUM,
+            "JAC_EDGE_NUM": EDGE_NUM,
+            "JAC_TWEET_NUM": TWEET_NUM,
+            "hit": hit,
+            "total_acc": total_acc,
+            "cache_size": cache.lru.capacity,
+            "jac_prefetch": prefetch_enabled,
+        }
+    );
+    json.dump(ttg_list, open("load_feed_ttg.json", "w"), indent=2);
 }

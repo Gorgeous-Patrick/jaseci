@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
-from datetime import datetime
 from enum import IntEnum
 from functools import cached_property
 from inspect import _empty, signature
@@ -440,11 +439,12 @@ class WalkerArchetype(Archetype):
         __ttg_dict__: Callable[[], dict[str, Any]] | None
         __ttg_visited__: set[UUID]
         __ttg_children__: dict[UUID, list[tuple[UUID, UUID]]] | None
-        __ttg_start_time__: datetime
-        __ttg_end_time__: datetime
-        __traversal_start_time__: datetime
-        __traversal_end_time__: datetime
         __traversal_visited__: set[NodeArchetype]
+        # Timing measurements (all in seconds)
+        __ttg_generation_time__: float
+        __prefetch_time__: float
+        __traversal_time__: float
+        __timing__: dict[str, float]
 
     def __post_init__(self) -> None:
         """Ensure TTG tracking attributes exist on new walkers."""
@@ -452,6 +452,16 @@ class WalkerArchetype(Archetype):
         self.__ttg_dict__ = None
         self.__ttg_visited__ = set()
         self.__ttg_children__ = None
+        # Initialize timing measurements (all in seconds as float)
+        self.__ttg_generation_time__ = 0.0
+        self.__prefetch_time__ = 0.0
+        self.__traversal_time__ = 0.0
+        self.__timing__ = {
+            "ttg_generation": 0.0,
+            "prefetching": 0.0,
+            "traversal": 0.0,
+            "total": 0.0,
+        }
 
     @cached_property
     def __jac__(self) -> WalkerAnchor:
@@ -488,6 +498,15 @@ class Root(NodeArchetype):
     __jac_base__: ClassVar[bool] = True
     graph: list[tuple[UUID, UUID, UUID]] = field(default_factory=list)
     type_map: dict[UUID, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Initialize type_map with Root's UUID."""
+        from uuid import UUID
+
+        from jaclang.pycore.constant import Constants as Con
+
+        # Initialize type_map with SUPER_ROOT_UUID -> "Root"
+        self.type_map[UUID(Con.SUPER_ROOT_UUID)] = "Root"
 
     @cached_property
     def __jac__(self) -> NodeAnchor:

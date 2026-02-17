@@ -472,28 +472,36 @@ impl TieredMemory.postinit -> None {
 
 """Get anchor with read-through: L1 -> L2 -> L3 with promotion."""
 impl TieredMemory.get(id: UUID) -> (Anchor | None) {
+    import from datetime { datetime }
     import from jaclang { JacRuntimeInterface as Jac }
+    # Start timing
+    get_start = datetime.now();
     Jac._get_cache().read(id);
+    result = None;
     # L1 hit (self.__mem__ inherited from VolatileMemory)
     if (anchor := self.__mem__.get(id)) {
-        return anchor;
-    }
-    # L2 hit with promotion to L1
-    if self.l2 and (anchor := self.l2.get(id)) {
+        result = anchor;
+    } elif self.l2 and (anchor := self.l2.get(id)) {
+        # L2 hit with promotion to L1
         self.__hit__ += 1;
         self.__mem__[anchor.id] = anchor;
-        return anchor;
-    }
-    self.__miss__ += 1;
-    # L3 fallback with promotion to L1 and L2
-    if self.l3 and (anchor := self.l3.get(id)) {
-        self.__mem__[anchor.id] = anchor;
-        if self.l2 {
-            self.l2.put(anchor);
+        result = anchor;
+    } else {
+        self.__miss__ += 1;
+        # L3 fallback with promotion to L1 and L2
+        if self.l3 and (anchor := self.l3.get(id)) {
+            self.__mem__[anchor.id] = anchor;
+            if self.l2 {
+                self.l2.put(anchor);
+            }
+            result = anchor;
         }
-        return anchor;
     }
-    return None;
+    # Record timing (all times in seconds)
+    get_end = datetime.now();
+    self.__get_time__ += (get_end - get_start).total_seconds();
+    self.__get_count__ += 1;
+    return result;
 }
 
 """Put anchor with write-through: L1 always, L2/L3 with access control."""
