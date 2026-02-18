@@ -2419,17 +2419,17 @@ class JacTTGGenerator:
             if edge_id is not None:
                 add_uuid(edge_id)
             add_uuid(node_id)
-            graph = JacRuntimeInterface.root().graph
-            related_edges = [
-                edge[1] for edge in graph if edge[0] == node_id or edge[2] == node_id
-            ]
+            # graph = JacRuntimeInterface.root().graph
+            # related_edges = [
+            #     edge[1] for edge in graph if edge[0] == node_id or edge[2] == node_id
+            # ]
             children: list[tuple[UUID, UUID]] = ttg_children.get(node_id, [])
             for child in children:
                 if not visited(child[1]):
                     states_to_process.append(child)
 
-            for related_edge in related_edges:
-                add_uuid(related_edge)
+            # for related_edge in related_edges:
+            #     add_uuid(related_edge)
 
             # unvisited_children: list[tuple[UUID, UUID]] = [
             #     child for child in children if child not in visited
