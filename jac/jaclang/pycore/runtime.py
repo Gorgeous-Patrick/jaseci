@@ -596,29 +596,38 @@ class JacWalker:
         walker.path = []
         current_loc = node.archetype
 
-        # === Phase 1: TTG Generation ===
+        # === Phase 1: TTG Generation (only if prefetching is enabled) ===
         ttg_start = datetime.now()
-        try:
-            current_node = node if isinstance(node, NodeAnchor) else node.target
-            ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
-                warch, current_node.id
-            )
-            warch.__ttg_children__ = ttg_child_map
-            warch.__ttg__ = ttg_state
-            warch.__ttg_visited__ = ttg_visited
-            warch.__ttg_dict__ = lambda: asdict(ttg_state)
-        except RuntimeError:
-            # TTG generation failed - continue without it
+        prefetch_enabled = os.environ.get("JAC_PREFETCH", "0") == "1"
+
+        if prefetch_enabled:
+            try:
+                current_node = node if isinstance(node, NodeAnchor) else node.target
+                ttg_state, ttg_visited, ttg_child_map = JacTTGGenerator.get_ttg(
+                    warch, current_node.id
+                )
+                warch.__ttg_children__ = ttg_child_map
+                warch.__ttg__ = ttg_state
+                warch.__ttg_visited__ = ttg_visited
+                warch.__ttg_dict__ = lambda: asdict(ttg_state)
+            except RuntimeError:
+                # TTG generation failed - continue without it
+                warch.__ttg__ = None
+                warch.__ttg_dict__ = None
+                warch.__ttg_children__ = None
+        else:
+            # Prefetching disabled - skip TTG generation
             warch.__ttg__ = None
             warch.__ttg_dict__ = None
             warch.__ttg_children__ = None
+
         ttg_end = datetime.now()
         # Time in seconds (float)
         warch.__ttg_generation_time__ = (ttg_end - ttg_start).total_seconds()
 
         # === Phase 2: Prefetching (if enabled) ===
         prefetch_start = datetime.now()
-        if os.environ.get("JAC_PREFETCH", "0") == "1" and warch.__ttg_children__:
+        if prefetch_enabled and warch.__ttg_children__:
             child_nodes = JacTTGGenerator.get_prefetch_list(
                 current_node.id, warch.__ttg_children__
             )
