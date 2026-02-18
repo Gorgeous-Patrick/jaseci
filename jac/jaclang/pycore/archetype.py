@@ -82,6 +82,8 @@ class ObjectSpatialDestination:
     direction: EdgeDir
     edge: Callable[[Archetype], bool] | None = None
     node: Callable[[Archetype], bool] | None = None
+    edge_type: type | None = None
+    node_type: type | None = None
 
     def edge_filter(self, arch: Archetype) -> bool:
         """Filter edge."""
@@ -131,10 +133,18 @@ class ObjectSpatialPath:
         direction: EdgeDir,
         edge: ObjectSpatialFilter,
         node: ObjectSpatialFilter,
+        edge_type: type | None = None,
+        node_type: type | None = None,
     ) -> ObjectSpatialPath:
         """Append destination."""
         self.destinations.append(
-            ObjectSpatialDestination(direction, self.convert(edge), self.convert(node))
+            ObjectSpatialDestination(
+                direction,
+                self.convert(edge),
+                self.convert(node),
+                edge_type=edge_type,
+                node_type=node_type,
+            )
         )
         return self
 
@@ -142,25 +152,37 @@ class ObjectSpatialPath:
         self,
         edge: ObjectSpatialFilter = None,
         node: ObjectSpatialFilter = None,
+        edge_type: type | None = None,
+        node_type: type | None = None,
     ) -> ObjectSpatialPath:
         """Override greater than function."""
-        return self.append(EdgeDir.OUT, edge, node)
+        return self.append(
+            EdgeDir.OUT, edge, node, edge_type=edge_type, node_type=node_type
+        )
 
     def edge_in(
         self,
         edge: ObjectSpatialFilter = None,
         node: ObjectSpatialFilter = None,
+        edge_type: type | None = None,
+        node_type: type | None = None,
     ) -> ObjectSpatialPath:
         """Override greater than function."""
-        return self.append(EdgeDir.IN, edge, node)
+        return self.append(
+            EdgeDir.IN, edge, node, edge_type=edge_type, node_type=node_type
+        )
 
     def edge_any(
         self,
         edge: ObjectSpatialFilter = None,
         node: ObjectSpatialFilter = None,
+        edge_type: type | None = None,
+        node_type: type | None = None,
     ) -> ObjectSpatialPath:
         """Override greater than function."""
-        return self.append(EdgeDir.ANY, edge, node)
+        return self.append(
+            EdgeDir.ANY, edge, node, edge_type=edge_type, node_type=node_type
+        )
 
     def set_edge_only(self) -> ObjectSpatialPath:
         """Set edge only."""

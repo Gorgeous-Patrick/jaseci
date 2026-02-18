@@ -3210,6 +3210,21 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                         )
                     )
                 )
+                if (
+                    isinstance(cur.filter_cond, uni.FilterCompr)
+                    and cur.filter_cond.f_type
+                ):
+                    keywords.append(
+                        self.sync(
+                            ast3.keyword(
+                                arg="edge_type",
+                                value=cast(
+                                    ast3.expr,
+                                    self.sync(cur.filter_cond.f_type.gen.py_ast[0]),
+                                ),
+                            )
+                        )
+                    )
 
             if chomp and not isinstance(chomp[0], uni.EdgeOpRef):
                 filt = chomp.pop(0)
@@ -3221,6 +3236,18 @@ class PyastGenPass(BaseAstGenPass[ast3.AST]):
                         )
                     )
                 )
+                if isinstance(filt, uni.FilterCompr) and filt.f_type:
+                    keywords.append(
+                        self.sync(
+                            ast3.keyword(
+                                arg="node_type",
+                                value=cast(
+                                    ast3.expr,
+                                    self.sync(filt.f_type.gen.py_ast[0]),
+                                ),
+                            )
+                        )
+                    )
 
             pynode = self.sync(
                 ast3.Call(

@@ -273,10 +273,19 @@ class JacNode:
         origin: list[NodeArchetype], destination: ObjectSpatialDestination
     ) -> list[EdgeArchetype]:
         """Get edges connected to this node."""
+        type_map = JacRuntimeInterface.root().type_map
+        edge_type_name = (
+            destination.edge_type.__name__ if destination.edge_type else None
+        )
+        node_type_name = (
+            destination.node_type.__name__ if destination.node_type else None
+        )
         edges: OrderedDict[EdgeAnchor, EdgeArchetype] = OrderedDict()
         for node in origin:
             nanch = node.__jac__
             for anchor in nanch.edges:
+                if edge_type_name and type_map.get(anchor.id) != edge_type_name:
+                    continue
                 if (
                     (source := anchor.source)
                     and (target := anchor.target)
@@ -287,6 +296,10 @@ class JacNode:
                     if (
                         destination.direction in [EdgeDir.OUT, EdgeDir.ANY]
                         and nanch == source
+                        and (
+                            not node_type_name
+                            or type_map.get(target.id) == node_type_name
+                        )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
                     ):
@@ -294,6 +307,10 @@ class JacNode:
                     if (
                         destination.direction in [EdgeDir.IN, EdgeDir.ANY]
                         and nanch == target
+                        and (
+                            not node_type_name
+                            or type_map.get(source.id) == node_type_name
+                        )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
                     ):
@@ -307,12 +324,21 @@ class JacNode:
         from_visit: bool = False,
     ) -> list[EdgeArchetype | NodeArchetype]:
         """Get edges connected to this node and the node."""
+        type_map = JacRuntimeInterface.root().type_map
+        edge_type_name = (
+            destination.edge_type.__name__ if destination.edge_type else None
+        )
+        node_type_name = (
+            destination.node_type.__name__ if destination.node_type else None
+        )
         loc: OrderedDict[NodeAnchor | EdgeAnchor, NodeArchetype | EdgeArchetype] = (
             OrderedDict()
         )
         for node in origin:
             nanch = node.__jac__
             for anchor in nanch.edges:
+                if edge_type_name and type_map.get(anchor.id) != edge_type_name:
+                    continue
                 if (
                     (source := anchor.source)
                     and (target := anchor.target)
@@ -323,6 +349,10 @@ class JacNode:
                     if (
                         destination.direction in [EdgeDir.OUT, EdgeDir.ANY]
                         and nanch == source
+                        and (
+                            not node_type_name
+                            or type_map.get(target.id) == node_type_name
+                        )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
                     ):
@@ -331,6 +361,10 @@ class JacNode:
                     if (
                         destination.direction in [EdgeDir.IN, EdgeDir.ANY]
                         and nanch == target
+                        and (
+                            not node_type_name
+                            or type_map.get(source.id) == node_type_name
+                        )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
                     ):
@@ -343,10 +377,19 @@ class JacNode:
         origin: list[NodeArchetype], destination: ObjectSpatialDestination
     ) -> list[NodeArchetype]:
         """Get set of nodes connected to this node."""
+        type_map = JacRuntimeInterface.root().type_map
+        edge_type_name = (
+            destination.edge_type.__name__ if destination.edge_type else None
+        )
+        node_type_name = (
+            destination.node_type.__name__ if destination.node_type else None
+        )
         nodes: OrderedDict[NodeAnchor, NodeArchetype] = OrderedDict()
         for node in origin:
             nanch = node.__jac__
             for anchor in nanch.edges:
+                if edge_type_name and type_map.get(anchor.id) != edge_type_name:
+                    continue
                 if (
                     (source := anchor.source)
                     and (target := anchor.target)
@@ -356,6 +399,10 @@ class JacNode:
                         destination.direction in [EdgeDir.OUT, EdgeDir.ANY]
                         and nanch == source
                         and destination.node
+                        and (
+                            not node_type_name
+                            or type_map.get(target.id) == node_type_name
+                        )
                         and target.archetype
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
@@ -365,6 +412,10 @@ class JacNode:
                         destination.direction in [EdgeDir.IN, EdgeDir.ANY]
                         and nanch == target
                         and destination.node
+                        and (
+                            not node_type_name
+                            or type_map.get(source.id) == node_type_name
+                        )
                         and source.archetype
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
