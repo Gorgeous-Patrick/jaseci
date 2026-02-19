@@ -457,6 +457,12 @@ class JacCompiler {
                     );
                 }
                 self._load_mtir_cache(cache_key, actual_program);
+                # Load cached AST and restore into the module hub
+                cached_ast = self._bytecode_cache.get_ast(cache_key);
+                if (cached_ast is not None) {
+                    _recalculate_parents(cached_ast);
+                    actual_program.mod.hub[full_target] = cached_ast;
+                }
                 return cached_code;
             }
         }
@@ -483,6 +489,8 @@ class JacCompiler {
             if isinstance(self._bytecode_cache, DiskBytecodeCache) {
                 self._bytecode_cache.put(cache_key, result.gen.py_bytecode);
                 self._save_mtir_cache(cache_key, actual_program);
+                # Save the compiled AST for runtime deserialization
+                self._bytecode_cache.put_ast(cache_key, result);
                 if (result.gen.llvm_ir is not None) {
                     self._bytecode_cache.put_llvmir(cache_key, str(result.gen.llvm_ir));
                     self._cache_interop_manifest(cache_key, result);
