@@ -92,25 +92,33 @@ obj ObjectSpatialPath {
         self: ObjectSpatialPath,
         direction: EdgeDir,
         `edge: ObjectSpatialFilter,
-        nd: ObjectSpatialFilter
+        nd: ObjectSpatialFilter,
+        edge_type: (`type | None) = None,
+        node_type: (`type | None) = None
     ) -> ObjectSpatialPath;
 
     def edge_out(
         self: ObjectSpatialPath,
         `edge: ObjectSpatialFilter = None,
-        nd: ObjectSpatialFilter = None
+        nd: ObjectSpatialFilter = None,
+        edge_type: (`type | None) = None,
+        node_type: (`type | None) = None
     ) -> ObjectSpatialPath;
 
     def edge_in(
         self: ObjectSpatialPath,
         `edge: ObjectSpatialFilter = None,
-        nd: ObjectSpatialFilter = None
+        nd: ObjectSpatialFilter = None,
+        edge_type: (`type | None) = None,
+        node_type: (`type | None) = None
     ) -> ObjectSpatialPath;
 
     def edge_any(
         self: ObjectSpatialPath,
         `edge: ObjectSpatialFilter = None,
-        nd: ObjectSpatialFilter = None
+        nd: ObjectSpatialFilter = None,
+        edge_type: (`type | None) = None,
+        node_type: (`type | None) = None
     ) -> ObjectSpatialPath;
 
     def set_edge_only(self: ObjectSpatialPath) -> ObjectSpatialPath;

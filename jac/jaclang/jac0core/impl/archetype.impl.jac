@@ -60,8 +60,11 @@ impl ObjectSpatialPath.append(
 ) -> ObjectSpatialPath {
     self.destinations.append(
         ObjectSpatialDestination(
-            direction, self.convert(`edge), self.convert(nd),
-            edge_type=edge_type, node_type=node_type
+            direction,
+            self.convert(`edge),
+            self.convert(nd),
+            edge_type=edge_type,
+            node_type=node_type
         )
     );
     return self;
@@ -75,7 +78,9 @@ impl ObjectSpatialPath.edge_out(
     edge_type: (`type | None) = None,
     node_type: (`type | None) = None
 ) -> ObjectSpatialPath {
-    return self.append(EdgeDir.OUT, `edge, nd, edge_type=edge_type, node_type=node_type);
+    return self.append(
+        EdgeDir.OUT, `edge, nd, edge_type=edge_type, node_type=node_type
+    );
 }
 
 """Override greater than function."""
@@ -97,7 +102,9 @@ impl ObjectSpatialPath.edge_any(
     edge_type: (`type | None) = None,
     node_type: (`type | None) = None
 ) -> ObjectSpatialPath {
-    return self.append(EdgeDir.ANY, `edge, nd, edge_type=edge_type, node_type=node_type);
+    return self.append(
+        EdgeDir.ANY, `edge, nd, edge_type=edge_type, node_type=node_type
+    );
 }
 
 """Set edge only."""

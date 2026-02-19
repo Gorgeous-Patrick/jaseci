@@ -2948,7 +2948,10 @@ impl PyastGenPass.exit_edge_ref_trailer(
                     self.sync(
                         ast3.keyword(
                             arg='edge_type',
-                            value=cast(ast3.expr, self.sync(cur.filter_cond.f_type.gen.py_ast[0]))
+                            value=cast(
+                                ast3.expr,
+                                self.sync(cur.filter_cond.f_type.gen.py_ast[0])
+                            )
                         )
                     )
                 );

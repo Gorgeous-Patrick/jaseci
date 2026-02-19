@@ -252,9 +252,11 @@ class JacNode {
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
-                if (_edge_type
+                if (
+                    _edge_type
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and not issubclass(ecls, _edge_type)) {
+                    and not issubclass(ecls, _edge_type)
+                ) {
                     continue;
                 }
                 if (
@@ -267,9 +269,11 @@ class JacNode {
                     if (
                         (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
                         and (nanch == source)
-                        and (not _node_type
+                        and (
+                            not _node_type
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or issubclass(ncls, _node_type))
+                            or issubclass(ncls, _node_type)
+                        )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
                     ) {
@@ -278,9 +282,11 @@ class JacNode {
                     if (
                         (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
                         and (nanch == target)
-                        and (not _node_type
+                        and (
+                            not _node_type
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or issubclass(ncls, _node_type))
+                            or issubclass(ncls, _node_type)
+                        )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
                     ) {
@@ -304,9 +310,11 @@ class JacNode {
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
-                if (_edge_type
+                if (
+                    _edge_type
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and not issubclass(ecls, _edge_type)) {
+                    and not issubclass(ecls, _edge_type)
+                ) {
                     continue;
                 }
                 if (
@@ -319,9 +327,11 @@ class JacNode {
                     if (
                         (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
                         and (nanch == source)
-                        and (not _node_type
+                        and (
+                            not _node_type
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or issubclass(ncls, _node_type))
+                            or issubclass(ncls, _node_type)
+                        )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
                     ) {
@@ -331,9 +341,11 @@ class JacNode {
                     if (
                         (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
                         and (nanch == target)
-                        and (not _node_type
+                        and (
+                            not _node_type
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or issubclass(ncls, _node_type))
+                            or issubclass(ncls, _node_type)
+                        )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
                     ) {
@@ -356,9 +368,11 @@ class JacNode {
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
-                if (_edge_type
+                if (
+                    _edge_type
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and not issubclass(ecls, _edge_type)) {
+                    and not issubclass(ecls, _edge_type)
+                ) {
                     continue;
                 }
                 if (
@@ -371,9 +385,11 @@ class JacNode {
                     if (
                         (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
                         and (nanch == source)
-                        and (not _node_type
+                        and (
+                            not _node_type
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or issubclass(ncls, _node_type))
+                            or issubclass(ncls, _node_type)
+                        )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
                     ) {
@@ -382,9 +398,11 @@ class JacNode {
                     if (
                         (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
                         and (nanch == target)
-                        and (not _node_type
+                        and (
+                            not _node_type
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or issubclass(ncls, _node_type))
+                            or issubclass(ncls, _node_type)
+                        )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
                     ) {
