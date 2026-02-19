@@ -886,6 +886,8 @@ impl PyastGenPass.exit_archetype(self: PyastGenPass, nd: uni.Archetype) -> None 
         );
     }
     # Emit __jac_ttg_visits__ ClassVar for walker archetypes.
+    # Uses string names (forward references) to avoid NameError when
+    # referenced types are defined after the walker or in dynamic modules.
     if (nd.arch_type.name == Tok.KW_WALKER) {
         visit_payload = getattr(nd, TTG_VISIT_FIELD, None);
         visit_elements: list[ast3.expr] = [];
@@ -895,11 +897,10 @@ impl PyastGenPass.exit_archetype(self: PyastGenPass, nd: uni.Archetype) -> None 
                 edge_arch = visit_info[1] if isinstance(visit_info, `tuple) else None;
                 from_ref = (
                     self.sync(
-                        ast3.Name(
-                            id=getattr(
+                        ast3.Constant(
+                            value=getattr(
                                 from_arch.name, 'sym_name', from_arch.name.value
-                            ),
-                            ctx=ast3.Load()
+                            )
                         )
                     )
                     if (from_arch is not None and getattr(from_arch, 'name', None))
@@ -907,11 +908,10 @@ impl PyastGenPass.exit_archetype(self: PyastGenPass, nd: uni.Archetype) -> None 
                 );
                 edge_ref = (
                     self.sync(
-                        ast3.Name(
-                            id=getattr(
+                        ast3.Constant(
+                            value=getattr(
                                 edge_arch.name, 'sym_name', edge_arch.name.value
-                            ),
-                            ctx=ast3.Load()
+                            )
                         )
                     )
                     if (edge_arch is not None and getattr(edge_arch, 'name', None))

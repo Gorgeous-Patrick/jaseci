@@ -233,11 +233,15 @@ class EdgeArchetype(Archetype) {
     }
 }
 
-"""Lightweight carrier for walker visit metadata used by TTG generation."""
+"""Lightweight carrier for walker visit metadata used by TTG generation.
+
+Fields accept either a concrete type or a string name (forward reference).
+String names are resolved lazily at runtime by the TTG generator.
+"""
 @dataclass(frozen=True)
 class VisitType {
-    has from_node_type: (type[NodeArchetype] | None) = None,
-        edge_type: (type[EdgeArchetype] | None) = None;
+    has from_node_type: (type[NodeArchetype] | str | None) = None,
+        edge_type: (type[EdgeArchetype] | str | None) = None;
 }
 
 """Walker Archetype Protocol."""

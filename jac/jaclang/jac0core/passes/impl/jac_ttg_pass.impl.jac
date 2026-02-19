@@ -54,19 +54,33 @@ impl JacTTGPass._get_visits_for_walker(
     return result;
 }
 
-"""Determine edge type from a visit statement's filter comprehension.
+"""Determine edge type from a visit statement's edge reference.
 
-Inspects FilterCompr children of the VisitStmt to find the edge type.
-Returns None if no filter is present (generic edge).
+Inspects EdgeOpRef children of the VisitStmt and extracts the edge type
+from the EdgeOpRef.filter_cond (e.g., `[-:EdgeType:->]`). FilterCompr
+nodes that appear as direct children of VisitStmt (e.g., `(?:NodeType)`)
+are node filters, NOT edge types — those are intentionally ignored here.
+Returns None if no edge type filter is present (generic edge).
 """
 impl JacTTGPass._get_edge_type_from_visit(
     self: JacTTGPass, visit_stmt: uni.VisitStmt
 ) -> (uni.Archetype | None) {
-    filters = self.get_all_sub_nodes(visit_stmt, uni.FilterCompr);
-    if (len(filters) == 0) {
+    edge_refs = self.get_all_sub_nodes(visit_stmt, uni.EdgeOpRef);
+    if (len(edge_refs) == 0) {
         return None;
     }
-    names = self.get_all_sub_nodes(filters[0], uni.Name);
+    # Check the first EdgeOpRef for a filter_cond (edge type filter).
+    edge_ref = edge_refs[0];
+    fc = getattr(edge_ref, 'filter_cond', None);
+    if (fc is None) {
+        return None;
+    }
+    # Extract the type name from the FilterCompr's f_type field.
+    ft = getattr(fc, 'f_type', None);
+    if (ft is None) {
+        return None;
+    }
+    names = self.get_all_sub_nodes(fc, uni.Name);
     if (len(names) == 0) {
         return None;
     }

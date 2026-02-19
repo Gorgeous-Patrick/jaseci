@@ -1648,9 +1648,11 @@ system,
             # Register edge in Root's TTG topology graph.
             try {
                 _root = JacRuntimeInterface.`root();
-                _root._ttg_register_edge(source, eanch, target);
-                if is_undirected {
-                    _root._ttg_register_edge(target, eanch, source);
+                if hasattr(_root, 'graph') and hasattr(_root, '_ttg_register_edge') {
+                    _root._ttg_register_edge(source, eanch, target);
+                    if is_undirected {
+                        _root._ttg_register_edge(target, eanch, source);
+                    }
                 }
             } except Exception {
                 pass;

@@ -1,6 +1,26 @@
 """Implementation for TTG Generator constructs."""
 import from jaclang.jac0core.archetype { VisitType }
 
+"""Resolve a VisitType field (type or string name) to a concrete type.
+
+Looks up string names in the reverse_type_map (name -> type) built from
+type_map values. Returns None if unresolved.
+"""
+@ classmethod
+impl JacTTGGenerator._resolve_type(
+    cls: type[JacTTGGenerator],
+    ref: (type | str | None),
+    reverse_type_map: dict[(str, type)]
+) -> (type | None) {
+    if ref is None {
+        return None;
+    }
+    if isinstance(ref, str) {
+        return reverse_type_map.get(ref);
+    }
+    return ref;
+}
+
 """Filter neighbors of a UUID based on walker visit types.
 
 Uses type_map to resolve types and matches them against the
@@ -15,6 +35,8 @@ impl JacTTGGenerator.filter_neighbors(
     type_map: dict[(UUID, type)]
 ) -> list[tuple[(UUID, UUID)]] {
     filtered: list[tuple[(UUID, UUID)]] = [];
+    # Build reverse lookup (name -> type) for string-based VisitType fields.
+    reverse_type_map: dict[(str, type)] = {t.__name__: t for t in type_map.values()};
     # Get all outgoing edges from this UUID.
     edges_out = [
         e
@@ -23,23 +45,31 @@ impl JacTTGGenerator.filter_neighbors(
     ];
     nd_type = type_map.get(nd_id);
     # Filter visits applicable to this type.
-    applicable_visits: list = [
-        v
-        for v in visits
+    applicable_visits: list = [];
+    for v in visits {
+        if not isinstance(v, VisitType) {
+            applicable_visits.append(v);
+            continue;
+        }
+        resolved_from = cls._resolve_type(v.from_node_type, reverse_type_map);
         if (
-            not isinstance(v, VisitType)
-            or v.from_node_type is None
-            or (nd_type is not None and issubclass(nd_type, v.from_node_type))
-        )
-    ];
+            v.from_node_type is None
+            or resolved_from is None
+            or (nd_type is not None and issubclass(nd_type, resolved_from))
+        ) {
+            applicable_visits.append(v);
+        }
+    }
     seen_targets: set[UUID] = `set();
     for (src, eid, tgt) in edges_out {
         for v in applicable_visits {
             if isinstance(v, VisitType) {
                 etype = type_map.get(eid);
+                resolved_edge = cls._resolve_type(v.edge_type, reverse_type_map);
                 if (
                     v.edge_type is None
-                    or (etype is not None and issubclass(etype, v.edge_type))
+                    or resolved_edge is None
+                    or (etype is not None and issubclass(etype, resolved_edge))
                 ) {
                     if (tgt not in seen_targets) {
                         filtered.append((eid, tgt));

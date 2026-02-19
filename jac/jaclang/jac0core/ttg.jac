@@ -26,6 +26,17 @@ All methods are classmethods operating on Root.graph and Root.type_map.
 No Jac archetype instances are loaded or populated.
 """
 class JacTTGGenerator {
+    """Resolve a VisitType field (type or string name) to a concrete type.
+
+    Returns None if unresolved.
+    """
+    @classmethod
+    def _resolve_type(
+        cls: type[JacTTGGenerator],
+        ref: (type | str | None),
+        reverse_type_map: dict[(str, type)]
+    ) -> (type | None);
+
     """Filter neighbors of a UUID based on walker visit types.
 
     Returns list of (edge_uuid, target_uuid) pairs that match the
