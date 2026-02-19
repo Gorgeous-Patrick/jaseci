@@ -680,8 +680,7 @@ test "operator precedence matches python" {
 # ── Tests for edge/node type filter short-circuit optimization ────────────────
 test "type filtered traversal correctness" {
     output = run_jac(os.path.join(FIXTURES, "populate_shortcircuit.jac"));
-    assert "FUNCTIONAL_TESTS_PASSED" in output,
-        f"Functional traversal tests failed:\n{output}";
+    assert "FUNCTIONAL_TESTS_PASSED" in output , f"Functional traversal tests failed:\n{output}";
     assert "ALL_COUNT 4" in output;
     assert "FOLLOW_COUNT 2" in output;
     assert "FOLLOW_PROFILE_COUNT 2" in output;
@@ -693,9 +692,11 @@ test "type filtered traversal correctness" {
 
 test "populate short-circuit skips non-matching stubs" {
     output = run_jac(os.path.join(FIXTURES, "populate_shortcircuit_mock.jac"));
-    assert "SHORTCIRCUIT_TESTS_PASSED" in output,
-        f"Populate short-circuit tests failed:\n{output}";
-    # Verify non-matching stubs were NOT populated
+    assert "SHORTCIRCUIT_TESTS_PASSED" in output , f"Populate short-circuit tests failed:\n{output}";
+    # Verify non-matching stubs were NOT populated (exact 0)
     assert "OWNS_POP_AFTER_LIKES 0" in output;
     assert "LIKES_POP_AFTER_OWNS 0" in output;
+    # Verify matching stubs were populated exactly once
+    assert "LIKES_POP 1" in output;
+    assert "OWNS_POP2 1" in output;
 }
