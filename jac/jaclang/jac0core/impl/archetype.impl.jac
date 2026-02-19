@@ -297,10 +297,7 @@ generator can traverse the graph structure without loading any Jac
 archetype instances.
 """
 impl Root._ttg_register_edge(
-    self: Root,
-    source: NodeAnchor,
-    edge_anchor: EdgeAnchor,
-    target: NodeAnchor
+    self: Root, source: NodeAnchor, edge_anchor: EdgeAnchor, target: NodeAnchor
 ) -> None {
     self.graph.append((source.id, edge_anchor.id, target.id));
     self.type_map.setdefault(source.id, `type(source.archetype));

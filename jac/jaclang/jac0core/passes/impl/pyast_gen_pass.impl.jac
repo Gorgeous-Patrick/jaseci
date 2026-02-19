@@ -924,16 +924,10 @@ impl PyastGenPass.exit_archetype(self: PyastGenPass, nd: uni.Archetype) -> None 
                             args=[],
                             keywords=[
                                 self.sync(
-                                    ast3.keyword(
-                                        arg='from_node_type',
-                                        value=from_ref
-                                    )
+                                    ast3.keyword(arg='from_node_type', value=from_ref)
                                 ),
                                 self.sync(
-                                    ast3.keyword(
-                                        arg='edge_type',
-                                        value=edge_ref
-                                    )
+                                    ast3.keyword(arg='edge_type', value=edge_ref)
                                 )
                             ]
                         )

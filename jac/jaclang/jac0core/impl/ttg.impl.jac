@@ -6,7 +6,7 @@ import from jaclang.jac0core.archetype { VisitType }
 Uses type_map to resolve types and matches them against the
 walker's VisitType constraints. No Jac archetypes are loaded.
 """
-@classmethod
+@ classmethod
 impl JacTTGGenerator.filter_neighbors(
     cls: type[JacTTGGenerator],
     nd_id: UUID,
@@ -16,11 +16,16 @@ impl JacTTGGenerator.filter_neighbors(
 ) -> list[tuple[(UUID, UUID)]] {
     filtered: list[tuple[(UUID, UUID)]] = [];
     # Get all outgoing edges from this UUID.
-    edges_out = [e for e in graph if (e[0] == nd_id)];
+    edges_out = [
+        e
+        for e in graph
+        if (e[0] == nd_id)
+    ];
     nd_type = type_map.get(nd_id);
     # Filter visits applicable to this type.
     applicable_visits: list = [
-        v for v in visits
+        v
+        for v in visits
         if (
             not isinstance(v, VisitType)
             or v.from_node_type is None
@@ -58,7 +63,7 @@ impl JacTTGGenerator.filter_neighbors(
 BFS expansion from start_id using filtered neighbors.  Returns a tree
 of TypedWalkerState plus helper structures for prefetching.
 """
-@classmethod
+@ classmethod
 impl JacTTGGenerator.get_ttg(
     cls: type[JacTTGGenerator],
     warch: Any,
@@ -69,11 +74,7 @@ impl JacTTGGenerator.get_ttg(
     wtype_name = `type(warch).__name__;
     visits = getattr(warch, '__jac_ttg_visits__', []);
     ttg_root = TypedWalkerState(
-        walker_type=wtype_name,
-        depth=0,
-        nd=start_id,
-        incoming_edge=None,
-        children=[]
+        walker_type=wtype_name, depth=0, nd=start_id, incoming_edge=None, children=[]
     );
     queue: list[TypedWalkerState] = [ttg_root];
     visited_ids: set[UUID] = `set();
@@ -112,7 +113,7 @@ impl JacTTGGenerator.get_ttg(
 BFS traversal of the child_map to produce an ordered list of UUIDs
 (edges + targets) for cache prefetching.
 """
-@classmethod
+@ classmethod
 impl JacTTGGenerator.get_prefetch_list(
     cls: type[JacTTGGenerator],
     start: UUID,
@@ -121,14 +122,12 @@ impl JacTTGGenerator.get_prefetch_list(
     prefetch: list[UUID] = [];
     max_length = int(os.getenv('JAC_TTG_PREFETCH_LIMIT', '200'));
     seen: set[UUID] = `set();
-
     def _add(uid: UUID) -> None {
         if (uid not in seen) {
             seen.add(uid);
             prefetch.append(uid);
         }
     }
-
     queue: list[tuple[((UUID | None), UUID)]] = [(None, start)];
     while queue {
         (eid, nid) = queue.pop(0);

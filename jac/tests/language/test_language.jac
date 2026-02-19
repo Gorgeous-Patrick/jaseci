@@ -678,7 +678,6 @@ test "operator precedence matches python" {
 }
 
 # ── TTG (Typed Traversal Graph) tests ────────────────────────────────────────
-
 test "ttg root graph topology tracking" {
     output = run_jac(os.path.join(FIXTURES, "ttg_basic.jac"));
     assert "graph_populated True" in output;

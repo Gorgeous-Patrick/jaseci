@@ -294,10 +294,7 @@ obj Root(NodeArchetype) {
 
     """Register an edge in the Root's topology graph and type_map."""
     def _ttg_register_edge(
-        self: Root,
-        source: NodeAnchor,
-        edge_anchor: EdgeAnchor,
-        target: NodeAnchor
+        self: Root, source: NodeAnchor, edge_anchor: EdgeAnchor, target: NodeAnchor
     ) -> None;
 
     def __repr__(self: Root) -> str;
