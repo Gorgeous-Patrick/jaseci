@@ -677,7 +677,7 @@ test "operator precedence matches python" {
     assert "PASS" in output , f"Operator precedence test failed:\n{output}";
 }
 
-# ── TTG (Typed Traversal Graph) tests ────────────────────────────────────────
+# ── TTG (Temporal Trace Graph) tests ─────────────────────────────────────────
 test "ttg root graph topology tracking" {
     output = run_jac(os.path.join(FIXTURES, "ttg_basic.jac"));
     assert "graph_populated True" in output;

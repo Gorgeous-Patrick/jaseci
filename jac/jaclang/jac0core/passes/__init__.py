@@ -9,7 +9,7 @@ This module contains the bootstrap-critical compiler passes:
 - annex_pass: Module annex loading
 - def_impl_match_pass: Declaration-implementation matching
 - semantic_analysis_pass: Semantic analysis
-- jac_ttg_pass: TTG (Typed Traversal Graph) analysis
+- jac_ttg_pass: TTG (Temporal Trace Graph) analysis
 - ast_gen/: Shared AST generation utilities
 """
 

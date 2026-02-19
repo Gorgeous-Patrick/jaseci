@@ -1,4 +1,4 @@
-"""Jac TTG (Typed Traversal Graph) analysis pass.
+"""Jac TTG (Temporal Trace Graph) analysis pass.
 
 Collects visit metadata for walker abilities so that the runtime TTG
 generator can predict traversal paths without re-parsing source code.

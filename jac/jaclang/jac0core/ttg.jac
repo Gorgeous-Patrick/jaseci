@@ -1,16 +1,16 @@
-"""TTG (Typed Traversal Graph) Generator.
+"""TTG (Temporal Trace Graph) Generator.
 
-Builds a typed traversal graph for a walker by analyzing Root's topology
-graph (list of edge tuples) and type_map (UUID -> type mapping). This
-approach avoids loading any Jac archetype instances, operating purely on
-UUIDs and type metadata stored in Root.
+Predicts walker traversal paths by analyzing Root's topology graph
+(list of edge tuples) and type_map (UUID -> type mapping). This approach
+avoids loading any Jac archetype instances, operating purely on UUIDs
+and type metadata stored in Root.
 """
 import os;
 import from dataclasses { dataclass, field }
 import from uuid { UUID }
 import from typing { Any }
 
-"""State entry in the typed traversal graph."""
+"""State entry in the temporal trace graph."""
 @dataclass
 class TypedWalkerState {
     has walker_type: str,
@@ -20,7 +20,7 @@ class TypedWalkerState {
         children: list[TypedWalkerState] = field(default_factory=`list);
 }
 
-"""TTG Generator — builds traversal graphs from Root's topology data.
+"""TTG Generator — predicts traversal paths from Root's topology data.
 
 All methods are classmethods operating on Root.graph and Root.type_map.
 No Jac archetype instances are loaded or populated.
@@ -51,7 +51,7 @@ class JacTTGGenerator {
         type_map: dict[(UUID, type)]
     ) -> list[tuple[(UUID, UUID)]];
 
-    """Build a typed traversal graph rooted at start_id.
+    """Build a temporal trace graph rooted at start_id.
 
     Returns (root_state, visited_ids, child_map) where:
     - root_state: TypedWalkerState tree

@@ -88,7 +88,7 @@ impl JacTTGGenerator.filter_neighbors(
     return filtered;
 }
 
-"""Build a typed traversal graph from Root topology data.
+"""Build a temporal trace graph from Root topology data.
 
 BFS expansion from start_id using filtered neighbors.  Returns a tree
 of TypedWalkerState plus helper structures for prefetching.
