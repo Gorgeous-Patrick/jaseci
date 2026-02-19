@@ -4,6 +4,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jaclang 0.10.5 (Unreleased)
 
+- **AST Serialization/Deserialization**: Compile-time AST is now serialized via pickle and cached alongside bytecode in `~/.cache/jac/bytecode/`. On subsequent runs, the cached AST is automatically deserialized and restored into the module hub, eliminating redundant re-parsing for unchanged sources.
+
 ## jaclang 0.10.4 (Latest Release)
 
 - **`jac check/lint --ignore` Multi-Arg & Wildcard Support**: Enhanced `--ignore` flag to accept multiple space-separated patterns (`--ignore dir1 dir2 dir3`) instead of comma-separated strings. Added wildcard support using glob patterns (e.g., `--ignore "jac-*" test`) for flexible directory matching.
