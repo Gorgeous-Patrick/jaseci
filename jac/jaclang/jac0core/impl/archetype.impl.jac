@@ -54,10 +54,15 @@ impl ObjectSpatialPath.append(
     self: ObjectSpatialPath,
     direction: EdgeDir,
     `edge: ObjectSpatialFilter,
-    nd: ObjectSpatialFilter
+    nd: ObjectSpatialFilter,
+    edge_type: (`type | None) = None,
+    node_type: (`type | None) = None
 ) -> ObjectSpatialPath {
     self.destinations.append(
-        ObjectSpatialDestination(direction, self.convert(`edge), self.convert(nd))
+        ObjectSpatialDestination(
+            direction, self.convert(`edge), self.convert(nd),
+            edge_type=edge_type, node_type=node_type
+        )
     );
     return self;
 }
@@ -66,27 +71,33 @@ impl ObjectSpatialPath.append(
 impl ObjectSpatialPath.edge_out(
     self: ObjectSpatialPath,
     `edge: ObjectSpatialFilter = None,
-    nd: ObjectSpatialFilter = None
+    nd: ObjectSpatialFilter = None,
+    edge_type: (`type | None) = None,
+    node_type: (`type | None) = None
 ) -> ObjectSpatialPath {
-    return self.append(EdgeDir.OUT, `edge, nd);
+    return self.append(EdgeDir.OUT, `edge, nd, edge_type=edge_type, node_type=node_type);
 }
 
 """Override greater than function."""
 impl ObjectSpatialPath.edge_in(
     self: ObjectSpatialPath,
     `edge: ObjectSpatialFilter = None,
-    nd: ObjectSpatialFilter = None
+    nd: ObjectSpatialFilter = None,
+    edge_type: (`type | None) = None,
+    node_type: (`type | None) = None
 ) -> ObjectSpatialPath {
-    return self.append(EdgeDir.IN, `edge, nd);
+    return self.append(EdgeDir.IN, `edge, nd, edge_type=edge_type, node_type=node_type);
 }
 
 """Override greater than function."""
 impl ObjectSpatialPath.edge_any(
     self: ObjectSpatialPath,
     `edge: ObjectSpatialFilter = None,
-    nd: ObjectSpatialFilter = None
+    nd: ObjectSpatialFilter = None,
+    edge_type: (`type | None) = None,
+    node_type: (`type | None) = None
 ) -> ObjectSpatialPath {
-    return self.append(EdgeDir.ANY, `edge, nd);
+    return self.append(EdgeDir.ANY, `edge, nd, edge_type=edge_type, node_type=node_type);
 }
 
 """Set edge only."""
@@ -131,6 +142,7 @@ impl Anchor.make_stub(self: Anchor) -> TANCH {
     if self.is_populated() {
         unloaded = object.__new__(self.__class__);
         unloaded.id = self.id;
+        unloaded.__dict__['arch_cls'] = type(self.archetype);
         return unloaded;
     }
     return self;
@@ -171,12 +183,17 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
         return {
             'id': self.id,
             'archetype': unlinked,
+            'arch_cls': type(self.archetype),
             'root': self.root,
             'access': self.access,
             'persistent': self.persistent
         };
     } else {
-        return {'id': self.id};
+        state: dict[(str, Any)] = {'id': self.id};
+        if ('arch_cls' in self.__dict__) {
+            state['arch_cls'] = self.__dict__['arch_cls'];
+        }
+        return state;
     }
 }
 
