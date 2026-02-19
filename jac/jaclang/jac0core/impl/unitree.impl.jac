@@ -10,6 +10,82 @@ impl UniNode.init(self: UniNode, kid: Sequence[UniNode]) -> None {
     self.loc: CodeLocInfo = CodeLocInfo(*self.resolve_tok_range());
 }
 
+"""Get pickle state — exclude circular refs and non-serializable fields."""
+impl UniNode.__getstate__(self: UniNode) -> dict {
+    state = self.__dict__.copy();
+    # Remove circular parent reference (rebuilt by _recalculate_parents)
+    state.pop('parent', None);
+    # Remove lazy/transient fields
+    state.pop('_UniNode__sub_node_tab', None);
+    state.pop('_in_mod_nodes', None);
+    state.pop('_gen', None);
+    # Remove symbol table fields (rebuilt by SymTabBuildPass)
+    if isinstance(self, UniScopeNode) {
+        state.pop('parent_scope', None);
+        state.pop('kid_scope', None);
+        state.pop('names_in_scope', None);
+        state.pop('names_in_scope_overload', None);
+        state.pop('inherited_scope', None);
+    }
+    # Remove symbol references (rebuilt by SymTabBuildPass)
+    if isinstance(self, NameAtom) {
+        state.pop('_sym', None);
+        # Convert _py_ctx_func type to string for pickling
+        py_ctx = state.get('_py_ctx_func');
+        if py_ctx is not None {
+            state['_py_ctx_func'] = py_ctx.__name__;
+        }
+    }
+    # Remove type info (rebuilt by type checker)
+    if isinstance(self, Expr) {
+        state.pop('_sym_type', None);
+        state.pop('_type_sym_tab', None);
+        state.pop('type', None);
+    }
+    # Remove CFG data (rebuilt by CFGBuildPass)
+    if isinstance(self, UniCFGNode) {
+        state.pop('bb_in', None);
+        state.pop('bb_out', None);
+    }
+    return state;
+}
+
+"""Restore state from pickle."""
+impl UniNode.__setstate__(self: UniNode, state: dict) -> None {
+    import ast as ast3;
+    # Restore _py_ctx_func from string name
+    if ('_py_ctx_func' in state) {
+        ctx_name = state['_py_ctx_func'];
+        ctx_map: dict = {'Load': ast3.Load, 'Store': ast3.Store, 'Del': ast3.Del};
+        state['_py_ctx_func'] = ctx_map.get(ctx_name, ast3.Load);
+    }
+    self.__dict__.update(state);
+    # Restore defaults for excluded fields
+    self.parent = None;
+    self.__sub_node_tab = None;
+    self._in_mod_nodes = [];
+    self._gen = None;
+    if isinstance(self, UniScopeNode) {
+        self.parent_scope = None;
+        self.kid_scope = [];
+        self.names_in_scope = {};
+        self.names_in_scope_overload = {};
+        self.inherited_scope = [];
+    }
+    if isinstance(self, NameAtom) {
+        self._sym = None;
+    }
+    if isinstance(self, Expr) {
+        self._sym_type = 'NoType';
+        self._type_sym_tab = None;
+        self.type = None;
+    }
+    if isinstance(self, UniCFGNode) {
+        self.bb_in = [];
+        self.bb_out = [];
+    }
+}
+
 """Lazy initialization of sub node table."""
 @ property
 impl UniNode._sub_node_tab(self: UniNode) -> dict[(type, list[UniNode])] {
