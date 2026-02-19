@@ -618,3 +618,7 @@ glob TOKEN_MAP: dict[str, str] = {
          '#F8F8FF',
          '#F0FFFF'
      ];
+
+# TTG (Typed Traversal Graph) metadata
+"""Attribute name used to store visit metadata on walker archetypes."""
+glob TTG_VISIT_FIELD = "__jac_ttg_visits__";
