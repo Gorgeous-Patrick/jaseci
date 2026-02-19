@@ -1616,7 +1616,20 @@ system,
         return `list(jmem.get_roots());
     }
 
-    """Jac's root getter."""
+    """Register edge in Root's TTG topology graph (safe wrapper)."""
+    static def ttg_register_edge_safe(
+        source: NodeAnchor, eanch: EdgeAnchor, target: NodeAnchor, is_undirected: bool
+    ) -> None {
+        _root = JacRuntimeInterface.`root();
+        if hasattr(_root, 'graph') and hasattr(_root, '_ttg_register_edge') {
+            _root._ttg_register_edge(source, eanch, target);
+            if is_undirected {
+                _root._ttg_register_edge(target, eanch, source);
+            }
+        }
+    }
+
+    """Jac's edge builder."""
     static def build_edge(
         is_undirected: bool,
         conn_type: type[EdgeArchetype] | EdgeArchetype | None,
@@ -1646,17 +1659,9 @@ system,
                 JacRuntimeInterface.save(eanch);
             }
             # Register edge in Root's TTG topology graph.
-            try {
-                _root = JacRuntimeInterface.`root();
-                if hasattr(_root, 'graph') and hasattr(_root, '_ttg_register_edge') {
-                    _root._ttg_register_edge(source, eanch, target);
-                    if is_undirected {
-                        _root._ttg_register_edge(target, eanch, source);
-                    }
-                }
-            } except Exception {
-                pass;
-            }
+            JacRuntimeInterface.ttg_register_edge_safe(
+                source, eanch, target, is_undirected
+            );
             return `edge;
         }
         return builder;
