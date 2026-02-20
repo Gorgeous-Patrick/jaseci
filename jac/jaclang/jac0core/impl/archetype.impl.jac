@@ -149,7 +149,8 @@ impl Anchor.make_stub(self: Anchor) -> TANCH {
     if self.is_populated() {
         unloaded = object.__new__(self.__class__);
         unloaded.id = self.id;
-        unloaded.__dict__['arch_cls'] = type(self.archetype);
+        cls = type(self.archetype);
+        unloaded.__dict__['arch_cls'] = f"{cls.__module__}.{cls.__qualname__}";
         return unloaded;
     }
     return self;
@@ -181,16 +182,21 @@ impl Anchor.__getattr__(self: Anchor, name: str) -> object {
     ) ;
 }
 
-"""Serialize Anchor."""
+"""Serialize Anchor.
+
+arch_cls is stored as a string (module.qualname) instead of a raw type
+to avoid cross-process pickle failures with classes defined in __main__.
+"""
 impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
     if self.is_populated() {
         unlinked = object.__new__(self.archetype.__class__);
         unlinked.__dict__.update(self.archetype.__dict__);
         unlinked.__dict__.pop('__jac__', None);
+        cls = type(self.archetype);
         return {
             'id': self.id,
             'archetype': unlinked,
-            'arch_cls': type(self.archetype),
+            'arch_cls': f"{cls.__module__}.{cls.__qualname__}",
             'root': self.root,
             'access': self.access,
             'persistent': self.persistent
@@ -204,10 +210,18 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
     }
 }
 
-"""Deserialize Anchor."""
+"""Deserialize Anchor.
+
+Reconstructs arch_cls as a string key from the archetype if not already
+present (for backward compat with data pickled before this change).
+"""
 impl Anchor.__setstate__(self: Anchor, state: dict[(str, Any)]) -> None {
     self.__dict__.update(state);
     if (self.is_populated() and self.archetype) {
+        if ('arch_cls' not in self.__dict__ or not isinstance(self.__dict__.get('arch_cls'), str)) {
+            cls = type(self.archetype);
+            self.__dict__['arch_cls'] = f"{cls.__module__}.{cls.__qualname__}";
+        }
         self.archetype.__jac__ = self;
         self.hash = hash(dumps(self));
     }

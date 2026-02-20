@@ -60,9 +60,10 @@ glob likes_stub = None,
 
 with entry {
     for s in stub_edges {
-        if s.__dict__.get('arch_cls') == Likes {
+        cls_key = s.__dict__.get('arch_cls');
+        if cls_key == f"{Likes.__module__}.{Likes.__qualname__}" {
             likes_stub = s;
-        } elif s.__dict__.get('arch_cls') == Owns {
+        } elif cls_key == f"{Owns.__module__}.{Owns.__qualname__}" {
             owns_stub = s;
         }
     }
@@ -122,7 +123,8 @@ with entry {
     root_anch.edges = stub_edges2;
 
     for s in stub_edges2 {
-        if s.__dict__.get('arch_cls') == Likes {
+        cls_key = s.__dict__.get('arch_cls');
+        if cls_key == f"{Likes.__module__}.{Likes.__qualname__}" {
             likes_stub2 = s;
             likes_orig_pop2 = s.populate;
             likes_pop_count2 = [0];
@@ -131,7 +133,7 @@ with entry {
                 likes_orig_pop2();
             }
             s.populate = likes_pop_spy2;
-        } elif s.__dict__.get('arch_cls') == Owns {
+        } elif cls_key == f"{Owns.__module__}.{Owns.__qualname__}" {
             owns_stub2 = s;
             owns_orig_pop2 = s.populate;
             owns_pop_count2 = [0];
