@@ -218,7 +218,10 @@ present (for backward compat with data pickled before this change).
 impl Anchor.__setstate__(self: Anchor, state: dict[(str, Any)]) -> None {
     self.__dict__.update(state);
     if (self.is_populated() and self.archetype) {
-        if ('arch_cls' not in self.__dict__ or not isinstance(self.__dict__.get('arch_cls'), str)) {
+        if (
+            'arch_cls' not in self.__dict__
+            or not isinstance(self.__dict__.get('arch_cls'), str)
+        ) {
             cls = type(self.archetype);
             self.__dict__['arch_cls'] = f"{cls.__module__}.{cls.__qualname__}";
         }
