@@ -17,7 +17,8 @@ import from jaclang.jac0core.unitree {
     Name,
     UniScopeNode,
     NameAtom,
-    Expr
+    Expr,
+    Symbol
 }
 import from jaclang.jac0core.bccache { DiskBytecodeCache, CacheKey }
 import from jaclang.jac0core.compiler { _recalculate_parents }
@@ -167,7 +168,7 @@ test "disk cache ast roundtrip" {
 }
 
 test "default fields restored after deserialization" {
-    """Test that excluded fields get proper defaults after __setstate__."""
+    """Test that excluded fields get proper defaults and symtab fields are preserved."""
     prog = JacProgram();
     code = 'can bar() { pass; }';
     result = prog.compile(use_str=code, file_path="test_defaults.jac");
@@ -175,16 +176,63 @@ test "default fields restored after deserialization" {
     main_mod = result;
     data = pickle.dumps(main_mod, protocol=pickle.HIGHEST_PROTOCOL);
     restored: Module = pickle.loads(data);
-    # Check UniNode defaults
+    # Check UniNode defaults for transient fields
     assert restored._gen is None;
     assert restored._in_mod_nodes == [];
-    # Check UniScopeNode defaults (Module is a UniScopeNode)
+    # Check UniScopeNode — symtab fields are now PRESERVED (not reset)
     assert isinstance(restored, UniScopeNode);
+    # Module has no parent_scope (top-level)
     assert restored.parent_scope is None;
-    assert restored.kid_scope == [];
-    assert restored.names_in_scope == {};
-    assert restored.names_in_scope_overload == {};
-    assert restored.inherited_scope == [];
+    # Symbol table should be preserved — 'bar' was defined in this module
+    assert len(restored.names_in_scope) > 0, "names_in_scope should be preserved";
+    assert 'bar' in restored.names_in_scope, "'bar' should be in names_in_scope";
+    # kid_scope should have at least the Ability scope for 'bar'
+    assert len(restored.kid_scope) > 0, "kid_scope should be preserved";
+}
+
+test "symbol table preserved after roundtrip" {
+    """Test that symbol tables and symbol references survive serialization."""
+    prog = JacProgram();
+    code = 'glob greeting = "hello";\ncan add(x: int, y: int) -> int { return x + y; }';
+    result = prog.compile(use_str=code, file_path="test_symtab.jac");
+    assert result is not None;
+    main_mod = result;
+    # Verify original has symbols before roundtrip
+    assert len(main_mod.names_in_scope) > 0, "pre-roundtrip: names_in_scope empty";
+    # Roundtrip
+    data = pickle.dumps(main_mod, protocol=pickle.HIGHEST_PROTOCOL);
+    restored: Module = pickle.loads(data);
+    _recalculate_parents(restored);
+    # 1. names_in_scope preserved
+    assert len(restored.names_in_scope) > 0, "names_in_scope should be non-empty";
+    assert 'greeting' in restored.names_in_scope, "'greeting' should be in scope";
+    assert 'add' in restored.names_in_scope, "'add' should be in scope";
+    # 2. lookup returns a Symbol
+    sym = restored.lookup('add', deep=False);
+    assert sym is not None, "lookup('add') should return a Symbol";
+    assert isinstance(sym, Symbol);
+    assert sym.sym_name == 'add';
+    # 3. Symbol.defn points to a NameAtom with correct _sym back-reference
+    assert len(sym.defn) > 0, "Symbol should have at least one defn";
+    defn_node = sym.defn[0];
+    assert isinstance(defn_node, NameAtom);
+    assert defn_node._sym is sym, "NameAtom._sym should point back to the Symbol";
+    # 4. Symbol.parent_tab points back to the module scope
+    assert sym.parent_tab is restored, "Symbol.parent_tab should reference the module";
+    # 5. kid_scope chain — 'add' ability should have its own scope
+    assert len(restored.kid_scope) > 0, "Module should have kid scopes";
+    ability_scope = None;
+    for ks in restored.kid_scope {
+        if hasattr(ks, 'scope_name') and 'add' in str(ks.scope_name) {
+            ability_scope = ks;
+            break;
+        }
+    }
+    if ability_scope is not None {
+        assert ability_scope.parent_scope is restored, "Ability scope parent should be module";
+        # Parameters should be in the ability's scope
+        assert len(ability_scope.names_in_scope) > 0, "Ability scope should have params";
+    }
 }
 
 test "get_ast loads on demand from disk cache" {

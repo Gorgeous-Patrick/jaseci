@@ -19,18 +19,11 @@ impl UniNode.__getstate__(self: UniNode) -> dict {
     state.pop('_UniNode__sub_node_tab', None);
     state.pop('_in_mod_nodes', None);
     state.pop('_gen', None);
-    # Remove symbol table fields (rebuilt by SymTabBuildPass)
-    if isinstance(self, UniScopeNode) {
-        state.pop('parent_scope', None);
-        state.pop('kid_scope', None);
-        state.pop('names_in_scope', None);
-        state.pop('names_in_scope_overload', None);
-        state.pop('inherited_scope', None);
-    }
-    # Remove symbol references (rebuilt by SymTabBuildPass)
+    # Symbol table fields (parent_scope, kid_scope, names_in_scope, etc.)
+    # and symbol references (_sym) are PRESERVED — pickle handles the
+    # circular references natively via its memo table.
+    # Convert _py_ctx_func type to string for pickling
     if isinstance(self, NameAtom) {
-        state.pop('_sym', None);
-        # Convert _py_ctx_func type to string for pickling
         py_ctx = state.get('_py_ctx_func');
         if py_ctx is not None {
             state['_py_ctx_func'] = py_ctx.__name__;
@@ -60,21 +53,13 @@ impl UniNode.__setstate__(self: UniNode, state: dict) -> None {
         state['_py_ctx_func'] = ctx_map.get(ctx_name, ast3.Load);
     }
     self.__dict__.update(state);
-    # Restore defaults for excluded fields
+    # Restore defaults for excluded fields only.
+    # Symbol table fields (parent_scope, kid_scope, names_in_scope, _sym)
+    # are already in state — they are preserved through serialization.
     self.parent = None;
     self.__sub_node_tab = None;
     self._in_mod_nodes = [];
     self._gen = None;
-    if isinstance(self, UniScopeNode) {
-        self.parent_scope = None;
-        self.kid_scope = [];
-        self.names_in_scope = {};
-        self.names_in_scope_overload = {};
-        self.inherited_scope = [];
-    }
-    if isinstance(self, NameAtom) {
-        self._sym = None;
-    }
     if isinstance(self, Expr) {
         self._sym_type = 'NoType';
         self._type_sym_tab = None;
