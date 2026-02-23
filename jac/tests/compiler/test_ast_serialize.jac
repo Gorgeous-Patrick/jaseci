@@ -42,7 +42,7 @@ test "basic ast pickle roundtrip" {
     assert main_mod is not None , "hodge_podge module not found in hub";
     # Serialize and deserialize
     data = pickle.dumps(main_mod, protocol=pickle.HIGHEST_PROTOCOL);
-    assert len(data) > 0;
+    assert data, "pickle data should be non-empty";
     restored: Module = pickle.loads(data);
     # Rebuild parent pointers
     _recalculate_parents(restored);
@@ -59,17 +59,19 @@ test "tree structure preserved after roundtrip" {
     assert result is not None;
     # result is the Module directly from compile()
     main_mod = result;
-    original_kid_count = len(main_mod.kid);
+    original_kid_count: int = len(main_mod.kid);
     original_flat = main_mod.flatten();
     original_types = [`type(n).__name__ for n in original_flat];
+    original_count: int = len(original_flat);
     # Roundtrip
     data = pickle.dumps(main_mod, protocol=pickle.HIGHEST_PROTOCOL);
     restored: Module = pickle.loads(data);
     _recalculate_parents(restored);
     restored_flat = restored.flatten();
     restored_types = [`type(n).__name__ for n in restored_flat];
+    restored_count: int = len(restored_flat);
     assert len(restored.kid) == original_kid_count;
-    assert len(restored_flat) == len(original_flat);
+    assert restored_count == original_count;
     assert restored_types == original_types;
 }
 
@@ -95,7 +97,9 @@ test "token data preserved after roundtrip" {
         for n in restored.flatten()
         if isinstance(n, Token)
     ];
-    assert len(restored_tokens) == len(original_tokens);
+    original_token_count: int = len(original_tokens);
+    restored_token_count: int = len(restored_tokens);
+    assert restored_token_count == original_token_count;
     for (orig, rest) in zip(original_tokens, restored_tokens) {
         assert orig.value == rest.value;
         assert orig.name == rest.name;
@@ -160,7 +164,9 @@ test "disk cache ast roundtrip" {
         # Verify tree matches
         original_flat = main_mod.flatten();
         loaded_flat = loaded_raw.flatten();
-        assert len(loaded_flat) == len(original_flat);
+        original_flat_count: int = len(original_flat);
+        loaded_flat_count: int = len(loaded_flat);
+        assert loaded_flat_count == original_flat_count;
     }
     # Cleanup
     import shutil;
