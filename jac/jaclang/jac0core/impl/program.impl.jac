@@ -68,9 +68,7 @@ impl JacProgram.get_bytecode(
     disk cache (deserializes + rebuilds parent pointers).
     Returns None if no AST is available anywhere.
     """
-impl JacProgram.get_ast(
-    self: JacProgram, full_target: str
-) -> (uni.Module | None) {
+impl JacProgram.get_ast(self: JacProgram, full_target: str) -> (uni.Module | None) {
     # 1. Already in memory — return immediately.
     if (full_target in self.mod.hub) {
         return self.mod.hub[full_target];
@@ -85,11 +83,6 @@ impl JacProgram.get_ast(
             _recalculate_parents(cached_ast);
             self.mod.hub[full_target] = cached_ast;
             ast_deser_elapsed = time.perf_counter() - ast_deser_start;
-            print(
-                f"[jaclang] AST deserialization for {os.path.basename(full_target)}: "
-                f"{ast_deser_elapsed * 1000:.2f}ms",
-                file=sys.stderr
-            );
             return cached_ast;
         }
     }
@@ -144,7 +137,7 @@ impl JacProgram.build(
 impl JacProgram.run_schedule(
     self: JacProgram,
     mod: uni.Module,
-    passes: list[type[Transform[(uni.Module, uni.Module)]]],
+    passes: list[type[Transform[uni.Module, uni.Module]]],
     cancel_token: (Event | None) = None
 ) -> None {
     self._get_compiler().run_schedule(mod, self, passes, cancel_token);
