@@ -71,6 +71,7 @@ impl check(
         }
     }
     total_files = failed_files=total_errors=total_warnings=0;
+    failed_file_list: list[str] = [];
     prog = JacProgram();
     for path in paths {
         path_obj = Path(path);
@@ -82,6 +83,7 @@ impl check(
                 total_warnings += warns;
                 if not success {
                     failed_files += 1;
+                    failed_file_list.append(path);
                 }
             }
         } elif path_obj.is_dir() {
@@ -96,6 +98,7 @@ impl check(
                     total_warnings += warns;
                     if not success {
                         failed_files += 1;
+                        failed_file_list.append(str(jac_file));
                     }
                 }
             }
@@ -103,6 +106,14 @@ impl check(
             console.error(f"'{path}' is not a .jac file or directory.");
             failed_files += 1;
             total_errors += 1;
+            failed_file_list.append(path);
+        }
+    }
+    # Print summary of failed files
+    if failed_file_list {
+        console.print("\nFAILED files:");
+        for failed_file in failed_file_list {
+            console.print(f"  {failed_file}");
         }
     }
     check_type = "Parsed" if parse_only else "Checked";
@@ -181,7 +192,7 @@ impl lint(paths: list, fix: bool = False, ignore: list = []) -> int {
             if error_count > unfixable_count {
                 changed = formatted_code != original_code;
                 if changed {
-                    with open(str(path_obj), 'w') as f {
+                    with open(str(path_obj), 'w', encoding='utf-8') as f {
                         f.write(formatted_code);
                     }
                 }
@@ -190,7 +201,7 @@ impl lint(paths: list, fix: bool = False, ignore: list = []) -> int {
                     impl_formatted = impl_mod.gen.jac;
                     impl_original = impl_mod.source.code;
                     if (impl_formatted != impl_original) {
-                        with open(impl_path, 'w') as f {
+                        with open(impl_path, 'w', encoding='utf-8') as f {
                             f.write(impl_formatted);
                         }
                     }
@@ -284,8 +295,12 @@ impl format(
         if to_screen {
             console.print(code);
         } elif not check {
-            with open(target_path, 'w') as f {
-                f.write(code);
+            try {
+                with open(target_path, 'w', encoding='utf-8') as f {
+                    f.write(code);
+                }
+            } except Exception as e {
+                console.error(f"Error writing formatted code to '{target_path}': {e}");
             }
         }
     }
@@ -492,7 +507,7 @@ impl grammar(lark: bool = False, output: str = "") -> int {
     }
     text = pass_.emit_lark() if lark else pass_.emit_ebnf();
     if output {
-        with open(output, "w") as f {
+        with open(output, "w", encoding="utf-8") as f {
             f.write(text);
             f.write("\n");
         }
