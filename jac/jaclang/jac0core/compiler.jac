@@ -4,6 +4,7 @@ import atexit;
 import marshal;
 import os;
 import sys;
+import time;
 import types;
 import from threading { Event }
 import from typing { TYPE_CHECKING }
@@ -458,11 +459,18 @@ class JacCompiler {
                 }
                 self._load_mtir_cache(cache_key, actual_program);
                 # Load cached AST and restore into the module hub
+                ast_deser_start = time.perf_counter();
                 cached_ast = self._bytecode_cache.get_ast(cache_key);
                 if (cached_ast is not None) {
                     _recalculate_parents(cached_ast);
                     actual_program.mod.hub[full_target] = cached_ast;
                 }
+                ast_deser_elapsed = time.perf_counter() - ast_deser_start;
+                print(
+                    f"[jaclang] AST deserialization for {os.path.basename(full_target)}: "
+                    f"{ast_deser_elapsed * 1000:.2f}ms",
+                    file=sys.stderr
+                );
                 return cached_code;
             }
         }
