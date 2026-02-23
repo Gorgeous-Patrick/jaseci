@@ -186,3 +186,32 @@ test "default fields restored after deserialization" {
     assert restored.names_in_scope_overload == {};
     assert restored.inherited_scope == [];
 }
+
+test "get_ast loads on demand from disk cache" {
+    """Test that JacProgram.get_ast() lazily loads AST from disk cache."""
+    import tempfile;
+    tmp_dir = tempfile.mkdtemp();
+    tmp_file = os.path.join(tmp_dir, "test_lazy.jac");
+    with open(tmp_file, 'w') as f {
+        f.write('with entry { print("lazy load"); }');
+    }
+    resolved = os.path.realpath(tmp_file);
+    # Use get_bytecode to trigger compilation + disk cache write (put_ast).
+    prog = JacProgram();
+    bc = prog.get_bytecode(resolved);
+    assert bc is not None;
+    # The module should now be in the hub from compilation.
+    assert resolved in prog.mod.hub;
+    # Remove from hub to simulate a fresh process.
+    del prog.mod.hub[resolved];
+    assert resolved not in prog.mod.hub;
+    # get_ast should load it from disk cache on demand.
+    loaded = prog.get_ast(resolved);
+    assert loaded is not None;
+    assert isinstance(loaded, Module);
+    # Now it should be back in the hub.
+    assert resolved in prog.mod.hub;
+    # Cleanup
+    import shutil;
+    shutil.rmtree(tmp_dir, ignore_errors=True);
+}
