@@ -184,10 +184,10 @@ test "default fields restored after deserialization" {
     # Module has no parent_scope (top-level)
     assert restored.parent_scope is None;
     # Symbol table should be preserved — 'bar' was defined in this module
-    assert len(restored.names_in_scope) > 0, "names_in_scope should be preserved";
-    assert 'bar' in restored.names_in_scope, "'bar' should be in names_in_scope";
+    assert len(restored.names_in_scope) > 0 , "names_in_scope should be preserved";
+    assert 'bar' in restored.names_in_scope , "'bar' should be in names_in_scope";
     # kid_scope should have at least the Ability scope for 'bar'
-    assert len(restored.kid_scope) > 0, "kid_scope should be preserved";
+    assert len(restored.kid_scope) > 0 , "kid_scope should be preserved";
 }
 
 test "symbol table preserved after roundtrip" {
@@ -198,40 +198,40 @@ test "symbol table preserved after roundtrip" {
     assert result is not None;
     main_mod = result;
     # Verify original has symbols before roundtrip
-    assert len(main_mod.names_in_scope) > 0, "pre-roundtrip: names_in_scope empty";
+    assert len(main_mod.names_in_scope) > 0 , "pre-roundtrip: names_in_scope empty";
     # Roundtrip
     data = pickle.dumps(main_mod, protocol=pickle.HIGHEST_PROTOCOL);
     restored: Module = pickle.loads(data);
     _recalculate_parents(restored);
     # 1. names_in_scope preserved
-    assert len(restored.names_in_scope) > 0, "names_in_scope should be non-empty";
-    assert 'greeting' in restored.names_in_scope, "'greeting' should be in scope";
-    assert 'add' in restored.names_in_scope, "'add' should be in scope";
+    assert len(restored.names_in_scope) > 0 , "names_in_scope should be non-empty";
+    assert 'greeting' in restored.names_in_scope , "'greeting' should be in scope";
+    assert 'add' in restored.names_in_scope , "'add' should be in scope";
     # 2. lookup returns a Symbol
     sym = restored.lookup('add', deep=False);
-    assert sym is not None, "lookup('add') should return a Symbol";
+    assert sym is not None , "lookup('add') should return a Symbol";
     assert isinstance(sym, Symbol);
     assert sym.sym_name == 'add';
     # 3. Symbol.defn points to a NameAtom with correct _sym back-reference
-    assert len(sym.defn) > 0, "Symbol should have at least one defn";
+    assert len(sym.defn) > 0 , "Symbol should have at least one defn";
     defn_node = sym.defn[0];
     assert isinstance(defn_node, NameAtom);
-    assert defn_node._sym is sym, "NameAtom._sym should point back to the Symbol";
+    assert defn_node._sym is sym , "NameAtom._sym should point back to the Symbol";
     # 4. Symbol.parent_tab points back to the module scope
-    assert sym.parent_tab is restored, "Symbol.parent_tab should reference the module";
+    assert sym.parent_tab is restored , "Symbol.parent_tab should reference the module";
     # 5. kid_scope chain — 'add' ability should have its own scope
-    assert len(restored.kid_scope) > 0, "Module should have kid scopes";
+    assert len(restored.kid_scope) > 0 , "Module should have kid scopes";
     ability_scope = None;
     for ks in restored.kid_scope {
-        if hasattr(ks, 'scope_name') and 'add' in str(ks.scope_name) {
+        if ks?.scope_name and 'add' in str(ks.scope_name) {
             ability_scope = ks;
             break;
         }
     }
     if ability_scope is not None {
-        assert ability_scope.parent_scope is restored, "Ability scope parent should be module";
+        assert ability_scope.parent_scope is restored , "Ability scope parent should be module";
         # Parameters should be in the ability's scope
-        assert len(ability_scope.names_in_scope) > 0, "Ability scope should have params";
+        assert len(ability_scope.names_in_scope) > 0 , "Ability scope should have params";
     }
 }
 
