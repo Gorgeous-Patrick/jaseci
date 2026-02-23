@@ -42,7 +42,7 @@ test "basic ast pickle roundtrip" {
     assert main_mod is not None , "hodge_podge module not found in hub";
     # Serialize and deserialize
     data = pickle.dumps(main_mod, protocol=pickle.HIGHEST_PROTOCOL);
-    assert data, "pickle data should be non-empty";
+    assert data , "pickle data should be non-empty";
     restored: Module = pickle.loads(data);
     # Rebuild parent pointers
     _recalculate_parents(restored);
