@@ -11,6 +11,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Enhanced jac check output**: The `jac check` command now provides a more detailed and user-friendly output format, including file progress, failure details, and timing information.
 - 1 Minor refactor
 - 2 Minor refactor
+- **Root Graph Registry**: Added `type_registry` (UUID→type name) and `edge_index` (source→edges) to the Root node archetype, providing O(1) type lookups and neighbor traversal. Nodes and edges are automatically registered on creation and cleaned up on destroy/detach. Includes CRUD methods: `register_type`, `unregister_type`, `get_type_name`, `add_edge_to_index`, `remove_edge_from_index`, `get_neighbors`.
 
 ## jaclang 0.11.0 (Latest Release)
 
