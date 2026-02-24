@@ -1,10 +1,9 @@
 """Tests for AST serialization and deserialization.
-
 Verifies that the Jac AST can be serialized to disk via pickle and
 correctly deserialized at runtime, preserving tree structure, token
-data, and node types.
+data, node types, and all information needed by the TTG (Temporal
+Trace Graph) generator pass.
 """
-
 import os;
 import pickle;
 import from pathlib { Path }
@@ -18,10 +17,18 @@ import from jaclang.jac0core.unitree {
     UniScopeNode,
     NameAtom,
     Expr,
-    Symbol
+    Symbol,
+    Archetype,
+    Ability,
+    EventSignature,
+    VisitStmt,
+    EdgeOpRef,
+    FilterCompr
 }
 import from jaclang.jac0core.bccache { DiskBytecodeCache, CacheKey }
 import from jaclang.jac0core.compiler { _recalculate_parents }
+import from jaclang.jac0core.passes.uni_pass { UniPass }
+import from jaclang.jac0core.constant { Tokens as Tok }
 
 glob JAC_ROOT = str(Path(jaclang.__file__).parent.parent),
      EXAMPLES = os.path.join(JAC_ROOT, "examples");
@@ -268,4 +275,222 @@ test "get_ast loads on demand from disk cache" {
     # Cleanup
     import shutil;
     shutil.rmtree(tmp_dir, ignore_errors=True);
+}
+
+# --- TTG-relevant Jac source for roundtrip tests ---
+# This mimics the constructs TTG needs: walkers, nodes, edges,
+# event signatures, visit statements with edge type filters.
+import tempfile;
+
+def _compile_ttg_source() -> Module {
+    """Compile a TTG-like source with walkers, nodes, edges and return the Module."""
+    ttg_code = (
+        "edge BasicEdge {}\n"
+        "edge SpecialEdge {}\n"
+        "node TypeA { has val: int; }\n"
+        "node TypeB { has val: int; }\n"
+        "walker TTGWalker {\n"
+        "    has visited: list[int] = [];\n"
+        "    can enter_root with Root entry { visit [->:BasicEdge:->]; }\n"
+        "    can run with TypeA entry {\n"
+        "        self.visited.append(here.val);\n"
+        "        visit [->:BasicEdge:->];\n"
+        "    }\n"
+        "}\n"
+    );
+    prog = JacProgram();
+    result = prog.compile(use_str=ttg_code, file_path="test_ttg.jac");
+    assert result is not None, "TTG source should compile without errors";
+    return result;
+}
+
+test "walker archetype findable in deserialized AST" {
+    """TTG pass needs to find walker archetypes via arch_type.name == KW_WALKER."""
+    result = _compile_ttg_source();
+    # Roundtrip
+    data = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL);
+    restored: Module = pickle.loads(data);
+    _recalculate_parents(restored);
+    # Find all Archetype nodes in the deserialized AST
+    archetypes = UniPass.get_all_sub_nodes(restored, Archetype);
+    assert len(archetypes) > 0, "Should find at least one Archetype after roundtrip";
+    # Find walker archetypes specifically (how TTG enter_archetype filters)
+    walkers = [a for a in archetypes if a.arch_type.name == Tok.KW_WALKER];
+    assert len(walkers) == 1, "Should find exactly 1 walker archetype";
+    assert walkers[0].sym_name == "TTGWalker";
+    # Verify node and edge archetypes are also present
+    nodes = [a for a in archetypes if a.arch_type.name == Tok.KW_NODE];
+    edges = [a for a in archetypes if a.arch_type.name == Tok.KW_EDGE];
+    assert len(nodes) == 2, "Should find TypeA and TypeB nodes";
+    assert len(edges) == 2, "Should find BasicEdge and SpecialEdge";
+}
+
+test "walker abilities with event signatures preserved" {
+    """TTG pass extracts Ability + EventSignature from walker archetypes."""
+    result = _compile_ttg_source();
+    data = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL);
+    restored: Module = pickle.loads(data);
+    _recalculate_parents(restored);
+    # Find the walker archetype
+    archetypes = UniPass.get_all_sub_nodes(restored, Archetype);
+    walkers_list = [a for a in archetypes if a.arch_type.name == Tok.KW_WALKER];
+    warch_node = walkers_list[0];
+    # TTG pass: get_all_sub_nodes(warch_node, Ability)
+    abilities = UniPass.get_all_sub_nodes(warch_node, Ability);
+    assert len(abilities) == 2, "TTGWalker should have 2 abilities (enter_root, run)";
+    # TTG pass: for each ability, get EventSignature
+    event_count = 0;
+    for ability in abilities {
+        event_sigs = UniPass.get_all_sub_nodes(ability, EventSignature);
+        if len(event_sigs) > 0 {
+            event_count += 1;
+            # EventSignature should have arch_tag_info for the node type
+            esig = event_sigs[0];
+            assert esig.event is not None, "EventSignature.event should exist";
+        }
+    }
+    assert event_count == 2, "Both abilities should have EventSignatures";
+}
+
+test "visit statements with edge type filters preserved" {
+    """TTG pass extracts VisitStmt + EdgeOpRef + FilterCompr from abilities."""
+    result = _compile_ttg_source();
+    data = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL);
+    restored: Module = pickle.loads(data);
+    _recalculate_parents(restored);
+    # Find walker abilities
+    archetypes = UniPass.get_all_sub_nodes(restored, Archetype);
+    walkers_list = [a for a in archetypes if a.arch_type.name == Tok.KW_WALKER];
+    warch_node = walkers_list[0];
+    abilities = UniPass.get_all_sub_nodes(warch_node, Ability);
+    # Each ability has a visit statement: visit [->:BasicEdge:->]
+    total_visits = 0;
+    for ability in abilities {
+        visit_stmts = UniPass.get_all_sub_nodes(ability, VisitStmt);
+        total_visits += len(visit_stmts);
+        for vs in visit_stmts {
+            # TTG pass: get_all_sub_nodes(visit_stmt, EdgeOpRef)
+            edge_refs = UniPass.get_all_sub_nodes(vs, EdgeOpRef);
+            assert len(edge_refs) > 0, "VisitStmt should have EdgeOpRef children";
+            # TTG pass: edge_ref.filter_cond (FilterCompr)
+            edge_ref = edge_refs[0];
+            fc = getattr(edge_ref, 'filter_cond', None);
+            assert fc is not None, "EdgeOpRef should have filter_cond for typed edge";
+            assert isinstance(fc, FilterCompr), "filter_cond should be a FilterCompr";
+            # TTG pass: get Name from FilterCompr for edge type name
+            names = UniPass.get_all_sub_nodes(fc, Name);
+            assert len(names) > 0, "FilterCompr should have Name children for edge type";
+            assert names[0].value == "BasicEdge", "Edge type name should be BasicEdge";
+        }
+    }
+    assert total_visits == 2, "Should find 2 visit statements total across abilities";
+}
+
+test "symbol table lookup resolves archetypes after roundtrip" {
+    """TTG _resolve_archetype does scope.lookup(name) then find_parent_of_type(Archetype).
+
+    This is the most critical TTG operation: resolving a type name string
+    to the actual Archetype AST node via preserved symbol tables.
+    """
+    result = _compile_ttg_source();
+    data = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL);
+    restored: Module = pickle.loads(data);
+    _recalculate_parents(restored);
+    # Module-level symbol table should contain all archetypes
+    for name in ["BasicEdge", "SpecialEdge", "TypeA", "TypeB", "TTGWalker"] {
+        sym = restored.lookup(name, deep=False);
+        assert sym is not None, f"lookup('{name}') should succeed on deserialized module";
+        assert isinstance(sym, Symbol);
+        assert sym.sym_name == name;
+        # TTG: find_parent_of_type(sym.decl, Archetype) should return the archetype
+        assert len(sym.defn) > 0, f"Symbol '{name}' should have defn";
+        arch = UniPass.find_parent_of_type(sym.defn[0], Archetype);
+        assert arch is not None, f"Should resolve '{name}' to an Archetype via parent chain";
+        assert isinstance(arch, Archetype);
+        assert arch.sym_name == name;
+    }
+}
+
+test "TTG full pipeline simulation on deserialized AST" {
+    """Simulate the complete JacTTGPass pipeline on deserialized AST.
+
+    This test replicates the exact sequence of operations the TTG pass
+    performs: find walkers, extract abilities, get event signatures for
+    node types, find visit statements, extract edge types from filters,
+    resolve all type names to Archetype nodes via symbol table.
+    """
+    result = _compile_ttg_source();
+    data = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL);
+    restored: Module = pickle.loads(data);
+    _recalculate_parents(restored);
+    # Step 1: Find walker archetypes (enter_archetype)
+    archetypes = UniPass.get_all_sub_nodes(restored, Archetype);
+    walkers = [a for a in archetypes if a.arch_type.name == Tok.KW_WALKER];
+    assert len(walkers) == 1;
+    warch = walkers[0];
+    # Step 2: Extract abilities (_get_visits_for_walker)
+    abilities = UniPass.get_all_sub_nodes(warch, Ability);
+    assert len(abilities) == 2;
+    # Step 3: For each ability, extract (from_node_type, edge_type) pairs
+    ttg_visits: list = [];
+    for ability in abilities {
+        # Get event signature for node type
+        event_sigs = UniPass.get_all_sub_nodes(ability, EventSignature);
+        node_archetype: (Archetype | None) = None;
+        if len(event_sigs) > 0 {
+            # Extract Name nodes from the EventSignature for the node type
+            node_type_names = UniPass.get_all_sub_nodes(event_sigs[0], Name);
+            if len(node_type_names) > 0 {
+                # _resolve_archetype: find scope, lookup, find_parent_of_type
+                scope = UniPass.find_parent_of_type(node_type_names[0], UniScopeNode);
+                if scope is not None {
+                    sym = scope.lookup(node_type_names[0].value);
+                    if sym is not None and len(sym.defn) > 0 {
+                        node_archetype = UniPass.find_parent_of_type(sym.defn[0], Archetype);
+                    }
+                }
+            }
+        }
+        # Get visit stmts for edge types
+        visit_stmts = UniPass.get_all_sub_nodes(ability, VisitStmt);
+        for vs in visit_stmts {
+            edge_archetype: (Archetype | None) = None;
+            edge_refs = UniPass.get_all_sub_nodes(vs, EdgeOpRef);
+            if len(edge_refs) > 0 {
+                fc = getattr(edge_refs[0], 'filter_cond', None);
+                if fc is not None {
+                    names = UniPass.get_all_sub_nodes(fc, Name);
+                    if len(names) > 0 {
+                        scope2 = UniPass.find_parent_of_type(vs, UniScopeNode);
+                        if scope2 is not None {
+                            sym2 = scope2.lookup(names[0].value);
+                            if sym2 is not None and len(sym2.defn) > 0 {
+                                edge_archetype = UniPass.find_parent_of_type(sym2.defn[0], Archetype);
+                            }
+                        }
+                    }
+                }
+            }
+            ttg_visits.append((node_archetype, edge_archetype));
+        }
+    }
+    # Verify results: should have 2 visit entries
+    assert len(ttg_visits) == 2, f"Expected 2 TTG visit entries, got {len(ttg_visits)}";
+    # First visit: from Root (no resolved archetype for Root) with BasicEdge
+    # enter_root with Root entry => Root is a builtin, may or may not resolve
+    # Second visit: from TypeA with BasicEdge
+    # At least one should have edge_archetype resolved to BasicEdge
+    edge_names: list = [];
+    for pair in ttg_visits {
+        e = pair[1];
+        edge_names.append(e.sym_name if e is not None else None);
+    }
+    assert "BasicEdge" in edge_names, f"Should resolve BasicEdge archetype, got {edge_names}";
+    # The TypeA node type should resolve for the 'run with TypeA entry' ability
+    node_names: list = [];
+    for pair in ttg_visits {
+        n = pair[0];
+        node_names.append(n.sym_name if n is not None else None);
+    }
+    assert "TypeA" in node_names, f"Should resolve TypeA archetype, got {node_names}";
 }
