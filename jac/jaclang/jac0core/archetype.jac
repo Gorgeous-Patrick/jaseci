@@ -291,10 +291,11 @@ obj Root(NodeArchetype) {
     }
 
     has type_registry: dict[(UUID, str)] = field(default_factory=`dict),
-        edge_index: dict[(UUID, list[tuple[(UUID, UUID)]])] = field(default_factory=`dict);
+        edge_index: dict[(UUID, list[tuple[(UUID, UUID)]])] = field(
+            default_factory=`dict
+        );
 
     def postinit(self: Root) -> None;
-
     """Register a node or edge UUID with its type name."""
     def register_type(self: Root, id: UUID, type_name: str) -> None {
         self.type_registry[id] = type_name;
@@ -322,12 +323,12 @@ obj Root(NodeArchetype) {
     }
 
     """Remove a specific edge from the adjacency index."""
-    def remove_edge_from_index(
-        self: Root, source_id: UUID, edge_id: UUID
-    ) -> None {
+    def remove_edge_from_index(self: Root, source_id: UUID, edge_id: UUID) -> None {
         if (neighbors := self.edge_index.get(source_id)) {
             self.edge_index[source_id] = [
-                (eid, tid) for (eid, tid) in neighbors if eid != edge_id
+                (eid, tid)
+                for (eid, tid) in neighbors
+                if eid != edge_id
             ];
             if not self.edge_index[source_id] {
                 del self.edge_index[source_id];
@@ -336,9 +337,7 @@ obj Root(NodeArchetype) {
     }
 
     """Get all outgoing (edge_id, target_id) pairs for a source node."""
-    def get_neighbors(
-        self: Root, source_id: UUID
-    ) -> list[tuple[(UUID, UUID)]] {
+    def get_neighbors(self: Root, source_id: UUID) -> list[tuple[(UUID, UUID)]] {
         return self.edge_index.get(source_id, []);
     }
 

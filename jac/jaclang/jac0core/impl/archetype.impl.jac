@@ -288,7 +288,6 @@ impl Root.postinit(self: Root) -> None {
     self.type_registry[UUID(Con.SUPER_ROOT_UUID)] = "Root";
 }
 
-
 """Create default anchor."""
 @ cached_property
 impl Root.__jac__(self: Root) -> NodeAnchor {

@@ -1769,10 +1769,13 @@ system,
                             for `edge in anchor.edges[:] {
                                 JacRuntimeInterface.destroy([`edge]);
                             }
+
                         case EdgeAnchor():
                             JacRuntimeInterface.detach(anchor);
+
                         case _:
                             ;
+
                     }
                 }
                 JacRuntimeInterface.get_context().mem.delete(anchor.id);
