@@ -2333,65 +2333,105 @@ class JacUtils:
 
 
 class JacTTGGenerator:
-    class FilteredNeighborCtx:
-        cache: dict[UUID, list[tuple[UUID, UUID]]] = {}
+    """TTG (Temporal Trace Graph) generator with optimized BFS.
 
-        @classmethod
-        def resolve_type(cls, type_name: str) -> type:
-            """Resolve type name string to actual type object."""
-            # Try to get from current context's loaded modules
-            import sys
+    Optimizations over the original implementation:
+    - Pre-built adjacency map for O(1) neighbor lookup (was O(E) scan per node)
+    - Cached reverse_type_map built once per get_ttg call
+    - collections.deque for O(1) popleft (was list.pop(0) = O(n))
+    - Pre-filtered visits per node type (_applicable_visits)
+    - Removed redundant existing_edges set (visited_nodes suffices)
+    - set-based membership checks in get_prefetch_list
+    """
 
-            for module in sys.modules.values():
-                if module and hasattr(module, type_name):
-                    obj = getattr(module, type_name)
-                    if isinstance(obj, type):
-                        return obj
-            raise ValueError(f"Type '{type_name}' not found in loaded modules")
+    @staticmethod
+    def _resolve_type(type_name: str, reverse_type_map: dict[str, type]) -> type | None:
+        """Resolve type name string to actual type object.
 
-        @classmethod
-        def _filter_neighbors(
-            cls, node: UUID, visits: list[WalkerArchetype.VisitType]
-        ) -> list[tuple[UUID, UUID]]:
-            """Filter neighbors based on visit info and walker type."""
-            filtered_neighbors: list[tuple[UUID, UUID]] = []
-            root = JacRuntimeInterface.root()
-            edges_info: list[tuple[UUID, UUID, UUID]] = [
-                edge for edge in root.graph if edge[0] == node
-            ]
-            print(type(root).__name__)
-            node_type_name = root.type_map[node]
-            node_type = cls.resolve_type(node_type_name)
-            visits = [
-                visit
-                for visit in visits
-                if visit.from_node_type is None
-                or issubclass(node_type, visit.from_node_type)
-            ]
-            for edge_info in edges_info:
-                for visit in visits:
-                    _, edge, target = edge_info
-                    edge_type_name = root.type_map[edge]
-                    edge_type = cls.resolve_type(edge_type_name)
-                    if (
-                        visit.edge_type is None
-                        or issubclass(edge_type, visit.edge_type)
-                    ) and target not in filtered_neighbors:
-                        filtered_neighbors.append((edge, target))
-                # Get all neighbors
-            return filtered_neighbors
+        First checks reverse_type_map (fast path), then falls back to
+        scanning sys.modules (slow path).
+        """
+        resolved = reverse_type_map.get(type_name)
+        if resolved is not None:
+            return resolved
+        # Slow fallback: scan loaded modules
+        import sys
 
-        @classmethod
-        def filter_neighbors(
-            cls, node: UUID, visits: list[WalkerArchetype.VisitType]
-        ) -> list[tuple[UUID, UUID]]:
-            """Filter neighbors with caching."""
-            key = node
-            if key in cls.cache:
-                return cls.cache[key]
-            result = cls._filter_neighbors(node, visits)
-            cls.cache[key] = result
-            return result
+        for module in sys.modules.values():
+            if module and hasattr(module, type_name):
+                obj = getattr(module, type_name)
+                if isinstance(obj, type):
+                    return obj
+        return None
+
+    @staticmethod
+    def _applicable_visits(
+        node_type: type | None,
+        visits: list[WalkerArchetype.VisitType],
+        reverse_type_map: dict[str, type],
+    ) -> list[WalkerArchetype.VisitType]:
+        """Pre-filter walker visits applicable to a given node type.
+
+        Separates node-type checking from edge matching so the filter runs
+        once per BFS node rather than once per edge.
+        """
+        result: list[WalkerArchetype.VisitType] = []
+        for visit in visits:
+            if visit.from_node_type is None:
+                result.append(visit)
+                continue
+            resolved_from = JacTTGGenerator._resolve_type(
+                visit.from_node_type.__name__
+                if isinstance(visit.from_node_type, type)
+                else str(visit.from_node_type),
+                reverse_type_map,
+            )
+            if resolved_from is None or (
+                node_type is not None and issubclass(node_type, resolved_from)
+            ):
+                result.append(visit)
+        return result
+
+    @staticmethod
+    def _filter_neighbors(
+        nd_id: UUID,
+        applicable_visits: list[WalkerArchetype.VisitType],
+        adj_map: dict[UUID, list[tuple[UUID, UUID]]],
+        type_map: dict[UUID, str],
+        reverse_type_map: dict[str, type],
+    ) -> list[tuple[UUID, UUID]]:
+        """Filter neighbors using pre-built adjacency and type maps.
+
+        Uses adj_map for O(1) neighbor lookup instead of scanning the full
+        edge list. Accepts pre-computed applicable_visits and reverse_type_map
+        to avoid redundant work across BFS iterations.
+        """
+        edges_out = adj_map.get(nd_id)
+        if not edges_out:
+            return []
+        filtered: list[tuple[UUID, UUID]] = []
+        seen_targets: set[UUID] = set()
+        for eid, tgt in edges_out:
+            for visit in applicable_visits:
+                if visit.edge_type is None:
+                    if tgt not in seen_targets:
+                        filtered.append((eid, tgt))
+                        seen_targets.add(tgt)
+                    break  # No edge filter needed, accept first match
+                else:
+                    edge_type_name = type_map.get(eid)
+                    if edge_type_name:
+                        edge_type = JacTTGGenerator._resolve_type(
+                            edge_type_name, reverse_type_map
+                        )
+                        if edge_type is not None and issubclass(
+                            edge_type, visit.edge_type
+                        ):
+                            if tgt not in seen_targets:
+                                filtered.append((eid, tgt))
+                                seen_targets.add(tgt)
+                            break
+        return filtered
 
     @classmethod
     def extract_type_name(cls, input: Archetype) -> str:
@@ -2412,37 +2452,72 @@ class JacTTGGenerator:
     def get_ttg(
         cls, walker: WalkerArchetype, start_node: UUID
     ) -> tuple[TypedWalkerState, set[UUID], dict[UUID, list[tuple[UUID, UUID]]]]:
-        """Get the set based TTG for multiple walker spawns."""
+        """Get the set based TTG for multiple walker spawns.
+
+        Optimized BFS: builds an adjacency map and reverse type map once
+        upfront, uses collections.deque for O(1) popleft, and pre-filters
+        visit types per node to avoid redundant type resolution.
+        """
+        from collections import deque
+
+        root = JacRuntimeInterface.root()
+        graph = root.graph
+        raw_type_map = root.type_map
+
+        # Build adjacency map once: src_uuid -> [(edge_uuid, tgt_uuid), ...]
+        adj_map: dict[UUID, list[tuple[UUID, UUID]]] = {}
+        for src, eid, tgt in graph:
+            adj_map.setdefault(src, []).append((eid, tgt))
+
+        # Build reverse type map once: type_name_str -> type
+        reverse_type_map: dict[str, type] = {}
+        for type_name_str in set(raw_type_map.values()):
+            resolved = cls._resolve_type(type_name_str, reverse_type_map)
+            if resolved is None:
+                import sys as _sys
+
+                for mod in _sys.modules.values():
+                    if mod and hasattr(mod, type_name_str):
+                        obj = getattr(mod, type_name_str)
+                        if isinstance(obj, type):
+                            reverse_type_map[type_name_str] = obj
+                            break
+            else:
+                reverse_type_map[type_name_str] = resolved
+
+        visits = walker.__jac_ttg_visits__
+        wtype_name = cls.extract_type_name(walker)
+
         ttg_root = JacTTGGenerator.TypedWalkerState(
-            walker_type=JacTTGGenerator.extract_type_name(walker),
+            walker_type=wtype_name,
             depth=0,
             node=start_node,
             incoming_edge=None,
             children=[],
         )
-        walker_states = [ttg_root]
-
+        queue: deque[JacTTGGenerator.TypedWalkerState] = deque([ttg_root])
         visited_nodes: set[UUID] = set()
-        existing_edges: set[tuple[UUID, UUID]] = set()
         child_map: dict[UUID, list[tuple[UUID, UUID]]] = {}
 
-        # TODO: DETERMINE A BETTER THRESHOLD HERE.
-        while walker_states:
-            state = walker_states.pop(0)
+        while queue:
+            state = queue.popleft()
             node = state.node
-            filtered_neighbors: list[tuple[UUID, UUID]] = [
-                neighbor
-                for neighbor in JacTTGGenerator.FilteredNeighborCtx.filter_neighbors(
-                    node, walker.__jac_ttg_visits__
-                )
-                if neighbor not in visited_nodes
-            ]
 
-            for edge, neighbor in filtered_neighbors:
-                visited_nodes.add(neighbor)
-                if (node, neighbor) in existing_edges:
+            # Pre-filter visits for this node's type
+            node_type_name = raw_type_map.get(node)
+            node_type = (
+                reverse_type_map.get(node_type_name) if node_type_name else None
+            )
+            app_visits = cls._applicable_visits(node_type, visits, reverse_type_map)
+
+            neighbors = cls._filter_neighbors(
+                node, app_visits, adj_map, raw_type_map, reverse_type_map
+            )
+
+            for edge, neighbor in neighbors:
+                if neighbor in visited_nodes:
                     continue
-                existing_edges.add((node, neighbor))
+                visited_nodes.add(neighbor)
                 child_map.setdefault(node, []).append((edge, neighbor))
                 new_walker_state = JacTTGGenerator.TypedWalkerState(
                     node=neighbor,
@@ -2452,7 +2527,7 @@ class JacTTGGenerator:
                     children=[],
                 )
                 state.children.append(new_walker_state)
-                walker_states.append(new_walker_state)
+                queue.append(new_walker_state)
         return ttg_root, visited_nodes, child_map
 
     @classmethod
@@ -2461,48 +2536,34 @@ class JacTTGGenerator:
         start: UUID,
         ttg_children: dict[UUID, list[tuple[UUID, UUID]]],
     ) -> list[UUID]:
-        """Get prefetch list from TTG root."""
+        """Get prefetch list from TTG root.
+
+        BFS traversal of the child_map using deque for O(1) popleft.
+        Uses a set for O(1) membership checks instead of scanning the list.
+        """
+        from collections import deque
+
         prefetch_list: list[UUID] = []
-        states_to_process: list[tuple[UUID | None, UUID]] = [(None, start)]
+        seen: set[UUID] = set()
+        queue: deque[tuple[UUID | None, UUID]] = deque([(None, start)])
         max_length = int(os.getenv("JAC_TTG_PREFETCH_LIMIT", "200"))
 
-        def add_uuid(obj: UUID) -> None:
-            if obj in prefetch_list:
-                return
-            prefetch_list.append(obj)
+        while queue:
+            edge_id, node_id = queue.popleft()
+            if edge_id is not None and edge_id not in seen:
+                seen.add(edge_id)
+                prefetch_list.append(edge_id)
+            if node_id not in seen:
+                seen.add(node_id)
+                prefetch_list.append(node_id)
+            children = ttg_children.get(node_id, [])
+            for child_eid, child_nid in children:
+                if child_nid not in seen:
+                    queue.append((child_eid, child_nid))
+            if len(prefetch_list) >= max_length:
+                break
 
-        def visited(obj: UUID) -> bool:
-            return obj in prefetch_list
-
-        while states_to_process:
-            (edge_id, node_id) = states_to_process.pop(0)
-            if edge_id is not None:
-                add_uuid(edge_id)
-            add_uuid(node_id)
-            # graph = JacRuntimeInterface.root().graph
-            # related_edges = [
-            #     edge[1] for edge in graph if edge[0] == node_id or edge[2] == node_id
-            # ]
-            children: list[tuple[UUID, UUID]] = ttg_children.get(node_id, [])
-            for child in children:
-                if not visited(child[1]):
-                    states_to_process.append(child)
-
-            # for related_edge in related_edges:
-            #     add_uuid(related_edge)
-
-            # unvisited_children: list[tuple[UUID, UUID]] = [
-            #     child for child in children if child not in visited
-            # ]
-            # states_to_process.extend(unvisited_children)
-            # visited.extend(unvisited_children)
-            # if len(prefetch_list) >= max_length:
-            #     break
-        length = min(max_length, len(prefetch_list))
-
-        assert len(set(prefetch_list)) == len(prefetch_list)
-
-        return prefetch_list[:length]
+        return prefetch_list[:max_length]
 
 
 class JacPluginConfig:

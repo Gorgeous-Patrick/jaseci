@@ -35,5 +35,9 @@ def create_node() -> list[str] {
 }
 
 with entry {
-    print(create_node());
+    node_ids = create_node();
+    import os;
+    os.environ["JAC_PREFETCH"] = "1";
+    root spawn BFS();
+    print(node_ids);
 }
