@@ -690,3 +690,40 @@ test "ttg walker traversal with typed edges" {
     # Only TypeA nodes trigger the 'run' ability, so visited = [1, 2].
     assert "visited [1, 2]" in output;
 }
+
+test "ttg large graph generator correctness" {
+    # Runs a 23-node, 3-type graph through the TTG generator and verifies
+    # structural properties of the generated temporal trace graph.
+    # Ground truth captured from BaichuanLi/CacheSimExperiment TTG generator.
+    output = run_jac(os.path.join(FIXTURES, "ttg_large_graph.jac"));
+
+    # ── Walker traversal sanity (actual DFS traversal, not TTG) ──────────
+    assert "w1_visited ['s1', 's2', 's3', 's4']" in output;
+
+    # ── Graph topology populated ────────────────────────────────────────
+    assert "graph_populated True" in output;
+    assert "type_map_populated True" in output;
+    # 23 nodes + edges (each edge also has a UUID in type_map)
+    assert "node_count 51" in output;
+
+    # ── TTG1: HttpCrawler (HttpEdge only from Root & Server) ────────────
+    # Expected: root -> s1 -> s2 -> s3 -> s4 (chain of 5 total, 4 visited)
+    assert "ttg1_total 5" in output;
+    assert "ttg1_visited 4" in output;
+    assert "ttg1_types ['Server', 'Server', 'Server', 'Server']" in output;
+    assert "ttg1_max_depth 4" in output;
+
+    # ── TTG2: ServiceDbCrawler (HttpEdge+DbEdge from Server, DbEdge from DB) ─
+    # Expected: 4 servers + 4 databases = 8 visited, 9 total (incl. root)
+    assert "ttg2_total 9" in output;
+    assert "ttg2_visited 8" in output;
+    assert "ttg2_types ['Database', 'Database', 'Database', 'Database', 'Server', 'Server', 'Server', 'Server']" in output;
+    assert "ttg2_max_depth 5" in output;
+
+    # ── TTG3: FullCrawler (all edge types from all node types) ──────────
+    # Expected: all 23 non-root nodes visited, 24 total (incl. root)
+    assert "ttg3_total 24" in output;
+    assert "ttg3_visited 23" in output;
+    assert "ttg3_types ['Cache', 'Cache', 'Cache', 'Cache', 'Cache', 'Cache', 'Cache', 'Cache', 'Database', 'Database', 'Database', 'Database', 'Database', 'Database', 'Database', 'Server', 'Server', 'Server', 'Server', 'Server', 'Server', 'Server', 'Server']" in output;
+    assert "ttg3_max_depth 9" in output;
+}

@@ -9,6 +9,7 @@ import os;
 import from dataclasses { dataclass, field }
 import from uuid { UUID }
 import from typing { Any }
+import from jaclang.jac0core.archetype { VisitType }
 
 """State entry in the temporal trace graph."""
 @dataclass
