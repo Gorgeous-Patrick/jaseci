@@ -957,7 +957,6 @@ impl Module.init(
     self.variant_mod: list[Module] = [];
     self.src_terminals: list[Token] = terminals;
     self.is_raised_from_py: bool = False;
-    self.has_syntax_errors: bool = False;
     UniNode.init(self, kid=kid);
     AstDocNode.init(self, doc=doc);
     UniScopeNode.init(self, name=self.name);
@@ -1176,12 +1175,14 @@ impl Import.init(
     items: (Sequence[ModuleItem] | Sequence[ModulePath]),
     is_absorb: bool,
     kid: Sequence[UniNode],
-    doc: (String | None) = None
+    doc: (String | None) = None,
+    clib_decls: (Sequence[UniNode] | None) = None
 ) -> None {
     self.hint = None;
     self.from_loc = from_loc;
     self.items = items;
     self.is_absorb = is_absorb;
+    self.clib_decls = clib_decls;
     UniNode.init(self, kid=kid);
     AstDocNode.init(self, doc=doc);
     CodeBlockStmt.init(self);
