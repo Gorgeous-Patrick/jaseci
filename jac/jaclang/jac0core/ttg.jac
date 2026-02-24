@@ -6,6 +6,7 @@ avoids loading any Jac archetype instances, operating purely on UUIDs
 and type metadata stored in Root.
 """
 import os;
+import from collections { deque }
 import from dataclasses { dataclass, field }
 import from uuid { UUID }
 import from typing { Any }
@@ -38,19 +39,35 @@ class JacTTGGenerator {
         reverse_type_map: dict[(str, type)]
     ) -> (type | None);
 
-    """Filter neighbors of a UUID based on walker visit types.
+    """Filter neighbors of a UUID using pre-built adjacency and type maps.
 
     Returns list of (edge_uuid, target_uuid) pairs that match the
-    walker's visit type constraints.
+    walker's visit type constraints.  Accepts pre-built structures to
+    avoid redundant computation across BFS iterations.
     """
     @classmethod
     def filter_neighbors(
         cls: type[JacTTGGenerator],
         nd_id: UUID,
-        visits: list,
-        graph: list[tuple[(UUID, UUID, UUID)]],
-        type_map: dict[(UUID, type)]
+        applicable_visits: list,
+        adj_map: dict[(UUID, list[tuple[(UUID, UUID)]])],
+        type_map: dict[(UUID, type)],
+        reverse_type_map: dict[(str, type)]
     ) -> list[tuple[(UUID, UUID)]];
+
+    """Pre-filter walker visits applicable to a given node type.
+
+    Returns the subset of visits whose from_node_type constraint is
+    satisfied by nd_type.  Called once per BFS node instead of once per
+    edge.
+    """
+    @classmethod
+    def _applicable_visits(
+        cls: type[JacTTGGenerator],
+        nd_type: (type | None),
+        visits: list,
+        reverse_type_map: dict[(str, type)]
+    ) -> list;
 
     """Build a temporal trace graph rooted at start_id.
 

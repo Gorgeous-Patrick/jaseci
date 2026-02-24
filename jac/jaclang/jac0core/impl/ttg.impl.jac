@@ -1,4 +1,8 @@
-"""Implementation for TTG Generator constructs."""
+"""Implementation for TTG Generator constructs.
+
+Optimized version: pre-built adjacency map for O(1) neighbor lookup,
+deque-based BFS, cached reverse type map, and pre-resolved visit types.
+"""
 import from jaclang.jac0core.archetype { VisitType }
 
 """Resolve a VisitType field (type or string name) to a concrete type.
@@ -21,34 +25,22 @@ impl JacTTGGenerator._resolve_type(
     return ref;
 }
 
-"""Filter neighbors of a UUID based on walker visit types.
+"""Pre-filter walker visits applicable to a given node type.
 
-Uses type_map to resolve types and matches them against the
-walker's VisitType constraints. No Jac archetypes are loaded.
+Separates visit type checking from edge matching so the node-type
+filter runs once per BFS node rather than once per edge.
 """
 @ classmethod
-impl JacTTGGenerator.filter_neighbors(
+impl JacTTGGenerator._applicable_visits(
     cls: type[JacTTGGenerator],
-    nd_id: UUID,
+    nd_type: (type | None),
     visits: list,
-    graph: list[tuple[(UUID, UUID, UUID)]],
-    type_map: dict[(UUID, type)]
-) -> list[tuple[(UUID, UUID)]] {
-    filtered: list[tuple[(UUID, UUID)]] = [];
-    # Build reverse lookup (name -> type) for string-based VisitType fields.
-    reverse_type_map: dict[(str, type)] = {t.__name__: t for t in type_map.values()};
-    # Get all outgoing edges from this UUID.
-    edges_out = [
-        e
-        for e in graph
-        if (e[0] == nd_id)
-    ];
-    nd_type = type_map.get(nd_id);
-    # Filter visits applicable to this type.
-    applicable_visits: list = [];
+    reverse_type_map: dict[(str, type)]
+) -> list {
+    result: list = [];
     for v in visits {
         if not isinstance(v, VisitType) {
-            applicable_visits.append(v);
+            result.append(v);
             continue;
         }
         resolved_from = cls._resolve_type(v.from_node_type, reverse_type_map);
@@ -57,11 +49,34 @@ impl JacTTGGenerator.filter_neighbors(
             or resolved_from is None
             or (nd_type is not None and issubclass(nd_type, resolved_from))
         ) {
-            applicable_visits.append(v);
+            result.append(v);
         }
     }
+    return result;
+}
+
+"""Filter neighbors of a UUID using pre-built adjacency and type maps.
+
+Uses adj_map for O(1) neighbor lookup instead of scanning the full edge
+list.  Accepts pre-computed applicable_visits and reverse_type_map to
+avoid redundant work across BFS iterations.
+"""
+@ classmethod
+impl JacTTGGenerator.filter_neighbors(
+    cls: type[JacTTGGenerator],
+    nd_id: UUID,
+    applicable_visits: list,
+    adj_map: dict[(UUID, list[tuple[(UUID, UUID)]])],
+    type_map: dict[(UUID, type)],
+    reverse_type_map: dict[(str, type)]
+) -> list[tuple[(UUID, UUID)]] {
+    edges_out = adj_map.get(nd_id);
+    if not edges_out {
+        return [];
+    }
+    filtered: list[tuple[(UUID, UUID)]] = [];
     seen_targets: set[UUID] = `set();
-    for (src, eid, tgt) in edges_out {
+    for (eid, tgt) in edges_out {
         for v in applicable_visits {
             if isinstance(v, VisitType) {
                 etype = type_map.get(eid);
@@ -90,8 +105,9 @@ impl JacTTGGenerator.filter_neighbors(
 
 """Build a temporal trace graph from Root topology data.
 
-BFS expansion from start_id using filtered neighbors.  Returns a tree
-of TypedWalkerState plus helper structures for prefetching.
+Optimized BFS: builds an adjacency map and reverse type map once
+upfront, uses collections.deque for O(1) popleft, and pre-filters
+visit types per node to avoid redundant type resolution.
 """
 @ classmethod
 impl JacTTGGenerator.get_ttg(
@@ -103,26 +119,35 @@ impl JacTTGGenerator.get_ttg(
 ) -> tuple[(TypedWalkerState, set[UUID], dict[(UUID, list[tuple[(UUID, UUID)]])])] {
     wtype_name = `type(warch).__name__;
     visits = getattr(warch, '__jac_ttg_visits__', []);
+
+    # Build adjacency map once: src_uuid -> [(edge_uuid, tgt_uuid), ...]
+    adj_map: dict[(UUID, list[tuple[(UUID, UUID)]])] = {};
+    for (src, eid, tgt) in graph {
+        adj_map.setdefault(src, []).append((eid, tgt));
+    }
+
+    # Build reverse type map once: type_name -> type
+    reverse_type_map: dict[(str, type)] = {t.__name__: t for t in type_map.values()};
+
     ttg_root = TypedWalkerState(
         walker_type=wtype_name, depth=0, nd=start_id, incoming_edge=None, children=[]
     );
-    queue: list[TypedWalkerState] = [ttg_root];
+    queue = deque([ttg_root]);
     visited_ids: set[UUID] = `set();
-    existing_pairs: set[tuple[(UUID, UUID)]] = `set();
     child_map: dict[(UUID, list[tuple[(UUID, UUID)]])] = {};
+
     while queue {
-        state = queue.pop(0);
+        state = queue.popleft();
         cur = state.nd;
-        neighbors = cls.filter_neighbors(cur, visits, graph, type_map);
+        # Pre-filter visits for this node's type.
+        nd_type = type_map.get(cur);
+        app_visits = cls._applicable_visits(nd_type, visits, reverse_type_map);
+        neighbors = cls.filter_neighbors(cur, app_visits, adj_map, type_map, reverse_type_map);
         for (eid, tgt) in neighbors {
             if (tgt in visited_ids) {
                 continue;
             }
             visited_ids.add(tgt);
-            if ((cur, tgt) in existing_pairs) {
-                continue;
-            }
-            existing_pairs.add((cur, tgt));
             child_map.setdefault(cur, []).append((eid, tgt));
             child_state = TypedWalkerState(
                 walker_type=wtype_name,
@@ -140,8 +165,9 @@ impl JacTTGGenerator.get_ttg(
 
 """Build a prefetch list from TTG child_map.
 
-BFS traversal of the child_map to produce an ordered list of UUIDs
-(edges + targets) for cache prefetching.
+BFS traversal of the child_map using deque for O(1) popleft.
+Produces an ordered list of UUIDs (edges + targets) for cache
+prefetching.
 """
 @ classmethod
 impl JacTTGGenerator.get_prefetch_list(
@@ -152,19 +178,17 @@ impl JacTTGGenerator.get_prefetch_list(
     prefetch: list[UUID] = [];
     max_length = int(os.getenv('JAC_TTG_PREFETCH_LIMIT', '200'));
     seen: set[UUID] = `set();
-    def _add(uid: UUID) -> None {
-        if (uid not in seen) {
-            seen.add(uid);
-            prefetch.append(uid);
-        }
-    }
-    queue: list[tuple[((UUID | None), UUID)]] = [(None, start)];
+    queue = deque([(None, start)]);
     while queue {
-        (eid, nid) = queue.pop(0);
-        if (eid is not None) {
-            _add(eid);
+        (eid, nid) = queue.popleft();
+        if (eid is not None and eid not in seen) {
+            seen.add(eid);
+            prefetch.append(eid);
         }
-        _add(nid);
+        if (nid not in seen) {
+            seen.add(nid);
+            prefetch.append(nid);
+        }
         children = ttg_children.get(nid, []);
         for (child_eid, child_nid) in children {
             if (child_nid not in seen) {
