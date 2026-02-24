@@ -702,3 +702,15 @@ test "populate short-circuit skips non-matching stubs" {
     assert "LIKES_POP 1" in output;
     assert "OWNS_POP2 1" in output;
 }
+
+test "inheritance respects subclass in type-filtered traversal on stubs" {
+    output = run_jac(os.path.join(FIXTURES, "inheritance_traversal.jac"));
+    assert "INHERITANCE_STUB_TESTS_PASSED" in output , f"Inheritance stub traversal tests failed:\n{output}";
+    # Edge inheritance: Follow filter must match CloseFriend (subclass of Follow) on stubs
+    assert "FOLLOW_EDGE_STUB_COUNT 2" in output;
+    # Node inheritance: Person filter must match VIPPerson (subclass of Person) on stubs
+    assert "PERSON_NODE_STUB_COUNT 2" in output;
+    # Derived filters should still work correctly on stubs
+    assert "CLOSEFRIEND_EDGE_STUB_COUNT 1" in output;
+    assert "VIP_NODE_STUB_COUNT 1" in output;
+}
