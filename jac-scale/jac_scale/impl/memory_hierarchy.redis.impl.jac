@@ -188,3 +188,48 @@ impl RedisBackend.put_if_exists(anchor: Anchor) -> bool {
 impl RedisBackend.invalidate(id: UUID) -> None {
     self.delete(id);
 }
+
+"""Batch check if keys exist in Redis cache — single pipeline round-trip."""
+impl RedisBackend.exists_many(ids: Iterable[UUID]) -> set[UUID] {
+    if self.redis_client is None {
+        return set();
+    }
+    id_list = list(ids);
+    if not id_list {
+        return set();
+    }
+    try {
+        pipe = self.redis_client.pipeline(transaction=False);
+        keys = [storage_key(to_uuid(id)) for id in id_list];
+        for key in keys {
+            pipe.exists(key);
+        }
+        results = pipe.execute();
+        return {id for id, found in zip(id_list, results) if found};
+    } except Exception as e {
+        logger.debug(f"Redis exists_many failed: {e}");
+        return set();
+    }
+}
+
+"""Batch store multiple anchors in Redis cache — single pipeline round-trip."""
+impl RedisBackend.put_many(anchors: Iterable[Anchor]) -> None {
+    if self.redis_client is None {
+        return;
+    }
+    anchor_list = list(anchors);
+    if not anchor_list {
+        return;
+    }
+    try {
+        pipe = self.redis_client.pipeline(transaction=False);
+        for anchor in anchor_list {
+            data = dumps(anchor);
+            key = storage_key(anchor.id);
+            pipe.set(key, data);
+        }
+        pipe.execute();
+    } except Exception as e {
+        logger.debug(f"Redis put_many failed: {e}");
+    }
+}

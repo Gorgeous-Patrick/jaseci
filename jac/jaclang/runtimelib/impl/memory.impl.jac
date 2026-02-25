@@ -172,6 +172,22 @@ impl LocalCacheMemory.invalidate(id: UUID) -> None {
     self.__mem__.pop(id, None);
 }
 
+"""Batch check if keys exist in the local cache."""
+impl LocalCacheMemory.exists_many(ids: Iterable[UUID]) -> set[UUID] {
+    return {
+        id
+        for id in ids
+        if id in self.__mem__
+    };
+}
+
+"""Batch store multiple anchors in the local cache."""
+impl LocalCacheMemory.put_many(anchors: Iterable[Anchor]) -> None {
+    for anchor in anchors {
+        self.__mem__[anchor.id] = anchor;
+    }
+}
+
 # =============================================================================
 # SqliteMemory Implementation (L3 Persistent)
 # =============================================================================
@@ -651,20 +667,29 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not self.l3 or not self.l2 {
         return;
     }
-    # Only prefetch IDs not already in L1 or L2
-    ids_to_fetch = [
+    # Filter out IDs already in L1
+    ids_not_in_l1 = [
         id
         for id in ids
-        if id not in self.__mem__ and not self.l2.exists(id)
+        if id not in self.__mem__
+    ];
+    if not ids_not_in_l1 {
+        return;
+    }
+    # Batch check L2 existence in a single round-trip
+    existing_in_l2 = self.l2.exists_many(ids_not_in_l1);
+    ids_to_fetch = [
+        id
+        for id in ids_not_in_l1
+        if id not in existing_in_l2
     ];
     if not ids_to_fetch {
         return;
     }
     # Batch load from L3 in a single query
     anchors = self.l3.get_many(ids_to_fetch);
-    for anchor in anchors.values() {
-        self.l2.put(anchor);
-    }
+    # Batch store to L2 in a single round-trip
+    self.l2.put_many(anchors.values());
 }
 
 """Get cache hit and miss statistics."""

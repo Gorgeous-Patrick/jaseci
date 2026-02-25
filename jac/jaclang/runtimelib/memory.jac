@@ -106,6 +106,12 @@ obj CacheMemory(Memory) {
 
     """Invalidate a cache entry by ID."""
     def invalidate(id: UUID) -> None abs;
+
+    """Batch check if keys exist in cache. Returns set of IDs that exist."""
+    def exists_many(ids: Iterable[UUID]) -> set[UUID];
+
+    """Batch store multiple anchors in cache."""
+    def put_many(anchors: Iterable[Anchor]) -> None;
 }
 
 """Persistent Memory Interface.
@@ -175,6 +181,8 @@ obj LocalCacheMemory(VolatileMemory, CacheMemory) {
     def exists(id: UUID) -> bool;
     def put_if_exists(anchor: Anchor) -> bool;
     def invalidate(id: UUID) -> None;
+    def exists_many(ids: Iterable[UUID]) -> set[UUID];
+    def put_many(anchors: Iterable[Anchor]) -> None;
 }
 
 """SQLite-based Persistent Memory.

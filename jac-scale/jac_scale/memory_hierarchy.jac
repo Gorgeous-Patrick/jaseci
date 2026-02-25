@@ -67,6 +67,9 @@ obj RedisBackend(CacheMemory) {
     def exists(id: UUID) -> bool;
     def put_if_exists(anchor: Anchor) -> bool;
     def invalidate(id: UUID) -> None;
+    # Batch operations
+    def exists_many(ids: Iterable[UUID]) -> set[UUID];
+    def put_many(anchors: Iterable[Anchor]) -> None;
 }
 
 """
