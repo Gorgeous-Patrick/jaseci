@@ -15,13 +15,14 @@ PORT=${PORT:-8000}
 JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_env/jaseci_external_tools/littlex1"}
 MONGO_PORT=${MONGO_PORT:-27017}
 MONGODB_URI=${MONGODB_URI:-"mongodb://localhost:${MONGO_PORT}/jac_db"}
+REDIS_URL=${REDIS_URL:-"redis://localhost:6379"}
 SETUP_FILE=${SETUP_FILE:-"stress_test_data.json"}
 NUM_REQUESTS=${NUM_REQUESTS:-50}
-
-echo "=== HTTP API Persistence Test — MongoDB (One Cycle) ==="
+echo "=== HTTP API Persistence Test — MongoDB + Redis (One Cycle) ==="
 echo "PORT:         ${PORT}"
 echo "JAC_FOLDER:   ${JAC_FOLDER}"
 echo "MONGODB_URI:  ${MONGODB_URI}"
+echo "REDIS_URL:    ${REDIS_URL}"
 echo "SETUP_FILE:   ${SETUP_FILE}"
 echo "NUM_REQUESTS: ${NUM_REQUESTS}"
 echo
@@ -31,8 +32,8 @@ echo
 # --------------------------------------------------------------------------
 JAC_PID=""
 MONGO_CONTAINER=""
+REDIS_CONTAINER=""
 JACTASTIC_PUSHED="false"
-
 cleanup() {
   echo
   echo "=== Cleaning up ==="
@@ -52,6 +53,12 @@ cleanup() {
     echo "Stopping MongoDB container ($MONGO_CONTAINER)..."
     docker stop "$MONGO_CONTAINER" 2>/dev/null || true
     docker rm "$MONGO_CONTAINER" 2>/dev/null || true
+  fi
+
+  if [ -n "${REDIS_CONTAINER:-}" ]; then
+    echo "Stopping Redis container ($REDIS_CONTAINER)..."
+    docker stop "$REDIS_CONTAINER" 2>/dev/null || true
+    docker rm "$REDIS_CONTAINER" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -93,11 +100,19 @@ MONGO_CONTAINER=$(docker run -d -p "${MONGO_PORT}:27017" \
 echo "✓ MongoDB started (container: $MONGO_CONTAINER)"
 sleep 3
 
+# Start Redis in Docker with custom config
+echo "Starting Redis in Docker with config (100MB limit, LRU eviction)..."
+REDIS_CONTAINER=$(docker run -d -p 6379:6379 \
+  -v "$(pwd)/redis.conf:/usr/local/etc/redis/redis.conf" \
+  redis:latest redis-server /usr/local/etc/redis/redis.conf)
+echo "✓ Redis started (container: $REDIS_CONTAINER)"
+sleep 2
+
 echo "Starting jac server with MongoDB backend..."
 echo "  MONGODB_URI=$MONGODB_URI"
 pushd "$JAC_FOLDER" > /dev/null
 JACTASTIC_PUSHED="true"
-MONGODB_URI="$MONGODB_URI" timeout 300 jac start --port "$PORT" > /tmp/jac_start_mongo_1.log 2>&1 &
+MONGODB_URI="$MONGODB_URI" REDIS_URL="$REDIS_URL" timeout 300 jac start --port "$PORT" > /tmp/jac_start_mongo_1.log 2>&1 &
 JAC_PID=$!
 echo "✓ jac start launched (PID: $JAC_PID)"
 
@@ -130,6 +145,20 @@ sleep 1
 # MongoDB container stays running — data persists across jac server restarts.
 echo "MongoDB container remains running (data persists across server restarts)."
 
+# Restart Redis (stop → start) to test persistence
+echo "Stopping Redis container..."
+docker stop "$REDIS_CONTAINER" 2>/dev/null || true
+docker rm "$REDIS_CONTAINER" 2>/dev/null || true
+REDIS_CONTAINER=""
+sleep 2
+
+echo "Restarting Redis in Docker with config (100MB limit, LRU eviction)..."
+REDIS_CONTAINER=$(docker run -d -p 6379:6379 \
+  -v "$(pwd)/redis.conf:/usr/local/etc/redis/redis.conf" \
+  redis:latest redis-server /usr/local/etc/redis/redis.conf)
+echo "✓ Redis restarted (container: $REDIS_CONTAINER)"
+sleep 2
+
 echo
 # Build env-var prefix — only forward JAC_* vars that are actually set
 ENV_PREFIX=""
@@ -144,6 +173,7 @@ env ${ENV_PREFIX} \
 SETUP_FILE="$SETUP_FILE" \
 JAC_FOLDER="$JAC_FOLDER" \
 MONGODB_URI="$MONGODB_URI" \
+REDIS_URL="$REDIS_URL" \
   bash ./stress_test_run_mongo.sh
 echo "✓ Stress test completed"
 
