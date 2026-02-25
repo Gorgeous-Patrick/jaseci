@@ -26,6 +26,17 @@ impl Memory.get_cache_stats -> tuple[int, int] {
     return (0, 0);
 }
 
+"""Default batch get - falls back to individual get() calls. Subclasses can override with batched queries."""
+impl PersistentMemory.get_many(ids: Iterable[UUID]) -> dict[UUID, Anchor] {
+    result: dict[UUID, Anchor] = {};
+    for id in ids {
+        if (anchor := self.get(id)) {
+            result[id] = anchor;
+        }
+    }
+    return result;
+}
+
 # =============================================================================
 # VolatileMemory Implementation (L1)
 # =============================================================================
@@ -235,6 +246,62 @@ impl SqliteMemory.get(id: UUID) -> (Anchor | None) {
         }
     }
     return None;
+}
+
+"""Batch get multiple anchors by IDs in a single query."""
+impl SqliteMemory.get_many(ids: Iterable[UUID]) -> dict[UUID, Anchor] {
+    import from _pickle { UnpicklingError }
+    result: dict[UUID, Anchor] = {};
+    remaining: list[UUID] = [];
+    # Check in-memory cache first
+    for id in ids {
+        if (anchor := self.__mem__.get(id)) {
+            result[id] = anchor;
+        } else {
+            remaining.append(id);
+        }
+    }
+    if not remaining {
+        return result;
+    }
+    # Lazily connect if DB file exists (for reading existing data)
+    if not self.__conn__ and os.path.exists(self.path) {
+        self._ensure_connection();
+    }
+    if not self.__conn__ {
+        return result;
+    }
+    # Batch query with chunking (SQLite has a variable limit of ~999)
+    chunk_size = 900;
+    for i in range(0, len(remaining), chunk_size) {
+        chunk = remaining[i:i + chunk_size];
+        placeholders = ",".join("?" for _ in chunk);
+        cursor = self.__conn__.execute(
+            f"SELECT id, data FROM anchors WHERE id IN ({placeholders})",
+            [str(uid) for uid in chunk]
+        );
+        stale_ids: list[str] = [];
+        for row in cursor.fetchall() {
+            try {
+                anchor = loads(row[1]);
+                uid = UUID(row[0]);
+                # Promote to memory cache
+                self.__mem__[uid] = anchor;
+                result[uid] = anchor;
+            } except (UnpicklingError, ModuleNotFoundError, AttributeError) {
+                stale_ids.append(row[0]);
+            }
+        }
+        # Clean up stale entries in batch
+        if stale_ids {
+            del_placeholders = ",".join("?" for _ in stale_ids);
+            self.__conn__.execute(
+                f"DELETE FROM anchors WHERE id IN ({del_placeholders})", stale_ids
+            );
+            self.__conn__.commit();
+        }
+    }
+    return result;
 }
 
 """Store an anchor. Writes to memory immediately, database on sync."""
@@ -579,20 +646,24 @@ impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
     }
 }
 
-"""Prefetch - load from L3 and store to L2."""
+"""Prefetch - batch load from L3 and store to L2."""
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
-    ids_to_fetch = list(ids);
     if not self.l3 or not self.l2 {
         return;
     }
-    # TODO: Only prefetch IDs not already in L1 or L2
+    # Only prefetch IDs not already in L1 or L2
+    ids_to_fetch = [
+        id
+        for id in ids
+        if id not in self.__mem__ and not self.l2.exists(id)
+    ];
     if not ids_to_fetch {
         return;
     }
-    for id in ids_to_fetch {
-        if (anchor := self.l3.get(id)) {
-            self.l2.put(anchor);
-        }
+    # Batch load from L3 in a single query
+    anchors = self.l3.get_many(ids_to_fetch);
+    for anchor in anchors.values() {
+        self.l2.put(anchor);
     }
 }
 

@@ -106,6 +106,8 @@ obj MongoBackend(PersistentMemory) {
     # PersistentMemory-specific
     def sync -> None;
     def bulk_put(anchors: Iterable[Anchor]) -> None;
+    # Batch retrieval
+    def get_many(ids: Iterable[UUID]) -> dict[UUID, Anchor];
     # Internal
     def _load_anchor(raw: dict[(str, Any)]) -> (Anchor | None);
 }

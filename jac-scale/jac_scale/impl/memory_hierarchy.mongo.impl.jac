@@ -66,6 +66,30 @@ impl MongoBackend.get(id: UUID) -> (Anchor | None) {
     return None;
 }
 
+"""Batch get multiple anchors by IDs in a single query."""
+impl MongoBackend.get_many(ids: Iterable[UUID]) -> dict[UUID, Anchor] {
+    result: dict[UUID, Anchor] = {};
+    if self.client is None {
+        return result;
+    }
+    id_strs = [str(to_uuid(id)) for id in ids];
+    if not id_strs {
+        return result;
+    }
+    try {
+        cursor = self.collection.find({'_id': {'$in': id_strs}});
+        for doc in cursor {
+            if (anchor := self._load_anchor(doc)) {
+                uid = to_uuid(UUID(doc['_id']));
+                result[uid] = anchor;
+            }
+        }
+    } except Exception as e {
+        logger.debug(f"MongoDB get_many failed: {e}");
+    }
+    return result;
+}
+
 """Store anchor in MongoDB."""
 impl MongoBackend.put(anchor: Anchor) -> None {
     if self.client is None or not anchor.persistent {
@@ -156,11 +180,10 @@ impl MongoBackend.find(
     ids: (UUID | Iterable[UUID]), filter: (Callable[[Anchor], Anchor] | None) = None
 ) -> Generator[Anchor, None, None] {
     id_list = [ids] if isinstance(ids, UUID) else list(ids);
-    for id in id_list {
-        if (anchor := self.get(id)) {
-            if filter is None or filter(anchor) {
-                yield anchor;
-            }
+    anchors = self.get_many(id_list);
+    for anchor in anchors.values() {
+        if filter is None or filter(anchor) {
+            yield anchor;
         }
     }
 }
@@ -170,11 +193,10 @@ impl MongoBackend.find_one(
     ids: (UUID | Iterable[UUID]), filter: (Callable[[Anchor], Anchor] | None) = None
 ) -> (Anchor | None) {
     id_list = [ids] if isinstance(ids, UUID) else list(ids);
-    for id in id_list {
-        if (anchor := self.get(id)) {
-            if filter is None or filter(anchor) {
-                return anchor;
-            }
+    anchors = self.get_many(id_list);
+    for anchor in anchors.values() {
+        if filter is None or filter(anchor) {
+            return anchor;
         }
     }
     return None;

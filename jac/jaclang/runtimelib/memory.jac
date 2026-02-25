@@ -119,6 +119,9 @@ obj PersistentMemory(Memory) {
 
     """Bulk store multiple anchors efficiently."""
     def bulk_put(anchors: Iterable[Anchor]) -> None abs;
+
+    """Batch retrieve multiple anchors by IDs."""
+    def get_many(ids: Iterable[UUID]) -> dict[UUID, Anchor];
 }
 
 # =============================================================================
@@ -218,6 +221,7 @@ obj SqliteMemory(PersistentMemory) {
     def get_gc -> list[Anchor];
     def remove_from_gc(anchor: Anchor) -> None;
     def get_mem -> dict[UUID, Anchor];
+    def get_many(ids: Iterable[UUID]) -> dict[UUID, Anchor];
 }
 
 """Tiered Memory - Extends VolatileMemory with L2 cache + L3 persistent tiers.
