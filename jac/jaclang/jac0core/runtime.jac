@@ -1,5 +1,6 @@
 """Jac Language Features."""
 import fnmatch;
+import importlib;
 import html;
 import inspect;
 import json;
@@ -78,6 +79,63 @@ glob plugin_manager = plugin.PluginManager('jac'),
          (str, 'JsonValue')
      ],
      StatusCode: TypeAlias = Literal[(200, 201, 400, 401, 404, 500, 503)];
+
+# Type resolution cache for arch_cls inheritance checking
+_arch_type_cache: dict[str, type] = {};
+
+"""Resolve a type from its module.qualname string.
+   Returns None if the type cannot be resolved."""
+def resolve_arch_type(arch_cls_str: str) -> type | None {
+    # Check cache first
+    if arch_cls_str in _arch_type_cache {
+        return _arch_type_cache[arch_cls_str];
+    }
+    
+    # Parse module and class name
+    parts = arch_cls_str.rsplit('.', 1);
+    if len(parts) != 2 {
+        raise ValueError(f"Invalid arch_cls format: {arch_cls_str}");
+    }
+    
+    module_name, class_name = parts;
+    
+    # Import module and get class
+    module = importlib.import_module(module_name);
+    cls = getattr(module, class_name, None);
+    
+    if cls is None {
+        raise AttributeError(f"Class {class_name} not found in module {module_name}");
+    }
+    
+    # Cache the resolved type
+    _arch_type_cache[arch_cls_str] = cls;
+    
+    # Also cache all parent classes for faster future checks
+    for base in cls.__mro__[1:] {
+        base_key = f"{base.__module__}.{base.__qualname__}";
+        if base_key not in _arch_type_cache {
+            _arch_type_cache[base_key] = base;
+        }
+    }
+    
+    return cls;
+}
+
+"""Check if arch_cls is compatible with target (handles inheritance)."""
+def is_arch_cls_compatible(arch_cls_str: str, target_cls_str: str) -> bool {
+    # Fast path: exact match
+    if arch_cls_str == target_cls_str {
+        return True;
+    }
+    
+    # Resolve types and check inheritance
+    arch_type = resolve_arch_type(arch_cls_str);
+    target_type = resolve_arch_type(target_cls_str);
+    
+    # Let exceptions propagate for now (as requested)
+    return issubclass(arch_type, target_type);
+}
+
 
 """Jac Access Validation Specs."""
 class JacAccessValidation {
@@ -262,7 +320,7 @@ class JacNode {
                 if (
                     _edge_type_key
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and ecls != _edge_type_key
+                    and not is_arch_cls_compatible(ecls, _edge_type_key)
                 ) {
                     continue;
                 }
@@ -279,7 +337,7 @@ class JacNode {
                         and (
                             not _node_type_key
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or not is_arch_cls_compatible(ncls, _node_type_key)
                         )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
@@ -292,7 +350,7 @@ class JacNode {
                         and (
                             not _node_type_key
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or not is_arch_cls_compatible(ncls, _node_type_key)
                         )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
@@ -326,7 +384,7 @@ class JacNode {
                 if (
                     _edge_type_key
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and ecls != _edge_type_key
+                    and not is_arch_cls_compatible(ecls, _edge_type_key)
                 ) {
                     continue;
                 }
@@ -343,7 +401,7 @@ class JacNode {
                         and (
                             not _node_type_key
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or not is_arch_cls_compatible(ncls, _node_type_key)
                         )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
@@ -357,7 +415,7 @@ class JacNode {
                         and (
                             not _node_type_key
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or not is_arch_cls_compatible(ncls, _node_type_key)
                         )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
@@ -390,7 +448,7 @@ class JacNode {
                 if (
                     _edge_type_key
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and ecls != _edge_type_key
+                    and not is_arch_cls_compatible(ecls, _edge_type_key)
                 ) {
                     continue;
                 }
@@ -407,7 +465,7 @@ class JacNode {
                         and (
                             not _node_type_key
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or not is_arch_cls_compatible(ncls, _node_type_key)
                         )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
@@ -420,7 +478,7 @@ class JacNode {
                         and (
                             not _node_type_key
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or not is_arch_cls_compatible(ncls, _node_type_key)
                         )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
