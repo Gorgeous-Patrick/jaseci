@@ -678,7 +678,7 @@ class JacWalker:
 
         # === Phase 2: Prefetching (if enabled) ===
         prefetch_start = datetime.now()
-        if prefetch_enabled and warch.__ttg_children__:
+        if prefetch_enabled and warch.__ttg_children__ is not None:
             child_nodes = JacTTGGenerator.get_prefetch_list(
                 current_node.id, warch.__ttg_children__
             )
@@ -2505,9 +2505,7 @@ class JacTTGGenerator:
 
             # Pre-filter visits for this node's type
             node_type_name = raw_type_map.get(node)
-            node_type = (
-                reverse_type_map.get(node_type_name) if node_type_name else None
-            )
+            node_type = reverse_type_map.get(node_type_name) if node_type_name else None
             app_visits = cls._applicable_visits(node_type, visits, reverse_type_map)
 
             neighbors = cls._filter_neighbors(

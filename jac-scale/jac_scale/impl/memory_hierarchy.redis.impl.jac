@@ -205,7 +205,11 @@ impl RedisBackend.exists_many(ids: Iterable[UUID]) -> set[UUID] {
             pipe.exists(key);
         }
         results = pipe.execute();
-        return {id for id, found in zip(id_list, results) if found};
+        return {
+            id
+            for (id, found) in zip(id_list, results)
+            if found
+        };
     } except Exception as e {
         logger.debug(f"Redis exists_many failed: {e}");
         return set();
