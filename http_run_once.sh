@@ -137,8 +137,16 @@ echo "✓ Redis restarted (container: $REDIS_CONTAINER)"
 sleep 2
 
 echo
+# Build env-var prefix — only forward JAC_* vars that are actually set
+ENV_PREFIX=""
+[ -n "${JAC_NODE_NUM:-}" ]   && ENV_PREFIX="${ENV_PREFIX}JAC_NODE_NUM=${JAC_NODE_NUM} "
+[ -n "${JAC_EDGE_NUM:-}" ]   && ENV_PREFIX="${ENV_PREFIX}JAC_EDGE_NUM=${JAC_EDGE_NUM} "
+[ -n "${JAC_TWEET_NUM:-}" ]  && ENV_PREFIX="${ENV_PREFIX}JAC_TWEET_NUM=${JAC_TWEET_NUM} "
+[ -n "${JAC_CACHE_SIZE:-}" ] && ENV_PREFIX="${ENV_PREFIX}JAC_CACHE_SIZE=${JAC_CACHE_SIZE} "
+[ -n "${JAC_PREFETCH:-}" ]   && ENV_PREFIX="${ENV_PREFIX}JAC_PREFETCH=${JAC_PREFETCH} "
+
 echo "Running stress_test_run.sh (server restarts per request)..."
-SETUP_FILE="$SETUP_FILE" JAC_FOLDER="$JAC_FOLDER" REDIS_URL="$REDIS_URL" bash ./stress_test_run.sh
+env ${ENV_PREFIX} SETUP_FILE="$SETUP_FILE" JAC_FOLDER="$JAC_FOLDER" REDIS_URL="$REDIS_URL" bash ./stress_test_run.sh
 echo "✓ Stress test completed"
 
 echo

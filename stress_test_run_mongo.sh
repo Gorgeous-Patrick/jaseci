@@ -1,18 +1,20 @@
-# Stress test runner — restarts jac server before every single request.
-# - Reads token and node IDs from setup file
-# - For each node: start jac server → wait ready → spawn walker → stop server
-# - Redis stays alive across restarts (persistence layer)
+#!/usr/bin/env bash
+# Stress test runner — MongoDB only (via jac-scale)
+#
+# Same as stress_test_run.sh but passes MONGODB_URI to jac start
+# so ScaleTieredMemory picks up MongoDB as L3 persistence.
+# No Redis, no Docker management.
 
 set -euo pipefail
 
 SETUP_FILE=${SETUP_FILE:-"stress_test_data.json"}
 JAC_FOLDER=${JAC_FOLDER:-"/home/patrickli/Space/jaseci_env/jaseci_external_tools/littlex1"}
-REDIS_URL=${REDIS_URL:-"redis://localhost:6379"}
+MONGODB_URI=${MONGODB_URI:-"mongodb://localhost:27017/jac_db"}
 
-echo "=== HTTP API Stress Test Runner (restart-per-request) ==="
-echo "SETUP_FILE: $SETUP_FILE"
-echo "JAC_FOLDER: $JAC_FOLDER"
-echo "REDIS_URL:  $REDIS_URL"
+echo "=== HTTP API Stress Test Runner — MongoDB (restart-per-request) ==="
+echo "SETUP_FILE:  $SETUP_FILE"
+echo "JAC_FOLDER:  $JAC_FOLDER"
+echo "MONGODB_URI: $MONGODB_URI"
 echo
 
 # Load setup data
@@ -41,7 +43,7 @@ JAC_PID=""
 
 start_server() {
   pushd "$JAC_FOLDER" > /dev/null
-  REDIS_URL="$REDIS_URL" timeout 300 jac start --port "$PORT" > /tmp/jac_stress.log 2>&1 &
+  MONGODB_URI="$MONGODB_URI" timeout 300 jac start --port "$PORT" > /tmp/jac_stress_mongo.log 2>&1 &
   JAC_PID=$!
   popd > /dev/null
 
@@ -80,7 +82,7 @@ trap cleanup EXIT
 # Results bookkeeping
 # ---------------------------------------------------------------------------
 mkdir -p stress_test_results
-RESULTS_DIR="stress_test_results/run_$(date +%s)"
+RESULTS_DIR="stress_test_results/mongo_run_$(date +%s)"
 mkdir -p "$RESULTS_DIR"
 
 echo "req_id,node_id,http_code,time_ms,startup_ms" > "$RESULTS_DIR/results.csv"
@@ -95,10 +97,10 @@ env = {
     'JAC_TWEET_NUM': os.environ.get('JAC_TWEET_NUM', ''),
     'JAC_CACHE_SIZE': os.environ.get('JAC_CACHE_SIZE', ''),
     'JAC_PREFETCH': os.environ.get('JAC_PREFETCH', ''),
-    'REDIS_URL': '$REDIS_URL',
+    'MONGODB_URI': '$MONGODB_URI',
     'JAC_FOLDER': '$JAC_FOLDER',
     'PORT': '$PORT',
-    'backend': 'redis+sqlite',
+    'backend': 'mongodb',
 }
 with open('$RESULTS_DIR/env.json', 'w') as f:
     json.dump(env, f, indent=2)
@@ -107,7 +109,7 @@ ENVEOF
 # ---------------------------------------------------------------------------
 # Main loop — one server lifecycle per request
 # ---------------------------------------------------------------------------
-echo "Running ${#NODE_IDS_ARRAY[@]} requests (one jac server per request)..."
+echo "Running ${#NODE_IDS_ARRAY[@]} requests (one jac server per request, MongoDB persistence)..."
 echo
 
 for ((i=0; i<${#NODE_IDS_ARRAY[@]}; i++)); do
@@ -182,4 +184,4 @@ fi
 
 echo
 echo "To run stress test again:"
-echo "  JAC_FOLDER=$JAC_FOLDER REDIS_URL=$REDIS_URL ./stress_test_run.sh"
+echo "  MONGODB_URI=$MONGODB_URI JAC_FOLDER=$JAC_FOLDER ./stress_test_run_mongo.sh"
