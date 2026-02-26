@@ -1224,7 +1224,9 @@ class LambdaExpr(Expr, UniScopeNode) {
 
 """UnaryExpr node type for Jac Ast."""
 class UnaryExpr(Expr) {
-    def init(self: UnaryExpr, operand: Expr, op: Token, kid: Sequence[UniNode]) -> None;
+    def init(
+        self: UnaryExpr, operand: Expr, op: Token, kid: Sequence[UniNode]
+    ) -> None;
 }
 
 """IfElseExpr node type for Jac Ast."""
@@ -1290,7 +1292,9 @@ class TupleVal(AtomExpr) {
 
 """DictVal node type for Jac Ast."""
 class DictVal(AtomExpr) {
-    def init(self: DictVal, kv_pairs: Sequence[KVPair], kid: Sequence[UniNode]) -> None;
+    def init(
+        self: DictVal, kv_pairs: Sequence[KVPair], kid: Sequence[UniNode]
+    ) -> None;
 }
 
 """KVPair node type for Jac Ast."""
