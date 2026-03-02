@@ -476,3 +476,31 @@ test "extra builtins 2 match across backends" {
     na_result = run_native_function(eng, "builtins_extra2_na");
     compare_results(py_result, na_result, "builtins_extra2");
 }
+
+test "list multiplication matches across backends" {
+    py_result = run_py_fixture("prim_list_mul", "list_mul_py");
+    (eng, _) = compile_native("prim_list_mul.jac");
+    na_result = run_native_function(eng, "list_mul_na");
+    compare_results(py_result, na_result, "list_mul");
+}
+
+test "list comparison matches across backends" {
+    py_result = run_py_fixture("prim_list_cmp", "list_cmp_py");
+    (eng, _) = compile_native("prim_list_cmp.jac");
+    na_result = run_native_function(eng, "list_cmp_na");
+    compare_results(py_result, na_result, "list_cmp");
+}
+
+test "frozenset matches across backends" {
+    py_result = run_py_fixture("prim_frozenset", "frozenset_py");
+    (eng, _) = compile_native("prim_frozenset.jac");
+    na_result = run_native_function(eng, "frozenset_na");
+    compare_results(py_result, na_result, "frozenset");
+}
+
+test "sorted and reversed match across backends" {
+    py_result = run_py_fixture("prim_builtin_sort", "builtin_sort_py");
+    (eng, _) = compile_native("prim_builtin_sort.jac");
+    na_result = run_native_function(eng, "builtin_sort_na");
+    compare_results(py_result, na_result, "builtin_sort");
+}

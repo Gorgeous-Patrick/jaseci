@@ -227,3 +227,4 @@ with_context.jac
 with_llm_method.jac
 yield_in_assignment.jac
 prim_builtins_extra2.jac
+prim_builtin_sort.jac

@@ -129,7 +129,9 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
         "bin",
         "round",
         "float",
-        "bool"
+        "bool",
+        "sorted",
+        "reversed"
     ) {
         params_l = nd.params or [];
         if params_l {

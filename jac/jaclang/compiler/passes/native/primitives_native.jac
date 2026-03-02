@@ -4463,13 +4463,73 @@ class NativeBuiltinEmitter(BuiltinEmitter[(ir.Value, NativeEmitCtx)]) {
     def emit_sorted(
         self, ctx: NativeEmitCtx, args: list[ir.Value]
     ) -> (ir.Value | None) {
-        return None;
+        # sorted(list) -> new sorted copy
+        if not args {
+            return None;
+        }
+        p = ctx.pass_ref;
+        list_val = args[0];
+        # Find matching list helpers from the argument type
+        helpers: (dict | None) = None;
+        elem_key: (str | None) = None;
+        for (lk, lt) in p.list_types.items() {
+            if list_val.type == lt.as_pointer() {
+                helpers = p.list_helpers.get(lk);
+                elem_key = lk;
+                break;
+            }
+        }
+        if helpers is None {
+            return None;
+        }
+        _le = p._native_emitters.get("list") if p?._native_emitters else None;
+        if _le is None {
+            return None;
+        }
+        _ctx2 = ctx.__class__(pass_ref=p, type_key=elem_key or "");
+        # Copy the list then sort the copy
+        sorted_copy = _le.emit_copy(_ctx2, list_val, []);
+        if sorted_copy is None {
+            return None;
+        }
+        _le.emit_sort(_ctx2, sorted_copy, []);
+        return sorted_copy;
     }
 
     def emit_reversed(
         self, ctx: NativeEmitCtx, args: list[ir.Value]
     ) -> (ir.Value | None) {
-        return None;
+        # reversed(list) -> new reversed copy
+        if not args {
+            return None;
+        }
+        p = ctx.pass_ref;
+        list_val = args[0];
+        # Find matching list helpers from the argument type
+        helpers: (dict | None) = None;
+        elem_key: (str | None) = None;
+        for (lk, lt) in p.list_types.items() {
+            if list_val.type == lt.as_pointer() {
+                helpers = p.list_helpers.get(lk);
+                elem_key = lk;
+                break;
+            }
+        }
+        if helpers is None {
+            return None;
+        }
+        _le = p._native_emitters.get("list") if p?._native_emitters else None;
+        if _le is None {
+            return None;
+        }
+        _ctx2 = ctx.__class__(pass_ref=p, type_key=elem_key or "");
+        # Copy the list then reverse the copy
+        rev_copy = _le.emit_copy(_ctx2, list_val, []);
+        if rev_copy is None {
+            return None;
+        }
+        _le.emit_reverse(_ctx2, rev_copy, []);
+        return rev_copy;
     }
 
     def emit_enumerate(
