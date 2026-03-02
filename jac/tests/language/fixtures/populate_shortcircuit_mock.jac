@@ -18,6 +18,7 @@ edge Likes {}
 edge Owns {}
 
 import from unittest.mock { call }
+import from jaclang.jac0core.constructs { make_type_ref }
 
 glob u1 = User(name="Alice"),
      item1 = Item(label="Widget");
@@ -60,10 +61,10 @@ glob likes_stub = None,
 
 with entry {
     for s in stub_edges {
-        cls_key = s.__dict__.get('arch_cls');
-        if cls_key == f"{Likes.__module__}.{Likes.__qualname__}" {
+        cls_chain = s.__dict__.get('arch_cls');
+        if make_type_ref(Likes) in cls_chain {
             likes_stub = s;
-        } elif cls_key == f"{Owns.__module__}.{Owns.__qualname__}" {
+        } elif make_type_ref(Owns) in cls_chain {
             owns_stub = s;
         }
     }
@@ -123,8 +124,8 @@ with entry {
     root_anch.edges = stub_edges2;
 
     for s in stub_edges2 {
-        cls_key = s.__dict__.get('arch_cls');
-        if cls_key == f"{Likes.__module__}.{Likes.__qualname__}" {
+        cls_chain = s.__dict__.get('arch_cls');
+        if make_type_ref(Likes) in cls_chain {
             likes_stub2 = s;
             likes_orig_pop2 = s.populate;
             likes_pop_count2 = [0];
@@ -133,7 +134,7 @@ with entry {
                 likes_orig_pop2();
             }
             s.populate = likes_pop_spy2;
-        } elif cls_key == f"{Owns.__module__}.{Owns.__qualname__}" {
+        } elif make_type_ref(Owns) in cls_chain {
             owns_stub2 = s;
             owns_orig_pop2 = s.populate;
             owns_pop_count2 = [0];

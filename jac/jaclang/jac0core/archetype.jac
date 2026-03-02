@@ -15,6 +15,51 @@ glob logger = getLogger(__name__),
      TANCH = TypeVar('TANCH', bound='Anchor'),
      T = TypeVar('T');
 
+"""Type reference that uniquely identifies a type."""
+@dataclass(frozen=True)
+obj TypeRef {
+    has module: str,
+        qualname: str;
+}
+
+"""Sentinel base classes excluded from the MRO chain."""
+glob _TYPEREF_STOP_CLASSES: frozenset[str] = frozenset([
+         'Archetype',
+         'NodeArchetype',
+         'EdgeArchetype',
+         'WalkerArchetype',
+         'ObjectArchetype',
+         'object'
+     ]);
+
+"""Build a frozenset of TypeRefs from a class's MRO (excluding base framework classes)."""
+def build_type_chain(cls: `type) -> frozenset[TypeRef] {
+    chain: list[TypeRef] = [];
+    for klass in cls.__mro__ {
+        if klass.__name__ in _TYPEREF_STOP_CLASSES {
+            break;
+        }
+        chain.append(TypeRef(module=klass.__module__, qualname=klass.__qualname__));
+    }
+    return frozenset(chain);
+}
+
+"""Create a TypeRef from a class."""
+def make_type_ref(cls: `type) -> TypeRef {
+    return TypeRef(module=cls.__module__, qualname=cls.__qualname__);
+}
+
+"""Check if a TypeRef matches an arch_cls value (frozenset or legacy string)."""
+def type_ref_in_arch_cls(ref: TypeRef, arch_cls: object) -> bool {
+    if isinstance(arch_cls, frozenset) {
+        return ref in arch_cls;
+    }
+    if isinstance(arch_cls, str) {
+        return f"{ref.module}.{ref.qualname}" == arch_cls;
+    }
+    return False;
+}
+
 """Access level enum."""
 class AccessLevel(IntEnum) {
     with entry {

@@ -1,13 +1,16 @@
 """Test that type-filtered traversals respect inheritance on STUBS.
 
-The short-circuit optimization stores arch_cls as a string on stub anchors
-and compares it with exact equality.  This breaks inheritance: a CloseFriend
-stub (arch_cls = "...CloseFriend") is rejected when the filter asks for
-Follow, even though CloseFriend IS-A Follow.
+The short-circuit optimization stores arch_cls as a frozenset[TypeRef]
+representing the full MRO chain on stub anchors and checks membership.
+This allows inheritance: a CloseFriend stub (arch_cls contains both
+CloseFriend and Follow TypeRefs) is accepted when the filter asks for Follow.
 
 This test converts edge anchors to stubs (simulating un-populated storage
 state) and verifies that filtering by a *base* type still returns edges
 whose concrete type is a *subclass* of that base.
+
+Uses root (persistent) so that edges are registered in TieredMemory and
+stubs can populate() when the type filter matches.
 """
 
 # ── Base and derived edge types ──────────────────────────────────────────────
@@ -34,6 +37,7 @@ with entry {
     # Grab root anchor and verify edges.
     root_anch = root.__jac__;
     print("TOTAL_EDGES", len(root_anch.edges));
+    assert len(root_anch.edges) == 2 , f"Expected 2 edges on root, got {len(root_anch.edges)}";
 
     # Save original edges and convert to stubs.
     orig_edges = list(root_anch.edges);
@@ -48,8 +52,7 @@ with entry {
     follow_result = [root->:Follow:->];
     print("FOLLOW_EDGE_STUB_COUNT", len(follow_result));
 
-    # Expected (correct behavior): 2 nodes (p1 via Follow, p2 via CloseFriend)
-    # Actual (bug): only 1 node (p1 via Follow) — CloseFriend stub is rejected.
+    # Expected: 2 nodes (p1 via Follow, p2 via CloseFriend which IS-A Follow)
     assert len(follow_result) == 2 , f"Expected 2 nodes via Follow filter on stubs (CloseFriend IS-A Follow), got {len(follow_result)}";
 
     # ── Test 2: Filter by base node type Person on stubs ─────────────────

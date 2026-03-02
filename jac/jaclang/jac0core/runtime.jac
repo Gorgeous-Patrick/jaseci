@@ -46,7 +46,9 @@ import from jaclang.jac0core.constructs {
     NodeAnchor,
     NodeArchetype,
     WalkerAnchor,
-    WalkerArchetype
+    WalkerArchetype,
+    make_type_ref,
+    type_ref_in_arch_cls
 }
 import from jaclang.jac0core.modresolver { infer_language }
 import from jaclang.jac0core.mtp { MTIR, Info, MTRuntime }
@@ -250,19 +252,19 @@ class JacNode {
         edges: OrderedDict[(EdgeAnchor, EdgeArchetype)] = OrderedDict();
         _edge_type = destination.edge_type;
         _node_type = destination.node_type;
-        _edge_type_key = f"{_edge_type.__module__}.{_edge_type.__qualname__}"
+        _edge_type_ref = make_type_ref(_edge_type)
         if _edge_type
         else None;
-        _node_type_key = f"{_node_type.__module__}.{_node_type.__qualname__}"
+        _node_type_ref = make_type_ref(_node_type)
         if _node_type
         else None;
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
                 if (
-                    _edge_type_key
+                    _edge_type_ref
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and ecls != _edge_type_key
+                    and not type_ref_in_arch_cls(_edge_type_ref, ecls)
                 ) {
                     continue;
                 }
@@ -277,9 +279,9 @@ class JacNode {
                         (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
                         and (nanch == source)
                         and (
-                            not _node_type_key
+                            not _node_type_ref
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or type_ref_in_arch_cls(_node_type_ref, ncls)
                         )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
@@ -290,9 +292,9 @@ class JacNode {
                         (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
                         and (nanch == target)
                         and (
-                            not _node_type_key
+                            not _node_type_ref
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or type_ref_in_arch_cls(_node_type_ref, ncls)
                         )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
@@ -314,19 +316,19 @@ class JacNode {
         loc: OrderedDict[((NodeAnchor | EdgeAnchor), (NodeArchetype | EdgeArchetype))] = OrderedDict();
         _edge_type = destination.edge_type;
         _node_type = destination.node_type;
-        _edge_type_key = f"{_edge_type.__module__}.{_edge_type.__qualname__}"
+        _edge_type_ref = make_type_ref(_edge_type)
         if _edge_type
         else None;
-        _node_type_key = f"{_node_type.__module__}.{_node_type.__qualname__}"
+        _node_type_ref = make_type_ref(_node_type)
         if _node_type
         else None;
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
                 if (
-                    _edge_type_key
+                    _edge_type_ref
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and ecls != _edge_type_key
+                    and not type_ref_in_arch_cls(_edge_type_ref, ecls)
                 ) {
                     continue;
                 }
@@ -341,9 +343,9 @@ class JacNode {
                         (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
                         and (nanch == source)
                         and (
-                            not _node_type_key
+                            not _node_type_ref
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or type_ref_in_arch_cls(_node_type_ref, ncls)
                         )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
@@ -355,9 +357,9 @@ class JacNode {
                         (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
                         and (nanch == target)
                         and (
-                            not _node_type_key
+                            not _node_type_ref
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or type_ref_in_arch_cls(_node_type_ref, ncls)
                         )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)
@@ -378,19 +380,19 @@ class JacNode {
         nodes: OrderedDict[(NodeAnchor, NodeArchetype)] = OrderedDict();
         _edge_type = destination.edge_type;
         _node_type = destination.node_type;
-        _edge_type_key = f"{_edge_type.__module__}.{_edge_type.__qualname__}"
+        _edge_type_ref = make_type_ref(_edge_type)
         if _edge_type
         else None;
-        _node_type_key = f"{_node_type.__module__}.{_node_type.__qualname__}"
+        _node_type_ref = make_type_ref(_node_type)
         if _node_type
         else None;
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
                 if (
-                    _edge_type_key
+                    _edge_type_ref
                     and (ecls := anchor.__dict__.get('arch_cls'))
-                    and ecls != _edge_type_key
+                    and not type_ref_in_arch_cls(_edge_type_ref, ecls)
                 ) {
                     continue;
                 }
@@ -405,9 +407,9 @@ class JacNode {
                         (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
                         and (nanch == source)
                         and (
-                            not _node_type_key
+                            not _node_type_ref
                             or not (ncls := target.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or type_ref_in_arch_cls(_node_type_ref, ncls)
                         )
                         and destination.node_filter(target.archetype)
                         and JacRuntimeInterface.check_read_access(target)
@@ -418,9 +420,9 @@ class JacNode {
                         (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
                         and (nanch == target)
                         and (
-                            not _node_type_key
+                            not _node_type_ref
                             or not (ncls := source.__dict__.get('arch_cls'))
-                            or ncls == _node_type_key
+                            or type_ref_in_arch_cls(_node_type_ref, ncls)
                         )
                         and destination.node_filter(source.archetype)
                         and JacRuntimeInterface.check_read_access(source)

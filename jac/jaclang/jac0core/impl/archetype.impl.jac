@@ -150,7 +150,7 @@ impl Anchor.make_stub(self: Anchor) -> TANCH {
         unloaded = object.__new__(self.__class__);
         unloaded.id = self.id;
         cls = type(self.archetype);
-        unloaded.__dict__['arch_cls'] = f"{cls.__module__}.{cls.__qualname__}";
+        unloaded.__dict__['arch_cls'] = build_type_chain(cls);
         return unloaded;
     }
     return self;
@@ -184,8 +184,8 @@ impl Anchor.__getattr__(self: Anchor, name: str) -> object {
 
 """Serialize Anchor.
 
-arch_cls is stored as a string (module.qualname) instead of a raw type
-to avoid cross-process pickle failures with classes defined in __main__.
+arch_cls is stored as a frozenset[TypeRef] representing the full MRO
+chain to support inheritance-aware type filtering on stubs.
 """
 impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
     if self.is_populated() {
@@ -196,7 +196,7 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
         return {
             'id': self.id,
             'archetype': unlinked,
-            'arch_cls': f"{cls.__module__}.{cls.__qualname__}",
+            'arch_cls': build_type_chain(cls),
             'root': self.root,
             'access': self.access,
             'persistent': self.persistent
@@ -212,18 +212,18 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
 
 """Deserialize Anchor.
 
-Reconstructs arch_cls as a string key from the archetype if not already
-present (for backward compat with data pickled before this change).
+Reconstructs arch_cls as a frozenset[TypeRef] from the archetype if not
+already present or if stored in the legacy string format.
 """
 impl Anchor.__setstate__(self: Anchor, state: dict[(str, Any)]) -> None {
     self.__dict__.update(state);
     if (self.is_populated() and self.archetype) {
         if (
             'arch_cls' not in self.__dict__
-            or not isinstance(self.__dict__.get('arch_cls'), str)
+            or isinstance(self.__dict__.get('arch_cls'), str)
         ) {
             cls = type(self.archetype);
-            self.__dict__['arch_cls'] = f"{cls.__module__}.{cls.__qualname__}";
+            self.__dict__['arch_cls'] = build_type_chain(cls);
         }
         self.archetype.__jac__ = self;
         self.hash = hash(dumps(self));
