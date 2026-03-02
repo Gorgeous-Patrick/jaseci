@@ -45,10 +45,10 @@ glob _ir_sched_loading = False,
 """Full IR generation schedule.
 
     Uses a re-entrancy guard: when compiling the pass modules that this
-    schedule depends on (CFGBuildPass, etc.), the lazy imports would
+    schedule depends on (CFGBuildPass, etc.), importing them would
     trigger recursive compilation. The guard detects this and falls back
     to the basic schedule (symtab + semantic analysis only), which uses
-    only jac0core passes with no lazy imports.
+    only jac0core passes.
     """
 def get_ir_gen_sched -> list[type[Transform[uni.Module, uni.Module]]] {
     global _ir_sched_loading;
@@ -57,11 +57,9 @@ def get_ir_gen_sched -> list[type[Transform[uni.Module, uni.Module]]] {
     }
     _ir_sched_loading = True;
     try {
-        import from jaclang.compiler.passes.main {
-            CFGBuildPass,
-            MTIRGenPass,
-            SemDefMatchPass
-        }
+        import from jaclang.compiler.passes.main.cfg_build_pass { CFGBuildPass }
+        import from jaclang.compiler.passes.main.mtir_gen_pass { MTIRGenPass }
+        import from jaclang.compiler.passes.main.sem_def_match_pass { SemDefMatchPass }
         return [
             SymTabBuildPass,
             DeclImplMatchPass,
@@ -70,6 +68,8 @@ def get_ir_gen_sched -> list[type[Transform[uni.Module, uni.Module]]] {
             CFGBuildPass,
             MTIRGenPass
         ];
+    } except ImportError {
+        return [SymTabBuildPass, DeclImplMatchPass, SemanticAnalysisPass];
     } finally {
         _ir_sched_loading = False;
     }
@@ -77,32 +77,39 @@ def get_ir_gen_sched -> list[type[Transform[uni.Module, uni.Module]]] {
 
 """Type checking schedule."""
 def get_type_check_sched -> list[type[Transform[uni.Module, uni.Module]]] {
-    import from jaclang.compiler.passes.main { TypeCheckPass }
-    return [TypeCheckPass];
+    import from jaclang.compiler.passes.main.type_checker_pass { TypeCheckPass }
+    import from jaclang.compiler.passes.main.static_analysis_pass { StaticAnalysisPass }
+    return [TypeCheckPass, StaticAnalysisPass];
 }
 
 """Full Python code generation schedule.
 
-    Same re-entrancy guard as get_ir_gen_sched: when compiling the pass
-    modules this depends on, falls back to bytecode-only generation.
+    Same re-entrancy guard as get_ir_gen_sched: when compiling the
+    pass modules this depends on, falls back to bytecode-only generation.
     """
 def get_py_code_gen -> list[type[Transform[uni.Module, uni.Module]]] {
     global _codegen_sched_loading;
-    if _codegen_sched_loading {
+    if _codegen_sched_loading or _ir_sched_loading {
         return [PyastGenPass, PyBytecodeGenPass];
     }
     _codegen_sched_loading = True;
     try {
         import from jaclang.compiler.passes.ecmascript { EsastGenPass }
-        import from jaclang.compiler.passes.main { PyJacAstLinkPass }
+        import from jaclang.compiler.passes.main.pyjac_ast_link_pass { PyJacAstLinkPass }
         passes: list[type[Transform[uni.Module, uni.Module]]] = [
             InteropAnalysisPass,
             EsastGenPass
         ];
-        import from jaclang.compiler.passes.native { NaIRGenPass, NativeCompilePass }
-        passes.extend([NaIRGenPass, NativeCompilePass]);
+        import from jaclang.compiler.passes.native {
+            NativeCompatCheckPass,
+            NaIRGenPass,
+            NativeCompilePass
+        }
+        passes.extend([NativeCompatCheckPass, NaIRGenPass, NativeCompilePass]);
         passes.extend([PyastGenPass, PyJacAstLinkPass, PyBytecodeGenPass]);
         return passes;
+    } except ImportError {
+        return [PyastGenPass, PyBytecodeGenPass];
     } finally {
         _codegen_sched_loading = False;
     }
@@ -612,7 +619,7 @@ class JacCompiler {
     ) -> uni.Module {
         had_error = False;
         if (file_path.endswith('.py') or file_path.endswith('.pyi')) {
-            import from jaclang.compiler.passes.main { PyastBuildPass }
+            import from jaclang.compiler.passes.main.pyast_load_pass { PyastBuildPass }
             parsed_ast = py_ast.parse(source_str);
             py_ast_ret = PyastBuildPass(
                 ir_in=uni.PythonModuleAst(
@@ -642,7 +649,7 @@ class JacCompiler {
             return mod;
         }
         if target_program.mod.main.stub_only {
-            target_program.mod = uni.ProgramModule(mod);
+            target_program.mod = uni.ProgramModule(main_mod=mod);
         }
         target_program.mod.hub[mod.loc.mod_path] = mod;
         JacAnnexPass(ir_in=mod, prog=target_program);
@@ -754,7 +761,7 @@ class JacCompiler {
         if len(parse_errors) > 0 or len(lex_errors) > 0 {
             prog.errors_had.extend(parse_errors);
             prog.errors_had.extend(lex_errors);
-            prog.mod = uni.ProgramModule(current_mod);
+            prog.mod = uni.ProgramModule(main_mod=current_mod);
             return prog;
         }
         # Parse-only annex loading: just parse .impl.jac/.test.jac files
@@ -786,7 +793,7 @@ class JacCompiler {
         for pass_cls in get_format_sched(auto_lint=auto_lint) {
             current_mod = pass_cls(ir_in=current_mod, prog=prog).ir_out;
         }
-        prog.mod = uni.ProgramModule(current_mod);
+        prog.mod = uni.ProgramModule(main_mod=current_mod);
         return prog;
     }
 
@@ -802,13 +809,13 @@ class JacCompiler {
         if len(parse_errors) > 0 or len(lex_errors) > 0 {
             prog.errors_had.extend(parse_errors);
             prog.errors_had.extend(lex_errors);
-            prog.mod = uni.ProgramModule(current_mod);
+            prog.mod = uni.ProgramModule(main_mod=current_mod);
             return prog;
         }
         for pass_cls in get_format_sched(auto_lint=auto_lint) {
             current_mod = pass_cls(ir_in=current_mod, prog=prog).ir_out;
         }
-        prog.mod = uni.ProgramModule(current_mod);
+        prog.mod = uni.ProgramModule(main_mod=current_mod);
         return prog;
     }
 
@@ -835,7 +842,7 @@ class JacCompiler {
         for pass_cls in get_lint_sched() {
             current_mod = pass_cls(ir_in=current_mod, prog=prog).ir_out;
         }
-        prog.mod = uni.ProgramModule(current_mod);
+        prog.mod = uni.ProgramModule(main_mod=current_mod);
         return prog;
     }
 }

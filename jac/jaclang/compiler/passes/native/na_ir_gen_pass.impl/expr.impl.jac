@@ -428,6 +428,25 @@ impl NaIRGenPass._codegen_atom_trailer(nd: uni.AtomTrailer) -> (ir.Value | None)
         target_name = self._get_name(nd.target);
         right_name = self._get_name(nd.right);
         if target_name is not None and right_name is not None {
+            # Check native stdlib module access: sys.argv, sys.platform
+            if (
+                target_name == "sys"
+                and self?._native_stdlib_modules
+                and "sys" in self._native_stdlib_modules
+            ) {
+                if right_name == "argv" {
+                    result = self._emit_sys_argv();
+                    if result is not None {
+                        # Track as list[str] so indexing/iteration works
+                        self.var_list_elem_type["__sys_argv_tmp"] = "ptr";
+                    }
+                    return result;
+                }
+                if right_name == "platform" {
+                    import platform as _plat;
+                    return self._make_global_string(_plat.system().lower());
+                }
+            }
             # Check enum member access: Color.WHITE
             full_name = f"{target_name}.{right_name}";
             if full_name in self.enum_values {
@@ -524,11 +543,13 @@ impl NaIRGenPass._codegen_atom_trailer(nd: uni.AtomTrailer) -> (ir.Value | None)
                     # If chain type hint indicates this is a list, don't string-index
                     is_list_from_hint = (
                         chain_type_hint is not None
-                        and self._get_list_elem_from_type_node(chain_type_hint) is not None
+                        and self._get_list_elem_from_type_node(
+                            chain_type_hint
+                        ) is not None
                     );
                     inner_target_name = self._get_name(nd.target)
-                    if isinstance(nd.target, uni.Name)
-                    else None;
+                        if isinstance(nd.target, uni.Name)
+                        else None;
                     is_known_list = (
                         inner_target_name is not None
                         and inner_target_name in self.var_list_elem_type
