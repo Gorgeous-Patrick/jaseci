@@ -5,6 +5,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 ## jaclang 0.11.4 (Unreleased)
 
 - 4 small refactors/changes.
+- **AST Declarative Field Conversion**: Converted all 143 AST node classes in `unitree.jac` from manual `def init` constructors to declarative `has` field declarations, enabling proper dataclass field inheritance across the node hierarchy. Token hierarchy classes retain manual init with direct field setup to avoid `__post_init__` MRO dispatch issues. Bootstrap transpiler (`jac0.py`) updated with `by postinit` parsing support, `postinit` to `__post_init__` mapping, and conditional `kw_only=True` for subclassed nodes.
 - **Type System Improvement**: Fixed type narrowing not working correctly inside while loops, for loops with break/continue, and loop else blocks.
 - **Fix: Match-Case & Walrus Type Narrowing**: Variables inside `match`/`case` blocks now correctly narrow to the matched type. Walrus operator (`if (x := get_optional())`) now narrows `x` to exclude `None` in the true branch.
 - **Fix: Formatter Comment Injection for `na {}` Blocks**: Fixed a bug where `jac format` would orphan comments inside `na {}` (native) blocks, dumping them at the end of the file.
