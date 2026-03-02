@@ -455,3 +455,24 @@ test "dict setdefault matches across backends" {
     na_result = run_native_function(eng, "dict_setdefault_na");
     compare_results(py_result, na_result, "dict_setdefault");
 }
+
+test "set operators match across backends" {
+    py_result = run_py_fixture("prim_set_operators", "set_operators_py");
+    (eng, _) = compile_native("prim_set_operators.jac");
+    na_result = run_native_function(eng, "set_operators_na");
+    compare_results(py_result, na_result, "set_operators");
+}
+
+test "set augmented assignments match across backends" {
+    py_result = run_py_fixture("prim_set_aug_assign", "set_aug_assign_py");
+    (eng, _) = compile_native("prim_set_aug_assign.jac");
+    na_result = run_native_function(eng, "set_aug_assign_na");
+    compare_results(py_result, na_result, "set_aug_assign");
+}
+
+test "extra builtins 2 match across backends" {
+    py_result = run_py_fixture("prim_builtins_extra2", "builtins_extra2_py");
+    (eng, _) = compile_native("prim_builtins_extra2.jac");
+    na_result = run_native_function(eng, "builtins_extra2_na");
+    compare_results(py_result, na_result, "builtins_extra2");
+}
