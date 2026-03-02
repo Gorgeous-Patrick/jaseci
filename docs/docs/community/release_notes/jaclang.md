@@ -20,7 +20,9 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Perf: Short-Circuit Edge/Node Traversal Filtering by Type**: Edge and node type filters in traversal expressions (e.g., `[->:Follow:->(?Profile)]`) now skip loading anchors whose arch type doesn't match, avoiding unnecessary `populate()` calls from the storage layer. The compiler emits `edge_type` / `node_type` keyword arguments and the runtime checks `arch_cls` on stub anchors before triggering deserialization.
 
 ## jaclang 0.11.3 (Latest Release)
+
 =======
+
 - 5 small refactors/changes.
 - **Type System Improvement**: Fixed type narrowing not working correctly inside while loops, for loops with break/continue, and loop else blocks.
 - **Fixed-Width Numeric Types Promoted to Language Level**: `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `f32`, and `f64` are now recognized as built-in types across all backends, not just native codespace. The type checker resolves them, IDE hover/autocomplete works, and arithmetic between fixed-width types follows width-based promotion rules (e.g., `i8 + i32` promotes to `i32`). On the Python backend they behave as `int`/`float`; on the native backend they map to exact LLVM IR types.
@@ -83,7 +85,9 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 - **Perf: Type Narrowing Optimization**: Fixed exponential slowdown in `jac check` with many `if` statements (~1 min → ~2s). Member access now uses narrowed types and reports errors for invalid attribute access on `None`.
 - **Import Path Alias Resolution**: The module resolver now supports path aliases configured in `[plugins.client.paths]` in `jac.toml`. Aliases like `@components/Button` are resolved to their filesystem paths before standard module lookup, enabling cleaner imports in client-side Jac code.
+
 >>>>>>> upstream/main
+
 - **Native Codegen: C Library Import Syntax (`import from "lib" { def ...; }`)**: Added first-class parser and IR generation support for importing C shared libraries. Declarations inside the braces are parsed as extern function signatures (no body), producing LLVM `declare` statements that MCJIT resolves from the loaded `.so`/`.dylib`. Includes fixed-width C-compatible types (`i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `f32`, `f64`, `c_void`) and automatic type coercion (i64↔i32, f64↔f32) at call boundaries.
 - **Native Codegen: C Struct Value-Type Coercion**: C structs declared inside `import from "lib" { obj Color { has r: u8, g: u8, b: u8, a: u8; } }` blocks are used as normal Jac objects (heap-allocated, pointer semantics) but automatically coerced to C value semantics at call boundaries. Small integer-only structs (<=64 bits) are ABI-coerced to register-sized integers (e.g., `Color` to `i32`), matching the x86_64 SysV calling convention.
 - **Fix: `jac format` Unicode Error on Windows**: Fixed `'charmap' codec can't encode character` error when formatting files with emojis or non-ASCII text on Windows.
