@@ -1434,7 +1434,7 @@ test "multi module full multi module chain" {
     );
     namespace = {
         "__jac_native_engine__": ir.gen.native_engine,
-        "__jac_interop_py_funcs__": getattr(ir.gen, "interop_py_funcs", {})
+        "__jac_interop_py_funcs__": ir.gen.interop_py_funcs
     };
     buf = io.StringIO();
     with contextlib.redirect_stdout(buf) {
@@ -1781,7 +1781,7 @@ def compile_auto_native(file_path: str) -> tuple {
 test "auto promote chess.jac detects native compatible" {
     (ir, _) = compile_auto_native(CHESS_JAC);
     assert ir is not None;
-    assert getattr(ir.gen, '_auto_promoted_native', False) , (
+    assert ir.gen._auto_promoted_native , (
         "chess.jac should be auto-promoted to native"
     );
     assert ir.gen.native_engine is not None , (

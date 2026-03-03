@@ -421,11 +421,8 @@ class JacCompiler {
         actual_program = self._resolve_program(full_target, target_program);
         if (full_target in actual_program.mod.hub) {
             mod = actual_program.mod.hub[full_target];
-            native_engine = getattr(mod.gen, 'native_engine', None);
-            interop_py_funcs = getattr(mod.gen, 'interop_py_funcs', None);
-            if (interop_py_funcs is None) {
-                interop_py_funcs = {};
-            }
+            native_engine = mod.gen.native_engine;
+            interop_py_funcs = mod.gen.interop_py_funcs;
             return (native_engine, interop_py_funcs);
         }
         return (None, None);
@@ -512,7 +509,7 @@ class JacCompiler {
                         actual_program.mtir_map, int(pickle.HIGHEST_PROTOCOL)
                     );
                 }
-                llvm_ir = getattr(result.gen, 'llvm_ir', None);
+                llvm_ir = result.gen.llvm_ir;
                 if llvm_ir is not None {
                     sections[SEC_LLVM_IR] = zlib.compress(
                         str(llvm_ir).encode('utf-8'), 6
@@ -732,7 +729,7 @@ class JacCompiler {
 
     """Build a JSON-serializable interop dict from a compiled module."""
     def _build_interop_dict(self: JacCompiler, result: uni.Module) -> dict {
-        manifest = getattr(result.gen, 'interop_manifest', None);
+        manifest = result.gen.interop_manifest;
         if manifest is None {
             return {};
         }

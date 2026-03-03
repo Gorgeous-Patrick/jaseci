@@ -50,7 +50,7 @@ impl JirWriter.write_module(
     # Compute source hash
     source_hash = 0;
     if module?.source and module.source is not None {
-        src_str = getattr(module.source, 'source', '');
+        src_str = module.source.code;
         if src_str {
             source_hash = zlib.crc32(src_str.encode()) & 0xFFFFFFFF;
         }
@@ -60,7 +60,7 @@ impl JirWriter.write_module(
 
     # Flags: bit 0 = is_stub
     flags = 0;
-    if getattr(module, 'stub_only', False) {
+    if module.stub_only {
         flags |= 1;
     }
 
@@ -164,7 +164,7 @@ impl JirWriter._write_node(self: JirWriter, buf: bytearray, ir_node: UniNode) ->
         }
 
         # names_in_scope_overload
-        overload_map = getattr(ir_node, 'names_in_scope_overload', {});
+        overload_map = ir_node.names_in_scope_overload;
         non_empty = {
             k: v
             for (k, v) in overload_map.items()
@@ -195,9 +195,9 @@ impl JirWriter._write_node(self: JirWriter, buf: bytearray, ir_node: UniNode) ->
 
     # Write CFG overlay
     if is_cfg {
-        bb_in = getattr(ir_node, 'bb_in', []);
-        bb_out = getattr(ir_node, 'bb_out', []);
-        affected = getattr(ir_node, 'affected_symbols', set());
+        bb_in = ir_node.bb_in;
+        bb_out = ir_node.bb_out;
+        affected = ir_node.affected_symbols;
 
         _write_varint(buf, len(bb_in));
         for bb_edge in bb_in {
@@ -227,16 +227,16 @@ impl JirWriter._write_node(self: JirWriter, buf: bytearray, ir_node: UniNode) ->
         }
 
         # name_of -> AstSymbolNode (deferred to link table)
-        name_of = getattr(ir_node, 'name_of', None);
+        name_of = ir_node.name_of;
         if name_of is not None and name_of is not ir_node {
             na_id = self._node_ids[id(ir_node)];
             self._name_of_links.append((na_id, self._get_node_id(name_of)));
         }
 
         # _sym_name and _sym_category
-        sym_name = getattr(ir_node, '_sym_name', '');
+        sym_name = ir_node._sym_name;
         _write_varint(buf, self._pool.intern(sym_name));
-        sym_cat = getattr(ir_node, '_sym_category', None);
+        sym_cat = ir_node._sym_category;
         if sym_cat is not None and hasattr(sym_cat, 'value') {
             _write_varint(buf, self._pool.intern(str(sym_cat.value)));
         } else {

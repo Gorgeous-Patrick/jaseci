@@ -187,7 +187,7 @@ impl UniNode.in_client_context -> bool {
             return True;
         }
         if isinstance(nd, Ability) {
-            context = getattr(nd, 'code_context', CodeContext.SERVER);
+            context = nd.code_context;
             if (context == CodeContext.CLIENT) {
                 return True;
             }
@@ -214,7 +214,7 @@ impl UniNode.in_native_context -> bool {
             return True;
         }
         if isinstance(nd, Ability) {
-            context = getattr(nd, 'code_context', CodeContext.SERVER);
+            context = nd.code_context;
             if (context == CodeContext.NATIVE) {
                 return True;
             }
