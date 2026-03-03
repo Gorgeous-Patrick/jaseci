@@ -4,6 +4,8 @@ This document provides a summary of new features, improvements, and bug fixes in
 
 ## jac-scale 0.2.4 (Unreleased)
 
+- [fix]Fix for internet facing aws load balancer
+
 ## jac-scale 0.2.3 (Latest Release)
 
 - Automatically deploy Redis (RedisInsight) and MongoDB (MongoDB Dashboard) dashboards in Kubernetes when the redis_dashboard and mongodb_dashboard flags are enabled.
