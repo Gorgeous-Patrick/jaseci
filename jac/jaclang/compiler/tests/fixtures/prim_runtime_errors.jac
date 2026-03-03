@@ -1,17 +1,230 @@
 """Runtime error hierarchy tests: catch implicit errors by parent type.
 
+Cross-backend equivalence fixture.
 Unlike prim_exceptions.jac (explicit raise), these tests trigger ACTUAL runtime
-errors (division by zero, index out of bounds, etc.) and verify they're caught
-by the correct handler in the exception hierarchy.
-
-Uses individual int-returning test functions (matching the prim_exceptions.jac
-pattern) since dict[str, any] has type constraints in the native backend.
+errors from method calls and verify they're caught by the correct handler in
+the exception hierarchy.
 """
 
-# --- Python reference functions ---
+def runtime_errors_py() -> dict {
+    results: dict = {};
+
+    try {
+        x: int = "hello".index("xyz");
+    } except ValueError {
+        results["str_index_exact"] = "ValueError";
+    }
+
+    try {
+        x: int = "hello".index("xyz");
+    } except Exception {
+        results["str_index_parent"] = "Exception";
+    }
+
+    handler: str = "none";
+    try {
+        try {
+            x: int = "hello".index("xyz");
+        } except TypeError {
+            handler = "TypeError";
+        }
+    } except ValueError {
+        handler = "ValueError";
+    }
+    results["str_index_wrong"] = handler;
+
+    try {
+        items: list[int] = [1, 2, 3];
+        items.remove(99);
+    } except ValueError {
+        results["list_remove_exact"] = "ValueError";
+    }
+
+    try {
+        items2: list[int] = [1, 2, 3];
+        items2.remove(99);
+    } except Exception {
+        results["list_remove_parent"] = "Exception";
+    }
+
+    try {
+        items3: list[int] = [1, 2, 3];
+        x: int = items3.index(99);
+    } except ValueError {
+        results["list_index_exact"] = "ValueError";
+    }
+
+    try {
+        d: dict[str, int] = {"a": 1};
+        x2: int = d.pop("z");
+    } except KeyError {
+        results["dict_pop_exact"] = "KeyError";
+    }
+
+    try {
+        d2: dict[str, int] = {"a": 1};
+        x3: int = d2.pop("z");
+    } except LookupError {
+        results["dict_pop_parent"] = "LookupError";
+    }
+
+    try {
+        s: set = {1, 2, 3};
+        s.remove(99);
+    } except KeyError {
+        results["set_remove_exact"] = "KeyError";
+    }
+
+    try {
+        s2: set = {1, 2, 3};
+        s2.remove(99);
+    } except LookupError {
+        results["set_remove_parent"] = "LookupError";
+    }
+
+    try {
+        s3: set = set();
+        s3.pop();
+    } except KeyError {
+        results["set_pop_empty"] = "KeyError";
+    }
+
+    which: str = "none";
+    try {
+        x4: int = "hello".index("xyz");
+    } except TypeError {
+        which = "TypeError";
+    } except ValueError {
+        which = "ValueError";
+    } except Exception {
+        which = "Exception";
+    }
+    results["multi_handler"] = which;
+
+    parts: str = "";
+    try {
+        items4: list[int] = [1, 2, 3];
+        items4.remove(99);
+    } except ValueError {
+        parts = "caught";
+    } finally {
+        parts = parts + "+finally";
+    }
+    results["runtime_finally"] = parts;
+
+    return results;
+}
+
+cl def runtime_errors_cl() -> dict {
+    results: dict = {};
+
+    try {
+        x: int = "hello".index("xyz");
+    } except ValueError {
+        results["str_index_exact"] = "ValueError";
+    }
+
+    try {
+        x: int = "hello".index("xyz");
+    } except Exception {
+        results["str_index_parent"] = "Exception";
+    }
+
+    handler: str = "none";
+    try {
+        try {
+            x: int = "hello".index("xyz");
+        } except TypeError {
+            handler = "TypeError";
+        }
+    } except ValueError {
+        handler = "ValueError";
+    }
+    results["str_index_wrong"] = handler;
+
+    try {
+        items: list[int] = [1, 2, 3];
+        items.remove(99);
+    } except ValueError {
+        results["list_remove_exact"] = "ValueError";
+    }
+
+    try {
+        items2: list[int] = [1, 2, 3];
+        items2.remove(99);
+    } except Exception {
+        results["list_remove_parent"] = "Exception";
+    }
+
+    try {
+        items3: list[int] = [1, 2, 3];
+        x: int = items3.index(99);
+    } except ValueError {
+        results["list_index_exact"] = "ValueError";
+    }
+
+    try {
+        d: dict[str, int] = {"a": 1};
+        x2: int = d.pop("z");
+    } except KeyError {
+        results["dict_pop_exact"] = "KeyError";
+    }
+
+    try {
+        d2: dict[str, int] = {"a": 1};
+        x3: int = d2.pop("z");
+    } except LookupError {
+        results["dict_pop_parent"] = "LookupError";
+    }
+
+    try {
+        s: set = {1, 2, 3};
+        s.remove(99);
+    } except KeyError {
+        results["set_remove_exact"] = "KeyError";
+    }
+
+    try {
+        s2: set = {1, 2, 3};
+        s2.remove(99);
+    } except LookupError {
+        results["set_remove_parent"] = "LookupError";
+    }
+
+    try {
+        s3: set = set();
+        s3.pop();
+    } except KeyError {
+        results["set_pop_empty"] = "KeyError";
+    }
+
+    which: str = "none";
+    try {
+        x4: int = "hello".index("xyz");
+    } except TypeError {
+        which = "TypeError";
+    } except ValueError {
+        which = "ValueError";
+    } except Exception {
+        which = "Exception";
+    }
+    results["multi_handler"] = which;
+
+    parts: str = "";
+    try {
+        items4: list[int] = [1, 2, 3];
+        items4.remove(99);
+    } except ValueError {
+        parts = "caught";
+    } finally {
+        parts = parts + "+finally";
+    }
+    results["runtime_finally"] = parts;
+
+    return results;
+}
 
 def test_divzero_catch_exact_py() -> int {
-    # int division by zero caught by ZeroDivisionError
     result: int = 0;
     try {
         x: int = 1 / 0;
@@ -22,7 +235,6 @@ def test_divzero_catch_exact_py() -> int {
 }
 
 def test_divzero_catch_parent_py() -> int {
-    # int division by zero caught by ArithmeticError (parent)
     result: int = 0;
     try {
         x: int = 1 / 0;
@@ -33,7 +245,6 @@ def test_divzero_catch_parent_py() -> int {
 }
 
 def test_divzero_catch_grandparent_py() -> int {
-    # int division by zero caught by Exception (grandparent)
     result: int = 0;
     try {
         x: int = 1 / 0;
@@ -44,7 +255,6 @@ def test_divzero_catch_grandparent_py() -> int {
 }
 
 def test_divzero_wrong_handler_py() -> int {
-    # int division by zero NOT caught by ValueError, falls to outer
     result: int = 0;
     try {
         try {
@@ -55,11 +265,10 @@ def test_divzero_wrong_handler_py() -> int {
     } except ArithmeticError {
         result = 2;
     }
-    return result;  # Should be 2
+    return result;
 }
 
 def test_modulo_zero_py() -> int {
-    # modulo by zero caught by ArithmeticError
     result: int = 0;
     try {
         x: int = 5 % 0;
@@ -70,7 +279,6 @@ def test_modulo_zero_py() -> int {
 }
 
 def test_index_oob_catch_exact_py() -> int {
-    # list index out of bounds caught by IndexError
     result: int = 0;
     items: list[int] = [10, 20, 30];
     try {
@@ -82,7 +290,6 @@ def test_index_oob_catch_exact_py() -> int {
 }
 
 def test_index_oob_catch_parent_py() -> int {
-    # list index out of bounds caught by LookupError (parent)
     result: int = 0;
     items: list[int] = [10, 20, 30];
     try {
@@ -94,7 +301,6 @@ def test_index_oob_catch_parent_py() -> int {
 }
 
 def test_index_oob_catch_exception_py() -> int {
-    # list index out of bounds caught by Exception (grandparent)
     result: int = 0;
     items: list[int] = [10, 20, 30];
     try {
@@ -106,7 +312,6 @@ def test_index_oob_catch_exception_py() -> int {
 }
 
 def test_key_error_catch_exact_py() -> int {
-    # dict missing key caught by KeyError
     result: int = 0;
     d: dict[str, int] = {"a": 1};
     try {
@@ -118,7 +323,6 @@ def test_key_error_catch_exact_py() -> int {
 }
 
 def test_key_error_catch_parent_py() -> int {
-    # dict missing key caught by LookupError (parent)
     result: int = 0;
     d: dict[str, int] = {"a": 1};
     try {
@@ -130,7 +334,6 @@ def test_key_error_catch_parent_py() -> int {
 }
 
 def test_multi_handler_runtime_py() -> int {
-    # division by zero with multiple handlers
     result: int = 0;
     try {
         x: int = 1 / 0;
@@ -141,11 +344,10 @@ def test_multi_handler_runtime_py() -> int {
     } except Exception {
         result = 3;
     }
-    return result;  # Should be 2 (ArithmeticError catches ZeroDivisionError)
+    return result;
 }
 
 def test_runtime_finally_py() -> int {
-    # runtime error with finally block
     result: int = 0;
     try {
         x: int = 1 / 0;
@@ -154,10 +356,8 @@ def test_runtime_finally_py() -> int {
     } finally {
         result = result + 10;
     }
-    return result;  # Should be 11
+    return result;
 }
-
-# --- Native implementations ---
 
 na {
     def test_divzero_catch_exact_na() -> int {

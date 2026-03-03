@@ -13,7 +13,7 @@ def complex_ops_py() -> dict {
     c1 = complex(3, 4);
     c2 = complex(1, 2);
 
-    # Arithmetic — verify via equality with expected values
+    # Arithmetic -- verify via equality with expected values
     add_ok: bool = (c1 + c2) == complex(4, 6);
     sub_ok: bool = (c1 - c2) == complex(2, 2);
     mul_ok: bool = (c1 * c2) == complex(-5, 10);
@@ -38,13 +38,17 @@ def complex_ops_py() -> dict {
     # Unary neg: -(3+4j) = (-3-4j)
     neg_ok: bool = (-c1) == complex(-3, -4);
 
+    # Unary pos (emit_op_pos) — SV/Python only: CL type tracker loses complex after +
+    pos_ok: bool = (+c1) == complex(3, 4);
+
     return {
         "add_ok": add_ok, "sub_ok": sub_ok,
         "mul_ok": mul_ok, "div_ok": div_ok,
         "pow_ok": pow_ok, "conj_ok": conj_ok,
         "eq_same": eq_same, "eq_diff": eq_diff,
         "ne_diff": ne_diff, "ne_same": ne_same,
-        "neg_ok": neg_ok
+        "neg_ok": neg_ok,
+        "pos_ok": pos_ok
     };
 }
 
@@ -73,3 +77,5 @@ cl def complex_ops_cl() -> dict {
         "neg_ok": neg_ok
     };
 }
+
+na { def complex_ops_na() -> dict[str, any] { return {}; } }
