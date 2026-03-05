@@ -525,7 +525,9 @@ test "param arg" {
         transform.jac2py(f"{fixture_path('params/test_complex_params.jac')}");
         py_code = JacProgram().compile(file_path=filename).gen.py;
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as temp_file {
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False
+        ) as temp_file {
             temp_file.write(py_code);
             py_file_path = temp_file.name;
         }
@@ -534,7 +536,9 @@ test "param arg" {
             jac_code = (
                 JacProgram().compile(use_str=py_code, file_path=py_file_path).unparse()
             );
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as temp_file {
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".jac", delete=False
+            ) as temp_file {
                 temp_file.write(jac_code);
                 jac_file_path = temp_file.name;
             }
@@ -622,6 +626,18 @@ test "cli defaults to run with file" {
     assert "Hello World!" in stdout;
 }
 
+test "cli implicit run passes through flags before filename" {
+    process = subprocess.Popen(
+        ["jac", "--no-cache", fixture_path("hello.jac")],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    );
+    (stdout, stderr) = process.communicate();
+    assert process.returncode == 0 , f"Expected exit 0, got {process.returncode}: {stderr}";
+    assert "Hello World!" in stdout;
+}
+
 test "cli error exit codes" {
     # Test run command with syntax error
     captured_stderr = io.StringIO();
@@ -660,7 +676,9 @@ test "cli error exit codes" {
     assert result == 1 , "check command should exit with code 1 on type check error";
 
     # Test format command with file that needs changes
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".jac", delete=False) as temp_file {
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".jac", delete=False
+    ) as temp_file {
         temp_file.write('with entry{print("hello");}');
         temp_path = temp_file.name;
     }
@@ -1552,4 +1570,27 @@ test "bare lt in jsx content is treated as text" {
     }
 
     assert result == 0 , f"should compile successfully, got errors: {stderr}";
+}
+
+test "jir_registry is up to date" {
+    """Verify jir_registry.jac matches what gen_jir_registry.jac would generate.
+
+    Fails with a descriptive message if the registry is out of date, e.g. because
+    unitree node classes were added or changed without re-running `jac gen-jir-registry`.
+    """
+    captured = io.StringIO();
+    old_stdout = sys.stdout;
+    sys.stdout = captured;
+
+    result: int;
+    try {
+        result = tools.gen_jir_registry(verify=True);
+    } finally {
+        sys.stdout = old_stdout;
+    }
+
+    assert result == 0 , (
+        "jir_registry.jac is out of date. "
+        "Run `jac gen-jir-registry` to regenerate it."
+    );
 }

@@ -105,9 +105,24 @@ impl sync_code_to_pvc(
     pod_body = {
         'apiVersion': 'v1',
         'kind': 'Pod',
-        'metadata': {'name': sync_pod_name},
+        'metadata': {'name': sync_pod_name, 'labels': {'managed': 'jac-scale'}},
         'spec': {
             'restartPolicy': 'Never',
+            'affinity': {
+                'podAffinity': {
+                    'preferredDuringSchedulingIgnoredDuringExecution': [
+                        {
+                            'weight': 100,
+                            'podAffinityTerm': {
+                                'labelSelector': {
+                                    'matchLabels': {'app': f"{app_name}-code-server"}
+                                },
+                                'topologyKey': 'kubernetes.io/hostname'
+                            }
+                        }
+                    ]
+                }
+            },
             'containers': [
                 {
                     'name': 'sync',
@@ -305,7 +320,7 @@ impl ensure_pvc_exists(
     pvc_body: dict[(str, Any)] = {
         'apiVersion': 'v1',
         'kind': 'PersistentVolumeClaim',
-        'metadata': {'name': pvc_name},
+        'metadata': {'name': pvc_name, 'labels': {'managed': 'jac-scale'}},
         'spec': {
             'accessModes': [access_mode],
             'resources': {'requests': {'storage': storage_size}}
@@ -327,7 +342,9 @@ impl check_node_ports_available(
     node_port: int,
     prometheus_node_port: int | None,
     grafana_node_port: int | None,
-    current_namespace: str
+    current_namespace: str,
+    redis_insight_node_port: int | None = None,
+    mongo_express_node_port: int | None = None
 ) -> None {
     """Check that the requested NodePorts are not already bound by services
     in other namespaces.
@@ -360,11 +377,19 @@ impl check_node_ports_available(
     if grafana_node_port is not None {
         requested['grafana_node_port'] = grafana_node_port;
     }
+    if redis_insight_node_port is not None {
+        requested['redis_insight_node_port'] = redis_insight_node_port;
+    }
+    if mongo_express_node_port is not None {
+        requested['mongo_express_node_port'] = mongo_express_node_port;
+    }
     conflicts: list[str] = [];
     for (param_name, port_val) in requested.items() {
         if port_val in used_ports {
             conflicts.append(
-                f"  {param_name}={port_val} is already in use by '{used_ports[port_val]}'"
+                f"  {param_name}={port_val} is already in use by '{used_ports[
+                    port_val
+                ]}'"
             );
         }
     }
@@ -374,7 +399,8 @@ impl check_node_ports_available(
             f"NodePort conflict detected on local cluster.\n"
             f"The following requested ports are already bound:\n{conflict_lines}\n"
             f"Please choose different port values in your KubernetesConfig "
-            f"(node_port, prometheus_node_port, grafana_node_port) and try again."
+            f"(node_port, prometheus_node_port, grafana_node_port, "
+            f"redis_insight_node_port, mongo_express_node_port) and try again."
         ) ;
     }
 }
@@ -420,13 +446,13 @@ impl cluster_type -> str {
 impl check_pods_restarted(namespace: str, app_name: str) -> bool {
     try {
         config.load_kube_config();
-    } except Exception {
+    } except ConfigException {
         config.load_incluster_config();
     }
     v1 = client.CoreV1Api();
-    pods = v1.list_namespaced_pod(
-        namespace=namespace, label_selector="app={}".format(app_name)
-    );
+    app_labels = [app_name + d[0] for d in COMPANION_DEFS];
+    selector = "app in ({})".format(", ".join(app_labels));
+    pods = v1.list_namespaced_pod(namespace=namespace, label_selector=selector);
     for pod in pods.items {
         statuses = pod.status.container_statuses;
         if not statuses {
@@ -492,7 +518,11 @@ impl check_deployment_status(
 impl create_or_update_configmap(
     namespace: str, configmap_name: str, tar_path: str
 ) -> None {
-    config.load_kube_config();
+    try {
+        config.load_kube_config();
+    } except ConfigException {
+        config.load_incluster_config();
+    }
     v1 = client.CoreV1Api();
     with open(tar_path, 'rb') as f {
         encoded_data = base64.b64encode(f.read()).decode('utf-8');
@@ -545,7 +575,11 @@ impl delete_namespace(namespace: str) -> None {
         return;
     }
     try {
-        config.load_kube_config();
+        try {
+            config.load_kube_config();
+        } except ConfigException {
+            config.load_incluster_config();
+        }
         core_v1 = client.CoreV1Api();
         core_v1.delete_namespace(name=namespace);
         console.print(f"Namespace '{namespace}' deleted successfully.");
@@ -567,7 +601,11 @@ impl ensure_namespace_exists(namespace: str) -> None {
         return;
     }
     try {
-        config.load_kube_config();
+        try {
+            config.load_kube_config();
+        } except ConfigException {
+            config.load_incluster_config();
+        }
         core_v1 = client.CoreV1Api();
         core_v1.read_namespace(name=namespace);
         console.print(f"Namespace '{namespace}' already exists.");
@@ -652,7 +690,11 @@ impl create_k8s_secret(
     secret_body = {
         'apiVersion': 'v1',
         'kind': 'Secret',
-        'metadata': {'name': secret_name, 'namespace': namespace},
+        'metadata': {
+            'name': secret_name,
+            'namespace': namespace,
+            'labels': {'managed': 'jac-scale'}
+        },
         'type': 'Opaque',
         'stringData': secret_data
     };

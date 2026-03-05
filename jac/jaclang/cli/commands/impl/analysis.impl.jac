@@ -41,9 +41,10 @@ impl check(
         # Print progress line
         print_file_progress(file_path, success, idx, total);
 
-        # Store only failed results
         if not success {
             failed_files += 1;
+        }
+        if not success or (warns > 0 and not nowarn) {
             failed_results.append(
                 {'path': file_path, 'errors': errors_list, 'warnings': warnings_list}
             );
@@ -60,6 +61,7 @@ impl check(
             return (False, 1, 0, [], []);
         }
         try {
+            console.print(f"  Checking {file_path}...");
             (err_start, warn_start) = (len(prog.errors_had), len(prog.warnings_had));
             prog.compile(file_path=file_path, type_check=not parse_only, no_cgen=True);
             new_errors = prog.errors_had[err_start:];
@@ -121,10 +123,10 @@ impl check(
         }
     }
     # Print FAILURES section and summary
+    if print_errs and len(failed_results) > 0 {
+        print_failures(failed_results, nowarn);
+    }
     if failed_files > 0 {
-        if print_errs {
-            print_failures(failed_results, nowarn);
-        }
         print_failed_summary(failed_results);
     }
     # Print final summary line
@@ -181,17 +183,20 @@ impl lint(paths: list, fix: bool = False, ignore: list = []) -> int {
                 err_count = len(prog.errors_had) or 1;
                 return (False, err_count, err_count);
             }
-            error_count = 0;
+            # Count fixed warnings and unfixable errors
+            fixed_count = 0;
             unfixable_count = 0;
+            for warning in prog.warnings_had {
+                console.warning(f"{warning}");
+                fixed_count += 1;
+            }
             for error in prog.errors_had {
                 console.error(f"{error}");
-                error_count += 1;
-                if "[no-print]" in str(error) {
-                    unfixable_count += 1;
-                }
+                unfixable_count += 1;
             }
-            # Only write if there were lint violations to fix
-            if error_count > unfixable_count {
+            error_count = fixed_count + unfixable_count;
+            # Write if there were lint violations that were fixed
+            if fixed_count > 0 {
                 changed = formatted_code != original_code;
                 if changed {
                     with open(str(path_obj), 'w', encoding='utf-8') as f {
@@ -315,7 +320,7 @@ impl format(
         }
         try {
             prog = JacProgram.jac_file_formatter(str(path_obj), auto_lint=lintfix);
-            if prog.errors_had {
+            if prog.errors_had and not lintfix {
                 for error in prog.errors_had {
                     console.error(f"{error}");
                 }
@@ -344,9 +349,12 @@ impl format(
                 }
                 return (False, False, 0);
             }
-            # Report unfixable lint errors (e.g. [no-print])
+            # Report auto-fixed lint warnings and unfixable lint errors
             lint_errors = 0;
             if lintfix {
+                for warning in prog.warnings_had {
+                    console.warning(f"{warning}");
+                }
                 for error in prog.errors_had {
                     console.error(f"{error}");
                     lint_errors += 1;

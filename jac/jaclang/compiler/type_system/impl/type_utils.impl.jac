@@ -1,15 +1,23 @@
 """Determine if a class implements a protocol.
 
-This is a placeholder function and should be implemented based on
-the specific requirements for protocol conformance checking.
+This checks if a class has all the methods required by a protocol,
+including methods inherited from base classes via MRO.
 """
 impl class_implements_protocol(cls: types.ClassType, proto: types.ClassType) -> bool {
-    cls_ast: uni.Archetype = cls.shared.symbol_table;
     proto_ast: uni.Archetype = proto.shared.symbol_table;
     # FIXME: For now I'm only checking if method names are equal
     # However we need to check the full signature compatibility.
-    cls_method_names = {method.sym_name for method in cls_ast.get_methods()};
     proto_method_names = {method.sym_name for method in proto_ast.get_methods()};
+
+    # Collect method names from the class and all its MRO classes
+    cls_method_names: set[str] = set();
+    for mro_cls in cls.shared.mro {
+        if isinstance(mro_cls.shared.symbol_table, uni.Archetype) {
+            cls_method_names.update(
+                method.sym_name for method in mro_cls.shared.symbol_table.get_methods()
+            );
+        }
+    }
     return proto_method_names.issubset(cls_method_names);
 }
 
@@ -26,7 +34,22 @@ impl lookup_symtab(
     if (mod and ((mod.parent_scope is None) and (mod != builtins_to_inject))) {
         mod.parent_scope = builtins_to_inject;
     }
-    return symtable.lookup(name, deep=True, incl_inner_scope=True);
+    symbol = symtable.lookup(name, deep=True, incl_inner_scope=True);
+    # Filter out imported symbols from builtins module when accessed from user code.
+    # In Python stub files, imports are NOT re-exported by default.
+    # Symbols like 'types', 'SupportsAdd' are imported into builtins.pyi
+    # for internal use, not for user code access.
+    # Only filter when the lookup originates from OUTSIDE builtins (user code).
+    if (
+        symbol
+        and symbol.imported
+        and symbol.parent_tab is builtins_to_inject
+        and mod is not None
+        and mod is not builtins_to_inject
+    ) {
+        return None;
+    }
+    return symbol;
 }
 
 """Return a list of completion items for the type."""
@@ -118,7 +141,9 @@ impl ParamAssignmentTracker.match_positional_argument(
                 self.matched_params.add(param);
                 return param;
             }
-            if (param.param_kind in (types.ParamKind.NORMAL, types.ParamKind.POSONLY)) {
+            if (
+                param.param_kind in (types.ParamKind.NORMAL, types.ParamKind.POSONLY)
+            ) {
                 self.curr_param_idx += 1;
                 self.matched_params.add(param);
                 return param;

@@ -23,7 +23,6 @@ import from jaclang.jac0core.runtime { JacRuntime as Jac }
 import from jaclang.runtimelib.server { JacAPIServer as JServer }
 import from jaclang.runtimelib.server { JsonValue }
 import from jaclang.runtimelib.transport { TransportResponse, Meta, MessageType }
-import from enum { StrEnum }
 import from fastapi_sso.sso.google { GoogleSSO }
 import from jac_scale.utils { generate_random_password, _extract_path_param_names }
 import from jac_scale.config_loader { get_scale_config }
@@ -36,6 +35,8 @@ import from fastapi.responses { StreamingResponse }
 import from jaclang.cli.console { console }
 import from jaclang.cli.banners { JAC_DISCORD_URL }
 import from fastapi { WebSocket, WebSocketDisconnect }
+import from jac_scale.admin.admin_portal { JacAPIServerAdmin }
+import from jac_scale.enums { Platforms, Operations }
 
 # Load configuration from jac.toml with env var overrides
 glob _jwt_config = get_scale_config().get_jwt_config(),
@@ -44,11 +45,16 @@ glob _jwt_config = get_scale_config().get_jwt_config(),
      JWT_ALGORITHM = _jwt_config['algorithm'],
      JWT_EXP_DELTA_DAYS = _jwt_config['exp_delta_days'],
      SSO_HOST = _sso_config['host'],
-     logger = logging.getLogger(__name__);
+     logger = logging.getLogger(__name__),
+     PORT_RETRY_LIMIT: int = 10,
+     ERRNO_ADDR_IN_USE_LINUX: int = 98,
+     ERRNO_ADDR_IN_USE_WINDOWS: int = 10048;
 
-enum Platforms ( StrEnum ) { GOOGLE = 'google' }
+"""Find an available port starting from the given port."""
+def _find_available_port(start_port: int, max_retries: int = PORT_RETRY_LIMIT) -> int;
 
-enum Operations ( StrEnum ) { LOGIN = 'login', REGISTER = 'register' }
+"""Get local network IP addresses (non-localhost)."""
+def _get_network_ips -> list[str];
 
 """Core auth, user management, JWT, API keys, server start/postinit."""
 obj JacAPIServerCore {
@@ -56,10 +62,11 @@ obj JacAPIServerCore {
     def start(
         dev: bool = False,
         no_client: bool = False,
-        on_ready: Callable[[], None] | None = None
+        on_ready: Callable[..., None] | None = None
     ) -> None;
 
     def _configure_openapi_security -> None;
+    def _print_startup_banner(dev: bool, no_client: bool) -> None;
     # User/Auth endpoints
     def login(username: str, password: str) -> TransportResponse;
     def register_login_endpoint -> None;
@@ -96,6 +103,10 @@ obj JacAPIServerCore {
     ) -> TransportResponse;
 
     def register_api_key_endpoints -> None;
+    # Metrics endpoint wrapper for admin-only access
+    def _create_admin_metrics_handler(
+        original_handler: Callable[..., Any]
+    ) -> Callable[..., Any];
 }
 
 """Walker, function, webhook, WebSocket endpoint registration and callbacks."""
@@ -158,7 +169,7 @@ obj JacAPIServerStatic {
 }
 
 """Composed JacAPIServer class combining all mixins with JServer base."""
-obj JacAPIServer(JacAPIServerCore, JacAPIServerEndpoints, JacAPIServerStatic, JServer) {
+obj JacAPIServer(JacAPIServerCore, JacAPIServerEndpoints, JacAPIServerStatic, JacAPIServerAdmin, JServer) {
     # HMR (Hot Module Replacement) support fields
     has _hmr_pending: bool = False,
         _hot_reloader: Any | None = None,

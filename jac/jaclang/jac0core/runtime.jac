@@ -83,6 +83,32 @@ glob plugin_manager = plugin.PluginManager('jac'),
 
 """Jac Access Validation Specs."""
 class JacAccessValidation {
+    """Resolve the live anchor for an archetype from runtime memory."""
+    static def _resolve_anchor(archetype: Archetype) -> tuple {
+        anchor = archetype.__jac__;
+        jctx = JacRuntimeInterface.get_context();
+        mem_anchor = jctx.mem.get(anchor.id);
+        if (mem_anchor and (mem_anchor is not anchor)) {
+            anchor = mem_anchor;
+        }
+        return (anchor, jctx);
+    }
+
+    """Check if current root has at least min_level access to target anchor."""
+    static def _check_access(
+        `to: Anchor, min_level: AccessLevel, operation: str
+    ) -> bool {
+        access_level = JacRuntimeInterface.check_access_level(`to) > min_level;
+        if not access_level {
+            logger.info(
+                "Current root doesn't have " + operation + " access to " + `to.__class__.__name__ + " " + `to.archetype.__class__.__name__ + "[" + str(
+                    `to.id
+                ) + "]"
+            );
+        }
+        return access_level;
+    }
+
     """Allow all access from target root graph to current Archetype."""
     static def allow_root(
         archetype: Archetype,
@@ -93,12 +119,7 @@ class JacAccessValidation {
             level = AccessLevel.READ;
         }
         level = AccessLevel.cast(level);
-        anchor = archetype.__jac__;
-        jctx = JacRuntimeInterface.get_context();
-        mem_anchor = jctx.mem.get(anchor.id);
-        if (mem_anchor and (mem_anchor is not anchor)) {
-            anchor = mem_anchor;
-        }
+        (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
         access = anchor.access.roots;
         _root_id = str(root_id);
         if (level != access.anchors.get(_root_id, AccessLevel.NO_ACCESS)) {
@@ -117,12 +138,7 @@ class JacAccessValidation {
             level = AccessLevel.READ;
         }
         level = AccessLevel.cast(level);
-        anchor = archetype.__jac__;
-        jctx = JacRuntimeInterface.get_context();
-        mem_anchor = jctx.mem.get(anchor.id);
-        if (mem_anchor and (mem_anchor is not anchor)) {
-            anchor = mem_anchor;
-        }
+        (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
         access = anchor.access.roots;
         access.anchors.pop(str(root_id), None);
         jctx.mem.put(anchor);
@@ -136,12 +152,7 @@ class JacAccessValidation {
             level = AccessLevel.READ;
         }
         level = AccessLevel.cast(level);
-        anchor = archetype.__jac__;
-        jctx = JacRuntimeInterface.get_context();
-        mem_anchor = jctx.mem.get(anchor.id);
-        if (mem_anchor and (mem_anchor is not anchor)) {
-            anchor = mem_anchor;
-        }
+        (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
         if (level != anchor.access.all) {
             anchor.access.all = level;
             jctx.mem.put(anchor);
@@ -150,12 +161,7 @@ class JacAccessValidation {
 
     """Disallow others to access current Archetype."""
     static def perm_revoke(archetype: Archetype) -> None {
-        anchor = archetype.__jac__;
-        jctx = JacRuntimeInterface.get_context();
-        mem_anchor = jctx.mem.get(anchor.id);
-        if (mem_anchor and (mem_anchor is not anchor)) {
-            anchor = mem_anchor;
-        }
+        (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
         if (anchor.access.all > AccessLevel.NO_ACCESS) {
             anchor.access.all = AccessLevel.NO_ACCESS;
             jctx.mem.put(anchor);
@@ -164,48 +170,17 @@ class JacAccessValidation {
 
     """Read Access Validation."""
     static def check_read_access(`to: Anchor) -> bool {
-        raw_level = JacRuntimeInterface.check_access_level(`to);
-        access_level = raw_level > AccessLevel.NO_ACCESS;
-        if not access_level {
-            logger.info(
-                "Current root doesn't have read access to " + `to.__class__.__name__ + " " + `to.archetype.__class__.__name__ + "[" + str(
-                    `to.id
-                ) + "]"
-            );
-        }
-        return access_level;
+        return JacAccessValidation._check_access(`to, AccessLevel.NO_ACCESS, "read");
     }
 
-    """Write Access Validation."""
+    """Connect Access Validation."""
     static def check_connect_access(`to: Anchor) -> bool {
-        if not (
-            access_level := (
-                JacRuntimeInterface.check_access_level(`to) > AccessLevel.READ
-            )
-        ) {
-            logger.info(
-                "Current root doesn't have connect access to " + `to.__class__.__name__ + " " + `to.archetype.__class__.__name__ + "[" + str(
-                    `to.id
-                ) + "]"
-            );
-        }
-        return access_level;
+        return JacAccessValidation._check_access(`to, AccessLevel.READ, "connect");
     }
 
     """Write Access Validation."""
     static def check_write_access(`to: Anchor) -> bool {
-        if not (
-            access_level := (
-                JacRuntimeInterface.check_access_level(`to) > AccessLevel.CONNECT
-            )
-        ) {
-            logger.info(
-                "Current root doesn't have write access to " + `to.__class__.__name__ + " " + `to.archetype.__class__.__name__ + "[" + str(
-                    `to.id
-                ) + "]"
-            );
-        }
-        return access_level;
+        return JacAccessValidation._check_access(`to, AccessLevel.CONNECT, "write");
     }
 
     """Access validation."""
@@ -462,9 +437,9 @@ class JacWalker {
         `walker: WalkerArchetype,
         expr:
             (
-                list[(NodeArchetype | EdgeArchetype)] | list[NodeArchetype] | list[
-                    EdgeArchetype
-                ] | NodeArchetype | EdgeArchetype | ObjectSpatialPath
+                list[
+                    (NodeArchetype | EdgeArchetype)
+                ] | list[NodeArchetype] | list[EdgeArchetype] | NodeArchetype | EdgeArchetype | ObjectSpatialPath
             ),
         insert_loc: int = -1
     ) -> bool {
@@ -478,8 +453,8 @@ class JacWalker {
             before_len = len(wanch.next);
             next = [];
             for anchor in (i.__jac__ for i in expr)
-            if isinstance(expr, `list)
-            else [expr.__jac__] {
+                if isinstance(expr, `list)
+                else [expr.__jac__] {
                 if (anchor not in wanch.ignores) {
                     if isinstance(anchor, (NodeAnchor, EdgeAnchor)) {
                         next.append(anchor);
@@ -932,8 +907,8 @@ class JacWalker {
             for i in items {
                 a = i.__jac__;
                 `walker.next.append(a)
-                if isinstance(a, (NodeAnchor, EdgeAnchor))
-                else None;
+                    if isinstance(a, (NodeAnchor, EdgeAnchor))
+                    else None;
                 if (isinstance(a, EdgeAnchor) and a.target) {
                     `walker.next.append(a.target);
                 }
@@ -1071,8 +1046,8 @@ class JacBuiltin {
             edge_label = html.escape(str(`edge.__jac__.archetype));
             dot_content += (
                 f"{visited_nodes.index(source)} -> {visited_nodes.index(target)} " + f' [label="{edge_label
-                if "GenericEdge" not in edge_label
-                else ""}"];\n'
+                    if "GenericEdge" not in edge_label
+                    else ""}"];\n'
             );
             if (('GenericEdge' in edge_label) or not edge_label.strip()) {
                 mermaid_content += (
@@ -1088,8 +1063,8 @@ class JacBuiltin {
         }
         for node_ in visited_nodes {
             color = colors[node_depths[node_]]
-            if (node_depths[node_] < 25)
-            else colors[24];
+                if (node_depths[node_] < 25)
+                else colors[24];
             label = html.escape(str(node_.__jac__.archetype));
             dot_content += (
                 f'{visited_nodes.index(node_)} [label="{label}"fillcolor="{color}"];\n'
@@ -1304,8 +1279,8 @@ system,
         _ = JacRuntime.get_program();
         if target.startswith('.') {
             caller_dir = base_path
-            if os.path.isdir(base_path)
-            else os.path.dirname(base_path);
+                if os.path.isdir(base_path)
+                else os.path.dirname(base_path);
             chomp_target = target;
             while chomp_target.startswith('.') {
                 if ((len(chomp_target) > 1) and (chomp_target[1] == '.')) {
@@ -1321,8 +1296,8 @@ system,
             module_name = target;
         }
         caller_dir = base_path
-        if os.path.isdir(base_path)
-        else os.path.dirname(base_path);
+            if os.path.isdir(base_path)
+            else os.path.dirname(base_path);
         original_path = None;
         if (caller_dir and (caller_dir not in sys.path)) {
             original_path = sys.path.copy();
@@ -1345,8 +1320,8 @@ system,
                     file_path = os.path.join(caller_dir, f"{module_name}.py");
                     if os.path.isfile(file_path) {
                         spec_name = '__main__'
-                        if (override_name == '__main__')
-                        else module_name;
+                            if (override_name == '__main__')
+                            else module_name;
                         spec = importlib.util.spec_from_file_location(
                             spec_name, file_path
                         );
@@ -1487,8 +1462,8 @@ system,
                     for file in files
                     if fnmatch.fnmatch(file, filter)
                 ]
-                if filter
-                else files;
+                    if filter
+                    else files;
                 files = [
                     file
                     for file in files
@@ -1655,8 +1630,8 @@ system,
                         and JacRuntimeInterface.check_connect_access(target)
                     ) {
                         JacRuntimeInterface.destroy([anchor])
-                        if anchor.persistent
-                        else JacRuntimeInterface.detach(anchor);
+                            if anchor.persistent
+                            else JacRuntimeInterface.detach(anchor);
                         disconnect_occurred = True;
                     }
                     if (
@@ -1666,8 +1641,8 @@ system,
                         and JacRuntimeInterface.check_connect_access(source)
                     ) {
                         JacRuntimeInterface.destroy([anchor])
-                        if anchor.persistent
-                        else JacRuntimeInterface.detach(anchor);
+                            if anchor.persistent
+                            else JacRuntimeInterface.detach(anchor);
                         disconnect_occurred = True;
                     }
                 }
@@ -1877,10 +1852,40 @@ class JacAPIServer {
         return JacAPIServer;
     }
 
-    """Create the API server instance."""
-    static def create_server(jac_server: JacServer, host: str, port: int) -> HTTPServer {
+    """Create the API server instance.
+
+    If the specified port is in use, tries subsequent ports up to max_retries times.
+    Updates jac_server.port with the actual bound port if different from requested.
+    """
+    static def create_server(
+        jac_server: JacServer, host: str, port: int, max_retries: int = 10
+    ) -> HTTPServer {
         handler_class = jac_server.create_handler();
-        return HTTPServer((host, port), handler_class);
+        current_port = port;
+        for _ in range(max_retries) {
+            try {
+                server = HTTPServer((host, current_port), handler_class);
+                if current_port != port {
+                    import from jaclang.cli.console { console }
+                    console.print(
+                        f"  Port {port} is in use, using port {current_port} instead",
+                        style="warning"
+                    );
+                    jac_server.port = current_port;  # Update the server's port
+                }
+                return server;
+            } except OSError as e {
+                # errno 98 = EADDRINUSE (Linux), errno 10048 = WSAEADDRINUSE (Windows)
+                if e.errno in (98, 10048) or "Address already in use" in str(e) {
+                    current_port += 1;
+                } else {
+                    raise ;
+                }
+            }
+        }
+        raise OSError(
+            f"Could not find an available port after trying {port}-{current_port}"
+        ) ;
     }
 
     """Render HTML page for client function."""
@@ -1890,7 +1895,7 @@ class JacAPIServer {
         args: dict[(str, Any)],
         username: str
     ) -> dict[(str, Any)] {
-        import from jaclang.runtimelib.server { JacSerializer }
+        import from jaclang.runtimelib.serializer { Serializer }
         introspector.load();
         available_exports = (
             `set(introspector._client_manifest.get('exports', []))
@@ -1904,16 +1909,17 @@ class JacAPIServer {
             introspector._client_manifest.get('params', {}).get(function_name, [])
         );
         globals_payload = {
-            name: JacSerializer.serialize(value)
+            name: Serializer.serialize(value, api_mode=True)
             for (name, value) in introspector._collect_client_globals().items()
         };
         initial_state = {
             'module': introspector._module.__name__
-            if introspector._module
-            else introspector.module_name,
+                if introspector._module
+                else introspector.module_name,
             'function': function_name,
             'args': {
-                key: JacSerializer.serialize(value) for (key, value) in args.items()
+                key: Serializer.serialize(value, api_mode=True)
+                for (key, value) in args.items()
             },
             'globals': globals_payload,
             'argOrder': arg_order,
@@ -2637,6 +2643,7 @@ with entry {
 class JacRuntime(JacRuntimeInterface) {
     with entry {
         base_path_dir: (str | None) = os.getcwd();
+        full_target_path: (str | None) = None;
         compiler: (JacCompiler | None) = None;
         program: (JacProgram | None) = None;
         pool: ThreadPoolExecutor = ThreadPoolExecutor();
@@ -2677,8 +2684,8 @@ class JacRuntime(JacRuntimeInterface) {
             JacRuntime.base_path_dir = None;
         } else {
             JacRuntime.base_path_dir = base_path
-            if os.path.isdir(base_path)
-            else os.path.dirname(base_path);
+                if os.path.isdir(base_path)
+                else os.path.dirname(base_path);
         }
     }
 
