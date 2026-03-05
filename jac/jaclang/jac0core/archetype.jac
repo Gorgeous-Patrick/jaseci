@@ -8,6 +8,7 @@ import from logging { getLogger }
 import from pickle { dumps }
 import from types { UnionType }
 import from typing { Any, ClassVar, TypeAlias, TypeVar }
+import weakref;
 import from uuid { UUID, uuid4 }
 import from jaclang.jac0core.constant { EdgeDir }
 glob logger = getLogger(__name__),
@@ -32,16 +33,68 @@ glob _TYPEREF_STOP_CLASSES: frozenset[str] = frozenset([
          'object'
      ]);
 
-"""Build a frozenset of TypeRefs from a class's MRO (excluding base framework classes)."""
-def build_type_chain(cls: `type) -> frozenset[TypeRef] {
+"""Registry mapping TypeRef -> weakref(cls) for collision detection.
+
+When two distinct classes produce the same TypeRef (same module + qualname),
+the shortcircuit optimization cannot distinguish them reliably. This registry
+detects that situation so we can fall back to the full populate + isinstance path.
+
+Uses weakrefs so that when a class is garbage-collected (e.g., between test
+runs redefining __main__), its registry entry expires naturally and does not
+cause false-positive collisions.
+"""
+glob _TYPEREF_REGISTRY: dict[(TypeRef, weakref.ref)] = {};
+
+"""Set of TypeRefs known to have collisions (multiple classes -> same TypeRef)."""
+glob _TYPEREF_COLLISIONS: set[TypeRef] = set();
+
+"""Build a frozenset of TypeRefs from a class's MRO (excluding base framework classes).
+
+Returns None if any TypeRef in the chain has a collision (two distinct classes
+mapping to the same module.qualname). When None is returned, callers should skip
+setting arch_cls on the stub so the shortcircuit is bypassed and the full
+populate + isinstance path is used instead.
+"""
+def build_type_chain(cls: `type) -> (frozenset[TypeRef] | None) {
     chain: list[TypeRef] = [];
     for klass in cls.__mro__ {
         if klass.__name__ in _TYPEREF_STOP_CLASSES {
             break;
         }
-        chain.append(TypeRef(module=klass.__module__, qualname=klass.__qualname__));
+        ref = TypeRef(module=klass.__module__, qualname=klass.__qualname__);
+        if ref in _TYPEREF_COLLISIONS {
+            # Already known collision — skip shortcircuit entirely.
+            return None;
+        }
+        existing_ref = _TYPEREF_REGISTRY.get(ref);
+        if existing_ref is not None {
+            existing_cls = existing_ref();
+            if existing_cls is not None and existing_cls is not klass {
+                # Two live classes with the same TypeRef — real collision.
+                _TYPEREF_COLLISIONS.add(ref);
+                logger.warning(
+                    f"TypeRef collision detected: {ref.module}.{ref.qualname} "
+                    f"maps to multiple distinct live classes. Falling back to "
+                    f"full populate + isinstance for type filtering on stubs "
+                    f"involving this type."
+                );
+                return None;
+            }
+        }
+        _TYPEREF_REGISTRY[ref] = weakref.ref(klass);
+        chain.append(ref);
     }
     return frozenset(chain);
+}
+
+"""Clear the TypeRef registry and collision set.
+
+Useful in test fixtures to prevent false-positive collisions when multiple
+.jac files define classes under the same __main__ module.
+"""
+def clear_typeref_registry() -> None {
+    _TYPEREF_REGISTRY.clear();
+    _TYPEREF_COLLISIONS.clear();
 }
 
 """Create a TypeRef from a class."""

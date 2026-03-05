@@ -150,7 +150,10 @@ impl Anchor.make_stub(self: Anchor) -> TANCH {
         unloaded = object.__new__(self.__class__);
         unloaded.id = self.id;
         cls = type(self.archetype);
-        unloaded.__dict__['arch_cls'] = build_type_chain(cls);
+        chain = build_type_chain(cls);
+        if chain is not None {
+            unloaded.__dict__['arch_cls'] = chain;
+        }
         return unloaded;
     }
     return self;
@@ -193,14 +196,18 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
         unlinked.__dict__.update(self.archetype.__dict__);
         unlinked.__dict__.pop('__jac__', None);
         cls = type(self.archetype);
-        return {
+        state: dict[(str, Any)] = {
             'id': self.id,
             'archetype': unlinked,
-            'arch_cls': build_type_chain(cls),
             'root': self.root,
             'access': self.access,
             'persistent': self.persistent
         };
+        chain = build_type_chain(cls);
+        if chain is not None {
+            state['arch_cls'] = chain;
+        }
+        return state;
     } else {
         state: dict[(str, Any)] = {'id': self.id};
         if ('arch_cls' in self.__dict__) {
@@ -223,7 +230,10 @@ impl Anchor.__setstate__(self: Anchor, state: dict[(str, Any)]) -> None {
             or isinstance(self.__dict__.get('arch_cls'), str)
         ) {
             cls = type(self.archetype);
-            self.__dict__['arch_cls'] = build_type_chain(cls);
+            chain = build_type_chain(cls);
+            if chain is not None {
+                self.__dict__['arch_cls'] = chain;
+            }
         }
         self.archetype.__jac__ = self;
         self.hash = hash(dumps(self));

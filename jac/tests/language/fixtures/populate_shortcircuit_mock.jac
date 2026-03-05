@@ -18,7 +18,13 @@ edge Likes {}
 edge Owns {}
 
 import from unittest.mock { call }
-import from jaclang.jac0core.constructs { make_type_ref }
+import from jaclang.jac0core.constructs { clear_typeref_registry, make_type_ref }
+
+# Clear the TypeRef registry to prevent false-positive collisions from
+# other test fixtures that may have registered types under __main__.
+with entry {
+    clear_typeref_registry();
+}
 
 glob u1 = User(name="Alice"),
      item1 = Item(label="Widget");

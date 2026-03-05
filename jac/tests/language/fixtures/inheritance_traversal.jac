@@ -13,6 +13,14 @@ Uses root (persistent) so that edges are registered in TieredMemory and
 stubs can populate() when the type filter matches.
 """
 
+import from jaclang.jac0core.constructs { clear_typeref_registry }
+
+# Clear the TypeRef registry to prevent false-positive collisions from
+# other test fixtures that may have registered types under __main__.
+with entry {
+    clear_typeref_registry();
+}
+
 # ── Base and derived edge types ──────────────────────────────────────────────
 edge Follow {}
 edge CloseFriend(Follow) {}
@@ -44,8 +52,8 @@ with entry {
 
     # ── Test 1: Filter by base edge type Follow on stubs ─────────────────
     stub_edges_1 = [e.make_stub() for e in orig_edges];
-    for stub in stub_edges_1 {
-        assert 'arch_cls' in stub.__dict__ , "Stub must have arch_cls in __dict__";
+    for s in stub_edges_1 {
+        assert 'arch_cls' in s.__dict__ , "Stub must have arch_cls in __dict__";
     }
     root_anch.edges = stub_edges_1;
 
