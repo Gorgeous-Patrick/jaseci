@@ -1565,7 +1565,7 @@ test "cache marker non native file has no llvmir section in jir" {
         );
     } except Exception as e {
         os.unlink(jac_file);
-        raise ;
+        raise;
     }
     os.unlink(jac_file);
 }

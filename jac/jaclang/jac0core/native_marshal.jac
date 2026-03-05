@@ -76,7 +76,7 @@ obj NativeStructView {
         try {
             raw = getattr(native, name);
         } except AttributeError {
-            raise AttributeError(f"'{self.struct_name}' has no field '{name}'") ;
+            raise AttributeError(f"'{self.struct_name}' has no field '{name}'");
         }
         return self._resolve(name, raw);
     }
@@ -220,7 +220,7 @@ obj NativeListView {
             index += self._count;
         }
         if (index < 0 or index >= self._count) {
-            raise IndexError(f"list index {index} out of range") ;
+            raise IndexError(f"list index {index} out of range");
         }
         raw = self._arr[index];
         if self.elem_key == "i64" {
