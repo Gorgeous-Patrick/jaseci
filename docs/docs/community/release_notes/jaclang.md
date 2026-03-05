@@ -46,6 +46,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Fix: jac-check wanings not printing to CLI**: `jac-check` was not printing warnings fixed by minor if statement/for loop changes.
 
 ## jaclang 0.10.5 (Latest Release)
+
 - **Native Codegen: C Library Import Syntax (`import from "lib" { def ...; }`)**: Added first-class parser and IR generation support for importing C shared libraries. Declarations inside the braces are parsed as extern function signatures (no body), producing LLVM `declare` statements that MCJIT resolves from the loaded `.so`/`.dylib`. Includes fixed-width C-compatible types (`i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `f32`, `f64`, `c_void`) and automatic type coercion (i64↔i32, f64↔f32) at call boundaries.
 - **Native Codegen: C Struct Value-Type Coercion**: C structs declared inside `import from "lib" { obj Color { has r: u8, g: u8, b: u8, a: u8; } }` blocks are used as normal Jac objects (heap-allocated, pointer semantics) but automatically coerced to C value semantics at call boundaries. Small integer-only structs (<=64 bits) are ABI-coerced to register-sized integers (e.g., `Color` to `i32`), matching the x86_64 SysV calling convention.
 - **Fix: `jac format` Unicode Error on Windows**: Fixed `'charmap' codec can't encode character` error when formatting files with emojis or non-ASCII text on Windows.
