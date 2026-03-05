@@ -227,12 +227,8 @@ class JacNode {
         edges: OrderedDict[(EdgeAnchor, EdgeArchetype)] = OrderedDict();
         _edge_type = destination.edge_type;
         _node_type = destination.node_type;
-        _edge_type_ref = make_type_ref(_edge_type)
-        if _edge_type
-        else None;
-        _node_type_ref = make_type_ref(_node_type)
-        if _node_type
-        else None;
+        _edge_type_ref = make_type_ref(_edge_type) if _edge_type else None;
+        _node_type_ref = make_type_ref(_node_type) if _node_type else None;
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
@@ -291,12 +287,8 @@ class JacNode {
         loc: OrderedDict[((NodeAnchor | EdgeAnchor), (NodeArchetype | EdgeArchetype))] = OrderedDict();
         _edge_type = destination.edge_type;
         _node_type = destination.node_type;
-        _edge_type_ref = make_type_ref(_edge_type)
-        if _edge_type
-        else None;
-        _node_type_ref = make_type_ref(_node_type)
-        if _node_type
-        else None;
+        _edge_type_ref = make_type_ref(_edge_type) if _edge_type else None;
+        _node_type_ref = make_type_ref(_node_type) if _node_type else None;
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {
@@ -355,12 +347,8 @@ class JacNode {
         nodes: OrderedDict[(NodeAnchor, NodeArchetype)] = OrderedDict();
         _edge_type = destination.edge_type;
         _node_type = destination.node_type;
-        _edge_type_ref = make_type_ref(_edge_type)
-        if _edge_type
-        else None;
-        _node_type_ref = make_type_ref(_node_type)
-        if _node_type
-        else None;
+        _edge_type_ref = make_type_ref(_edge_type) if _edge_type else None;
+        _node_type_ref = make_type_ref(_node_type) if _node_type else None;
         for nd in origin {
             nanch = nd.__jac__;
             for anchor in nanch.edges {

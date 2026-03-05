@@ -24,14 +24,16 @@ obj TypeRef {
 }
 
 """Sentinel base classes excluded from the MRO chain."""
-glob _TYPEREF_STOP_CLASSES: frozenset[str] = frozenset([
-         'Archetype',
-         'NodeArchetype',
-         'EdgeArchetype',
-         'WalkerArchetype',
-         'ObjectArchetype',
-         'object'
-     ]);
+glob _TYPEREF_STOP_CLASSES: frozenset[str] = frozenset(
+         [
+             'Archetype',
+             'NodeArchetype',
+             'EdgeArchetype',
+             'WalkerArchetype',
+             'ObjectArchetype',
+             'object'
+         ]
+     );
 
 """Registry mapping TypeRef -> weakref(cls) for collision detection.
 
@@ -92,7 +94,7 @@ def build_type_chain(cls: `type) -> (frozenset[TypeRef] | None) {
 Useful in test fixtures to prevent false-positive collisions when multiple
 .jac files define classes under the same __main__ module.
 """
-def clear_typeref_registry() -> None {
+def clear_typeref_registry -> None {
     _TYPEREF_REGISTRY.clear();
     _TYPEREF_COLLISIONS.clear();
 }

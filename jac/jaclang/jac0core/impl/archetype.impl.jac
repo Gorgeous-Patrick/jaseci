@@ -91,7 +91,9 @@ impl ObjectSpatialPath.edge_in(
     edge_type: (`type | None) = None,
     node_type: (`type | None) = None
 ) -> ObjectSpatialPath {
-    return self.append(EdgeDir.IN, `edge, nd, edge_type=edge_type, node_type=node_type);
+    return self.append(
+        EdgeDir.IN, `edge, nd, edge_type=edge_type, node_type=node_type
+    );
 }
 
 """Override greater than function."""

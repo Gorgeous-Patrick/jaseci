@@ -743,4 +743,3 @@ test "escape sequences in strings and fstrings" {
     # Test 9: unicode \u001b → ESC (third distinct escape syntax)
     assert "unicode_escape_first_ord:27" in output , f"Unicode escape failed: {output}";
 }
-}
