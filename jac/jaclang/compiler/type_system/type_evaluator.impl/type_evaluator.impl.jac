@@ -551,6 +551,25 @@ impl TypeEvaluator._get_type_of_expression_core(expr: uni.Expr) -> TypeBase {
                             else types.UnionType(types=unique_types);
                         return expr.right.type;
                     }
+                    # Member not found on all union variants - report error
+                    missing_types: list[str] = [];
+                    for union_member in base_type.types {
+                        if isinstance(union_member, types.ClassType)
+                        and union_member.is_class_instance() {
+                            if not self._lookup_object_member(
+                                union_member, expr.right.value
+                            ) {
+                                missing_types.append(str(union_member));
+                            }
+                        }
+                    }
+                    self.add_diagnostic(
+                        expr.right,
+                        f'Cannot access attribute "{expr.right.value}" for type '
+                        f'"{base_type}"; attribute is missing from {", ".join(
+                            missing_types
+                        )}'
+                    );
                     return types.UnknownType();
                 }
             } elif expr.is_null_ok {

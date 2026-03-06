@@ -1124,8 +1124,16 @@ test "union_member_access" {
         os.path.join(CHECKER_FIXTURES, "checker_union_member_access.jac")
     );
     TypeCheckPass(ir_in=mod, prog=program);
-    # TODO: test_union_uncommon_member should error when attribute errors are enabled
-    assert len(program.errors_had) == 0;
+    assert len(program.errors_had) == 1 , f"Expected 1 error, got {len(
+        program.errors_had
+    )}: " + "\n".join([err.pretty_print() for err in program.errors_had]);
+    assert_error_pretty_found(
+        """
+        return x.legs;  # <-- Error: Bird doesn't have .legs
+                 ^^^^
+    """,
+        program.errors_had[0].pretty_print()
+    );
 }
 
 test "list_indexing" {
