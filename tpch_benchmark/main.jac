@@ -3,13 +3,22 @@
 Usage:
     jac run main.jac
 
-This will load all TPC-H .tbl files from the sibling tpch/ directory
-and build the full graph with nodes and edges.
+This will load all TPC-H .tbl files from the sibling tpch/ directory,
+build the full graph, and demonstrate running query walkers.
+
+Graph hierarchy:
+    root -> Region -> Nation -> Supplier -> PartSupp
+                             -> Customer -> Order -> LineItem -> PartSupp
+    root -> Part -> PartSupp
+
+Walkers Q1–Q22 implement the 22 TPC-H queries.
+All spawn on root and report results.
 """
 
 import os;
 
 include loader;
+include queries;
 
 with entry {
     # Resolve path to tpch/ data directory (sibling of this project)
@@ -23,5 +32,8 @@ with entry {
         print(f"TPC-H data directory: {os.path.abspath(data_dir)}");
         print("Starting graph construction...\n");
         load_tpch_graph(data_dir);
+        print("\nGraph loaded. You can now spawn walkers, e.g.:");
+        print("  result = root spawn Q1_PricingSummary();");
+        print("  result = root spawn Q6_ForecastingRevenue();");
     }
 }
