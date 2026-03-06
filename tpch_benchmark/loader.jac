@@ -6,6 +6,7 @@ key relationship.
 """
 
 import os;
+import time;
 
 include models;
 
@@ -44,6 +45,8 @@ The loader builds lookup dicts keyed by primary key so that edges
 (foreign key relationships) can be wired up efficiently.
 """
 def load_tpch_graph(data_dir: str) -> None {
+    total_start = time.time();
+
     # ── Lookup tables (primary key -> node reference) ──
     region_map: dict = {};
     nation_map: dict = {};
@@ -55,9 +58,10 @@ def load_tpch_graph(data_dir: str) -> None {
     partsupp_map: dict = {};
 
     # ────────────────────────────────────────────
-    #  1. Load REGION
+    #  1. Load REGION (5 rows)
     # ────────────────────────────────────────────
-    print("Loading regions...");
+    t0 = time.time();
+    print("[1/8] Loading regions...", flush=True);
     for row in read_tbl(tbl_path(data_dir, "region.tbl")) {
         n = root ++> Region(
             r_regionkey=int(row[0]),
@@ -66,12 +70,13 @@ def load_tpch_graph(data_dir: str) -> None {
         );
         region_map[int(row[0])] = n[0];
     }
-    print(f"  Loaded {len(region_map)} regions");
+    print(f"  ✓ {len(region_map)} regions ({time.time() - t0:.1f}s)", flush=True);
 
     # ────────────────────────────────────────────
-    #  2. Load NATION  (FK: N_REGIONKEY -> REGION)
+    #  2. Load NATION (25 rows, FK: N_REGIONKEY -> REGION)
     # ────────────────────────────────────────────
-    print("Loading nations...");
+    t0 = time.time();
+    print("[2/8] Loading nations...", flush=True);
     for row in read_tbl(tbl_path(data_dir, "nation.tbl")) {
         n = root ++> Nation(
             n_nationkey=int(row[0]),
@@ -85,13 +90,17 @@ def load_tpch_graph(data_dir: str) -> None {
             region_map[regionkey] +>: region_has_nation() :+> n[0];
         }
     }
-    print(f"  Loaded {len(nation_map)} nations");
+    print(f"  ✓ {len(nation_map)} nations ({time.time() - t0:.1f}s)", flush=True);
 
     # ────────────────────────────────────────────
-    #  3. Load PART
+    #  3. Load PART (20,000 rows)
     # ────────────────────────────────────────────
-    print("Loading parts...");
-    for row in read_tbl(tbl_path(data_dir, "part.tbl")) {
+    t0 = time.time();
+    rows = read_tbl(tbl_path(data_dir, "part.tbl"));
+    total = len(rows);
+    print(f"[3/8] Loading parts (0/{total})...", flush=True);
+    count = 0;
+    for row in rows {
         n = root ++> Part(
             p_partkey=int(row[0]),
             p_name=row[1].strip(),
@@ -104,13 +113,20 @@ def load_tpch_graph(data_dir: str) -> None {
             p_comment=row[8].strip()
         );
         part_map[int(row[0])] = n[0];
+        count += 1;
+        if count % 10000 == 0 {
+            elapsed = time.time() - t0;
+            rate = count / elapsed if elapsed > 0 else 0;
+            print(f"  ... {count}/{total} ({rate:.0f} rows/s)", flush=True);
+        }
     }
-    print(f"  Loaded {len(part_map)} parts");
+    print(f"  ✓ {len(part_map)} parts ({time.time() - t0:.1f}s)", flush=True);
 
     # ────────────────────────────────────────────
-    #  4. Load SUPPLIER  (FK: S_NATIONKEY -> NATION)
+    #  4. Load SUPPLIER (1,000 rows, FK: S_NATIONKEY -> NATION)
     # ────────────────────────────────────────────
-    print("Loading suppliers...");
+    t0 = time.time();
+    print("[4/8] Loading suppliers...", flush=True);
     for row in read_tbl(tbl_path(data_dir, "supplier.tbl")) {
         n = root ++> Supplier(
             s_suppkey=int(row[0]),
@@ -127,13 +143,17 @@ def load_tpch_graph(data_dir: str) -> None {
             nation_map[nationkey] +>: nation_has_supplier() :+> n[0];
         }
     }
-    print(f"  Loaded {len(supplier_map)} suppliers");
+    print(f"  ✓ {len(supplier_map)} suppliers ({time.time() - t0:.1f}s)", flush=True);
 
     # ────────────────────────────────────────────
-    #  5. Load CUSTOMER  (FK: C_NATIONKEY -> NATION)
+    #  5. Load CUSTOMER (15,000 rows, FK: C_NATIONKEY -> NATION)
     # ────────────────────────────────────────────
-    print("Loading customers...");
-    for row in read_tbl(tbl_path(data_dir, "customer.tbl")) {
+    t0 = time.time();
+    rows = read_tbl(tbl_path(data_dir, "customer.tbl"));
+    total = len(rows);
+    print(f"[5/8] Loading customers (0/{total})...", flush=True);
+    count = 0;
+    for row in rows {
         n = root ++> Customer(
             c_custkey=int(row[0]),
             c_name=row[1].strip(),
@@ -149,15 +169,24 @@ def load_tpch_graph(data_dir: str) -> None {
         if nationkey in nation_map {
             nation_map[nationkey] +>: nation_has_customer() :+> n[0];
         }
+        count += 1;
+        if count % 10000 == 0 {
+            elapsed = time.time() - t0;
+            rate = count / elapsed if elapsed > 0 else 0;
+            print(f"  ... {count}/{total} ({rate:.0f} rows/s)", flush=True);
+        }
     }
-    print(f"  Loaded {len(customer_map)} customers");
+    print(f"  ✓ {len(customer_map)} customers ({time.time() - t0:.1f}s)", flush=True);
 
     # ────────────────────────────────────────────
-    #  6. Load PARTSUPP  (FK: PS_PARTKEY -> PART, PS_SUPPKEY -> SUPPLIER)
+    #  6. Load PARTSUPP (80,000 rows, FK: PS_PARTKEY -> PART, PS_SUPPKEY -> SUPPLIER)
     # ────────────────────────────────────────────
-    print("Loading partsupp...");
+    t0 = time.time();
+    rows = read_tbl(tbl_path(data_dir, "partsupp.tbl"));
+    total = len(rows);
+    print(f"[6/8] Loading partsupp (0/{total})...", flush=True);
     ps_count = 0;
-    for row in read_tbl(tbl_path(data_dir, "partsupp.tbl")) {
+    for row in rows {
         partkey = int(row[0]);
         suppkey = int(row[1]);
         n = root ++> PartSupp(
@@ -178,14 +207,24 @@ def load_tpch_graph(data_dir: str) -> None {
         if suppkey in supplier_map {
             supplier_map[suppkey] +>: supplier_supplies() :+> n[0];
         }
+        if ps_count % 10000 == 0 {
+            elapsed = time.time() - t0;
+            rate = ps_count / elapsed if elapsed > 0 else 0;
+            eta = (total - ps_count) / rate if rate > 0 else 0;
+            print(f"  ... {ps_count}/{total} ({rate:.0f} rows/s, ETA {eta:.0f}s)", flush=True);
+        }
     }
-    print(f"  Loaded {ps_count} partsupp records");
+    print(f"  ✓ {ps_count} partsupp records ({time.time() - t0:.1f}s)", flush=True);
 
     # ────────────────────────────────────────────
-    #  7. Load ORDERS  (FK: O_CUSTKEY -> CUSTOMER)
+    #  7. Load ORDERS (150,000 rows, FK: O_CUSTKEY -> CUSTOMER)
     # ────────────────────────────────────────────
-    print("Loading orders...");
-    for row in read_tbl(tbl_path(data_dir, "orders.tbl")) {
+    t0 = time.time();
+    rows = read_tbl(tbl_path(data_dir, "orders.tbl"));
+    total = len(rows);
+    print(f"[7/8] Loading orders (0/{total})...", flush=True);
+    count = 0;
+    for row in rows {
         n = root ++> Order(
             o_orderkey=int(row[0]),
             o_custkey=int(row[1]),
@@ -203,16 +242,26 @@ def load_tpch_graph(data_dir: str) -> None {
         if custkey in customer_map {
             customer_map[custkey] +>: customer_ordered() :+> n[0];
         }
+        count += 1;
+        if count % 10000 == 0 {
+            elapsed = time.time() - t0;
+            rate = count / elapsed if elapsed > 0 else 0;
+            eta = (total - count) / rate if rate > 0 else 0;
+            print(f"  ... {count}/{total} ({rate:.0f} rows/s, ETA {eta:.0f}s)", flush=True);
+        }
     }
-    print(f"  Loaded {len(order_map)} orders");
+    print(f"  ✓ {len(order_map)} orders ({time.time() - t0:.1f}s)", flush=True);
 
     # ────────────────────────────────────────────
-    #  8. Load LINEITEM  (FK: L_ORDERKEY -> ORDERS,
-    #                      L_PARTKEY+L_SUPPKEY -> PARTSUPP)
+    #  8. Load LINEITEM (600,572 rows, FK: L_ORDERKEY -> ORDERS,
+    #                     L_PARTKEY+L_SUPPKEY -> PARTSUPP)
     # ────────────────────────────────────────────
-    print("Loading lineitems...");
+    t0 = time.time();
+    rows = read_tbl(tbl_path(data_dir, "lineitem.tbl"));
+    total = len(rows);
+    print(f"[8/8] Loading lineitems (0/{total})...", flush=True);
     li_count = 0;
-    for row in read_tbl(tbl_path(data_dir, "lineitem.tbl")) {
+    for row in rows {
         orderkey = int(row[0]);
         partkey = int(row[1]);
         suppkey = int(row[2]);
@@ -244,9 +293,20 @@ def load_tpch_graph(data_dir: str) -> None {
         if composite_key in partsupp_map {
             n[0] +>: lineitem_partsupp() :+> partsupp_map[composite_key];
         }
+        if li_count % 10000 == 0 {
+            elapsed = time.time() - t0;
+            rate = li_count / elapsed if elapsed > 0 else 0;
+            eta = (total - li_count) / rate if rate > 0 else 0;
+            print(f"  ... {li_count}/{total} ({rate:.0f} rows/s, ETA {eta:.0f}s)", flush=True);
+        }
     }
-    print(f"  Loaded {li_count} lineitems");
+    print(f"  ✓ {li_count} lineitems ({time.time() - t0:.1f}s)", flush=True);
 
-    print("\nTPC-H graph construction complete!");
-    print(f"  Total nodes: {len(region_map) + len(nation_map) + len(part_map) + len(supplier_map) + len(customer_map) + ps_count + len(order_map) + li_count}");
+    total_elapsed = time.time() - total_start;
+    total_nodes = len(region_map) + len(nation_map) + len(part_map) + len(supplier_map) + len(customer_map) + ps_count + len(order_map) + li_count;
+    print(f"\n{'='*50}", flush=True);
+    print(f"TPC-H graph construction complete!", flush=True);
+    print(f"  Total nodes: {total_nodes:,}", flush=True);
+    print(f"  Total time:  {total_elapsed:.1f}s ({total_nodes / total_elapsed:.0f} nodes/s)", flush=True);
+    print(f"{'='*50}", flush=True);
 }
