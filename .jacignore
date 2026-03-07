@@ -448,3 +448,4 @@ serve.static.impl.jac
 db.impl.jac
 utility_factory.jac
 kubernetes_target.jac
+test_micro_suite.jac
