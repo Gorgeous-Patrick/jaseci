@@ -141,6 +141,7 @@ class JacNode {
     """Get set of nodes connected to this node."""
     static def edges_to_nodes(
         origin: list[NodeArchetype], destination: ObjectSpatialDestination
+<<<<<<< HEAD
     ) -> list[NodeArchetype];
 
     """Remove reference without checking sync status."""
