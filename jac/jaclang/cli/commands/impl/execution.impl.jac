@@ -183,7 +183,7 @@ impl run(
     } except Exception as e {
         if Jac.program.errors_had {
             for error in Jac.program.errors_had {
-                console.error(error.pretty_print(colors=True));
+                console.error(error.pretty_print());
             }
         } else {
             import from jaclang.jac0core.helpers { dump_traceback }
@@ -283,7 +283,7 @@ impl start(
         Jac.jac_import(target=mod, base_path=base, lng=lng);
         if Jac.program.errors_had {
             for error in Jac.program.errors_had {
-                console.error(error.pretty_print(colors=True));
+                console.error(error.pretty_print());
             }
             mach.close();
             return 1;
@@ -291,7 +291,7 @@ impl start(
     } except Exception as e {
         if Jac.program.errors_had {
             for error in Jac.program.errors_had {
-                console.error(error.pretty_print(colors=True));
+                console.error(error.pretty_print());
             }
         } else {
             import from jaclang.jac0core.helpers { dump_traceback }

@@ -10,6 +10,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Stdlib Protocol Detection**: Added Pyright-style `ModuleSourceFlags` for production-grade stdlib type detection. Protocol types like `_SupportsFloor` and `_SupportsTrunc` are now properly recognized, enabling `math.floor(3.7)` and `math.trunc(4.9)` to type-check correctly.
 
 - **Fix: `jac format --lintfix` File Deletion on Parse Errors**: Fixed a critical bug where `jac format --lintfix` would completely wipe out file contents when encountering parse errors. The formatter now preserves the original file when parse/lex errors are present, while still allowing files with type errors (but valid syntax) to be formatted normally. Added a safety check in `format_single_file()` that prevents writing empty formatted output to disk.
+- **Fix: Raw ANSI Codes in Error Output**: Fixed `[0;31m` escape fragments appearing as literal text in terminal error messages. `pretty_print(colors=True)` was injecting raw ANSI codes that conflicted with the Rich-based console from jac-super. Error formatting now delegates all styling to the console layer.
 
 ## jaclang 0.12.0 (Latest Release)
 
