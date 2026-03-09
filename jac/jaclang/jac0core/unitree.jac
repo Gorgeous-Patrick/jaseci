@@ -730,6 +730,9 @@ obj ModuleItem(UniNode) {
     """Get relevant module path."""
     @property
     def from_mod_path -> ModulePath;
+
+    """Resolve path of this item (e.g., 'ir' -> llvmlite/ir/__init__.py)."""
+    def resolve_relative_path -> str;
 }
 
 """ObjectArch node type for Jac Ast."""

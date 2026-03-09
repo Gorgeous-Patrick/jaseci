@@ -264,7 +264,7 @@ impl UnparsePass.exit_import(nd: uni.Import) -> None {
 
 """ModulePath."""
 impl UnparsePass.exit_module_path(nd: uni.ModulePath) -> None {
-    path = ".".join([p.gen.jac for p in nd.path]);
+    path = ".".join([p.gen.jac for p in nd.path] if nd.path else []);
     if nd.alias {
         path = path + " as " + nd.alias.gen.jac;
     }

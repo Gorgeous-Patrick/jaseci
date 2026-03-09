@@ -404,7 +404,7 @@ impl UniScopeNode.lookup(
     );
     if (impl_def and impl_def.decl_link and impl_def.decl_link.sym_tab) {
         return impl_def.decl_link.sym_tab.lookup(
-            name, deep=True, incl_inner_scope=True
+            name, deep=True, incl_inner_scope=False
         );
     }
     return None;
@@ -1180,6 +1180,18 @@ impl ModuleItem.from_mod_path -> ModulePath {
         raise ValueError('Module items should have module path. Not Possible.');
     }
     return self.from_parent.from_loc;
+}
+
+"""Resolve the absolute path for this specific module item."""
+impl ModuleItem.resolve_relative_path -> str {
+    # Get the item name (handles both Name and Token types)
+    item_name = self.name.value if isinstance(self.name, Name) else None;
+    # For star imports (*) or default imports, just return parent module path
+    if item_name is None {
+        return self.from_mod_path.resolve_relative_path();
+    }
+    # Resolve: parent_module.item_name (e.g., llvmlite.ir)
+    return self.from_mod_path.resolve_relative_path(target_item=item_name);
 }
 
 impl Archetype.postinit -> None {

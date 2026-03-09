@@ -1947,3 +1947,16 @@ test "module_level_overload" {
         """Cannot assign <class float> to <class int>""", user_errors[0].pretty_print()
     );
 }
+
+"""Verifies two import resolution fixes:
+- MyClass: arrived via star re-export chain fix (modresolver local-first for relative imports)
+- subpkg: resolved as ModuleType fix (subpackage __init__.py treated correctly)
+"""
+test "py_pkg_imports" {
+    program = JacProgram();
+    mod = program.compile(os.path.join(CHECKER_FIXTURES, "checker_py_pkg_imports.jac"));
+    TypeCheckPass(ir_in=mod, prog=program);
+    assert len(program.errors_had) == 0;
+    assert mod.sym_tab.lookup("MyClass") is not None , "MyClass not in sym_tab - star re-export chain broken";
+    assert mod.sym_tab.lookup("subpkg") is not None , "subpkg not in sym_tab - subpackage resolution broken";
+}
