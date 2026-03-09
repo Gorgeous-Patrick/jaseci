@@ -19,6 +19,7 @@ This document provides a summary of new features, improvements, and bug fixes in
 - **Style: Remove Bold from CLI Console Output**: Removed bold styling from all console output methods (success, error, warning, info, headers, tables, etc.) in the base jacpretty console, keeping only color.
 - **Fix: Raw ANSI Codes in Error Output**: Fixed `[0;31m` escape fragments appearing as literal text in terminal error messages. `pretty_print(colors=True)` was injecting raw ANSI codes that conflicted with the Rich-based console from jac-super. Error formatting now delegates all styling to the console layer.
 - **Native: Function Pointer Support for C FFI Callbacks**: Jac `def` functions can now be passed as raw function pointers to C library calls in native code, enabling callback-based C APIs (e.g. libuv timers, async I/O) to be driven directly from Jac.
+- **Fix: jacpretty Crash on Hex-like Patterns**: Fixed `ValueError` crash when `render_markup` encounters strings like `#2000"}` in JSON data. Added input validation for `rgb()`, `color()`, and hex color parsing.
 
 ## jaclang 0.12.0 (Latest Release)
 
