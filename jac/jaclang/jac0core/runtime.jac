@@ -52,12 +52,6 @@ import from jaclang.jac0core.modresolver { infer_language }
 import from jaclang.jac0core.mtp { MTIR, Info, MTRuntime }
 import from jaclang.jac0core { plugin }
 
-glob _JAC_INDEX_DEGREE_THRESHOLD: int = int(
-    os.environ.get('JAC_INDEX_DEGREE_THRESHOLD', '10')
-);
-glob _JAC_INDEX_ENABLED: bool = os.environ.get(
-    'JAC_INDEX_ENABLED', 'true'
-).lower() not in ('0', 'false', 'no');
 
 with entry {
     if TYPE_CHECKING {
