@@ -1,0 +1,97 @@
+import random;
+import os;
+import json;
+import time;
+import from util { append_to_json_list }
+
+node Profile {
+    has id: int;
+}
+
+node Tweet {
+    has id: int;
+}
+
+edge Follow {}
+edge Post {}
+
+walker LoadFeed {
+    has visiting_neighbors: bool = False;
+    has visited: int = 0;
+
+    can load with Profile entry {
+        self.visited += 1;
+        if (self.visited >= 100) {
+            return;
+        }
+        if (not self.visiting_neighbors) {
+            self.visiting_neighbors = True;
+            visit [->:Post:->];
+            visit [->:Follow:->];
+        } else {
+            visit [->:Post:->];
+        }
+    }
+
+    can calc with Tweet entry {
+        self.visited += 1;
+        if (self.visited >= 100) {
+            return;
+        }
+        # print(here.id);
+    }
+}
+
+with entry {
+    random.seed(0);
+    nodes = [];
+    NODE_NUM = int(os.environ.get("JAC_NODE_NUM"));
+    EDGE_NUM = int(os.environ.get("JAC_EDGE_NUM"));
+    if (EDGE_NUM is None) {
+        exit(1);
+    }
+    TWEET_NUM = int(os.environ.get("JAC_TWEET_NUM"));
+    for i in range(NODE_NUM) {
+        nodes.append(Profile(id=i));
+        root +>: Post :+> nodes[i];
+        for j in range(TWEET_NUM) {
+            nodes[i] +>: Post :+> Tweet(id=NODE_NUM + TWEET_NUM * i + j);
+        }
+    }
+
+    available_edges = set();
+
+    for i in range(NODE_NUM) {
+        for j in range(NODE_NUM) {
+            if (i == j) {
+                continue;
+            }
+            available_edges.add((i, j));
+        }
+    }
+
+    for i in range(EDGE_NUM) {
+        (src, dst) = random.choice(list(available_edges));
+        nodes[src] +>: Follow :+> nodes[dst];
+        available_edges.remove((src, dst));
+    }
+    ttg_list = [];
+
+    t_start = time.time();
+    for i in range(NODE_NUM) {
+        wlk = LoadFeed();
+        wlk = wlk spawn nodes[i];
+    }
+    t_end = time.time();
+    prefetch_enabled = int(os.environ.get("JAC_PREFETCH", "0"));
+    append_to_json_list(
+        "cache_stats.json",
+        {
+            "JAC_NODE_NUM": NODE_NUM,
+            "JAC_EDGE_NUM": EDGE_NUM,
+            "JAC_TWEET_NUM": TWEET_NUM,
+            "walker_time_sec": round(t_end - t_start, 4),
+            "jac_prefetch": prefetch_enabled,
+        }
+    );
+}
