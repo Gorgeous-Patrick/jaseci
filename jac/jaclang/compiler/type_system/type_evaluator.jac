@@ -70,7 +70,8 @@ obj PrefetchedTypes {
         walker_class: TypeBase | None = None,
         jsx_element_class: TypeBase | None = None,
         # Prefetched enum base class
-        enum_class: TypeBase | None = None;
+        enum_class: TypeBase | None = None,
+        set_class: TypeBase | None = None;
 }
 
 """Represents a single entry in the symbol resolution stack."""
@@ -117,6 +118,7 @@ obj TypeEvaluator {
     def _try_read_jir_cache(resolved_path: str) -> (uni.Module | None);
     def _resolve_from_path(from_mod: uni.ModulePath) -> Path;
     def _is_fstring_all_literal(fstring: uni.FString) -> bool;
+    def _try_resolve_forward_ref(expr: uni.String) -> TypeBase | None;
     def get_type_of_module(node_: uni.ModulePath) -> types.TypeBase;
     def get_type_of_module_item(node_: uni.ModuleItem) -> types.TypeBase;
     def _extract_type_params(node_: uni.Archetype) -> list[types.TypeVarType];
@@ -129,6 +131,8 @@ obj TypeEvaluator {
     def get_type_of_expression(node_: uni.Expr) -> TypeBase;
     # Check if a type is Any, object, Unknown, or TypeVar.
     def is_any_type(ty: TypeBase) -> bool;
+    # Check if a type is the TypeVar class itself (the callable used to create TypeVars).
+    def is_typevar_class(ty: TypeBase) -> bool;
     # Comments from pyright:
     # // Determines if the source type can be assigned to the dest type.
     # // If constraint are provided, type variables within the destType are
@@ -184,6 +188,8 @@ obj TypeEvaluator {
     def _get_type_of_super(node_: uni.SpecialVarRef) -> TypeBase;
     def _get_type_of_root(node_: uni.SpecialVarRef) -> TypeBase;
     def _convert_to_instance(jtype: TypeBase) -> TypeBase;
+    def _type_in_list(ty: TypeBase, type_list: list[TypeBase]) -> bool;
+    def _collect_unique_types(ty: TypeBase, result: list[TypeBase]) -> None;
     # --- Special form handling (Callable, Union, etc.) ---
     # Returns the prefetched special form type if the name AND type match.
     # Verifies both name and that type is _SpecialForm to avoid conflicts
@@ -239,6 +245,15 @@ obj TypeEvaluator {
     def _get_method_with_overloads(
         method_member: Any, caller_type: types.ClassType
     ) -> TypeBase;
+
+    # -------------------------------------------------------------------------
+    # TypeVar scope validation (Pyright: validateTypeVarUsage)
+    # -------------------------------------------------------------------------
+    def validate_typevar_in_type_expr(expr: uni.Expr) -> None;
+    def validate_typevar_scope(expr: uni.Expr, type_var: types.TypeVarType) -> None;
+    def _get_enclosing_class_type_params(node_: uni.UniNode) -> list[types.TypeVarType];
+    def _get_function_type_params(func: uni.Ability) -> list[types.TypeVarType];
+    def _get_outer_scope_type_params(node_: uni.UniNode) -> list[types.TypeVarType];
     # -------------------------------------------------------------------------
     # Type narrowing support
     #

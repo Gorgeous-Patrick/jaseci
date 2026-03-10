@@ -19,13 +19,13 @@ impl _find_available_port(start_port: int, max_retries: int = PORT_RETRY_LIMIT) 
             or "Address already in use" in str(e) {
                 current_port += 1;
             } else {
-                raise ;
+                raise;
             }
         }
     }
     raise OSError(
         f"Could not find an available port after trying {start_port}-{current_port}"
-    ) ;
+    );
 }
 
 """Get local network IP addresses (non-localhost)."""
@@ -127,7 +127,7 @@ impl JacAPIServerCore.postinit -> None {
                     metrics_collector.record_request(
                         request.method, request.url.path, 500, duration
                     );
-                    raise ;
+                    raise;
                 } finally {
                     metrics_collector.request_finished();
                 }
@@ -236,7 +236,7 @@ impl JacAPIServerCore.start(
     }
     self.register_root_asset_endpoint();
     self._configure_openapi_security();
-    self.user_manager.create_user('__guest__', '__no_password__');
+    self.user_manager.create_user(Con.GUEST.value, '__no_password__');
     # Find an available port (may differ from requested if port is in use)
     original_port = self.port;
     self.port = _find_available_port(self.port);

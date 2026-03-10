@@ -115,7 +115,7 @@ def get_minimal_desktop_jac -> str {
 
 """Get minimal jac.toml content for desktop testing."""
 def get_minimal_jac_toml(name: str = "test-desktop-app") -> str {
-    return f'[project]\nname = "{name}"\nversion = "1.0.0"\ndescription = "Desktop test app"\nentry-point = "main.jac"\n\n[dependencies.npm]\njac-client-node = "1.0.4"\n\n[dependencies.npm.dev]\n"@jac-client/dev-deps" = "1.0.0"\n\n[serve]\nbase_route_app = "app"\n';
+    return f'[project]\nname = "{name}"\nversion = "1.0.0"\ndescription = "Desktop test app"\nentry-point = "main.jac"\n\n[dependencies.npm]\njac-client-node = "1.0.7"\n\n[dependencies.npm.dev]\n"@jac-client/dev-deps" = "1.0.0"\n\n[serve]\nbase_route_app = "app"\n';
 }
 
 # =============================================================================
@@ -490,7 +490,7 @@ test "sidecar module runs directly" {
                         f"STDERR:\n{stderr.decode()}"
                     );
                 }
-                raise ;
+                raise;
             }
 
             print(f"[DEBUG] Sidecar is accepting connections on port {port}");
@@ -695,7 +695,7 @@ test "desktop dev mode starts" {
                         f"Desktop dev process exited early (code {dev_process.returncode})"
                     );
                 }
-                raise ;
+                raise;
             }
 
             # Give Tauri a moment to initialize

@@ -11,10 +11,10 @@ impl interpolate_env_vars(value: str) -> str {
     }
     # Pattern to match ${VAR}, ${VAR:-default}, ${VAR:?error}
     pattern = r"\$\{([^}:]+)(?:(:[-?])([^}]*))?\}";
-    def replace_env_var(match: re.Match) -> str {
-        var_name = match.group(1);
-        operator = match.group(2);
-        operand = match.group(3) or "";
+    def replace_env_var(`match: re.Match) -> str {
+        var_name = `match.group(1);
+        operator = `match.group(2);
+        operand = `match.group(3) or "";
 
         env_value = os.environ.get(var_name);
 
@@ -25,11 +25,9 @@ impl interpolate_env_vars(value: str) -> str {
         if operator == ":-" {
             return operand;
         } elif operator == ":?" {
-            raise ValueError(
-                f"Environment variable {var_name} is required: {operand}"
-            ) ;
+            raise ValueError(f"Environment variable {var_name} is required: {operand}");
         } else {
-            raise ValueError(f"Environment variable {var_name} is not set") ;
+            raise ValueError(f"Environment variable {var_name} is not set");
         }
     }
     return re.sub(pattern, replace_env_var, value);
@@ -112,7 +110,7 @@ impl JacConfig.discover(
 impl JacConfig.load(toml_path: Path) -> JacConfig {
     import tomllib;
     if not toml_path.exists() {
-        raise FileNotFoundError(f"Configuration file not found: {toml_path}") ;
+        raise FileNotFoundError(f"Configuration file not found: {toml_path}");
     }
     with open(toml_path, "rb") as f {
         data = tomllib.load(f);
@@ -164,9 +162,9 @@ impl JacConfig.apply_cli_overrides(args: dict[(str, Any)]) -> None {
 }
 
 """Deep merge two dicts: recursively merges nested dicts, overwrites scalars."""
-def _deep_merge(base: dict, override: dict) -> dict {
+def _deep_merge(base: dict, `override: dict) -> dict {
     result = base.copy();
-    for (key, value) in override.items() {
+    for (key, value) in `override.items() {
         if key in result
         and isinstance(result[key], dict)
         and isinstance(value, dict) {
@@ -490,7 +488,7 @@ impl JacConfig.is_valid -> bool {
 
 impl JacConfig.save -> None {
     if self.toml_path is None {
-        raise ValueError("No toml_path set, cannot save configuration") ;
+        raise ValueError("No toml_path set, cannot save configuration");
     }
     # Load existing data or start fresh
     if self.toml_path.exists() {
@@ -892,19 +890,19 @@ impl _parse_toml_data(data: dict[str, Any], toml_path: Path | None = None) -> Ja
     return config;
 }
 
-impl _interpolate_recursive(obj: Any) -> Any {
-    if isinstance(obj, str) {
+impl _interpolate_recursive(`obj: Any) -> Any {
+    if isinstance(`obj, str) {
         try {
-            return interpolate_env_vars(obj);
+            return interpolate_env_vars(`obj);
         } except ValueError {
-            return obj;
+            return `obj;
         }
-    } elif isinstance(obj, dict) {
-        return {k: _interpolate_recursive(v) for (k, v) in obj.items()};
-    } elif isinstance(obj, list) {
-        return [_interpolate_recursive(item) for item in obj];
+    } elif isinstance(`obj, dict) {
+        return {k: _interpolate_recursive(v) for (k, v) in `obj.items()};
+    } elif isinstance(`obj, list) {
+        return [_interpolate_recursive(item) for item in `obj];
     }
-    return obj;
+    return `obj;
 }
 
 # ===============================================================================

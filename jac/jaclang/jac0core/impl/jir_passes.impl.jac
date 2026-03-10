@@ -102,7 +102,7 @@ impl JirWriter._write_node(buf: bytearray, ir_node: UniNode) -> None {
     cls_name = type(ir_node).__name__;
     type_idx = NAME_TO_IDX.get(cls_name);
     if type_idx is None {
-        raise ValueError(f"Unknown node type: {cls_name}") ;
+        raise ValueError(f"Unknown node type: {cls_name}");
     }
 
     spec = IDX_TO_SPEC[type_idx];
@@ -363,9 +363,7 @@ impl JirWriter._count_symbols(module: Module) -> int {
 impl JirReader.read_module(data: bytes) -> (Module | None) {
     import from jaclang.jac0core.jir { HEADER_FMT, HEADER_SIZE, MAGIC, FORMAT_VERSION }
     try {
-        from
-        importlib.metadata
-        import version as _pkg_version;
+        import from importlib.metadata { version as _pkg_version }
         _current_jac_hash = zlib.crc32(_pkg_version('jaclang').encode()) & 0xFFFFFFFF;
     } except Exception {
         _current_jac_hash = 0;

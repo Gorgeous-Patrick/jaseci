@@ -1,7 +1,7 @@
 """Implementation for pyast_gen_pass constructs."""
 
 """Get the set of builtin names, cached after first successful access."""
-@ classmethod
+@classmethod
 impl PyastGenPass._get_builtin_names(cls: Any) -> set[str] {
     if (cls._builtin_names is None) {
         try {
@@ -46,9 +46,18 @@ impl PyastGenPass.enter_node(self: PyastGenPass, nd: uni.UniNode) -> None {
         isinstance(nd, uni.ClientBlock)
         or (
             isinstance(nd, uni.ContextAwareNode)
-            and (nd.code_context in (CodeContext.CLIENT, CodeContext.NATIVE))
+            and (nd.code_context == CodeContext.CLIENT)
             and ((nd.parent is None) or isinstance(nd.parent, uni.Module))
         )
+    ) {
+        self.prune();
+        return;
+    }
+    # Skip native C library imports — they have no Python equivalent
+    if (
+        isinstance(nd, uni.Import)
+        and nd.code_context == CodeContext.NATIVE
+        and (not nd.items)
     ) {
         self.prune();
         return;
@@ -67,8 +76,16 @@ impl PyastGenPass.exit_node(self: PyastGenPass, nd: uni.UniNode) -> None {
     }
     if (
         isinstance(nd, uni.ContextAwareNode)
-        and (nd.code_context in (CodeContext.CLIENT, CodeContext.NATIVE))
+        and (nd.code_context == CodeContext.CLIENT)
         and ((nd.parent is None) or isinstance(nd.parent, uni.Module))
+    ) {
+        return;
+    }
+    # Skip native C library imports — they have no Python equivalent
+    if (
+        isinstance(nd, uni.Import)
+        and nd.code_context == CodeContext.NATIVE
+        and (not nd.items)
     ) {
         return;
     }
@@ -381,7 +398,7 @@ impl PyastGenPass.resolve_switch_pattern(
             )
         );
     } else {
-        raise self.ice('Unsupported switch pattern type') ;
+        raise self.ice('Unsupported switch pattern type');
     }
 }
 
@@ -604,7 +621,7 @@ impl PyastGenPass.exit_global_vars(self: PyastGenPass, nd: uni.GlobalVars) -> No
         if isinstance(doc, ast3.AST) {
             nd.gen.py_ast = [doc] + assigns_ast;
         } else {
-            raise self.ice() ;
+            raise self.ice();
         }
     } else {
         nd.gen.py_ast = self._flatten_ast_list([a.gen.py_ast for a in nd.assignments]);
@@ -633,7 +650,11 @@ impl PyastGenPass.exit_test(self: PyastGenPass, nd: uni.Test) -> None {
                 cast(ast3.stmt, stmt)
                 for stmt in self.resolve_stmt_block(nd.body, doc=nd.doc)
             ],
-            decorator_list=[],
+            decorator_list=[
+                cast(ast3.expr, i.gen.py_ast[0]) for i in nd.decorators
+            ]
+                if nd.decorators
+                else [],
             returns=self.sync(ast3.Constant(value=None)),
             type_comment=None,
             type_params=[]
@@ -725,7 +746,7 @@ impl PyastGenPass.exit_py_inline_code(self: PyastGenPass, nd: uni.PyInlineCode) 
         if isinstance(doc, ast3.AST) {
             nd.gen.py_ast = self.pyinline_sync([doc, *ast3.parse(nd.code.value).body]);
         } else {
-            raise self.ice() ;
+            raise self.ice();
         }
     } else {
         nd.gen.py_ast = self.pyinline_sync(
@@ -758,7 +779,7 @@ impl PyastGenPass.exit_import(self: PyastGenPass, nd: uni.Import) -> None {
     if nd.is_absorb {
         source = nd.items[0];
         if not isinstance(source, uni.ModulePath) {
-            raise self.ice() ;
+            raise self.ice();
         }
         module_name_parts = [p.value for p in source.path] if source.path else [];
         module_name = '.'.join(module_name_parts) if module_name_parts else None;
@@ -1012,7 +1033,7 @@ impl PyastGenPass.gen_llm_body(self: PyastGenPass, nd: uni.Ability) -> list[ast3
     } elif isinstance(nd.body, uni.Expr) {
         model_expr = cast(ast3.expr, nd.body.gen.py_ast[0]);
     } else {
-        raise self.ice('gen_llm_body called without model expression') ;
+        raise self.ice('gen_llm_body called without model expression');
     }
     caller: ast3.expr;
     if nd.method_owner {
@@ -1136,6 +1157,12 @@ impl PyastGenPass.exit_ability(self: PyastGenPass, nd: uni.Ability) -> None {
             0, self.sync(ast3.Name(id='staticmethod', ctx=ast3.Load()))
         );
     }
+    if nd.is_classmethod {
+        # Only add @classmethod for `class def` syntax, not for existing @classmethod decorator
+        decorator_list.insert(
+            0, self.sync(ast3.Name(id='classmethod', ctx=ast3.Load()))
+        );
+    }
     if (not body and not isinstance(nd.body, uni.Expr)) {
         self.log_error('Ability has no body. Perhaps an impl must be imported.', nd);
         body = [self.sync(ast3.Pass(), nd)];
@@ -1193,15 +1220,24 @@ impl PyastGenPass.exit_func_signature(
     posonlyargs = [i.gen.py_ast[0] for i in nd.posonly_params];
     vararg = nd.varargs.gen.py_ast[0] if nd.varargs else None;
     kwarg = nd.kwargs.gen.py_ast[0] if nd.kwargs else None;
-    params = [self.sync(ast3.arg(arg='self', annotation=None))]
+    params = [self.sync(ast3.arg(arg='cls', annotation=None))]
         if (
             (abl := nd.parent)
             and isinstance(abl, uni.Ability)
             and abl.is_method
-            and not nd.is_static
+            and abl.is_classmethod
             and not nd.is_in_py_class
         )
-        else [];
+        else [self.sync(ast3.arg(arg='self', annotation=None))]
+            if (
+                (abl := nd.parent)
+                and isinstance(abl, uni.Ability)
+                and abl.is_method
+                and not nd.is_static
+                and not abl.is_cls_method
+                and not nd.is_in_py_class
+            )
+            else [];
     if posonlyargs {
         posonlyargs = params + posonlyargs;
         params = [cast(ast3.arg, i.gen.py_ast[0]) for i in nd.params];
@@ -1320,7 +1356,7 @@ impl PyastGenPass.exit_arch_has(self: PyastGenPass, nd: uni.ArchHas) -> None {
         if isinstance(doc, ast3.AST) {
             nd.gen.py_ast = [doc] + vars_py;
         } else {
-            raise self.ice() ;
+            raise self.ice();
         }
     } else {
         nd.gen.py_ast = vars_py;
@@ -1583,7 +1619,7 @@ impl PyastGenPass.exit_iter_for_stmt(self: PyastGenPass, nd: uni.IterForStmt) ->
     ) {
         body += [nd.count_by.gen.py_ast[0]];
     } else {
-        raise self.ice() ;
+        raise self.ice();
     }
     py_nodes.append(nd.iter.gen.py_ast[0]);
     py_nodes.append(
@@ -2185,7 +2221,7 @@ impl PyastGenPass.translate_jac_bin_op(
     self: PyastGenPass, nd: uni.BinaryExpr
 ) -> list[ast3.AST] {
     if isinstance(nd.op, (uni.DisconnectOp, uni.ConnectOp)) {
-        raise self.ice() ;
+        raise self.ice();
     } elif (nd.op.name in [Tok.PIPE_FWD, Tok.A_PIPE_FWD]) {
         func_node = uni.FuncCall(
             target=nd.right,
@@ -2428,7 +2464,7 @@ impl PyastGenPass.exit_multi_string(self: PyastGenPass, nd: uni.MultiString) -> 
             } elif (isinstance(i, uni.Token) and (i.name in [Tok.LBRACE, Tok.RBRACE])) {
                 continue;
             } else {
-                raise self.ice('Multi string made of something weird.') ;
+                raise self.ice('Multi string made of something weird.');
             }
         }
         return pieces;
@@ -3337,10 +3373,133 @@ impl PyastGenPass.exit_token(self: PyastGenPass, nd: uni.Token) -> None {
 
 impl PyastGenPass.exit_name(self: PyastGenPass, nd: uni.Name) -> None {
     name = nd.sym_name;
+    if name == "Self" {
+        resolved = self._resolve_self_type(nd);
+        if resolved is not None {
+            nd.gen.py_ast = [resolved];
+            return;
+        }
+    }
     if (name in self._get_builtin_names()) {
         self.builtin_imports.add(name);
     }
     nd.gen.py_ast = [self.sync(ast3.Name(id=name, ctx=nd.py_ctx_func()))];
+}
+
+"""Resolve Self to the appropriate Python construct based on context."""
+impl PyastGenPass._resolve_self_type(
+    self: PyastGenPass, nd: uni.Name
+) -> ast3.expr | None {
+    # Find enclosing archetype or enum
+    arch = nd.find_parent_of_type(uni.Archetype);
+    enum_parent = nd.find_parent_of_type(uni.Enum) if not arch else None;
+    enclosing = arch or enum_parent;
+    enclosing_name: str | None = None;
+    if enclosing {
+        enclosing_name = enclosing.name.sym_name if enclosing.name else None;
+    }
+    # For detached impl blocks (not nested inside archetype), get name from target
+    if not enclosing_name {
+        impl_def = nd.find_parent_of_type(uni.ImplDef);
+        if impl_def and impl_def.target and len(impl_def.target) > 0 {
+            enclosing_name = impl_def.target[0].sym_name
+                if isinstance(impl_def.target[0], uni.NameAtom)
+                else None;
+        }
+    }
+    if not enclosing_name {
+        return None;
+    }
+    # Check if we're in a type annotation context (return type, param type, has type)
+    if self._is_in_type_annotation(nd) {
+        return self.sync(ast3.Name(id=enclosing_name, ctx=ast3.Load()));
+    }
+    # Runtime usage: check if we're in a classmethod or instance method
+    ability = nd.find_parent_of_type(uni.Ability);
+    # Also check ImplDef — Self inside impl blocks should resolve via decl_link
+    impl_def = nd.find_parent_of_type(uni.ImplDef);
+    is_in_classmethod = False;
+    is_in_method = False;
+    if ability {
+        is_in_classmethod = ability.is_cls_method;
+        is_in_method = ability.is_method
+        and not ability.is_static
+        and not ability.is_cls_method;
+    } elif impl_def
+    and impl_def.decl_link
+    and isinstance(impl_def.decl_link, uni.Ability) {
+        is_in_classmethod = impl_def.decl_link.is_cls_method;
+        is_in_method = (
+            impl_def.decl_link.is_method
+            and not impl_def.decl_link.is_static
+            and not impl_def.decl_link.is_cls_method
+        );
+    }
+    if is_in_classmethod {
+        # In classmethod: Self -> cls
+        return self.sync(ast3.Name(id='cls', ctx=nd.py_ctx_func()));
+    }
+    if is_in_method {
+        # In instance method: Self -> type(self) for polymorphic behavior
+        return self.sync(
+            ast3.Call(
+                func=self.sync(ast3.Name(id='type', ctx=ast3.Load())),
+                args=[self.sync(ast3.Name(id='self', ctx=ast3.Load()))],
+                keywords=[]
+            )
+        );
+    }
+    # Fallback: use class name directly (e.g., in static methods or other contexts)
+    return self.sync(ast3.Name(id=enclosing_name, ctx=nd.py_ctx_func()));
+}
+
+"""Check if a node is in a type annotation context."""
+impl PyastGenPass._is_in_type_annotation(self: PyastGenPass, nd: uni.UniNode) -> bool {
+    parent = nd.parent;
+    while parent {
+        # Return type annotation
+        if isinstance(parent, uni.FuncSignature) {
+            # Check if nd is within the return_type subtree
+            if parent.return_type {
+                return self._is_descendant_of(nd, parent.return_type);
+            }
+        }
+        # Parameter type annotation
+        if isinstance(parent, uni.ParamVar) {
+            if parent.type_tag {
+                return True;
+            }
+        }
+        # Has field type annotation
+        if isinstance(parent, uni.HasVar) {
+            if parent.type_tag {
+                return True;
+            }
+        }
+        # SubTag (type tag wrapper)
+        if isinstance(parent, uni.SubTag) {
+            return True;
+        }
+        parent = parent.parent;
+    }
+    return False;
+}
+
+"""Check if a node is or is a descendant of another node."""
+impl PyastGenPass._is_descendant_of(
+    self: PyastGenPass, nd: uni.UniNode, ancestor: uni.UniNode
+) -> bool {
+    if nd is ancestor {
+        return True;
+    }
+    current = nd.parent;
+    while current {
+        if current is ancestor {
+            return True;
+        }
+        current = current.parent;
+    }
+    return False;
 }
 
 impl PyastGenPass.exit_float(self: PyastGenPass, nd: uni.Float) -> None {

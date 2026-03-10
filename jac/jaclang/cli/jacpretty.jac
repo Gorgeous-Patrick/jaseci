@@ -1,6 +1,13 @@
 """jacpretty - Lightweight colored terminal output for Jac CLI."""
 import os, re, sys;
 import from enum { IntEnum }
+import from random { randint }
+
+# MarkupError exception (Rich-compatible)
+obj MarkupError(Exception) {
+    """Markup was badly formatted."""
+    has message: str = "Markup error";
+}
 
 # ANSI color codes as IntEnum
 enum Color ( IntEnum ) {
@@ -70,75 +77,77 @@ glob COLORS: Dict[(str, int)] = {
          "r": "reverse",
          "s": "strike",
          "c": "conceal"
-     };
+     },
+     _console: Optional[Console] = None,
+     RE_MARKUP = re.compile(r"\[(/[a-z]*|#[0-9a-fA-F]{6}|[a-z@][^\[\]]*)\]"),
+     __all__ = [
+         "Console",
+         "Style",
+         "print",
+         "render_markup",
+         "get_console",
+         "MarkupError"
+     ];
 
-def _parse_color(color: str, bg: bool = False) -> Optional[Tuple[(str, ...)]] {
-    color = color.lower().strip();
-    base = 40 if bg else 30;
-    mode = "48" if bg else "38";
-    if (color in COLORS) {
-        n = COLORS[color];
-        return (str((base + n)) if (n < 8) else str(base + 52 + n), );
-    }
-    if (color.startswith("#") and (len(color) == 7)) {
-        return (
-            mode,
-            "2",
-            str(int(color[1:3], 16)),
-            str(int(color[3:5], 16)),
-            str(int(color[5:7], 16))
-        );
-    }
-    if (color.startswith("rgb(") and color.endswith(")")) {
-        p = color[4:-1].split(",");
-        return (mode, "2", p[0].strip(), p[1].strip(), p[2].strip())
-            if (len(p) == 3)
-            else None;
-    }
-    if (color.startswith("color(") and color.endswith(")")) {
-        return (mode, "5", color[6:-1]);
-    }
-    return None;
-}
+def _parse_color(color: str, bg: bool = False) -> Optional[Tuple[(str, ...)]];
 
-class Style {
-    with entry {
-        __slots__ = ["_def", "_codes"];
+def render_markup(markup: str, base_style: str = "", strict: bool = False) -> str;
+
+def get_console -> Console;
+
+def print(*objects: Any, **kwargs: Any) -> None;
+
+obj Style {
+    has _def: str,
+        _codes: Optional[str] = None,
+        _link: Optional[str] = None,
+        _link_id: str = "";
+
+    def init(definition: str = "", link: Optional[str] = None) -> object {
+        self._def = definition;
+        self._codes = None;
+        self._link = link;
+        self._link_id = str(randint(0, 999999)) if link else "";
     }
 
-    def init(self: Style, definition: str = "") -> object {
-        (self._def, self._codes) = (definition, None);
-    }
-
-    def __repr__(self: Style) -> object {
+    def __repr__ -> object {
         return f"Style({self._def!r})";
     }
 
-    def __bool__(self: Style) -> object {
-        return bool(self._def);
+    def __bool__ -> object {
+        return bool(self._def or self._link);
     }
 
-    def __add__(self: Style, other: "Style") -> "Style" {
+    def __add__(other: "Style") -> "Style" {
         return Style(f"{self._def} {other._def}")
             if (self and other)
             else (self or other);
     }
 
     @property
-    def codes(self: Style) -> str {
+    def codes -> str {
         if (self._codes is None) {
             self._codes = self._parse();
         }
         return self._codes;
     }
 
-    def _parse(self: Style) -> str {
+    def _parse -> str {
         if not self._def {
             return "";
         }
-        (codes, words, i) = ([], self._def.lower().split(), 0);
+        codes: list = [];
+        words = self._def.split();
+        i = 0;
         while (i < len(words)) {
-            w = words[i];
+            w = words[i].lower();
+            # Handle "link URL" syntax (Rich-compatible)
+            if ((w == "link") and ((i + 1) < len(words))) {
+                self._link = words[(i + 1)];  # Keep original case for URL
+                self._link_id = str(randint(0, 999999));
+                i += 2;
+                continue;
+            }
             if (
                 (w == "on")
                 and ((i + 1) < len(words))
@@ -161,8 +170,13 @@ class Style {
         return ";".join(codes);
     }
 
-    def render(self: Style, text: str) -> str {
-        return f"\x1b[{self.codes}m{text}\x1b[0m" if self.codes else text;
+    def render(text: str) -> str {
+        rendered = f"\x1b[{self.codes}m{text}\x1b[0m" if self.codes else text;
+        # Add OSC 8 hyperlink if link is set (Rich-compatible)
+        if (self._link) {
+            rendered = f"\x1b]8;id={self._link_id};{self._link}\x1b\\{rendered}\x1b]8;;\x1b\\";
+        }
+        return rendered;
     }
 
     @classmethod
@@ -171,33 +185,13 @@ class Style {
     }
 }
 
-glob RE_MARKUP = re.compile(r"\[(/)?([^\[\]]*)\]");
+obj Console {
+    has _file: Any,
+        _width: Optional[int],
+        _force_terminal: Optional[bool],
+        _no_color: bool;
 
-def render_markup(markup: str, base_style: str = "") -> str {
-    markup = markup.replace("\\[", "\x00").replace("\\]", "\x01");
-    (result, stack, pos) = ([], [base_style] if base_style else [], 0);
-    for m in RE_MARKUP.finditer(markup) {
-        if (m.start() > pos) {
-            txt = markup[pos:m.start()].replace("\x00", "[").replace("\x01", "]");
-            result.append(Style(" ".join(stack)).render(txt) if stack else txt);
-        }
-        if (m.group(1) and stack) {
-            stack.pop();
-        } elif m.group(2).strip() {
-            stack.append(m.group(2).strip());
-        }
-        pos = m.end();
-    }
-    if (pos < len(markup)) {
-        txt = markup[pos:].replace("\x00", "[").replace("\x01", "]");
-        result.append(Style(" ".join(stack)).render(txt) if stack else txt);
-    }
-    return "".join(result);
-}
-
-class Console {
     def init(
-        self: Console,
         *,
         file: Any = None,
         width: Optional[int] = None,
@@ -213,8 +207,8 @@ class Console {
     }
 
     @property
-    def width(self: Console) -> int {
-        if self._width {
+    def width -> int {
+        if (self._width is not None) {
             return self._width;
         }
         try {
@@ -225,7 +219,7 @@ class Console {
     }
 
     @property
-    def is_terminal(self: Console) -> bool {
+    def is_terminal -> bool {
         if (self._force_terminal is not None) {
             return self._force_terminal;
         }
@@ -237,7 +231,6 @@ class Console {
     }
 
     def print(
-        self: Console,
         *objects: Any,
         sep: str = " ",
         end: str = "\n",
@@ -260,9 +253,7 @@ class Console {
         }
     }
 
-    def rule(
-        self: Console, title: str = "", char: str = "─", style: str = "dim"
-    ) -> None {
+    def rule(title: str = "", char: str = "─", style: str = "dim") -> None {
         w = self.width;
         line = (char * ((w - len(title) - 2) // 2)) + f" {title} " + (
             char * ((w - len(title) - 1) // 2)
@@ -272,26 +263,10 @@ class Console {
         self.print(f"[{style}]{line}[/]" if style else line);
     }
 
-    def log(self: Console, *objects: Any, **kwargs: Any) -> None {
+    def log(*objects: Any, **kwargs: Any) -> None {
         import from datetime { datetime }
         self.print(
             f"[dim][{datetime.now().strftime('%H:%M:%S')}][/]", *objects, **kwargs
         );
     }
 }
-
-glob _console: Optional[Console] = None;
-
-def get_console -> Console {
-    global _console;
-    if (_console is None) {
-        _console = Console();
-    }
-    return _console;
-}
-
-def print(*objects: Any, **kwargs: Any) -> None {
-    get_console().print(*objects, **kwargs);
-}
-
-glob __all__ = ["Console", "Style", "print", "render_markup", "get_console"];

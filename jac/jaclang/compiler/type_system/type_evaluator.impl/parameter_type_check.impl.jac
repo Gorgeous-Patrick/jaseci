@@ -8,7 +8,6 @@ impl TypeEvaluator.validate_arg_types(
         if param is None or param.param_type is None {
             continue;
         }
-
         if isinstance(arg, uni.KWPair) {
             arg_type = self.get_type_of_expression(arg.value);
         } else {
@@ -95,14 +94,58 @@ impl TypeEvaluator.validate_call_args(expr: uni.FuncCall) -> TypeBase {
     }
     if isinstance(caller_type, types.ClassType)
     and caller_type.shared == (self.prefetch and self.prefetch.type_var_class.shared) {
-        # Extract the TypeVar name from the first argument: TypeVar('T')
+        # Pyright: createTypeVarType() - Extract TypeVar name and validate constraints
         type_var_name = "";
+        first_constraint_arg: uni.Expr | None = None;
+        constraint_count = 0;
+
+        # Helper to extract string literal value from String or MultiString
+        def _get_string_lit_value(arg: uni.Expr) -> str | None {
+            if isinstance(arg, uni.String) {
+                return arg.lit_value;
+            } elif isinstance(arg, uni.MultiString) and arg.strings {
+                if isinstance(arg.strings[0], uni.String) {
+                    return arg.strings[0].lit_value;
+                }
+            }
+            return None;
+        }
+
         if expr.params and len(expr.params) > 0 {
             first_arg = expr.params[0];
-            if isinstance(first_arg, uni.String) {
-                # Use lit_value to get the parsed string without quotes
-                type_var_name = first_arg.lit_value;
+            type_var_name = _get_string_lit_value(first_arg) or "";
+            if not type_var_name {
+                # Pyright: typeVarFirstArg
+                self.add_diagnostic(
+                    first_arg,
+                    "TypeVar() requires a string literal as the first argument"
+                );
             }
+
+            # Count positional constraint arguments (non-keyword args after the name)
+            for i in range(1, len(expr.params)) {
+                arg = expr.params[i];
+                if isinstance(arg, uni.KWPair) {
+                    continue;  # Skip named args like bound=, covariant=
+                }
+                constraint_count += 1;
+                if first_constraint_arg is None {
+                    first_constraint_arg = arg;
+                }
+            }
+
+            # Pyright: typeVarSingleConstraint
+            if constraint_count == 1 and first_constraint_arg {
+                self.add_diagnostic(
+                    first_constraint_arg,
+                    "TypeVar requires at least two constrained types"
+                );
+            }
+        } else {
+            # Pyright: typeVarFirstArg
+            self.add_diagnostic(
+                expr, "TypeVar() requires a string literal as the first argument"
+            );
         }
         return types.TypeVarType(name=type_var_name);
     }
@@ -308,6 +351,10 @@ impl TypeEvaluator._get_method_with_overloads(
 ) -> TypeBase {
     # Start with the base method as the first (and possibly only) signature.
     method_ty = self.get_type_of_symbol(method_member.symbol);
+    # Replace generic T with actual type for the base method too (e.g. T -> int for Foo[int]).
+    if isinstance(method_ty, types.FunctionType) {
+        method_ty = method_ty.specialize(caller_type);
+    }
     overloaded_fns: list[types.FunctionType] = [method_ty];
     for overload in method_member.overloads {
         overload_member_ty = self.get_type_of_symbol(overload);

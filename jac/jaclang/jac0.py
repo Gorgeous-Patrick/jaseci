@@ -425,6 +425,7 @@ class FuncDef:
     body: list = field(default_factory=list)
     decorators: list = field(default_factory=list)
     is_static: bool = False
+    is_classmethod: bool = False
     is_async: bool = False
 
 
@@ -533,6 +534,12 @@ class AssertStmt:
 class MatchStmt:
     subject: str = ""
     cases: list = field(default_factory=list)  # list of (pattern, body)
+
+
+@dataclass
+class SwitchStmt:
+    subject: str = ""
+    cases: list = field(default_factory=list)  # list of (pattern_or_None, body)
 
 
 @dataclass
@@ -1048,6 +1055,9 @@ class Parser:
             if v == "import":
                 return self._parse_import()
             if v in ("class", "obj", "node", "edge", "walker"):
+                # Disambiguate: class def/can = classmethod, class Name = archetype
+                if v == "class" and self._peek(1).value in ("def", "can", "async"):
+                    return self._parse_funcdef([])
                 return self._parse_class([])
             if v == "enum":
                 return self._parse_enum([])
@@ -1077,6 +1087,8 @@ class Parser:
                 return self._parse_with_stmt()
             if v == "match":
                 return self._parse_match()
+            if v == "switch":
+                return self._parse_switch()
             if v == "if":
                 return self._parse_if()
             if v == "for":
@@ -1270,14 +1282,19 @@ class Parser:
 
     def _parse_funcdef(self, decorators: list[str]) -> FuncDef:
         is_static = False
+        is_classmethod = False
         is_async = False
-        # Handle both orders: static async def / async static def
-        if self._match(TT.NAME, "static"):
+        # Handle modifiers: class/static async def / async class/static def
+        if self._match(TT.NAME, "class"):
+            is_classmethod = True
+        elif self._match(TT.NAME, "static"):
             is_static = True
         if self._match(TT.NAME, "async"):
             is_async = True
-        if not is_static and self._match(TT.NAME, "static"):
+        if not is_static and not is_classmethod and self._match(TT.NAME, "static"):
             is_static = True
+        if not is_classmethod and not is_static and self._match(TT.NAME, "class"):
+            is_classmethod = True
         # consume 'def' or 'can'
         self._advance()
         name = self._expect(TT.NAME).value
@@ -1310,6 +1327,7 @@ class Parser:
             body=body,
             decorators=decorators,
             is_static=is_static,
+            is_classmethod=is_classmethod,
             is_async=is_async,
         )
 
@@ -1532,6 +1550,48 @@ class Parser:
             cases.append((pattern, body))
         self._expect(TT.RBRACE)
         return MatchStmt(subject=subject, cases=cases)
+
+    def _parse_switch(self) -> SwitchStmt:
+        self._expect(TT.NAME, "switch")
+        subject = self._collect_until(TT.LBRACE)
+        self._expect(TT.LBRACE)
+        cases: list[tuple[str | None, list]] = []
+        while not self._at(TT.RBRACE) and not self._at(TT.EOF):
+            if self._match(TT.NAME, "default"):
+                self._expect(TT.COLON)
+                body: list = []
+                while (
+                    not self._at(TT.RBRACE)
+                    and not self._at(TT.EOF)
+                    and not (
+                        self._peek().type == TT.NAME
+                        and self._peek().value in ("case", "default")
+                    )
+                ):
+                    node = self._parse_item()
+                    if node is not None:
+                        body.append(node)
+                cases.append((None, body))
+            elif self._match(TT.NAME, "case"):
+                pattern = self._collect_until(TT.COLON)
+                self._expect(TT.COLON)
+                body = []
+                while (
+                    not self._at(TT.RBRACE)
+                    and not self._at(TT.EOF)
+                    and not (
+                        self._peek().type == TT.NAME
+                        and self._peek().value in ("case", "default")
+                    )
+                ):
+                    node = self._parse_item()
+                    if node is not None:
+                        body.append(node)
+                cases.append((pattern, body))
+            else:
+                break
+        self._expect(TT.RBRACE)
+        return SwitchStmt(subject=subject, cases=cases)
 
     def _parse_while(self) -> WhileStmt:
         self._expect(TT.NAME, "while")
@@ -1756,6 +1816,8 @@ class CodeGen:
             self._emit_try(node)
         elif isinstance(node, MatchStmt):
             self._emit_match(node)
+        elif isinstance(node, SwitchStmt):
+            self._emit_switch(node)
         elif isinstance(node, WithStmt):
             self._emit_with(node)
         elif isinstance(node, ReturnStmt):
@@ -1877,15 +1939,25 @@ class CodeGen:
     def _emit_func(self, node: FuncDef) -> None:
         for dec in node.decorators:
             self._line(f"@{dec}")
+        if node.is_classmethod:
+            self._line("@classmethod")
         if node.is_static:
             self._line("@staticmethod")
         _dunder_names = {"init": "__init__", "postinit": "__post_init__"}
         name = _dunder_names.get(node.name, node.name)
         func_params = list(node.params)
-        # Auto-add self for instance methods inside a class
+        # Auto-add cls for classmethods inside a class
         if (
             self._in_class
+            and node.is_classmethod
+            and (not func_params or func_params[0].name not in ("self", "cls"))
+        ):
+            func_params.insert(0, Param(name="cls"))
+        # Auto-add self for instance methods inside a class
+        elif (
+            self._in_class
             and not node.is_static
+            and not node.is_classmethod
             and (not func_params or func_params[0].name not in ("self", "cls"))
         ):
             func_params.insert(0, Param(name="self"))
@@ -2053,6 +2125,22 @@ class CodeGen:
             self.indent -= 1
         self.indent -= 1
 
+    def _emit_switch(self, node: SwitchStmt) -> None:
+        subject = self._strip_parens(node.subject)
+        first = True
+        for pattern, body in node.cases:
+            if pattern is None:
+                # default case
+                self._line("else:")
+            elif first:
+                self._line(f"if ({subject}) == ({pattern}):")
+                first = False
+            else:
+                self._line(f"elif ({subject}) == ({pattern}):")
+            self.indent += 1
+            self._emit_body(body)
+            self.indent -= 1
+
 
 # =============================================================================
 # Orchestrator
@@ -2066,22 +2154,53 @@ def discover_impl_files(jac_path: str) -> list[str]:
     dir_path = os.path.dirname(jac_path) or "."
     base_name = os.path.basename(base)
 
-    # Same directory: foo.impl.jac
+    # Detect variant suffix (.na, .sv, .cl) and compute bare base
+    bare_base = base
+    bare_base_name = base_name
+    variant = None
+    for vext in (".na", ".sv", ".cl"):
+        if base_name.endswith(vext):
+            variant = vext
+            bare_base_name = base_name[: -len(vext)]
+            bare_base = os.path.join(dir_path, bare_base_name)
+            break
+
+    # Same directory: foo.impl.jac (or foo.na.impl.jac for variants)
     impl_file = f"{base}.impl.jac"
     if os.path.isfile(impl_file):
         impls.append(impl_file)
 
-    # Module folder: foo.impl/*.impl.jac
+    # Module folder: foo.impl/*.impl.jac (or foo.na.impl/*.impl.jac)
     impl_dir = f"{base}.impl"
     if os.path.isdir(impl_dir):
         for f in sorted(os.listdir(impl_dir)):
             if f.endswith(".impl.jac"):
                 impls.append(os.path.join(impl_dir, f))
 
-    # Shared folder: impl/foo.impl.jac
+    # Shared folder: impl/foo.impl.jac (or impl/foo.na.impl.jac)
     shared_impl = os.path.join(dir_path, "impl", f"{base_name}.impl.jac")
     if os.path.isfile(shared_impl):
         impls.append(shared_impl)
+
+    # For variant files, also check bare impl files when no bare head exists
+    if variant is not None:
+        bare_head = f"{bare_base}.jac"
+        if not os.path.isfile(bare_head):
+            # Same directory: foo.impl.jac
+            bare_impl = f"{bare_base}.impl.jac"
+            if os.path.isfile(bare_impl) and bare_impl not in impls:
+                impls.append(bare_impl)
+            # Module folder: foo.impl/*.impl.jac
+            bare_impl_dir = f"{bare_base}.impl"
+            if os.path.isdir(bare_impl_dir):
+                for f in sorted(os.listdir(bare_impl_dir)):
+                    fp = os.path.join(bare_impl_dir, f)
+                    if f.endswith(".impl.jac") and fp not in impls:
+                        impls.append(fp)
+            # Shared folder: impl/foo.impl.jac
+            bare_shared = os.path.join(dir_path, "impl", f"{bare_base_name}.impl.jac")
+            if os.path.isfile(bare_shared) and bare_shared not in impls:
+                impls.append(bare_shared)
 
     return impls
 

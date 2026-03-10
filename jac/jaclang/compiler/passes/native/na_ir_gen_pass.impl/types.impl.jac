@@ -256,6 +256,23 @@ impl NaIRGenPass._resolve_jac_type(type_expr: (uni.UniNode | None)) -> ir.Type {
             }
         }
     }
+    # Handle Callable[[param_types], ret_type] → function pointer type.
+    # Callable[[i64, i64], i64] parses as AtomTrailer(Name('Callable'), IndexSlice(...)).
+    if isinstance(type_expr, uni.AtomTrailer) {
+        _kids = type_expr.kid or [];
+        if (
+            len(_kids) == 2
+            and isinstance(_kids[0], uni.Name)
+            and _kids[0].value == "Callable"
+            and isinstance(_kids[1], uni.IndexSlice)
+        ) {
+            return self._resolve_callable_type(_kids[1]);
+        }
+    }
+    # Handle FuncSignature → function pointer type
+    if isinstance(type_expr, uni.FuncSignature) {
+        return self._resolve_func_ptr_type(type_expr);
+    }
     # Try structured type
     if isinstance(type_expr, uni.Expr) and type_expr.type {
         type_str = str(type_expr.type);
@@ -264,6 +281,84 @@ impl NaIRGenPass._resolve_jac_type(type_expr: (uni.UniNode | None)) -> ir.Type {
         }
     }
     return ir.IntType(64);
+}
+
+"""Resolve a Callable[[param_types], ret_type] IndexSlice to a function pointer type.
+
+Expected AST structure:
+  IndexSlice
+    TupleVal
+      ListVal  ← parameter types (non-Token kids)
+      <ret_type_expr>  ← return type
+"""
+impl NaIRGenPass._resolve_callable_type(slice: uni.IndexSlice) -> ir.Type {
+    # Dig out the TupleVal inside the IndexSlice.
+    _tuple_val = None;
+    for _k in (slice.kid or []) {
+        if isinstance(_k, uni.TupleVal) {
+            _tuple_val = _k;
+            break;
+        }
+    }
+    if _tuple_val is None {
+        return ir.IntType(64).as_pointer();
+    }
+    # Filter out pure punctuation Token nodes (brackets, commas).
+    # Use isinstance(c, uni.Expr) because uni.Name is a Token subclass —
+    # filtering by "not Token" would eat Name nodes (the actual type names).
+    _non_tok = [
+        _c
+        for _c in (_tuple_val.kid or [])
+        if isinstance(_c, uni.Expr)
+    ];
+    if len(_non_tok) < 2 {
+        return ir.IntType(64).as_pointer();
+    }
+    _params_node = _non_tok[0];  # ListVal with parameter type names
+    _ret_node = _non_tok[1];  # return type expression
+    # Resolve return type.
+    _ret_type: ir.Type = self._resolve_jac_type(_ret_node);
+    # Resolve parameter types from the ListVal.
+    # Same filter: keep Expr nodes (Name is both Token and Expr).
+    _param_types: list[ir.Type] = [];
+    if isinstance(_params_node, uni.ListVal) {
+        for _p in (_params_node.kid or []) {
+            if isinstance(_p, uni.Expr) {
+                _param_types.append(self._resolve_jac_type(_p));
+            }
+        }
+    }
+    _fn_type = ir.FunctionType(_ret_type, _param_types);
+    return _fn_type.as_pointer();
+}
+
+"""Resolve a FuncSignature to an LLVM function pointer type.
+
+Builds ir.FunctionType from the signature's parameter and return types,
+then returns a pointer to that function type.
+"""
+impl NaIRGenPass._resolve_func_ptr_type(sig: uni.FuncSignature) -> ir.Type {
+    # Resolve return type
+    ret_type: ir.Type = ir.VoidType();
+    if sig.return_type is not None {
+        resolved_ret = self._resolve_jac_type(sig.return_type);
+        if not isinstance(resolved_ret, ir.VoidType) {
+            ret_type = resolved_ret;
+        }
+    }
+    # Resolve parameter types
+    param_types: list[ir.Type] = [];
+    all_params = sig.get_parameters();
+    for param in all_params {
+        if param.type_tag and param.type_tag.tag {
+            ptype = self._resolve_jac_type(param.type_tag.tag);
+        } else {
+            ptype = ir.IntType(64);  # default to i64 for untyped params
+        }
+        param_types.append(ptype);
+    }
+    fn_type = ir.FunctionType(ret_type, param_types);
+    return fn_type.as_pointer();
 }
 
 """Resolve a type for C library declarations -- clib structs use value types, not pointers."""
@@ -380,6 +475,29 @@ impl NaIRGenPass._coerce_type(val: ir.Value, target_type: ir.Type) -> ir.Value {
     and isinstance(target_type, ir.PointerType) {
         return self.builder.bitcast(val, target_type, name="ptrcast");
     }
+    # ir.Function (type=FunctionType) → ir.PointerType(FunctionType).
+    # In LLVM IR, a function reference IS its own pointer; bitcast makes
+    # the type match when passing a named def as a Callable argument.
+    if isinstance(val.type, ir.FunctionType)
+    and isinstance(target_type, ir.PointerType) {
+        return self.builder.bitcast(val, target_type, name="fn.cast");
+    }
+    # ir.Function (type=FunctionType) → ir.IntType (e.g. i64).
+    # C FFI callbacks declared as i64 (raw function pointer integer):
+    #   uv_timer_start(timer, cb: i64, ...)
+    # Emit: ptrtoint(bitcast(@fn to fntype*), i64)
+    if isinstance(val.type, ir.FunctionType) and isinstance(target_type, ir.IntType) {
+        fn_ptr = self.builder.bitcast(val, val.type.as_pointer(), name="fn.ptr");
+        return self.builder.ptrtoint(fn_ptr, target_type, name="fn.ptrtoint");
+    }
+    # PointerType(FunctionType) → IntType: fn pointer already coerced to ptr, ptrtoint it.
+    # This handles the case where _codegen_name already loaded a function reference
+    # as a function-pointer type (void(i64)*) and the C param is i64.
+    if isinstance(val.type, ir.PointerType)
+    and isinstance(val.type.pointee, ir.FunctionType)
+    and isinstance(target_type, ir.IntType) {
+        return self.builder.ptrtoint(val, target_type, name="fn.ptrtoint");
+    }
     # Struct pointer → struct value (Jac pointer → C value at call boundary)
     if isinstance(val.type, ir.PointerType)
     and not isinstance(target_type, ir.PointerType) {
@@ -397,6 +515,10 @@ impl NaIRGenPass._coerce_type(val: ir.Value, target_type: ir.Type) -> ir.Value {
                     return self.builder.load(int_ptr, name="struct.abi.unbox");
                 }
             }
+        }
+        # Null pointer → integer -1 sentinel (e.g., None for optional enum T | None)
+        if isinstance(target_type, ir.IntType) and isinstance(val, ir.Constant) {
+            return ir.Constant(target_type, -1);
         }
     }
     # Struct value → struct pointer (C value → Jac pointer at call boundary)
