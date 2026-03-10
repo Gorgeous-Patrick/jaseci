@@ -51,17 +51,6 @@ import from jaclang.jac0core.constructs {
 import from jaclang.jac0core.modresolver { infer_language }
 import from jaclang.jac0core.mtp { MTIR, Info, MTRuntime }
 import from jaclang.jac0core { plugin }
-import from jaclang.runtimelib.sam_gti {
-    sam_invalidate,
-    sam_put,
-    sam_query,
-    sam_populate_from_gti,
-    gti_query_targets,
-    _get_sqlite,
-    _gti_write_edge,
-    _gti_delete_edge,
-    _gti_delete_node
-}
 
 glob _JAC_INDEX_DEGREE_THRESHOLD: int = int(
     os.environ.get('JAC_INDEX_DEGREE_THRESHOLD', '10')
