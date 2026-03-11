@@ -74,7 +74,7 @@ impl JacAPIServerEndpoints.create_walker_parameters(
         }
         parameters.append(
             APIParameter(
-                name='node' if (field_name == '_jac_spawn_node') else field_name,
+                name='nd' if (field_name == '_jac_spawn_node') else field_name,
                 data_type=field_type,
                 required=walker_fields[field_name]['required'],
                 default=walker_fields[field_name]['default'],
