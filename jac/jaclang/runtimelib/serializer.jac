@@ -10,7 +10,9 @@ import from jaclang.jac0core.archetype {
     EdgeAnchor,
     Permission,
     Access,
-    AccessLevel
+    AccessLevel,
+    TypeRef,
+    build_type_chain
 }
 import from jaclang.jac0core.constructs {
     Archetype,
@@ -57,7 +59,12 @@ obj Serializer {
 
     static def _deserialize_value(val: object) -> object;
     static def _get_class(module_name: str, class_name: str) -> (type | None);
-    static def _id_to_stub(anchor_cls: type, id_str: str) -> (object | None);
+    static def _id_to_stub(
+        anchor_cls: type, id_str: str,
+        arch_cls_data: (list | None) = None
+    ) -> (object | None);
+    static def _serialize_arch_cls(anchor: Anchor) -> (list | None);
+    static def _deserialize_arch_cls(data: list) -> frozenset[TypeRef];
     static def _deserialize_anchor(data: dict[str, object]) -> (object | None);
     static def _deserialize_permission(data: object) -> object;
     static def _deserialize_access(data: object) -> object;

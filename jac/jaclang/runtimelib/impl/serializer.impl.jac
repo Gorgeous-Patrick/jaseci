@@ -69,6 +69,11 @@ impl Serializer._serialize_value(
             'persistent': val.persistent,
             'access': Serializer._serialize_value(val.access, include_type, api_mode)
         };
+        # Serialize arch_cls for type-aware shortcircuit filtering.
+        arch_cls_data = Serializer._serialize_arch_cls(val);
+        if arch_cls_data is not None {
+            result['arch_cls'] = arch_cls_data;
+        }
         if val.is_populated() {
             arch = val.archetype;
             result['archetype'] = Serializer._type_info(arch, include_type) | Serializer._serialize_attrs(
@@ -76,12 +81,37 @@ impl Serializer._serialize_value(
             );
         }
         if isinstance(val, NodeAnchor) {
-            result['edges'] = [str(e.id) for e in val.edges];
+            edges_out: list = [];
+            for e in val.edges {
+                entry: dict = {'id': str(e.id)};
+                e_arch_cls = Serializer._serialize_arch_cls(e);
+                if e_arch_cls is not None {
+                    entry['arch_cls'] = e_arch_cls;
+                }
+                edges_out.append(entry);
+            }
+            result['edges'] = edges_out;
         }
         if isinstance(val, EdgeAnchor) {
+            source_data: (dict | None) = None;
+            target_data: (dict | None) = None;
+            if val.source {
+                source_data = {'id': str(val.source.id)};
+                s_arch_cls = Serializer._serialize_arch_cls(val.source);
+                if s_arch_cls is not None {
+                    source_data['arch_cls'] = s_arch_cls;
+                }
+            }
+            if val.target {
+                target_data = {'id': str(val.target.id)};
+                t_arch_cls = Serializer._serialize_arch_cls(val.target);
+                if t_arch_cls is not None {
+                    target_data['arch_cls'] = t_arch_cls;
+                }
+            }
             result |= {
-                'source': str(val.source.id) if val.source else None,
-                'target': str(val.target.id) if val.target else None,
+                'source': source_data,
+                'target': target_data,
                 'is_undirected': val.is_undirected
             };
         }
@@ -186,11 +216,17 @@ impl Serializer._get_class(module_name: str, class_name: str) -> (type | None) {
     return cls;
 }
 
-"""Helper: Convert string ID to unpopulated anchor stub."""
-impl Serializer._id_to_stub(anchor_cls: type, id_str: str) -> (Anchor | None) {
+"""Helper: Convert string ID to unpopulated anchor stub, optionally restoring arch_cls."""
+impl Serializer._id_to_stub(
+    anchor_cls: type, id_str: str,
+    arch_cls_data: (list | None) = None
+) -> (Anchor | None) {
     try {
         stub = anchor_cls.__new__(anchor_cls);
         stub.id = UUID(id_str);
+        if arch_cls_data is not None {
+            stub.__dict__['arch_cls'] = Serializer._deserialize_arch_cls(arch_cls_data);
+        }
         return stub;
     } except Exception as e {
         logger.error(
@@ -198,6 +234,24 @@ impl Serializer._id_to_stub(anchor_cls: type, id_str: str) -> (Anchor | None) {
         );
         return None;
     }
+}
+
+"""Serialize arch_cls frozenset[TypeRef] to JSON-compatible list."""
+impl Serializer._serialize_arch_cls(anchor: Anchor) -> (list | None) {
+    arch_cls = anchor.__dict__.get('arch_cls');
+    if arch_cls is None {
+        return None;
+    }
+    return [{'module': ref.module, 'qualname': ref.qualname} for ref in arch_cls];
+}
+
+"""Deserialize arch_cls list of dicts back to frozenset[TypeRef]."""
+impl Serializer._deserialize_arch_cls(data: list) -> frozenset[TypeRef] {
+    return frozenset(
+        TypeRef(module=item['module'], qualname=item['qualname'])
+        for item in data
+        if isinstance(item, dict) and 'module' in item and 'qualname' in item
+    );
 }
 
 """Deserialize Anchor (Node/Edge)."""
@@ -212,19 +266,41 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
         anchor.persistent = data.get('persistent', False);
         anchor.access = Serializer._deserialize_permission(data.get('access'));
 
+        # Restore arch_cls on the anchor itself.
+        if (arch_cls_data := data.get('arch_cls')) {
+            anchor.__dict__['arch_cls'] = Serializer._deserialize_arch_cls(arch_cls_data);
+        }
+
         if (arch_data := data.get('archetype')) {
             anchor.archetype = Serializer._deserialize_archetype(arch_data, anchor);
+            # For populated anchors, compute arch_cls from the live class if not already set.
+            if 'arch_cls' not in anchor.__dict__ {
+                chain = build_type_chain(type(anchor.archetype));
+                if chain is not None {
+                    anchor.__dict__['arch_cls'] = chain;
+                }
+            }
         }
         if isinstance(anchor, NodeAnchor) {
-            # Restore edges from serialized edge IDs
-            edge_ids = data.get('edges');
-            if not edge_ids {
+            # Restore edges — supports both new dict format and old bare-string format.
+            raw_edges = data.get('edges');
+            if not raw_edges {
                 anchor.edges = [];
             } else {
                 edges = [];
-                for eid in edge_ids {
-                    if (stub := Serializer._id_to_stub(EdgeAnchor, eid)) {
-                        edges.append(stub);
+                for entry in raw_edges {
+                    if isinstance(entry, dict) {
+                        # New format: {"id": "...", "arch_cls": [...]}
+                        eid = entry.get('id', '');
+                        e_arch = entry.get('arch_cls');
+                        if (stub := Serializer._id_to_stub(EdgeAnchor, eid, e_arch)) {
+                            edges.append(stub);
+                        }
+                    } elif isinstance(entry, str) {
+                        # Old format: bare UUID string
+                        if (stub := Serializer._id_to_stub(EdgeAnchor, entry)) {
+                            edges.append(stub);
+                        }
                     }
                 }
                 anchor.edges = edges;
@@ -232,12 +308,27 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
         }
         if isinstance(anchor, EdgeAnchor) {
             anchor.is_undirected = data.get('is_undirected', False);
-            # Restore source and target from serialized IDs
-            if (source_id := data.get('source')) {
-                anchor.source = Serializer._id_to_stub(NodeAnchor, source_id);
+            # Restore source — supports both new dict format and old bare-string format.
+            source_raw = data.get('source');
+            if source_raw is not None {
+                if isinstance(source_raw, dict) {
+                    s_id = source_raw.get('id', '');
+                    s_arch = source_raw.get('arch_cls');
+                    anchor.source = Serializer._id_to_stub(NodeAnchor, s_id, s_arch);
+                } elif isinstance(source_raw, str) {
+                    anchor.source = Serializer._id_to_stub(NodeAnchor, source_raw);
+                }
             }
-            if (target_id := data.get('target')) {
-                anchor.target = Serializer._id_to_stub(NodeAnchor, target_id);
+            # Restore target — supports both new dict format and old bare-string format.
+            target_raw = data.get('target');
+            if target_raw is not None {
+                if isinstance(target_raw, dict) {
+                    t_id = target_raw.get('id', '');
+                    t_arch = target_raw.get('arch_cls');
+                    anchor.target = Serializer._id_to_stub(NodeAnchor, t_id, t_arch);
+                } elif isinstance(target_raw, str) {
+                    anchor.target = Serializer._id_to_stub(NodeAnchor, target_raw);
+                }
             }
         }
         return anchor;
