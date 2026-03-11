@@ -88,6 +88,12 @@ impl Serializer._serialize_value(
                 if e_arch_cls is not None {
                     entry['arch_cls'] = e_arch_cls;
                 }
+                if (sid := e.__dict__.get('source_id')) {
+                    entry['source_id'] = str(sid);
+                }
+                if (tid := e.__dict__.get('target_id')) {
+                    entry['target_id'] = str(tid);
+                }
                 edges_out.append(entry);
             }
             result['edges'] = edges_out;
@@ -290,10 +296,16 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
                 edges = [];
                 for entry in raw_edges {
                     if isinstance(entry, dict) {
-                        # New format: {"id": "...", "arch_cls": [...]}
+                        # New format: {"id": "...", "arch_cls": [...], "source_id": "...", "target_id": "..."}
                         eid = entry.get('id', '');
                         e_arch = entry.get('arch_cls');
                         if (stub := Serializer._id_to_stub(EdgeAnchor, eid, e_arch)) {
+                            if (sid := entry.get('source_id')) {
+                                stub.__dict__['source_id'] = UUID(sid);
+                            }
+                            if (tid := entry.get('target_id')) {
+                                stub.__dict__['target_id'] = UUID(tid);
+                            }
                             edges.append(stub);
                         }
                     } elif isinstance(entry, str) {
@@ -315,8 +327,10 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
                     s_id = source_raw.get('id', '');
                     s_arch = source_raw.get('arch_cls');
                     anchor.source = Serializer._id_to_stub(NodeAnchor, s_id, s_arch);
+                    anchor.__dict__['source_id'] = UUID(s_id);
                 } elif isinstance(source_raw, str) {
                     anchor.source = Serializer._id_to_stub(NodeAnchor, source_raw);
+                    anchor.__dict__['source_id'] = UUID(source_raw);
                 }
             }
             # Restore target — supports both new dict format and old bare-string format.
@@ -326,8 +340,10 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
                     t_id = target_raw.get('id', '');
                     t_arch = target_raw.get('arch_cls');
                     anchor.target = Serializer._id_to_stub(NodeAnchor, t_id, t_arch);
+                    anchor.__dict__['target_id'] = UUID(t_id);
                 } elif isinstance(target_raw, str) {
                     anchor.target = Serializer._id_to_stub(NodeAnchor, target_raw);
+                    anchor.__dict__['target_id'] = UUID(target_raw);
                 }
             }
         }

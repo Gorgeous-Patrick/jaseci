@@ -295,6 +295,23 @@ impl EdgeAnchor.is_populated(self: EdgeAnchor) -> bool {
     return 'source' in d and 'target' in d and 'archetype' in d;
 }
 
+"""Return unsynced edge stub with source/target IDs for direction shortcircuit."""
+impl EdgeAnchor.make_stub(self: EdgeAnchor) -> TANCH {
+    if self.is_populated() {
+        unloaded = object.__new__(self.__class__);
+        unloaded.id = self.id;
+        cls = type(self.archetype);
+        chain = build_type_chain(cls);
+        if chain is not None {
+            unloaded.__dict__['arch_cls'] = chain;
+        }
+        unloaded.__dict__['source_id'] = self.source.id;
+        unloaded.__dict__['target_id'] = self.target.id;
+        return unloaded;
+    }
+    return self;
+}
+
 """Serialize Node Anchor."""
 impl NodeAnchor.__getstate__(self: NodeAnchor) -> dict[(str, object)] {
     state = super.__getstate__();
@@ -315,6 +332,13 @@ impl EdgeAnchor.__getstate__(self: EdgeAnchor) -> dict[(str, object)] {
                 'is_undirected': self.is_undirected
             }
         );
+    } else {
+        if ('source_id' in self.__dict__) {
+            state['source_id'] = self.__dict__['source_id'];
+        }
+        if ('target_id' in self.__dict__) {
+            state['target_id'] = self.__dict__['target_id'];
+        }
     }
     return state;
 }

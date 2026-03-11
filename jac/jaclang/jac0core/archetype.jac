@@ -289,6 +289,7 @@ obj EdgeAnchor(Anchor) {
         is_undirected: bool;
 
     def is_populated(self: EdgeAnchor) -> bool;
+    def make_stub(self: EdgeAnchor) -> TANCH;
     def __getstate__(self: EdgeAnchor) -> dict[(str, object)];
 }
 

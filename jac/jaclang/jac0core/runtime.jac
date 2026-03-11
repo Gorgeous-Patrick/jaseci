@@ -229,13 +229,30 @@ class JacNode {
         _node_type = destination.node_type;
         _edge_type_ref = make_type_ref(_edge_type) if _edge_type else None;
         _node_type_ref = make_type_ref(_node_type) if _node_type else None;
+        _dir = destination.direction;
         for nd in origin {
             nanch = nd.__jac__;
+            _nid = nanch.id;
             for anchor in nanch.edges {
                 if (
                     _edge_type_ref
                     and (ecls := anchor.__dict__.get('arch_cls'))
                     and not type_ref_in_arch_cls(_edge_type_ref, ecls)
+                ) {
+                    continue;
+                }
+                _edict = anchor.__dict__;
+                if (
+                    _dir == EdgeDir.OUT
+                    and (sid := _edict.get('source_id'))
+                    and sid != _nid
+                ) {
+                    continue;
+                }
+                if (
+                    _dir == EdgeDir.IN
+                    and (tid := _edict.get('target_id'))
+                    and tid != _nid
                 ) {
                     continue;
                 }
@@ -289,13 +306,30 @@ class JacNode {
         _node_type = destination.node_type;
         _edge_type_ref = make_type_ref(_edge_type) if _edge_type else None;
         _node_type_ref = make_type_ref(_node_type) if _node_type else None;
+        _dir = destination.direction;
         for nd in origin {
             nanch = nd.__jac__;
+            _nid = nanch.id;
             for anchor in nanch.edges {
                 if (
                     _edge_type_ref
                     and (ecls := anchor.__dict__.get('arch_cls'))
                     and not type_ref_in_arch_cls(_edge_type_ref, ecls)
+                ) {
+                    continue;
+                }
+                _edict = anchor.__dict__;
+                if (
+                    _dir == EdgeDir.OUT
+                    and (sid := _edict.get('source_id'))
+                    and sid != _nid
+                ) {
+                    continue;
+                }
+                if (
+                    _dir == EdgeDir.IN
+                    and (tid := _edict.get('target_id'))
+                    and tid != _nid
                 ) {
                     continue;
                 }
@@ -349,13 +383,30 @@ class JacNode {
         _node_type = destination.node_type;
         _edge_type_ref = make_type_ref(_edge_type) if _edge_type else None;
         _node_type_ref = make_type_ref(_node_type) if _node_type else None;
+        _dir = destination.direction;
         for nd in origin {
             nanch = nd.__jac__;
+            _nid = nanch.id;
             for anchor in nanch.edges {
                 if (
                     _edge_type_ref
                     and (ecls := anchor.__dict__.get('arch_cls'))
                     and not type_ref_in_arch_cls(_edge_type_ref, ecls)
+                ) {
+                    continue;
+                }
+                _edict = anchor.__dict__;
+                if (
+                    _dir == EdgeDir.OUT
+                    and (sid := _edict.get('source_id'))
+                    and sid != _nid
+                ) {
+                    continue;
+                }
+                if (
+                    _dir == EdgeDir.IN
+                    and (tid := _edict.get('target_id'))
+                    and tid != _nid
                 ) {
                     continue;
                 }

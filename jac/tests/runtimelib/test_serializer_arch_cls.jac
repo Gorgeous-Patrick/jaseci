@@ -201,3 +201,114 @@ test "full NodeAnchor serialize-deserialize preserves edge arch_cls" {
     # Edge without arch_cls stays clean
     assert 'arch_cls' not in deserialized.edges[1].__dict__;
 }
+
+# --- Direction shortcircuit: source_id / target_id on edge stubs ---
+
+test "edge stub stores source_id and target_id via __dict__" {
+    src_id = uuid4();
+    tgt_id = uuid4();
+    e = EdgeAnchor.__new__(EdgeAnchor);
+    e.id = uuid4();
+    e.__dict__['source_id'] = src_id;
+    e.__dict__['target_id'] = tgt_id;
+
+    assert e.__dict__['source_id'] == src_id;
+    assert e.__dict__['target_id'] == tgt_id;
+}
+
+test "NodeAnchor edges with source_id/target_id from new dict format" {
+    src_id = uuid4();
+    tgt_id = uuid4();
+    e1_id = uuid4();
+    anchor = Serializer._deserialize_anchor(
+        {
+            '__type__': 'NodeAnchor',
+            'id': str(uuid4()),
+            'root': str(uuid4()),
+            'edges': [
+                {
+                    'id': str(e1_id),
+                    'source_id': str(src_id),
+                    'target_id': str(tgt_id)
+                }
+            ]
+        }
+    );
+    assert len(anchor.edges) == 1;
+    assert anchor.edges[0].id == e1_id;
+    assert anchor.edges[0].__dict__['source_id'] == src_id;
+    assert anchor.edges[0].__dict__['target_id'] == tgt_id;
+}
+
+test "NodeAnchor edges backward compat without source_id/target_id" {
+    e1_id = uuid4();
+    anchor = Serializer._deserialize_anchor(
+        {
+            '__type__': 'NodeAnchor',
+            'id': str(uuid4()),
+            'root': str(uuid4()),
+            'edges': [{'id': str(e1_id)}]
+        }
+    );
+    assert len(anchor.edges) == 1;
+    assert 'source_id' not in anchor.edges[0].__dict__;
+    assert 'target_id' not in anchor.edges[0].__dict__;
+}
+
+test "EdgeAnchor deserialize stores source_id/target_id from dict format" {
+    src_id = uuid4();
+    tgt_id = uuid4();
+    anchor = Serializer._deserialize_anchor(
+        {
+            '__type__': 'EdgeAnchor',
+            'id': str(uuid4()),
+            'source': {'id': str(src_id)},
+            'target': {'id': str(tgt_id)}
+        }
+    );
+    assert anchor.__dict__['source_id'] == src_id;
+    assert anchor.__dict__['target_id'] == tgt_id;
+}
+
+test "EdgeAnchor deserialize stores source_id/target_id from bare-string format" {
+    src_id = uuid4();
+    tgt_id = uuid4();
+    anchor = Serializer._deserialize_anchor(
+        {
+            '__type__': 'EdgeAnchor',
+            'id': str(uuid4()),
+            'source': str(src_id),
+            'target': str(tgt_id)
+        }
+    );
+    assert anchor.__dict__['source_id'] == src_id;
+    assert anchor.__dict__['target_id'] == tgt_id;
+}
+
+test "full NodeAnchor serialize-deserialize preserves edge source_id/target_id" {
+    src_id = uuid4();
+    tgt_id = uuid4();
+    edge_refs = frozenset([TypeRef(module='test.mod', qualname='MyEdge')]);
+
+    e1 = EdgeAnchor.__new__(EdgeAnchor);
+    e1.id = uuid4();
+    e1.__dict__['arch_cls'] = edge_refs;
+    e1.__dict__['source_id'] = src_id;
+    e1.__dict__['target_id'] = tgt_id;
+
+    nd = NodeAnchor.__new__(NodeAnchor);
+    nd.id = uuid4();
+    nd.root = uuid4();
+    nd.persistent = False;
+    nd.access = Permission();
+    nd.edges = [e1];
+
+    serialized = Serializer.serialize(nd, include_type=True);
+    deserialized = Serializer.deserialize(serialized);
+
+    # source_id / target_id preserved on edge stub
+    assert deserialized.edges[0].__dict__['source_id'] == src_id;
+    assert deserialized.edges[0].__dict__['target_id'] == tgt_id;
+    # arch_cls also preserved
+    assert deserialized.edges[0].__dict__['arch_cls'] == edge_refs;
+}
