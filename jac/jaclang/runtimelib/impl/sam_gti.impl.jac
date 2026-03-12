@@ -110,10 +110,12 @@ impl sam_put(
                 bucket[col].append(tgt_str);
             }
         }
-        # Edge-type column: "e:EdgeType" (no MRO — edges have no inheritance)
-        edge_col = 'e:' + _qname(edge_arch);
-        if tgt_str not in bucket[edge_col] {
-            bucket[edge_col].append(tgt_str);
+        # Edge-type columns: "e:EdgeType" for each MRO ancestor (mirrors node fan-out)
+        for edge_type_name in get_type_mro(edge_arch) {
+            edge_col = 'e:' + edge_type_name;
+            if tgt_str not in bucket[edge_col] {
+                bucket[edge_col].append(tgt_str);
+            }
         }
     }
 }
@@ -193,7 +195,6 @@ impl _gti_write_edge(
     if sqlite.__conn__ is None {
         return;
     }
-    edge_type = _qname(eanch.archetype);
     target_type = _qname(target.archetype);
     root_id = str(target.root) if target.root else None;
 
@@ -206,13 +207,15 @@ impl _gti_write_edge(
         );
     }
 
-    # edge_topology: one row per edge (directed: source -> target)
-    sqlite.__conn__.execute(
-        'INSERT OR REPLACE INTO edge_topology '
-        '(edge_id, source_id, target_id, edge_type, target_type) '
-        'VALUES (?, ?, ?, ?, ?)',
-        (str(eanch.id), str(source.id), str(target.id), edge_type, target_type)
-    );
+    # edge_topology: one row per MRO ancestor of the edge (mirrors node fan-out)
+    for e_type in get_type_mro(eanch.archetype) {
+        sqlite.__conn__.execute(
+            'INSERT OR IGNORE INTO edge_topology '
+            '(edge_id, source_id, target_id, edge_type, target_type) '
+            'VALUES (?, ?, ?, ?, ?)',
+            (str(eanch.id), str(source.id), str(target.id), e_type, target_type)
+        );
+    }
     # Commit immediately to stay consistent with SqliteMemory.put() behavior
     sqlite.__conn__.commit();
 }
@@ -357,19 +360,20 @@ impl rebuild_gti(mem: object) -> None {
         if not isinstance(anchor, EdgeAnchor) or not anchor.is_populated() {
             continue;
         }
-        edge_type = _qname(anchor.archetype);
         source_id_str = str(anchor.source.id);
         target_id_str = str(anchor.target.id);
         target_type = node_type_map.get(target_id_str);
         if target_type is None {
             continue;
         }
-        conn.execute(
-            'INSERT OR REPLACE INTO edge_topology '
-            '(edge_id, source_id, target_id, edge_type, target_type) '
-            'VALUES (?, ?, ?, ?, ?)',
-            (str(anchor.id), source_id_str, target_id_str, edge_type, target_type)
-        );
+        for e_type in get_type_mro(anchor.archetype) {
+            conn.execute(
+                'INSERT OR IGNORE INTO edge_topology '
+                '(edge_id, source_id, target_id, edge_type, target_type) '
+                'VALUES (?, ?, ?, ?, ?)',
+                (str(anchor.id), source_id_str, target_id_str, e_type, target_type)
+            );
+        }
     }
 
     conn.commit();
@@ -446,12 +450,13 @@ impl _gti_write_edge_redis(
 ) -> None {
     src_str = str(source.id);
     tgt_str = str(target.id);
-    edge_type = _qname(eanch.archetype);
     pipe = redis_client.pipeline(transaction=False);
     for t in get_type_mro(target.archetype) {
         pipe.sadd(f"{_TOPO_PREFIX}:n:{src_str}:{t}", tgt_str);
     }
-    pipe.sadd(f"{_TOPO_PREFIX}:e:{src_str}:{edge_type}", tgt_str);
+    for e_type in get_type_mro(eanch.archetype) {
+        pipe.sadd(f"{_TOPO_PREFIX}:e:{src_str}:{e_type}", tgt_str);
+    }
     pipe.execute();
 }
 
@@ -464,12 +469,13 @@ impl _gti_delete_edge_redis(
 ) -> None {
     src_str = str(source_id);
     tgt_str = str(target_id);
-    edge_type = _qname(edge_arch);
     pipe = redis_client.pipeline(transaction=False);
     for t in get_type_mro(target_arch) {
         pipe.srem(f"{_TOPO_PREFIX}:n:{src_str}:{t}", tgt_str);
     }
-    pipe.srem(f"{_TOPO_PREFIX}:e:{src_str}:{edge_type}", tgt_str);
+    for e_type in get_type_mro(edge_arch) {
+        pipe.srem(f"{_TOPO_PREFIX}:e:{src_str}:{e_type}", tgt_str);
+    }
     pipe.execute();
 }
 
@@ -548,11 +554,12 @@ impl rebuild_gti_redis(redis_client: object, mongo_backend: object) -> int {
         }
         src_str = str(anchor.source.id);
         tgt_str = str(anchor.target.id);
-        edge_type = _qname(anchor.archetype);
         for t in node_type_map.get(tgt_str, []) {
             pipe.sadd(f"{_TOPO_PREFIX}:n:{src_str}:{t}", tgt_str);
         }
-        pipe.sadd(f"{_TOPO_PREFIX}:e:{src_str}:{edge_type}", tgt_str);
+        for e_type in get_type_mro(anchor.archetype) {
+            pipe.sadd(f"{_TOPO_PREFIX}:e:{src_str}:{e_type}", tgt_str);
+        }
         count += 1;
     }
     pipe.execute();
