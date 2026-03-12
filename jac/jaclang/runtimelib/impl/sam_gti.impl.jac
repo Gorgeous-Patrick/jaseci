@@ -2,6 +2,7 @@
 
 import os;
 import from collections { defaultdict }
+import from pathlib { Path }
 import from pickle { loads }
 import from uuid { UUID }
 
@@ -9,10 +10,29 @@ import from uuid { UUID }
 # Qualified-name helper
 # ---------------------------------------------------------------------------
 impl _qname(arch: object) -> str {
+    import sys;
     t = type(arch);
-    mod: str = str(getattr(t, '__module__', '') or '');
+    mod_name: str = str(getattr(t, '__module__', '') or '');
     name: str = str(getattr(t, '__name__', '') or '');
-    return mod + '.' + name;
+    # Resolve via __file__ to get a stable entry-point-relative stem,
+    # matching the MTIR scope format (_get_scope_str uses Path(mod_path).stem).
+    # This strips synthetic test-package prefixes like _jac_test_pkg_XX.
+    mod = sys.modules.get(mod_name);
+    if mod is not None {
+        mod_file: str = str(getattr(mod, '__file__', '') or '');
+        if mod_file {
+            stem = Path(mod_file).stem;
+            for suffix in ['.impl', '.cl', '.sv'] {
+                if stem.endswith(suffix) {
+                    stem = stem[:-len(suffix)];
+                    break;
+                }
+            }
+            return stem + '.' + name;
+        }
+    }
+    # Fallback: last dotted component of module name
+    return (mod_name.rsplit('.', 1)[-1] if '.' in mod_name else mod_name) + '.' + name;
 }
 
 # ---------------------------------------------------------------------------
@@ -40,15 +60,32 @@ impl reset_stats -> None {
 # MRO helper
 # ---------------------------------------------------------------------------
 impl get_type_mro(instance: object) -> list[str] {
+    import sys;
     result = [];
     for cls in type(instance).__mro__ {
-        mod = getattr(cls, '__module__', '') or '';
-        if mod.startswith('jaclang')
-        or mod.startswith('builtins')
-        or cls.__name__ == 'object' {
+        mod_name: str = str(getattr(cls, '__module__', '') or '');
+        if mod_name.startswith('jaclang') or mod_name.startswith('builtins') or cls.__name__ == 'object' {
             break;
         }
-        result.append(mod + '.' + getattr(cls, '__name__', ''));
+        cls_name: str = str(getattr(cls, '__name__', '') or '');
+        # Resolve via __file__ to match _qname key format
+        mod = sys.modules.get(mod_name);
+        if mod is not None {
+            mod_file: str = str(getattr(mod, '__file__', '') or '');
+            if mod_file {
+                stem = Path(mod_file).stem;
+                for suffix in ['.impl', '.cl', '.sv'] {
+                    if stem.endswith(suffix) {
+                        stem = stem[:-len(suffix)];
+                        break;
+                    }
+                }
+                result.append(stem + '.' + cls_name);
+                continue;
+            }
+        }
+        local_mod = mod_name.rsplit('.', 1)[-1] if '.' in mod_name else mod_name;
+        result.append(local_mod + '.' + cls_name);
     }
     return result;
 }

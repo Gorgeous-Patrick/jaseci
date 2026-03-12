@@ -215,19 +215,47 @@ impl JacNode.edges_to_nodes(
     origin: list[NodeArchetype], destination: ObjectSpatialDestination
 ) -> list[NodeArchetype] {
     nodes: OrderedDict[(NodeAnchor, NodeArchetype)] = OrderedDict();
+    ctx = JacRuntimeInterface.get_context();
+    _sqlite_active: bool = _get_sqlite(ctx.mem) is not None;
+    _scale = _get_scale_topo(ctx.mem);
+    _index_active: bool = _sqlite_active or (_scale is not None);
+    INDEX_ENABLED: bool = os.environ.get('JAC_INDEX_ENABLED', 'true').lower() not in (
+        '0',
+        'false',
+        'no'
+    );
+    DEGREE_THRESHOLD: int = int(os.environ.get('JAC_INDEX_DEGREE_THRESHOLD', '10'));
+    import sys;
+    import from pathlib { Path }
+    def _cls_to_key(cls: type) -> str {
+        mod_name = getattr(cls, '__module__', '') or '';
+        cls_name = getattr(cls, '__name__', '') or '';
+        mod = sys.modules.get(mod_name);
+        if mod is not None {
+            mod_file = str(getattr(mod, '__file__', '') or '');
+            if mod_file {
+                stem = Path(mod_file).stem;
+                for suffix in ['.impl', '.cl', '.sv'] {
+                    if stem.endswith(suffix) {
+                        stem = stem[:-len(suffix)];
+                        break;
+                    }
+                }
+                return stem + '.' + cls_name;
+            }
+        }
+        local_mod = mod_name.rsplit('.', 1)[-1] if '.' in mod_name else mod_name;
+        return local_mod + '.' + cls_name;
+    }
     for nd in origin {
         nanch = nd.__jac__;
         # --- SAM/GTI fast path (only when persistence index is active) ---
         # Pure type filters compile to the type class itself, so we can
         # extract the name directly via MRO without any compiler help.
-        target_type_name = (
-            destination.nd.__module__ + '.' + destination.nd.__name__
-        )
+        target_type_name = _cls_to_key(destination.nd)
             if isinstance(destination.nd, type)
             else None;
-        edge_type_name = (
-            destination.edge.__module__ + '.' + destination.edge.__name__
-        )
+        edge_type_name = _cls_to_key(destination.edge)
             if isinstance(destination.edge, type)
             else None;
         use_index = (
