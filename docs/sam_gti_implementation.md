@@ -1,30 +1,30 @@
 # SAM + GTI Implementation Report
 
 **Files covered:**
-- [`jac/jaclang/runtimelib/sam_gti.jac`](../jac/jaclang/runtimelib/sam_gti.jac) — declarations and module-level globals
-- [`jac/jaclang/runtimelib/impl/sam_gti.impl.jac`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac) — all implementations
-- [`jac/jaclang/jac0core/runtime.jac`](../jac/jaclang/jac0core/runtime.jac) — read path (traversal query, `edges_to_nodes`)
-- [`jac-scale/jac_scale/tests/test_gti_scale.jac`](../jac-scale/jac_scale/tests/test_gti_scale.jac) — Redis/MongoDB integration tests
-- [`jac/tests/runtimelib/test_graph_index.jac`](../jac/tests/runtimelib/test_graph_index.jac) — SQLite unit tests
+- [`jac/jaclang/runtimelib/sam_gti.jac`](../jac/jaclang/runtimelib/sam_gti.jac) - declarations and module-level globals
+- [`jac/jaclang/runtimelib/impl/sam_gti.impl.jac`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac) - all implementations
+- [`jac/jaclang/jac0core/runtime.jac`](../jac/jaclang/jac0core/runtime.jac) - read path (traversal query, `edges_to_nodes`)
+- [`jac-scale/jac_scale/tests/test_gti_scale.jac`](../jac-scale/jac_scale/tests/test_gti_scale.jac) - Redis/MongoDB integration tests
+- [`jac/tests/runtimelib/test_graph_index.jac`](../jac/tests/runtimelib/test_graph_index.jac) - SQLite unit tests
 
 ---
 
 ## Table of Contents
 
-1. [Why This Exists — The Problem](#1-why-this-exists--the-problem)
+1. [Why This Exists - The Problem](#1-why-this-exists--the-problem)
 2. [Architecture: Three Layers](#2-architecture-three-layers)
 3. [Data Structures](#3-data-structures)
-   - [3.1 SAM — Sparse Adjacency Matrix](#31-sam--sparse-adjacency-matrix)
-   - [3.2 GTI SQLite — Graph Topology Index](#32-gti-sqlite--graph-topology-index)
-   - [3.3 GTI Redis — Scale Backend](#33-gti-redis--scale-backend)
-4. [Qualified Names — Collision Prevention](#4-qualified-names--collision-prevention)
+   - [3.1 SAM - Sparse Adjacency Matrix](#31-sam--sparse-adjacency-matrix)
+   - [3.2 GTI SQLite - Graph Topology Index](#32-gti-sqlite--graph-topology-index)
+   - [3.3 GTI Redis - Scale Backend](#33-gti-redis--scale-backend)
+4. [Qualified Names - Collision Prevention](#4-qualified-names--collision-prevention)
    - [4.1 `_qname` helper](#41-_qname-helper)
    - [4.2 `get_type_mro` helper](#42-get_type_mro-helper)
-5. [Write Path — How Edges Get Indexed](#5-write-path--how-edges-get-indexed)
-   - [5.1 SAM write — `sam_put`](#51-sam-write--sam_put)
-   - [5.2 GTI SQLite write — `_gti_write_edge`](#52-gti-sqlite-write--_gti_write_edge)
-   - [5.3 GTI Redis write — `_gti_write_edge_redis`](#53-gti-redis-write--_gti_write_edge_redis)
-6. [Read Path — How Traversals Use the Index](#6-read-path--how-traversals-use-the-index)
+5. [Write Path - How Edges Get Indexed](#5-write-path--how-edges-get-indexed)
+   - [5.1 SAM write - `sam_put`](#51-sam-write--sam_put)
+   - [5.2 GTI SQLite write - `_gti_write_edge`](#52-gti-sqlite-write--_gti_write_edge)
+   - [5.3 GTI Redis write - `_gti_write_edge_redis`](#53-gti-redis-write--_gti_write_edge_redis)
+6. [Read Path - How Traversals Use the Index](#6-read-path--how-traversals-use-the-index)
    - [6.1 Decision: use index or not?](#61-decision-use-index-or-not)
    - [6.2 Qualified name extraction](#62-qualified-name-extraction)
    - [6.3 SAM → GTI → fallback](#63-sam--gti--fallback)
@@ -35,7 +35,7 @@
 8. [Rebuild](#8-rebuild)
    - [8.1 SQLite rebuild](#81-sqlite-rebuild)
    - [8.2 Redis rebuild](#82-redis-rebuild)
-9. [Migration — `migrate_to_qualified_types`](#9-migration--migrate_to_qualified_types)
+9. [Migration - `migrate_to_qualified_types`](#9-migration--migrate_to_qualified_types)
 10. [Backend Detection](#10-backend-detection)
 11. [Thread Safety and Scale Consistency](#11-thread-safety-and-scale-consistency)
 12. [Environment Variables](#12-environment-variables)
@@ -45,7 +45,7 @@
 
 ---
 
-## 1. Why This Exists — The Problem
+## 1. Why This Exists - The Problem
 
 When you write a typed traversal in Jac such as:
 
@@ -75,15 +75,15 @@ SAM and GTI together eliminate this cost by maintaining a pre-computed, type-ind
      │
      ▼
 ┌────────────────────────────────────────────┐
-│  SAM  (L1.5 — in-process memory)          │
+│  SAM  (L1.5 - in-process memory)          │
 │  sam_index[src_uuid]["n:app.PostNode"]     │  dict in RAM
 │  = ["tgt1-uuid", "tgt2-uuid", ...]        │  nanosecond lookup
-│  Volatile — cleared on process restart    │  per-worker singleton
+│  Volatile - cleared on process restart    │  per-worker singleton
 └──────────────────┬─────────────────────────┘
                    │ cache miss
                    ▼
 ┌────────────────────────────────────────────┐
-│  GTI  (L2 — persistent index)             │
+│  GTI  (L2 - persistent index)             │
 │                                            │
 │  SQLite (jac start):                       │
 │    node_topology table                     │  durable across restarts
@@ -113,7 +113,7 @@ Below that threshold a linear scan is faster than an index lookup.
 
 ## 3. Data Structures
 
-### 3.1 SAM — Sparse Adjacency Matrix
+### 3.1 SAM - Sparse Adjacency Matrix
 
 **Declaration:** [`sam_gti.jac:69-71`](../jac/jaclang/runtimelib/sam_gti.jac#L69-L71)
 
@@ -132,16 +132,16 @@ sam_index[source_uuid_str][column_key] = [target_uuid_str, ...]
 
 | Prefix | Meaning | MRO fan-out |
 |--------|---------|-------------|
-| `"n:module.NodeType"` | node-type column | yes — PostNode also writes to n:BaseContent |
-| `"e:module.EdgeType"` | edge-type column | no — edges have no inheritance |
+| `"n:module.NodeType"` | node-type column | yes - PostNode also writes to n:BaseContent |
+| `"e:module.EdgeType"` | edge-type column | no - edges have no inheritance |
 
-**Miss semantics — two distinct cases:**
+**Miss semantics - two distinct cases:**
 
 | SAM state | Meaning | Action |
 |-----------|---------|--------|
-| `sam_index.get(src)` is `None` | Bucket absent — source never indexed | Fall back to GTI |
+| `sam_index.get(src)` is `None` | Bucket absent - source never indexed | Fall back to GTI |
 | bucket present but `bucket.get(col)` is `None` | Column never written for this source | Fall back to GTI |
-| bucket present and `bucket[col]` is `[]` | Column indexed, zero matching targets | Return empty list — no GTI call |
+| bucket present and `bucket[col]` is `[]` | Column indexed, zero matching targets | Return empty list - no GTI call |
 
 This distinction is critical: an empty list `[]` is a **valid hit** meaning "we checked and there are no PostNode neighbours." `None` means "we don't know yet."
 
@@ -156,9 +156,9 @@ sam_index["root-uuid"] = {
 }
 ```
 
-A query for `[-->(?:BaseContent)]` hits `"n:app.BaseContent"` and returns both PostNode IDs — without ever touching storage.
+A query for `[-->(?:BaseContent)]` hits `"n:app.BaseContent"` and returns both PostNode IDs - without ever touching storage.
 
-### 3.2 GTI SQLite — Graph Topology Index
+### 3.2 GTI SQLite - Graph Topology Index
 
 **Schema** (created inside `SqliteMemory._ensure_connection()`):
 
@@ -183,10 +183,10 @@ CREATE TABLE IF NOT EXISTS edge_topology (
 
 - `node_topology` stores **one row per (node, MRO type) pair**. A `PostNode(BaseContent)` gets two rows: `(p1, app.PostNode, root)` and `(p1, app.BaseContent, root)`. This is what makes parent-type queries work without runtime MRO traversal.
 - `edge_topology` stores the direct type of the target (not all MRO types). Type-filtered queries JOIN against `node_topology` to resolve the MRO.
-- Both tables live in the same SQLite file as the `anchors` table — no separate database or process needed.
-- `INSERT OR IGNORE` on `node_topology` and `INSERT OR REPLACE` on `edge_topology` make writes idempotent — safe to call multiple times without duplicates.
+- Both tables live in the same SQLite file as the `anchors` table - no separate database or process needed.
+- `INSERT OR IGNORE` on `node_topology` and `INSERT OR REPLACE` on `edge_topology` make writes idempotent - safe to call multiple times without duplicates.
 
-### 3.3 GTI Redis — Scale Backend
+### 3.3 GTI Redis - Scale Backend
 
 **Key namespace:**
 
@@ -212,7 +212,7 @@ jac:topo:e:{root-uuid}:jaclang.GenericEdge → {p1-uuid, p2-uuid, o1-uuid}
 | edge type only | `SMEMBERS jac:topo:e:{src}:{type}` | single round-trip |
 | both | `SINTER jac:topo:n:{src}:{ntype} jac:topo:e:{src}:{etype}` | server-side intersection |
 
-`SINTER` is evaluated entirely on the Redis server — no Python-side set intersection needed.
+`SINTER` is evaluated entirely on the Redis server - no Python-side set intersection needed.
 
 **Invalidation channel:**
 
@@ -224,7 +224,7 @@ All worker processes subscribe to this channel. When any worker modifies an edge
 
 ---
 
-## 4. Qualified Names — Collision Prevention
+## 4. Qualified Names - Collision Prevention
 
 ### 4.1 `_qname` helper
 
@@ -286,13 +286,13 @@ impl get_type_mro(instance: object) -> list[str] {
 
 **What it does:** Walks Python's Method Resolution Order (MRO) of an instance's type and collects all user-defined Jac type names as qualified strings.
 
-**Stop conditions — why each is needed:**
+**Stop conditions - why each is needed:**
 
 | Condition | Why |
 |-----------|-----|
-| `mod.startswith('jaclang')` | jaclang base classes (`NodeArchetype`, `EdgeArchetype`, etc.) must not become topology keys — they would match every node/edge in the graph |
+| `mod.startswith('jaclang')` | jaclang base classes (`NodeArchetype`, `EdgeArchetype`, etc.) must not become topology keys - they would match every node/edge in the graph |
 | `mod.startswith('builtins')` | Prevents `NoneType`, `int`, `str`, `object` from leaking as keys |
-| `cls.__name__ == 'object'` | Belt-and-suspenders — catches `object` even if somehow `__module__` is not `builtins` |
+| `cls.__name__ == 'object'` | Belt-and-suspenders - catches `object` even if somehow `__module__` is not `builtins` |
 
 **MRO fan-out example:**
 
@@ -313,11 +313,11 @@ This fan-out is what enables parent-type queries to work. When you traverse `[--
 
 ---
 
-## 5. Write Path — How Edges Get Indexed
+## 5. Write Path - How Edges Get Indexed
 
 The write path has three parallel implementations depending on the backend: SAM only (in-memory), GTI SQLite, and GTI Redis. All three use `get_type_mro` and `_qname` so keys are always qualified.
 
-### 5.1 SAM write — `sam_put`
+### 5.1 SAM write - `sam_put`
 
 **Implementation:** [`sam_gti.impl.jac:57-78`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L57-L78)
 
@@ -345,16 +345,16 @@ impl sam_put(
 ```
 
 **Steps:**
-1. Acquire the per-source lock (`_get_lock`) — prevents concurrent writers from a multi-threaded server corrupting the same bucket
-2. Iterate `get_type_mro(target_arch)` — fans out to all MRO ancestor types
+1. Acquire the per-source lock (`_get_lock`) - prevents concurrent writers from a multi-threaded server corrupting the same bucket
+2. Iterate `get_type_mro(target_arch)` - fans out to all MRO ancestor types
 3. Append `target_id` to each `n:type` column (deduplication check included)
 4. Append `target_id` to the `e:EdgeType` column
 
-**Called from:** `build_edge()` in single-server mode (SQLite or in-memory). Not called in scale mode — `sam_broadcast_invalidate` is called instead.
+**Called from:** `build_edge()` in single-server mode (SQLite or in-memory). Not called in scale mode - `sam_broadcast_invalidate` is called instead.
 
 **Lock design:** Locks are per-source (not global). Two threads modifying edges from different source nodes never contend. A single mutex `_locks_mu` guards the `_locks` dict itself to safely create new per-source locks.
 
-### 5.2 GTI SQLite write — `_gti_write_edge`
+### 5.2 GTI SQLite write - `_gti_write_edge`
 
 **Implementation:** [`sam_gti.impl.jac:144-177`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L144-L177)
 
@@ -392,11 +392,11 @@ impl _gti_write_edge(
 ```
 
 **Key decisions:**
-- `INSERT OR IGNORE` on `node_topology`: if the row already exists (e.g. the same node connected twice from different sources) it is simply skipped — no error, no duplicate.
+- `INSERT OR IGNORE` on `node_topology`: if the row already exists (e.g. the same node connected twice from different sources) it is simply skipped - no error, no duplicate.
 - `INSERT OR REPLACE` on `edge_topology`: if an edge is reconnected (same edge_id), the row is updated with fresh data.
-- Immediate `commit()` after every write: keeps GTI in sync with `SqliteMemory.put()` — if the process crashes after the anchor is written, GTI reflects the same state.
+- Immediate `commit()` after every write: keeps GTI in sync with `SqliteMemory.put()` - if the process crashes after the anchor is written, GTI reflects the same state.
 
-### 5.3 GTI Redis write — `_gti_write_edge_redis`
+### 5.3 GTI Redis write - `_gti_write_edge_redis`
 
 **Implementation:** [`sam_gti.impl.jac:400-415`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L400-L415)
 
@@ -418,13 +418,13 @@ impl _gti_write_edge_redis(
 
 **Pipeline design:** All `SADD` commands for a single edge write are batched into one Redis pipeline. For a node with a 3-level inheritance chain, this is 4 commands (3 node-type + 1 edge-type) sent in one network round-trip instead of 4.
 
-`transaction=False` means the pipeline is not wrapped in `MULTI/EXEC`. This is intentional — the individual `SADD` commands are idempotent (sets deduplicate automatically), so atomicity is not required and `transaction=False` is slightly faster.
+`transaction=False` means the pipeline is not wrapped in `MULTI/EXEC`. This is intentional - the individual `SADD` commands are idempotent (sets deduplicate automatically), so atomicity is not required and `transaction=False` is slightly faster.
 
-**SAM is not updated:** In scale mode with multiple workers, directly updating the local SAM would create inconsistency — Worker A's SAM would be up-to-date while Workers B and C have stale buckets. Instead, `sam_broadcast_invalidate` is called, which publishes the source UUID to `jac:topo:invalidate`. All workers (including the caller) drop the bucket and repopulate lazily from Redis on the next traversal.
+**SAM is not updated:** In scale mode with multiple workers, directly updating the local SAM would create inconsistency - Worker A's SAM would be up-to-date while Workers B and C have stale buckets. Instead, `sam_broadcast_invalidate` is called, which publishes the source UUID to `jac:topo:invalidate`. All workers (including the caller) drop the bucket and repopulate lazily from Redis on the next traversal.
 
 ---
 
-## 6. Read Path — How Traversals Use the Index
+## 6. Read Path - How Traversals Use the Index
 
 **Location:** [`runtime.jac:300-410`](../jac/jaclang/jac0core/runtime.jac#L300-L410), inside `edges_to_nodes()`.
 
@@ -446,7 +446,7 @@ use_index = (
 );
 ```
 
-**Why the degree threshold?** For a node with 3 edges, a linear scan deserializes 3 objects — faster than an index lookup. The threshold (default 10) is the crossover point below which the index overhead exceeds the scan cost. It is tunable via `JAC_INDEX_DEGREE_THRESHOLD`.
+**Why the degree threshold?** For a node with 3 edges, a linear scan deserializes 3 objects - faster than an index lookup. The threshold (default 10) is the crossover point below which the index overhead exceeds the scan cost. It is tunable via `JAC_INDEX_DEGREE_THRESHOLD`.
 
 **Why direction check?** The index currently only covers outgoing edges (`EdgeDir.OUT` / `EdgeDir.ANY`). Incoming-edge queries fall back to the slow path.
 
@@ -461,13 +461,13 @@ edge_type_name = (destination.edge.__module__ + '.' + destination.edge.__name__)
     else None;
 ```
 
-`destination.nd` and `destination.edge` are the **type classes** extracted from the traversal filter (e.g. `PostNode` and `FollowEdge`). This produces exactly the same `module.ClassName` format used during writes — the keys match on both sides.
+`destination.nd` and `destination.edge` are the **type classes** extracted from the traversal filter (e.g. `PostNode` and `FollowEdge`). This produces exactly the same `module.ClassName` format used during writes - the keys match on both sides.
 
 `isinstance(..., type)` guards against non-type filters (e.g. an instance filter or `None`) that should not go through the index path.
 
 ### 6.3 SAM → GTI → fallback
 
-**Node-type filter only — `[-->(?:PostNode)]`:**
+**Node-type filter only - `[-->(?:PostNode)]`:**
 
 ```
 1. n_col = "n:app.PostNode"
@@ -492,7 +492,7 @@ edge_type_name = (destination.edge.__module__ + '.' + destination.edge.__name__)
        → GTI MISS (no index yet): fall back to full edge scan
 ```
 
-**Combined filter — `[-->(?:PostNode)?:FollowEdge]`:**
+**Combined filter - `[-->(?:PostNode)?:FollowEdge]`:**
 
 ```
 SAM path:
@@ -514,10 +514,10 @@ GTI SQLite path:
 GTI Redis path:
     SINTER jac:topo:n:{src}:app.PostNode
            jac:topo:e:{src}:app.FollowEdge
-    # Server-side intersection — single round-trip
+    # Server-side intersection - single round-trip
 ```
 
-**Edge-type filter only — `[-->?:FollowEdge]`:**
+**Edge-type filter only - `[-->?:FollowEdge]`:**
 
 ```
 SAM: sam_query(source_id, "e:app.FollowEdge")
@@ -545,7 +545,7 @@ impl sam_invalidate(source_id: UUID) -> None {
 }
 ```
 
-Drops the **entire source bucket** from SAM. Called from `remove_edge()` whenever any edge from a source node is removed. Simple and conservative — the whole bucket is invalidated even though only one edge changed. The bucket repopulates lazily from GTI on the next traversal.
+Drops the **entire source bucket** from SAM. Called from `remove_edge()` whenever any edge from a source node is removed. Simple and conservative - the whole bucket is invalidated even though only one edge changed. The bucket repopulates lazily from GTI on the next traversal.
 
 In scale mode, `sam_broadcast_invalidate` publishes the source UUID to `jac:topo:invalidate` and all workers call `sam_invalidate` on receipt.
 
@@ -560,7 +560,7 @@ sqlite.__conn__.execute(
 );
 ```
 
-Only removes the `edge_topology` row. `node_topology` rows for the target node are **not** removed — a node continues to exist after its edges are removed.
+Only removes the `edge_topology` row. `node_topology` rows for the target node are **not** removed - a node continues to exist after its edges are removed.
 
 **Redis:**
 ```jac
@@ -573,7 +573,7 @@ pipe.srem(f"{_TOPO_PREFIX}:e:{src_str}:{edge_type}", tgt_str);
 pipe.execute();
 ```
 
-**Precise removal** — `SREM` removes only the specific target UUID from each set. The source bucket's sets remain intact for other targets. This is more surgical than `sam_invalidate` (which drops the whole bucket) — after a Redis SREM the key is still valid for all remaining targets.
+**Precise removal** - `SREM` removes only the specific target UUID from each set. The source bucket's sets remain intact for other targets. This is more surgical than `sam_invalidate` (which drops the whole bucket) - after a Redis SREM the key is still valid for all remaining targets.
 
 The function receives `target_arch` and `edge_arch` directly (not just IDs) because it needs to reconstruct the same MRO-expanded key names that were written during `_gti_write_edge_redis`.
 
@@ -581,7 +581,7 @@ The function receives `target_arch` and `edge_arch` directly (not just IDs) beca
 
 **Implementations:** [`sam_gti.impl.jac:194-212`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L194-L212), [`sam_gti.impl.jac:435-452`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L435-L452)
 
-Called when a `NodeAnchor` is **destroyed** (not just disconnected). Removes all topology rows for the node — both as a source and as a target.
+Called when a `NodeAnchor` is **destroyed** (not just disconnected). Removes all topology rows for the node - both as a source and as a target.
 
 **SQLite:**
 ```sql
@@ -605,7 +605,7 @@ for pattern in [
 }
 ```
 
-`SCAN` is used instead of `KEYS` because `KEYS` blocks the Redis server for the duration of the scan — unsafe on large keyspaces in production. `SCAN` iterates incrementally and never blocks. Node destruction is rare so the multi-round-trip overhead is acceptable.
+`SCAN` is used instead of `KEYS` because `KEYS` blocks the Redis server for the duration of the scan - unsafe on large keyspaces in production. `SCAN` iterates incrementally and never blocks. Node destruction is rare so the multi-round-trip overhead is acceptable.
 
 ---
 
@@ -620,9 +620,9 @@ Rebuild is needed when:
 
 **Functions:** [`sam_gti.impl.jac:273-369`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L273-L369)
 
-`rebuild_gti(mem)` — two-pass scan of the `anchors` table:
+`rebuild_gti(mem)` - two-pass scan of the `anchors` table:
 
-**Pass 1 — NodeAnchors:**
+**Pass 1 - NodeAnchors:**
 ```
 for each blob in anchors:
     anchor = pickle.loads(blob)
@@ -634,7 +634,7 @@ for each blob in anchors:
 
 Builds an in-memory `node_id → qualified_type` map for use in Pass 2.
 
-**Pass 2 — EdgeAnchors:**
+**Pass 2 - EdgeAnchors:**
 ```
 for each blob in anchors:
     anchor = pickle.loads(blob)
@@ -666,9 +666,9 @@ This pre-warms every SAM bucket from the rebuilt GTI so the first traversal afte
 
 **Functions:** [`sam_gti.impl.jac:493-533`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L493-L533)
 
-`rebuild_gti_redis(redis_client, mongo_backend)` — same two-pass logic but over MongoDB:
+`rebuild_gti_redis(redis_client, mongo_backend)` - same two-pass logic but over MongoDB:
 
-**Pass 1 — NodeAnchors:**
+**Pass 1 - NodeAnchors:**
 ```
 node_type_map: dict[str, list[str]] = {}
 for anchor in mongo_backend.query():
@@ -678,7 +678,7 @@ for anchor in mongo_backend.query():
 
 Note: stores the **full MRO list** (not just the primary type) because Redis needs to SADD to all ancestor keys.
 
-**Pass 2 — EdgeAnchors (with pipeline):**
+**Pass 2 - EdgeAnchors (with pipeline):**
 ```
 pipe = redis_client.pipeline(transaction=False)
 for anchor in mongo_backend.query():
@@ -691,11 +691,11 @@ pipe.execute()
 
 All `SADD` commands for all edges are batched into a single pipeline and executed in one network call. For a graph with 10,000 edges and 3-level inheritance, this is ~40,000 Redis commands sent as one batch.
 
-`rebuild_topology_index_scale` clears SAM after Redis rebuild (unlike the SQLite version which warms SAM). SAM warms lazily in scale mode because warming eagerly across a multi-worker deployment would require broadcasting all SAM contents — impractical.
+`rebuild_topology_index_scale` clears SAM after Redis rebuild (unlike the SQLite version which warms SAM). SAM warms lazily in scale mode because warming eagerly across a multi-worker deployment would require broadcasting all SAM contents - impractical.
 
 ---
 
-## 9. Migration — `migrate_to_qualified_types`
+## 9. Migration - `migrate_to_qualified_types`
 
 **Implementation:** [`sam_gti.impl.jac:539-583`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L539-L583)
 
@@ -703,7 +703,7 @@ This is a one-time operation needed when upgrading a deployed Jac application fr
 
 **Why a full truncate+rebuild and not an in-place UPDATE?**
 
-`rebuild_gti` uses `INSERT OR IGNORE`. If bare-name rows already exist in `node_topology`, the `INSERT OR IGNORE` for the new qualified-name rows would succeed — but the old bare-name rows would remain alongside them. Any query using `WHERE node_type = 'app.PostNode'` would find the new rows, but old code (or tests) expecting `WHERE node_type = 'PostNode'` would still find the old rows too. The only safe approach is to wipe everything and rebuild from the ground truth (the pickled anchors / MongoDB documents).
+`rebuild_gti` uses `INSERT OR IGNORE`. If bare-name rows already exist in `node_topology`, the `INSERT OR IGNORE` for the new qualified-name rows would succeed - but the old bare-name rows would remain alongside them. Any query using `WHERE node_type = 'app.PostNode'` would find the new rows, but old code (or tests) expecting `WHERE node_type = 'PostNode'` would still find the old rows too. The only safe approach is to wipe everything and rebuild from the ground truth (the pickled anchors / MongoDB documents).
 
 **SQLite path:**
 
@@ -736,9 +736,9 @@ sam_clear();
 return {'backend': 'redis', 'keys_flushed': str(deleted), 'edges_rebuilt': str(count)};
 ```
 
-`SCAN` with `count=200` processes keys in batches — avoids blocking the Redis server for large key spaces.
+`SCAN` with `count=200` processes keys in batches - avoids blocking the Redis server for large key spaces.
 
-**WARNING:** There is a brief window between the flush and the rebuild during which GTI is empty. Traversals during this window fall back to the full edge scan. No data is lost — the graph anchors are unchanged — only performance degrades temporarily. Run during a maintenance window or low-traffic period.
+**WARNING:** There is a brief window between the flush and the rebuild during which GTI is empty. Traversals during this window fall back to the full edge scan. No data is lost - the graph anchors are unchanged - only performance degrades temporarily. Run during a maintenance window or low-traffic period.
 
 **How to invoke** from a running server (via the `RunMigration` walker pattern):
 
@@ -758,9 +758,9 @@ walker:pub RunMigration {
 
 ## 10. Backend Detection
 
-Both `_get_sqlite` and `_get_scale_topo` are **lazy introspection functions** — they inspect the `mem` object at call time to determine which backend is active.
+Both `_get_sqlite` and `_get_scale_topo` are **lazy introspection functions** - they inspect the `mem` object at call time to determine which backend is active.
 
-### `_get_sqlite` — [`sam_gti.impl.jac:129-139`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L129-L139)
+### `_get_sqlite` - [`sam_gti.impl.jac:129-139`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L129-L139)
 
 ```jac
 impl _get_sqlite(mem: object) -> (object | None) {
@@ -777,11 +777,11 @@ impl _get_sqlite(mem: object) -> (object | None) {
 ```
 
 Handles two cases:
-- **Bare `SqliteMemory`** — returned directly (`jac start` with no tiered memory)
-- **`TieredMemory.l3` is `SqliteMemory`** — unwrapped from the tiered wrapper
-- **Anything else** — returns `None` (in-memory `jac run`, or scale mode with MongoDB)
+- **Bare `SqliteMemory`** - returned directly (`jac start` with no tiered memory)
+- **`TieredMemory.l3` is `SqliteMemory`** - unwrapped from the tiered wrapper
+- **Anything else** - returns `None` (in-memory `jac run`, or scale mode with MongoDB)
 
-### `_get_scale_topo` — [`sam_gti.impl.jac:378-398`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L378-L398)
+### `_get_scale_topo` - [`sam_gti.impl.jac:378-398`](../jac/jaclang/runtimelib/impl/sam_gti.impl.jac#L378-L398)
 
 ```jac
 impl _get_scale_topo(mem: object) -> (tuple | None) {
@@ -803,7 +803,7 @@ impl _get_scale_topo(mem: object) -> (tuple | None) {
 }
 ```
 
-The `try/except ImportError` is the key design point: `jac_scale` is imported **inside the function body**, not at module level. This means `sam_gti` can be imported in a base `jac` installation without `jac_scale` installed — no hard dependency. Returns `None` in all non-scale configurations, making the caller's `if scale is not None` guard trivially false.
+The `try/except ImportError` is the key design point: `jac_scale` is imported **inside the function body**, not at module level. This means `sam_gti` can be imported in a base `jac` installation without `jac_scale` installed - no hard dependency. Returns `None` in all non-scale configurations, making the caller's `if scale is not None` guard trivially false.
 
 **Deployment matrix:**
 
@@ -835,7 +835,7 @@ impl _get_lock(source_id: str) -> Lock {
 }
 ```
 
-`_locks_mu` is a single global mutex that only guards the `_locks` dict itself (creating new per-source locks). Once a per-source lock is acquired, `_locks_mu` is released — two threads modifying different source nodes never contend with each other.
+`_locks_mu` is a single global mutex that only guards the `_locks` dict itself (creating new per-source locks). Once a per-source lock is acquired, `_locks_mu` is released - two threads modifying different source nodes never contend with each other.
 
 GTI SQLite writes go through SQLite's own locking. Since `SqliteMemory` uses a single connection per process and SQLite has write serialization, GTI SQLite is thread-safe by default.
 
@@ -847,10 +847,10 @@ The solution is **pub/sub invalidation:**
 
 1. Worker A calls `build_edge()` → writes to MongoDB + Redis GTI → calls `sam_broadcast_invalidate(redis_client, source_id)`
 2. `sam_broadcast_invalidate` publishes `str(source_id)` to `jac:topo:invalidate`
-3. All workers (including A) have a background subscriber thread that receives the message and calls `sam_invalidate(source_id)` — dropping the bucket
+3. All workers (including A) have a background subscriber thread that receives the message and calls `sam_invalidate(source_id)` - dropping the bucket
 4. The next traversal from any worker that hits the now-absent bucket falls back to Redis GTI and re-warms SAM
 
-This means SAM is **eventually consistent across workers** — there is a brief window after a write where a worker may serve a stale SAM bucket. In practice this window is the pub/sub round-trip latency (microseconds). For the traversal use case (read-heavy, writes are infrequent), this is acceptable.
+This means SAM is **eventually consistent across workers** - there is a brief window after a write where a worker may serve a stale SAM bucket. In practice this window is the pub/sub round-trip latency (microseconds). For the traversal use case (read-heavy, writes are infrequent), this is acceptable.
 
 ---
 
@@ -881,39 +881,39 @@ glob _stats: dict[str, int] = {
 Four counters track the cache performance at each layer. `reset_stats()` zeroes them (used in tests). In production, these can be read and exported to a metrics system to monitor hit rates and identify nodes that consistently miss the index (indicating a need to tune `JAC_INDEX_DEGREE_THRESHOLD`).
 
 Counter semantics:
-- `sam_hits` — SAM returned a result (list or empty list)
-- `sam_misses` — SAM bucket absent or column never written; fell through to GTI
-- `gti_hits` — GTI query executed and returned rows (possibly empty)
-- `gti_misses` — GTI not available or query threw an exception; fell through to full scan
+- `sam_hits` - SAM returned a result (list or empty list)
+- `sam_misses` - SAM bucket absent or column never written; fell through to GTI
+- `gti_hits` - GTI query executed and returned rows (possibly empty)
+- `gti_misses` - GTI not available or query threw an exception; fell through to full scan
 
 ---
 
 ## 14. Test Coverage
 
-### SQLite unit tests — [`jac/tests/runtimelib/test_graph_index.jac`](../jac/tests/runtimelib/test_graph_index.jac)
+### SQLite unit tests - [`jac/tests/runtimelib/test_graph_index.jac`](../jac/tests/runtimelib/test_graph_index.jac)
 
 | Group | Tests | What is covered |
 |-------|-------|----------------|
-| 1 — SAM cache | 4 tests | sam_put, sam_query hit/miss, sam_invalidate |
-| 2 — GTI write | 3 tests | _gti_write_edge inserts correct rows |
-| 3 — GTI query | 4 tests | gti_query_targets with node/edge/combined filters |
-| 4 — GTI delete | 3 tests | _gti_delete_edge, _gti_delete_node cleanup |
-| 5 — Rebuild | 3 tests | rebuild_gti, rebuild_topology_index, SAM warming |
-| 6 — Qualified names | 6 tests | _qname, get_type_mro, None/builtins edge cases |
-| 7 — Migration | 2 tests | migrate_to_qualified_types SQLite path, bare→qualified |
+| 1 - SAM cache | 4 tests | sam_put, sam_query hit/miss, sam_invalidate |
+| 2 - GTI write | 3 tests | _gti_write_edge inserts correct rows |
+| 3 - GTI query | 4 tests | gti_query_targets with node/edge/combined filters |
+| 4 - GTI delete | 3 tests | _gti_delete_edge, _gti_delete_node cleanup |
+| 5 - Rebuild | 3 tests | rebuild_gti, rebuild_topology_index, SAM warming |
+| 6 - Qualified names | 6 tests | _qname, get_type_mro, None/builtins edge cases |
+| 7 - Migration | 2 tests | migrate_to_qualified_types SQLite path, bare→qualified |
 
 **Total: 25 SQLite tests**
 
-### Redis/MongoDB integration tests — [`jac-scale/jac_scale/tests/test_gti_scale.jac`](../jac-scale/jac_scale/tests/test_gti_scale.jac)
+### Redis/MongoDB integration tests - [`jac-scale/jac_scale/tests/test_gti_scale.jac`](../jac-scale/jac_scale/tests/test_gti_scale.jac)
 
 Uses `testcontainers` (real Docker containers) + `jac start` subprocess for true end-to-end coverage.
 
 | Group | Tests | What is covered |
 |-------|-------|----------------|
-| 1 — Qualified names in Redis | 2 tests | Keys written as `module.Type`, no bare keys, MRO fan-out scard |
-| 2 — Typed traversal | 1 test | QueryByBase returns only PostNode results, not OtherNode |
-| 3 — Edge deletion | 1 test | _gti_delete_edge_redis SREM reduces scard by 1 |
-| 4 — Migration | 1 test | bare keys injected → RunMigration → bare gone, qualified rebuilt |
+| 1 - Qualified names in Redis | 2 tests | Keys written as `module.Type`, no bare keys, MRO fan-out scard |
+| 2 - Typed traversal | 1 test | QueryByBase returns only PostNode results, not OtherNode |
+| 3 - Edge deletion | 1 test | _gti_delete_edge_redis SREM reduces scard by 1 |
+| 4 - Migration | 1 test | bare keys injected → RunMigration → bare gone, qualified rebuilt |
 
 **Total: 5 Redis integration tests**
 
