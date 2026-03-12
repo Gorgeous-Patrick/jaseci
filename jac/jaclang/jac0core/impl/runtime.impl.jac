@@ -1,17 +1,4 @@
 """Implementation for runtime."""
-import from jaclang.runtimelib.sam_gti {
-    _get_sqlite,
-    _get_scale_topo,
-    sam_query,
-    sam_populate_from_gti,
-    sam_invalidate,
-    sam_put,
-    gti_query_targets,
-    gti_query_targets_redis,
-    _gti_write_edge,
-    _gti_delete_edge,
-    _gti_delete_node
-}
 
 """Resolve the live anchor for an archetype from runtime memory."""
 impl JacAccessValidation._resolve_anchor(archetype: Archetype) -> tuple {
@@ -227,6 +214,14 @@ impl JacNode.get_edges_with_node(
 impl JacNode.edges_to_nodes(
     origin: list[NodeArchetype], destination: ObjectSpatialDestination
 ) -> list[NodeArchetype] {
+    import from jaclang.runtimelib.sam_gti {
+        _get_sqlite,
+        _get_scale_topo,
+        gti_query_targets,
+        gti_query_targets_redis,
+        sam_populate_from_gti,
+        sam_query
+    }
     nodes: OrderedDict[(NodeAnchor, NodeArchetype)] = OrderedDict();
     ctx = JacRuntimeInterface.get_context();
     _sqlite_active: bool = _get_sqlite(ctx.mem) is not None;
@@ -435,11 +430,36 @@ impl JacNode.edges_to_nodes(
 
 """Remove reference without checking sync status."""
 impl JacNode.remove_edge(nd: NodeAnchor, `edge: EdgeAnchor) -> None {
+    import from jaclang.runtimelib.sam_gti {
+        _get_sqlite,
+        _get_scale_topo,
+        _gti_delete_edge,
+        _gti_delete_edge_redis,
+        sam_invalidate,
+        sam_broadcast_invalidate
+    }
     for (idx, ed) in enumerate(nd.edges) {
         if (ed.id == `edge.id) {
             nd.edges.pop(idx);
             break;
         }
+    }
+    # SAM + GTI invalidation hooks
+    _mem = JacRuntimeInterface.get_context().mem;
+    _scale = _get_scale_topo(_mem);
+    if _scale is not None {
+        (redis_client, _) = _scale;
+        _gti_delete_edge_redis(
+            redis_client,
+            nd.id,
+            `edge.target.id,
+            `edge.target.archetype,
+            `edge.archetype
+        );
+        sam_broadcast_invalidate(redis_client, nd.id);
+    } elif _get_sqlite(_mem) is not None {
+        sam_invalidate(nd.id);
+        _gti_delete_edge(mem=_mem, edge_id=`edge.id);
     }
 }
 
@@ -1656,12 +1676,40 @@ impl JacBasics.build_edge(
 ) -> Callable[([NodeAnchor, NodeAnchor], EdgeArchetype)] {
     ct = conn_type or GenericEdge;
     def builder(source: NodeAnchor, target: NodeAnchor) -> EdgeArchetype {
+        import from jaclang.runtimelib.sam_gti {
+            _get_sqlite,
+            _get_scale_topo,
+            _gti_write_edge,
+            _gti_write_edge_redis,
+            sam_put,
+            sam_broadcast_invalidate
+        }
         `edge = ct() if isinstance(ct, `type) else ct;
         eanch = `edge.__jac__=EdgeAnchor(
             archetype=`edge, source=source, target=target, is_undirected=is_undirected
         );
         source.edges.append(eanch);
         target.edges.append(eanch);
+        # SAM + GTI write hooks
+        _mem = JacRuntimeInterface.get_context().mem;
+        _scale = _get_scale_topo(_mem);
+        if _scale is not None {
+            (redis_client, _) = _scale;
+            _gti_write_edge_redis(redis_client, eanch, source, target);
+            if is_undirected {
+                _gti_write_edge_redis(redis_client, eanch, target, source);
+            }
+            sam_broadcast_invalidate(redis_client, source.id);
+            if is_undirected {
+                sam_broadcast_invalidate(redis_client, target.id);
+            }
+        } elif _get_sqlite(_mem) is not None {
+            sam_put(source.id, target.id, target.archetype, eanch.archetype);
+            if is_undirected {
+                sam_put(target.id, source.id, source.archetype, eanch.archetype);
+            }
+            _gti_write_edge(mem=_mem, eanch=eanch, source=source, target=target);
+        }
         if conn_assign {
             for (fld, val) in zip(conn_assign[0], conn_assign[1], strict=False) {
                 if hasattr(`edge, fld) {
@@ -1712,6 +1760,14 @@ impl JacBasics.save(`obj: (Archetype | Anchor)) -> None {
 
 """Destroy multiple objects passed in a tuple or list."""
 impl JacBasics.destroy(objs: Archetype | Anchor | list[(Archetype | Anchor)]) -> None {
+    import from jaclang.runtimelib.sam_gti {
+        _get_sqlite,
+        _get_scale_topo,
+        _gti_delete_node,
+        _gti_delete_node_redis,
+        sam_invalidate,
+        sam_broadcast_invalidate
+    }
     obj_list = objs if isinstance(objs, `list) else [objs];
     for `obj in obj_list {
         if not isinstance(`obj, (Archetype, Anchor)) {
@@ -1719,10 +1775,20 @@ impl JacBasics.destroy(objs: Archetype | Anchor | list[(Archetype | Anchor)]) ->
         }
         anchor = `obj.__jac__ if isinstance(`obj, Archetype) else `obj;
         if JacRuntimeInterface.check_write_access(anchor) {
+            _mem = JacRuntimeInterface.get_context().mem;
             match anchor {
                 case NodeAnchor():
                     for `edge in anchor.edges[:] {
                         JacRuntimeInterface.destroy([`edge]);
+                    }
+                    _scale = _get_scale_topo(_mem);
+                    if _scale is not None {
+                        (redis_client, _) = _scale;
+                        _gti_delete_node_redis(redis_client, anchor.id);
+                        sam_broadcast_invalidate(redis_client, anchor.id);
+                    } elif _get_sqlite(_mem) is not None {
+                        _gti_delete_node(mem=_mem, node_id=anchor.id);
+                        sam_invalidate(anchor.id);
                     }
 
                 case EdgeAnchor():
