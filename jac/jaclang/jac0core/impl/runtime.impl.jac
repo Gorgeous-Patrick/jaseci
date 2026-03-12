@@ -1,4 +1,17 @@
 """Implementation for runtime."""
+import from jaclang.runtimelib.sam_gti {
+    _get_sqlite,
+    _get_scale_topo,
+    sam_query,
+    sam_populate_from_gti,
+    sam_invalidate,
+    sam_put,
+    gti_query_targets,
+    gti_query_targets_redis,
+    _gti_write_edge,
+    _gti_delete_edge,
+    _gti_delete_node
+}
 
 """Resolve the live anchor for an archetype from runtime memory."""
 impl JacAccessValidation._resolve_anchor(archetype: Archetype) -> tuple {
