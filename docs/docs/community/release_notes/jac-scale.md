@@ -20,6 +20,9 @@ This document provides a summary of new features, improvements, and bug fixes in
 ## jac-scale 0.2.4
 
 - **Automatic Port Fallback**: When starting the server with `jac start`, if the specified port is already in use, the server now automatically finds and uses the next available port instead of crashing with "Address already in use". A warning message displays when using an alternative port. Supports up to 10 port retries with cross-platform compatibility (Linux and Windows).
+- [fix]Fix for internet facing aws load balancer
+- 1 Minor refactor/change.
+- **Scheduling Support**: Added static and dynamic task scheduling for walkers and functions via `@schedule(trigger=...)`. Static schedules (INTERVAL/CRON/DATE) start automatically at server startup; dynamic schedules (DYNAMIC) are managed via a new `/jobs` REST API (create, list, get, update, delete) with MongoDB persistence. Scheduled items are excluded from standard walker/function endpoints. A `__system__` user executes all scheduled tasks; configure via `[plugins.scale.scheduler]` in `jac.toml`.
 - **Fix**: Fix for internet-facing AWS load balancer
 - [Internal] Convert username and password for redis and mongodb to secret when injecting to pod deployment
 - 3 Minor refactors/changes.
