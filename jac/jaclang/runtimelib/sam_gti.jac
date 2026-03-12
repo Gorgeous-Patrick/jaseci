@@ -10,7 +10,7 @@ SAM Structure:
     Example:
         sam_index["user_1"] = {
             "n:PostNode":    ["p1", "p2"],
-            "n:BaseContent": ["p1", "p2", "c1", "c2"],  ← MRO superset
+            "n:BaseContent": ["p1", "p2", "c1", "c2"], ← MRO superset
             "e:FollowEdge":  ["u2", "u3"],
         }
 
