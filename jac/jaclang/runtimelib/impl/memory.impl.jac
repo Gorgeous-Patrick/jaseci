@@ -203,11 +203,12 @@ impl SqliteMemory._ensure_connection -> None {
     self.__conn__.execute(
         """
         CREATE TABLE IF NOT EXISTS edge_topology (
-            edge_id     TEXT PRIMARY KEY,
+            edge_id     TEXT NOT NULL,
             source_id   TEXT NOT NULL,
             target_id   TEXT NOT NULL,
             edge_type   TEXT NOT NULL,
-            target_type TEXT NOT NULL
+            target_type TEXT NOT NULL,
+            PRIMARY KEY (edge_id, edge_type)
         )
         """
     );

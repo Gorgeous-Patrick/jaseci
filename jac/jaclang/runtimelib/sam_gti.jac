@@ -5,13 +5,14 @@ SAM Structure:
 
     Column keys are prefixed to avoid node/edge type name collisions:
         "n:TypeName"  — node-type column (MRO fan-out: PostNode → also "n:BaseContent")
-        "e:TypeName"  — edge-type column (direct type only, no MRO)
+        "e:TypeName"  — edge-type column (MRO fan-out: SpecialEdge → also "e:BaseEdge")
 
     Example:
         sam_index["user_1"] = {
             "n:PostNode":    ["p1", "p2"],
             "n:BaseContent": ["p1", "p2", "c1", "c2"], ← MRO superset
             "e:FollowEdge":  ["u2", "u3"],
+            "e:BaseEdge":    ["u2", "u3"],              ← MRO superset
         }
 
     This is a process singleton. It is volatile — cleared on process restart.
@@ -114,11 +115,11 @@ def get_type_mro(instance: object) -> list[str];
 # ---------------------------------------------------------------------------
 # SAM operations
 # ---------------------------------------------------------------------------
-"""Index a new edge in SAM under all MRO types of the target and the edge type.
+"""Index a new edge in SAM under all MRO types of both the target and the edge.
 
 Writes:
     "n:TargetType" (and all MRO ancestors) → target_id
-    "e:EdgeType"                            → target_id
+    "e:EdgeType"   (and all MRO ancestors) → target_id
 
 Called from build_edge() after the EdgeAnchor is created.
 Thread-safe per source_id.
