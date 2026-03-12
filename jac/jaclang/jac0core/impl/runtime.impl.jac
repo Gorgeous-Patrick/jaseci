@@ -217,6 +217,151 @@ impl JacNode.edges_to_nodes(
     nodes: OrderedDict[(NodeAnchor, NodeArchetype)] = OrderedDict();
     for nd in origin {
         nanch = nd.__jac__;
+        # --- SAM/GTI fast path (only when persistence index is active) ---
+        # Pure type filters compile to the type class itself, so we can
+        # extract the name directly via MRO without any compiler help.
+        target_type_name = (
+            destination.nd.__module__ + '.' + destination.nd.__name__
+        )
+            if isinstance(destination.nd, type)
+            else None;
+        edge_type_name = (
+            destination.edge.__module__ + '.' + destination.edge.__name__
+        )
+            if isinstance(destination.edge, type)
+            else None;
+        use_index = (
+            INDEX_ENABLED
+            and _index_active
+            and nanch.is_populated()
+            and (target_type_name is not None or edge_type_name is not None)
+            and destination.direction in [EdgeDir.OUT, EdgeDir.ANY]
+            and len(nanch.edges) > DEGREE_THRESHOLD
+        );
+        if use_index {
+            target_ids: (list[str] | None) = None;
+            if target_type_name and edge_type_name {
+                # Combined filter: intersect "n:NodeType" and "e:EdgeType" columns
+                n_col = 'n:' + target_type_name;
+                e_col = 'e:' + edge_type_name;
+                node_ids = sam_query(nanch.id, n_col);
+                edge_ids = sam_query(nanch.id, e_col);
+                if node_ids is None or edge_ids is None {
+                    # SAM miss — populate both from GTI
+                    if _scale is not None {
+                        (redis_client, _) = _scale;
+                        gt_n = gti_query_targets_redis(
+                            redis_client, nanch.id, None, target_type_name
+                        );
+                        gt_e = gti_query_targets_redis(
+                            redis_client, nanch.id, edge_type_name, None
+                        );
+                    } else {
+                        gt_n = gti_query_targets(
+                            ctx.mem, nanch.id, None, target_type_name
+                        );
+                        gt_e = gti_query_targets(
+                            ctx.mem, nanch.id, edge_type_name, None
+                        );
+                    }
+                    if gt_n is not None {
+                        sam_populate_from_gti(nanch.id, [(t, n_col) for t in gt_n]);
+                    }
+                    if gt_e is not None {
+                        sam_populate_from_gti(nanch.id, [(t, e_col) for t in gt_e]);
+                    }
+                    node_ids = gt_n if gt_n is not None else [];
+                    edge_ids = gt_e if gt_e is not None else [];
+                }
+                target_ids = list(set(node_ids) & set(edge_ids));
+            } elif target_type_name {
+                # Node-type filter only: "n:NodeType"
+                n_col = 'n:' + target_type_name;
+                target_ids = sam_query(nanch.id, n_col);
+                if target_ids is None {
+                    # SAM miss — query GTI
+                    if _scale is not None {
+                        (redis_client, _) = _scale;
+                        gt_ids = gti_query_targets_redis(
+                            redis_client, nanch.id, edge_type_name, target_type_name
+                        );
+                    } else {
+                        gt_ids = gti_query_targets(
+                            ctx.mem, nanch.id, edge_type_name, target_type_name
+                        );
+                    }
+                    if gt_ids is not None {
+                        sam_populate_from_gti(
+                            nanch.id, [(tid, n_col) for tid in gt_ids]
+                        );
+                        target_ids = gt_ids;
+                    }
+                }
+            } else {
+                # Edge-type filter only: "e:EdgeType"
+                e_col = 'e:' + edge_type_name;
+                target_ids = sam_query(nanch.id, e_col);
+                if target_ids is None {
+                    # SAM miss — query GTI
+                    if _scale is not None {
+                        (redis_client, _) = _scale;
+                        gt_ids = gti_query_targets_redis(
+                            redis_client, nanch.id, edge_type_name, None
+                        );
+                    } else {
+                        gt_ids = gti_query_targets(
+                            ctx.mem, nanch.id, edge_type_name, None
+                        );
+                    }
+                    if gt_ids is not None {
+                        sam_populate_from_gti(
+                            nanch.id, [(tid, e_col) for tid in gt_ids]
+                        );
+                        target_ids = gt_ids;
+                    }
+                }
+            }
+            if target_ids is not None {
+                if _scale is not None {
+                    # Bulk fetch from MongoDB
+                    (_, mongo_backend) = _scale;
+                    uuids: list[UUID] = [];
+                    for id_str in target_ids {
+                        try {
+                            uuids.append(UUID(id_str));
+                        } except ValueError {
+                            continue;
+                        }
+                    }
+                    for anchor in mongo_backend.find_bulk(uuids) {
+                        ctx.mem.__mem__[anchor.id] = anchor;
+                        if anchor.archetype
+                        and JacRuntimeInterface.check_read_access(anchor) {
+                            nodes[anchor] = anchor.archetype;
+                        }
+                    }
+                } else {
+                    # SQLite path
+                    for id_str in target_ids {
+                        try {
+                            uid = UUID(id_str);
+                        } except ValueError {
+                            continue;
+                        }
+                        target = ctx.mem.get(uid);
+                        if (
+                            target
+                            and target.archetype
+                            and JacRuntimeInterface.check_read_access(target)
+                        ) {
+                            nodes[target] = target.archetype;
+                        }
+                    }
+                }
+                continue;  # skip edge-list loop for this node
+            }
+        }
+        # --- Existing edge-list loop (fallback) ---
         for anchor in nanch.edges {
             if (
                 (source := anchor.source)
