@@ -64,7 +64,9 @@ impl get_type_mro(instance: object) -> list[str] {
     result = [];
     for cls in type(instance).__mro__ {
         mod_name: str = str(getattr(cls, '__module__', '') or '');
-        if mod_name.startswith('jaclang') or mod_name.startswith('builtins') or cls.__name__ == 'object' {
+        if mod_name.startswith('jaclang')
+        or mod_name.startswith('builtins')
+        or cls.__name__ == 'object' {
             break;
         }
         cls_name: str = str(getattr(cls, '__name__', '') or '');

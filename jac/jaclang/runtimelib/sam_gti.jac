@@ -57,6 +57,7 @@ glob __all__ = [
          'sam_broadcast_invalidate',
          'rebuild_gti_redis',
          'rebuild_topology_index_scale',
+
      ],
      sam_index: dict[str, dict[str, list[str]]] = defaultdict(
          lambda : defaultdict(list)
