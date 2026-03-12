@@ -814,4 +814,3 @@ test "qname - _qname is safe for None (returns builtins.NoneType, not empty)" {
     name = _qname(None);
     assert name == "builtins.NoneType" , f"expected 'builtins.NoneType', got {name!r}";
 }
-

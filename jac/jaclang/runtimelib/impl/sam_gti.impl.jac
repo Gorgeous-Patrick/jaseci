@@ -567,4 +567,3 @@ impl rebuild_topology_index_scale(mem: object) -> dict[str, str] {
     sam_clear();
     return {'gti': f'rebuilt ({count} edges)', 'sam': 'cleared'};
 }
-
