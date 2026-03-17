@@ -311,7 +311,7 @@ impl JacNode.edges_to_nodes(
                         e_matches: list[str] = [];
                         gt_rows: list[tuple[str, str]] = [];
                         for stub in nanch.edges {
-                            tgt = stub.target if stub.target else None;
+                            tgt = stub.target;
                             if tgt is None or tgt.id == nanch.id {
                                 continue;
                             }
@@ -345,7 +345,10 @@ impl JacNode.edges_to_nodes(
                         if _scale is not None {
                             (redis_client, _) = _scale;
                             gt_ids = gti_query_targets_redis(
-                                redis_client, nanch.id, edge_type_name, target_type_name
+                                redis_client,
+                                nanch.id,
+                                edge_type_name,
+                                target_type_name
                             );
                         } else {
                             gt_ids = gti_query_targets(
@@ -363,7 +366,7 @@ impl JacNode.edges_to_nodes(
                         matches: list[str] = [];
                         gt_rows: list[tuple[str, str]] = [];
                         for stub in nanch.edges {
-                            tgt = stub.target if stub.target else None;
+                            tgt = stub.target;
                             if tgt is None or tgt.id == nanch.id {
                                 continue;
                             }
@@ -407,7 +410,7 @@ impl JacNode.edges_to_nodes(
                         matches: list[str] = [];
                         gt_rows: list[tuple[str, str]] = [];
                         for stub in nanch.edges {
-                            tgt = stub.target if stub.target else None;
+                            tgt = stub.target;
                             if tgt is None or tgt.id == nanch.id {
                                 continue;
                             }
@@ -1763,7 +1766,10 @@ impl JacBasics.build_edge(
         import from jaclang.project.config { get_config }
         `edge = ct() if isinstance(ct, `type) else ct;
         eanch = `edge.__jac__=EdgeAnchor(
-            archetype=`edge, source=source, target=target, is_undirected=is_undirected,
+            archetype=`edge,
+            source=source,
+            target=target,
+            is_undirected=is_undirected,
             arch_cls=get_type_mro(`edge)
         );
         # Backfill arch_cls on source/target if not already set (legacy anchors)
@@ -1887,8 +1893,8 @@ impl JacBasics.destroy(objs: Archetype | Anchor | list[(Archetype | Anchor)]) ->
                     } elif _strategy == "anchor" {
                         sam_invalidate(anchor.id);
                     }
-                    # "none" strategy: no cleanup needed
 
+                # "none" strategy: no cleanup needed
                 case EdgeAnchor():
                     JacRuntimeInterface.detach(anchor);
 

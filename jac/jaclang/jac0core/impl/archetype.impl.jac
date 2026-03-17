@@ -315,7 +315,9 @@ impl GenericEdge.__repr__(self: GenericEdge) -> str {
 @cached_property
 impl Root.__jac__(self: Root) -> NodeAnchor {
     import from jaclang.runtimelib.sam_gti { get_type_mro }
-    return NodeAnchor(archetype=self, persistent=True, edges=[], arch_cls=get_type_mro(self));
+    return NodeAnchor(
+        archetype=self, persistent=True, edges=[], arch_cls=get_type_mro(self)
+    );
 }
 
 """Override repr for archetype."""
