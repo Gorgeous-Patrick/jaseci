@@ -192,9 +192,8 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
             'persistent': self.persistent,
             'arch_cls': self.arch_cls
         };
-    } else {
-        return {'id': self.id, 'arch_cls': self.arch_cls};
     }
+    return {'id': self.id, 'arch_cls': self.arch_cls};
 }
 
 """Deserialize Anchor."""
@@ -323,10 +322,15 @@ impl GenericEdge.__repr__(self: GenericEdge) -> str {
 """Create default anchor."""
 @cached_property
 impl Root.__jac__(self: Root) -> NodeAnchor {
-    import from jaclang.runtimelib.sam_gti { get_type_mro }
-    return NodeAnchor(
-        archetype=self, persistent=True, edges=[], arch_cls=get_type_mro(self)
-    );
+    # Delay sam_gti import to avoid circular import during module compilation
+    try {
+        import from jaclang.runtimelib.sam_gti { get_type_mro }
+        arch_cls = get_type_mro(self);
+    } except (ImportError, ModuleNotFoundError) {
+        # Fallback if sam_gti cannot be imported (shouldn't happen)
+        arch_cls = [];
+    }
+    return NodeAnchor(archetype=self, persistent=True, edges=[], arch_cls=arch_cls);
 }
 
 """Override repr for archetype."""

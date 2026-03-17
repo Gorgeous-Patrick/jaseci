@@ -221,8 +221,15 @@ class NodeArchetype(Archetype) {
 
     @cached_property
     def __jac__(self: NodeArchetype) -> NodeAnchor {
-        import from jaclang.runtimelib.sam_gti { get_type_mro }
-        return NodeAnchor(archetype=self, edges=[], arch_cls=get_type_mro(self));
+        # Delay sam_gti import to avoid circular import during module compilation
+        try {
+            import from jaclang.runtimelib.sam_gti { get_type_mro }
+            arch_cls = get_type_mro(self);
+        } except (ImportError, ModuleNotFoundError) {
+            # Fallback if sam_gti cannot be imported (shouldn't happen)
+            arch_cls = [];
+        }
+        return NodeAnchor(archetype=self, edges=[], arch_cls=arch_cls);
     }
 }
 
