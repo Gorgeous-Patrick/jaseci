@@ -413,11 +413,9 @@ impl JacWalker._execute_exits(
      Returns True if walker should continue, False if disengaged.
      """
 impl JacWalker._visit_node_recursive(
-    warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
+     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-     """Use explicit stack for iterative DFS with post-order traversal.
-     Stack entries: (anchor, phase) where phase is "entry" or "exit"."""
-     stack: list = [(anchor, "entry")];
+      stack: list = [(anchor, "entry")];
      while stack {
          stack_item = stack.pop();
          current_anchor = stack_item[0];
@@ -650,9 +648,7 @@ impl JacWalker._async_execute_exits(
 impl JacWalker._async_visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-     """Use explicit stack for iterative DFS with post-order traversal.
-     Stack entries: (anchor, phase) where phase is "entry" or "exit"."""
-     stack: list[tuple[(NodeAnchor | EdgeAnchor, str)]] = [(anchor, "entry")];
+      stack: list = [(anchor, "entry")];
      while stack {
          stack_item = stack.pop();
          current_anchor = stack_item[0];
