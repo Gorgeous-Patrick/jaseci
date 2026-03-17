@@ -31,6 +31,16 @@ class DeclImplMatchPass(Transform[uni.Module, uni.Module]) {
     """Lookup a definition in a symbol table."""
     def defn_lookup(self: DeclImplMatchPass, lookup: Symbol) -> (uni.NameAtom | None);
 
+    """Find the archetype definition from a symbol's definitions.
+
+        When a class is used as a base class, its symbol may have multiple
+        definitions - the actual Archetype and Name references from inheritance.
+        This method finds the actual Archetype definition.
+        """
+    def _find_archetype_defn(
+        self: DeclImplMatchPass, lookup: Symbol
+    ) -> (uni.NameAtom | None);
+
     """Connect implementations from source symbol table to declarations in
 target symbol table.
 
@@ -61,6 +71,11 @@ links
         """
     def _resolve_impl_body_symbols(
         self: DeclImplMatchPass, impl_def: uni.ImplDef
+    ) -> None;
+
+    """Resolve symbols in module-level expressions (GlobalVars RHS, TypeAlias values)."""
+    def _resolve_module_level_symbols(
+        self: DeclImplMatchPass, module: uni.Module
     ) -> None;
 
     """Populate self-member symbols from impl body to archetype's symbol table.

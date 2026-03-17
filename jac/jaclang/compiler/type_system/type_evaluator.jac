@@ -28,6 +28,7 @@ with entry {
 # Currently its not possible with jac+python hybrid repos.
 import from jaclang.compiler.type_system { operations }
 import from jaclang.compiler.type_system { type_utils }
+import from jaclang.compiler.type_system { properties }
 import from jaclang.compiler.type_system.types { TypeBase }
 
 import from jaclang.jac0core.diagnostics {
@@ -177,7 +178,9 @@ obj TypeEvaluator {
     def get_type_of_string(nd: uni.String | uni.MultiString) -> TypeBase;
     def get_type_of_int(nd: uni.Int) -> TypeBase;
     def get_type_of_float(nd: uni.Float) -> TypeBase;
-    def get_type_of_expression(node_: uni.Expr) -> TypeBase;
+    def get_type_of_expression(
+        node_: uni.Expr, expected_type: TypeBase | None = None
+    ) -> TypeBase;
     # Check if a type is Any, object, Unknown, or TypeVar.
     def is_any_type(ty: TypeBase) -> bool;
     # Check if a type is the TypeVar class itself (the callable used to create TypeVars).
@@ -207,6 +210,8 @@ obj TypeEvaluator {
 
     def _is_ability_classmethod(node_: uni.Ability) -> bool;
     def _is_symbol_property(symbol: uni.Symbol) -> bool;
+    # Property type utilities
+    def get_getter_type_from_property(symbol: uni.Symbol) -> (TypeBase | None);
     def _assign_class(src_type: types.ClassType, dest_type: types.ClassType) -> bool;
     # This function is a combination of the bellow pyright functions.
     #  - getDeclaredTypeOfSymbol
@@ -217,8 +222,17 @@ obj TypeEvaluator {
     # type and inferred type, we're going to unify them (if it's required
     # in the future, we can refactor this).
     def _get_type_of_symbol(symbol: uni.Symbol) -> TypeBase;
+    # gets member type and specializes it with class type_args
+    def get_type_of_member(member: Any, class_type: types.ClassType) -> TypeBase;
+    # Pyright: partiallySpecializeType - substitutes TypeVars using class type_args
+    # Now uses type_utils.apply_solved_type_vars
+    def specialize_member_type(
+        member_type: TypeBase, class_type: types.ClassType
+    ) -> TypeBase;
     # Pyright equivalent function name = getTypeOfExpressionCore();
-    def _get_type_of_expression_core(expr: uni.Expr) -> TypeBase;
+    def _get_type_of_expression_core(
+        expr: uni.Expr, expected_type: TypeBase | None = None
+    ) -> TypeBase;
     # -----------------------------------------------------------------------------
     # Helper functions
     # -----------------------------------------------------------------------------
@@ -239,6 +253,14 @@ obj TypeEvaluator {
     def _convert_to_instance(jtype: TypeBase) -> TypeBase;
     def _type_in_list(ty: TypeBase, type_list: list[TypeBase]) -> bool;
     def _collect_unique_types(ty: TypeBase, result: list[TypeBase]) -> None;
+    # --- Expected type helpers for bidirectional inference ---
+    def _get_expected_element_type(
+        expected_type: TypeBase | None, container_class: TypeBase
+    ) -> TypeBase | None;
+
+    def _get_expected_kv_types(
+        expected_type: TypeBase | None, dict_class: TypeBase
+    ) -> tuple[TypeBase, TypeBase] | None;
     # --- Special form handling (Callable, Union, etc.) ---
     # Returns the prefetched special form type if the name AND type match.
     # Verifies both name and that type is _SpecialForm to avoid conflicts
@@ -246,6 +268,8 @@ obj TypeEvaluator {
     def _get_special_form_type(
         name: str, symbol_type: types.TypeBase
     ) -> types.ClassType | None;
+    # creates Self TypeVar if symbol is typing.Self
+    def create_self_type(symbol_type: types.TypeBase) -> types.TypeVarType | None;
     # --- Callable type handling (similar to Pyright's createCallableType) ---
     def _create_callable_type(
         type_args_expr: uni.Expr | None, error_node: uni.Expr
@@ -259,6 +283,15 @@ obj TypeEvaluator {
         base_type: types.ClassType, member: str
     ) -> type_utils.ClassMember | None;
 
+    # Get bound member from a class type, handling type[T] subscripts.
+    def get_type_of_bound_member(
+        object_type: types.ClassType, member_name: str
+    ) -> type_utils.ClassMember | None;
+
+    # Check if ClassType is type[T] (builtin type with type args).
+    def _is_type_subscript(class_type: types.ClassType) -> bool;
+    # Get lookup type for member access (extracts T from type[T]).
+    def _get_type_for_member_lookup(object_type: types.ClassType) -> types.ClassType;
     def _get_getattr_return_type(base_type: types.ClassType) -> TypeBase | None;
     def match_args_to_params(
         arg_nodes: list[uni.Expr | uni.KWPair],
@@ -290,10 +323,53 @@ obj TypeEvaluator {
         name: str, base_class: types.ClassType
     ) -> types.ClassType;
 
-    def _validate_constructor_method(expr: uni.FuncCall, method_type: TypeBase) -> bool;
+    def _validate_constructor_method(
+        expr: uni.FuncCall, method_type: TypeBase
+    ) -> types.FunctionType | None;
+
     def _get_method_with_overloads(
         method_member: Any, caller_type: types.ClassType
     ) -> TypeBase;
+
+    # -------------------------------------------------------------------------
+    # Generic type inference
+    # -------------------------------------------------------------------------
+    def assign_type_to_type_var(
+        param_type: TypeBase, arg_type: TypeBase, bindings: dict[str, TypeBase]
+    ) -> None;
+
+    def infer_type_args(
+        caller_type: types.ClassType, expr: uni.FuncCall
+    ) -> list[TypeBase];
+
+    def _infer_type_args_from_method(
+        caller_type: types.ClassType,
+        expr: uni.FuncCall,
+        matched_method: types.FunctionType | None
+    ) -> list[TypeBase];
+
+    def _find_matching_raw_constructor(
+        caller_type: types.ClassType,
+        expr: uni.FuncCall,
+        matched_method: types.FunctionType | None
+    ) -> types.FunctionType | None;
+
+    def _find_overload_by_arg_count(
+        method_type: types.TypeBase, arg_count: int, overload_symbols: list
+    ) -> types.FunctionType | None;
+
+    def _substitute_type_vars(
+        typ: types.TypeBase, bindings: dict[str, types.TypeBase]
+    ) -> types.TypeBase;
+
+    def _get_constructor_for_inference(
+        caller_type: types.ClassType
+    ) -> types.FunctionType | None;
+
+    def _has_meaningful_params(method: types.FunctionType) -> bool;
+    def _collect_type_var_bindings(
+        method: types.FunctionType, expr: uni.FuncCall
+    ) -> dict[str, TypeBase];
 
     # -------------------------------------------------------------------------
     # TypeVar scope validation (Pyright: validateTypeVarUsage)
@@ -324,6 +400,7 @@ obj TypeEvaluator {
     def add_scope_narrowing(key: str, narrowed_type: types.TypeBase) -> None;
     def get_scope_narrowing(key: str) -> types.TypeBase | None;
     def get_narrowing_key(expr: uni.Expr) -> str | None;
+    def _find_symbol_by_key(key: str, condition: uni.Expr) -> uni.Symbol | None;
     def process_condition(condition: uni.Expr) -> None;
     # --- CFG-based narrowing (backward traversal) ---
     def get_narrowed_type(symbol: uni.Symbol, at_node: uni.UniNode) -> TypeBase | None;

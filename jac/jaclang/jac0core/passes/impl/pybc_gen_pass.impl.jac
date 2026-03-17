@@ -29,7 +29,11 @@ impl PyBytecodeGenPass.compile_module_to_bytecode(
     }
     root_node = mod.gen.py_ast[0];
     assert isinstance(root_node, ast3.Module);
-    mod.gen.py_bytecode = marshal.dumps(
-        compile(source=root_node, filename=mod.loc.mod_path, mode='exec')
-    );
+    try {
+        mod.gen.py_bytecode = marshal.dumps(
+            compile(source=root_node, filename=mod.loc.mod_path, mode='exec')
+        );
+    } except (ValueError, SyntaxError, TypeError) as e {
+        self.emit(E5043, node_override=mod, error=str(e));
+    }
 }

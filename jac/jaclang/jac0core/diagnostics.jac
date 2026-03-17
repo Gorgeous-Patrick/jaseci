@@ -121,6 +121,12 @@ glob E0001 = _err("E0001", Category.SYNTAX, "Expected '{expected}', got '{got}'"
          Category.SYNTAX,
          "Expected augmented assignment in for...to...by step"
      ),
+     E0024 = _err(
+         "E0024",
+         Category.SYNTAX,
+         "Cannot assign to '{name}' -- it is a built-in reference, not a variable",
+         help="Use a different variable name, or use backtick escaping (e.g. `root) to create a local variable with the same name."
+     ),
      # Parser: statement-level errors
      E0030 = _err("E0030", Category.SYNTAX, "Unexpected semicolon at module level"),
      E0031 = _err(
@@ -173,11 +179,29 @@ glob E0001 = _err("E0001", Category.SYNTAX, "Expected '{expected}', got '{got}'"
          Category.SYNTAX,
          "'{first}' must appear before '{second}' in parameter list"
      ),
+     # Parser: context validity
+     E0055 = _err(
+         "E0055", Category.SYNTAX, "'yield' is only valid inside a function body"
+     ),
+     E0058 = _err("E0058", Category.SYNTAX, "'{keyword}' is only valid inside a loop"),
+     E0062 = _err("E0062", Category.SYNTAX, "'nonlocal' is not valid at module level"),
+     E0065 = _err("E0065", Category.SYNTAX, "Duplicate keyword argument '{name}'"),
+     E0066 = _err(
+         "E0066", Category.SYNTAX, "Positional argument follows keyword argument"
+     ),
+     E0071 = _err("E0071", Category.SYNTAX, "Default 'except' clause must be last"),
+     E0075 = _err("E0075", Category.SYNTAX, "Duplicate base class '{name}'"),
      # Parser: warnings
      W0060 = _warn(
          "W0060",
          Category.SYNTAX,
          "Docstrings in Jac go before the declaration, not inside the body. Move this string before the enclosing test/can/obj/etc."
+     ),
+     W0061 = _warn(
+         "W0061",
+         Category.SYNTAX,
+         "Parenthesized filter syntax '(?:...)' is deprecated. Use bracket syntax '[?:...]' instead.",
+         "Replace (?:Type, cond) with [?:Type, cond]"
      ),
      # Lexer errors
      E0100 = _err("E0100", Category.SYNTAX, "Unterminated string literal"),
@@ -411,6 +435,43 @@ glob E0001 = _err("E0001", Category.SYNTAX, "Expected '{expected}', got '{got}'"
      E2008 = _err(
          "E2008", Category.SEMANTIC, "Invalid target for context update: {target}"
      ),
+     # New semantic warnings
+     W2052 = _warn(
+         "W2052",
+         Category.SEMANTIC,
+         "Catching overly broad exception type '{type}' — catch a more specific exception"
+     ),
+     W2058 = _warn(
+         "W2058",
+         Category.SEMANTIC,
+         "Comparison to None should use 'is' or 'is not', not '=='"
+     ),
+     W2063 = _warn(
+         "W2063",
+         Category.SEMANTIC,
+         "Self-assignment has no effect: '{name}' assigned to itself"
+     ),
+     W2070 = _warn("W2070", Category.SEMANTIC, "Division by zero"),
+     W2074 = _warn(
+         "W2074",
+         Category.SEMANTIC,
+         "f-string has no placeholders — use a regular string"
+     ),
+     W2075 = _warn(
+         "W2075",
+         Category.SEMANTIC,
+         "Redundant comparison to boolean literal — use the expression directly"
+     ),
+     E2055 = _err(
+         "E2055",
+         Category.SEMANTIC,
+         "'return' inside a 'finally' block silences exceptions"
+     ),
+     E2083 = _err(
+         "E2083",
+         Category.SEMANTIC,
+         "'disengage' is only valid inside a walker ability"
+     ),
      # Def-impl match errors
      E2009 = _err(
          "E2009",
@@ -483,6 +544,52 @@ glob E0001 = _err("E0001", Category.SYNTAX, "Expected '{expected}', got '{got}'"
      E3012 = _err(
          "E3012", Category.LINT, "Calling print() is disallowed by rule [no-print]"
      ),
+     # New lint checks
+     W3020 = _warn(
+         "W3020",
+         Category.LINT,
+         "Unnecessary 'pass' in non-empty body [unnecessary-pass]"
+     ),
+     W3021 = _warn(
+         "W3021",
+         Category.LINT,
+         "Unnecessary 'else' after 'return' [unnecessary-else-after-return]"
+     ),
+     W3022 = _warn(
+         "W3022",
+         Category.LINT,
+         "Nested 'if' in 'else' can be 'elif' [nested-if-to-elif]"
+     ),
+     W3023 = _warn(
+         "W3023",
+         Category.LINT,
+         "'if cond return True else return False' can be simplified to 'return cond' [simplify-return-bool]"
+     ),
+     W3024 = _warn(
+         "W3024",
+         Category.LINT,
+         "Repeated condition in if/elif chain [repeated-condition]"
+     ),
+     W3025 = _warn(
+         "W3025",
+         Category.LINT,
+         "Identical if/else branches — the else is redundant [identical-branches]"
+     ),
+     W3030 = _warn(
+         "W3030",
+         Category.LINT,
+         "Function has {count} parameters (threshold is {threshold}) [too-many-params]"
+     ),
+     W3035 = _warn(
+         "W3035",
+         Category.LINT,
+         "Use '==' instead of 'is' when comparing to a literal [is-with-literal]"
+     ),
+     W3036 = _warn(
+         "W3036",
+         Category.LINT,
+         "Mutable default argument '{type}' — use None and assign inside the function [mutable-default]"
+     ),
      # Old kebab-case name -> code mapping for jac.toml backward compat
      LINT_ALIASES: dict[str, str] = {
          "staticmethod-to-static": "W3001",
@@ -496,7 +603,16 @@ glob E0001 = _err("E0001", Category.SYNTAX, "Expected '{expected}', got '{got}'"
          "remove-future-annotations": "W3009",
          "fix-impl-signature": "W3010",
          "remove-import-semi": "W3011",
-         "no-print": "E3012"
+         "no-print": "E3012",
+         "unnecessary-pass": "W3020",
+         "unnecessary-else-after-return": "W3021",
+         "nested-if-to-elif": "W3022",
+         "simplify-return-bool": "W3023",
+         "repeated-condition": "W3024",
+         "identical-branches": "W3025",
+         "too-many-params": "W3030",
+         "is-with-literal": "W3035",
+         "mutable-default": "W3036"
      },
      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
      # Codegen errors (E5xxx/W5xxx)
@@ -585,6 +701,7 @@ glob E0001 = _err("E0001", Category.SYNTAX, "Expected '{expected}', got '{got}'"
      E5040 = _err("E5040", Category.CODEGEN, "Unable to find ast for module {path}."),
      E5041 = _err("E5041", Category.CODEGEN, "Length mismatch in import names"),
      E5042 = _err("E5042", Category.CODEGEN, "Length mismatch in async for body"),
+     E5043 = _err("E5043", Category.CODEGEN, "Bytecode compilation failed: {error}"),
      # Comment injection
      W5050 = _warn(
          "W5050",

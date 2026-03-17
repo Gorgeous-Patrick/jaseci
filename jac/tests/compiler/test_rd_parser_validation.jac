@@ -198,7 +198,9 @@ glob GAP_FILES = [
          "enum_empty_body": "enum Color { }",
          "walrus_complex_lhs": "with entry { (a + b) := 5; }",
          "walrus_call_lhs": "with entry { foo() := 5; }",
-         "walrus_subscript_lhs": "with entry { a[0] := 5; }"
+         "walrus_subscript_lhs": "with entry { a[0] := 5; }",
+         "assign_to_root": 'with entry { root = "s"; }',
+         "assign_to_super": "with entry { super = 1; }"
      };
 
 """Parse and run ASTValidationPass, returning True if errors were found."""

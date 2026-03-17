@@ -7,15 +7,6 @@ structural invariant on the already-constructed AST node.
 Uses the structured diagnostic code system (self.emit) for precise, machine-
 readable error reporting with suppression support.
 """
-"""Validate try statement has at least one except or finally block."""
-impl ASTValidationPass.enter_try_stmt(
-    self: ASTValidationPass, nd: uni.TryStmt
-) -> None {
-    if len(nd.excepts) == 0 and nd.finally_body is None {
-        self.emit(E0040, node_override=nd);
-    }
-}
-
 """Validate match statement has at least one case."""
 impl ASTValidationPass.enter_match_stmt(
     self: ASTValidationPass, nd: uni.MatchStmt
@@ -145,11 +136,155 @@ impl ASTValidationPass.enter_switch_stmt(
     }
 }
 
+"""Validate assignment targets are not non-assignable built-in references."""
+impl ASTValidationPass.enter_assignment(
+    self: ASTValidationPass, nd: uni.Assignment
+) -> None {
+    # root and super compile to function calls (e.g. Jac.root()) which
+    # cannot appear on the left side of an assignment in Python.
+    non_assignable = {Tok.KW_ROOT,Tok.KW_SUPER};
+    for target in nd.target {
+        ref_node: (uni.SpecialVarRef | None) = None;
+        if isinstance(target, uni.SpecialVarRef) {
+            ref_node = target;
+        } elif isinstance(target, uni.AtomTrailer)
+        and isinstance(target.right, uni.SpecialVarRef) {
+            ref_node = target.right;
+        }
+        if ref_node is not None and ref_node.name in non_assignable {
+            self.emit(E0024, node_override=ref_node, name=ref_node.value);
+        }
+    }
+}
+
 """Validate import statement has at least one item."""
 impl ASTValidationPass.enter_import(self: ASTValidationPass, nd: uni.Import) -> None {
     if nd.items is not None
     and len(nd.items) == 0
     and (nd.clib_decls is None or len(nd.clib_decls) == 0) {
         self.emit(E0044, node_override=nd);
+    }
+}
+
+"""E0055: yield is only valid inside a function body."""
+impl ASTValidationPass.enter_yield_expr(
+    self: ASTValidationPass, nd: uni.YieldExpr
+) -> None {
+    if nd.find_parent_of_type(uni.Ability) is None
+    and nd.find_parent_of_type(uni.ImplDef) is None {
+        self.emit(E0055, node_override=nd);
+    }
+}
+
+"""E0058: break/continue are only valid inside a loop."""
+impl ASTValidationPass.enter_ctrl_stmt(
+    self: ASTValidationPass, nd: uni.CtrlStmt
+) -> None {
+    if nd.ctrl is None or not isinstance(nd.ctrl, uni.Token) {
+        return;
+    }
+    kw = nd.ctrl.value;
+    if kw not in ("break", "continue") {
+        return;
+    }
+    # Walk parents looking for a loop (or switch for break)
+    parent = nd.parent;
+    while parent is not None {
+        if isinstance(parent, (uni.InForStmt, uni.IterForStmt, uni.WhileStmt)) {
+            return;
+        }
+        # break is also valid inside switch/match statements
+        if kw == "break" and isinstance(parent, (uni.SwitchStmt, uni.MatchStmt)) {
+            return;
+        }
+        # Stop at function/ability/impl boundary — loop must be in same function
+        if isinstance(parent, (uni.Ability, uni.ImplDef, uni.Module)) {
+            break;
+        }
+        parent = parent.parent;
+    }
+    self.emit(E0058, node_override=nd, keyword=kw);
+}
+
+"""E0062: nonlocal is not valid at module level."""
+impl ASTValidationPass.enter_non_local_stmt(
+    self: ASTValidationPass, nd: uni.NonLocalStmt
+) -> None {
+    # nonlocal should be inside a function, not at module/entry level
+    if nd.find_parent_of_type(uni.Ability) is None
+    and nd.find_parent_of_type(uni.ImplDef) is None {
+        self.emit(E0062, node_override=nd);
+    }
+}
+
+"""E0065/E0066: duplicate keyword args and positional after keyword args.
+E0071: bare except not last.
+E0075: duplicate base classes."""
+impl ASTValidationPass.enter_func_call(
+    self: ASTValidationPass, nd: uni.FuncCall
+) -> None {
+    if nd.params is None {
+        return;
+    }
+    seen_kw = False;
+    seen_kw_names: set[str] = set();
+    for param in nd.params {
+        if isinstance(param, uni.KWPair) {
+            seen_kw = True;
+            if param.key is not None {
+                kw_name = param.key.value
+                    if isinstance(param.key, uni.Name)
+                    else str(param.key);
+                if kw_name in seen_kw_names {
+                    self.emit(E0065, node_override=param, name=kw_name);
+                }
+                seen_kw_names.add(kw_name);
+            }
+        } else {
+            # Positional argument
+            if seen_kw {
+                self.emit(E0066, node_override=param);
+            }
+        }
+    }
+}
+
+"""E0071: bare except must be last. E0075: duplicate base class."""
+impl ASTValidationPass.enter_archetype(
+    self: ASTValidationPass, nd: uni.Archetype
+) -> None {
+    # E0075: duplicate base class
+    if nd.base_classes is not None {
+        seen_bases: set[str] = set();
+        for base in nd.base_classes {
+            base_name: str | None = None;
+            if isinstance(base, uni.Name) {
+                base_name = base.value;
+            } elif isinstance(base, uni.AtomTrailer)
+            and isinstance(base.right, uni.Name) {
+                base_name = base.right.value;
+            }
+            if base_name is not None {
+                if base_name in seen_bases {
+                    self.emit(E0075, node_override=base, name=base_name);
+                }
+                seen_bases.add(base_name);
+            }
+        }
+    }
+}
+
+"""E0071: validate bare except is the last except clause."""
+impl ASTValidationPass.enter_try_stmt(
+    self: ASTValidationPass, nd: uni.TryStmt
+) -> None {
+    if len(nd.excepts) == 0 and nd.finally_body is None {
+        self.emit(E0040, node_override=nd);
+    }
+    # E0071: bare except must be last
+    for (i, exc) in enumerate(nd.excepts) {
+        if exc.ex_type is None and i < len(nd.excepts) - 1 {
+            self.emit(E0071, node_override=exc);
+        }
     }
 }
