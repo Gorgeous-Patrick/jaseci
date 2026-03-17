@@ -195,6 +195,10 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
 """Deserialize Anchor."""
 impl Anchor.__setstate__(self: Anchor, state: dict[(str, Any)]) -> None {
     self.__dict__.update(state);
+    # Ensure arch_cls exists for anchors restored from pre-arch_cls storage
+    if "arch_cls" not in self.__dict__ {
+        self.arch_cls = [];
+    }
     if (self.is_populated() and self.archetype) {
         self.archetype.__jac__ = self;
         self.hash = hash(dumps(self));
