@@ -419,7 +419,7 @@ impl JacWalker._visit_node_recursive(
 
      Stack entries: (anchor, phase) where phase is "entry" or "exit"
      """
-     stack: list[`tuple[(NodeAnchor | EdgeAnchor, str)]] = [(anchor, "entry")];
+     stack: list[tuple[(NodeAnchor | EdgeAnchor, str)]] = [(anchor, "entry")];
 
      while stack {
          stack_item = stack.pop();
@@ -665,7 +665,7 @@ impl JacWalker._async_visit_node_recursive(
 
      Stack entries: (anchor, phase) where phase is "entry" or "exit"
      """
-     stack: list[`tuple[(NodeAnchor | EdgeAnchor, str)]] = [(anchor, "entry")];
+     stack: list[tuple[(NodeAnchor | EdgeAnchor, str)]] = [(anchor, "entry")];
 
      while stack {
          stack_item = stack.pop();
