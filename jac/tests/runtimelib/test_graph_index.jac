@@ -34,6 +34,7 @@ import from jaclang.runtimelib.sam_gti {
     get_type_mro,
     rebuild_topology_index
 }
+import from jaclang.project.config { get_config, set_config }
 
 # ===========================================================================
 # Node types — must be module-level for OSP
@@ -178,6 +179,14 @@ def count_table(db: str, table: str, where: str = "") -> int {
     return n;
 }
 
+"""Set the SAM strategy in the global config."""
+def set_sam_strategy(strategy: str) -> None {
+    cfg = get_config();
+    if cfg is not None {
+        cfg.sam.strategy = strategy;
+    }
+}
+
 # ===========================================================================
 # Group 1 — GTI Table Correctness
 # ===========================================================================
@@ -185,6 +194,7 @@ test "GTI - building graph populates edge_topology and node_topology" {
     tmp = mkdtemp();
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -214,6 +224,7 @@ test "GTI - building graph populates edge_topology and node_topology" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
     }
 }
 
@@ -221,6 +232,7 @@ test "GTI - del --> removes edge from edge_topology" {
     tmp = mkdtemp();
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -247,6 +259,7 @@ test "GTI - del --> removes edge from edge_topology" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
     }
 }
 
@@ -255,6 +268,7 @@ test "GTI - rebuild_topology_index warms SAM from edge_topology" {
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -283,6 +297,7 @@ test "GTI - rebuild_topology_index warms SAM from edge_topology" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -291,6 +306,7 @@ test "GTI - MRO fan-out writes parent type rows to node_topology" {
     tmp = mkdtemp();
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -315,6 +331,7 @@ test "GTI - MRO fan-out writes parent type rows to node_topology" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
     }
 }
 
@@ -326,6 +343,7 @@ test "SAM - build_edge writes to sam_index via sam_put" {
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -345,6 +363,7 @@ test "SAM - build_edge writes to sam_index via sam_put" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -354,6 +373,7 @@ test "SAM - del --> triggers sam_invalidate" {
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -374,6 +394,7 @@ test "SAM - del --> triggers sam_invalidate" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -383,6 +404,7 @@ test "SAM - miss falls back to GTI then warms SAM" {
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -409,6 +431,7 @@ test "SAM - miss falls back to GTI then warms SAM" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -418,6 +441,7 @@ test "SAM - second traversal hits SAM not GTI" {
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -442,6 +466,7 @@ test "SAM - second traversal hits SAM not GTI" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -451,6 +476,7 @@ test "SAM - parent type query [here-->](?:BaseContent) returns subtypes via MRO"
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -475,6 +501,7 @@ test "SAM - parent type query [here-->](?:BaseContent) returns subtypes via MRO"
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -489,8 +516,8 @@ test "fetch - index is consulted at low selectivity (10%) and skipped when disab
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
     try {
-        def run_query(tmp: str, enabled: bool) -> tuple[int, dict] {
-            os.environ["JAC_INDEX_ENABLED"] = "true" if enabled else "false";
+        def run_query(tmp: str, strategy: str) -> tuple[int, dict] {
+            set_sam_strategy(strategy);
             sam_clear();
             reset_stats();
             with without_plugins() {
@@ -508,10 +535,8 @@ test "fetch - index is consulted at low selectivity (10%) and skipped when disab
             }
         }
 
-        (n_idx, stats_idx) = run_query(tmp_idx, True);
-        (n_loc, stats_loc) = run_query(tmp_loc, False);
-
-        os.environ["JAC_INDEX_ENABLED"] = "true";
+        (n_idx, stats_idx) = run_query(tmp_idx, "gti");
+        (n_loc, stats_loc) = run_query(tmp_loc, "none");
 
         assert n_idx == n_loc == 5 , "result count must match";
         # With index: at least one SAM miss (first traversal after sam_clear) or GTI hit
@@ -525,7 +550,7 @@ test "fetch - index is consulted at low selectivity (10%) and skipped when disab
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
-        os.environ["JAC_INDEX_ENABLED"] = "true";
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -537,8 +562,8 @@ test "fetch - index does not regress at high selectivity (90%)" {
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
     try {
-        def run_query(tmp: str, enabled: bool) -> tuple[int, int] {
-            os.environ["JAC_INDEX_ENABLED"] = "true" if enabled else "false";
+        def run_query(tmp: str, strategy: str) -> tuple[int, int] {
+            set_sam_strategy(strategy);
             sam_clear();
             with without_plugins() {
                 ctx = fresh_ctx(tmp);
@@ -567,9 +592,8 @@ test "fetch - index does not regress at high selectivity (90%)" {
             }
         }
 
-        (n_idx, fc_idx) = run_query(tmp_idx, True);
-        (n_loc, fc_loc) = run_query(tmp_loc, False);
-        os.environ["JAC_INDEX_ENABLED"] = "true";
+        (n_idx, fc_idx) = run_query(tmp_idx, "gti");
+        (n_loc, fc_loc) = run_query(tmp_loc, "none");
 
         assert n_idx == n_loc == 45 , "result count must match";
         assert fc_idx <= fc_loc + 5 , (
@@ -579,7 +603,7 @@ test "fetch - index does not regress at high selectivity (90%)" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
-        os.environ["JAC_INDEX_ENABLED"] = "true";
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -590,6 +614,7 @@ test "fetch - below degree threshold uses edge-list loop (no index stats)" {
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
     reset_stats();
+    set_sam_strategy("gti");
     try {
         # 5 edges total — below default threshold of 10
         with without_plugins() {
@@ -612,6 +637,7 @@ test "fetch - below degree threshold uses edge-list loop (no index stats)" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -622,6 +648,7 @@ test "fetch - wildcard [here-->] bypasses index entirely" {
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
     reset_stats();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -644,6 +671,7 @@ test "fetch - wildcard [here-->] bypasses index entirely" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -656,6 +684,7 @@ test "mutation - traversal count tracks ++> and del --> correctly" {
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -684,6 +713,7 @@ test "mutation - traversal count tracks ++> and del --> correctly" {
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }
@@ -693,6 +723,7 @@ test "mutation - rebuild_topology_index warms AM and traversal returns full coun
     _orig_base = Jac.base_path_dir;
     _orig_ctx = Jac.exec_ctx;
     sam_clear();
+    set_sam_strategy("gti");
     try {
         with without_plugins() {
             ctx = fresh_ctx(tmp);
@@ -722,6 +753,7 @@ test "mutation - rebuild_topology_index warms AM and traversal returns full coun
     } finally {
         Jac.set_base_path(_orig_base);
         Jac.exec_ctx = _orig_ctx;
+        set_sam_strategy("none");
         sam_clear();
     }
 }

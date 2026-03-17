@@ -141,6 +141,7 @@ impl Anchor.make_stub(self: Anchor) -> TANCH {
     if self.is_populated() {
         unloaded = object.__new__(self.__class__);
         unloaded.id = self.id;
+        unloaded.arch_cls = self.arch_cls;
         return unloaded;
     }
     return self;
@@ -183,10 +184,11 @@ impl Anchor.__getstate__(self: Anchor) -> dict[(str, Any)] {
             'archetype': unlinked,
             'root': self.root,
             'access': self.access,
-            'persistent': self.persistent
+            'persistent': self.persistent,
+            'arch_cls': self.arch_cls
         };
     } else {
-        return {'id': self.id};
+        return {'id': self.id, 'arch_cls': self.arch_cls};
     }
 }
 
@@ -312,7 +314,8 @@ impl GenericEdge.__repr__(self: GenericEdge) -> str {
 """Create default anchor."""
 @cached_property
 impl Root.__jac__(self: Root) -> NodeAnchor {
-    return NodeAnchor(archetype=self, persistent=True, edges=[]);
+    import from jaclang.runtimelib.sam_gti { get_type_mro }
+    return NodeAnchor(archetype=self, persistent=True, edges=[], arch_cls=get_type_mro(self));
 }
 
 """Override repr for archetype."""

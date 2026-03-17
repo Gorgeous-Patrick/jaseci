@@ -222,17 +222,14 @@ impl JacNode.edges_to_nodes(
         sam_populate_from_gti,
         sam_query
     }
+    import from jaclang.project.config { get_config }
     nodes: OrderedDict[(NodeAnchor, NodeArchetype)] = OrderedDict();
     ctx = JacRuntimeInterface.get_context();
+    _cfg = get_config();
+    _strategy = _cfg.sam.strategy if _cfg else "none";
     _sqlite_active: bool = _get_sqlite(ctx.mem) is not None;
     _scale = _get_scale_topo(ctx.mem);
-    _index_active: bool = _sqlite_active or (_scale is not None);
-    INDEX_ENABLED: bool = os.environ.get('JAC_INDEX_ENABLED', 'true').lower() not in (
-        '0',
-        'false',
-        'no'
-    );
-    DEGREE_THRESHOLD: int = int(os.environ.get('JAC_INDEX_DEGREE_THRESHOLD', '10'));
+    DEGREE_THRESHOLD: int = _cfg.sam.gti_degree_threshold if _cfg else 10;
     import sys;
     import from pathlib { Path }
     def _cls_to_key(cls: type) -> str {
@@ -257,9 +254,7 @@ impl JacNode.edges_to_nodes(
     }
     for nd in origin {
         nanch = nd.__jac__;
-        # --- SAM/GTI fast path (only when persistence index is active) ---
-        # Pure type filters compile to the type class itself, so we can
-        # extract the name directly via MRO without any compiler help.
+        # --- SAM fast path (shared by gti and anchor strategies) ---
         target_type_name = _cls_to_key(destination.nd)
             if isinstance(destination.nd, type)
             else None;
@@ -267,8 +262,7 @@ impl JacNode.edges_to_nodes(
             if isinstance(destination.edge, type)
             else None;
         use_index = (
-            INDEX_ENABLED
-            and _index_active
+            _strategy != "none"
             and nanch.is_populated()
             and (target_type_name is not None or edge_type_name is not None)
             and destination.direction in [EdgeDir.OUT, EdgeDir.ANY]
@@ -283,31 +277,60 @@ impl JacNode.edges_to_nodes(
                 node_ids = sam_query(nanch.id, n_col);
                 edge_ids = sam_query(nanch.id, e_col);
                 if node_ids is None or edge_ids is None {
-                    # SAM miss — populate both from GTI
-                    if _scale is not None {
-                        (redis_client, _) = _scale;
-                        gt_n = gti_query_targets_redis(
-                            redis_client, nanch.id, None, target_type_name
-                        );
-                        gt_e = gti_query_targets_redis(
-                            redis_client, nanch.id, edge_type_name, None
-                        );
-                    } else {
-                        gt_n = gti_query_targets(
-                            ctx.mem, nanch.id, None, target_type_name
-                        );
-                        gt_e = gti_query_targets(
-                            ctx.mem, nanch.id, edge_type_name, None
-                        );
+                    # SAM miss — populate from backend
+                    if _strategy == "gti" {
+                        if _scale is not None {
+                            (redis_client, _) = _scale;
+                            gt_n = gti_query_targets_redis(
+                                redis_client, nanch.id, None, target_type_name
+                            );
+                            gt_e = gti_query_targets_redis(
+                                redis_client, nanch.id, edge_type_name, None
+                            );
+                        } else {
+                            gt_n = gti_query_targets(
+                                ctx.mem, nanch.id, None, target_type_name
+                            );
+                            gt_e = gti_query_targets(
+                                ctx.mem, nanch.id, edge_type_name, None
+                            );
+                        }
+                        if gt_n is not None {
+                            sam_populate_from_gti(nanch.id, [(t, n_col) for t in gt_n]);
+                        }
+                        if gt_e is not None {
+                            sam_populate_from_gti(nanch.id, [(t, e_col) for t in gt_e]);
+                        }
+                        node_ids = gt_n if gt_n is not None else [];
+                        edge_ids = gt_e if gt_e is not None else [];
+                    } elif _strategy == "anchor" {
+                        # Iterate edge stubs, check arch_cls strings
+                        n_matches: list[str] = [];
+                        e_matches: list[str] = [];
+                        gt_rows: list[tuple[str, str]] = [];
+                        for stub in nanch.edges {
+                            tgt = stub.target if stub.target else None;
+                            if tgt is None or tgt.id == nanch.id {
+                                continue;
+                            }
+                            tid_str = str(tgt.id);
+                            # Check node type match via arch_cls
+                            if tgt.arch_cls and target_type_name in tgt.arch_cls {
+                                n_matches.append(tid_str);
+                                gt_rows.append((tid_str, n_col));
+                            }
+                            # Check edge type match via arch_cls
+                            if stub.arch_cls and edge_type_name in stub.arch_cls {
+                                e_matches.append(tid_str);
+                                gt_rows.append((tid_str, e_col));
+                            }
+                        }
+                        if gt_rows {
+                            sam_populate_from_gti(nanch.id, gt_rows);
+                        }
+                        node_ids = n_matches;
+                        edge_ids = e_matches;
                     }
-                    if gt_n is not None {
-                        sam_populate_from_gti(nanch.id, [(t, n_col) for t in gt_n]);
-                    }
-                    if gt_e is not None {
-                        sam_populate_from_gti(nanch.id, [(t, e_col) for t in gt_e]);
-                    }
-                    node_ids = gt_n if gt_n is not None else [];
-                    edge_ids = gt_e if gt_e is not None else [];
                 }
                 target_ids = list(set(node_ids) & set(edge_ids));
             } elif target_type_name {
@@ -315,22 +338,43 @@ impl JacNode.edges_to_nodes(
                 n_col = 'n:' + target_type_name;
                 target_ids = sam_query(nanch.id, n_col);
                 if target_ids is None {
-                    # SAM miss — query GTI
-                    if _scale is not None {
-                        (redis_client, _) = _scale;
-                        gt_ids = gti_query_targets_redis(
-                            redis_client, nanch.id, edge_type_name, target_type_name
-                        );
-                    } else {
-                        gt_ids = gti_query_targets(
-                            ctx.mem, nanch.id, edge_type_name, target_type_name
-                        );
-                    }
-                    if gt_ids is not None {
-                        sam_populate_from_gti(
-                            nanch.id, [(tid, n_col) for tid in gt_ids]
-                        );
-                        target_ids = gt_ids;
+                    # SAM miss — populate from backend
+                    if _strategy == "gti" {
+                        if _scale is not None {
+                            (redis_client, _) = _scale;
+                            gt_ids = gti_query_targets_redis(
+                                redis_client, nanch.id, edge_type_name, target_type_name
+                            );
+                        } else {
+                            gt_ids = gti_query_targets(
+                                ctx.mem, nanch.id, edge_type_name, target_type_name
+                            );
+                        }
+                        if gt_ids is not None {
+                            sam_populate_from_gti(
+                                nanch.id, [(tid, n_col) for tid in gt_ids]
+                            );
+                            target_ids = gt_ids;
+                        }
+                    } elif _strategy == "anchor" {
+                        # Iterate edge stubs, match target arch_cls
+                        matches: list[str] = [];
+                        gt_rows: list[tuple[str, str]] = [];
+                        for stub in nanch.edges {
+                            tgt = stub.target if stub.target else None;
+                            if tgt is None or tgt.id == nanch.id {
+                                continue;
+                            }
+                            if tgt.arch_cls and target_type_name in tgt.arch_cls {
+                                tid_str = str(tgt.id);
+                                matches.append(tid_str);
+                                gt_rows.append((tid_str, n_col));
+                            }
+                        }
+                        if gt_rows {
+                            sam_populate_from_gti(nanch.id, gt_rows);
+                        }
+                        target_ids = matches;
                     }
                 }
             } else {
@@ -338,22 +382,43 @@ impl JacNode.edges_to_nodes(
                 e_col = 'e:' + edge_type_name;
                 target_ids = sam_query(nanch.id, e_col);
                 if target_ids is None {
-                    # SAM miss — query GTI
-                    if _scale is not None {
-                        (redis_client, _) = _scale;
-                        gt_ids = gti_query_targets_redis(
-                            redis_client, nanch.id, edge_type_name, None
-                        );
-                    } else {
-                        gt_ids = gti_query_targets(
-                            ctx.mem, nanch.id, edge_type_name, None
-                        );
-                    }
-                    if gt_ids is not None {
-                        sam_populate_from_gti(
-                            nanch.id, [(tid, e_col) for tid in gt_ids]
-                        );
-                        target_ids = gt_ids;
+                    # SAM miss — populate from backend
+                    if _strategy == "gti" {
+                        if _scale is not None {
+                            (redis_client, _) = _scale;
+                            gt_ids = gti_query_targets_redis(
+                                redis_client, nanch.id, edge_type_name, None
+                            );
+                        } else {
+                            gt_ids = gti_query_targets(
+                                ctx.mem, nanch.id, edge_type_name, None
+                            );
+                        }
+                        if gt_ids is not None {
+                            sam_populate_from_gti(
+                                nanch.id, [(tid, e_col) for tid in gt_ids]
+                            );
+                            target_ids = gt_ids;
+                        }
+                    } elif _strategy == "anchor" {
+                        # Iterate edge stubs, match edge arch_cls
+                        matches: list[str] = [];
+                        gt_rows: list[tuple[str, str]] = [];
+                        for stub in nanch.edges {
+                            tgt = stub.target if stub.target else None;
+                            if tgt is None or tgt.id == nanch.id {
+                                continue;
+                            }
+                            if stub.arch_cls and edge_type_name in stub.arch_cls {
+                                tid_str = str(tgt.id);
+                                matches.append(tid_str);
+                                gt_rows.append((tid_str, e_col));
+                            }
+                        }
+                        if gt_rows {
+                            sam_populate_from_gti(nanch.id, gt_rows);
+                        }
+                        target_ids = matches;
                     }
                 }
             }
@@ -377,7 +442,7 @@ impl JacNode.edges_to_nodes(
                         }
                     }
                 } else {
-                    # SQLite path
+                    # SQLite / in-memory path
                     for id_str in target_ids {
                         try {
                             uid = UUID(id_str);
@@ -438,29 +503,37 @@ impl JacNode.remove_edge(nd: NodeAnchor, `edge: EdgeAnchor) -> None {
         sam_invalidate,
         sam_broadcast_invalidate
     }
+    import from jaclang.project.config { get_config }
     for (idx, ed) in enumerate(nd.edges) {
         if (ed.id == `edge.id) {
             nd.edges.pop(idx);
             break;
         }
     }
-    # SAM + GTI invalidation hooks
-    _mem = JacRuntimeInterface.get_context().mem;
-    _scale = _get_scale_topo(_mem);
-    if _scale is not None {
-        (redis_client, _) = _scale;
-        _gti_delete_edge_redis(
-            redis_client,
-            nd.id,
-            `edge.target.id,
-            `edge.target.archetype,
-            `edge.archetype
-        );
-        sam_broadcast_invalidate(redis_client, nd.id);
-    } elif _get_sqlite(_mem) is not None {
+    # SAM + GTI invalidation hooks (strategy-dependent)
+    _cfg = get_config();
+    _strategy = _cfg.sam.strategy if _cfg else "none";
+    if _strategy == "gti" {
+        _mem = JacRuntimeInterface.get_context().mem;
+        _scale = _get_scale_topo(_mem);
+        if _scale is not None {
+            (redis_client, _) = _scale;
+            _gti_delete_edge_redis(
+                redis_client,
+                nd.id,
+                `edge.target.id,
+                `edge.target.archetype,
+                `edge.archetype
+            );
+            sam_broadcast_invalidate(redis_client, nd.id);
+        } elif _get_sqlite(_mem) is not None {
+            sam_invalidate(nd.id);
+            _gti_delete_edge(mem=_mem, edge_id=`edge.id);
+        }
+    } elif _strategy == "anchor" {
         sam_invalidate(nd.id);
-        _gti_delete_edge(mem=_mem, edge_id=`edge.id);
     }
+    # "none" strategy: no invalidation needed
 }
 
 """Detach edge from nodes."""
@@ -1682,34 +1755,49 @@ impl JacBasics.build_edge(
             _gti_write_edge,
             _gti_write_edge_redis,
             sam_put,
-            sam_broadcast_invalidate
+            sam_broadcast_invalidate,
+            get_type_mro
         }
+        import from jaclang.project.config { get_config }
         `edge = ct() if isinstance(ct, `type) else ct;
         eanch = `edge.__jac__=EdgeAnchor(
-            archetype=`edge, source=source, target=target, is_undirected=is_undirected
+            archetype=`edge, source=source, target=target, is_undirected=is_undirected,
+            arch_cls=get_type_mro(`edge)
         );
+        # Backfill arch_cls on source/target if not already set (legacy anchors)
+        if not source.arch_cls and source.is_populated() {
+            source.arch_cls = get_type_mro(source.archetype);
+        }
+        if not target.arch_cls and target.is_populated() {
+            target.arch_cls = get_type_mro(target.archetype);
+        }
         source.edges.append(eanch);
         target.edges.append(eanch);
-        # SAM + GTI write hooks
-        _mem = JacRuntimeInterface.get_context().mem;
-        _scale = _get_scale_topo(_mem);
-        if _scale is not None {
-            (redis_client, _) = _scale;
-            _gti_write_edge_redis(redis_client, eanch, source, target);
-            if is_undirected {
-                _gti_write_edge_redis(redis_client, eanch, target, source);
+        # SAM + GTI write hooks (strategy-dependent)
+        _cfg = get_config();
+        _strategy = _cfg.sam.strategy if _cfg else "none";
+        if _strategy == "gti" {
+            _mem = JacRuntimeInterface.get_context().mem;
+            _scale = _get_scale_topo(_mem);
+            if _scale is not None {
+                (redis_client, _) = _scale;
+                _gti_write_edge_redis(redis_client, eanch, source, target);
+                if is_undirected {
+                    _gti_write_edge_redis(redis_client, eanch, target, source);
+                }
+                sam_broadcast_invalidate(redis_client, source.id);
+                if is_undirected {
+                    sam_broadcast_invalidate(redis_client, target.id);
+                }
+            } elif _get_sqlite(_mem) is not None {
+                sam_put(source.id, target.id, target.archetype, eanch.archetype);
+                if is_undirected {
+                    sam_put(target.id, source.id, source.archetype, eanch.archetype);
+                }
+                _gti_write_edge(mem=_mem, eanch=eanch, source=source, target=target);
             }
-            sam_broadcast_invalidate(redis_client, source.id);
-            if is_undirected {
-                sam_broadcast_invalidate(redis_client, target.id);
-            }
-        } elif _get_sqlite(_mem) is not None {
-            sam_put(source.id, target.id, target.archetype, eanch.archetype);
-            if is_undirected {
-                sam_put(target.id, source.id, source.archetype, eanch.archetype);
-            }
-            _gti_write_edge(mem=_mem, eanch=eanch, source=source, target=target);
         }
+        # "anchor" and "none" strategies do not write to GTI on build_edge
         if conn_assign {
             for (fld, val) in zip(conn_assign[0], conn_assign[1], strict=False) {
                 if hasattr(`edge, fld) {
@@ -1768,6 +1856,9 @@ impl JacBasics.destroy(objs: Archetype | Anchor | list[(Archetype | Anchor)]) ->
         sam_invalidate,
         sam_broadcast_invalidate
     }
+    import from jaclang.project.config { get_config }
+    _cfg = get_config();
+    _strategy = _cfg.sam.strategy if _cfg else "none";
     obj_list = objs if isinstance(objs, `list) else [objs];
     for `obj in obj_list {
         if not isinstance(`obj, (Archetype, Anchor)) {
@@ -1781,15 +1872,20 @@ impl JacBasics.destroy(objs: Archetype | Anchor | list[(Archetype | Anchor)]) ->
                     for `edge in anchor.edges[:] {
                         JacRuntimeInterface.destroy([`edge]);
                     }
-                    _scale = _get_scale_topo(_mem);
-                    if _scale is not None {
-                        (redis_client, _) = _scale;
-                        _gti_delete_node_redis(redis_client, anchor.id);
-                        sam_broadcast_invalidate(redis_client, anchor.id);
-                    } elif _get_sqlite(_mem) is not None {
-                        _gti_delete_node(mem=_mem, node_id=anchor.id);
+                    if _strategy == "gti" {
+                        _scale = _get_scale_topo(_mem);
+                        if _scale is not None {
+                            (redis_client, _) = _scale;
+                            _gti_delete_node_redis(redis_client, anchor.id);
+                            sam_broadcast_invalidate(redis_client, anchor.id);
+                        } elif _get_sqlite(_mem) is not None {
+                            _gti_delete_node(mem=_mem, node_id=anchor.id);
+                            sam_invalidate(anchor.id);
+                        }
+                    } elif _strategy == "anchor" {
                         sam_invalidate(anchor.id);
                     }
+                    # "none" strategy: no cleanup needed
 
                 case EdgeAnchor():
                     JacRuntimeInterface.detach(anchor);

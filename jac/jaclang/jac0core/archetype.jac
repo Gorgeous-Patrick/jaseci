@@ -143,7 +143,8 @@ obj Anchor {
         `root: (UUID | None) = None,
         access: Permission = field(default_factory=Permission),
         persistent: bool = False,
-        hash: int = 0;
+        hash: int = 0,
+        arch_cls: list[str] = field(default_factory=`list);
 
     def is_populated(self: Anchor) -> bool;
     def make_stub(self: Anchor) -> TANCH;
@@ -220,7 +221,8 @@ class NodeArchetype(Archetype) {
 
     @cached_property
     def __jac__(self: NodeArchetype) -> NodeAnchor {
-        return NodeAnchor(archetype=self, edges=[]);
+        import from jaclang.runtimelib.sam_gti { get_type_mro }
+        return NodeAnchor(archetype=self, edges=[], arch_cls=get_type_mro(self));
     }
 }
 
