@@ -413,47 +413,47 @@ impl JacWalker._execute_exits(
      Returns True if walker should continue, False if disengaged.
      """
 impl JacWalker._visit_node_recursive(
-     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
+      warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-      stack: list = [(anchor, "entry")];
-     while stack {
-         stack_item = stack.pop();
-         current_anchor = stack_item[0];
-         phase = stack_item[1];
-         current_loc = current_anchor.archetype;
-         if not current_loc {
-             continue;
-         }
-         if (phase == "entry") {
-             `walker.path.append(current_anchor);
-             if not JacWalker._execute_entries(warch, `walker, current_loc) {
-                 return False;
-             }
-             if `walker.next {
-                 stack.append((current_anchor, "exit"));
-                 children: list[(NodeAnchor | EdgeAnchor)] = [];
-                 while `walker.next {
-                     child_anchor = `walker.next.pop(0);
-                     if child_anchor not in `walker.ignores {
-                         children.append(child_anchor);
-                     }
-                 }
-                 for child in reversed(children) {
-                     stack.append((child, "entry"));
-                 }
-             } else {
-                 stack.append((current_anchor, "exit"));
-             }
-         } elif (phase == "exit") {
-             if `walker.path and (`walker.path[-1] == current_anchor) {
-                 `walker.path.pop();
-             }
-             if not JacWalker._execute_exits(warch, `walker, current_loc) {
-                 return False;
-             }
-         }
-     }
-     return True;
+    stack: list = [(anchor, "entry")];
+    while stack {
+        stack_item = stack.pop();
+        current_anchor = stack_item[0];
+        phase = stack_item[1];
+        current_loc = current_anchor.archetype;
+        if not current_loc {
+            continue;
+        }
+        if (phase == "entry") {
+            `walker.path.append(current_anchor);
+            if not JacWalker._execute_entries(warch, `walker, current_loc) {
+                return False;
+            }
+            if `walker.next {
+                stack.append((current_anchor, "exit"));
+                children: list = [];
+                while `walker.next {
+                    child_anchor = `walker.next.pop(0);
+                    if child_anchor not in `walker.ignores {
+                        children.append(child_anchor);
+                    }
+                }
+                for child in reversed(children) {
+                    stack.append((child, "entry"));
+                }
+            } else {
+                stack.append((current_anchor, "exit"));
+            }
+        } elif (phase == "exit") {
+            if `walker.path and (`walker.path[-1] == current_anchor) {
+                `walker.path.pop();
+            }
+            if not JacWalker._execute_exits(warch, `walker, current_loc) {
+                return False;
+            }
+        }
+    }
+    return True;
 }
 
 """Jac's spawn operator feature with recursive DFS semantics.
@@ -648,45 +648,45 @@ impl JacWalker._async_execute_exits(
 impl JacWalker._async_visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-      stack: list = [(anchor, "entry")];
-     while stack {
-         stack_item = stack.pop();
-         current_anchor = stack_item[0];
-         phase = stack_item[1];
-         current_loc = current_anchor.archetype;
-         if not current_loc {
-             continue;
-         }
-         if (phase == "entry") {
-             `walker.path.append(current_anchor);
-              if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
-                  return False;
-              }
-              if `walker.next {
-                  stack.append((current_anchor, "exit"));
-                  children: list = [];
-                  while `walker.next {
-                      child_anchor = `walker.next.pop(0);
-                      if child_anchor not in `walker.ignores {
-                          children.append(child_anchor);
-                      }
-                  }
-                  for child in reversed(children) {
-                      stack.append((child, "entry"));
-                  }
-              } else {
-                  stack.append((current_anchor, "exit"));
-              }
-          } elif (phase == "exit") {
-              if `walker.path and (`walker.path[-1] == current_anchor) {
-                  `walker.path.pop();
-              }
-              if not await JacWalker._async_execute_exits(warch, `walker, current_loc) {
-                  return False;
-              }
-          }
-      }
-      return True;
+    stack: list = [(anchor, "entry")];
+    while stack {
+        stack_item = stack.pop();
+        current_anchor = stack_item[0];
+        phase = stack_item[1];
+        current_loc = current_anchor.archetype;
+        if not current_loc {
+            continue;
+        }
+        if (phase == "entry") {
+            `walker.path.append(current_anchor);
+            if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
+                return False;
+            }
+            if `walker.next {
+                stack.append((current_anchor, "exit"));
+                children: list = [];
+                while `walker.next {
+                    child_anchor = `walker.next.pop(0);
+                    if child_anchor not in `walker.ignores {
+                        children.append(child_anchor);
+                    }
+                }
+                for child in reversed(children) {
+                    stack.append((child, "entry"));
+                }
+            } else {
+                stack.append((current_anchor, "exit"));
+            }
+        } elif (phase == "exit") {
+            if `walker.path and (`walker.path[-1] == current_anchor) {
+                `walker.path.pop();
+            }
+            if not await JacWalker._async_execute_exits(warch, `walker, current_loc) {
+                return False;
+            }
+        }
+    }
+    return True;
 }
 
 """Jac's async spawn operator feature with recursive DFS semantics.
