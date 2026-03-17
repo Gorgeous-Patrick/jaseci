@@ -404,35 +404,67 @@ impl JacWalker._execute_exits(
     return True;
 }
 
-"""Recursively visit a node with DFS semantics.
+"""Iteratively visit a node with DFS semantics.
 
-    1. Execute entries for this node
-    2. Recursively visit all children added during entry
-    3. Execute exits for this node (post-order)
+     1. Execute entries for this node
+     2. Iteratively visit all children added during entry
+     3. Execute exits for this node (post-order)
 
-    Returns True if walker should continue, False if disengaged.
-    """
+     Returns True if walker should continue, False if disengaged.
+     """
 impl JacWalker._visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-    current_loc = anchor.archetype;
-    if not current_loc {
-        return True;
-    }
-    `walker.path.append(anchor);
-    if not JacWalker._execute_entries(warch, `walker, current_loc) {
-        return False;
-    }
-    while `walker.next {
-        child_anchor = `walker.next.pop(0);
-        if (
-            (child_anchor not in `walker.ignores)
-            and not JacWalker._visit_node_recursive(warch, `walker, child_anchor)
-        ) {
-            return False;
-        }
-    }
-    return JacWalker._execute_exits(warch, `walker, current_loc);
+     """Use explicit stack for iterative DFS with post-order traversal.
+     
+     Stack entries: (anchor, phase) where phase is "entry" or "exit"
+     """
+     stack: list[(NodeAnchor | EdgeAnchor, str)] = [(anchor, "entry")];
+     
+     while stack {
+         current_anchor, phase = stack.pop();
+         current_loc = current_anchor.archetype;
+         
+         if not current_loc {
+             continue;
+         }
+         
+         if (phase == "entry") {
+             `walker.path.append(current_anchor);
+             if not JacWalker._execute_entries(warch, `walker, current_loc) {
+                 return False;
+             }
+             
+             """If there are children to visit, push exit phase first (for post-order).""";
+             if `walker.next {
+                 stack.append((current_anchor, "exit"));
+                 """Collect children and push them in reverse order for correct LIFO.""";
+                 children: list[(NodeAnchor | EdgeAnchor)] = [];
+                 while `walker.next {
+                     child_anchor = `walker.next.pop(0);
+                     if child_anchor not in `walker.ignores {
+                         children.append(child_anchor);
+                     }
+                 }
+                 """Push in reverse to maintain left-to-right traversal.""";
+                 for child in reversed(children) {
+                     stack.append((child, "entry"));
+                 }
+             } else {
+                 """No children, execute exits immediately.""";
+                 stack.append((current_anchor, "exit"));
+             }
+         } elif (phase == "exit") {
+             if `walker.path and (`walker.path[-1] == current_anchor) {
+                 `walker.path.pop();
+             }
+             if not JacWalker._execute_exits(warch, `walker, current_loc) {
+                 return False;
+             }
+         }
+     }
+     
+     return True;
 }
 
 """Jac's spawn operator feature with recursive DFS semantics.
@@ -616,37 +648,67 @@ impl JacWalker._async_execute_exits(
     return True;
 }
 
-"""Async version: Recursively visit a node with DFS semantics.
+"""Async version: Iteratively visit a node with DFS semantics.
 
-    1. Execute entries for this node
-    2. Recursively visit all children added during entry
-    3. Execute exits for this node (post-order)
+     1. Execute entries for this node
+     2. Iteratively visit all children added during entry
+     3. Execute exits for this node (post-order)
 
-    Returns True if walker should continue, False if disengaged.
-    """
+     Returns True if walker should continue, False if disengaged.
+     """
 impl JacWalker._async_visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-    current_loc = anchor.archetype;
-    if not current_loc {
-        return True;
-    }
-    `walker.path.append(anchor);
-    if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
-        return False;
-    }
-    while `walker.next {
-        child_anchor = `walker.next.pop(0);
-        if (
-            (child_anchor not in `walker.ignores)
-            and not await JacWalker._async_visit_node_recursive(
-                warch, `walker, child_anchor
-            )
-        ) {
-            return False;
-        }
-    }
-    return await JacWalker._async_execute_exits(warch, `walker, current_loc);
+     """Use explicit stack for iterative DFS with post-order traversal.
+     
+     Stack entries: (anchor, phase) where phase is "entry" or "exit"
+     """
+     stack: list[(NodeAnchor | EdgeAnchor, str)] = [(anchor, "entry")];
+     
+     while stack {
+         current_anchor, phase = stack.pop();
+         current_loc = current_anchor.archetype;
+         
+         if not current_loc {
+             continue;
+         }
+         
+         if (phase == "entry") {
+             `walker.path.append(current_anchor);
+             if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
+                 return False;
+             }
+             
+             """If there are children to visit, push exit phase first (for post-order).""";
+             if `walker.next {
+                 stack.append((current_anchor, "exit"));
+                 """Collect children and push them in reverse order for correct LIFO.""";
+                 children: list[(NodeAnchor | EdgeAnchor)] = [];
+                 while `walker.next {
+                     child_anchor = `walker.next.pop(0);
+                     if child_anchor not in `walker.ignores {
+                         children.append(child_anchor);
+                     }
+                 }
+                 """Push in reverse to maintain left-to-right traversal.""";
+                 for child in reversed(children) {
+                     stack.append((child, "entry"));
+                 }
+             } else {
+                 """No children, execute exits immediately.""";
+                 stack.append((current_anchor, "exit"));
+             }
+         } elif (phase == "exit") {
+             if `walker.path and (`walker.path[-1] == current_anchor) {
+                 `walker.path.pop();
+             }
+             if not await JacWalker._async_execute_exits(warch, `walker, current_loc) {
+                 return False;
+             }
+         }
+     }
+     
+     return True;
 }
 
 """Jac's async spawn operator feature with recursive DFS semantics.
