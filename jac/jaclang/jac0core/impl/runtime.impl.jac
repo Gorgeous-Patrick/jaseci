@@ -416,27 +416,27 @@ impl JacWalker._visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
      """Use explicit stack for iterative DFS with post-order traversal.
-     
+
      Stack entries: (anchor, phase) where phase is "entry" or "exit"
      """
      stack: list[`tuple[(NodeAnchor | EdgeAnchor, str)]] = [(anchor, "entry")];
-     
+
      while stack {
          stack_item = stack.pop();
          current_anchor = stack_item[0];
          phase = stack_item[1];
          current_loc = current_anchor.archetype;
-         
+
          if not current_loc {
              continue;
          }
-         
+
          if (phase == "entry") {
              `walker.path.append(current_anchor);
              if not JacWalker._execute_entries(warch, `walker, current_loc) {
                  return False;
              }
-             
+
              """If there are children to visit, push exit phase first (for post-order)."""
              if `walker.next {
                  stack.append((current_anchor, "exit"));
@@ -465,7 +465,7 @@ impl JacWalker._visit_node_recursive(
              }
          }
      }
-     
+
      return True;
 }
 
@@ -662,27 +662,27 @@ impl JacWalker._async_visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
      """Use explicit stack for iterative DFS with post-order traversal.
-     
+
      Stack entries: (anchor, phase) where phase is "entry" or "exit"
      """
      stack: list[`tuple[(NodeAnchor | EdgeAnchor, str)]] = [(anchor, "entry")];
-     
+
      while stack {
          stack_item = stack.pop();
          current_anchor = stack_item[0];
          phase = stack_item[1];
          current_loc = current_anchor.archetype;
-         
+
          if not current_loc {
              continue;
          }
-         
+
          if (phase == "entry") {
              `walker.path.append(current_anchor);
              if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
                  return False;
              }
-             
+
              """If there are children to visit, push exit phase first (for post-order)."""
              if `walker.next {
                  stack.append((current_anchor, "exit"));
@@ -711,7 +711,7 @@ impl JacWalker._async_visit_node_recursive(
              }
          }
      }
-     
+
      return True;
 }
 
