@@ -159,6 +159,11 @@ impl Anchor.populate(self: Anchor) -> None {
 
 """Trigger load if detects unloaded state."""
 impl Anchor.__getattr__(self: Anchor, name: str) -> object {
+    # Safety fallback: arch_cls may be missing on anchors created via __new__ paths
+    if name == "arch_cls" {
+        self.arch_cls = [];
+        return self.arch_cls;
+    }
     if not self.is_populated() {
         self.populate();
         if not self.is_populated() {
