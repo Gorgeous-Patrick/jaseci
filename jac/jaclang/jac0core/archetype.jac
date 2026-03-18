@@ -210,11 +210,19 @@ class EdgeArchetype(Archetype) {
     }
 }
 
+"""Visit type specification for TTG (Temporal Trace Graph) analysis."""
+@dataclass
+class VisitType {
+    has from_node_type: (type | str | None) = None,
+        edge_type: (type | str | None) = None;
+}
+
 """Walker Archetype Protocol."""
 class WalkerArchetype(Archetype) {
     with entry {
         __jac_async__: ClassVar = False;
         __jac_base__: ClassVar = True;
+        __jac_ttg_visits__: ClassVar[list[VisitType]] = [];
         reports: list[Any] = field(default_factory=`list);
     }
 
