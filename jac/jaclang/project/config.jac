@@ -31,7 +31,8 @@ obj RunConfig {
         cache: bool = True,
         autonative: bool = False,
         topology_index: bool = True,
-        prefetching: str = "";
+        prefetching: str = "",
+        prefetch_limit: int = 200;
 }
 
 """Native compilation settings from [build.native] section."""

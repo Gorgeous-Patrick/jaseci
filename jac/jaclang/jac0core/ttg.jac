@@ -9,7 +9,6 @@ JacProgram.mod.hub, which holds the full deserialized AST for every
 loaded module (backed by the JIR cache).
 """
 
-import os;
 import from dataclasses { dataclass, field }
 import from uuid { UUID }
 import from typing { Any }
@@ -69,6 +68,7 @@ class JacTTGGenerator {
 
     @classmethod
     def get_prefetch_list(
-        cls: type[JacTTGGenerator], start: UUID, ttg_children: dict
+        cls: type[JacTTGGenerator], start: UUID, ttg_children: dict,
+        max_length: int = 200
     ) -> list[UUID];
 }
