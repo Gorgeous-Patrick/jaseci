@@ -68,7 +68,9 @@ class JacTTGGenerator {
 
     @classmethod
     def get_prefetch_list(
-        cls: type[JacTTGGenerator], start: UUID, ttg_children: dict,
+        cls: type[JacTTGGenerator],
+        start: UUID,
+        ttg_children: dict,
         max_length: int = 200
     ) -> list[UUID];
 }

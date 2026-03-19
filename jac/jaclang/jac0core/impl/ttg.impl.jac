@@ -219,8 +219,7 @@ for cache prefetching.
 """
 @classmethod
 impl JacTTGGenerator.get_prefetch_list(
-    cls: type[JacTTGGenerator], start: UUID, ttg_children: dict,
-    max_length: int = 200
+    cls: type[JacTTGGenerator], start: UUID, ttg_children: dict, max_length: int = 200
 ) -> list[UUID] {
     prefetch: list[UUID] = [];
     seen: set[UUID] = `set();
