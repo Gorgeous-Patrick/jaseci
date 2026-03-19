@@ -66,7 +66,6 @@ obj Memory {
     ) -> (Anchor | None) abs;
 
     def commit(anchor: (Anchor | None) = None) -> None abs;
-
     """Prefetch anchors by ID into a faster tier.
 
     Implementations should load the given IDs from slower storage into
@@ -229,4 +228,3 @@ obj TieredMemory(VolatileMemory) {
     def commit(anchor: (Anchor | None) = None) -> None;
     def prefetch(ids: Iterable[UUID]) -> None;
 }
-

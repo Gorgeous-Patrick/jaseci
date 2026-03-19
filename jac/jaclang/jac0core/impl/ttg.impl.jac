@@ -5,7 +5,7 @@ import from jaclang.jac0core.archetype { VisitType }
 import from jaclang.jac0core.constant { Tokens as Tok }
 
 """Resolve a VisitType field (type or string name) to a type name string."""
-@ classmethod
+@classmethod
 impl JacTTGGenerator._resolve_type_name(
     cls: type[JacTTGGenerator], ref: (type | str | None)
 ) -> (str | None) {
@@ -24,7 +24,7 @@ Uses the class's __module__ to locate the Python module, then its __file__
 to look up the AST Module in the program hub. Searches for an Archetype
 node whose name matches the class name and whose arch_type is KW_WALKER.
 """
-@ classmethod
+@classmethod
 impl JacTTGGenerator._find_walker_ast_node(
     cls: type[JacTTGGenerator], warch_cls: type
 ) -> (uni.Archetype | None) {
@@ -51,8 +51,10 @@ impl JacTTGGenerator._find_walker_ast_node(
         # Try all hub modules as fallback (file paths may differ).
         for mod in program.mod.hub.values() {
             for arch in mod.get_all_sub_nodes(uni.Archetype) {
-                if (arch.arch_type.name == Tok.KW_WALKER
-                    and arch.name.value == class_name) {
+                if (
+                    arch.arch_type.name == Tok.KW_WALKER
+                    and arch.name.value == class_name
+                ) {
                     return arch;
                 }
             }
@@ -61,8 +63,7 @@ impl JacTTGGenerator._find_walker_ast_node(
     }
     # Search for the walker archetype in this module.
     for arch in ast_module.get_all_sub_nodes(uni.Archetype) {
-        if (arch.arch_type.name == Tok.KW_WALKER
-            and arch.name.value == class_name) {
+        if (arch.arch_type.name == Tok.KW_WALKER and arch.name.value == class_name) {
             return arch;
         }
     }
@@ -70,7 +71,7 @@ impl JacTTGGenerator._find_walker_ast_node(
 }
 
 """Resolve a name to an Archetype AST node via symbol table lookup."""
-@ classmethod
+@classmethod
 impl JacTTGGenerator._resolve_archetype(
     cls: type[JacTTGGenerator], scope_src: uni.UniNode, name: str
 ) -> (uni.Archetype | None) {
@@ -92,7 +93,7 @@ EventSignature extracts the from-node type, and for each VisitStmt
 extracts the edge type from EdgeOpRef filter conditions. Results are
 returned as VisitType instances and cached on the walker class.
 """
-@ classmethod
+@classmethod
 impl JacTTGGenerator._extract_visits_from_ast(
     cls: type[JacTTGGenerator], warch: Any
 ) -> list[VisitType] {
@@ -150,10 +151,9 @@ impl JacTTGGenerator._extract_visits_from_ast(
                     }
                 }
             }
-            result.append(VisitType(
-                from_node_type=node_type_name,
-                edge_type=edge_type_name
-            ));
+            result.append(
+                VisitType(from_node_type=node_type_name, edge_type=edge_type_name)
+            );
         }
     }
     # Cache on the class for subsequent calls.
@@ -167,7 +167,7 @@ Uses the TopologyIndex's resolve_chain() to walk the adjacency list
 with type-only filters for each visit type. BFS expansion from start_id.
 Visit types are extracted lazily from the AST on first call.
 """
-@ classmethod
+@classmethod
 impl JacTTGGenerator.get_ttg(
     cls: type[JacTTGGenerator], warch: Any, start_id: UUID, topology_index: Any
 ) -> tuple {
@@ -217,7 +217,7 @@ impl JacTTGGenerator.get_ttg(
 BFS traversal of the child_map to produce an ordered list of UUIDs
 for cache prefetching.
 """
-@ classmethod
+@classmethod
 impl JacTTGGenerator.get_prefetch_list(
     cls: type[JacTTGGenerator], start: UUID, ttg_children: dict
 ) -> list[UUID] {
