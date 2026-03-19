@@ -784,7 +784,8 @@ impl _parse_toml_data(data: dict[str, Any], toml_path: Path | None = None) -> Ja
             main=run_data.get("main", True),
             cache=run_data.get("cache", True),
             autonative=run_data.get("autonative", False),
-            topology_index=run_data.get("topology_index", True)
+            topology_index=run_data.get("topology_index", True),
+            prefetching=run_data.get("prefetching", "")
         );
     }
     if "build" in data {
