@@ -480,20 +480,7 @@ impl JacWalker.spawn_call(
                         nd.id, child_map
                     );
                     if prefetch_ids {
-                        # Prefetch L3 (DB) → L2 (cache) without polluting L1.
-                        import from jaclang.runtimelib.memory { TieredMemory }
-                        mem = ctx.mem;
-                        if (isinstance(mem, TieredMemory)
-                            and mem.l3 is not None
-                            and mem.l2 is not None) {
-                            for uid in prefetch_ids {
-                                if not mem.l2.exists(uid) {
-                                    if (anchor := mem.l3.get(uid)) {
-                                        mem.l2.put(anchor);
-                                    }
-                                }
-                            }
-                        }
+                        ctx.mem.prefetch(prefetch_ids);
                     }
                 }
             }
@@ -733,20 +720,7 @@ impl JacWalker.async_spawn_call(
                         nd.id, child_map
                     );
                     if prefetch_ids {
-                        # Prefetch L3 (DB) → L2 (cache) without polluting L1.
-                        import from jaclang.runtimelib.memory { TieredMemory }
-                        mem = ctx.mem;
-                        if (isinstance(mem, TieredMemory)
-                            and mem.l3 is not None
-                            and mem.l2 is not None) {
-                            for uid in prefetch_ids {
-                                if not mem.l2.exists(uid) {
-                                    if (anchor := mem.l3.get(uid)) {
-                                        mem.l2.put(anchor);
-                                    }
-                                }
-                            }
-                        }
+                        ctx.mem.prefetch(prefetch_ids);
                     }
                 }
             }

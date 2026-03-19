@@ -120,6 +120,11 @@ impl VolatileMemory.get_mem -> dict[UUID, Anchor] {
     return self.__mem__;
 }
 
+"""Prefetch - no-op for volatile memory (everything is already in L1)."""
+impl VolatileMemory.prefetch(ids: Iterable[UUID]) -> None {
+    ;
+}
+
 """Commit - no-op for volatile memory."""
 impl VolatileMemory.commit(anchor: (Anchor | None) = None) -> None {
 # No persistence, nothing to commit
@@ -334,6 +339,15 @@ impl SqliteMemory.find_one(
         }
     }
     return None;
+}
+
+"""Prefetch anchors from DB into in-memory cache."""
+impl SqliteMemory.prefetch(ids: Iterable[UUID]) -> None {
+    for uid in ids {
+        if uid not in self.__mem__ {
+            self.get(uid);
+        }
+    }
 }
 
 """Sync memory to database with access control checks."""
@@ -594,6 +608,27 @@ impl TieredMemory.reset_l3_fetch_count -> None {
     import from jaclang.runtimelib.memory { SqliteMemory }
     if isinstance(self.l3, SqliteMemory) {
         self.l3.l3_fetch_count = 0;
+    }
+}
+
+"""Prefetch: load anchors from L3 (DB) into L2 (cache), skipping L1.
+
+If L2 is not available, falls back to promoting into L1 via get().
+"""
+impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
+    if (self.l3 is not None and self.l2 is not None) {
+        for uid in ids {
+            if not self.l2.exists(uid) {
+                if (anchor := self.l3.get(uid)) {
+                    self.l2.put(anchor);
+                }
+            }
+        }
+    } elif self.l3 is not None {
+        # No L2 available — promote to L1 as fallback.
+        for uid in ids {
+            self.get(uid);
+        }
     }
 }
 

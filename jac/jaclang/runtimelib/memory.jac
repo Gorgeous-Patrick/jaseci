@@ -66,6 +66,14 @@ obj Memory {
     ) -> (Anchor | None) abs;
 
     def commit(anchor: (Anchor | None) = None) -> None abs;
+
+    """Prefetch anchors by ID into a faster tier.
+
+    Implementations should load the given IDs from slower storage into
+    faster cache layers. This is a best-effort hint — implementations
+    may no-op if prefetching is not applicable.
+    """
+    def prefetch(ids: Iterable[UUID]) -> None;
 }
 
 """Cache Memory Interface.
@@ -125,6 +133,7 @@ obj VolatileMemory(Memory) {
     ) -> (Anchor | None);
 
     def commit(anchor: (Anchor | None) = None) -> None;
+    def prefetch(ids: Iterable[UUID]) -> None;
     # Additional methods for garbage collection tracking
     def get_gc -> list[Anchor];
     def remove_from_gc(anchor: Anchor) -> None;
@@ -181,6 +190,7 @@ obj SqliteMemory(PersistentMemory) {
     ) -> (Anchor | None);
 
     def commit(anchor: (Anchor | None) = None) -> None;
+    def prefetch(ids: Iterable[UUID]) -> None;
     # PersistentMemory interface
     def sync -> None;
     def bulk_put(anchors: Iterable[Anchor]) -> None;
@@ -217,4 +227,6 @@ obj TieredMemory(VolatileMemory) {
     def close -> None;
     def `has(id: UUID) -> bool;
     def commit(anchor: (Anchor | None) = None) -> None;
+    def prefetch(ids: Iterable[UUID]) -> None;
 }
+
