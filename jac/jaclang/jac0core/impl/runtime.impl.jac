@@ -481,8 +481,10 @@ impl JacWalker.spawn_call(
                     );
                     if prefetch_ids {
                         # Warm the memory cache by loading predicted nodes.
-                        for _ in ctx.mem.find(prefetch_ids) {
-                            ;
+                        # Use get() (not find()) so TieredMemory promotes
+                        # from L3/L2 into L1.
+                        for uid in prefetch_ids {
+                            ctx.mem.get(uid);
                         }
                     }
                 }
@@ -724,8 +726,10 @@ impl JacWalker.async_spawn_call(
                     );
                     if prefetch_ids {
                         # Warm the memory cache by loading predicted nodes.
-                        for _ in ctx.mem.find(prefetch_ids) {
-                            ;
+                        # Use get() (not find()) so TieredMemory promotes
+                        # from L3/L2 into L1.
+                        for uid in prefetch_ids {
+                            ctx.mem.get(uid);
                         }
                     }
                 }
