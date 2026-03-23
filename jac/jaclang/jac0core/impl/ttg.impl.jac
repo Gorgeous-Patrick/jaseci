@@ -18,11 +18,11 @@ impl JacTTGGenerator._resolve_type_name(
     return ref.__name__;
 }
 
-"""Find the AST Archetype node for a walker class via JacProgram.mod.hub.
+"""Find the AST Archetype node for a walker class.
 
-Uses the class's __module__ to locate the Python module, then its __file__
-to look up the AST Module in the program hub. Searches for an Archetype
-node whose name matches the class name and whose arch_type is KW_WALKER.
+Looks up the AST Module from the program hub first. On a hub miss,
+deserializes the module's JIR cache via JirReader and stores the result
+in the hub so subsequent calls are free.
 """
 @classmethod
 impl JacTTGGenerator._find_walker_ast_node(
@@ -48,17 +48,23 @@ impl JacTTGGenerator._find_walker_ast_node(
     # Look up the AST Module from the program hub.
     ast_module = program.mod.hub.get(file_path);
     if ast_module is None {
-        # Try all hub modules as fallback (file paths may differ).
-        for mod in program.mod.hub.values() {
-            for arch in mod.get_all_sub_nodes(uni.Archetype) {
-                if (
-                    arch.arch_type.name == Tok.KW_WALKER
-                    and arch.name.value == class_name
-                ) {
-                    return arch;
+        # Hub miss — deserialize from JIR cache.
+        try {
+            import from jaclang.jac0core.jir { get_module_cache_path, is_module_cache_valid }
+            import from jaclang.jac0core.jir_passes { JirReader }
+            cache_path = get_module_cache_path(file_path);
+            if is_module_cache_valid(file_path, cache_path) {
+                reader = JirReader(_source_path=file_path);
+                ast_module = reader.read_module(cache_path.read_bytes());
+                if ast_module is not None {
+                    program.mod.hub[file_path] = ast_module;
                 }
             }
+        } except Exception {
+            ;
         }
+    }
+    if ast_module is None {
         return None;
     }
     # Search for the walker archetype in this module.
