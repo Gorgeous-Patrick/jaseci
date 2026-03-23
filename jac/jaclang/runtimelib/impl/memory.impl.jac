@@ -611,24 +611,23 @@ impl TieredMemory.reset_l3_fetch_count -> None {
     }
 }
 
-"""Prefetch: load anchors from L3 (DB) into L2 (cache), skipping L1.
+"""Prefetch: batch-load anchors from L3 (DB) into L2 (cache).
 
-If L2 is not available, falls back to promoting into L1 via get().
+Filters out IDs already present in L2, then uses l3.find() to batch-fetch
+the remaining from L3 in a single operation. No-op if L2 is unavailable.
 """
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
-    if (self.l3 is not None and self.l2 is not None) {
-        for uid in ids {
-            if not self.l2.exists(uid) {
-                if (anchor := self.l3.get(uid)) {
-                    self.l2.put(anchor);
-                }
-            }
-        }
-    } elif self.l3 is not None {
-        # No L2 available — promote to L1 as fallback.
-        for uid in ids {
-            self.get(uid);
-        }
+    if self.l3 is None or self.l2 is None {
+        return;
+    }
+    # Filter out IDs already in L2
+    missing_ids = [uid for uid in ids if not self.l2.exists(uid)];
+    if not missing_ids {
+        return;
+    }
+    # Batch-fetch from L3 and push to L2
+    for anchor in self.l3.find(missing_ids) {
+        self.l2.put(anchor);
     }
 }
 
