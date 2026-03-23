@@ -9,22 +9,11 @@ JacProgram.mod.hub, which holds the full deserialized AST for every
 loaded module (backed by the JIR cache).
 """
 
-import from dataclasses { dataclass, field }
 import from uuid { UUID }
 import from typing { Any }
 import jaclang.jac0core.unitree as uni;
 import from jaclang.jac0core.archetype { VisitType }
 import from jaclang.jac0core.constant { Tokens as Tok }
-
-"""State entry in the temporal trace graph."""
-@dataclass
-class TypedWalkerState {
-    has walker_type: str,
-        nd: UUID,
-        depth: int,
-        incoming_edge: (UUID | None) = None,
-        children: list[TypedWalkerState] = field(default_factory=`list);
-}
 
 """TTG Generator — predicts traversal paths using TopologyIndex.
 
@@ -62,15 +51,11 @@ class JacTTGGenerator {
     ) -> (uni.Archetype | None);
 
     @classmethod
-    def get_ttg(
-        cls: type[JacTTGGenerator], warch: Any, start_id: UUID, topology_index: Any
-    ) -> tuple;
-
-    @classmethod
-    def get_prefetch_list(
+    def get_ttg_prefetch_list(
         cls: type[JacTTGGenerator],
-        start: UUID,
-        ttg_children: dict,
+        warch: Any,
+        start_id: UUID,
+        topology_index: Any,
         max_length: int = 200
     ) -> list[UUID];
 }

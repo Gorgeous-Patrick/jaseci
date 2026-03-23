@@ -161,87 +161,50 @@ impl JacTTGGenerator._extract_visits_from_ast(
     return result;
 }
 
-"""Build a temporal trace graph using TopologyIndex.
+"""Build a prefetch list by BFS over the topology index.
 
-Uses the TopologyIndex's resolve_chain() to walk the adjacency list
-with type-only filters for each visit type. BFS expansion from start_id.
-Visit types are extracted lazily from the AST on first call.
+Single-pass BFS that resolves neighbors via resolve_chain() and collects
+UUIDs for cache prefetching. Stops as soon as max_length nodes are found,
+avoiding full graph traversal.
 """
 @classmethod
-impl JacTTGGenerator.get_ttg(
-    cls: type[JacTTGGenerator], warch: Any, start_id: UUID, topology_index: Any
-) -> tuple {
-    wtype_name = `type(warch).__name__;
+impl JacTTGGenerator.get_ttg_prefetch_list(
+    cls: type[JacTTGGenerator],
+    warch: Any,
+    start_id: UUID,
+    topology_index: Any,
+    max_length: int = 200
+) -> list[UUID] {
     visits = cls._extract_visits_from_ast(warch);
-    ttg_root = TypedWalkerState(
-        walker_type=wtype_name, depth=0, nd=start_id, incoming_edge=None, children=[]
-    );
-    visited_ids: set[UUID] = `set();
-    child_map: dict = {};
-    queue: list[TypedWalkerState] = [ttg_root];
+    prefetch: list[UUID] = [start_id];
+    seen: set[UUID] = {start_id};
+    queue: list[UUID] = [start_id];
     while queue {
-        state = queue.pop(0);
-        cur = state.nd;
+        if (len(prefetch) >= max_length) {
+            break;
+        }
+        cur = queue.pop(0);
         for v in visits {
             if isinstance(v, VisitType) {
                 edge_name = cls._resolve_type_name(v.edge_type);
                 chain = [(edge_name, None, 2)];
-                neighbors = topology_index.resolve_chain({cur}, chain);
             } else {
                 chain = [(None, None, 2)];
-                neighbors = topology_index.resolve_chain({cur}, chain);
             }
-            for tgt in neighbors {
-                if (tgt in visited_ids) {
-                    continue;
+            for tgt in topology_index.resolve_chain({cur}, chain) {
+                if tgt not in seen {
+                    seen.add(tgt);
+                    prefetch.append(tgt);
+                    queue.append(tgt);
+                    if (len(prefetch) >= max_length) {
+                        break;
+                    }
                 }
-                visited_ids.add(tgt);
-                child_map.setdefault(cur, []).append(tgt);
-                child_state = TypedWalkerState(
-                    walker_type=wtype_name,
-                    nd=tgt,
-                    depth=state.depth + 1,
-                    incoming_edge=None,
-                    children=[]
-                );
-                state.children.append(child_state);
-                queue.append(child_state);
+            }
+            if (len(prefetch) >= max_length) {
+                break;
             }
         }
     }
-    return (ttg_root, visited_ids, child_map);
-}
-
-"""Build a prefetch list from TTG child_map.
-
-BFS traversal of the child_map to produce an ordered list of UUIDs
-for cache prefetching.
-"""
-@classmethod
-impl JacTTGGenerator.get_prefetch_list(
-    cls: type[JacTTGGenerator], start: UUID, ttg_children: dict, max_length: int = 200
-) -> list[UUID] {
-    prefetch: list[UUID] = [];
-    seen: set[UUID] = `set();
-    def _add(uid: UUID) -> None {
-        if (uid not in seen) {
-            seen.add(uid);
-            prefetch.append(uid);
-        }
-    }
-    queue: list[UUID] = [start];
-    while queue {
-        nid = queue.pop(0);
-        _add(nid);
-        children = ttg_children.get(nid, []);
-        for child_nid in children {
-            if (child_nid not in seen) {
-                queue.append(child_nid);
-            }
-        }
-        if (len(prefetch) >= max_length) {
-            break;
-        }
-    }
-    return prefetch[:max_length];
+    return prefetch;
 }

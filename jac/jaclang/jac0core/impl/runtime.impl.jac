@@ -473,9 +473,9 @@ impl JacWalker.spawn_call(
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
-                    (_, _, child_map) = JacTTGGenerator.get_ttg(warch, nd.id, topo_idx);
-                    prefetch_ids = JacTTGGenerator.get_prefetch_list(
-                        nd.id, child_map, max_length=cfg.run.prefetch_limit
+                    prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
+                        warch, nd.id, topo_idx,
+                        max_length=cfg.run.prefetch_limit
                     );
                     if prefetch_ids {
                         ctx.mem.prefetch(prefetch_ids);
@@ -711,9 +711,9 @@ impl JacWalker.async_spawn_call(
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
-                    (_, _, child_map) = JacTTGGenerator.get_ttg(warch, nd.id, topo_idx);
-                    prefetch_ids = JacTTGGenerator.get_prefetch_list(
-                        nd.id, child_map, max_length=cfg.run.prefetch_limit
+                    prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
+                        warch, nd.id, topo_idx,
+                        max_length=cfg.run.prefetch_limit
                     );
                     if prefetch_ids {
                         ctx.mem.prefetch(prefetch_ids);
