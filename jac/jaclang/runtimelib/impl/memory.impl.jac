@@ -154,6 +154,18 @@ impl LocalCacheMemory.invalidate(id: UUID) -> None {
     self.__mem__.pop(id, None);
 }
 
+"""Batch check existence — returns set of IDs present in cache."""
+impl LocalCacheMemory.bulk_exists(ids: Iterable[UUID]) -> set[UUID] {
+    return {uid for uid in ids if uid in self.__mem__};
+}
+
+"""Batch store multiple anchors."""
+impl LocalCacheMemory.bulk_put(anchors: Iterable[Anchor]) -> None {
+    for anchor in anchors {
+        self.__mem__[anchor.id] = anchor;
+    }
+}
+
 # =============================================================================
 # SqliteMemory Implementation (L3 Persistent)
 # =============================================================================
@@ -613,22 +625,31 @@ impl TieredMemory.reset_l3_fetch_count -> None {
 
 """Prefetch: batch-load anchors from L3 (DB) into L2 (cache).
 
-Filters out IDs already present in L2, then uses l3.find() to batch-fetch
-the remaining from L3 in a single operation. No-op if L2 is unavailable.
+Uses bulk_exists (1 Redis pipeline) to find missing IDs, l3.find() (1 MongoDB
+$in query) to batch-fetch from L3, and bulk_put (1 Redis pipeline) to store.
+Total: 3 round-trips regardless of ID count. No-op if L2 is unavailable.
 """
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if self.l3 is None or self.l2 is None {
         return;
     }
-    # Filter out IDs already in L2
-    missing_ids = [uid for uid in ids if not self.l2.exists(uid)];
+    id_list = list(ids);
+    if not id_list {
+        return;
+    }
+    # 1 round-trip: batch EXISTS via pipeline
+    existing = self.l2.bulk_exists(id_list);
+    missing_ids = [uid for uid in id_list if uid not in existing];
     if not missing_ids {
         return;
     }
-    # Batch-fetch from L3 and push to L2
-    for anchor in self.l3.find(missing_ids) {
-        self.l2.put(anchor);
+    # 1 round-trip: batch fetch from L3 (MongoDB $in or SQLite loop)
+    fetched = list(self.l3.find(missing_ids));
+    if not fetched {
+        return;
     }
+    # 1 round-trip: batch SET via pipeline
+    self.l2.bulk_put(fetched);
 }
 
 """Commit - syncs L3 persistence if available."""

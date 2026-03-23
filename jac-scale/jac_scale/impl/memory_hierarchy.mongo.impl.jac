@@ -158,17 +158,29 @@ impl MongoBackend.get_roots -> Generator[Root, None, None] {
     }
 }
 
-"""Find anchors by IDs with optional filter."""
+"""Find anchors by IDs with optional filter — uses $in for batch fetch."""
 impl MongoBackend.find(
     ids: (UUID | Iterable[UUID]), filter: (Callable[[Anchor], Anchor] | None) = None
 ) -> Generator[Anchor, None, None] {
+    if self.client is None {
+        return;
+    }
     id_list = [ids] if isinstance(ids, UUID) else list(ids);
-    for id in id_list {
-        if (anchor := self.get(id)) {
-            if filter is None or filter(anchor) {
-                yield anchor;
+    if not id_list {
+        return;
+    }
+    try {
+        str_ids = [str(to_uuid(uid)) for uid in id_list];
+        for doc in self.collection.find({'_id': {'$in': str_ids}}) {
+            if (anchor := self._load_anchor(doc)) {
+                anchor.is_updated = False;
+                if filter is None or filter(anchor) {
+                    yield anchor;
+                }
             }
         }
+    } except Exception as e {
+        logger.debug(f"MongoDB batch find failed: {e}");
     }
 }
 
