@@ -156,7 +156,11 @@ impl LocalCacheMemory.invalidate(id: UUID) -> None {
 
 """Batch check existence — returns set of IDs present in cache."""
 impl LocalCacheMemory.bulk_exists(ids: Iterable[UUID]) -> set[UUID] {
-    return {uid for uid in ids if uid in self.__mem__};
+    return {
+        uid
+        for uid in ids
+        if uid in self.__mem__
+    };
 }
 
 """Batch store multiple anchors."""
@@ -432,6 +436,15 @@ impl SqliteMemory.sync -> None {
                     }
                     changed = True;
                 }
+                # Handle topology_index_data updates for NodeAnchors
+                if (
+                    isinstance(stored, NodeAnchor)
+                    and isinstance(anchor, NodeAnchor)
+                    and stored.topology_index_data != anchor.topology_index_data
+                ) {
+                    stored.topology_index_data = anchor.topology_index_data;
+                    changed = True;
+                }
                 # Only write to database if something actually changed
                 if changed {
                     self.__conn__.execute(
@@ -639,7 +652,11 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     }
     # 1 round-trip: batch EXISTS via pipeline
     existing = self.l2.bulk_exists(id_list);
-    missing_ids = [uid for uid in id_list if uid not in existing];
+    missing_ids = [
+        uid
+        for uid in id_list
+        if uid not in existing
+    ];
     if not missing_ids {
         return;
     }
