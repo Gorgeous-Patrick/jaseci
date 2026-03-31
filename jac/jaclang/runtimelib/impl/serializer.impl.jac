@@ -77,6 +77,10 @@ impl Serializer._serialize_value(
         }
         if isinstance(val, NodeAnchor) {
             result['edges'] = [str(e.id) for e in val.edges];
+            # Include topology_index_data if present
+            if val.topology_index_data is not None {
+                result['topology_index_data'] = val.topology_index_data;
+            }
         }
         if isinstance(val, EdgeAnchor) {
             result |= {
@@ -228,6 +232,10 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
                     }
                 }
                 anchor.edges = edges;
+            }
+            # Restore topology_index_data if present
+            if (topo_data := data.get('topology_index_data')) {
+                anchor.topology_index_data = topo_data;
             }
         }
         if isinstance(anchor, EdgeAnchor) {
