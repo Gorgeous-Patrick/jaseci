@@ -641,6 +641,9 @@ impl TieredMemory.reset_l3_fetch_count -> None {
 Uses bulk_exists (1 Redis pipeline) to find missing IDs, l3.find() (1 MongoDB
 $in query) to batch-fetch from L3, and bulk_put (1 Redis pipeline) to store.
 Total: 3 round-trips regardless of ID count. No-op if L2 is unavailable.
+
+When find_raw/bulk_put_raw are available (jac-scale), uses fast path that
+skips deserialization from L3 and re-serialization to L2.
 """
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if self.l3 is None or self.l2 is None {
@@ -660,13 +663,24 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not missing_ids {
         return;
     }
-    # 1 round-trip: batch fetch from L3 (MongoDB $in or SQLite loop)
-    fetched = list(self.l3.find(missing_ids));
-    if not fetched {
-        return;
+    # Check if fast path (skip ser/deser) is available
+    has_find_raw = hasattr(self.l3, 'find_raw')
+    and callable(getattr(self.l3, 'find_raw', None));
+    has_bulk_put_raw = hasattr(self.l2, 'bulk_put_raw')
+    and callable(getattr(self.l2, 'bulk_put_raw', None));
+    if has_find_raw and has_bulk_put_raw {
+        # Fast path: skip deserialization and re-serialization
+        raw_items = list(self.l3.find_raw(missing_ids));
+        if raw_items {
+            self.l2.bulk_put_raw(raw_items);
+        }
+    } else {
+        # Standard path: deserialize from L3, re-serialize to L2
+        fetched = list(self.l3.find(missing_ids));
+        if fetched {
+            self.l2.bulk_put(fetched);
+        }
     }
-    # 1 round-trip: batch SET via pipeline
-    self.l2.bulk_put(fetched);
 }
 
 """Commit - syncs L3 persistence if available."""

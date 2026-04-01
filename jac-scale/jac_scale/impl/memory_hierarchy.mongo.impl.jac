@@ -258,6 +258,31 @@ impl MongoBackend.bulk_put(anchors: Iterable[Anchor]) -> None {
     }
 }
 
+"""Batch fetch raw serialized data (skip deserialization). Returns (UUID, dict) pairs."""
+impl MongoBackend.find_raw(
+    ids: Iterable[UUID]
+) -> Generator[tuple[UUID, dict], None, None] {
+    if self.client is None {
+        return;
+    }
+    id_list = list(ids);
+    if not id_list {
+        return;
+    }
+    try {
+        str_ids = [str(to_uuid(uid)) for uid in id_list];
+        docs = list(self.collection.find({'_id': {'$in': str_ids}}));
+        for doc in docs {
+            if 'data' in doc {
+                uid = UUID(doc['_id']);
+                yield (uid, doc['data']);
+            }
+        }
+    } except Exception as e {
+        logger.debug(f"MongoDB find_raw failed: {e}");
+    }
+}
+
 """Load anchor from raw MongoDB document."""
 impl MongoBackend._load_anchor(raw: dict[(str, Any)]) -> (Anchor | None) {
     if 'data' not in raw {
