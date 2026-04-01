@@ -50,6 +50,12 @@ class JacTTGGenerator {
         cls: type[JacTTGGenerator], scope_src: uni.UniNode, name: str
     ) -> (uni.Archetype | None);
 
+    """Extract edge type and optional node filter from an AST node."""
+    @classmethod
+    def _extract_edge_step(
+        cls: type[JacTTGGenerator], scope: uni.UniNode, item: uni.UniNode
+    ) -> tuple[str | None, str | None, int];
+
     @classmethod
     def get_ttg_prefetch_list(
         cls: type[JacTTGGenerator],

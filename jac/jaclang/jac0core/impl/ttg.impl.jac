@@ -50,7 +50,10 @@ impl JacTTGGenerator._find_walker_ast_node(
     if ast_module is None {
         # Hub miss — deserialize from JIR cache.
         try {
-            import from jaclang.jac0core.jir { get_module_cache_path, is_module_cache_valid }
+            import from jaclang.jac0core.jir {
+                get_module_cache_path,
+                is_module_cache_valid
+            }
             import from jaclang.jac0core.jir_passes { JirReader }
             cache_path = get_module_cache_path(file_path);
             if is_module_cache_valid(file_path, cache_path) {
@@ -92,11 +95,82 @@ impl JacTTGGenerator._resolve_archetype(
     return result.decl.find_parent_of_type(uni.Archetype);
 }
 
+"""Extract edge type and optional node filter from an EdgeOpRef or FilterCompr."""
+@classmethod
+impl JacTTGGenerator._extract_edge_step(
+    cls: type[JacTTGGenerator], scope: uni.UniNode, item: uni.UniNode
+) -> tuple[str | None, str | None, int] {
+    edge_type_name: (str | None) = None;
+    node_filter_name: (str | None) = None;
+    direction = 2;  # Default: outgoing
+    # Check if this is an EdgeOpRef
+    if isinstance(item, uni.EdgeOpRef) {
+        fc = getattr(item, 'filter_cond', None);
+        if fc is not None {
+            # Extract edge type from f_type
+            ft = getattr(fc, 'f_type', None);
+            if ft is not None {
+                # Check if f_type is already a Name/Token directly
+                type_name: (str | None) = None;
+                if isinstance(ft, uni.Name) {
+                    type_name = ft.value;
+                } else {
+                    # Search for Name sub_nodes
+                    names = ft.get_all_sub_nodes(uni.Name);
+                    if (len(names) > 0) {
+                        type_name = names[0].value;
+                    }
+                }
+                if type_name is not None {
+                    edge_arch = cls._resolve_archetype(scope, type_name);
+                    if edge_arch is not None {
+                        edge_type_name = edge_arch.name.value;
+                    }
+                }
+            }
+        }
+        # Extract direction
+        edge_dir = getattr(item, 'edge_dir', None);
+        if edge_dir is not None {
+            dir_name = getattr(edge_dir, 'name', '');
+            if 'IN' in str(dir_name) {
+                direction = 1;
+            } elif 'OUT' in str(dir_name) {
+                direction = 2;
+            } else {
+                direction = 3;  # Both
+            }
+        }
+    } elif isinstance(item, uni.FilterCompr) {
+        # This is a node filter like [?:Profile]
+        ft = getattr(item, 'f_type', None);
+        if ft is not None {
+            # Check if f_type is already a Name/Token directly
+            type_name: (str | None) = None;
+            if isinstance(ft, uni.Name) {
+                type_name = ft.value;
+            } else {
+                names = ft.get_all_sub_nodes(uni.Name);
+                if (len(names) > 0) {
+                    type_name = names[0].value;
+                }
+            }
+            if type_name is not None {
+                node_arch = cls._resolve_archetype(scope, type_name);
+                if node_arch is not None {
+                    node_filter_name = node_arch.name.value;
+                }
+            }
+        }
+    }
+    return (edge_type_name, node_filter_name, direction);
+}
+
 """Extract visit types from a walker's AST at runtime.
 
 Finds the walker's AST Archetype node, then for each ability with an
 EventSignature extracts the from-node type, and for each VisitStmt
-extracts the edge type from EdgeOpRef filter conditions. Results are
+extracts the full edge chain from EdgeRefTrailer. Results are
 returned as VisitType instances and cached on the walker class.
 """
 @classmethod
@@ -136,29 +210,46 @@ impl JacTTGGenerator._extract_visits_from_ast(
         # Collect visit statements within this ability.
         visit_stmts = ability.get_all_sub_nodes(uni.VisitStmt);
         for visit_stmt in visit_stmts {
-            # Extract edge type from the visit statement.
-            edge_type_name: (str | None) = None;
-            edge_refs = visit_stmt.get_all_sub_nodes(uni.EdgeOpRef);
-            if (len(edge_refs) > 0) {
-                edge_ref = edge_refs[0];
-                fc = getattr(edge_ref, 'filter_cond', None);
-                if fc is not None {
-                    ft = getattr(fc, 'f_type', None);
-                    if ft is not None {
-                        names = fc.get_all_sub_nodes(uni.Name);
-                        if (len(names) > 0) {
-                            edge_arch = cls._resolve_archetype(
-                                visit_stmt, names[0].value
-                            );
-                            if edge_arch is not None {
-                                edge_type_name = edge_arch.name.value;
-                            }
+            # Build the edge chain from EdgeRefTrailer or EdgeOpRef nodes
+            edge_chain: list[tuple[str | None, str | None, int]] = [];
+            # First, try to get EdgeRefTrailer which contains the full chain
+            edge_trailers = visit_stmt.get_all_sub_nodes(uni.EdgeRefTrailer);
+            if (len(edge_trailers) > 0) {
+                trailer = edge_trailers[0];
+                chain_items = getattr(trailer, 'chain', []);
+                for item in chain_items {
+                    step = cls._extract_edge_step(visit_stmt, item);
+                    # Only add if it has edge type (skip pure node filters for now)
+                    if step[0] is not None {
+                        edge_chain.append(step);
+                    } elif step[1] is not None {
+                        # Node filter - attach to previous step if exists
+                        if (len(edge_chain) > 0) {
+                            prev = edge_chain[-1];
+                            edge_chain[-1] = (prev[0], step[1], prev[2]);
                         }
                     }
                 }
             }
+            # Fallback: extract from EdgeOpRef nodes directly
+            if (len(edge_chain) == 0) {
+                edge_refs = visit_stmt.get_all_sub_nodes(uni.EdgeOpRef);
+                for edge_ref in edge_refs {
+                    step = cls._extract_edge_step(visit_stmt, edge_ref);
+                    if step[0] is not None {
+                        edge_chain.append(step);
+                    }
+                }
+            }
+            # Create VisitType with edge_chain
+            # For backwards compatibility, also set edge_type to first edge
+            first_edge = edge_chain[0][0] if (len(edge_chain) > 0) else None;
             result.append(
-                VisitType(from_node_type=node_type_name, edge_type=edge_type_name)
+                VisitType(
+                    from_node_type=node_type_name,
+                    edge_type=first_edge,
+                    edge_chain=edge_chain if (len(edge_chain) > 0) else None
+                )
             );
         }
     }
@@ -172,6 +263,10 @@ impl JacTTGGenerator._extract_visits_from_ast(
 Single-pass BFS that resolves neighbors via resolve_chain() and collects
 UUIDs for cache prefetching. Stops as soon as max_length nodes are found,
 avoiding full graph traversal.
+
+Supports multihop patterns: for visit [->:Follow:->->:Post:->], the full
+chain is resolved in one call to resolve_chain(), directly reaching the
+target nodes without intermediate BFS steps.
 """
 @classmethod
 impl JacTTGGenerator.get_ttg_prefetch_list(
@@ -191,7 +286,11 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         }
         cur = queue.pop(0);
         for v in visits {
-            if isinstance(v, VisitType) {
+            # Build the chain from edge_chain if available, else fallback to edge_type
+            if isinstance(v, VisitType) and v.edge_chain is not None {
+                # Use full multihop chain
+                chain = v.edge_chain;
+            } elif isinstance(v, VisitType) {
                 edge_name = cls._resolve_type_name(v.edge_type);
                 chain = [(edge_name, None, 2)];
             } else {
