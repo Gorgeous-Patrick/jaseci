@@ -33,6 +33,7 @@ obj RunConfig {
         topology_index: bool = True,
         prefetching: str = "",
         prefetch_limit: int = 200;
+        diagnostics: str = "error";  # "error" | "all" | "none"
 }
 
 """Native compilation settings from [build.native] section."""

@@ -77,9 +77,15 @@ impl Serializer._serialize_value(
         }
         if isinstance(val, NodeAnchor) {
             result['edges'] = [str(e.id) for e in val.edges];
-            # Include topology_index_data if present
-            if val.topology_index_data is not None {
-                result['topology_index_data'] = val.topology_index_data;
+            # Topology index lives only on root anchors
+            if val.topology_index_data is not None
+            and isinstance(val.archetype, Root) {
+                import from base64 { b64encode }
+                result['topology_index_data'] = b64encode(
+                    val.topology_index_data
+                ).decode(
+                    'ascii'
+                );
             }
         }
         if isinstance(val, EdgeAnchor) {
@@ -108,6 +114,10 @@ impl Serializer._serialize_value(
     # Generic object with __dict__
     if val?.__dict__ {
         result = Serializer._type_info(val, include_type);
+        if api_mode {
+            result['__type__'] = type(val).__name__;
+            result['__module__'] = type(val).__module__;
+        }
         for (k, v) in val.__dict__.items() {
             if not k.startswith('_') {
                 result[k] = Serializer._serialize_value(v, include_type, api_mode);
@@ -233,9 +243,13 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
                 }
                 anchor.edges = edges;
             }
-            # Restore topology_index_data if present
-            if (topo_data := data.get('topology_index_data')) {
-                anchor.topology_index_data = topo_data;
+            # Topology index lives only on root anchors
+            anchor.topology_index_data = None;
+            if isinstance(anchor.__dict__.get('archetype'), Root) {
+                if (topo_b64 := data.get('topology_index_data')) {
+                    import from base64 { b64decode }
+                    anchor.topology_index_data = b64decode(topo_b64);
+                }
             }
         }
         if isinstance(anchor, EdgeAnchor) {
@@ -248,6 +262,8 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
                 anchor.target = Serializer._id_to_stub(NodeAnchor, target_id);
             }
         }
+
+        anchor.hash = Serializer._compute_hash(anchor);
         return anchor;
     } except Exception as e {
         logger.error(f"Failed to deserialize anchor: {e}");
@@ -305,5 +321,22 @@ impl Serializer._deserialize_archetype(
     } except Exception as e {
         logger.error(f"Failed to deserialize archetype {type_name}: {e}");
         return None;
+    }
+}
+
+"""Compute a hash of the anchor's serialized state for dirty checking."""
+impl Serializer._compute_hash(anchor: Anchor) -> int {
+    import from json { dumps }
+    try {
+        data = Serializer.serialize(anchor, include_type=True);
+        # Exclude topology_index_data from hash — it's a derived cache,
+        # not user-mutable state. Including it would double the cost of
+        # every serialize round-trip for large graphs.
+        if isinstance(data, dict) {
+            data.pop('topology_index_data', None);
+        }
+        return hash(dumps(data, sort_keys=True));
+    } except Exception {
+        return 0;
     }
 }
