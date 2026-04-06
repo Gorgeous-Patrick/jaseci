@@ -285,7 +285,19 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             break;
         }
         cur = queue.pop(0);
+        # Resolve the type name of cur for from_node_type filtering.
+        cur_lid = topology_index.node_to_lid.get(cur);
+        cur_type = topology_index.type_table[topology_index.node_table[cur_lid][1]]
+            if cur_lid is not None
+            else None;
         for v in visits {
+            # Skip if this visit only applies to a different node type.
+            from_type = cls._resolve_type_name(v.from_node_type)
+                if isinstance(v, VisitType)
+                else None;
+            if from_type is not None and cur_type != from_type {
+                continue;
+            }
             # Build the chain from edge_chain if available, else fallback to edge_type
             if isinstance(v, VisitType) and v.edge_chain is not None {
                 # Use full multihop chain
