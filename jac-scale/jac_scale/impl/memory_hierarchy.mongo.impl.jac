@@ -278,6 +278,8 @@ impl MongoBackend.find_raw(
     } except Exception as e {
         logger.debug(f"MongoDB find_raw failed: {e}");
     }
+}
+
 """Batch get multiple anchors by ID using MongoDB $in query."""
 impl MongoBackend.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     result: dict[UUID, Anchor] = {};

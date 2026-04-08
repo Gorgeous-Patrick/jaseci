@@ -464,7 +464,16 @@ impl JacWalker.spawn_call(
         call_state = ctx.call_state.get();
         owns_call_state = True;
     }
+    import csv;
+    import time;
+    # Profiling variables
+    topo_idx_time_ms = 0.0;
+    ttg_time_ms = 0.0;
+    prefetch_time_ms = 0.0;
+    ttg_total_time_ms = 0.0;
+    resolve_total_ms = 0.0;
     # TTG prefetch: predict traversal and warm the cache before walking.
+    ttg_block_start = time.perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
@@ -472,22 +481,35 @@ impl JacWalker.spawn_call(
             if (cfg is not None and cfg.run.prefetching == "ttg") {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
+                topo_idx_start = time.perf_counter();
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
+                    topo_idx_end = time.perf_counter();
+                    topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
+                    ttg_start = time.perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
-                        warch, nd.id, topo_idx,
-                        max_length=cfg.run.prefetch_limit
+                        warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
                     );
+                    ttg_end = time.perf_counter();
+                    ttg_time_ms = (ttg_end - ttg_start) * 1000;
+                    resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
+                        prefetch_start = time.perf_counter();
                         ctx.mem.prefetch(prefetch_ids);
+                        prefetch_end = time.perf_counter();
+                        prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
                 }
             }
-        } except Exception {
+        } except Exception as e {
             ;  # Prefetch is best-effort; do not break walker execution.
+            logger.debug(f"TTG prefetch failed: {e}");
         }
     }
+    ttg_block_end = time.perf_counter();
+    ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
+    walker_start = time.perf_counter();
     try {
         for i in warch._jac_entry_funcs_ {
             if not i.trigger {
@@ -521,6 +543,49 @@ impl JacWalker.spawn_call(
         `walker.ignores = [];
         return warch;
     } finally {
+        walker_end = time.perf_counter();
+        walker_time_ms = (walker_end - walker_start) * 1000;
+        profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
+        if profile_csv_path {
+            file_exists = os.path.exists(profile_csv_path);
+            with open(profile_csv_path, "a", newline="") as f {
+                writer = csv.writer(f);
+                if not file_exists {
+                    writer.writerow(
+                        [
+                            "node_num",
+                            "edge_num",
+                            "tweet_num",
+                            "ttg_enabled",
+                            "ttg_total_ms",
+                            "topo_idx_ms",
+                            "ttg_ms",
+                            "prefetch_ms",
+                            "walker_ms",
+                            "resolve_total_ms"
+                        ]
+                    );
+                }
+                node_num = os.environ.get("JAC_NODE_NUM", "");
+                edge_num = os.environ.get("JAC_EDGE_NUM", "");
+                tweet_num = os.environ.get("JAC_TWEET_NUM", "");
+                ttg_enabled = "enabled" if ttg_time_ms > 0 else "disabled";
+                writer.writerow(
+                    [
+                        node_num,
+                        edge_num,
+                        tweet_num,
+                        ttg_enabled,
+                        f"{ttg_total_time_ms:.3f}",
+                        f"{topo_idx_time_ms:.3f}",
+                        f"{ttg_time_ms:.3f}",
+                        f"{prefetch_time_ms:.3f}",
+                        f"{walker_time_ms:.3f}",
+                        f"{resolve_total_ms:.3f}"
+                    ]
+                );
+            }
+        }
         if owns_call_state {
             reports = [];
             while not call_state.reports.empty() {
@@ -702,7 +767,16 @@ impl JacWalker.async_spawn_call(
         call_state = ctx.call_state.get();
         owns_call_state = True;
     }
+    import csv;
+    import time;
+    # Profiling variables
+    topo_idx_time_ms = 0.0;
+    ttg_time_ms = 0.0;
+    prefetch_time_ms = 0.0;
+    ttg_total_time_ms = 0.0;
+    resolve_total_ms = 0.0;
     # TTG prefetch: predict traversal and warm the cache before walking.
+    ttg_block_start = time.perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
@@ -710,22 +784,35 @@ impl JacWalker.async_spawn_call(
             if (cfg is not None and cfg.run.prefetching == "ttg") {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
+                topo_idx_start = time.perf_counter();
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
+                    topo_idx_end = time.perf_counter();
+                    topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
+                    ttg_start = time.perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
-                        warch, nd.id, topo_idx,
-                        max_length=cfg.run.prefetch_limit
+                        warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
                     );
+                    ttg_end = time.perf_counter();
+                    ttg_time_ms = (ttg_end - ttg_start) * 1000;
+                    resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
+                        prefetch_start = time.perf_counter();
                         ctx.mem.prefetch(prefetch_ids);
+                        prefetch_end = time.perf_counter();
+                        prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
                 }
             }
-        } except Exception {
+        } except Exception as e {
             ;  # Prefetch is best-effort; do not break walker execution.
+            logger.debug(f"TTG prefetch failed: {e}");
         }
     }
+    ttg_block_end = time.perf_counter();
+    ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
+    walker_start = time.perf_counter();
     try {
         for i in warch._jac_entry_funcs_ {
             if not i.trigger {
@@ -767,6 +854,49 @@ impl JacWalker.async_spawn_call(
         `walker.ignores = [];
         return warch;
     } finally {
+        walker_end = time.perf_counter();
+        walker_time_ms = (walker_end - walker_start) * 1000;
+        profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
+        if profile_csv_path {
+            file_exists = os.path.exists(profile_csv_path);
+            with open(profile_csv_path, "a", newline="") as f {
+                writer = csv.writer(f);
+                if not file_exists {
+                    writer.writerow(
+                        [
+                            "node_num",
+                            "edge_num",
+                            "tweet_num",
+                            "ttg_enabled",
+                            "ttg_total_ms",
+                            "topo_idx_ms",
+                            "ttg_ms",
+                            "prefetch_ms",
+                            "walker_ms",
+                            "resolve_total_ms"
+                        ]
+                    );
+                }
+                node_num = os.environ.get("JAC_NODE_NUM", "");
+                edge_num = os.environ.get("JAC_EDGE_NUM", "");
+                tweet_num = os.environ.get("JAC_TWEET_NUM", "");
+                ttg_enabled = "enabled" if ttg_time_ms > 0 else "disabled";
+                writer.writerow(
+                    [
+                        node_num,
+                        edge_num,
+                        tweet_num,
+                        ttg_enabled,
+                        f"{ttg_total_time_ms:.3f}",
+                        f"{topo_idx_time_ms:.3f}",
+                        f"{ttg_time_ms:.3f}",
+                        f"{prefetch_time_ms:.3f}",
+                        f"{walker_time_ms:.3f}",
+                        f"{resolve_total_ms:.3f}"
+                    ]
+                );
+            }
+        }
         if owns_call_state {
             reports = [];
             while not call_state.reports.empty() {

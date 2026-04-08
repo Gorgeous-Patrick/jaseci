@@ -276,10 +276,16 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     topology_index: Any,
     max_length: int = 200
 ) -> list[UUID] {
+    import time as _time;
+    _t0 = _time.perf_counter();
     visits = cls._extract_visits_from_ast(warch);
+    _ast_ms = (_time.perf_counter() - _t0) * 1000;
+
     prefetch: list[UUID] = [start_id];
     seen: set[UUID] = {start_id};
     queue: list[UUID] = [start_id];
+    _resolve_ms = 0.0;
+    _resolve_calls = 0;
     while queue {
         if (len(prefetch) >= max_length) {
             break;
@@ -308,7 +314,11 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             } else {
                 chain = [(None, None, 2)];
             }
-            for tgt in topology_index.resolve_chain({cur}, chain) {
+            _rc_start = _time.perf_counter();
+            _results = topology_index.resolve_chain({cur}, chain);
+            _resolve_ms += (_time.perf_counter() - _rc_start) * 1000;
+            _resolve_calls += 1;
+            for tgt in _results {
                 if tgt not in seen {
                     seen.add(tgt);
                     prefetch.append(tgt);
@@ -323,5 +333,14 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             }
         }
     }
+    import from logging { getLogger as _getLogger }
+    _avg_resolve = _resolve_ms / _resolve_calls if _resolve_calls > 0 else 0.0;
+    _getLogger(__name__).info(
+        f"[TTG] ast_ms={_ast_ms:.3f}  resolve_chain_total_ms={_resolve_ms:.3f}"
+        f"  resolve_calls={_resolve_calls}  avg_per_call_ms={_avg_resolve:.4f}"
+        f"  nodes_in_adj={len(topology_index.adj_list)}"
+        f"  prefetched={len(prefetch)}"
+    );
+    cls._last_resolve_ms = _resolve_ms;
     return prefetch;
 }
