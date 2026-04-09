@@ -102,6 +102,7 @@ impl ScaleTieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 
 """Batch get with tiered read-through: check L1, then batch L3 misses, promote all."""
 impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
+    import from time { perf_counter as _pc }
     result: dict[UUID, Anchor] = {};
     missing_ids: list[UUID] = [];
     for id in ids {
@@ -111,7 +112,34 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             missing_ids.append(id);
         }
     }
+    # L2: check Redis for misses before going to L3
+    logger.info(
+        f"batch_get: L1 miss for {len(
+            missing_ids
+        )} ids, checking L2 (Redis) then L3 (MongoDB)"
+    );
+    if missing_ids and self.l2 {
+        _t0 = _pc();
+        l2_results = self.l2.batch_get(missing_ids);
+        _l2_ms = (_pc() - _t0) * 1000;
+        still_missing = [];
+        for id in missing_ids {
+            if (anchor := l2_results.get(id)) {
+                self.__mem__[id] = anchor;
+                result[id] = anchor;
+            } else {
+                still_missing.append(id);
+            }
+        }
+        missing_ids = still_missing;
+        logger.info(
+            f"batch_get: L2 took {_l2_ms:.2f}ms, {len(l2_results)} hits, {len(
+                missing_ids
+            )} still missing"
+        );
+    }
     if missing_ids and self.l3 {
+        _t0 = _pc();
         # Use batch_get if L3 supports it (MongoBackend), fall back to get() (SqliteMemory)
         l3_results: dict[UUID, Anchor] = {};
         if hasattr(self.l3, 'batch_get') {
@@ -123,6 +151,8 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
                 }
             }
         }
+        _l3_ms = (_pc() - _t0) * 1000;
+        logger.info(f"batch_get: L3 took {_l3_ms:.2f}ms, {len(l3_results)} hits");
         for (id, anchor) in l3_results.items() {
             self.__mem__[id] = anchor;
             if self.l2 {

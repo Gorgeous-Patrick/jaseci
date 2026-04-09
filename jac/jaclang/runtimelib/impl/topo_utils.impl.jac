@@ -238,6 +238,8 @@ impl batch_load_nodes(node_ids: set[UUID], origin: (list | None) = None) -> list
     # Load all needed nodes in one batch to avoid N+1 queries on DB backends.
     import from jaclang.runtimelib.memory { TieredMemory }
     if isinstance(ctx.mem, TieredMemory) {
+        import logging;
+        logging.getLogger(__name__).info(f"BATCH GETTING f{len(node_ids)} NODES");
         loaded: dict = ctx.mem.batch_get(list(node_ids));
     } else {
         loaded: dict = {
@@ -253,6 +255,10 @@ impl batch_load_nodes(node_ids: set[UUID], origin: (list | None) = None) -> list
         if isinstance(ctx.mem, TieredMemory) {
             edge_ids = [e.id for nd in origin for e in nd.__jac__.edges];
             if edge_ids {
+                import logging;
+                logging.getLogger(__name__).info(
+                    f"BATCH GETTING f{len(edge_ids)} EDGES"
+                );
                 ctx.mem.batch_get(edge_ids);
             }
         }

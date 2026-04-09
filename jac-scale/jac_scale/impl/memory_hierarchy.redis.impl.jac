@@ -21,15 +21,18 @@ impl RedisBackend.is_available -> bool {
         self.redis_url = _get_db_config().get('redis_url');
     }
     if not self.redis_url {
+        logger.warning("Jac Redis Failed");
         return False;
     }
     client = None;
     try {
         client = redis.from_url(self.redis_url);
         client.ping();
+        logger.info("Jac Redis SUCCEED");
         return True;
     } except Exception as e {
         logger.debug(f"Redis availability check failed: {e}");
+        logger.warning("Jac Redis Failed");
         return False;
     } finally {
         if client {

@@ -464,8 +464,8 @@ impl JacWalker.spawn_call(
         call_state = ctx.call_state.get();
         owns_call_state = True;
     }
-    import csv;
-    import time;
+    import from time { perf_counter as _perf_counter }
+    import from csv { writer as _csv_writer }
     # Profiling variables
     topo_idx_time_ms = 0.0;
     ttg_time_ms = 0.0;
@@ -473,7 +473,7 @@ impl JacWalker.spawn_call(
     ttg_total_time_ms = 0.0;
     resolve_total_ms = 0.0;
     # TTG prefetch: predict traversal and warm the cache before walking.
-    ttg_block_start = time.perf_counter();
+    ttg_block_start = _perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
@@ -481,23 +481,23 @@ impl JacWalker.spawn_call(
             if (cfg is not None and cfg.run.prefetching == "ttg") {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
-                topo_idx_start = time.perf_counter();
+                topo_idx_start = _perf_counter();
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
-                    topo_idx_end = time.perf_counter();
+                    topo_idx_end = _perf_counter();
                     topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
-                    ttg_start = time.perf_counter();
+                    ttg_start = _perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
                         warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
                     );
-                    ttg_end = time.perf_counter();
+                    ttg_end = _perf_counter();
                     ttg_time_ms = (ttg_end - ttg_start) * 1000;
                     resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
-                        prefetch_start = time.perf_counter();
+                        prefetch_start = _perf_counter();
                         ctx.mem.prefetch(prefetch_ids);
-                        prefetch_end = time.perf_counter();
+                        prefetch_end = _perf_counter();
                         prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
                 }
@@ -507,9 +507,10 @@ impl JacWalker.spawn_call(
             logger.debug(f"TTG prefetch failed: {e}");
         }
     }
-    ttg_block_end = time.perf_counter();
+    ttg_block_end = _perf_counter();
     ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
-    walker_start = time.perf_counter();
+    walker_start = _perf_counter();
+    logger.info("Start running");
     try {
         for i in warch._jac_entry_funcs_ {
             if not i.trigger {
@@ -543,13 +544,13 @@ impl JacWalker.spawn_call(
         `walker.ignores = [];
         return warch;
     } finally {
-        walker_end = time.perf_counter();
+        walker_end = _perf_counter();
         walker_time_ms = (walker_end - walker_start) * 1000;
         profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
         if profile_csv_path {
             file_exists = os.path.exists(profile_csv_path);
             with open(profile_csv_path, "a", newline="") as f {
-                writer = csv.writer(f);
+                writer = _csv_writer(f);
                 if not file_exists {
                     writer.writerow(
                         [
@@ -767,8 +768,8 @@ impl JacWalker.async_spawn_call(
         call_state = ctx.call_state.get();
         owns_call_state = True;
     }
-    import csv;
-    import time;
+    import from time { perf_counter as _perf_counter }
+    import from csv { writer as _csv_writer }
     # Profiling variables
     topo_idx_time_ms = 0.0;
     ttg_time_ms = 0.0;
@@ -776,7 +777,7 @@ impl JacWalker.async_spawn_call(
     ttg_total_time_ms = 0.0;
     resolve_total_ms = 0.0;
     # TTG prefetch: predict traversal and warm the cache before walking.
-    ttg_block_start = time.perf_counter();
+    ttg_block_start = _perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
@@ -784,23 +785,23 @@ impl JacWalker.async_spawn_call(
             if (cfg is not None and cfg.run.prefetching == "ttg") {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
-                topo_idx_start = time.perf_counter();
+                topo_idx_start = _perf_counter();
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
-                    topo_idx_end = time.perf_counter();
+                    topo_idx_end = _perf_counter();
                     topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
-                    ttg_start = time.perf_counter();
+                    ttg_start = _perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
                         warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
                     );
-                    ttg_end = time.perf_counter();
+                    ttg_end = _perf_counter();
                     ttg_time_ms = (ttg_end - ttg_start) * 1000;
                     resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
-                        prefetch_start = time.perf_counter();
+                        prefetch_start = _perf_counter();
                         ctx.mem.prefetch(prefetch_ids);
-                        prefetch_end = time.perf_counter();
+                        prefetch_end = _perf_counter();
                         prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
                 }
@@ -810,9 +811,9 @@ impl JacWalker.async_spawn_call(
             logger.debug(f"TTG prefetch failed: {e}");
         }
     }
-    ttg_block_end = time.perf_counter();
+    ttg_block_end = _perf_counter();
     ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
-    walker_start = time.perf_counter();
+    walker_start = _perf_counter();
     try {
         for i in warch._jac_entry_funcs_ {
             if not i.trigger {
@@ -854,13 +855,13 @@ impl JacWalker.async_spawn_call(
         `walker.ignores = [];
         return warch;
     } finally {
-        walker_end = time.perf_counter();
+        walker_end = _perf_counter();
         walker_time_ms = (walker_end - walker_start) * 1000;
         profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
         if profile_csv_path {
             file_exists = os.path.exists(profile_csv_path);
             with open(profile_csv_path, "a", newline="") as f {
-                writer = csv.writer(f);
+                writer = _csv_writer(f);
                 if not file_exists {
                     writer.writerow(
                         [
