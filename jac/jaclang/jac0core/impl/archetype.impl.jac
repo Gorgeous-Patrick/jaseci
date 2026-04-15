@@ -242,18 +242,26 @@ impl NodeAnchor.__getstate__ -> dict[(str, object)] {
     return state;
 }
 
-"""Get decoded topology index (lazy-decoded from blob)."""
+"""Get decoded topology index (decoded once and cached on the anchor instance)."""
 impl NodeAnchor.get_topology_index -> Any {
     import from jaclang.runtimelib.topology_index { TopologyIndex }
-    if self.topology_index_data {
-        return TopologyIndex.decode(self.topology_index_data);
+    cached = getattr(self, "_topology_index_cache", None);
+    if cached is not None {
+        return cached;
     }
-    return TopologyIndex();
+    if self.topology_index_data {
+        idx = TopologyIndex.decode(self.topology_index_data);
+    } else {
+        idx = TopologyIndex();
+    }
+    self._topology_index_cache = idx;
+    return idx;
 }
 
-"""Set topology index from TopologyIndex object (encodes to blob)."""
+"""Set topology index from TopologyIndex object (encodes to blob, invalidates cache)."""
 impl NodeAnchor.set_topology_index(index: Any) -> None {
     self.topology_index_data = index.encode();
+    self._topology_index_cache = index;
     self.is_updated = True;
 }
 
