@@ -170,15 +170,30 @@ impl RedisBackend.commit(anchor: (Anchor | None) = None) -> None {
 # No-op: cache doesn't need commit
 }
 
-"""Batch get from Redis cache. Falls back to individual gets."""
+"""Batch get from Redis cache using MGET — single round-trip."""
 impl RedisBackend.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
-    result: dict[UUID, Anchor] = {};
-    for id in ids {
-        if (anchor := self.get(id)) {
-            result[id] = anchor;
-        }
+    if self.redis_client is None or not ids {
+        return {};
     }
-    return result;
+    try {
+        keys = [storage_key(to_uuid(uid)) for uid in ids];
+        raws = self.redis_client.mget(keys);
+        result: dict[UUID, Anchor] = {};
+        for (uid, raw) in zip(ids, raws) {
+            if not raw {
+                continue;
+            }
+            anchor = Serializer.deserialize(json.loads(raw));
+            if anchor {
+                anchor.is_updated = False;
+                result[uid] = anchor;
+            }
+        }
+        return result;
+    } except Exception as e {
+        logger.debug(f"Redis batch_get failed: {e}");
+        return {};
+    }
 }
 
 # CacheMemory-specific methods

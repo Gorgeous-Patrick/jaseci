@@ -1,4 +1,7 @@
 import logging;
+import cProfile;
+import pstats;
+import threading;
 import from jaclang.cli.console { console }
 import from jaclang.cli.banners { JAC_DISCORD_URL }
 import from jaclang.runtimelib.serializer { Serializer }
@@ -7,7 +10,9 @@ import from jaclang.runtimelib.client_bundle {
     _ensure_js_generated
 }
 
-glob _client_error_logger = logging.getLogger("jaclang.client_errors");
+glob _client_error_logger = logging.getLogger("jaclang.client_errors"),
+     _jac_profiler: cProfile.Profile = cProfile.Profile(),
+     _jac_profiler_lock: threading.Lock = threading.Lock();
 
 impl UserManager.postinit -> None {
     import sqlite3;
@@ -283,6 +288,7 @@ impl ExecutionManager.spawn_walker(
     ctx.set_user_root(root_id);
     call_token = ctx.call_state.set(CallState());
     call_state = ctx.call_state.get();
+    _profile_dir = os.environ.get("JAC_PROFILE_DIR");
     try {
         `walker = walker_cls(**fields);
         if target_node_id {
@@ -293,7 +299,20 @@ impl ExecutionManager.spawn_walker(
         } else {
             target_node = ctx.get_root();
         }
-        spawn_result = Jac.spawn(`walker, target_node);
+        # Wrap Jac.spawn in a named function so runctx has a real root frame,
+        # giving snakeviz a stable anchor instead of picking arbitrarily.
+        _spawn_result_box = [None];
+        def _jac_walker_execute {
+            _spawn_result_box[0] = Jac.spawn(`walker, target_node);
+        }
+        if _profile_dir {
+            with _jac_profiler_lock {
+                _jac_profiler.runcall(_jac_walker_execute);
+            }
+        } else {
+            _jac_walker_execute();
+        }
+        spawn_result = _spawn_result_box[0];
         # Handle async walkers - await the coroutine if spawn returns one
         if iscoroutine(spawn_result) {
             result = await spawn_result;
@@ -316,6 +335,19 @@ impl ExecutionManager.spawn_walker(
         return {'error': str(e), 'traceback': traceback.format_exc()};
     } finally {
         ctx.call_state.reset(call_token);
+        if _profile_dir {
+            with _jac_profiler_lock {
+                os.makedirs(_profile_dir, exist_ok=True);
+                _prof_path = os.path.join(_profile_dir, "jac_server.prof");
+                _jac_profiler.dump_stats(_prof_path);
+                _txt_path = os.path.join(_profile_dir, "jac_server.txt");
+                with open(_txt_path, "w") as _f {
+                    _ps = pstats.Stats(_jac_profiler, stream=_f);
+                    _ps.sort_stats("cumulative");
+                    _ps.print_stats();
+                }
+            }
+        }
     }
 }
 
