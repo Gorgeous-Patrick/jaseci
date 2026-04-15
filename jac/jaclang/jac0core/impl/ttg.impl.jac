@@ -296,6 +296,19 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         cur_type = topology_index.type_table[topology_index.node_table[cur_lid][1]]
             if cur_lid is not None
             else None;
+        # Prefetch outgoing edge anchors for cur before visiting targets.
+        # batch_load_nodes needs these loaded to walk the edge list.
+        if cur_lid is not None {
+            for (src_lid, _et, tgt_lid, eid) in topology_index.adj_list {
+                if len(prefetch) >= max_length {
+                    break;
+                }
+                if (src_lid == cur_lid or tgt_lid == cur_lid) and eid not in seen {
+                    seen.add(eid);
+                    prefetch.append(eid);
+                }
+            }
+        }
         for v in visits {
             # Skip if this visit only applies to a different node type.
             from_type = cls._resolve_type_name(v.from_node_type)

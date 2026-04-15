@@ -71,10 +71,10 @@ impl on_edge_created(source: Any, target: Any, `edge: Any) -> None {
     }
     idx.add_node(target.id, _type_name(target.archetype), target_owner);
     # Add edge
-    idx.add_edge(source.id, target.id, _type_name(`edge.archetype));
+    idx.add_edge(source.id, target.id, _type_name(`edge.archetype), `edge.id);
     # If undirected, add reverse edge too
     if `edge.is_undirected {
-        idx.add_edge(target.id, source.id, _type_name(`edge.archetype));
+        idx.add_edge(target.id, source.id, _type_name(`edge.archetype), `edge.id);
     }
     root_anchor.set_topology_index(idx);
 }

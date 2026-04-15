@@ -32,15 +32,15 @@ impl TopologyIndex.remove_node(node_id: UUID) -> None {
         return;
     }
     self.adj_list = [
-        (s, et, t)
-        for (s, et, t) in self.adj_list
+        (s, et, t, eid)
+        for (s, et, t, eid) in self.adj_list
         if s != lid and t != lid
     ];
 }
 
 """Add an edge to the adjacency list."""
 impl TopologyIndex.add_edge(
-    source_id: UUID, target_id: UUID, edge_type_name: str
+    source_id: UUID, target_id: UUID, edge_type_name: str, edge_id: UUID
 ) -> None {
     src_lid = self.node_to_lid.get(source_id);
     tgt_lid = self.node_to_lid.get(target_id);
@@ -48,7 +48,7 @@ impl TopologyIndex.add_edge(
         return;
     }
     etid = self._ensure_type(edge_type_name);
-    self.adj_list.append((src_lid, etid, tgt_lid));
+    self.adj_list.append((src_lid, etid, tgt_lid, edge_id));
 }
 
 """Remove edge(s) between source and target, optionally filtered by type."""
@@ -61,10 +61,10 @@ impl TopologyIndex.remove_edge(
         return;
     }
     etid = self.type_to_id.get(edge_type_name) if edge_type_name else None;
-    new_adj: list[tuple[int, int, int]] = [];
+    new_adj: list[tuple[int, int, int, UUID]] = [];
     removed = False;
     for entry in self.adj_list {
-        (s, et, t) = entry;
+        (s, et, t, eid) = entry;
         if s == src_lid and t == tgt_lid {
             if etid is None or et == etid {
                 if not removed {
@@ -102,7 +102,7 @@ impl TopologyIndex.resolve_chain(
             return set();
         }
         next_lids: set[int] = set();
-        for (src_lid, et, tgt_lid) in self.adj_list {
+        for (src_lid, et, tgt_lid, _eid) in self.adj_list {
             if etid is not None and et != etid {
                 continue;
             }
@@ -157,8 +157,9 @@ impl TopologyIndex.encode -> bytes {
         parts.append(struct.pack("<H", type_id));
         parts.append(owner_root.bytes);
     }
-    for (src, etid, tgt) in self.adj_list {
+    for (src, etid, tgt, eid) in self.adj_list {
         parts.append(struct.pack("<HHH", src, etid, tgt));
+        parts.append(eid.bytes);
     }
     return b"".join(parts);
 }
@@ -198,7 +199,9 @@ impl TopologyIndex.decode(data: bytes) -> TopologyIndex {
     for _ in range(num_edges) {
         (src, etid, tgt) = struct.unpack_from("<HHH", data, offset);
         offset += 6;
-        idx.adj_list.append((src, etid, tgt));
+        eid = UUID(bytes=data[offset:offset + 16]);
+        offset += 16;
+        idx.adj_list.append((src, etid, tgt, eid));
     }
     return idx;
 }

@@ -3,11 +3,11 @@
 Stores a compact adjacency structure on root nodes so that edge-op chains
 with type filters can be resolved without loading every node from the DB.
 
-Encoding format (version 1):
+Encoding format (version 2):
   [1B version][2B num_types][2B num_nodes][4B num_edges]
   TypeTable:  for each type: [1B name_len][name_bytes...]
   NodeTable:  for each node: [16B uuid][2B type_id][16B owner_root_uuid (0=self)]
-  AdjList:    for each edge: [2B source_local_id][2B edge_type_id][2B target_local_id]
+  AdjList:    for each edge: [2B source_local_id][2B edge_type_id][2B target_local_id][16B edge_uuid]
 """
 
 import struct;
@@ -15,7 +15,7 @@ import from typing { Any }
 import from uuid { UUID }
 
 glob SELF_ROOT: UUID = UUID(int=0),
-     TOPO_VERSION: int = 1;
+     TOPO_VERSION: int = 2;
 
 """In-memory topology index decoded from a compact binary blob."""
 obj TopologyIndex {
@@ -23,7 +23,7 @@ obj TopologyIndex {
         type_to_id: dict[str, int] = {},
         node_table: list[tuple[UUID, int, UUID]] = [],
         node_to_lid: dict[UUID, int] = {},
-        adj_list: list[tuple[int, int, int]] = [];
+        adj_list: list[tuple[int, int, int, UUID]] = [];
 
     def _ensure_type(type_name: str) -> int;
     def add_node(
@@ -31,7 +31,10 @@ obj TopologyIndex {
     ) -> int;
 
     def remove_node(node_id: UUID) -> None;
-    def add_edge(source_id: UUID, target_id: UUID, edge_type_name: str) -> None;
+    def add_edge(
+        source_id: UUID, target_id: UUID, edge_type_name: str, edge_id: UUID
+    ) -> None;
+
     def remove_edge(
         source_id: UUID, target_id: UUID, edge_type_name: (str | None) = None
     ) -> None;
