@@ -1,5 +1,5 @@
 import logging;
-import cProfile;
+import yappi;
 import pstats;
 import threading;
 import from jaclang.cli.console { console }
@@ -11,7 +11,6 @@ import from jaclang.runtimelib.client_bundle {
 }
 
 glob _client_error_logger = logging.getLogger("jaclang.client_errors"),
-     _jac_profiler: cProfile.Profile = cProfile.Profile(),
      _jac_profiler_lock: threading.Lock = threading.Lock();
 
 impl UserManager.postinit -> None {
@@ -307,17 +306,22 @@ impl ExecutionManager.spawn_walker(
         }
         if _profile_dir {
             with _jac_profiler_lock {
-                _jac_profiler.runcall(_jac_walker_execute);
+                yappi.set_clock_type("wall");
+                yappi.start(builtins=False);
             }
-        } else {
-            _jac_walker_execute();
         }
+        _jac_walker_execute();
         spawn_result = _spawn_result_box[0];
         # Handle async walkers - await the coroutine if spawn returns one
         if iscoroutine(spawn_result) {
             result = await spawn_result;
         } else {
             result = spawn_result;
+        }
+        if _profile_dir {
+            with _jac_profiler_lock {
+                yappi.stop();
+            }
         }
         call_state.reports.put_nowait(call_state._sentinel);
         reports = await self.report_collector(call_state);
@@ -339,10 +343,11 @@ impl ExecutionManager.spawn_walker(
             with _jac_profiler_lock {
                 os.makedirs(_profile_dir, exist_ok=True);
                 _prof_path = os.path.join(_profile_dir, "jac_server.prof");
-                _jac_profiler.dump_stats(_prof_path);
+                _func_stats = yappi.get_func_stats();
+                _func_stats.save(_prof_path, type="pstat");
                 _txt_path = os.path.join(_profile_dir, "jac_server.txt");
                 with open(_txt_path, "w") as _f {
-                    _ps = pstats.Stats(_jac_profiler, stream=_f);
+                    _ps = pstats.Stats(_prof_path, stream=_f);
                     _ps.sort_stats("cumulative");
                     _ps.print_stats();
                 }

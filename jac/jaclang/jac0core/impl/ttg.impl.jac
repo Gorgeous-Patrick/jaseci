@@ -286,40 +286,26 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     queue: list[UUID] = [start_id];
     _resolve_ms = 0.0;
     _resolve_calls = 0;
+    _edge_count = 0;
     while queue {
-        if (len(prefetch) >= max_length) {
+        if len(prefetch) >= max_length {
             break;
         }
         cur = queue.pop(0);
-        # Resolve the type name of cur for from_node_type filtering.
         cur_lid = topology_index.node_to_lid.get(cur);
         cur_type = topology_index.type_table[topology_index.node_table[cur_lid][1]]
             if cur_lid is not None
             else None;
-        # Prefetch outgoing edge anchors for cur before visiting targets.
-        # batch_load_nodes needs these loaded to walk the edge list.
-        if cur_lid is not None {
-            for (src_lid, _et, tgt_lid, eid) in topology_index.adj_list {
-                if len(prefetch) >= max_length {
-                    break;
-                }
-                if (src_lid == cur_lid or tgt_lid == cur_lid) and eid not in seen {
-                    seen.add(eid);
-                    prefetch.append(eid);
-                }
-            }
-        }
+        will_visit = False;
         for v in visits {
-            # Skip if this visit only applies to a different node type.
             from_type = cls._resolve_type_name(v.from_node_type)
                 if isinstance(v, VisitType)
                 else None;
             if from_type is not None and cur_type != from_type {
                 continue;
             }
-            # Build the chain from edge_chain if available, else fallback to edge_type
+            will_visit = True;
             if isinstance(v, VisitType) and v.edge_chain is not None {
-                # Use full multihop chain
                 chain = v.edge_chain;
             } elif isinstance(v, VisitType) {
                 edge_name = cls._resolve_type_name(v.edge_type);
@@ -336,13 +322,28 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
                     seen.add(tgt);
                     prefetch.append(tgt);
                     queue.append(tgt);
-                    if (len(prefetch) >= max_length) {
+                    if len(prefetch) >= max_length {
                         break;
                     }
                 }
             }
-            if (len(prefetch) >= max_length) {
+            if len(prefetch) >= max_length {
                 break;
+            }
+        }
+        # Only prefetch edges for nodes that actually fire a visit statement.
+        # batch_load_nodes is only called when refs() runs a visit, so
+        # target-only nodes (no matching visit pattern) need no edge prefetch.
+        if will_visit and cur_lid is not None {
+            for (src_lid, _et, tgt_lid, eid) in topology_index.adj_list {
+                if len(prefetch) >= max_length {
+                    break;
+                }
+                if (src_lid == cur_lid or tgt_lid == cur_lid) and eid not in seen {
+                    seen.add(eid);
+                    prefetch.append(eid);
+                    _edge_count += 1;
+                }
             }
         }
     }
@@ -352,7 +353,7 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         f"[TTG] ast_ms={_ast_ms:.3f}  resolve_chain_total_ms={_resolve_ms:.3f}"
         f"  resolve_calls={_resolve_calls}  avg_per_call_ms={_avg_resolve:.4f}"
         f"  nodes_in_adj={len(topology_index.adj_list)}"
-        f"  prefetched={len(prefetch)}"
+        f"  prefetched={len(prefetch)}  nodes={len(prefetch) - _edge_count}  edges={_edge_count}"
     );
     cls._last_resolve_ms = _resolve_ms;
     return prefetch;
