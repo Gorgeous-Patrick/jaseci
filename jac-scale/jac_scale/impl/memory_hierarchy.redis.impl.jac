@@ -295,18 +295,20 @@ impl RedisBackend.bulk_put_raw(items: Iterable[tuple[UUID, dict]]) -> None {
     try {
         db_config = _get_db_config();
         ttl = db_config.get('redis_default_ttl', 0);
-        pipe = self.redis_client.pipeline(transaction=False);
-        for (uid, data) in item_list {
-            key = storage_key(uid);
-            payload = json.dumps(data);
-            if ttl > 0 {
-                pipe.setex(key, ttl, payload);
-            } else {
-                pipe.set(key, payload);
+        if ttl > 0 {
+            # SETEX requires per-key TTL — use pipeline
+            pipe = self.redis_client.pipeline(transaction=False);
+            for (uid, data) in item_list {
+                pipe.setex(storage_key(uid), ttl, json.dumps(data));
             }
+            pipe.execute();
+        } else {
+            # Single MSET command — far less Python overhead than 2000 SET pipeline
+            self.redis_client.mset(
+                {storage_key(uid): json.dumps(data) for (uid, data) in item_list}
+            );
         }
-        pipe.execute();
     } except Exception as e {
-        logger.debug(f"Redis bulk_put_raw pipeline failed: {e}");
+        logger.debug(f"Redis bulk_put_raw failed: {e}");
     }
 }

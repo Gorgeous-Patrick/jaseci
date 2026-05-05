@@ -283,15 +283,24 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
 
     prefetch: list[UUID] = [start_id];
     seen: set[UUID] = {start_id};
-    queue: list[UUID] = [start_id];
+    import from collections { deque }
+    import from collections { defaultdict }
+    queue: deque = deque([start_id]);
     _resolve_ms = 0.0;
     _resolve_calls = 0;
     _edge_count = 0;
+    # Build adjacency index once: lid -> [(et, neighbor_lid, eid)]
+    # Avoids O(N²) full adj_list scan per node during BFS.
+    _adj_index: dict = defaultdict(list);
+    for (src_lid, _et, tgt_lid, eid) in topology_index.adj_list {
+        _adj_index[src_lid].append((_et, tgt_lid, eid));
+        _adj_index[tgt_lid].append((_et, src_lid, eid));
+    }
     while queue {
         if len(prefetch) >= max_length {
             break;
         }
-        cur = queue.pop(0);
+        cur = queue.popleft();
         cur_lid = topology_index.node_to_lid.get(cur);
         cur_type = topology_index.type_table[topology_index.node_table[cur_lid][1]]
             if cur_lid is not None
@@ -335,11 +344,11 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         # batch_load_nodes is only called when refs() runs a visit, so
         # target-only nodes (no matching visit pattern) need no edge prefetch.
         if will_visit and cur_lid is not None {
-            for (src_lid, _et, tgt_lid, eid) in topology_index.adj_list {
+            for (_et, _nbr_lid, eid) in _adj_index.get(cur_lid, []) {
                 if len(prefetch) >= max_length {
                     break;
                 }
-                if (src_lid == cur_lid or tgt_lid == cur_lid) and eid not in seen {
+                if eid not in seen {
                     seen.add(eid);
                     prefetch.append(eid);
                     _edge_count += 1;
