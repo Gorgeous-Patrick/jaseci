@@ -123,7 +123,7 @@ obj MongoBackend(PersistentMemory) {
     def sync -> None;
     def bulk_put(anchors: Iterable[Anchor]) -> None;
     """Batch fetch raw serialized data (skip deserialization). Returns (UUID, dict) pairs."""
-    def find_raw(ids: Iterable[UUID]) -> Generator[tuple[UUID, dict], None, None];
+    def find_raw(ids: Iterable[UUID]) -> list[tuple[UUID, dict]];
     # Internal
     def _load_anchor(raw: dict[(str, Any)]) -> (Anchor | None);
 }
