@@ -478,7 +478,11 @@ impl JacWalker.spawn_call(
         try {
             import from jaclang.project.config { get_config }
             cfg = get_config();
-            if (cfg is not None and cfg.run.prefetching == "ttg") {
+            if (
+                cfg is not None
+                and cfg.run.prefetching == "ttg"
+                and cfg.run.prefetch_limit > 0
+            ) {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
                 topo_idx_start = _perf_counter();
@@ -782,7 +786,11 @@ impl JacWalker.async_spawn_call(
         try {
             import from jaclang.project.config { get_config }
             cfg = get_config();
-            if (cfg is not None and cfg.run.prefetching == "ttg") {
+            if (
+                cfg is not None
+                and cfg.run.prefetching == "ttg"
+                and cfg.run.prefetch_limit > 0
+            ) {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
                 topo_idx_start = _perf_counter();

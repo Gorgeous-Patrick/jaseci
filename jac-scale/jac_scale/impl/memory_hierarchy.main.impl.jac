@@ -112,6 +112,10 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             missing_ids.append(id);
         }
     }
+    _total = len(ids);
+    _l1_hits = _total - len(missing_ids);
+    _l2_hits = 0;
+    _l3_hits = 0;
     # L2: check Redis for misses before going to L3
     logger.info(
         f"batch_get: L1 miss for {len(
@@ -122,6 +126,7 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
         _t0 = _pc();
         l2_results = self.l2.batch_get(missing_ids);
         _l2_ms = (_pc() - _t0) * 1000;
+        _l2_hits = len(l2_results);
         still_missing = [];
         for id in missing_ids {
             if (anchor := l2_results.get(id)) {
@@ -152,6 +157,7 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             }
         }
         _l3_ms = (_pc() - _t0) * 1000;
+        _l3_hits = len(l3_results);
         logger.info(f"batch_get: L3 took {_l3_ms:.2f}ms, {len(l3_results)} hits");
         for (id, anchor) in l3_results.items() {
             self.__mem__[id] = anchor;
@@ -163,6 +169,12 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             result[id] = anchor;
         }
     }
+    _l2_denom = _total - _l1_hits;
+    _l2_rate = (_l2_hits / _l2_denom * 100) if _l2_denom > 0 else 100.0;
+    logger.info(
+        f"[BATCH_GET] total={_total}  l1={_l1_hits}  l2={_l2_hits}  l3={_l3_hits}"
+        f"  l2_rate={_l2_rate:.1f}%"
+    );
     return result;
 }
 
