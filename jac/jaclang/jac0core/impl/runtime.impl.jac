@@ -413,10 +413,10 @@ impl JacWalker._execute_exits(
     return True;
 }
 
-"""Recursively visit a node with DFS semantics.
+"""Iterative DFS visit — avoids Python recursion limit for deep graphs.
 
     1. Execute entries for this node
-    2. Recursively visit all children added during entry
+    2. Visit all children added during entry (iterative, not recursive)
     3. Execute exits for this node (post-order)
 
     Returns True if walker should continue, False if disengaged.
@@ -424,24 +424,40 @@ impl JacWalker._execute_exits(
 impl JacWalker._visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-    current_loc = anchor.archetype;
-    if not current_loc {
-        return True;
-    }
-    `walker.path.append(anchor);
-    if not JacWalker._execute_entries(warch, `walker, current_loc) {
-        return False;
-    }
-    while `walker.next {
-        child_anchor = `walker.next.pop(0);
-        if (
-            (child_anchor not in `walker.ignores)
-            and not JacWalker._visit_node_recursive(warch, `walker, child_anchor)
-        ) {
-            return False;
+    # Stack entries: (anchor, exiting: bool)
+    # exiting=False -> execute entries, schedule children + exit
+    # exiting=True  -> execute exits (post-order)
+    stack: list = [(anchor, False)];
+    while stack {
+        (current_anchor, exiting) = stack.pop();
+        current_loc = current_anchor.archetype;
+        if not exiting {
+            if not current_loc {
+                continue;
+            }
+            `walker.path.append(current_anchor);
+            if not JacWalker._execute_entries(warch, `walker, current_loc) {
+                return False;
+            }
+            stack.append((current_anchor, True));
+        } else {
+            if current_loc
+            and not JacWalker._execute_exits(warch, `walker, current_loc) {
+                return False;
+            }
+        }
+        children: list = [];
+        while `walker.next {
+            child = `walker.next.pop(0);
+            if child not in `walker.ignores {
+                children.append(child);
+            }
+        }
+        for child in reversed(children) {
+            stack.append((child, False));
         }
     }
-    return JacWalker._execute_exits(warch, `walker, current_loc);
+    return True;
 }
 
 """Jac's spawn operator feature with recursive DFS semantics.
@@ -719,10 +735,10 @@ impl JacWalker._async_execute_exits(
     return True;
 }
 
-"""Async version: Recursively visit a node with DFS semantics.
+"""Async iterative DFS visit — avoids Python recursion limit for deep graphs.
 
     1. Execute entries for this node
-    2. Recursively visit all children added during entry
+    2. Visit all children added during entry (iterative, not recursive)
     3. Execute exits for this node (post-order)
 
     Returns True if walker should continue, False if disengaged.
@@ -730,26 +746,37 @@ impl JacWalker._async_execute_exits(
 impl JacWalker._async_visit_node_recursive(
     warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
 ) -> bool {
-    current_loc = anchor.archetype;
-    if not current_loc {
-        return True;
-    }
-    `walker.path.append(anchor);
-    if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
-        return False;
-    }
-    while `walker.next {
-        child_anchor = `walker.next.pop(0);
-        if (
-            (child_anchor not in `walker.ignores)
-            and not await JacWalker._async_visit_node_recursive(
-                warch, `walker, child_anchor
-            )
-        ) {
-            return False;
+    stack: list = [(anchor, False)];
+    while stack {
+        (current_anchor, exiting) = stack.pop();
+        current_loc = current_anchor.archetype;
+        if not exiting {
+            if not current_loc {
+                continue;
+            }
+            `walker.path.append(current_anchor);
+            if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
+                return False;
+            }
+            stack.append((current_anchor, True));
+        } else {
+            if current_loc
+            and not await JacWalker._async_execute_exits(warch, `walker, current_loc) {
+                return False;
+            }
+        }
+        children: list = [];
+        while `walker.next {
+            child = `walker.next.pop(0);
+            if child not in `walker.ignores {
+                children.append(child);
+            }
+        }
+        for child in reversed(children) {
+            stack.append((child, False));
         }
     }
-    return await JacWalker._async_execute_exits(warch, `walker, current_loc);
+    return True;
 }
 
 """Jac's async spawn operator feature with recursive DFS semantics.
