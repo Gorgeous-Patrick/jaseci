@@ -341,15 +341,23 @@ impl ExecutionManager.spawn_walker(
         ctx.call_state.reset(call_token);
         if _profile_dir {
             with _jac_profiler_lock {
+                if yappi.is_running() {
+                    yappi.stop();
+                }
                 os.makedirs(_profile_dir, exist_ok=True);
                 _prof_path = os.path.join(_profile_dir, "jac_server.prof");
                 _func_stats = yappi.get_func_stats();
                 _func_stats.save(_prof_path, type="pstat");
+                yappi.clear_stats();
                 _txt_path = os.path.join(_profile_dir, "jac_server.txt");
-                with open(_txt_path, "w") as _f {
-                    _ps = pstats.Stats(_prof_path, stream=_f);
-                    _ps.sort_stats("cumulative");
-                    _ps.print_stats();
+                try {
+                    with open(_txt_path, "w") as _f {
+                        _ps = pstats.Stats(_prof_path, stream=_f);
+                        _ps.sort_stats("cumulative");
+                        _ps.print_stats();
+                    }
+                } except Exception {
+                    pass;
                 }
             }
         }
