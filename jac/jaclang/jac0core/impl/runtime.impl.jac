@@ -568,6 +568,7 @@ impl JacWalker.spawn_call(
         walker_time_ms = (walker_end - walker_start) * 1000;
         profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
         if profile_csv_path {
+            os.makedirs(os.path.dirname(profile_csv_path) or ".", exist_ok=True);
             file_exists = os.path.exists(profile_csv_path);
             with open(profile_csv_path, "a", newline="") as f {
                 writer = _csv_writer(f);
@@ -894,6 +895,7 @@ impl JacWalker.async_spawn_call(
         walker_time_ms = (walker_end - walker_start) * 1000;
         profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
         if profile_csv_path {
+            os.makedirs(os.path.dirname(profile_csv_path) or ".", exist_ok=True);
             file_exists = os.path.exists(profile_csv_path);
             with open(profile_csv_path, "a", newline="") as f {
                 writer = _csv_writer(f);
