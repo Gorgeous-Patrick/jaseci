@@ -370,6 +370,9 @@ jobs:
         jac purge
         timeout 5 jac --version
 
+    - name: Verify bundled guides print from the built wheel
+      run: bash scripts/check-guide.sh jac
+
     - name: Run integration tests
       run: jac run scripts/integration_tests.jac
 
