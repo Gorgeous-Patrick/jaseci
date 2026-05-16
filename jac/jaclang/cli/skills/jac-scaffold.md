@@ -8,9 +8,9 @@ Use the Jac CLI's `jac create` to scaffold new projects. Run it via `run_command
 ## `jac create` - the only scaffolder
 
 ```
-jac create myapp                       # default: empty backend project
-jac create myapp --use client          # client-only template
-jac create myapp --use fullstack       # fullstack template
+jac create myapp                       # default: minimal backend project
+jac create myapp --use client          # client-only template  (needs jac-client)
+jac create myapp --use fullstack       # fullstack template     (needs jac-client)
 jac create myapp --use ./local.jacpack # from a local jacpack archive
 jac create --use https://.../t.jacpack # from a URL
 jac create --list_jacpacks             # list available templates
@@ -18,15 +18,17 @@ jac create --list_jacpacks             # list available templates
 
 Always pass an explicit project name - without one, `jac create` falls back to `jactastic`, `jactastic1`, etc.
 
+**`client` and `fullstack` are provided by the `jac-client` plugin.** Only `default` ships with `jaclang`. Without `jac-client` installed, `jac create --use client` fails with `Unknown jacpack template`, and `--list_jacpacks` shows only `default`. Run `jac install` / `pip install jac-client` first, or check `--list_jacpacks` to see what is actually available.
+
 ## Templates and what each lays out
 
 | `--use <template>` | When to pick it | What ships |
 |---|---|---|
-| (omitted) | Pure REST/RPC backend, no UI | `main.jac` (with node + `def:pub` endpoints), `jac.toml` |
-| `client` | Pure client app, no server data | `main.jac`, `components/`, `lib/utils.cl.jac`, `styles/global.css`, `jac.toml` |
-| `fullstack` | Client UI + server endpoints + auth | `main.jac` (server imports + `to cl:` + `def:pub app()`), `services/*.sv.jac`, `hooks/*.cl.jac`, `components/`, `lib/utils.cl.jac`, `styles/global.css`, `jac.toml` |
+| (omitted) `default` | Backend / library project, no UI | `main.jac` (a `with entry` stub), `jac.toml`, `AGENTS.md`, `.gitignore` |
+| `client` | Pure client app, no server data | `main.jac` (`to cl:` + `def:pub app`), `components/Button.cl.jac`, `jac.toml`, `README.md`, `.gitignore` |
+| `fullstack` | Client UI + server endpoints | `main.jac`, `endpoints.sv.jac`, `frontend.cl.jac` + `frontend.impl.jac`, `components/*.cl.jac`, `jac.toml`, `README.md`, `.gitignore` |
 
-The fullstack layout matches `jac-fullstack-patterns`: server imports plain at the top of `main.jac`, `to cl:` opens the client section, services in `services/*.sv.jac`, hooks call them with `sv import from`.
+The `default` template's `main.jac` is a minimal `with entry { ... }` stub - it does **not** pre-wire endpoints; add `node`/`def:pub` declarations yourself (see `jac-sv-endpoints`).
 
 ## Always do this before scaffolding
 
@@ -40,14 +42,14 @@ Before running `jac create`:
 
 When called by JacBuilder or any IDE harness, the workspace usually already has a project. Scaffolding into it creates a nested mess. Read first.
 
-## Adapt the output - `jac create` ships deprecated syntax
+## Adapt the output - the `fullstack` template ships deprecated syntax
 
-`jac create --use fullstack` (and `--use client`) generate code with the old `cl { ... }` / `sv { ... }` braced blocks. These trigger W0064 and will not work going forward. After scaffolding:
+The `fullstack` template's `main.jac` still uses the old `cl { ... }` / `sv { ... }` braced blocks, which trigger **W0064**. (The `client` template is already on the modern `to cl:` form - no adaptation needed.) After scaffolding `fullstack`:
 
 1. Open `main.jac`
-2. Replace `cl { ... }` blocks with a `to cl:` section header
-3. Replace `sv { ... }` blocks with a `to sv:` section header
-4. Replace any `cl import …` / `sv import …` prefixes with plain `import from …` (server) or move under `to cl:` (client)
+2. Replace the `sv { ... }` block with plain top-level imports (server is the default context)
+3. Replace the `cl { ... }` block with a `to cl:` section header
+4. Move client imports under `to cl:`
 
 See `jac-fullstack-patterns` for the canonical `main.jac` shape after this fix.
 
@@ -56,7 +58,7 @@ See `jac-fullstack-patterns` for the canonical `main.jac` shape after this fix.
 After `jac create`:
 
 1. `cd <project>`
-2. Adapt `cl { }` / `sv { }` blocks (see above) - fix deprecated syntax before running anything
+2. For the `fullstack` template, adapt the `cl { }` / `sv { }` blocks (see above) before running anything
 3. Add any additional npm deps to `jac.toml` (see `jac-npm-packages` skill for format)
 4. `jac install` - run after all jac.toml changes are final
 5. `jac start --dev main.jac` (background, for hot reload). NOT `jac serve` (deprecated).

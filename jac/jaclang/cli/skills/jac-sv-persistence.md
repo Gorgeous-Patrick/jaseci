@@ -37,7 +37,7 @@ def:pub write_post(user_id: str, title: str) -> Post | None {
 def:pub posts_by(user_id: str) -> list[Post] {
     for u in [root -->][?:User] {
         if jid(u) == user_id {
-            return [u ->:Wrote:->];
+            return [u ->:Wrote:->][?:Post];   # [?:Post] recovers the node type
         }
     }
     return [];
@@ -46,7 +46,7 @@ def:pub posts_by(user_id: str) -> list[Post] {
 
 # FILTER - posts matching a field predicate
 def:pub published_posts() -> list[Post] {
-    return [root -->][?:Post][?published == True];
+    return [root -->][?:Post][?published];
 }
 
 
@@ -74,7 +74,7 @@ def:pub publish(post_id: str) -> Post | None {
 
 ```
 [root -->][?:Post]                         # all posts
-[root -->][?:Post][?published == True]     # only published
+[root -->][?:Post][?published]             # only published (bool field - no `== True`)
 [root -->][?:Post][?author == "alice"]     # filter by any has-field
 ```
 
@@ -94,7 +94,7 @@ user +>:Wrote(at="2026-04-21"):+> existing_post;
 
 ```
 total = len([root -->][?:Post]);
-published = len([root -->][?:Post][?published == True]);
+published = len([root -->][?:Post][?published]);
 ```
 
 ## Pitfalls
@@ -102,6 +102,7 @@ published = len([root -->][?:Post][?published == True]);
 - Mutate nodes in place - `p.published = True;` inside the loop. Changes persist once the endpoint returns; no explicit save/commit call.
 - Aggregates use `len(...)` on a list expression - no dedicated `count()` query form. `len([root -->][?:Item])` is the idiom.
 - Field-filter syntax is `[?field == value]` with brackets. `(?field == value)` is the **deprecated** parenthesized form (W0061) - always use brackets.
+- For a **boolean** has-field, filter on the field directly: `[?published]` / `[?not published]`. Writing `[?published == True]` triggers W2075 (redundant boolean comparison).
 - `def:priv` endpoints automatically run against a per-user `root` - the same query code gives each user only their own data. Use `def:priv` whenever the data should be user-scoped.
 - A node is not persisted until it's reachable from `root`. `Post(title="x")` alone creates a dangling node; `root ++> Post(title="x")` or attaching via a typed edge from a reachable node is what commits it to the graph.
 - Edge-type filter / creation / deletion syntax (`+>:E:+>`, `[src ->:E:->]`, `[edge a ->:E:-> b]`): see `jac-node-edge-patterns`.

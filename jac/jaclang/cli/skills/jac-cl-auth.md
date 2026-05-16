@@ -22,7 +22,7 @@ When the same form that signs a user up also calls a `def:priv` endpoint (saving
 2. `await jacLogin(email, password)` - establishes the session cookie
 3. `await save_profile(...)` - only NOW does the `def:priv` call have an authenticated session
 
-```jac
+```
 # `save_profile` here is YOUR server function (def:priv) - imported from a .sv.jac module.
 async def handle_register(name: str, email: str, password: str) -> str {
     # Pre-declare every var that holds an `await` result. `let` scoping in the
@@ -90,7 +90,7 @@ async def try_signup(email: str, password: str) -> str {
 }
 
 # Logout is synchronous - no await.
-def perform_logout() -> None {
+def perform_logout() {
     jacLogout();
 }
 
@@ -116,7 +116,7 @@ def:pub Dashboard() -> JsxElement {
 - **`jacLogin` and `jacSignup` are `async` - always `await`. `jacLogout` and `jacIsLoggedIn` are sync - NEVER `await` them.** `await jacLogout()` type-errors; missing `await` on `jacLogin` silently returns a coroutine instead of the result.
 - **Pre-declare any var that holds an `await` result before the assignment.** In `.cl.jac`, `var = await fn()` can compile to a JS `let var = ...` whose scope is tighter than the surrounding function, so a later `if not var { ... }` throws `ReferenceError: var is not defined` at runtime. Compile passes; the page just blanks. Fix: declare the var with a default at the top, then assign.
 
-```jac
+```
 # FRAGILE - runtime ReferenceError on the if-check
 async def handle_login(email: str, password: str) -> str {
     ok = await jacLogin(email, password);

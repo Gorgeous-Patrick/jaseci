@@ -101,12 +101,12 @@ If your file gets moved to a different depth, **the dot count must change** to m
 
 ## Pitfalls
 
-- **Reserved keywords cannot be used as variable or parameter names: `entry`, `visit`, `disengage`, `report`, `spawn`, `with`, `can`, `has`.** Common mistake: using `entry` as a lambda parameter (e.g. in event handlers). To use a reserved keyword as an identifier, escape it with a backtick prefix: `` `entry` ``.
+- **Reserved keywords cannot be used as variable or parameter names: `visit`, `disengage`, `report`, `spawn`, `with`, `can`, `has`.** (`entry` is *not* reserved - it is fine as an identifier.) To use a reserved keyword as an identifier anyway, escape it with a single **leading** backtick: `` `visit `` (backtick prefix only - no closing backtick; `` `visit` `` is a lexer error).
 - Type system (annotations, unions, optional `T | None`, `Any`, inference, type-error codes) - see `jac-types`.
 - Concatenating a string with an Exception fails - wrap with `str(e)`: `"error: " + str(e)`.
 - `import from X { Y };` fails with E0030. **Brace imports take NO trailing semicolon.** Plain module form `import X;` does.
 - Statements end with `;`; blocks use `{ }`. No significant indentation (Python-style).
-- Lambda requires types AND braces: `lambda(x: int) -> int { return x; }`. NOT `lambda x: x` (Python), `:x: x` (invented), or `<lambda x: x>` (invented) - all fail.
+- Always use the typed brace lambda: `lambda(x: int) -> int { return x; }` (zero-arg form: `lambda -> int { return 5; }`). The Python form `lambda x: x` parses but is **untyped** - it triggers W1051 type warnings, so don't use it. The invented forms `:x: x` and `<lambda x: x>` are hard parse errors.
 - Ternary is **Python-style**: `A if cond else B`. NOT `cond ? A : B` (JS/C-style) - that's a parse error in Jac.
 - **Python stdlib needs explicit import - Jac auto-imports nothing.** `datetime.now()`, `os.environ`, `json.dumps`, `math.pi`, `random.randint`, etc. ALL need a top-of-file `import from <mod> { name }` or `import <mod>;` first. Common slip: using `datetime.now()` for `created_at` fields without `import from datetime { datetime }` → `NameError: name 'datetime' is not defined` at runtime.
 - **`import:py` does not exist in Jac.** Use `import from datetime { datetime }` or `import json;`. LLMs commonly hallucinate the `:py` suffix - it causes a parse error.

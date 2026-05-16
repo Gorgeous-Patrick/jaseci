@@ -40,7 +40,7 @@ def:pub useItems() -> dict {
         loading = False;
     }
 
-    def handle_add(new_item: Item) -> None {
+    def handle_add(new_item: Item) {
         items = items + [new_item];
     }
 

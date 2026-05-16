@@ -3,7 +3,7 @@ name: jac-types
 description: The Jac type system - type annotations, generics, unions, optionals, inference rules, and common type errors. Load before writing any non-trivial typed function or when debugging a type-check failure.
 ---
 
-Jac is statically typed at **annotation boundaries** and inferred inside function bodies. Every `def` parameter and return, and every `has` field, needs an explicit type. Local variables inside bodies get their type from the right-hand side. Types are unified across client (`.cl.jac`) and server code - only the specific types in scope differ (JsxElement in client, node archetypes in server).
+Jac is statically typed at **annotation boundaries** and inferred inside function bodies. Every `def` parameter and every `has` field needs an explicit type; a `def` that returns a value needs an explicit return type (a `def` with no `return` infers `None` - don't write `-> None`, it warns W3037). Local variables inside bodies get their type from the right-hand side. Types are unified across client (`.cl.jac`) and server code - only the specific types in scope differ (JsxElement in client, node archetypes in server).
 
 ```jac
 obj User {
@@ -37,7 +37,7 @@ def describe(x: int | str) -> str {      # union type: x is either int or str
 }
 
 
-def log_any(value: Any) -> None {        # Any = escape hatch, no import needed
+def log_any(value: Any) {                # Any = no import needed; no return -> no `-> None`
     print(value);
 }
 
@@ -80,19 +80,23 @@ has rows: list[dict[str, int]] = [];
 has adjacency: dict[str, list[str]] = {};
 ```
 
-**`Any` where dynamic access is needed:**
+**`Any` for pass-through values - NOT for attribute access:**
+
+`Any` lets a value be stored, passed, and called without a type. It does **not**
+unlock attribute access: `x.attr` on an `Any` still fails E1032. Use it for
+opaque values (callback references, untyped payloads), not to silence `.attr`.
 
 ```
-def on_event(e: Any) -> None {
-    print(e.target.value);               # can touch any attribute - no type check
-}
+def run_callback(cb: Any, payload: str) {   # cb: an opaque function reference
+    cb(payload);                             # calling through Any is allowed
+}                                            # cb.name would fail E1032
 ```
 
 ## Pitfalls
 
 - **Do NOT fall back to `Any` to silence a type error.** Jac is strict-typed by design; using `Any` suppresses the diagnostic but the value is still untyped - and every downstream operation on it fails: `len(Any)` → not Sized (E1053), `Any + Any` → no overload (E1055), `Any.attr` → Type Unknown (E1032), `Any | str` ternary → can't assign to `str` (E1001). Fix the actual type instead. Common right answers: type with the imported node/obj (`has recipes: list[Recipe] = []`), use `T | None` for optionals (`has recipe: Recipe | None = None;` + `if recipe is not None { ... }`), or cast at the boundary (`recipe_id: str = str(params["id"]) if params["id"] else "";`).
 - **Every `def` parameter needs a type** (E0052). `def foo(x) -> int` is invalid - must be `def foo(x: int) -> int`.
-- **Every `def` needs an explicit return type.** Even `-> None`.
+- **A `def` that returns a value needs a return type** (E1003). A `def` with no `return` infers `None` - **do not** annotate it `-> None`, that triggers W3037 (`unnecessary-none-return`). Write `def save(x: int) { ... }`, not `def save(x: int) -> None { ... }`.
 - **`has name;`** without a type is a parse error. Always `has name: type;`.
 - `list`, `dict`, `set` without type args default to `list[Any]` (W1036) - add args when you know the element type: `list[str]`, `dict[str, int]`.
 - Use **`T | None`** for optional references. NOT `Optional[T]` (Python stdlib, not idiomatic). Always check `is None` before dereferencing.
@@ -105,6 +109,11 @@ def on_event(e: Any) -> None {
 - **`T | None` narrowing doesn't propagate into JSX expressions or list comprehensions.** A guard like `if x is None { return ...; }` narrows `x` to `T` for the rest of the function - direct `x.attr` access works. But inside a JSX list comprehension or short-circuit (`{x and <... x.attr />}`), the narrowing doesn't carry, and `x.attr` fails E1099. **Workaround: after the narrowing guard, pull each used attribute into a typed local before the JSX block.** JSX then references the narrowed local, not the still-Optional `x`. Keep using `T | None` for the field - don't decompose into primitives.
 
 ```jac
+obj Recipe {                             # in a real app: `sv import`-ed from a .sv.jac
+    has title: str;
+    has ingredients: list[str];
+}
+
 def:pub RecipeView() -> JsxElement {
     has recipe: Recipe | None = None;
 

@@ -11,7 +11,7 @@ import from "@jac/runtime" { Navigate, jacIsLoggedIn, useNavigate }
 def:pub LoginPage() -> JsxElement {
     nav = useNavigate();                 # imperative navigation - call nav("/dashboard") from a handler
 
-    def go_home(e: MouseEvent) -> None {
+    def go_home(e: MouseEvent) {
         nav("/dashboard");
     }
 

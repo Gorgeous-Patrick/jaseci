@@ -46,9 +46,9 @@ with entry {
 
 - `Root` in type annotations, bare `root` as a value (canonical). `root()` still compiles for backward-compat but emits a deprecation warning - always write `root`, `root ++> node`, `[root -->]`.
 - `disengage;` halts the walker immediately - queued visits are discarded. Use for search-style early exits.
-- **Use `visit [-->]`** for traversal - NOT `visit(node)` or `self.visit(node)` (parse error E0001: expected `[`). Variants: `[<--]` incoming, `[-->:EdgeType:]` typed.
+- **`visit` is a statement, not a method.** `visit [-->]` queues every outgoing edge; `visit (node_expr)` queues one specific node. Variants: `[<--]` incoming, `[-->:EdgeType:]` typed. Do NOT write `self.visit(...)` - a walker has no `visit` attribute (fails E1030).
 - Walkers don't `return` - they `report X;` (appears in `result.reports`) or `disengage;`.
 - Every entry needs `with <NodeType> entry` - bare `can foo { ... }` is invalid.
 - Entry points are **`can`**, NOT `def`. Plain helper methods can still be `def`, but bodies that fire on node arrival must be `can`.
 - **Keyword pairs depend on which side you're writing.** Inside a *walker* entry (`can ... with NodeType entry` in a walker): `self` = the walker, `here` = the current node. Inside a *node* entry (`can ... with WalkerType entry` in a node): `self` = the node, `visitor` = the arriving walker. Mixing them is the #1 walker bug.
-- **No generic `with node entry`.** `node` is a declaration keyword, NOT a type. `can foo with node entry { ... }` parses cleanly but **crashes at runtime**. The type must be a declared node archetype (or `Root`). Nodes without a matching entry body are simply passed through - no catch-all needed.
+- **No generic `with node entry`.** `node` is a declaration keyword, NOT a type. `can foo with node entry { ... }` fails `jac check` with E2018 - the type must be a declared node archetype (or `Root`). Nodes without a matching entry body are simply passed through - no catch-all needed.

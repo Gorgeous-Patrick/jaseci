@@ -14,11 +14,11 @@ def:pub Counter() -> JsxElement {
         count = 0;                               # mount effect - runs once
     }
 
-    def handle_click(e: MouseEvent) -> None {
+    def handle_click(e: MouseEvent) {
         count = count + 1;
     }
 
-    def handle_input(e: ChangeEvent) -> None {
+    def handle_input(e: ChangeEvent) {
         label = e.target.value;                  # .target.value is typed via ChangeEvent
     }
 
@@ -38,7 +38,7 @@ Components declare props as typed function params; callers pass as JSX attribute
 
 ```jac
 def:pub BookCard(bookId: str, title: str, onDelete: Any) -> JsxElement {
-    def handle_delete(e: MouseEvent) -> None {
+    def handle_delete(e: MouseEvent) {
         if onDelete { onDelete(bookId); }
     }
     return <div>{title} <button onClick={handle_delete}>X</button></div>;
@@ -82,7 +82,7 @@ The first two bullets below are **silent runtime bugs** (⚠) - no compile error
 - **`has` fields are reactive state - assign directly.** `count = count + 1` re-renders. No `setCount`. Non-default fields come before defaulted ones (E2004 - see `jac-has-fields`).
 - **Derived values are locals, not `has` fields.** Anything computable from props/params/hook results gets recomputed every render - so it's a local. Putting it in `has` forces a top-level write to keep it in sync, which can cascade to React error #301. Rule: `has` is only for event-driven or async values (user input, fetch results, server data).
 
-```jac
+```
 # FRAGILE - derived flag stored as state, written from render body
 has has_filter: bool = False;
 if useParams()["category"] { has_filter = True; }
@@ -94,7 +94,7 @@ has_filter: bool = bool(useParams()["category"]);
 - **Server RPC import uses `sv import from ..services.X { fn, Types }`** (prefix required). Dot count = how many folders up from THIS file to reach `services/` - for a `components/X.cl.jac` it's 2 dots, for `components/pages/X.cl.jac` it's 3 dots (see `jac-core-cheatsheet` for dot semantics). Plain `import from` to a `.sv.jac` breaks the Vite build. Include obj/node types too - they're needed to type your `has` state (next rule). See `jac-fullstack-patterns`.
 - **Type `has` state with the imported `sv` types - `list[Any]` loses the element type.** Store data from `sv import` calls in fields typed with the actual node/obj. Without it, attribute access in loops fails `E1032: Type is Unknown`.
 
-```jac
+```
 sv import from ..services.linkedin { Post };   # 2 dots: this file is at components/X.cl.jac; `..` walks up to project root, then into services/
 
 # FRAGILE

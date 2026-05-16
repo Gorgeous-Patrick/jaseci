@@ -41,19 +41,19 @@ with entry {
 - `<++>` creates edges in BOTH directions - easy to double-count traversals. `<++` is just `++>` written from the other end (same single edge).
 - Typed edge creation uses `+>:E(args):+>` - `+` on BOTH sides of the colons.
 - Edge-type filter uses **single** arrows: `[src ->:E:->]`. The double-arrow form `[src -->:E:-->]` is a parse error.
-- **Edge-typed traversal returns `Unknown`-typed nodes - chain `[?:NodeType]` to recover the type.** `[src ->:E:->]` doesn't tell the type checker which node type the edge points to; downstream attribute access fails `E1053: Cannot assign <Unknown> to parameter ...`. Append the destination node type to narrow:
+- **Edge-typed traversal returns `Unknown`-typed nodes - chain `[?:NodeType]` to recover the type.** `[src ->:E:->]` doesn't tell the type checker which node type the edge points to. Direct attribute access then only *warns* (W1051) and `jac check` still passes - but passing such a node to a typed function parameter fails `E1053`, and the untyped access is a latent bug. Append the destination node type to narrow:
 
-```jac
-# FRAGILE - conn typed as Unknown; conn.username fails E1053
+```
+# FRAGILE - conn is Unknown; conn.username warns W1051, and `show(conn)` fails E1053
 for conn in [p ->:Connected:->] { print(conn.username); }
 
 # CORRECT - chain [?:NodeType] to narrow
 for conn in [p ->:Connected:->][?:UserProfile] { print(conn.username); }
 ```
 
-- **Deleting edges:** the `del -->` disconnect operator is **untyped-only**. To delete a specific typed edge, query it with `[edge ...]` (single arrows) and iterate-del. `del [a ->:E:-> b];` and `a del-->:E: b;` both parse-fail.
+- **Deleting edges:** the `del -->` disconnect operator is **untyped-only**. To delete a specific typed edge, query it with `[edge ...]` (single arrows) and iterate-del. `a del-->:E: b;` is a parse error; `del [a ->:E:-> b];` passes `jac check` but fails at run time (E5043) - neither deletes a typed edge.
 
-```jac
+```
 # Untyped disconnect
 a del --> b;
 

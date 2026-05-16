@@ -7,6 +7,7 @@ The CLI cases invoke the command handlers in-process (the `execution.run` /
 import io;
 import json;
 import os;
+import re;
 import shutil;
 import sys;
 import tempfile;
@@ -185,4 +186,124 @@ test "every bundled guide is well-formed" {
         assert g.description , f"guide '{g.name}' is missing a description";
         assert len(g.body) > 0 , f"guide '{g.name}' has an empty body";
     }
+}
+
+# --- guide examples: verify code blocks against the live compiler --------------
+#
+# Convention: a fenced block opened with exactly ```jac is a complete, runnable
+# example and MUST pass `jac check`. A non-runnable prose fragment uses a plain
+# ``` fence (the guides' existing style for snippets) and is left unchecked --
+# prefer a self-contained ```jac example wherever it is practical.
+"""Extract the bodies of every ```jac-fenced block from a guide body.
+
+Only the exact ```jac fence is collected; plain ``` fragments and every other
+fence (```toml, ```css, ...) are skipped.
+"""
+def jac_code_blocks(body: str) -> list[str] {
+    blocks: list[str] = [];
+    buf: list[str] = [];
+    in_jac: bool = False;
+    in_other: bool = False;
+    for raw in body.split("\n") {
+        line = raw.rstrip();
+        s = line.strip();
+        if not in_jac and not in_other {
+            if s == "```jac" {
+                in_jac = True;
+                buf = [];
+            } elif s.startswith("```") {
+                in_other = True;
+            }
+        } elif in_jac {
+            if s == "```" {
+                blocks.append("\n".join(buf));
+                in_jac = False;
+            } else {
+                buf.append(line);
+            }
+        } elif s == "```" {
+            in_other = False;
+        }
+    }
+    return blocks;
+}
+
+"""Pick the file extension a guide example should be checked under.
+
+Client examples render JSX; server examples expose def:pub/def:priv endpoints
+without JSX; everything else is plain Jac.
+"""
+def guide_block_ext(code: str) -> str {
+    if "JsxElement" in code or "/>" in code or "</" in code {
+        return ".cl.jac";
+    }
+    if "def:pub" in code or "def:priv" in code or "walker:pub" in code {
+        return ".sv.jac";
+    }
+    return ".jac";
+}
+
+"""Run `analysis.check` on a guide example; return (exit_code, captured_output)."""
+def check_guide_block(code: str) -> tuple[int, str] {
+    (fd, path) = tempfile.mkstemp(suffix=guide_block_ext(code));
+    os.close(fd);
+    Path(path).write_text(code + "\n", encoding="utf-8");
+    out = io.StringIO();
+    err = io.StringIO();
+    old_out = sys.stdout;
+    old_err = sys.stderr;
+    sys.stdout = out;
+    sys.stderr = err;
+    try {
+        # nowarn: guide examples may warn (unresolved @jac/runtime imports in
+        # standalone .cl.jac, etc.) -- only hard errors should fail a guide.
+        rc = analysis.check([path], print_errs=True, nowarn=True);
+    } finally {
+        sys.stdout = old_out;
+        sys.stderr = old_err;
+        os.remove(path);
+    }
+    return (rc, out.getvalue() + err.getvalue());
+}
+
+test "every ```jac example in a guide checks clean" {
+    failures: list[str] = [];
+    for g in list_guides() {
+        idx = 0;
+        for code in jac_code_blocks(g.body) {
+            idx += 1;
+            (rc, output) = check_guide_block(code);
+            if rc != 0 {
+                failures.append(f"--- {g.name} block #{idx} ---\n{output}");
+            }
+        }
+    }
+    assert not failures , (
+        "guide ```jac examples must pass `jac check` -- fix the example, or " + "if it is a non-runnable fragment downgrade its fence to plain ```:\n\n" + "\n".join(
+            failures
+        )
+    );
+}
+
+test "guides only reference known jac create templates" {
+    # `default` ships with jaclang; `client` / `fullstack` are registered by the
+    # jac-client plugin. A guide naming anything else is a typo or stale name.
+    # (Allowlist, not the live registry: plugin templates are absent unless the
+    # plugin is installed, so the registry alone would flag a correct guide.)
+    known: list[str] = ["default", "client", "fullstack"];
+    bad: list[str] = [];
+    for g in list_guides() {
+        # Capture bare template names only; skip path/URL forms (./x.jacpack,
+        # https://...) via the trailing negative lookahead.
+        for m in re.findall(
+            r"jac create[^`\n]*?--use\s+([A-Za-z0-9_-]+)(?![\w:/.-])", g.body
+        ) {
+            if m not in known {
+                bad.append(f"{g.name}: `jac create --use {m}` -- unknown template");
+            }
+        }
+    }
+    assert not bad , (
+        f"guides reference templates outside {known}:\n" + "\n".join(bad)
+    );
 }

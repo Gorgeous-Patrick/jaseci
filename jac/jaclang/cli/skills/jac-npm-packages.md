@@ -57,7 +57,7 @@ import from react { useRef }
 
 def:pub TextInput() -> JsxElement {
     inputRef: Any = useRef(None);
-    def handle_click(e: MouseEvent) -> None {
+    def handle_click(e: MouseEvent) {
         if inputRef.current { inputRef.current.focus(); }
     }
     return <div>
@@ -74,7 +74,7 @@ import from react { useRef, useCallback }
 
 def:pub FileUploader() -> JsxElement {
     fileInputRef: Any = useRef(None);
-    triggerPicker: Any = useCallback(lambda -> None {
+    triggerPicker: Any = useCallback(lambda {
         if fileInputRef.current { fileInputRef.current.click(); }
     }, []);
     return <div>
