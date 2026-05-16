@@ -2290,18 +2290,55 @@ impl EsastGenPass.exit_compare_expr(nd: uni.CompareExpr) -> None {
                 continue;
             }
         }
-        operator = ES_COMPARISON_OPS.get(op_tok) if op_tok else None;
-        operator = operator or '===';
-        comparison: (es.UnaryExpression | es.BinaryExpression);
-        if (op_tok == Tok.KW_NIN) {
-            in_expr = self.sync_loc(
-                es.BinaryExpression(operator='in', left=left, right=right), jac_node=nd
-            );
-            comparison = self.sync_loc(
-                es.UnaryExpression(operator='!', prefix=True, argument=in_expr),
+        comparison: es.Expression;
+        if (op_tok in (Tok.KW_IN, Tok.KW_NIN)) {
+            # The container type could not be resolved statically. A raw JS
+            # `in` is not a valid translation of Jac's `in`: it throws a
+            # TypeError on string operands and tests array indices rather
+            # than element values. Route through the runtime-polymorphic
+            # `_jac.poly.contains`, which dispatches on the value at runtime.
+            contains_callee = self.sync_loc(
+                es.MemberExpression(
+                    object=self.sync_loc(
+                        es.MemberExpression(
+                            object=self.sync_loc(
+                                es.Identifier(name='_jac'), jac_node=nd
+                            ),
+                            property=self.sync_loc(
+                                es.Identifier(name='poly'), jac_node=nd
+                            ),
+                            computed=False
+                        ),
+                        jac_node=nd
+                    ),
+                    property=self.sync_loc(es.Identifier(name='contains'), jac_node=nd),
+                    computed=False
+                ),
                 jac_node=nd
             );
+            self.needs_jac_runtime = True;
+            contains_call = self.sync_loc(
+                es.CallExpression(
+                    callee=cast(es.Expression, contains_callee),
+                    arguments=[cast(es.Expression, right), cast(es.Expression, left)]
+                ),
+                jac_node=nd
+            );
+            if (op_tok == Tok.KW_NIN) {
+                comparison = self.sync_loc(
+                    es.UnaryExpression(
+                        operator='!',
+                        prefix=True,
+                        argument=cast(es.Expression, contains_call)
+                    ),
+                    jac_node=nd
+                );
+            } else {
+                comparison = cast(es.Expression, contains_call);
+            }
         } else {
+            operator = ES_COMPARISON_OPS.get(op_tok) if op_tok else None;
+            operator = operator or '===';
             comparison = self.sync_loc(
                 es.BinaryExpression(operator=operator, left=left, right=right),
                 jac_node=nd
