@@ -85,13 +85,11 @@ impl ScaleTieredMemory.commit(anchor: (Anchor | None) = None) -> None {
                 ];
             }
             self.l3.sync();
-            if self.l2 {
-                for mem_anchor in l2_pending {
-                    try {
-                        self.l2.put(mem_anchor);
-                    } except Exception as l2_err {
-                        logger.warning(f"L2 cache update failed: {l2_err}");
-                    }
+            if self.l2 and l2_pending {
+                try {
+                    self.l2.bulk_put(l2_pending);
+                } except Exception as l2_err {
+                    logger.warning(f"L2 cache update failed: {l2_err}");
                 }
             }
         } except Exception as e {
@@ -159,14 +157,18 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
         _l3_ms = (_pc() - _t0) * 1000;
         _l3_hits = len(l3_results);
         logger.info(f"batch_get: L3 took {_l3_ms:.2f}ms, {len(l3_results)} hits");
+        l2_pending: list[Anchor] = [];
         for (id, anchor) in l3_results.items() {
             self.__mem__[id] = anchor;
-            if self.l2 {
-                try {
-                    self.l2.put(anchor);
-                } except Exception { }
-            }
             result[id] = anchor;
+            if self.l2 {
+                l2_pending.append(anchor);
+            }
+        }
+        if l2_pending {
+            try {
+                self.l2.bulk_put(l2_pending);
+            } except Exception { }
         }
     }
     _l2_denom = _total - _l1_hits;
