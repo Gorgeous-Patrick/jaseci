@@ -663,6 +663,17 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     raw_items = list(self.l3.find_raw(missing_ids));
     if raw_items {
         self.l2.bulk_put_raw(raw_items);
+        # Also promote to L1 so the walker never hits Redis
+        import from jaclang.runtimelib.serializer { Serializer }
+        for (uid, data) in raw_items {
+            if uid not in self.__mem__ {
+                anchor = Serializer.deserialize(data);
+                if anchor {
+                    anchor.is_updated = False;
+                    self.__mem__[uid] = anchor;
+                }
+            }
+        }
     }
 }
 
