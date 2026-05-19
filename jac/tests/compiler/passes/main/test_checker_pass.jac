@@ -1263,14 +1263,39 @@ test "union_reassignment" {
     );
 }
 
-test "unannotated_reassignment_widens" {
+test "inferred_local_type_frozen" {
+    # An unannotated local is frozen to the type inferred at its first
+    # binding; reassigning an incompatible type is an error. The
+    # `None`-sentinel pattern is the one exception (the type evolves).
+    program = JacProgram();
+    mod = program.compile(
+        os.path.join(CHECKER_FIXTURES, "checker_inferred_type_frozen.jac"),
+        options=NO_TC
+    );
+    TypeCheckPass(ir_in=mod, prog=program);
+    assert len(program.errors_had) == 1 , f"Expected 1 type error, but got {len(
+        program.errors_had
+    )}: " + "\n".join([err.pretty_print() for err in program.errors_had]);
+    assert program.errors_had[0].code.code == "E1001";
+    assert_error_pretty_found(
+        """
+        a = "some str";  # <-- Error
+    """,
+        program.errors_had[0].pretty_print()
+    );
+}
+
+test "unannotated_reassignment_frozen" {
+    # `None`-sentinel variables evolve their inferred type; every other
+    # unannotated variable is frozen to its first-binding type, and
+    # annotated variables enforce their annotation.
     program = JacProgram();
     mod = program.compile(
         os.path.join(CHECKER_FIXTURES, "checker_none_sentinel_reassignment.jac"),
         options=NO_TC
     );
     TypeCheckPass(ir_in=mod, prog=program);
-    assert len(program.errors_had) == 2 , f"Expected 2 type errors, but got {len(
+    assert len(program.errors_had) == 3 , f"Expected 3 type errors, but got {len(
         program.errors_had
     )}: " + "\n".join([err.pretty_print() for err in program.errors_had]);
     assert_error_pretty_found(
@@ -1286,6 +1311,13 @@ test "unannotated_reassignment_widens" {
         ^^^^^^^^^^^
     """,
         program.errors_had[1].pretty_print()
+    );
+    assert_error_pretty_found(
+        """
+        count = "bad";  # <-- Error
+        ^^^^^^^^^^^^^^
+    """,
+        program.errors_had[2].pretty_print()
     );
 }
 

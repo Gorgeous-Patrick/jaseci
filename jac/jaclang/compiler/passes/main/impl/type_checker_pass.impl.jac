@@ -191,11 +191,19 @@ impl TypeCheckPass.exit_assignment(self: TypeCheckPass, nd: uni.Assignment) -> N
     if ((len(nd.target) == 1) and (nd.value is not None)) {
         target = nd.target[0];
         # Track whether this is a reassignment of a variable whose
-        # declaration has no type annotation.  For such variables the
-        # declared type is *inferred* from the first assignment, so
-        # later reassignments should be allowed to widen the inferred
-        # type — matching Pyright's behaviour for patterns like
-        # `x = None; …; x = value` or `x = 0; …; x = "str"`.
+        # declaration has no type annotation. Such a variable's declared
+        # type is *inferred* and FROZEN at its first binding, exactly as
+        # if that inferred type had been written as an explicit
+        # annotation — so `a = 0; …; a = "str"` is a type error.
+        #
+        # Two exceptions keep idiomatic code annotation-free:
+        #   * the `None`-sentinel pattern (`x = None; …; x = value`):
+        #     when the first binding infers `NoneType`, the inferred type
+        #     may evolve on later writes — mirroring TypeScript's
+        #     strict-mode evolving locals.
+        #   * the discard name `_`: it is a throwaway sink, so every
+        #     binding to it is independent and carries no frozen type.
+        # Any other first-binding type is enforced like an annotation.
         is_unannotated_reassign = False;
         # For assignment targets, use the declared symbol type (not the
         # narrowed type). Narrowing reflects the *current* value; the
@@ -383,13 +391,25 @@ impl TypeCheckPass.exit_assignment(self: TypeCheckPass, nd: uni.Assignment) -> N
                     E1010, node_override=nd, op=nd.aug_op.name, type=left_type.name
                 );
             }
-        } elif (
-            not is_unannotated_reassign
-            and not self.evaluator.assign_type(
-                right_type, left_type, strict=self.evaluator._is_strict_site(nd)
-            )
-        ) {
-            self.emit(E1001, actual=str(right_type), expected=str(left_type));
+        } else {
+            # An unannotated reassignment skips the compatibility check
+            # only for a `None`-sentinel (inferred type may still evolve)
+            # or the `_` discard (every binding to it is independent).
+            # All other unannotated variables are frozen to their
+            # first-binding type (`left_type`) and enforced here.
+            is_evolving_reassign = is_unannotated_reassign
+            and (
+                self.evaluator.is_none_type(left_type)
+                or (isinstance(target, uni.Name) and target.value == "_")
+            );
+            if (
+                not is_evolving_reassign
+                and not self.evaluator.assign_type(
+                    right_type, left_type, strict=self.evaluator._is_strict_site(nd)
+                )
+            ) {
+                self.emit(E1001, actual=str(right_type), expected=str(left_type));
+            }
         }
         # Validate augmented assignment operator (+=, -=, etc.)
         if nd.aug_op is not None {

@@ -2794,6 +2794,23 @@ impl TypeEvaluator.is_explicit_any(ty: TypeBase) -> bool {
     return False;
 }
 
+"""Whether `ty` is `NoneType` — the type of the literal `None`.
+
+Both the class form and the instance form (`None` the value) are
+recognized, since either may surface depending on how the type was
+produced. Matched by shared identity against the prefetched
+`NoneType` class, the same way `is_any_type` matches `Any`.
+"""
+impl TypeEvaluator.is_none_type(ty: TypeBase) -> bool {
+    if not self.prefetch or not self.prefetch.none_type_class {
+        return False;
+    }
+    return (
+        isinstance(ty, types.ClassType)
+        and ty.shared == self.prefetch.none_type_class.shared
+    );
+}
+
 """Single source of truth for "should Layer 2 strict-Any apply at this
 AST site?". Every assignment-like check (annotated assignment, has-var
 initializer, function arg, return, yield, edge-connection assign)

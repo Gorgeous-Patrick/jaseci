@@ -325,6 +325,9 @@ obj TypeEvaluator {
     # Check if a type is Any, object, Unknown, or TypeVar.
     def is_any_type(ty: TypeBase) -> bool;
     def is_explicit_any(ty: TypeBase) -> bool;
+    # Check if a type is `NoneType` (the type of the literal `None`),
+    # in either its class or instance form.
+    def is_none_type(ty: TypeBase) -> bool;
     def _is_strict_site(nd: uni.UniNode) -> bool;
     """True when the pass is currently checking a native (.na.jac) module."""
     def _in_native_context -> bool;
