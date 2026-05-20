@@ -109,7 +109,7 @@ def run_callback(cb: any, payload: str) {   # cb: an opaque function reference
 - **E1032** (`Type is Unknown, cannot access attribute`) - inference couldn't figure out a variable's type. Add an explicit annotation (`x: SomeType = ...`) so the rest of the code can narrow.
 - **E1001** (`Cannot assign <Unknown> to T`) - the right-hand side's type doesn't match the declared type. Usually means you need to widen the declared type or narrow the value with an explicit cast/check.
 - **Non-default fields MUST come before defaulted ones** (E2004) - see `jac-has-fields` for the full rule.
-- **`T | None` narrowing doesn't propagate into JSX expressions or list comprehensions.** A guard like `if x is None { return ...; }` narrows `x` to `T` for the rest of the function - direct `x.attr` access works. But inside a JSX list comprehension or short-circuit (`{x and <... x.attr />}`), the narrowing doesn't carry, and `x.attr` fails E1099. **Workaround: after the narrowing guard, pull each used attribute into a typed local before the JSX block.** JSX then references the narrowed local, not the still-Optional `x`. Keep using `T | None` for the field - don't decompose into primitives.
+- **`T | None` narrowing doesn't propagate into JSX expressions, statement slots, or list comprehensions.** A guard like `if x is None { return ...; }` narrows `x` to `T` for the rest of the function - direct `x.attr` access works. But inside a JSX statement slot (`{for i in x.parts { ... }}`), a list comprehension, or a short-circuit (`{x and <... x.attr />}`), the narrowing doesn't carry, and `x.attr` fails E1099. **Workaround: after the narrowing guard, pull each used attribute into a typed local before the JSX block.** JSX then references the narrowed local, not the still-Optional `x`. Keep using `T | None` for the field - don't decompose into primitives.
 
 ```jac
 obj Recipe {                             # in a real app: `sv import`-ed from a .sv.jac
@@ -124,11 +124,12 @@ def:pub RecipeView() -> JsxElement {
     if recipe is None {
         return <div>{"loading..."}</div>;
     }
-    # FRAGILE - works for direct .title, fails for .ingredients inside comprehension
+    # FRAGILE - works for direct .title, fails for .ingredients inside the slot/comprehension
     # return <div>
-    #     <h1>{recipe.title}</h1>                                            # ok
-    #     {[<li>{recipe.ingredients[i]}</li>                                 # ✗ E1099
-    #       for i in range(len(recipe.ingredients))]}
+    #     <h1>{recipe.title}</h1>                          # ok - direct access
+    #     {for ing in recipe.ingredients {                 # ✗ E1099 - slot body is its own scope
+    #         <li key={ing}>{ing}</li>
+    #     }}
     # </div>;
 
     # CORRECT - pull narrowed attrs into typed locals before JSX
@@ -136,7 +137,9 @@ def:pub RecipeView() -> JsxElement {
     ingredients: list[str] = recipe.ingredients;
     return <div>
         <h1>{title}</h1>
-        {[<li key={str(i)}>{ingredients[i]}</li> for i in range(len(ingredients))]}
+        {for ing in ingredients {
+            <li key={ing}>{ing}</li>
+        }}
     </div>;
 }
 ```
