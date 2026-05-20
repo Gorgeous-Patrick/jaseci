@@ -237,6 +237,7 @@ glob TOKEN_KIND_TO_TOK: dict[TokenKind, str] = {
          TokenKind.KW_NODE: Tok.KW_NODE.value,
          TokenKind.KW_EDGE: Tok.KW_EDGE.value,
          TokenKind.KW_WALKER: Tok.KW_WALKER.value,
+         TokenKind.KW_VIEW: Tok.KW_VIEW.value,
          TokenKind.KW_HAS: Tok.KW_HAS.value,
          TokenKind.KW_CAN: Tok.KW_CAN.value,
          TokenKind.KW_DEF: Tok.KW_DEF.value,
@@ -406,7 +407,8 @@ obj Parser {
         file_path: str = "<input>",
         source_code: str = "",
         source: Source | None = None,
-        prog: object | None = None;
+        prog: object | None = None,
+        _view_body_depth: int = 0;  # > 0 while parsing inside a `view` body
 
     def current -> Token;
     def peek(offset: int = 1) -> Token;
@@ -522,6 +524,8 @@ obj Parser {
     def parse_lambda_param -> ParamVar;
     # JSX parsing
     def parse_jsx_element -> Expr;
+    def _parse_jsx_dynamic_tag(open_kid: list) -> Expr;
+    def _consume_jsx_dynamic_close(close_kid: list);
     def parse_jsx_opening_element -> tuple;
     def parse_jsx_attributes -> list;
     def parse_jsx_children -> list;
@@ -578,6 +582,7 @@ obj Parser {
     def parse_import_items(kid: list, is_clib_import: bool) -> tuple;
     def parse_archetype -> Archetype;
     def parse_archetype_member;
+    def parse_view -> Ability;
     def _skip_semicolons;
     def _error_unexpected_member;
     def parse_has_stmt -> ArchHas;

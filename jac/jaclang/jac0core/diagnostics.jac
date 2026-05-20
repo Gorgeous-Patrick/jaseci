@@ -702,6 +702,31 @@ glob E0001 = _err("E0001", Category.SYNTAX, "Expected '{expected}', got '{got}'"
          Category.SEMANTIC,
          "Undefined name '{name}' in {position} — this position requires a defined type"
      ),
+     E2019 = _err(
+         "E2019",
+         Category.SEMANTIC,
+         "A 'defview' renders template content and cannot 'return' a value. "
+         "Drop the value to use a bare 'return;' guard, or write a "
+         "'def ... -> JsxElement' for a value-returning component."
+     ),
+     E2020 = _err(
+         "E2020",
+         Category.SEMANTIC,
+         "'return' is not allowed inside a '{loop}' loop in a 'defview' body. "
+         "Use 'continue' to skip an iteration."
+     ),
+     E2021 = _err(
+         "E2021",
+         Category.SEMANTIC,
+         "'{kw}' is not allowed inside a '{loop}' loop in a 'defview' body. "
+         "Use 'continue' to skip an iteration."
+     ),
+     W2019 = _warn(
+         "W2019",
+         Category.SEMANTIC,
+         "'while' loop in a 'defview' renders JSX without a 'key' attribute — "
+         "add 'key=' so siblings keep their identity across re-renders."
+     ),
      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
      # Lint warnings (W3xxx)
      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

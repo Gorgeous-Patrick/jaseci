@@ -390,6 +390,84 @@ test "jsx and lambda inline compact forms stay flat" {
     );
 }
 
+test "defview declarator round-trips through the formatter" {
+    # The `defview` desugaring runs in ViewLowerPass, not the parser, so the
+    # format pipeline (which does not run that pass) sees the original
+    # `defview` syntax and must preserve it verbatim — never rewrite it into
+    # its lowered `def:pub -> JsxElement` / accumulator form.
+    source = (
+        'defview Greeting(name: str) {\n'
+        '    <h1>Hello, {name}</h1>\n'
+        '    if name == "" {\n'
+        '        <p>anon</p>\n'
+        '    }\n'
+        '}\n'
+        '\n'
+        'defview Empty {\n'
+        '    <hr/>\n'
+        '}\n'
+    );
+    prog = JacProgram.jac_str_formatter(source_str=source, file_path="<test>.jac");
+    assert not prog.errors_had , f"formatter errors: {prog.errors_had}";
+    formatted = prog.mod.main.gen.jac or "";
+
+    assert "defview Greeting(name: str) {" in formatted , (
+        "the `defview` declarator must survive formatting:\n" + str(formatted)
+    );
+    assert "defview Empty {" in formatted , (
+        "the no-parens `defview` form must survive formatting:\n" + str(formatted)
+    );
+    # The lowering must never leak into formatted source.
+    assert "def:pub" not in formatted , (
+        "formatter must not expose the lowered `def` form:\n" + str(formatted)
+    );
+    assert "__jac_view_kids" not in formatted , (
+        "formatter must not expose the lowering accumulator:\n" + str(formatted)
+    );
+
+    # Idempotency: formatting the formatted output must be a no-op.
+    prog2 = JacProgram.jac_str_formatter(source_str=formatted, file_path="<test>.jac");
+    assert not prog2.errors_had;
+    assert formatted == prog2.mod.main.gen.jac , (
+        "defview formatting is not idempotent"
+    );
+}
+
+test "dynamic JSX tags round-trip through the formatter" {
+    # `<@expr ...>` syntax must survive formatting verbatim — the `@`-led
+    # dynamic-tag form is parsed into the JSX kid list and the structural
+    # formatter must emit it back in the same shape.
+    source = (
+        'defview Box(as_: str, children: any = None) {\n'
+        '    <@as_ class="box">{children}</@as_>\n'
+        '}\n'
+        '\n'
+        'defview Icon(glyph: type) {\n'
+        '    <@{glyph} class="icon"/>\n'
+        '}\n'
+    );
+    prog = JacProgram.jac_str_formatter(source_str=source, file_path="<test>.jac");
+    assert not prog.errors_had , f"formatter errors: {prog.errors_had}";
+    formatted = prog.mod.main.gen.jac or "";
+
+    assert "<@as_" in formatted , (
+        "identifier-form dynamic open tag must survive formatting:\n" + str(formatted)
+    );
+    assert "</@as_>" in formatted , (
+        "identifier-form dynamic close tag must survive formatting:\n" + str(formatted)
+    );
+    assert "<@{glyph}" in formatted , (
+        "brace-wrapped dynamic tag must survive formatting:\n" + str(formatted)
+    );
+
+    # Idempotency: formatting the formatted output must be a no-op.
+    prog2 = JacProgram.jac_str_formatter(source_str=formatted, file_path="<test>.jac");
+    assert not prog2.errors_had;
+    assert formatted == prog2.mod.main.gen.jac , (
+        "dynamic-tag formatting is not idempotent"
+    );
+}
+
 """Regression: top-level and multi-statement `if` blocks must still break —
 the flat-capable rule is strictly scoped to single-statement, no-else `if`
 statements whose direct parent is a `LambdaExpr`. Anywhere else, the
