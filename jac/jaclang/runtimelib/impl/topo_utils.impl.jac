@@ -152,26 +152,16 @@ impl on_node_destroyed(node_anchor: Any) -> None {
     root_anchor.set_topology_index(idx);
 }
 
-"""Cache for _extract_type_name_from_filter keyed by filter function id."""
-glob _type_name_cache: dict[int, (str | None)] = {};
-
 """Try to extract the type name from a filter lambda."""
 impl _extract_type_name_from_filter(filt: (Callable | None)) -> (str | None) {
     if filt is None {
         return None;
     }
-    cache_key = id(filt);
-    if cache_key in _type_name_cache {
-        return _type_name_cache[cache_key];
-    }
-    result: (str | None) = None;
     # Check if the filter itself is an Archetype instance (identity filter)
     try {
         import from jaclang.jac0core.archetype { Archetype }
         if isinstance(filt, Archetype) {
-            result = `type(filt).__name__;
-            _type_name_cache[cache_key] = result;
-            return result;
+            return `type(filt).__name__;
         }
     } except Exception {
         ;
@@ -185,16 +175,14 @@ impl _extract_type_name_from_filter(filt: (Callable | None)) -> (str | None) {
             if isinstance(val, `type) {
                 import from jaclang.jac0core.archetype { Archetype as Arch }
                 if issubclass(val, Arch) {
-                    result = val.__name__;
-                    break;
+                    return val.__name__;
                 }
             }
         }
     } except Exception {
         ;
     }
-    _type_name_cache[cache_key] = result;
-    return result;
+    return None;
 }
 
 """Use the topology index to resolve which node UUIDs will survive
