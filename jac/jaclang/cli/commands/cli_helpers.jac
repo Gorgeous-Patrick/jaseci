@@ -35,11 +35,17 @@ def proc_file(filename: str) -> tuple {
         `exit(1);
     }
     # Only set base path if not already set (allows tests to override)
-    if not Jac.base_path_dir {
+    if not Jac.get_base_path_dir() {
         Jac.set_base_path(base);
     }
-    # CLI contexts use system_root (no user authentication)
-    mach = Jac.create_j_context(user_root=None);
+    # CLI contexts use system_root (no user authentication). Pass the
+    # seeds explicitly so the ctx's L3 path is locked in at postinit
+    # time, immune to later seed mutations by sibling clients.
+    mach = Jac.create_j_context(
+        user_root=None,
+        base_path_dir=Jac.get_base_path_dir(),
+        full_target_path=Jac.get_full_target_path()
+    );
     Jac.set_context(mach);
     return (base, mod, mach);
 }

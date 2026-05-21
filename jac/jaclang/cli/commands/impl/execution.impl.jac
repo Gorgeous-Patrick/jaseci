@@ -27,8 +27,8 @@ def _discover_config_from_file(filename: str) -> None {
     import from jaclang.jac0core.runtime { JacRuntime as Jac }
 
     file_path = Path(filename).resolve();
-    # Store entry file path for runtime utilities (called before _proc_file)
-    Jac.full_target_path = str(file_path);
+    # Seed the bootstrap target so new contexts get the right L3 identity.
+    Jac.set_full_target_path(str(file_path));
     file_dir = file_path.parent;
 
     # Preserve the active profile from any previously loaded config so that

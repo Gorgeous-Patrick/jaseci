@@ -523,10 +523,14 @@ impl CompilerBridge.run_snippet(
             base = base or './';
             mod_name = mod_name[:-4];  # Remove .jac
 
-            if not Jac.base_path_dir {
+            if not Jac.get_base_path_dir() {
                 Jac.set_base_path(base);
             }
-            mach = Jac.create_j_context(user_root=None);
+            mach = Jac.create_j_context(
+                user_root=None,
+                base_path_dir=Jac.get_base_path_dir(),
+                full_target_path=Jac.get_full_target_path()
+            );
             Jac.set_context(mach);
 
             try {
