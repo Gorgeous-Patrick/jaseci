@@ -84,7 +84,7 @@ def:pub ItemList(items: list[Item]) -> JsxElement {
     return <ul class="items">
         {if len(items) == 0 {
             <p class="empty">Nothing yet.</p>
-            return;                        # bare return; ends the slot early
+            skip;                          # skip; ends the slot early
         }}
         <h2>Items</h2>
         {for (i, it) in enumerate(items) {
@@ -98,7 +98,8 @@ def:pub ItemList(items: list[Item]) -> JsxElement {
 
 Caveats specific to slot bodies:
 
-- A bare `return;` inside a slot exits the slot, **not** the enclosing function - the rest of the JSX still renders. Useful for "show empty state, stop here."
+- `skip;` inside a slot is the slot early-exit - it ends the current slot's accumulator (rest of *this* slot stops), **not** the enclosing function. Useful for "show empty state, stop here." Bare `return;` inside a slot is rejected (E2020) because it reads like a function-exit but only exits the slot; the value form `return expr;` is also rejected (E2019).
+- Inside a slot body, don't wrap inner control flow with another `{...}` - the body is already in slot mode. Write `if cond { <X/> }` directly, not `{if cond { <X/> }}` (E2023). The `{...}` wrapping is only needed when descending from a JSX element's children into slot mode.
 - Slot iteration that yields keyless JSX siblings earns a `W2019` warning - add `key={...}` on the inner element.
 - `try { ... } awaiting { ... }` in a slot lowers to a `<JacAwaiting fallback={...}>{...}</JacAwaiting>` Suspense wrapper (cl only). The `awaiting` body shows during the dispatched-but-not-joined window of any Suspense-aware primitive inside the `try` body; today Jac's `flow`/`wait` don't suspend, so the fallback only fires when the `try` body opts into something Suspense-shaped (e.g. a fetcher that throws a promise). On `sv` / `na` the `awaiting` body is dropped with `W2020`. `finally` with `awaiting` is rejected (`E2022`).
 
@@ -136,7 +137,7 @@ has posts: list[Post] = [];          # `p` in `for p in posts` is typed Post
 
 - **Call server endpoints POSITIONAL, not kwargs.** `save(a, b)` works; `save(a=a, b=b)` sends empty body → 422. Also: the caller's variable names become the JSON keys - they must match the server parameter names exactly. See `jac-fullstack-patterns`.
 - **JSX ternary is Python-style:** `{X if cond else Y}`. NOT `{cond ? X : Y}` (parse error even inside JSX). Short-circuit also works: `{cond and <X />}`.
-- **Iterate with statement slots (`{for x in xs { <li>...</li> }}`), NOT `.map()`.** `items.map(...)` on a Jac list fails E1030. A `{...}` slot whose body starts with `for`/`if`/`while`/`match`/`switch`/`with`/`try` is a **statement slot**: each JSX statement inside pushes a child into the parent. It handles `enumerate` cleanly (`for (i, x) in enumerate(items)` - parens required; bare `i, x` parse-fails E0001), composes multi-element rows naturally, and supports an empty-state guard via bare `return;` (see "Statement slots" below). Inline `[<li>...</li> for i in items]` still works for one-line element-per-item lists.
+- **Iterate with statement slots (`{for x in xs { <li>...</li> }}`), NOT `.map()`.** `items.map(...)` on a Jac list fails E1030. A `{...}` slot whose body starts with `for`/`if`/`while`/`match`/`switch`/`with`/`try`/`skip` is a **statement slot**: each JSX statement inside pushes a child into the parent. It handles `enumerate` cleanly (`for (i, x) in enumerate(items)` - parens required; bare `i, x` parse-fails E0001), composes multi-element rows naturally, and supports an empty-state guard via `skip;` (see "Statement slots" below). Inline `[<li>...</li> for i in items]` still works for one-line element-per-item lists.
 - **Dict / hook access (`useParams()[k]`, `useLocation()[k]`, generic `[key]`) returns `any` and yields JS `undefined` for missing keys.** Since `undefined !== null` in JS, both `x is None` and `x is not None` MISS undefined - `params["id"] is not None` returns True even when `:id` isn't in the route, and `str(undefined)` produces the literal string `"undefined"`. **Use a truthy check (`if x` / `if not x`) for hook/dict values - it catches both `None` and `undefined`.** The narrowing-friendly `is not None` form is still correct for typed Optionals (`T | None` from `sv import`-ed functions, function params, etc.) where `undefined` can't appear. (Also: `params.get("id")` runtime-fails in the browser since `useParams` returns a plain JS object - always use `[key]`.)
 - **`unsafe_html(x)` opts out of escaping for raw HTML.** Ambient builtin (no import). `{unsafe_html(c.html_blob)}` renders the string as raw HTML via `dangerouslySetInnerHTML` (React) or `innerHTML` (bare-serve). Use ONLY with trusted content - the `unsafe_` prefix is the security-review marker at the call site; never wrap user input or anything that crossed an unsanitized boundary.
 - **Guard None/null/undefined when iterating or dotting into server data.** Runtime-only failure (`Cannot read properties of null/undefined`), nothing at compile. Four hot spots - single-level access is the most common:

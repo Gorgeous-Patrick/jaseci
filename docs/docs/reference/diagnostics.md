@@ -317,10 +317,11 @@ Emitted by `ViewLowerPass` when a `{...}` JSX slot's statement-template body vio
 
 | Code | Message |
 |------|---------|
-| `E2019` | A JSX slot renders template content and cannot 'return' a value. Drop the value to use a bare 'return;' guard, or move the value-producing expression outside the JSX slot. |
-| `E2020` | 'return' is not allowed inside a '{loop}' loop in a JSX slot. Use 'continue' to skip an iteration. |
-| `E2021` | '{kw}' is not allowed inside a '{loop}' loop in a JSX slot. Use 'continue' to skip an iteration. |
+| `E2019` | A JSX slot renders template content and cannot 'return' a value. Use 'skip;' for slot early-exit, or move the value-producing expression outside the JSX slot. |
+| `E2020` | Bare 'return;' is not allowed inside a JSX slot -- it reads like it exits the enclosing function, but a slot body is an inlined IIFE. Use 'skip;' for slot early-exit. |
+| `E2021` | '{kw}' is not allowed inside a '{loop}' loop in a JSX slot. Use 'continue' to skip an iteration, or 'skip;' to exit the whole slot. |
 | `E2022` | 'finally' is not allowed on a 'try' that has an 'awaiting' clause. The dispatched-but-not-joined window and finalization semantics are ambiguous together; move cleanup into an explicit mount/unmount hook or drop one of the clauses. |
+| `E2023` | Redundant '{...}' slot wrapping inside a JSX slot body -- slot bodies are already in slot mode. Drop the outer braces: write '`<kw>` ... { ... }' directly instead of '{`<kw>` ... { ... }}'. |
 | `W2019` | 'while' loop in a JSX slot renders JSX without a 'key' attribute -- add 'key=' so siblings keep their identity across re-renders. |
 | `W2020` | 'awaiting' is not yet implemented on the '{target}' target -- the 'awaiting' clause body will be ignored at runtime. Only the 'cl' (react/preact) target currently lowers 'awaiting' to a Suspense fallback. |
 

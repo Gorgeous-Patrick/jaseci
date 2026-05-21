@@ -343,7 +343,7 @@ def:pub Greeting(name: str) -> JsxElement {
 **Key points:**
 
 - `{...}` slots replace inline comprehensions and nested ternaries -- the same `if`/`for`/`while`/etc. you write at function-body level works as a child.
-- A bare `return;` inside a statement slot is the **guard** form: rendering stops, the children accumulated so far become the slot's value.
+- `skip;` inside a statement slot is the **guard** form: rendering stops, the children accumulated so far become the slot's value. Bare `return;` inside a slot is rejected (E2020) because it reads like a function-exit but only exits the slot.
 - A statement slot with no JSX renders to an empty fragment. Mix as needed: `<header>` and `<footer>` sit beside a `{for ... { ... }}` slot in the same parent.
 - The slot's bracketed shape is what disambiguates the keyword -- bare `for example` in JSX text remains plain text.
 
@@ -358,7 +358,7 @@ def:pub ItemList(items: list[str]) -> JsxElement {
     return <>
         {if len(items) == 0 {
             <p class="empty">Nothing here.</p>
-            return;
+            skip;
         }}
         <h2>Items</h2>
         {for (i, item) in enumerate(items) {
@@ -578,7 +578,7 @@ def:pub app() -> JsxElement {
 |---------|--------|
 | Define component | `def:pub Name(title: str, count: int) -> JsxElement { }` |
 | Statement slot | `{for x in xs { <li>{x}</li> }}` inside a JSX element |
-| Early-exit guard | bare `return;` inside a statement slot |
+| Early-exit guard | `skip;` inside a statement slot |
 | Suspense fallback | `{try { <Resolved/> } awaiting { <Loading/> }}` (cl only) |
 | Raw HTML opt-in | `{unsafe_html(trusted_html)}` |
 | Dynamic tag | `<@expr>...</@expr>` |

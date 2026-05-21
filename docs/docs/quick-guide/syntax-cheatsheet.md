@@ -1305,12 +1305,12 @@ def:pub Counter() -> JsxElement {
 
 # JSX `{...}` slots accept statement-form control flow as children.
 # Inside the slot, JSX statements push into the enclosing element's
-# children list; a bare `return;` ends the slot with whatever was emitted.
+# children list; `skip;` ends the slot with whatever was emitted.
 def:pub Greeting(name: str) -> JsxElement {
     return <div>
         {if name == "" {
             <p>(no name given)</p>
-            return;                   # bare return; = early-exit guard
+            skip;                     # skip; = slot early-exit guard
         }}
         <h1>Hello, {name}!</h1>
     </div>;

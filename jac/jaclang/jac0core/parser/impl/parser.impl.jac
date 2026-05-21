@@ -156,6 +156,7 @@ import from jaclang.jac0core.diagnostics {
     E0047,
     E0080,
     E0081,
+    E2023,
     W0060,
     W0061,
     W0063
@@ -3474,8 +3475,9 @@ impl Parser.parse_jsx_child -> Expr {
         lbrace_uni = self.make_uni_token(lbrace);
         # Peek the first non-trivia token to decide between expression slot
         # and statement-form slot. Statement keywords ALWAYS mean a slot:
-        # `for`/`while`/`if`/`match`/`switch`/`with`/`try` -- and a bare
-        # `return` in a slot is the early-exit guard.
+        # `for`/`while`/`if`/`match`/`switch`/`with`/`try` -- plus `skip`
+        # (the slot early-exit) and `return` (legacy, now diagnosed by
+        # ViewLowerPass).
         if self.check_any(
             TokenKind.KW_FOR,
             TokenKind.KW_WHILE,
@@ -3484,7 +3486,8 @@ impl Parser.parse_jsx_child -> Expr {
             TokenKind.KW_SWITCH,
             TokenKind.KW_WITH,
             TokenKind.KW_TRY,
-            TokenKind.KW_RETURN
+            TokenKind.KW_RETURN,
+            TokenKind.KW_SKIP
         ) {
             self._view_body_depth += 1;
             stmts = self.parse_code_block_stmts();
@@ -4130,6 +4133,38 @@ impl Parser.parse_statement{
             jsx_kid.append(self.make_semi());
         }
         return ExprStmt(expr=jsx, in_fstring=False, kid=jsx_kid);
+    }
+    # In a view body, `{...}` slot-syntax around a statement is redundant
+    # — the body is already in slot mode. Catch the common copy-paste
+    # mistake (`{if cond { <X/> }}` nested inside an outer slot body) and
+    # emit a single targeted diagnostic instead of the parse-error
+    # cascade you'd otherwise hit. Recovery: consume the redundant `{`,
+    # parse the inner statement, consume the trailing `}` — so the rest
+    # of the file still parses cleanly.
+    if self._view_body_depth > 0
+    and self.check(TokenKind.LBRACE)
+    and self.check_peek_any(
+        TokenKind.KW_FOR,
+        TokenKind.KW_WHILE,
+        TokenKind.KW_IF,
+        TokenKind.KW_MATCH,
+        TokenKind.KW_SWITCH,
+        TokenKind.KW_WITH,
+        TokenKind.KW_TRY,
+        TokenKind.KW_RETURN,
+        TokenKind.KW_SKIP
+    ) {
+        redundant_lbrace_loc = self.current().loc;
+        peeked_kw = self.peek().value;
+        self.emit_diag(E2023, loc=redundant_lbrace_loc, stmt_kw=peeked_kw);
+        self.advance();  # consume redundant `{`
+        inner = self.parse_statement();
+        # Tolerate optional trailing `;` then the redundant `}`.
+        self.match_tok(TokenKind.SEMI);
+        if self.check(TokenKind.RBRACE) {
+            self.advance();
+        }
+        return inner;
     }
     # Allow imports inside code blocks
     if self.check_any(TokenKind.KW_IMPORT, TokenKind.KW_INCLUDE) {
