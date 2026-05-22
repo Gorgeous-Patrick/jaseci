@@ -1,13 +1,14 @@
-"""Positive-pass tests for the JSX slot extensions shipped in this PR.
+"""Positive-pass tests for the JSX slot extensions from #6082.
 
-Each test verifies one of the four #6082 items implemented on this branch:
+Each test verifies one implemented #6082 item:
 
   - rec 1.4: item 1 priority 4 fallback (W2021 when no key derivable)
   - rec 1.5: item 2 (keyless for-loop diagnostic; accepts W2019 or W2021)
   - rec 3:   item 4 (E2024 -- has-in-slot)
   - rec 5:   item 6 ({name} prop shorthand)
+  - rec 9:   item 10 (.style.css annex auto-scoping)
 
-The ten still-failing tests for the unimplemented #6082 items live on
+The remaining still-failing tests for unimplemented #6082 items live on
 the companion spec branch -- see PR #6088. That PR is deliberately RED
 in CI as an executable spec; this PR keeps CI green.
 """
@@ -137,5 +138,51 @@ test "rec 5: `{name}` JSX attribute shorthand expands to name={name}" {
     );
     assert '"onClick": onClick' in js_code , (
         "shorthand `{onClick}` should lower to `onClick: onClick`:\n" + js_code
+    );
+}
+
+test "rec 9: a .style.css annex is auto-scoped and rewrites JSX className refs" {
+    # #6082 item 10 -- files sharing a base name form one logical module.
+    # A `.style.css` annex (`style_annex.style.css`) declares scoped classes
+    # for `style_annex.cl.jac`; the compiler hashes each declared selector
+    # per-module, rewrites the CSS rule, and rewrites JSX `className`
+    # literals that match a declared class to the same hashed form. The
+    # rewritten CSS is emitted as `gen.css` plus a side-effect import.
+    import re;
+    prog = JacProgram();
+    path = os.path.join(SLOT_EXT, "style_annex.cl.jac");
+    ir = prog.compile(file_path=path, no_cgen=True);
+    assert not prog.errors_had , (
+        "Compilation errors: " + str([str(e) for e in prog.errors_had])
+    );
+    es_pass = EsastGenPass(ir_in=ir, prog=prog);
+    mod = es_pass.ir_out;
+    js_code = es_to_js(mod.gen.es_ast);
+
+    # Declared class names are hashed to `card-<8 hex>` and the bare form
+    # must not survive in the bundle.
+    assert re.search(r'"className":\s*"card-[0-9a-f]{8}"', js_code) , (
+        "annex-declared class names should be hashed in the JSX className "
+        "literal:\n" + js_code
+    );
+    assert '"className": "card"' not in js_code , (
+        "the unrewritten bare class name must not survive in the bundle"
+    );
+
+    # The rewritten CSS sidecar is emitted, its selectors hashed with the
+    # same digest as the JSX refs, and `:global(...)` is unwrapped verbatim.
+    css = mod.gen.css;
+    card_match = re.search(r'"className":\s*"(card-[0-9a-f]{8})"', js_code);
+    assert (card_match and ("." + card_match.group(1)) in css) , (
+        "CSS selector must be hashed to match the JSX className ref:\n" + css
+    );
+    assert ".card {" not in css , "the bare `.card` selector must be rewritten";
+    assert "html {" in css and ":global(html)" not in css , (
+        "`:global(html)` should be unwrapped to a verbatim `html` selector:\n" + css
+    );
+
+    # A side-effect import wires the sidecar stylesheet to the module.
+    assert 'import "./style_annex.css"' in js_code , (
+        "a side-effect import of the rewritten CSS should be injected:\n" + js_code
     );
 }
