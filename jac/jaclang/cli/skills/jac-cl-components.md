@@ -47,6 +47,8 @@ def:pub BookCard(bookId: str, title: str, onDelete: Callable[([str], None)]) -> 
 
 Call site: `<BookCard bookId={b["id"]} title={b["title"]} onDelete={remove} />`. For an optional callback, type it `Callable[([str], None)] | None` and guard the call: `if onDelete { onDelete(bookId); }`.
 
+**`{name}` shorthand:** when an attribute's value is a bare variable of the same name, `<BookCard {title} {onDelete} />` expands to `title={title} onDelete={onDelete}`. Pure sugar - the type-checker validates it per-attribute exactly like the explicit form. Distinct from the spread, which forwards a whole object: use `{**props}` (the canonical Jac form) - the JS-idiomatic `{...props}` also works but earns a `W0063` warning ("prefer `{**expr}`").
+
 ## Event types (ambient, no import)
 
 | Handler | Type | Access |
@@ -100,7 +102,8 @@ Caveats specific to slot bodies:
 
 - `skip;` inside a slot is the slot early-exit - it ends the current slot's accumulator (rest of *this* slot stops), **not** the enclosing function. Useful for "show empty state, stop here." Bare `return;` inside a slot is rejected (E2020) because it reads like a function-exit but only exits the slot; the value form `return expr;` is also rejected (E2019).
 - Inside a slot body, don't wrap inner control flow with another `{...}` - the body is already in slot mode. Write `if cond { <X/> }` directly, not `{if cond { <X/> }}` (E2023). The `{...}` wrapping is only needed when descending from a JSX element's children into slot mode.
-- Slot iteration that yields keyless JSX siblings earns a `W2019` warning - add `key={...}` on the inner element.
+- Slot iteration that yields keyless JSX siblings earns a warning - `W2019` for a `while` loop, `W2021` for a `for` loop - add `key={...}` on the inner element so siblings keep their identity across re-renders.
+- A `has`-field inside a slot body is rejected (E2024). The slot body is a statement template that re-runs every render, so a `has` there would compile to a conditional `useState` and break React's rules of hooks. Declare reactive state at the component scope (the enclosing `def -> JsxElement` body), never inside a `{...}` slot.
 - `try { ... } awaiting { ... }` in a slot lowers to a `<JacAwaiting fallback={...}>{...}</JacAwaiting>` Suspense wrapper (cl only). The `awaiting` body shows during the dispatched-but-not-joined window of any Suspense-aware primitive inside the `try` body; today Jac's `flow`/`wait` don't suspend, so the fallback only fires when the `try` body opts into something Suspense-shaped (e.g. a fetcher that throws a promise). On `sv` / `na` the `awaiting` body is dropped with `W2020`. `finally` with `awaiting` is rejected (`E2022`).
 
 ## Pitfalls

@@ -1141,10 +1141,12 @@ def:pub JsxExamples() -> JsxElement {
 
         {items}
 
-        <button {...props}>Click</button>
+        <button {**props} {variable}>Click</button>
     </div>;
 }
 ```
+
+Two brace forms appear in attribute position. `{**props}` is a **spread** -- it forwards every key of `props` as an attribute. The JS-idiomatic `{...props}` spread is also accepted but emits `W0063` ("prefer `{**expr}`"), so `{**props}` is the canonical Jac form. `{variable}` is the **`{name}` shorthand** -- when an attribute's value is a variable of the same name it expands to `variable={variable}`, so `<Box {title} {count} {onClick}/>` is sugar for `<Box title={title} count={count} onClick={onClick}/>`. The shorthand is still validated per-attribute against the component signature.
 
 ### Suspense Fallbacks: `try` with `awaiting`
 

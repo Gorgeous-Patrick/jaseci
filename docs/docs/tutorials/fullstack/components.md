@@ -66,6 +66,8 @@ def:pub app() -> JsxElement {
 
 There is no `ReactNode`-style union type in Jac, and a children value can be an element, a string, a number, or a list of those -- so `any` is the honest type for a `children` parameter. The parameter type governs only how you use `children` inside the body; it is never checked against the nested content.
 
+**`{name}` attribute shorthand:** when a prop's value is a variable of the same name, `<Card {title} {onClose} />` is sugar for `<Card title={title} onClose={onClose} />`. Each shorthand attribute is still validated per-prop against the component signature. This is distinct from the `{**props}` spread (above), which forwards an entire object instead of a single named attribute.
+
 ---
 
 ## Forwarding the props bundle (advanced)
@@ -368,7 +370,7 @@ def:pub ItemList(items: list[str]) -> JsxElement {
 }
 ```
 
-`while` slots that emit keyless JSX get a `W2019` warning -- siblings produced by a loop need a stable `key=` so a re-render keeps their identity.
+Loop slots that emit keyless JSX get a warning -- `W2019` for a `while` loop and `W2021` for a `for` loop. Siblings produced by a loop need a stable `key=` (as in the `<li key={i}>` above) so a re-render keeps their identity.
 
 ### `has`-fields and Handlers
 
@@ -387,6 +389,8 @@ def:pub Counter() -> JsxElement {
     return <button onClick={bump}>Count: {count}</button>;
 }
 ```
+
+Declare `has`-fields at the component scope, never inside a `{...}` slot body. A slot body is a statement template that re-runs on every render, so a `has` there would compile to a conditional `useState` and violate React's rules of hooks -- the compiler rejects it with `E2024`.
 
 ### Dynamic Tags
 
