@@ -1283,6 +1283,7 @@ cl import from react { useState }
 # .na.jac        Native variant
 # .impl.jac      Implementation annex (method bodies)
 # .test.jac      Test annex
+# .style.css     Scoped CSS annex (auto-scopes classes for the matching .cl.jac)
 
 
 # ============================================================
@@ -1331,6 +1332,7 @@ def:pub Greeting(name: str) -> JsxElement {
 # <Box {title} {count} />       Attribute shorthand ({title} -> title={title})
 # <div className="cls">         Class name (not "class")
 # <div style={{"color": "red"}} Inline styles
+#   (classes declared in a same-base-name <Comp>.style.css are auto-scoped)
 # <@expr>...</@expr>            Dynamic tag (tag chosen by expression)
 
 

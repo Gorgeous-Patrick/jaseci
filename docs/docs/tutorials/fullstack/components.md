@@ -574,6 +574,41 @@ def:pub app() -> JsxElement {
 }
 ```
 
+### Scoped Styles (`.style.css`)
+
+Drop a `.style.css` file with the **same base name** as a component and its
+classes are auto-scoped to that component -- no import, no naming collisions.
+The compiler hashes each declared class, rewrites the CSS, and rewrites the
+matching `className` references to agree.
+
+```jac
+# Card.cl.jac
+def:pub Card(title: str) -> JsxElement {
+    return <div className="card">
+        <h2 className="card-title">{title}</h2>
+    </div>;
+}
+```
+
+```css
+/* Card.style.css -- paired by base name, no import required */
+.card {
+    padding: 1rem;
+    border: 1px solid #ccc;
+}
+.card-title { font-weight: 600; }
+
+/* :global(...) opts a selector out of scoping */
+:global(body) { margin: 0; }
+```
+
+At compile time `className="card"` becomes `className="card-1419142b"` and
+the CSS selector is hashed to match, so another component can declare its own
+`.card` without conflict. Tokens not declared in the annex (like Tailwind
+utilities) pass through unchanged. See the
+[jac-client reference](../../reference/plugins/jac-client.md#scoped-css-stylecss-annexes)
+for the full contract.
+
 ---
 
 ## Key Takeaways
