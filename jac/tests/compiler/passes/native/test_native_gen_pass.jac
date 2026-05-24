@@ -3229,6 +3229,48 @@ test "finding 2 guard: int-to-obj escape hatch does not leak into the sv pathway
     );
 }
 
+# ─── Match statements ────────────────────────────────────────────────────
+test "match dispatches on literal value patterns" {
+    (eng, _) = compile_native("match_stmt.na.jac");
+    f = get_func(eng, "classify", ctypes.c_int64, ctypes.c_int64);
+    assert f(0) == 100;
+    assert f(1) == 200;
+    assert f(5) == 300;
+}
+
+test "match supports OR patterns" {
+    (eng, _) = compile_native("match_stmt.na.jac");
+    f = get_func(eng, "with_or", ctypes.c_int64, ctypes.c_int64);
+    assert f(1) == 1;
+    assert f(2) == 1;
+    assert f(3) == 1;
+    assert f(4) == 0;
+}
+
+test "match capture pattern binds the subject" {
+    (eng, _) = compile_native("match_stmt.na.jac");
+    f = get_func(eng, "with_capture", ctypes.c_int64, ctypes.c_int64);
+    assert f(0) == -1;
+    assert f(7) == 14;
+}
+
+test "match honors case guards" {
+    (eng, _) = compile_native("match_stmt.na.jac");
+    f = get_func(eng, "with_guard", ctypes.c_int64, ctypes.c_int64);
+    assert f(20) == 1;
+    assert f(11) == 1;
+    assert f(5) == 2;
+    assert f(-1) == 3;
+}
+
+test "match dispatches on string patterns" {
+    (eng, _) = compile_native("match_stmt.na.jac");
+    f = get_func(eng, "match_str", ctypes.c_int64, ctypes.c_char_p);
+    assert f(b"hi") == 1;
+    assert f(b"bye") == 2;
+    assert f(b"nope") == 0;
+}
+
 # ─── Pipe-forward operator `|>` ──────────────────────────────────────────
 test "pipe-forward feeds lhs as the sole argument" {
     (eng, _) = compile_native("pipe_fwd.na.jac");

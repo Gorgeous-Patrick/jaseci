@@ -278,6 +278,13 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _codegen_bool_expr(nd: uni.BoolExpr) -> (ir.Value | None);
     def _codegen_ctrl(nd: uni.CtrlStmt) -> None;
     def _codegen_for(nd: uni.InForStmt) -> None;
+    def _codegen_match(nd: uni.MatchStmt) -> None;
+    def _match_pattern_cond(
+        pat: uni.MatchPattern, subj: ir.Value
+    ) -> (ir.Value | None);
+
+    def _match_value_eq(subj: ir.Value, value_node: uni.UniNode) -> (ir.Value | None);
+    def _bind_match_pattern(pat: uni.MatchPattern, subj: ir.Value) -> None;
     def _codegen_if_else_expr(nd: uni.IfElseExpr) -> (ir.Value | None);
     # Phase 2: Strings and F-Strings
     def _codegen_multistring(nd: uni.MultiString) -> (ir.Value | None);
