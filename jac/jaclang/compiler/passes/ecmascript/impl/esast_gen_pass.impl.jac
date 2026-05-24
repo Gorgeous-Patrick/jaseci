@@ -1559,14 +1559,7 @@ impl EsastGenPass._try_lower_server_rpc_call(
         return None;
     }
     func_name = nd.target.sym_name;
-    # Auto-caching effects analysis (idempotent — only run once per func)
-    effect_key = f"func:{func_name}";
-    if effect_key not in self.client_manifest.endpoint_effects {
-        if ability_node.body and isinstance(ability_node.body, list) {
-            effects = self._analyze_body_effects(ability_node.body);
-            self.client_manifest.endpoint_effects[effect_key] = effects;
-        }
-    }
+    # Endpoint effects for func:<func_name> are precomputed by WalkerEffectsPass.
     param_names: list[str] = self._param_names_from_ability(ability_node);
     inline_param_type_map: dict[str, str] = self._param_type_map_from_ability(
         ability_node
@@ -2444,41 +2437,9 @@ impl EsastGenPass.exit_binary_expr(nd: uni.BinaryExpr) -> None {
         spawn_parts = self._prepare_spawn_call(nd, left, right);
         if spawn_parts {
             nd.gen.es_ast = self._build_spawn_runtime_call(nd, spawn_parts);
-            # Analyze walker effects for auto-caching
-            walker_name = spawn_parts.walker.walker_name;
-            effect_key = f"walker:{walker_name}";
-            if effect_key not in self.client_manifest.endpoint_effects {
-                import from jaclang.compiler.symbol_utils { resolve_expr_symbol }
-                walker_sym = resolve_expr_symbol(
-                    spawn_parts.walker.call_node.target, self.get_main_mod()
-                );
-                # Follow sv-import chains: when the resolved symbol is the
-                # imported alias (sym_type=VAR, declared inside a ModuleItem),
-                # the type evaluator has already pointed ModuleItem.name.sym at
-                # the target walker archetype in the source module. Chain
-                # through so the effect analysis runs against the real body.
-                if (
-                    walker_sym
-                    and walker_sym.sym_type != SymbolType.WALKER_ARCH
-                    and walker_sym.decl
-                    and isinstance(walker_sym.decl.parent, uni.ModuleItem)
-                ) {
-                    mi_name = walker_sym.decl.parent.name;
-                    if (isinstance(mi_name, uni.Name) and mi_name.sym) {
-                        walker_sym = mi_name.sym;
-                    }
-                }
-                if (walker_sym and walker_sym.sym_type == SymbolType.WALKER_ARCH) {
-                    arch_node = walker_sym.decl.parent;
-                    if isinstance(arch_node, uni.Archetype) {
-                        resolved_body = arch_node._get_impl_resolved_body();
-                        if resolved_body {
-                            effects = self._analyze_body_effects(resolved_body);
-                            self.client_manifest.endpoint_effects[effect_key] = effects;
-                        }
-                    }
-                }
-            }
+            # Endpoint effects for walker:<name> are precomputed (at the
+            # walker's declaration, in its own module) by WalkerEffectsPass and
+            # propagated into this manifest via _populate_client_manifest.
         }
         return;
     }
@@ -3980,10 +3941,16 @@ impl EsastGenPass._generate_sv_import_stubs(nd: uni.Import) -> None {
                 ret_type_name = self._extract_return_type(
                     ability_node, func_name, nd.gen.interop_manifest
                 );
-                # Analyze function body for auto-caching effects
-                if ability_node.body and isinstance(ability_node.body, list) {
-                    effects = self._analyze_body_effects(ability_node.body);
-                    self.client_manifest.endpoint_effects[f"func:{func_name}"] = effects;
+                # Carry the source module's precomputed effect (from
+                # WalkerEffectsPass) into this client bundle's manifest so the
+                # sv-imported endpoint self-registers with the right effects.
+                src_effect = source_mod.gen.client_manifest.endpoint_effects.get(
+                    f"func:{func_name}"
+                );
+                if src_effect is not None {
+                    self.client_manifest.endpoint_effects[f"func:{func_name}"] = (
+                        src_effect
+                    );
                 }
             }
         }
@@ -4886,167 +4853,6 @@ impl EsastGenPass._collect_stmt_body(
     return statements;
 }
 
-"""Analyze a code body to classify it as reader or writer and extract touched node types.
-
-Recursively scans descendant AST nodes for write-indicating operations
-(edge creation, node deletion, field mutation, sub-walker spawns).
-Returns dict with 'is_writer' (bool) and 'touches' (list of node type names).
-"""
-impl EsastGenPass._analyze_body_effects(body_nodes: Sequence[uni.UniNode]) -> dict {
-    is_writer = False;
-    touches: set[str] = set();
-    visited_funcs: set[int] = set();
-    """Resolve a called ability's body to a flat statement list (inline or impl).""";
-    def _ability_body(ab: uni.Ability) -> list {
-        ab_body = ab.body;
-        if isinstance(ab_body, list) {
-            return ab_body;
-        }
-        if isinstance(ab_body, uni.ImplDef) and isinstance(ab_body.body, Sequence) {
-            return [stmt for stmt in ab_body.body];
-        }
-        return [];
-    }
-    mod_def_index: dict[int, dict] = {};
-    """Resolve a called name to a module-level def in the call site's module.
-
-    Fallback for when the call's symbol is unresolved -- server walker bodies
-    introspected by the client pass never go through full symbol resolution,
-    so `_resolve_call_ability` (which relies on resolved symbols) returns
-    None. Looking the name up syntactically in the host module still finds
-    the helper.
-    """;
-    def _local_def(call_nd: uni.UniNode, name: str) -> (uni.Ability | None) {
-        host_mod = call_nd.find_parent_of_type(uni.Module);
-        if not host_mod {
-            return None;
-        }
-        index = mod_def_index.get(id(host_mod));
-        if index is None {
-            index = {};
-            for ab in host_mod.get_all_sub_nodes(uni.Ability) {
-                if isinstance(ab.name_ref, uni.Name) and not ab.is_method {
-                    index[ab.name_ref.sym_name] = ab;
-                }
-            }
-            mod_def_index[id(host_mod)] = index;
-        }
-        return index.get(name);
-    }
-    """Recursively scan a node and its descendants for effects.""";
-    def _scan(nd: uni.UniNode) {
-        nonlocal is_writer;
-
-        # Edge creation: BinaryExpr with ConnectOp operator (++>, <++, <++>)
-        if isinstance(nd, uni.BinaryExpr) and isinstance(nd.op, uni.ConnectOp) {
-            is_writer = True;
-            # Try to extract edge type from ConnectOp
-            if nd.op.conn_type and isinstance(nd.op.conn_type, uni.Name) {
-                touches.add(nd.op.conn_type.sym_name);
-            }
-        }
-
-        # Edge deletion: BinaryExpr with DisconnectOp operator
-        if isinstance(nd, uni.BinaryExpr) and isinstance(nd.op, uni.DisconnectOp) {
-            is_writer = True;
-        }
-
-        # Node/edge deletion: DeleteStmt
-        if isinstance(nd, uni.DeleteStmt) {
-            is_writer = True;
-        }
-
-        # Spawn sub-walker: BinaryExpr with KW_SPAWN
-        if (
-            isinstance(nd, uni.BinaryExpr)
-            and isinstance(nd.op, uni.Token)
-            and nd.op.name == Tok.KW_SPAWN
-        ) {
-            is_writer = True;
-        }
-
-        # Field mutation on non-self targets: Assignment with AtomTrailer target
-        if isinstance(nd, uni.Assignment) {
-            for tgt in nd.target {
-                if isinstance(tgt, uni.AtomTrailer) and tgt.is_attr {
-                    # Check if the target root is NOT self/here (those are walker state writes)
-                    root_expr = tgt.target;
-                    while isinstance(root_expr, uni.AtomTrailer) {
-                        root_expr = root_expr.target;
-                    }
-                    is_self = (
-                        isinstance(root_expr, uni.SpecialVarRef)
-                        and root_expr.sym_name == 'self'
-                    );
-                    if not is_self {
-                        is_writer = True;
-                    }
-                }
-            }
-        }
-
-        # Node type touched: FuncCall targeting a node/edge archetype
-        if isinstance(nd, uni.FuncCall) {
-            import from jaclang.compiler.symbol_utils { resolve_expr_symbol }
-            target_sym = resolve_expr_symbol(nd.target, self.get_main_mod());
-            if target_sym {
-                if target_sym.sym_type in [
-                    SymbolType.NODE_ARCH,
-                    SymbolType.EDGE_ARCH
-                ] {
-                    touches.add(target_sym.sym_name);
-                    # Constructing a node/edge is a write
-                    is_writer = True;
-                }
-            }
-            # Interprocedural: follow the call into a def/ability helper so
-            # graph mutations hidden behind a helper still mark the caller as
-            # a writer (and propagate any node types it touches). Without
-            # this, a walker that delegates its write to a plain `def` is
-            # misclassified as a reader and the client cache is never
-            # invalidated. The visited_funcs guard makes mutual/self
-            # recursion terminate.
-            callee = self._resolve_call_ability(nd);
-            if not callee and isinstance(nd.target, uni.Name) {
-                callee = _local_def(nd, nd.target.sym_name);
-            }
-            if callee and id(callee) not in visited_funcs {
-                visited_funcs.add(id(callee));
-                for stmt in _ability_body(callee) {
-                    _scan(stmt);
-                }
-            }
-        }
-
-        # Node types from EventSignature (can foo with NodeType entry)
-        if isinstance(nd, uni.EventSignature) and nd.arch_tag_info {
-            if isinstance(nd.arch_tag_info, uni.Name) {
-                touches.add(nd.arch_tag_info.sym_name);
-            } elif isinstance(nd.arch_tag_info, uni.BoolExpr) {
-                # Union type: NodeA | NodeB
-                for val in nd.arch_tag_info.values {
-                    if isinstance(val, uni.Name) {
-                        touches.add(val.sym_name);
-                    }
-                }
-            }
-        }
-
-        # Recurse into children
-        for child in nd.kid {
-            if child {
-                _scan(child);
-            }
-        }
-    }
-    for nd in body_nodes {
-        _scan(nd);
-    }
-    # If no specific node types were determined, use catch-all
-    touches_list = sorted(touches) if touches else ["*"];
-    return {"is_writer": is_writer, "touches": touches_list};
-}
-
 """Emit the await __jacSpawn(...) expression for a spawn call."""
 impl EsastGenPass._build_spawn_runtime_call(
     nd: uni.BinaryExpr, parts: SpawnCallParts
@@ -5534,6 +5340,13 @@ impl EsastGenPass.before_pass -> None {
     self.scope_stack: list[ScopeInfo] = [];
     self.scope_map: dict[(uni.UniScopeNode, ScopeInfo)] = {};
     self.client_manifest = ClientManifest();
+    # Endpoint effects are computed by WalkerEffectsPass (which runs before
+    # this pass) into mod.gen.client_manifest. Seed the fresh accumulator from
+    # it so the registration emit and cross-module merge carry them through;
+    # this pass no longer classifies effects itself.
+    self.client_manifest.endpoint_effects = dict(
+        self.ir_in.gen.client_manifest.endpoint_effects
+    );
     self.jsx_processor = EsJsxProcessor(self);
     # Load the `.style.css` scoped-style annex (if any) keyed off the head
     # module path, so every variant/impl module shares one class map and
