@@ -426,12 +426,33 @@ test "E0063: glob in statement position is always rejected" {
         "with entry { glob a = }",
         "with entry { glob a }",
         "with entry { glob }",
-        "def foo() -> int { glob a = 1; return a; }"
+        "def foo() -> int { glob a = 1; return a; }",
+        "test \"t\" { glob sneaky = 1; assert True; }"
     ];
     for src in sources {
         (has_err, _) = parse_and_validate(src);
         assert has_err , f"Expected error for: {src}";
     }
+}
+
+test "E0063: glob inside a codespace block is valid" {
+    # glob is a declaration, so it is allowed directly under cl/sv/na blocks.
+    for src in ["cl { glob counter: int = 0; }", "sv { glob token = \"x\"; }"] {
+        (has_err, _) = parse_and_validate(src);
+        assert not has_err , f"Unexpected error for: {src}";
+    }
+}
+
+test "E0063: glob inside a function produces no runnable bytecode" {
+    # Detected by ASTValidationPass (not the parser), and the structural
+    # error must block codegen so the invalid module cannot silently execute.
+    prog = JacProgram();
+    mod = prog.compile(
+        file_path="/tmp/test_e0063_gate.jac",
+        use_str="def foo() -> int { glob a = 1; return a; }"
+    );
+    assert has_diagnostic_code(prog, "E0063");
+    assert not mod.gen.py_bytecode;
 }
 
 # ══════════════════════════════════════════════════════════════════
