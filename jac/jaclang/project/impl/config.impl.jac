@@ -787,6 +787,7 @@ impl _parse_toml_data(data: dict[str, Any], toml_path: Path | None = None) -> Ja
             topology_index=run_data.get("topology_index", True),
             prefetching=run_data.get("prefetching", ""),
             prefetch_limit=run_data.get("prefetch_limit", 200),
+            async_prefetch=run_data.get("async_prefetch", False),
             diagnostics=run_data.get("diagnostics", "error")
         );
     }

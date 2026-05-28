@@ -32,8 +32,10 @@ obj RunConfig {
         autonative: bool = False,
         topology_index: bool = True,
         prefetching: str = "",
-        prefetch_limit: int = 200;
-        diagnostics: str = "error";  # "error" | "all" | "none"
+        prefetch_limit: int = 200,
+        async_prefetch: bool = False;
+
+    diagnostics: str = "error";  # "error" | "all" | "none"
 }
 
 """Native compilation settings from [build.native] section."""

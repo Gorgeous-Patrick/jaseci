@@ -73,6 +73,7 @@ obj Memory {
     may no-op if prefetching is not applicable.
     """
     def prefetch(ids: Iterable[UUID]) -> None;
+
     def get_gc -> list[Anchor] abs;
     def remove_from_gc(anchor: Anchor) -> None abs;
     def get_mem -> dict[UUID, Anchor] abs;
@@ -90,6 +91,7 @@ obj CacheMemory(Memory) {
     def invalidate(id: UUID) -> None abs;
     """Batch check existence of multiple IDs. Returns set of IDs that exist."""
     def bulk_exists(ids: Iterable[UUID]) -> set[UUID] abs;
+
     """Batch store multiple anchors."""
     def bulk_put(anchors: Iterable[Anchor]) -> None abs;
 }
@@ -222,7 +224,8 @@ obj TieredMemory(VolatileMemory) {
     has base_path: (str | None) = None,
         l2: (CacheMemory | None) by postinit,
         l3: (PersistentMemory | None) by postinit,
-        use_cache: bool = False;
+        use_cache: bool = False,
+        _prefetch_thread: (object | None) = None;
 
     def get_l3_fetch_count -> int;
     def reset_l3_fetch_count -> None;

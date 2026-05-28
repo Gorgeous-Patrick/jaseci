@@ -516,7 +516,18 @@ impl JacWalker.spawn_call(
                     resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
                         prefetch_start = _perf_counter();
-                        ctx.mem.prefetch(prefetch_ids);
+                        if cfg.run.async_prefetch {
+                            import threading;
+                            _t = threading.Thread(
+                                target=ctx.mem.prefetch,
+                                args=(prefetch_ids, ),
+                                daemon=True,
+                            );
+                            _t.start();
+                            ctx.mem._prefetch_thread = _t;
+                        } else {
+                            ctx.mem.prefetch(prefetch_ids);
+                        }
                         prefetch_end = _perf_counter();
                         prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
@@ -836,7 +847,18 @@ impl JacWalker.async_spawn_call(
                     resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
                         prefetch_start = _perf_counter();
-                        ctx.mem.prefetch(prefetch_ids);
+                        if cfg.run.async_prefetch {
+                            import threading;
+                            _t = threading.Thread(
+                                target=ctx.mem.prefetch,
+                                args=(prefetch_ids, ),
+                                daemon=True,
+                            );
+                            _t.start();
+                            ctx.mem._prefetch_thread = _t;
+                        } else {
+                            ctx.mem.prefetch(prefetch_ids);
+                        }
                         prefetch_end = _perf_counter();
                         prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }

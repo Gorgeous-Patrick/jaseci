@@ -109,6 +109,15 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             missing_ids.append(id);
         }
     }
+    # Track hit/miss stats
+    if not hasattr(self, '_l1_hits') {
+        self._l1_hits = 0;
+        self._l1_misses = 0;
+        self._batch_get_calls = 0;
+    }
+    self._batch_get_calls += 1;
+    self._l1_hits += len(ids) - len(missing_ids);
+    self._l1_misses += len(missing_ids);
     if missing_ids and self.l2 {
         l2_results = self.l2.batch_get(missing_ids);
         still_missing = [];
@@ -152,6 +161,17 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
 
 """Close all backends."""
 impl ScaleTieredMemory.close -> None {
+    # Log L1 hit/miss stats
+    if self?._batch_get_calls and self._batch_get_calls > 0 {
+        total = self._l1_hits + self._l1_misses;
+        hit_rate = (self._l1_hits / total * 100) if total > 0 else 0;
+        import logging;
+        logging.getLogger("jac.memory").warning(
+            f"L1 stats: hits={self._l1_hits}, misses={self._l1_misses}, "
+            f"total={total}, hit_rate={hit_rate:.1f}%, "
+            f"batch_get_calls={self._batch_get_calls}"
+        );
+    }
     self.commit();
     # Sync and close L3 persistence
     if self.l3 {

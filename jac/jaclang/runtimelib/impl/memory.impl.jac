@@ -588,6 +588,11 @@ impl TieredMemory.delete(id: UUID) -> None {
 
 """Close all tiers."""
 impl TieredMemory.close -> None {
+    # Wait for async prefetch thread to finish before tearing down connections
+    if self._prefetch_thread is not None {
+        self._prefetch_thread.join();
+        self._prefetch_thread = None;
+    }
     # Sync L3 before closing
     if self.l3 {
         self.l3.sync();
@@ -670,7 +675,7 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
                 anchor = Serializer.deserialize(data);
                 if anchor {
                     anchor.is_updated = False;
-                    self.__mem__[uid] = anchor;
+                    self.__mem__.setdefault(uid, anchor);
                 }
             }
         }
