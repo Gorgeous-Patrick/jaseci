@@ -2131,7 +2131,6 @@ impl EsastGenPass._ensure_emitters -> None {
     import from jaclang.compiler.type_registry { JAC_TYPE_REGISTRY }
     import jaclang.compiler.passes.ecmascript.primitives_es as _pes;
     self._primitives_es_mod = _pes;
-    self._primitive_type_names = JAC_TYPE_REGISTRY.primitive_names();
     self._primitive_emitters = {};
     for (_tn, _suffix) in JAC_TYPE_REGISTRY.emitter_items() {
         _ecls = getattr(_pes, "ES" + _suffix, None);
@@ -2150,21 +2149,9 @@ Returns the matching primitive name if ``_obj_type`` is a ``ClassType`` whose
 ``LiteralString`` resolve to ``str`` consistently.
 """
 impl EsastGenPass._resolve_primitive_type_name(_obj_type: object) -> str {
-    import from jaclang.compiler.type_system { types as jtypes }
+    import from jaclang.compiler.type_system.type_utils { primitive_type_name_of }
     self._ensure_emitters();
-    if not isinstance(_obj_type, jtypes.ClassType) {
-        return "";
-    }
-    if _obj_type.shared.class_name in self._primitive_type_names {
-        return _obj_type.shared.class_name;
-    }
-    # Walk the MRO to catch subtypes like LiteralString → str.
-    for _base in _obj_type.shared.mro {
-        if _base.shared.class_name in self._primitive_type_names {
-            return _base.shared.class_name;
-        }
-    }
-    return "";
+    return primitive_type_name_of(_obj_type) or "";
 }
 
 """Try to dispatch an operator through the primitive emitter system.
@@ -5703,5 +5690,4 @@ impl EsastGenPass.before_pass -> None {
     # Primitive emitter instances for codegen dispatch (lazily initialized to avoid circular imports)
     self._primitive_emitters: dict[str, object] | None = None;
     self._builtin_emitter: object | None = None;
-    self._primitive_type_names: set[str] | None = None;
 }

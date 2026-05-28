@@ -142,6 +142,8 @@ obj NaIRGenPass(ModuleCodegenPass) {
         # Primitive emitter singletons
         _native_emitters: (dict[str, object] | None) = None,
         _native_builtin_emitter: (object | None) = None,
+        # Cache: primitive type name -> named methods its emitter implements
+        _primitive_method_name_cache: (dict[str, set[str]] | None) = None,
         # Reference counting support (Phase RC)
         # Phase R2: compile-time gate on debug-only RC machinery (live-list,
         # ctx attribution, leak dump). Read from JAC_RC_DEBUG_CODEGEN env var
@@ -580,6 +582,7 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _extract_elem_struct_hint(type_node: object) -> (str | None);
     # Primitive emitter dispatch
     def _ensure_emitters -> None;
+    def _primitive_method_names(type_name: str) -> set[str];
     def _dispatch_primitive_method(
         type_name: str,
         method_name: str,

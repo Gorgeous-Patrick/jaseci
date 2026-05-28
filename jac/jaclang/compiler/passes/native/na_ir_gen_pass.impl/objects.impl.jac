@@ -1141,13 +1141,7 @@ impl NaIRGenPass._codegen_method_call(nd: uni.FuncCall) -> (ir.Value | None) {
         }
     }
     # Int methods (on any target expression whose type is i64)
-    if method_name in (
-        "conjugate",
-        "bit_length",
-        "bit_count",
-        "as_integer_ratio",
-        "to_bytes"
-    ) {
+    if method_name in self._primitive_method_names("int") {
         int_val = self._codegen_expr(trailer.target);
         if int_val is not None and isinstance(int_val.type, ir.IntType) {
             params = nd.params or [];
@@ -1167,7 +1161,7 @@ impl NaIRGenPass._codegen_method_call(nd: uni.FuncCall) -> (ir.Value | None) {
         }
     }
     # Float methods (on any target expression whose type is double)
-    if method_name in ("is_integer", "conjugate", "as_integer_ratio", "hex") {
+    if method_name in self._primitive_method_names("float") {
         float_val = self._codegen_expr(trailer.target);
         if float_val is not None and isinstance(float_val.type, ir.DoubleType) {
             params = nd.params or [];
@@ -1187,7 +1181,7 @@ impl NaIRGenPass._codegen_method_call(nd: uni.FuncCall) -> (ir.Value | None) {
         }
     }
     # Complex methods (conjugate)
-    if method_name == "conjugate" {
+    if method_name in self._primitive_method_names("complex") {
         cval = self._codegen_expr(trailer.target);
         if cval is not None and cval.type == self.complex_struct_type.as_pointer() {
             result = self._dispatch_primitive_method(
@@ -1222,53 +1216,7 @@ impl NaIRGenPass._codegen_method_call(nd: uni.FuncCall) -> (ir.Value | None) {
         }
     }
     # String methods (on any target expression whose type is i8*)
-    if method_name in (
-        "strip",
-        "lstrip",
-        "rstrip",
-        "split",
-        "upper",
-        "lower",
-        "capitalize",
-        "casefold",
-        "swapcase",
-        "title",
-        "find",
-        "rfind",
-        "count",
-        "startswith",
-        "endswith",
-        "replace",
-        "removeprefix",
-        "removesuffix",
-        "ljust",
-        "rjust",
-        "zfill",
-        "isalpha",
-        "isdigit",
-        "isalnum",
-        "isspace",
-        "islower",
-        "isupper",
-        "isascii",
-        "isdecimal",
-        "isnumeric",
-        "isprintable",
-        "isidentifier",
-        "istitle",
-        "index",
-        "rindex",
-        "center",
-        "expandtabs",
-        "join",
-        "rsplit",
-        "splitlines",
-        "partition",
-        "rpartition",
-        "encode",
-        "decode",
-        "format"
-    ) {
+    if method_name in self._primitive_method_names("str") {
         str_val = self._codegen_expr(trailer.target);
         if str_val is not None and str_val.type == ir.IntType(8).as_pointer() {
             params = nd.params or [];

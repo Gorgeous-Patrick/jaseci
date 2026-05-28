@@ -3430,3 +3430,23 @@ test "user function shadowing a builtin name is called instead of the builtin" {
     # User `def len(x) { return x + 99; }` must win over the `len` builtin.
     assert f() == 100;
 }
+
+# Primitive method dispatch now keys off the emitter contract (no hardcoded
+# method-name tuples); exercise int/float methods to lock that in.
+test "primitive int bit_length via emitter dispatch" {
+    (eng, _) = compile_native("prim_method_dispatch.na.jac");
+    f = get_func(eng, "int_bit_length", ctypes.c_int64);
+    assert f() == 8;
+}
+
+test "primitive int bit_count via emitter dispatch" {
+    (eng, _) = compile_native("prim_method_dispatch.na.jac");
+    f = get_func(eng, "int_bit_count", ctypes.c_int64);
+    assert f() == 3;
+}
+
+test "primitive float is_integer via emitter dispatch" {
+    (eng, _) = compile_native("prim_method_dispatch.na.jac");
+    f = get_func(eng, "float_is_integer", ctypes.c_int64);
+    assert f() == 1;
+}
