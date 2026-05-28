@@ -312,6 +312,18 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _forward_declare_method(arch_name: str, method: uni.Ability) -> None;
     def _codegen_method(arch_name: str, method: uni.Ability) -> None;
     def _codegen_no_sig_method(arch_name: str, method: uni.Ability) -> None;
+    def _forward_declare_event_method(arch_name: str, method: uni.Ability) -> None;
+    def _codegen_event_method(arch_name: str, method: uni.Ability) -> None;
+    def _codegen_spawn(nd: uni.BinaryExpr) -> (ir.Value | None);
+    def _spawn_operand_name(nd: uni.UniNode) -> (str | None);
+    def _is_walker_arch(name: str) -> bool;
+    def _emit_spawn_entry_dispatch(
+        walker_name: str,
+        walker_val: ir.Value,
+        loc_name: (str | None),
+        loc_val: ir.Value
+    ) -> None;
+
     def _codegen_instantiation(nd: uni.FuncCall) -> (ir.Value | None);
     def _codegen_method_call(nd: uni.FuncCall) -> (ir.Value | None);
     def _codegen_field_access(

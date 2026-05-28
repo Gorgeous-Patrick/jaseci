@@ -58,6 +58,38 @@ test "arithmetic multiply" {
     assert mul(0, 999) == 0;
 }
 
+# --- Function pointers in struct fields (the OSP dispatch-slot shape) ---
+test "native callable struct field: indirect call through a field" {
+    (eng, _) = compile_native("callable_field.na.jac");
+    call_one = get_func(eng, "call_one", ctypes.c_int64, ctypes.c_int64);
+    assert call_one(21) == 42;
+    dispatch_all = get_func(eng, "dispatch_all", ctypes.c_int64, ctypes.c_int64);
+    # double(x) + negate(x): a list of {tag, fn} structs iterated and called.
+    assert dispatch_all(10) == 10;
+    assert dispatch_all(3) == 3;
+}
+
+# --- Object-Spatial Programming (walker / node / spawn / abilities) ---
+test "native osp: spawn dispatches entry ability and mutates walker state" {
+    (eng, _) = compile_native("osp_spawn.na.jac");
+    collect_two = get_func(
+        eng, "collect_two", ctypes.c_int64, ctypes.c_int64, ctypes.c_int64
+    );
+    # Walker spawns on two Item nodes; the `grab with Item entry` ability reads
+    # `here.val` and accumulates into `self.total` across both spawns.
+    assert collect_two(10, 32) == 42;
+    assert collect_two(0, 0) == 0;
+    assert collect_two(5, 5) == 10;
+}
+
+test "native osp: spawn returns the walker" {
+    (eng, _) = compile_native("osp_spawn.na.jac");
+    collect_one = get_func(eng, "collect_one", ctypes.c_int64, ctypes.c_int64);
+    # `(Collector() spawn Item(val=v)).total` — spawn evaluates to the walker.
+    assert collect_one(7) == 7;
+    assert collect_one(0) == 0;
+}
+
 test "arithmetic negate" {
     (eng, _) = compile_native("arithmetic.na.jac");
     neg = get_func(eng, "negate", ctypes.c_int64, ctypes.c_int64);
