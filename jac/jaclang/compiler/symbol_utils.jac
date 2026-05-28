@@ -10,16 +10,6 @@ import from collections.abc { Sequence }
 import jaclang.jac0core.unitree as uni;
 import from jaclang.jac0core.constant { Tokens as Tok, SymbolType }
 
-"""Symbol scope category."""
-enum SymbolCategory {
-    LOCAL = "local",
-    PARAM = "param",
-    CAPTURED = "captured",
-    GLOBAL = "global",
-    BUILTIN = "builtin",
-    IMPORTED = "imported"
-}
-
 """Kind of a function-call site, classified independently of the target backend.
 
 The single authoritative answer to "what kind of call is this?" so that every
@@ -530,47 +520,4 @@ def collect_method_names(arch: uni.Archetype) -> set[str] {
         }
     }
     return names;
-}
-
-"""Categorize a symbol's scope: local, param, captured, global, builtin, imported."""
-def categorize_symbol(sym: uni.Symbol, ref_scope: uni.UniScopeNode) -> SymbolCategory {
-    if sym.imported {
-        return SymbolCategory.IMPORTED;
-    }
-    # Check if the symbol's defining scope is the reference scope or an ancestor
-    def_scope = sym.parent_tab;
-    if def_scope is None {
-        return SymbolCategory.GLOBAL;
-    }
-    # If defined in the same function/scope
-    if def_scope is ref_scope {
-        # Check if it's a parameter (defined in a function scope directly)
-        if isinstance(def_scope, uni.Ability) {
-            sig = def_scope?.signature;
-            if sig is not None and isinstance(sig, uni.FuncSignature) {
-                param_names = [
-                    p.name.sym_name
-                    for p in sig.params
-                    if isinstance(p, uni.ParamVar) and p.name
-                ];
-                if sym.sym_name in param_names {
-                    return SymbolCategory.PARAM;
-                }
-            }
-        }
-        return SymbolCategory.LOCAL;
-    }
-    # Walk up from ref_scope to find if def_scope is a parent
-    current = ref_scope.parent_scope;
-    while current is not None {
-        if current is def_scope {
-            # Defined in an outer scope — check if module-level
-            if isinstance(def_scope, uni.Module) {
-                return SymbolCategory.GLOBAL;
-            }
-            return SymbolCategory.CAPTURED;
-        }
-        current = current.parent_scope;
-    }
-    return SymbolCategory.GLOBAL;
 }
