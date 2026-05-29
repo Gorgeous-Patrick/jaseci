@@ -3378,51 +3378,35 @@ impl EsastGenPass._register_jac_runtime_import -> None {
     }
 }
 
-"""Auto-inject a named import from @jac/runtime (e.g. useState, useEffect, __jacCallFunction)."""
+"""Auto-inject a named import for a runtime symbol (e.g. useState, useEffect,
+__jacCallFunction, useRef).
+
+The `client_surface` contract decides where each symbol resolves: `@jac/runtime`
+for everything both runtimes back, or `react` for primitives taken straight from
+React (e.g. `useRef`, which needs no `@jac/runtime` shim). Only `@jac/runtime`
+symbols register the runtime for inlining — `react` is an ordinary dependency."""
 impl EsastGenPass._inject_runtime_import(name: str, nd: uni.UniNode) -> None {
+    import from jaclang.runtimelib.client_surface { runtime_import_source }
     if name in self.injected_imports or self._has_import(name) {
         return;
     }
+    src = runtime_import_source(name);
     specifier = self.sync_loc(
         es.ImportSpecifier(
             imported=es.Identifier(name=name), local=es.Identifier(name=name)
         ),
         jac_node=nd
     );
-    source = self.sync_loc(
-        es.Literal(value='@jac/runtime', raw='"@jac/runtime"'), jac_node=nd
-    );
+    source = self.sync_loc(es.Literal(value=src, raw='"' + src + '"'), jac_node=nd);
     import_decl = self.sync_loc(
         es.ImportDeclaration(specifiers=[specifier], source=source), jac_node=nd
     );
     self.imports.append(import_decl);
     self.injected_imports.add(name);
-    # Register in client manifest so bundler knows to inline the runtime
-    self._register_jac_runtime_import();
-}
-
-"""Auto-inject a named import from `react` (e.g. useRef).
-
-Unlike `_inject_runtime_import`, this targets `react` directly: `useRef`
-is a plain React primitive with no reactivity, so it needs no `@jac/runtime`
-shim (which exists only to bridge `useState`/`useEffect` into Jac's reactive
-core). No `_register_jac_runtime_import` — react is an ordinary dependency."""
-impl EsastGenPass._inject_react_import(name: str, nd: uni.UniNode) -> None {
-    if name in self.injected_imports or self._has_import(name) {
-        return;
+    if src == '@jac/runtime' {
+        # Register in client manifest so bundler knows to inline the runtime.
+        self._register_jac_runtime_import();
     }
-    specifier = self.sync_loc(
-        es.ImportSpecifier(
-            imported=es.Identifier(name=name), local=es.Identifier(name=name)
-        ),
-        jac_node=nd
-    );
-    source = self.sync_loc(es.Literal(value='react', raw='"react"'), jac_node=nd);
-    import_decl = self.sync_loc(
-        es.ImportDeclaration(specifiers=[specifier], source=source), jac_node=nd
-    );
-    self.imports.append(import_decl);
-    self.injected_imports.add(name);
 }
 
 """Leftmost identifier of a call/subscript chain, or None.
@@ -3569,7 +3553,7 @@ impl EsastGenPass.exit_arch_has(nd: uni.ArchHas) -> None {
             if ref_typed and not ref_ctor {
                 self.emit(E2025, node_override=has_var);
             }
-            self._inject_react_import('useRef', nd);
+            self._inject_runtime_import('useRef', nd);
             # The field is constructed as `= Ref()` / `= Ref(initial)` — a
             # Jac-only ambient with no JS counterpart. So we don't emit the
             # `Ref(...)` call itself; we lift its sole argument (the seed for
