@@ -1,10 +1,7 @@
 import from jaclang.cli.console { console }
 import from jaclang.cli.banners { JAC_DISCORD_URL }
 import from jaclang.runtimelib.serializer { Serializer }
-import from jaclang.runtimelib.client_bundle {
-    _lookup_module_in_hub,
-    _ensure_js_generated
-}
+import from jaclang.runtimelib.client_bundle { _ensure_js_generated }
 import from jaclang.runtimelib.auth_models {
     IdentityType,
     LoginRequest,
@@ -561,7 +558,7 @@ impl ModuleIntrospector._load_manifest -> None {
     base: dict = {};
     mod_path = self._module?.__file__;
     if mod_path {
-        mod = _lookup_module_in_hub(os.path.abspath(mod_path), Jac.program.mod.hub);
+        mod = Jac.program.find_module(os.path.abspath(mod_path));
         if not mod {
             mod = Jac.program.compile(mod_path);
         }
@@ -613,18 +610,17 @@ impl ModuleIntrospector._extract_access_levels -> None {
     self._function_access = {};
     self._walker_access = {};
     mod_path = self._module?.__file__;
-    main_mod = _lookup_module_in_hub(os.path.abspath(mod_path), Jac.program.mod.hub)
-        if mod_path
-        else None;
+    main_mod = Jac.program.find_module(os.path.abspath(mod_path)) if mod_path else None;
     if not main_mod {
         return;
     }
     # Gather the source modules whose tables we read: the main module plus its
-    # directly-imported `.jac`/`.cl.jac` providers. We compile a provider only
-    # if it is not already in the hub — this populates its interop_manifest
-    # (BoundaryAnalysisPass derives access once, per module); we never re-derive
-    # access by walking ASTs here. Main module first so its defs win on a name
-    # collision (matching the prior direct-defs-before-imports order).
+    # directly-imported `.jac`/`.cl.jac` providers. `find_module` spans both
+    # programs (a jaclang-bundled app's modules live in the internal program),
+    # so we read each provider's already-built interop_manifest and only compile
+    # one that was never compiled at all -- we never re-derive access by walking
+    # ASTs here. Main module first so its defs win on a name collision (matching
+    # the prior direct-defs-before-imports order).
     sources: list = [main_mod];
     for item in main_mod.body {
         if isinstance(item, uni.Import) and item.is_jac and item.from_loc {
@@ -636,7 +632,7 @@ impl ModuleIntrospector._extract_access_levels -> None {
             if not (src and src.endswith(('.jac', '.cl.jac'))) {
                 continue;
             }
-            prov = _lookup_module_in_hub(src, Jac.program.mod.hub);
+            prov = Jac.program.find_module(src);
             if not prov {
                 try {
                     prov = Jac.program.compile(src);
@@ -1545,9 +1541,96 @@ impl JacAPIServer.create_handler -> type[BaseHTTPRequestHandler] {
             # Handle legacy Response objects for backward compatibility
             if isinstance(response, Response) {
                 Jac.send_json(self, response.status, response.body);
+            } elif isinstance(response, TransportResponse)
+            and (
+                isgenerator(response.data) or isinstance(response.data, AsyncGenerator)
+            ) {
+                # A `def:pub` endpoint that returns an iterator (e.g.
+                # `-> Iterator[dict]`) is a stream, not a single value. The
+                # JSON transport cannot encode a generator (it raises
+                # "generator is not JSON serializable"); stream it as SSE.
+                self._send_sse_response(response.data);
             } else {
                 transport = HTTPTransport(handler=self);
                 transport.send(response);
+            }
+        }
+
+        """Stream a generator result to the client as Server-Sent Events.
+
+        Each yielded item becomes a canonical `data: {json}\n\n` frame (the same
+        framing jac-scale's gateway emits, so one client SSE consumer works
+        against either server). A terminating `event: end` lets the consumer tell
+        a clean close from a dropped connection; a producer error surfaces as
+        `event: error`. Sync generators (the common cross-thread-queue pattern)
+        iterate directly; an async generator is driven on a private event loop
+        since the base server's request handler is synchronous.
+        """
+        def _send_sse_response(self: JacRequestHandler, gen: any) {
+            self.send_response(200);
+            self.send_header('Content-Type', 'text/event-stream');
+            self.send_header('Cache-Control', 'no-cache');
+            self.send_header('Connection', 'keep-alive');
+            # Defeat proxy/CDN response buffering so frames arrive as produced.
+            self.send_header('X-Accel-Buffering', 'no');
+            ResponseBuilder._add_cors_headers(self);
+            self.end_headers();
+            wfile = self.wfile;
+            try {
+                if isgenerator(gen) {
+                    for item in gen {
+                        wfile.write(
+                            f"data: {json.dumps(item, default=str)}\n\n".encode()
+                        );
+                        wfile.flush();
+                    }
+                } else {
+                    loop = asyncio.new_event_loop();
+                    try {
+                        while True {
+                            try {
+                                item = loop.run_until_complete(gen.__anext__());
+                            } except StopAsyncIteration {
+                                break;
+                            }
+                            wfile.write(
+                                f"data: {json.dumps(item, default=str)}\n\n".encode()
+                            );
+                            wfile.flush();
+                        }
+                    } finally {
+                        loop.close();
+                    }
+                }
+                wfile.write(b"event: end\ndata: {}\n\n");
+                wfile.flush();
+            } except (BrokenPipeError, ConnectionResetError) {
+                # Client disconnected mid-stream; the socket is gone, so there
+                # is nothing left to write.
+                pass;
+            } except Exception as e {
+                err_payload = {'error_type': type(e).__name__, 'message': str(e)};
+                try {
+                    wfile.write(
+                        f"event: error\ndata: {json.dumps(
+                            err_payload, default=str
+                        )}\n\n".encode()
+                    );
+                    wfile.flush();
+                } except Exception {
+                    pass;
+                }
+            } finally {
+                # Let a long-running queue producer drop its state if the
+                # consumer went away mid-stream.
+                close_fn = gen?.close;
+                if close_fn {
+                    try {
+                        close_fn();
+                    } except Exception {
+                        pass;
+                    }
+                }
             }
         }
 

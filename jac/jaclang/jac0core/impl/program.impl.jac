@@ -206,6 +206,38 @@ impl JacProgram.clear_type_system(self: JacProgram, clear_hub: bool = False) -> 
     }
 }
 
+"""The hubs `find_module` spans: this program's, plus the compiler's internal
+program (jaclang-bundled files route there). Skipped when they are the same
+object so self is never scanned twice."""
+impl JacProgram._search_hubs(self: JacProgram) -> list[dict] {
+    hubs: list[dict] = [self.mod.hub];
+    internal = self._get_compiler().internal_program;
+    if internal is not self {
+        hubs.append(internal.mod.hub);
+    }
+    return hubs;
+}
+
+impl JacProgram.find_module(self: JacProgram, path: str) -> (uni.Module | None) {
+    import os;
+    hubs = self._search_hubs();
+    for hub in hubs {
+        if path in hub {
+            return hub[path];
+        }
+    }
+    # Normalized fallback for path case/separator differences (Windows).
+    normalized = os.path.normcase(path);
+    for hub in hubs {
+        for (hub_path, mod) in hub.items() {
+            if os.path.normcase(hub_path) == normalized {
+                return mod;
+            }
+        }
+    }
+    return None;
+}
+
 impl JacProgram.get_bytecode(
     self: JacProgram, full_target: str
 ) -> (types.CodeType | None) {
