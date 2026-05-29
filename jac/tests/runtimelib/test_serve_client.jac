@@ -98,6 +98,35 @@ def make_crossboundary_client(tmp_path: str) -> JacTestClient {
     );
 }
 
+"""Create a cross-boundary client whose app lives UNDER the jaclang package root.
+
+Same fixtures as `make_crossboundary_client`, but the entry/server/client files
+are copied into a unique dir inside the jaclang package (where `jac ai --ui` and
+other bundled apps live). `JacCompiler._resolve_program` routes any file under
+the package root to the compiler's `internal_program`, so the cross-boundary
+interop facts land in that hub rather than `Jac.program.mod.hub` -- the exact
+condition under which the serve endpoint collector missed them. Returns
+`(client, cleanup_dir)`; the caller must rmtree `cleanup_dir`.
+"""
+def make_bundled_crossboundary_client -> tuple {
+    import jaclang;
+    jaclang_root = Path(jaclang.__file__).resolve().parent;
+    fixtures_src = Path(fixture_abs_path("")).resolve();
+    unique_id = uuid.uuid4().hex[:8];
+    module_name = f"crossbound_bundled_{unique_id}";
+    dest = jaclang_root / f"_bundled_serve_test_{unique_id}";
+    dest.mkdir(parents=True, exist_ok=True);
+    shutil.copy(fixtures_src / "crossbound_app.jac", dest / f"{module_name}.jac");
+    shutil.copy(fixtures_src / "crossbound_server.jac", dest / "crossbound_server.jac");
+    shutil.copy(
+        fixtures_src / "crossbound_frontend.cl.jac", dest / "crossbound_frontend.cl.jac"
+    );
+    client = JacTestClient.from_file(
+        str(dest / f"{module_name}.jac"), base_path=str(dest), module_name=module_name
+    );
+    return (client, str(dest));
+}
+
 """Create test client with base_route_app configured for SPA catch-all."""
 def make_spa_client(tmp_path: str) -> JacTestClient {
     import from jaclang.project.config { JacConfig, ServeConfig, set_config }
@@ -1182,6 +1211,26 @@ test "issue 6221: uncalled def:pub endpoint is not auto-exposed" {
         response = client.post("/function/cross_orphan", json={});
         assert not response.ok , "uncalled cross_orphan should not be registered";
         client.close();
+    }
+}
+
+test "bundled app: cross-boundary def:pub endpoint registers for jaclang-bundled app" {
+    # Regression for `jac ai --ui`: when the app lives under the jaclang package
+    # root, its modules route to the compiler's internal_program, so the
+    # cross-boundary bindings land there -- not in `Jac.program.mod.hub`. The
+    # serve collector must span both hubs (`_search_hubs`); before the fix it
+    # scanned only `Jac.program.mod.hub` (empty for a bundled app), so cross_pub
+    # went unregistered and the client got a 404/405 instead of "pub-ok".
+    bundled = make_bundled_crossboundary_client();
+    client = bundled[0];
+    cleanup_dir = bundled[1];
+    try {
+        response = client.post("/function/cross_pub", json={});
+        assert response.ok , f"bundled cross_pub should be callable: {response.data}";
+        assert response.data["result"]["msg"] == "pub-ok";
+    } finally {
+        client.close();
+        shutil.rmtree(cleanup_dir, ignore_errors=True);
     }
 }
 

@@ -582,10 +582,16 @@ impl ModuleIntrospector._load_manifest -> None {
     # module's interop_manifest, so the authoritative set is the union over the
     # hub.
     aggregated: dict = {};
-    for hub_mod in Jac.program.mod.hub.values() {
-        if hub_mod and hub_mod.gen.interop_manifest {
-            for (ekey, eeff) in hub_mod.gen.interop_manifest.endpoint_effects.items() {
-                aggregated[ekey] = eeff;
+    # Span both program hubs: jaclang-bundled apps (e.g. `jac ai --ui`) route
+    # their modules to the compiler's internal_program, so the boundary facts
+    # live there, not in `Jac.program.mod.hub`. `_search_hubs` is the same dual
+    # span `find_module` uses.
+    for hub in Jac.program._search_hubs() {
+        for hub_mod in hub.values() {
+            if hub_mod and hub_mod.gen.interop_manifest {
+                for (ekey, eeff) in hub_mod.gen.interop_manifest.endpoint_effects.items() {
+                    aggregated[ekey] = eeff;
+                }
             }
         }
     }
@@ -686,7 +692,11 @@ it if it is not already live so the symbol exists and its module-level
 untouched; a `priv`/`prot` callee stays auth-gated (the cross-boundary call
 infers the endpoint's existence, never its auth)."""
 impl ModuleIntrospector._collect_cross_boundary_endpoints -> None {
-    if not (self._module and Jac.program and Jac.program.mod and Jac.program.mod.hub) {
+    # Do not gate on `Jac.program.mod.hub` truthiness: a jaclang-bundled app
+    # (e.g. `jac ai --ui`) routes its modules to the compiler's internal_program,
+    # leaving this program's own hub an empty dict (falsy) even though the
+    # boundary facts exist. The union below spans both hubs via `_search_hubs`.
+    if not (self._module and Jac.program and Jac.program.mod) {
         return;
     }
     import from jaclang.jac0core.constant { Tokens as Tok }
@@ -706,26 +716,33 @@ impl ModuleIntrospector._collect_cross_boundary_endpoints -> None {
     walker_bindings: dict[str, any] = {};
     func_access: dict[str, bool] = {};
     walker_access: dict[str, bool] = {};
-    for mod in Jac.program.mod.hub.values() {
-        man = mod.gen.interop_manifest if (mod and mod.gen) else None;
-        if not man {
-            continue;
-        }
-        for binding in man.server_exports_to_client {
-            if binding.kind == 'walker' {
-                walker_bindings[binding.name] = binding;
-            } else {
-                fn_bindings[binding.name] = binding;
+    # Span both program hubs: jaclang-bundled apps (e.g. `jac ai --ui`) route
+    # their modules to the compiler's internal_program, so the cross-boundary
+    # facts the static compiler landed there are invisible to a plain
+    # `Jac.program.mod.hub` scan. `_search_hubs` is the same dual span
+    # `find_module` already uses to resolve across the two programs.
+    for hub in Jac.program._search_hubs() {
+        for mod in hub.values() {
+            man = mod.gen.interop_manifest if (mod and mod.gen) else None;
+            if not man {
+                continue;
             }
-        }
-        for (acc_name, auth) in man.func_access.items() {
-            if acc_name not in func_access {
-                func_access[acc_name] = auth;
+            for binding in man.server_exports_to_client {
+                if binding.kind == 'walker' {
+                    walker_bindings[binding.name] = binding;
+                } else {
+                    fn_bindings[binding.name] = binding;
+                }
             }
-        }
-        for (acc_name, auth) in man.walker_access.items() {
-            if acc_name not in walker_access {
-                walker_access[acc_name] = auth;
+            for (acc_name, auth) in man.func_access.items() {
+                if acc_name not in func_access {
+                    func_access[acc_name] = auth;
+                }
+            }
+            for (acc_name, auth) in man.walker_access.items() {
+                if acc_name not in walker_access {
+                    walker_access[acc_name] = auth;
+                }
             }
         }
     }

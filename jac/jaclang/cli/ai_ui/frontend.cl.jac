@@ -8,7 +8,13 @@ updates at token granularity rather than on a poll timer.
 """
 
 import from react { useEffect, useRef }
-sv import from .server { agent_send, agent_graph, agent_reset, agent_stop }
+sv import from .server {
+    agent_send,
+    agent_graph,
+    agent_reset,
+    agent_stop,
+    agent_stream
+}
 sv import from .server { agent_settings, agent_apply_settings, agent_call_detail }
 sv import from .server { UiEvent, PollResult, GraphNode, GraphEdge, GraphData }
 sv import from .server { CallDetail }
