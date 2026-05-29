@@ -20,6 +20,13 @@ impl JacProgram.init(
     # rdep map is complete (survives cache hits). Off for one-shot runs that
     # never query dependents; on for long-lived clients (LSP, CodeIntelligence).
     self._track_dependencies: bool = False;
+    # Auto-promote-to-native request: set by the nacompile / `jac run
+    # --autonative` paths on an isolated program before compile. Read by
+    # `compile` (to force TypeCheckPass) and NaIRGenPass (to coerce the main
+    # module into native context). `_auto_promote_target` is the absolute path
+    # of the module to promote.
+    self._auto_promote_native: bool = False;
+    self._auto_promote_target: str = "";
 }
 
 impl JacProgram.hub_cache_stamp(self: JacProgram, resolved_path: str) -> None {

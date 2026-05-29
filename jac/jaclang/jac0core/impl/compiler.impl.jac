@@ -721,7 +721,7 @@ impl JacCompiler.compile(
         }
         if (
             not is_native_mod
-            and getattr(actual_program, '_auto_promote_native', False)
+            and actual_program._auto_promote_native
             and mod_targ?.gen
             and mod_targ.gen.native_compat
         ) {

@@ -425,7 +425,7 @@ Internal callers should prefer `spawn_walker_sync` / `spawn_walker_async`.
 impl ExecutionManager.spawn_walker(
     walker_cls: type[WalkerArchetype], fields: dict[(str, Any)], username: str
 ) -> dict[str, JsonValue] {
-    if getattr(walker_cls, '__jac_async__', False) {
+    if walker_cls.__jac_async__ {
         return await self.spawn_walker_async(walker_cls, fields, username);
     }
     return await self.spawn_walker_sync(walker_cls, fields, username);
