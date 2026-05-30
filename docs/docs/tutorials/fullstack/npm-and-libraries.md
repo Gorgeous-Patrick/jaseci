@@ -326,12 +326,12 @@ This resolves the chosen style's `.cl.jac` components into `components/ui/`, ins
 ```jac
 cl import from "./components/ui/button" { Button }
 
-to cl:
-
-def:pub MyPage() -> JsxElement {
-    return <div>
-        <Button variant="outline">Click me</Button>
-    </div>;
+cl {
+    def:pub MyPage() -> JsxElement {
+        return <div>
+            <Button variant="outline">Click me</Button>
+        </div>;
+    }
 }
 ```
 
