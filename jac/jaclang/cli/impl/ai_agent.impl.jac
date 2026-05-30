@@ -235,10 +235,13 @@ impl Workspace.code_intel -> any {
         return None;
     }
     if self.ci_dirty {
+        # Clear the dirty flag only after a successful rebuild, so a transient
+        # refresh failure is retried on the next query instead of silently
+        # serving un-rebuilt state.
         try {
             self.ci.refresh();
+            self.ci_dirty = False;
         } except Exception { }
-        self.ci_dirty = False;
     }
     return self.ci;
 }
@@ -398,7 +401,10 @@ impl FileTools._js_drift_error(path: str, content: str) -> str {
             "(?m)^\\s*export\\b"
         ),
         ("`function` (use `def`)", "(?m)^\\s*(async\\s+)?function\\b"),
-        ("an arrow function `=>` (use `lambda(x: T) -> R { ... }`)", "=>"),
+        (
+            "an arrow function `=>` (use `lambda(x: T) -> R { ... }`)",
+            "(\\w|\\)|\\]|\\})\\s*=>"
+        ),
         (
             "`const`/`let`/`var` (declare typed: `x: int = 1`)",
             "(?m)^\\s*(const|let|var)\\s"
@@ -433,7 +439,7 @@ sem FileTools.read_file = "Read and return the full text of a file.";
 sem FileTools.read_file.path = "Path to the file to read, relative to the project.";
 impl FileTools.read_file(path: str) -> str {
     try {
-        return truncate(Path(self.ws.resolve(path)).read_text());
+        return truncate(Path(self.ws.resolve(path)).read_text(encoding="utf-8"));
     } except Exception as e {
         return f"ERROR reading {path}: {e}";
     }
@@ -454,7 +460,7 @@ impl FileTools.write_file(path: str, content: str) -> str {
         rp = self.ws.resolve(path);
         p = Path(rp);
         p.parent.mkdir(parents=True, exist_ok=True);
-        p.write_text(content);
+        p.write_text(content, encoding="utf-8");
         return f"OK: wrote {len(content)} chars to {path}" + self.write_feedback(rp);
     } except Exception as e {
         return f"ERROR writing {path}: {e}";
@@ -477,7 +483,7 @@ impl FileTools.edit_file(path: str, old_text: str, new_text: str) -> str {
         );
     }
     try {
-        original = Path(rp).read_text();
+        original = Path(rp).read_text(encoding="utf-8");
     } except Exception as e {
         return f"ERROR reading {path}: {e}";
     }
@@ -500,7 +506,7 @@ impl FileTools.edit_file(path: str, old_text: str, new_text: str) -> str {
         return "DENIED: the user declined this edit.";
     }
     try {
-        Path(rp).write_text(updated);
+        Path(rp).write_text(updated, encoding="utf-8");
         return f"OK: edited {path}" + self.write_feedback(rp);
     } except Exception as e {
         return f"ERROR writing {path}: {e}";
@@ -549,7 +555,7 @@ impl FileTools.grep(pattern: str, path: str) -> str {
     hits: list[str] = [];
     for f in files {
         try {
-            text = f.read_text();
+            text = f.read_text(encoding="utf-8");
         } except Exception {
             continue;
         }
@@ -749,7 +755,7 @@ impl ProcessTools.serve(entry_file: str) -> str {
     target = os.path.basename(abs_entry);
     log_path = "/tmp/jac_ai_serve.log";
     try {
-        log_f = open(log_path, "w");
+        log_f = open(log_path, "w", encoding="utf-8");
         # Own process group so _serve_shutdown can kill the server *and* the
         # vite/build children it spawns.
         self.serve_proc = subprocess.Popen(
@@ -760,6 +766,9 @@ impl ProcessTools.serve(entry_file: str) -> str {
             text=True,
             start_new_session=True
         );
+        # The parent's copy of the log handle isn't needed -- the child keeps
+        # its own dup -- so close it to avoid leaking an fd per serve() call.
+        log_f.close();
     } except Exception as e {
         return f"ERROR launching `jac start {entry_path}`: {e}";
     }
@@ -2063,7 +2072,14 @@ impl TurnStats.absorb(st: dict) {
     self.n_run += int(st["n_run"]);
     self.files |= set(st["files"]);
     for (k, v) in st["usage"].items() {
-        self.usage[k] = self.usage.get(k, 0) + v if isinstance(v, (int, float)) else v;
+        # Accumulate token usage. A non-numeric value (or a numeric landing on a
+        # key a prior phase left non-numeric) would make `+` raise a TypeError
+        # mid-walker -- catch it and just keep the latest value instead.
+        try {
+            self.usage[k] = self.usage.get(k, 0) + v;
+        } except Exception {
+            self.usage[k] = v;
+        }
     }
 }
 
@@ -2084,6 +2100,8 @@ impl AgentRuntime.postinit -> None {
     self.files.cfg = self.cfg;
     self.proc.ws = self.ws;
     self.semantic.ws = self.ws;
+    # Real lock for the bus's check-then-act turn control (see ui_send).
+    self.bus._lock = threading.Lock();
 }
 
 sem AgentRuntime.note = "Record a short note that stays visible to every later phase (Plan, Build, QA) and in later turns. Use it to flag a decision, an assumption, or something to verify.";
@@ -2237,7 +2255,19 @@ impl Plan.run with AgentSession entry {
     if self.halt(visitor) {
         return;
     }
-    if request_needs_code_changes(visitor.objective, visitor.ledger.render()) {
+    # A malformed/uncoercible classifier response (or model timeout) must not
+    # crash the walker; fall back to the documented Build-biased default.
+    needs_code = True;
+    try {
+        needs_code = request_needs_code_changes(
+            visitor.objective, visitor.ledger.render()
+        );
+    } except Exception as e {
+        console.print(
+            f"  ↳ classifier failed ({e}); defaulting to Build", style="yellow"
+        );
+    }
+    if needs_code {
         visit [->:Flow:->][?:Build];
     } else {
         console.print(
@@ -2588,11 +2618,18 @@ impl run_agent(req: object) -> int {
     reset_session();
 
     if initial_prompt {
-        run_turn(initial_prompt);
-        # Don't let a one-shot build exit on code that doesn't compile.
-        verify_and_continue();
-        agent.web._browse_shutdown();
-        agent.proc._serve_shutdown();
+        try {
+            run_turn(initial_prompt);
+            # Don't let a one-shot build exit on code that doesn't compile.
+            verify_and_continue();
+        } except Exception as e {
+            console.error(f"Turn failed: {e}");
+        } finally {
+            # Always reclaim the dev server / browser, even if the turn raised
+            # (a routing/classifier call escaping would otherwise leak them).
+            agent.web._browse_shutdown();
+            agent.proc._serve_shutdown();
+        }
         return 0;
     }
 
@@ -2653,7 +2690,13 @@ impl run_agent(req: object) -> int {
             );
             continue;
         }
-        run_turn(line);
+        try {
+            run_turn(line);
+        } except Exception as e {
+            # A single failed turn reports its error but does not abort the REPL
+            # session (this module's contract). Resources are reclaimed on exit.
+            console.error(f"Turn failed: {e}");
+        }
     }
 
     agent.web._browse_shutdown();
@@ -2775,13 +2818,20 @@ impl ui_send(prompt: str) -> bool {
     if not text {
         return False;
     }
-    if agent.bus.status == "running" or agent.bus.status == "stopping" {
-        return False;  # one turn at a time (and not while a stop is unwinding)
+    # Serialize the status check + transition so two near-simultaneous submits
+    # (two tabs / direct RPC) can't both pass the check and spawn a worker.
+    agent.bus._lock.acquire();
+    try {
+        if agent.bus.status == "running" or agent.bus.status == "stopping" {
+            return False;  # one turn at a time (and not while a stop is unwinding)
+        }
+        agent.bus.begin_turn();
+        agent.bus.emit("user", {"text": text});
+        agent.bus.set_status("running");
+        threading.Thread(target=_ui_turn_worker, args=(text, ), daemon=True).start();
+    } finally {
+        agent.bus._lock.release();
     }
-    agent.bus.begin_turn();
-    agent.bus.emit("user", {"text": text});
-    agent.bus.set_status("running");
-    threading.Thread(target=_ui_turn_worker, args=(text, ), daemon=True).start();
     return True;
 }
 
@@ -2888,6 +2938,28 @@ impl ui_call_detail(call_id: int) -> dict {
     };
 }
 
+"""The latest captured context for a phase node (Plan/Build/QA): the messages
+that phase worked with -- its system prompt, the kickoff directive, and the tool
+turns it accumulated. Reuses the per-call capture store: finds the most recent
+conversation whose calls were tagged with this phase and returns its messages
+(already sanitized to role/content/tool-call summaries). Empty for Done (no model
+call) or before the phase has run this session."""
+impl ui_phase_context(phase: str) -> dict {
+    log = list(agent.bus.call_log);
+    # The last conversation tagged with this phase -- a phase re-entered (Build
+    # x3) has several, and the most recent is the one worth showing.
+    convo = -1;
+    for c in log {
+        if str(c.get("node", "")) == phase {
+            convo = int(c["convo"]);
+        }
+    }
+    if convo < 0 {
+        return {"phase": phase, "found": False, "messages": []};
+    }
+    return {"phase": phase, "found": True, "messages": agent.bus.convos.get(convo, [])};
+}
+
 """Live SSE event stream: yields a full snapshot, then one message per bus
 emit (token by token for reasoning/answer), plus periodic heartbeats so a
 client disconnect is detected. jac-scale frames each yielded dict as an
@@ -2972,6 +3044,14 @@ impl ui_graph -> dict {
 
 """Clear the cross-turn ledger and the event feed for a fresh UI session."""
 impl ui_reset -> None {
+    # Don't clear the capture stores out from under a running turn -- the worker
+    # thread is still appending to events/call_log/convos. Request a stop and
+    # return; the user can reset once it has wound down to idle.
+    if agent.bus.status == "running" or agent.bus.status == "stopping" {
+        agent.bus.cancel_requested = True;
+        agent.bus.set_status("stopping");
+        return;
+    }
     reset_session();
     agent.bus.events = [];
     # Drop the per-call capture store too, so a fresh session starts empty.
@@ -3041,6 +3121,17 @@ impl ui_apply_settings(
     model: str, api_key: str, base_url: str, temperature: str, n_ctx: str
 ) -> dict {
     global agent_model;
+    # Refuse to swap the model/config under a running turn -- a phase boundary
+    # would otherwise silently change model/temperature mid-turn. Keep the panel
+    # open with an inline error; the user stops the turn first.
+    if agent.bus.status == "running" or agent.bus.status == "stopping" {
+        return {
+            "ok": False,
+            "error": "Cannot apply settings while a turn is running -- stop it first.",
+            "needs_key": agent.bus.needs_key,
+            "key_env": agent.bus.key_env
+        };
+    }
     if api_key.strip() {
         agent.cfg.api_key = api_key.strip();
     }
@@ -3135,7 +3226,7 @@ impl _run_ui_server(r: any) -> int {
     console.print("  building the client (first run installs deps)…", style="muted");
     proc: any = None;
     try {
-        log_f = open(log_path, "w");
+        log_f = open(log_path, "w", encoding="utf-8");
         proc = subprocess.Popen(
             [sys.executable, "-m", "jaclang", "start", "main.jac"],
             cwd=ui_dir,
@@ -3145,6 +3236,9 @@ impl _run_ui_server(r: any) -> int {
             env=env,
             start_new_session=True
         );
+        # Parent's copy of the log handle isn't needed (the child keeps its own
+        # dup); close it so a launch doesn't leak an fd.
+        log_f.close();
     } except Exception as e {
         console.error(f"failed to launch the UI server: {e}");
         return 1;

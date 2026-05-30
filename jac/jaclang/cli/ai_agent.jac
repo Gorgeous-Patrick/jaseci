@@ -217,10 +217,13 @@ The terminal renderer prints to stdout; this bus tees the same milestones --
 phase transitions, tool calls and results, reasoning prose, the answer, and turn
 stats -- as structured records so the bundled web UI can render them and animate
 the phase-graph walker in real time. It lives on `AgentRuntime`, is appended to
-from the background turn thread, and read by the `ui_poll` endpoint, so every
-mutation takes `_lk`. `events` is a bounded ring (the UI replaces its log
-wholesale each poll, so no cursor is needed); `active` / `status` / `path` carry
-the current walker position for the graph.
+from a single background turn thread and read by the `ui_poll`/stream endpoints.
+Per-field reads/writes rely on that single-writer discipline (plus the GIL for
+individual ops); `_lock` serializes only the check-then-act sections that would
+otherwise race -- notably turn start in `ui_send`, where two rapid submissions
+could both pass the status check and spawn a worker. `events` is a bounded ring
+(the UI replaces its log wholesale each poll, so no cursor is needed); `active` /
+`status` / `path` carry the current walker position for the graph.
 """
 obj AgentEventBus {
     has events: list[dict] = [],
@@ -274,7 +277,11 @@ obj AgentEventBus {
         # and surfaced in the detail view so the row's `tokens_in` reconciles.
         convo_tools: dict[int, list] = {},
         _cur_convo: int = 0,
-        _convo_seq: int = 0;
+        _convo_seq: int = 0,
+        # Serializes check-then-act turn control (ui_send's status check + set)
+        # so two near-simultaneous submissions can't both start a turn. A real
+        # Lock is installed in AgentRuntime.postinit (threading is in scope there).
+        _lock: any = None;
 
     def emit(kind: str, fields: dict) -> None;
     def emit_stream(kind: str, token: str) -> None;
@@ -774,6 +781,7 @@ def ui_stream -> any;
 # Lazily fetched detail for one token-usage row (model call): its full input
 # conversation, the diff vs the prior call, and its output messages.
 def ui_call_detail(call_id: int) -> dict;
+def ui_phase_context(phase: str) -> dict;
 def ui_settings -> dict;
 def ui_apply_settings(
     model: str, api_key: str, base_url: str, temperature: str, n_ctx: str
