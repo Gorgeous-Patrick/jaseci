@@ -9,7 +9,9 @@ impl ToolCall.__call__ -> ToolCallResultMsg {
         raise ByLLMError("ToolCall.args is None, expected a dictionary");
     }
     return ToolCallResultMsg(
-        content=str(result), tool_call_id=self.call_id, name=self.tool.get_name(),
+        content=normalize_tool_result(result),
+        tool_call_id=self.call_id,
+        name=self.tool.get_name(),
     );
 }
 
@@ -35,10 +37,11 @@ impl ToolCall.get_output -> object {
 #-------------------------------------------------------------------------------
 """Convert the mock tool call to a real ToolCall for testing."""
 impl MockToolCall.to_tool_call -> ToolCall {
-    args_parsed = Tool(self.tool).parse_arguments(self.args);
+    tool_obj = Tool(self.tool);
+    args_parsed = tool_obj.parse_arguments(self.args);
     return ToolCall(
         call_id="",  # Call ID is not used in mock calls.
-        tool=Tool(self.tool),
+        tool=tool_obj,
         args=args_parsed,
     );
 }

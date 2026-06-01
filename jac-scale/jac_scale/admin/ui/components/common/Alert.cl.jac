@@ -3,8 +3,7 @@
 cl {
     def:pub Alert(message: str, type: str = "success") -> JsxElement {
         if not message {
-            return
-                <></>;
+            return <></>;
         }
 
         typeClasses = {
@@ -18,16 +17,12 @@ cl {
             typeClasses[type] or typeClasses["success"]
         );
 
-        return
-            <div className={classes}>
-                {message}
-            </div>;
+        return <div className={classes}>{message}</div>;
     }
 
     def:pub InlineAlert(message: str, type: str = "error") -> JsxElement {
         if not message {
-            return
-                <></>;
+            return <></>;
         }
 
         typeClasses = {
@@ -40,9 +35,6 @@ cl {
             typeClasses[type] or typeClasses["error"]
         );
 
-        return
-            <div className={classes}>
-                {message}
-            </div>;
+        return <div className={classes}>{message}</div>;
     }
 }

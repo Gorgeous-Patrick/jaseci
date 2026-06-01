@@ -11,9 +11,14 @@ impl DependencyInstaller.postinit -> None {
         self.config = get_config();
     }
     if self.config is None {
-        raise ValueError("No jac.toml found. Run 'jac init' to create a project.");
+        raise ValueError(
+            "No jac.toml found. Run 'jac create <name>' to create a project."
+        );
     }
     self.venv_dir = self.config.get_venv_dir();
+    if self.install_flags is None {
+        self.install_flags = [];
+    }
 }
 
 impl DependencyInstaller.ensure_venv -> None {
@@ -114,9 +119,50 @@ impl DependencyInstaller.get_git_package_specs -> list[str] {
     return specs;
 }
 
+impl DependencyInstaller.get_extra_package_specs(groups: list[str]) -> list[str] {
+    if self.config is None {
+        return [];
+    }
+    opt_deps = self.config.optional_dependencies;
+    unknown: list[str] = [
+        g
+        for g in groups
+        if g not in opt_deps
+    ];
+    if unknown {
+        available: str = ", ".join(sorted(opt_deps.keys())) if opt_deps else "none";
+        raise ValueError(
+            f"Unknown extras: {', '.join(unknown)}. Available: {available}"
+        );
+    }
+    pkg_key: str = self.config.project.name.lower().replace("_", "-");
+    resolved: dict[str, str] = {};
+    seen: set[str] = set();
+    queue: list[str] = list(groups);
+    while queue {
+        group: str = queue.pop(0);
+        if group in seen or group not in opt_deps {
+            continue;
+        }
+        seen.add(group);
+        for (name, ver) in opt_deps[group].items() {
+            if "[" in name and name.endswith("]") {
+                bracket: int = name.index("[");
+                dep_pkg: str = name[:bracket].lower().replace("_", "-").strip();
+                if dep_pkg == pkg_key {
+                    queue.extend([g.strip() for g in name[bracket + 1:-1].split(",")]);
+                    continue;
+                }
+            }
+            resolved[name] = ver;
+        }
+    }
+    return [self._make_pip_spec(name, ver) for (name, ver) in resolved.items()];
+}
+
 """Create pip spec from package name and version."""
 impl DependencyInstaller._make_pip_spec(name: str, version: str) -> str {
-    if not version {
+    if not version or version in ("*", "latest") {
         return name;
     }
     if version.startswith(("=", ">", "<", "~", "!")) {
@@ -141,12 +187,19 @@ impl DependencyInstaller.install_package(specs: list[str]) -> bool {
     }
     self.ensure_venv();
     import re;
-    (returncode, stdout, stderr) = self._run_pip(["install", "--upgrade"] + specs);
+    (returncode, stdout, stderr) = self._run_pip(
+        ["install", "--upgrade"] + self.install_flags + specs
+    );
     if returncode == 0 {
+        if "--dry-run" in self.install_flags {
+            if stdout {
+                console.print(stdout, style="dim");
+            }
+            return True;
+        }
         # Parse and display what was actually installed
         if "Successfully installed" in stdout {
             console.print("✔ Installation complete:", style="success");
-            # Extract installed packages from pip output
             installed = re.search(r"Successfully installed (.+)", stdout);
             if installed {
                 packages = installed.group(1).split();
@@ -228,7 +281,7 @@ impl DependencyInstaller.list_installed -> list[str] {
     try {
         packages_data = json.loads(stdout);
         # Filter out venv infrastructure packages
-        infrastructure = {"pip","setuptools","wheel"};
+        infrastructure = {"pip", "setuptools", "wheel"};
         return sorted(
             [
                 pkg["name"]
@@ -308,13 +361,70 @@ impl DependencyResolver.resolve(include_dev: bool = False) -> list[ResolvedDepen
 # ===============================================================================
 # Venv Site-Packages Helper
 # ===============================================================================
+"""Return 'major.minor' from pyvenv.cfg, or empty string if unavailable."""
+def _venv_python_version_tag(venv_dir: Path) -> str {
+    pyvenv_cfg = venv_dir / "pyvenv.cfg";
+    if not pyvenv_cfg.exists() {
+        return "";
+    }
+    for line in pyvenv_cfg.read_text(encoding="utf-8").splitlines() {
+        stripped = line.strip();
+        if stripped.startswith("version") and "=" in stripped {
+            version_str = stripped.split("=", 1)[1].strip();
+            parts = version_str.split(".");
+            if len(parts) >= 2 {
+                return f"{parts[0]}.{parts[1]}";
+            }
+        }
+    }
+    return "";
+}
+
+"""Discover lib/pythonX.Y/site-packages under a venv (Unix)."""
+def _discover_venv_site_packages(venv_dir: Path) -> Path | None {
+    lib_dir = venv_dir / "lib";
+    if not lib_dir.is_dir() {
+        return None;
+    }
+    candidates: list[Path] = [];
+    for child in lib_dir.iterdir() {
+        if child.is_dir() and child.name.startswith("python") {
+            site = child / "site-packages";
+            if site.is_dir() {
+                candidates.append(site);
+            }
+        }
+    }
+    if not candidates {
+        return None;
+    }
+    candidates.sort(key=lambda p : p.parent.name, reverse=True);
+    return candidates[0];
+}
+
 impl get_venv_site_packages(venv_dir: Path) -> Path {
     import sys;
     if sys.platform == "win32" {
         return venv_dir / "Lib" / "site-packages";
-    } else {
-        return venv_dir / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages";
     }
+    version_tag = _venv_python_version_tag(venv_dir);
+    if version_tag {
+        site_packages = venv_dir / "lib" / f"python{version_tag}" / "site-packages";
+        if site_packages.is_dir() {
+            return site_packages;
+        }
+    }
+    discovered = _discover_venv_site_packages(venv_dir);
+    if discovered is not None {
+        return discovered;
+    }
+    # Fallback for venvs not yet created (path used before site-packages exists)
+    if version_tag {
+        return venv_dir / "lib" / f"python{version_tag}" / "site-packages";
+    }
+    return (
+        venv_dir / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+    );
 }
 
 # ===============================================================================

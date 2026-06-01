@@ -1,5 +1,5 @@
 # Full Stack Todo App with Auth and React Router
-cl import from react { useState, useEffect }
+cl import from react { useEffect }
 cl import from "@jac/runtime" {
     Router,
     Routes,
@@ -54,7 +54,7 @@ cl {
         isLoggedIn = jacIsLoggedIn();
         navigate = useNavigate();
 
-        def handleLogout(e: Any) {
+        def handleLogout(e: any) {
             e.preventDefault();
             jacLogout();
             navigate("/login");
@@ -71,9 +71,7 @@ cl {
                         "justifyContent": "space-between"
                     }}
                 >
-                    <div style={{"fontWeight": "600"}}>
-                        Todo App
-                    </div>
+                    <div style={{"fontWeight": "600"}}>Todo App</div>
                     <div style={{"display": "flex", "gap": "16px"}}>
                         <Link
                             to="/todos"
@@ -108,9 +106,7 @@ cl {
                     "justifyContent": "space-between"
                 }}
             >
-                <div style={{"fontWeight": "600"}}>
-                    Todo App
-                </div>
+                <div style={{"fontWeight": "600"}}>Todo App</div>
                 <div style={{"display": "flex", "gap": "16px"}}>
                     <Link
                         to="/login"
@@ -136,7 +132,7 @@ cl {
 
         navigate = useNavigate();
 
-        async def handleLogin(e: Any) -> None {
+        async def handleLogin(e: any) -> None {
             e.preventDefault();
             error = "";
             if not username or not password {
@@ -151,11 +147,11 @@ cl {
             }
         }
 
-        def handleUsernameChange(e: Any) {
+        def handleUsernameChange(e: any) {
             username = e.target.value;
         }
 
-        def handlePasswordChange(e: Any) {
+        def handlePasswordChange(e: any) {
             password = e.target.value;
         }
 
@@ -187,9 +183,7 @@ cl {
                         "boxShadow": "0 2px 4px rgba(0,0,0,0.1)"
                     }}
                 >
-                    <h2 style={{"marginBottom": "20px"}}>
-                        Login
-                    </h2>
+                    <h2 style={{"marginBottom": "20px"}}>Login</h2>
                     <form onSubmit={handleLogin}>
                         <input
                             type="text"
@@ -244,9 +238,7 @@ cl {
                         }}
                     >
                         Need an account?
-                        <Link to="/signup">
-                            Sign up
-                        </Link>
+                        <Link to="/signup">Sign up</Link>
                     </p>
                 </div>
             </div>;
@@ -260,7 +252,7 @@ cl {
 
         navigate = useNavigate();
 
-        async def handleSignup(e: Any) -> None {
+        async def handleSignup(e: any) -> None {
             e.preventDefault();
             error = "";
             if not username or not password {
@@ -269,17 +261,23 @@ cl {
             }
             result = await jacSignup(username, password);
             if result["success"] {
-                navigate("/todos");
+                # /user/register does not return a token, sign in to start a session
+                logged_in = await jacLogin(username, password);
+                if logged_in {
+                    navigate("/todos");
+                } else {
+                    error = "Account created but login failed";
+                }
             } else {
                 error = result["error"] if result["error"] else "Signup failed";
             }
         }
 
-        def handleUsernameChange(e: Any) {
+        def handleUsernameChange(e: any) {
             username = e.target.value;
         }
 
-        def handlePasswordChange(e: Any) {
+        def handlePasswordChange(e: any) {
             password = e.target.value;
         }
 
@@ -311,9 +309,7 @@ cl {
                         "boxShadow": "0 2px 4px rgba(0,0,0,0.1)"
                     }}
                 >
-                    <h2 style={{"marginBottom": "20px"}}>
-                        Sign Up
-                    </h2>
+                    <h2 style={{"marginBottom": "20px"}}>Sign Up</h2>
                     <form onSubmit={handleSignup}>
                         <input
                             type="text"
@@ -368,16 +364,14 @@ cl {
                         }}
                     >
                         Have an account?
-                        <Link to="/login">
-                            Login
-                        </Link>
+                        <Link to="/login">Login</Link>
                     </p>
                 </div>
             </div>;
     }
 
     # TodoInput Component
-    def TodoInput(props: Any) -> JsxElement {
+    def TodoInput(props: any) -> JsxElement {
         input = props.input;
         setInput = props.setInput;
         addTodo = props.addTodo;
@@ -387,10 +381,8 @@ cl {
                 <input
                     type="text"
                     value={input}
-                    onChange={lambda e: Any { setInput(e.target.value);}}
-                    onKeyPress={lambda e: Any { if e.key == "Enter" {
-                        addTodo();
-                    }}}
+                    onChange={lambda e: any { setInput(e.target.value); }}
+                    onKeyPress={lambda e: any { if e.key == "Enter" { addTodo(); }}}
                     placeholder="What needs to be done?"
                     style={{
                         "flex": "1",
@@ -417,14 +409,14 @@ cl {
     }
 
     # TodoFilters Component
-    def TodoFilters(props: Any) -> JsxElement {
+    def TodoFilters(props: any) -> JsxElement {
         filter = props.filter;
         setFilter = props.setFilter;
 
         return
             <div style={{"display": "flex", "gap": "8px", "marginBottom": "16px"}}>
                 <button
-                    onClick={lambda { setFilter("all");}}
+                    onClick={lambda { setFilter("all"); }}
                     style={{
                         "padding": "6px 12px",
                         "background": ("#3b82f6" if filter == "all" else "#e5e7eb"),
@@ -438,7 +430,7 @@ cl {
                     All
                 </button>
                 <button
-                    onClick={lambda { setFilter("active");}}
+                    onClick={lambda { setFilter("active"); }}
                     style={{
                         "padding": "6px 12px",
                         "background": ("#3b82f6" if filter == "active" else "#e5e7eb"),
@@ -452,7 +444,7 @@ cl {
                     Active
                 </button>
                 <button
-                    onClick={lambda { setFilter("completed");}}
+                    onClick={lambda { setFilter("completed"); }}
                     style={{
                         "padding": "6px 12px",
                         "background": (
@@ -471,7 +463,7 @@ cl {
     }
 
     # TodoItem Component
-    def TodoItem(props: Any) -> JsxElement {
+    def TodoItem(props: any) -> JsxElement {
         todo = props.todo;
         toggleTodo = props.toggleTodo;
         deleteTodo = props.deleteTodo;
@@ -490,7 +482,7 @@ cl {
                 <input
                     type="checkbox"
                     checked={todo.done}
-                    onChange={lambda { toggleTodo(todo._jac_id);}}
+                    onChange={lambda { toggleTodo(todo._jac_id); }}
                     style={{"cursor": "pointer"}}
                 />
                 <span
@@ -503,7 +495,7 @@ cl {
                     {todo.text}
                 </span>
                 <button
-                    onClick={lambda { deleteTodo(todo._jac_id);}}
+                    onClick={lambda { deleteTodo(todo._jac_id); }}
                     style={{
                         "padding": "4px 8px",
                         "background": "#ef4444",
@@ -520,7 +512,7 @@ cl {
     }
 
     # TodoList Component
-    def TodoList(props: Any) -> JsxElement {
+    def TodoList(props: any) -> JsxElement {
         filteredTodos = props.filteredTodos;
         toggleTodo = props.toggleTodo;
         deleteTodo = props.deleteTodo;
@@ -551,20 +543,22 @@ cl {
     def TodosPage -> JsxElement {
         # Check if user is logged in, redirect if not
         if not jacIsLoggedIn() {
-            return
-                <Navigate to="/login"/>;
+            return <Navigate to="/login"/>;
         }
 
-        [todos, setTodos] = useState([]);
-        [input, setInput] = useState("");
-        [filter, setFilter] = useState("all");
+        has todos: list = [],
+            input: str = "",
+            filter: str = "all";
 
         # Load todos on mount
         useEffect(
-            lambda { async def loadTodos {
-                result = root spawn read_todos();
-                setTodos(result.reports or []);
-            } loadTodos();},
+            lambda {
+                async def loadTodos {
+                    result = root spawn read_todos();
+                    todos = result.reports or [];
+                }
+                loadTodos();
+            },
             []
         );
 
@@ -575,27 +569,25 @@ cl {
             }
             result = root spawn create_todo(text=input.strip());
             newTodo = result.reports[0][0];
-            setTodos(todos.concat([newTodo]));
-            setInput("");
+            todos = todos.concat([newTodo]);
+            input = "";
         }
 
         # Toggle todo
-        async def toggleTodo(id: Any) {
+        async def toggleTodo(id: any) {
             result = id spawn toggle_todo();
             updated = result.reports[0][0];
-            setTodos([updated if todo._jac_id == id else todo for todo in todos]);
+            todos = [updated if todo._jac_id == id else todo for todo in todos];
         }
 
         # Delete todo
-        async def deleteTodo(id: Any) {
+        async def deleteTodo(id: any) {
             #id spawn delete_todo();
-            setTodos(
-                [
-                    todo
-                    for todo in todos
-                    if todo._jac_id != id
-                ]
-            );
+            todos = [
+                todo
+                for todo in todos
+                if todo._jac_id != id
+            ];
         }
 
         # Filter todos
@@ -636,11 +628,16 @@ cl {
                     "boxShadow": "0 2px 4px rgba(0,0,0,0.1)"
                 }}
             >
-                <h1 style={{"marginBottom": "20px"}}>
-                    My Todos
-                </h1>
-                <TodoInput input={input} setInput={setInput} addTodo={addTodo}/>
-                <TodoFilters filter={filter} setFilter={setFilter}/>
+                <h1 style={{"marginBottom": "20px"}}>My Todos</h1>
+                <TodoInput
+                    input={input}
+                    setInput={lambda val: str -> str { input = val; }}
+                    addTodo={addTodo}
+                />
+                <TodoFilters
+                    filter={filter}
+                    setFilter={lambda val: str -> str { filter = val; }}
+                />
                 <TodoList
                     filteredTodos={filteredTodos}
                     toggleTodo={toggleTodo}
@@ -668,11 +665,9 @@ cl {
     # Home/Landing Page - auto-redirect
     def HomePage -> JsxElement {
         if jacIsLoggedIn() {
-            return
-                <Navigate to="/todos"/>;
+            return <Navigate to="/todos"/>;
         }
-        return
-            <Navigate to="/login"/>;
+        return <Navigate to="/login"/>;
     }
 
     # Main App with React Router

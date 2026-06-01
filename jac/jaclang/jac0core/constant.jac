@@ -35,34 +35,38 @@ enum SymbolType {
 }
 
 """LSP Token types for Jac."""
-class JacSemTokenType(IntEnum) {
+enum JacSemTokenType: int {
+    NAMESPACE = 0,
+    TYPE = 1,
+    CLASS = 2,
+    ENUM = 3,
+    INTERFACE = 4,
+    STRUCT = 5,
+    TYPE_PARAMETER = 6,
+    PARAMETER = 7,
+    VARIABLE = 8,
+    PROPERTY = 9,
+    ENUM_MEMBER = 10,
+    EVENT = 11,
+    FUNCTION = 12,
+    METHOD = 13,
+    MACRO = 14,
+    KEYWORD = 15,
+    MODIFIER = 16,
+    COMMENT = 17,
+    STRING = 18,
+    NUMBER = 19,
+    REGEXP = 20,
+    OPERATOR = 21,
     with entry {
-        NAMESPACE = 0;
-        TYPE = 1;
-        CLASS = 2;
-        ENUM = 3;
-        INTERFACE = 4;
-        STRUCT = 5;
-        TYPE_PARAMETER = 6;
-        PARAMETER = 7;
-        VARIABLE = 8;
-        PROPERTY = 9;
-        ENUM_MEMBER = 10;
-        EVENT = 11;
-        FUNCTION = 12;
-        METHOD = 13;
-        MACRO = 14;
-        KEYWORD = 15;
-        MODIFIER = 16;
-        COMMENT = 17;
-        STRING = 18;
-        NUMBER = 19;
-        REGEXP = 20;
-        OPERATOR = 21;
+        static def as_str_list -> list[str] {
+            return [
+                i.name.lower()
+                for i in JacSemTokenType
+                if i.name
+            ];
+        }
     }
-
-    """Return the string list of token types."""
-    static def as_str_list -> list;
 }
 
 """LSP Token modifiers for Jac."""
@@ -81,16 +85,16 @@ class JacSemTokenModifier(IntFlag) {
     }
 
     """Return the string list of token modifiers."""
-    static def as_str_list -> list;
+    static def as_str_list -> list[str];
 }
 
 """Token constants for Jac."""
 class Constants(StrEnum) {
     with entry {
         HERE = 'here';
+        ROOT = 'root';
         VISITOR = 'visitor';
         GUEST = '__guest__';
-        JAC_CHECK = '_check';
         SUPER_ROOT_UUID = '00000000-0000-0000-0000-000000000000';
     }
 
@@ -108,20 +112,11 @@ enum CodeContext {
             return self.value;
         }
 
-        @property
-        def is_server(self: CodeContext) -> bool {
-            return (self == CodeContext.SERVER);
-        }
+        has is_server: bool { getter; }
 
-        @property
-        def is_client(self: CodeContext) -> bool {
-            return (self == CodeContext.CLIENT);
-        }
+        has is_client: bool { getter; }
 
-        @property
-        def is_native(self: CodeContext) -> bool {
-            return (self == CodeContext.NATIVE);
-        }
+        has is_native: bool { getter; }
     }
 }
 
@@ -245,6 +240,7 @@ class Tokens(StrEnum) {
         KW_TRY = 'KW_TRY';
         KW_EXCEPT = 'KW_EXCEPT';
         KW_FINALLY = 'KW_FINALLY';
+        KW_AWAITING = 'KW_AWAITING';
         KW_RAISE = 'KW_RAISE';
         ELLIPSIS = 'ELLIPSIS';
         DOT = 'DOT';
@@ -315,6 +311,7 @@ class Tokens(StrEnum) {
         KW_PROPS = 'KW_PROPS';
         KW_INIT = 'KW_INIT';
         KW_SUPER = 'KW_SUPER';
+        KW_ROOT = 'KW_ROOT';
         KW_POST_INIT = 'KW_POST_INIT';
         KW_IMPL = 'KW_IMPL';
         KW_SEM = 'KW_SEM';
@@ -484,6 +481,7 @@ glob TOKEN_MAP: dict[str, str] = {
          'KW_OBJECT': 'obj',
          'KW_OR': '|',
          'KW_OVERRIDE': 'override',
+         'KW_AWAITING': 'awaiting',
          'KW_POST_INIT': 'postinit',
          'KW_PRIV': 'priv',
          'KW_PROPS': 'props',
@@ -492,6 +490,7 @@ glob TOKEN_MAP: dict[str, str] = {
          'KW_RAISE': 'raise',
          'KW_REPORT': 'report',
          'KW_RETURN': 'return',
+         'KW_ROOT': 'root',
          'KW_SELF': 'self',
          'KW_SEM': 'sem',
          'KW_SERVER': 'sv',

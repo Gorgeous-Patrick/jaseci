@@ -8,7 +8,7 @@ cl {
 
     glob:pub AuthContext = createContext(None);
 
-    def:pub AuthProvider(children: Any) -> JsxElement {
+    def:pub AuthProvider(children: any) -> JsxElement {
         has authToken: str = "",
             currentUsername: str = "",
             tempToken: str = "",
@@ -116,13 +116,15 @@ cl {
         }
 
         useEffect(
-            lambda { stored_token = getStorage("admin_token");stored_user = getStorage(
-                "admin_username"
-            );if stored_token and stored_user {
-                validateAndRestoreSession(stored_token, stored_user);
-            } else {
-                isLoading = False;
-            } },
+            lambda {
+                stored_token = getStorage("admin_token");
+                stored_user = getStorage("admin_username");
+                if stored_token and stored_user {
+                    validateAndRestoreSession(stored_token, stored_user);
+                } else {
+                    isLoading = False;
+                }
+            },
             []
         );
 
@@ -136,10 +138,7 @@ cl {
             "logout": logout
         };
 
-        return
-            <AuthContext.Provider value={value}>
-                {children}
-            </AuthContext.Provider>;
+        return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
     }
 
     def:pub useAuth -> dict {

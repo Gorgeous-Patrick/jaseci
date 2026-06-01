@@ -10,6 +10,34 @@ impl TypeCheckPass.exit_special_var_ref(
 impl TypeCheckPass.exit_name(self: TypeCheckPass, nd: uni.Name) -> None {
     # Skip if already resolved or if part of a construct that handles its own resolution
     if nd.sym is None {
+        # Skip Name nodes that only make sense in the context of their parent
+        # node. Evaluating them as standalone names returns Unknown and emits
+        # spurious W1051 warnings. The parent's exit handler resolves them
+        # with proper context.
+        #
+        # - AtomTrailer.right: member access (e.g. `x.strip`) — resolved by
+        #   the AtomTrailer handler with the base type.
+        # - KWPair.key: keyword argument names (e.g. `name=` in `Thing(name="x")`)
+        #   — these are parameter labels, not variable references.
+        # - SubTag child: type annotation tags (e.g. `: int` in `has x: int`)
+        #   — resolved during type annotation processing, not expression eval.
+        # - JsxElementName part: JSX tag names (e.g. `div` in `<div>`, or
+        #   `UI`/`Button` in `<UI.Button>`) — lowercase intrinsics resolve
+        #   against the _JsxIntrinsicElements registry (not module scope) and
+        #   uppercase component parts are resolved with JSX context by the
+        #   JsxElement handler in the type evaluator.
+        if isinstance(nd.parent, uni.AtomTrailer) and nd.parent.right is nd {
+            return;
+        }
+        if isinstance(nd.parent, uni.KWPair) and nd.parent.key is nd {
+            return;
+        }
+        if isinstance(nd.parent, uni.SubTag) {
+            return;
+        }
+        if isinstance(nd.parent, uni.JsxElementName) {
+            return;
+        }
         self.evaluator.get_type_of_expression(nd);
     }
 }
@@ -74,14 +102,43 @@ impl TypeCheckPass.exit_return_stmt(self: TypeCheckPass, nd: uni.ReturnStmt) -> 
         return;
     }
 
-    returning_type = self.evaluator._convert_to_instance(self.evaluator.get_none_type());
+    # In a generator function, `return x` is validated against the R
+    # parameter of `Generator[Y, S, R]`, or skipped for iterator-family
+    # types that carry no R.
+    import from jaclang.compiler.type_system { type_utils }
+    if isinstance(scope, uni.Ability) and scope.get_all_sub_nodes(uni.YieldExpr) {
+        gen_return = type_utils.get_declared_generator_return_type(return_type);
+        if gen_return is not None {
+            return_type = self.evaluator._convert_to_instance(gen_return);
+        } elif type_utils.is_generator_family_type(return_type) {
+            return;
+        }
+    }
+
+    returning_type = self.evaluator._convert_to_instance(
+        self.evaluator.get_none_type()
+    );
     if nd.expr {
         returning_type = self.evaluator.get_type_of_expression(
             nd.expr, expected_type=return_type
         );
     }
 
-    if not self.evaluator.assign_type(returning_type, return_type) {
+    if not self.evaluator.assign_type(
+        returning_type, return_type, strict=self.evaluator._is_strict_site(nd)
+    ) {
+        # Returning an un-awaited coroutine where its resolved value is
+        # expected: surface the missing `await` explicitly.
+        if self.evaluator._is_awaitable_type(returning_type)
+        and not self.evaluator._is_awaitable_type(return_type) {
+            self.emit(
+                E1042,
+                node_override=nd,
+                actual=str(returning_type),
+                expected=str(return_type)
+            );
+            return;
+        }
         self.emit(
             E1002,
             node_override=nd,
@@ -115,45 +172,15 @@ impl TypeCheckPass.exit_func_call(self: TypeCheckPass, nd: uni.FuncCall) -> None
     }
 }
 
+"""Handle JSX element node — validates props against component signature or intrinsic types."""
+impl TypeCheckPass.exit_jsx_element(self: TypeCheckPass, nd: uni.JsxElement) -> None {
+    self.evaluator.get_type_of_expression(nd);
+}
+
 """Handle the binary expression node."""
 impl TypeCheckPass.exit_binary_expr(self: TypeCheckPass, nd: uni.BinaryExpr) -> None {
     self.evaluator.get_type_of_expression(nd);
 }
-
-"""Enter a boolean expression — prune to let the evaluator handle progressive
-narrowing (each AND/OR operand needs narrowing from prior operands)."""
-impl TypeCheckPass.enter_bool_expr(self: TypeCheckPass, nd: uni.BoolExpr) -> None {
-    import from jaclang.jac0core.constant { Tokens as Tok }
-    if nd.op.name == Tok.KW_AND or nd.op.name == Tok.KW_OR {
-        self.prune();
-        self.evaluator.get_type_of_expression(nd);
-    }
-}
-
-"""Exit a boolean expression."""
-impl TypeCheckPass.exit_bool_expr(self: TypeCheckPass, nd: uni.BoolExpr) -> None { }
-
-"""Enter a ternary expression — prune to let the evaluator handle branch
-traversal with proper narrowing context (ternary is an expression, not a CFG node)."""
-impl TypeCheckPass.enter_if_else_expr(self: TypeCheckPass, nd: uni.IfElseExpr) -> None {
-    self.prune();
-    # The evaluator's IfElseExpr case handles narrowing for both branches
-    # via push/pop scope + process_condition/process_negated_condition.
-    self.evaluator.get_type_of_expression(nd);
-}
-
-
-"""Enter an if statement — CFG handles narrowing, no scope needed."""
-impl TypeCheckPass.enter_if_stmt(self: TypeCheckPass, nd: uni.IfStmt) -> None { }
-
-"""Exit an if statement — CFG handles narrowing via backward walk."""
-impl TypeCheckPass.exit_if_stmt(self: TypeCheckPass, nd: uni.IfStmt) -> None { }
-
-"""Enter a match case — CFG handles narrowing via MatchStmt predecessor."""
-impl TypeCheckPass.enter_match_case(self: TypeCheckPass, nd: uni.MatchCase) -> None { }
-
-"""Exit a match case — CFG handles narrowing."""
-impl TypeCheckPass.exit_match_case(self: TypeCheckPass, nd: uni.MatchCase) -> None { }
 
 """Handle the atom trailer node."""
 impl TypeCheckPass.exit_atom_trailer(self: TypeCheckPass, nd: uni.AtomTrailer) -> None {
@@ -163,29 +190,60 @@ impl TypeCheckPass.exit_atom_trailer(self: TypeCheckPass, nd: uni.AtomTrailer) -
 """Pyright: Checker.visitAssignment(node: AssignmentNode): boolean."""
 impl TypeCheckPass.exit_assignment(self: TypeCheckPass, nd: uni.Assignment) -> None {
     import from jaclang.compiler.type_system { types }
+    # Enum member declarations reuse the Assignment AST node but are a
+    # distinct construct: the `=` binds the literal value, not for
+    # variable-assignment type compatibility. The parser marks these with
+    # is_enum_stmt=True for both inline (`enum Color { RED = 1 }`) and
+    # impl-based (`enum Color; impl Color { RED = 1 }`) forms. Value-type
+    # validation (against enum_value_type and per-member type annotations)
+    # is owned by build_enum_members.
+    if nd.is_enum_stmt {
+        return;
+    }
     if ((len(nd.target) == 1) and (nd.value is not None)) {
         target = nd.target[0];
+        # Track whether this is a reassignment of a variable whose
+        # declaration has no type annotation. Such a variable's declared
+        # type is *inferred* and FROZEN at its first binding, exactly as
+        # if that inferred type had been written as an explicit
+        # annotation — so `a = 0; …; a = "str"` is a type error.
+        #
+        # Two exceptions keep idiomatic code annotation-free:
+        #   * the `None`-sentinel pattern (`x = None; …; x = value`):
+        #     when the first binding infers `NoneType`, the inferred type
+        #     may evolve on later writes — mirroring TypeScript's
+        #     strict-mode evolving locals.
+        #   * the discard name `_`: it is a throwaway sink, so every
+        #     binding to it is independent and carries no frozen type.
+        # Any other first-binding type is enforced like an annotation.
+        is_unannotated_reassign = False;
         # For assignment targets, use the declared symbol type (not the
         # narrowed type). Narrowing reflects the *current* value; the
         # variable's declared type determines what can be assigned to it.
         if isinstance(target, uni.Name) and target.sym {
             left_type = self.evaluator.get_type_of_symbol(target.sym);
-            # Cache the type on the Name node for hover info
-            target.type = left_type;
-            # Warn on bare generic type annotations (e.g. x: list = [])
+            # Detect unannotated reassignment: the current target is not
+            # the declaration site and the declaration has no type
+            # annotation (plain `x = expr` form).
             if (
-                nd.type_tag
-                and nd.type_tag.tag
-                and isinstance(left_type, types.ClassType)
-                and left_type.shared
-                and left_type.shared.type_params
-                and (not left_type.private or not left_type.private.type_args)
+                target.sym.decl.name_of is not target
+                and isinstance(target.sym.decl.name_of.parent, uni.Assignment)
+                and target.sym.decl.name_of.parent.type_tag is None
             ) {
-                self.emit(
-                    W1036,
-                    node_override=nd.type_tag.tag,
-                    type=left_type.shared.class_name
-                );
+                is_unannotated_reassign = True;
+            }
+            # `target.type` is the hover cache — show the post-write type
+            # for re-assignments, declared type otherwise. `left_type`
+            # stays declared for the compat check and bare-generic warnings.
+            if hover_type := self.evaluator._get_type_of_lhs_assignment(target) {
+                target.type = self.evaluator._convert_to_instance(hover_type);
+            } else {
+                target.type = left_type;
+            }
+            # Warn on bare generic / explicit-any type annotations (e.g. x: list = [])
+            if nd.type_tag and nd.type_tag.tag {
+                self._check_bare_generic(nd.type_tag.tag, left_type);
+                self._check_explicit_any(nd.type_tag.tag);
             }
         } elif isinstance(target, (uni.TupleVal, uni.ListVal)) {
             # Tuple/list unpacking: (px, py) = p; or [a, b] = lst;
@@ -209,31 +267,24 @@ impl TypeCheckPass.exit_assignment(self: TypeCheckPass, nd: uni.Assignment) -> N
             # Propagate type annotation to the target node
             if nd.type_tag and nd.type_tag.tag {
                 declared_type = self.evaluator.get_type_of_expression(nd.type_tag.tag);
-                # Warn on bare generic type annotations (e.g. list instead of list[T])
-                if (
-                    isinstance(declared_type, types.ClassType)
-                    and declared_type.shared
-                    and declared_type.shared.type_params
-                    and (
-                        not declared_type.private
-                        or not declared_type.private.type_args
-                    )
-                ) {
-                    self.emit(
-                        W1036,
-                        node_override=nd.type_tag.tag,
-                        type=declared_type.shared.class_name
-                    );
-                }
-                target.type = declared_type;
+                # Warn on bare generic / explicit-any type annotations
+                self._check_bare_generic(nd.type_tag.tag, declared_type);
+                self._check_explicit_any(nd.type_tag.tag);
+                # Convert class type to instance for assignment checking.
+                # Type annotations like `x: int` resolve to the class `int`
+                # (instantiable), but the LHS of an assignment represents an
+                # instance. Without this, `self.x: int = 5` falsely reports
+                # "Cannot assign int to int" (instance vs class mismatch).
+                declared_inst = self.evaluator._convert_to_instance(declared_type);
+                target.type = declared_inst;
                 # For AtomTrailer (e.g., self.attr), also set type on the attribute Name
                 if isinstance(target, uni.AtomTrailer) {
                     chain = target.as_attr_list;
                     if len(chain) >= 2 {
-                        chain[-1].type = declared_type;
+                        chain[-1].type = declared_inst;
                     }
                 }
-                left_type = declared_type;
+                left_type = declared_inst;
             } else {
                 left_type = self.evaluator.get_type_of_expression(target);
                 # For field assignments (e.g., obj.field = value), the target
@@ -242,9 +293,26 @@ impl TypeCheckPass.exit_assignment(self: TypeCheckPass, nd: uni.Assignment) -> N
                 # for the assignment check instead of the narrowed type.
                 if isinstance(target, uni.AtomTrailer) and target.is_attr {
                     if isinstance(target.right, uni.Name) and target.right.sym {
-                        declared = self.evaluator.get_type_of_symbol(target.right.sym);
-                        if declared {
-                            left_type = declared;
+                        import from jaclang.compiler.type_system.type_utils {
+                            PropertyWriteKind
+                        }
+                        target_sym = target.right.sym;
+                        prop_result = self.evaluator.get_property_write_type(
+                            target_sym
+                        );
+                        if prop_result.kind == PropertyWriteKind.WRITABLE {
+                            left_type = prop_result.write_type;
+                        } elif prop_result.kind == PropertyWriteKind.READ_ONLY {
+                            self.emit(
+                                E1005, node_override=target, name=target.right.value
+                            );
+                            return;
+                        } else {
+                            # NOT_PROPERTY — use the declared symbol type.
+                            declared = self.evaluator.get_type_of_symbol(target_sym);
+                            if declared {
+                                left_type = declared;
+                            }
                         }
                     }
                 }
@@ -337,8 +405,32 @@ impl TypeCheckPass.exit_assignment(self: TypeCheckPass, nd: uni.Assignment) -> N
                     E1010, node_override=nd, op=nd.aug_op.name, type=left_type.name
                 );
             }
-        } elif not self.evaluator.assign_type(right_type, left_type) {
-            self.emit(E1001, actual=str(right_type), expected=str(left_type));
+        } else {
+            # An unannotated reassignment skips the compatibility check
+            # only for a `None`-sentinel (inferred type may still evolve)
+            # or the `_` discard (every binding to it is independent).
+            # All other unannotated variables are frozen to their
+            # first-binding type (`left_type`) and enforced here.
+            is_evolving_reassign = is_unannotated_reassign
+            and (
+                self.evaluator.is_none_type(left_type)
+                or (isinstance(target, uni.Name) and target.value == "_")
+            );
+            if (
+                not is_evolving_reassign
+                and not self.evaluator.assign_type(
+                    right_type, left_type, strict=self.evaluator._is_strict_site(nd)
+                )
+            ) {
+                # A coroutine assigned where its awaited value is expected is
+                # a missing-`await` bug — point at the fix rather than the
+                # generic "cannot assign Coroutine[...]" message.
+                if self.evaluator._is_awaitable_type(right_type) {
+                    self.emit(E1042, actual=str(right_type), expected=str(left_type));
+                } else {
+                    self.emit(E1001, actual=str(right_type), expected=str(left_type));
+                }
+            }
         }
         # Validate augmented assignment operator (+=, -=, etc.)
         if nd.aug_op is not None {
@@ -481,13 +573,20 @@ impl TypeCheckPass.exit_ability(self: TypeCheckPass, nd: uni.Ability) -> None {
     }
 
     # ImplDef body is not in kid list, traverse it explicitly.
-    # Isolate scope narrowings so guard-pattern promotions (e.g.,
-    # `if x is None { return; }` → x narrowed to NoneType) from one
-    # impl body don't leak into subsequent impl bodies.
     if isinstance(nd.body, uni.ImplDef) {
-        self.evaluator.push_narrowing_scope();
         self.traverse(nd.body);
-        self.evaluator.pop_narrowing_scope();
+    }
+    # Warn on bare generic return type annotations (e.g. def f -> list).
+    # Runs regardless of body shape — abstract/overload/stub decls also benefit.
+    # Skip impl-side abilities to avoid double-firing (see exit_param_var).
+    if (
+        isinstance(nd.signature, uni.FuncSignature)
+        and nd.signature.return_type is not None
+        and nd.find_parent_of_type(uni.ImplDef) is None
+    ) {
+        ret_ann_type = self.evaluator.get_type_of_expression(nd.signature.return_type);
+        self._check_bare_generic(nd.signature.return_type, ret_ann_type);
+        self._check_explicit_any(nd.signature.return_type);
     }
     # Check for missing return statements on non-None return type functions
     if (
@@ -528,109 +627,253 @@ impl TypeCheckPass.exit_ability(self: TypeCheckPass, nd: uni.Ability) -> None {
             }
         }
     }
+    # Validate event-signature trigger matches the owning archetype kind:
+    # walker abilities fire on nodes/edges/Root; node and edge abilities
+    # fire on walkers. See JacWalker._execute_entries / _execute_exits.
+    if (
+        isinstance(nd.signature, uni.EventSignature)
+        and nd.signature.arch_tag_info is not None
+    ) {
+        self._check_event_trigger_archetype(nd);
+    }
+    # Warn on a JSX component defined with an untyped props bag (`props: any`).
+    # A single parameter named `props` is the props-bag pattern (see the
+    # codegen heuristic in esast_gen_pass); when that parameter is untyped,
+    # every JSX prop on the component is unchecked — flag it once here (W1052).
+    if (
+        isinstance(nd.signature, uni.FuncSignature)
+        and nd.signature.return_type is not None
+        and nd.find_parent_of_type(uni.ImplDef) is None
+    ) {
+        comp_params = [
+            p
+            for p in nd.signature.get_parameters()
+            if isinstance(p.name, uni.Name) and p.name.value not in ("self", "cls")
+        ];
+        if (
+            len(comp_params) == 1
+            and isinstance(comp_params[0].name, uni.Name)
+            and comp_params[0].name.value == "props"
+        ) {
+            props_param = comp_params[0];
+            any_cls = self.evaluator.prefetch.any_class
+                if self.evaluator.prefetch
+                else None;
+            # `props: any` resolves to the prefetched `any` ClassType, not
+            # AnyType — an unannotated param has no type_tag.
+            is_untyped_bag = (
+                props_param.type_tag is None
+                or isinstance(props_param.type, types.AnyType)
+                or (
+                    any_cls is not None
+                    and isinstance(props_param.type, types.ClassType)
+                    and props_param.type.shared == any_cls.shared
+                )
+            );
+            jsx_cls = self.evaluator.prefetch.jsx_element_class
+                if self.evaluator.prefetch
+                else None;
+            ret_type = self.evaluator.get_type_of_expression(nd.signature.return_type);
+            is_jsx_component = (
+                jsx_cls is not None
+                and isinstance(ret_type, types.ClassType)
+                and ret_type.shared == jsx_cls.shared
+            );
+            if is_untyped_bag and is_jsx_component {
+                self.emit(
+                    W1052, node_override=props_param, component=nd.name_spec.sym_name
+                );
+            }
+        }
+    }
 }
 
-"""Check if a code block always returns a value on all paths."""
+"""Validate `can ... with X entry/exit` triggers against the owning
+archetype.
+
+The runtime contract (jac0core/runtime.jac `JacWalker._execute_entries`
+and `_execute_exits`) is:
+    walker._jac_entry_funcs_   trigger ⊆ NodeArchetype | EdgeArchetype
+    node/edge._jac_entry_funcs_  trigger ⊆ WalkerArchetype
+
+`with entry` / `with exit` (no trigger) is always valid — those handlers
+fire on every step. The trigger expression can be a single class, a
+tuple `(A, B)` (treated element-wise), or a `|` union; all elements /
+members must satisfy the rule. Any/Unknown is skipped to avoid
+duplicating W2001 / W1051 diagnostics on the same span."""
+impl TypeCheckPass._check_event_trigger_archetype(
+    self: TypeCheckPass, nd: uni.Ability
+) -> None {
+    import from jaclang.compiler.type_system { types }
+    sig = nd.signature;
+    if not isinstance(sig, uni.EventSignature) or sig.arch_tag_info is None {
+        return;
+    }
+    owner = nd.method_owner;
+    if not isinstance(owner, uni.Archetype) {
+        return;
+    }
+    owner_kind = owner.arch_type.value;
+    if owner_kind not in ("walker", "node", "edge") {
+        return;
+    }
+    walker_owner = owner_kind == "walker";
+
+    def is_valid(t: types.TypeBase) -> bool {
+        if t.is_any_type() or isinstance(t, types.UnknownType) {
+            return True;
+        }
+        if isinstance(t, types.UnionType) {
+            return all(is_valid(m) for m in t.types);
+        }
+        if isinstance(t, types.ClassType) {
+            if walker_owner {
+                return t.is_node_type() or t.is_edge_type();
+            }
+            return t.is_walker_type();
+        }
+        return False;
+    }
+
+    def collect_union_leaves(expr: uni.Expr) -> list[uni.Expr] {
+        if (
+            isinstance(expr, uni.BinaryExpr)
+            and isinstance(expr.op, uni.Token)
+            and expr.op.name == Tok.BW_OR
+        ) {
+            return collect_union_leaves(expr.left) + collect_union_leaves(expr.right);
+        }
+        return [expr];
+    }
+
+    # Tuple form `(A, B)` and union form `A | B` are both expanded
+    # per element so each bad type (including `root` keyword) gets its
+    # own diagnostic rather than being masked by type evaluation.
+    targets: list[uni.Expr] = (
+        list(sig.arch_tag_info.values)
+            if (
+                isinstance(sig.arch_tag_info, uni.TupleVal) and sig.arch_tag_info.values
+            )
+            else collect_union_leaves(sig.arch_tag_info)
+    );
+    err = E1116 if walker_owner else E1117;
+    for arg in targets {
+        ty = self.evaluator.get_type_of_expression(arg);
+        if isinstance(ty, types.ClassType) and ty.is_instance() {
+            # Only name leaves carry `.value`; other exprs (e.g. `N()`) fall back to the type name.
+            label = arg.value if isinstance(arg, uni.Name) else str(ty);
+            self.emit(err, node_override=arg, type=label);
+            continue;
+        }
+        if not is_valid(ty) {
+            self.emit(err, node_override=arg, type=str(ty));
+        }
+    }
+}
+
+"""Check if a code block always returns a value on all paths.
+
+Delegates to TypeEvaluator._collect_return_types which is the canonical
+control-flow analysis for return statements — used both here (boolean only)
+and in lambda block-body return type inference (boolean + collected types)."""
 impl TypeCheckPass._body_always_returns(
     self: TypeCheckPass, body: list[uni.CodeBlockStmt]
 ) -> bool {
-    for stmt in reversed(body) {
-        if isinstance(stmt, uni.ReturnStmt) {
-            return True;
+    return self.evaluator._collect_return_types(body, []);
+}
+
+"""Emit W1036 for bare generic type annotations.
+
+A "bare generic" is a generic class (one declared with type_params) used
+without explicit type_args at the use site — e.g. `list` instead of
+`list[int]`, `dict` instead of `dict[str, int]`. PEP 484 says these
+default to `T[Any]`, which silently erases element types and weakens
+downstream inference.
+
+`ann_node` is the AST location to attach the warning to (typically the
+type-tag expression). Walks union branches so `list | None` warns on the
+bare `list`. Does not recurse into existing type_args — `dict[str, list]`
+warns only on the outer if outer is bare; nested bare generics are out of
+scope for now (locating the inner AST node would require parallel walking)."""
+impl TypeCheckPass._check_bare_generic(
+    self: TypeCheckPass, ann_node: uni.UniNode, ty: object
+) -> None {
+    import from jaclang.compiler.type_system { types }
+    if isinstance(ty, types.UnionType) and ty.types {
+        for branch in ty.types {
+            self._check_bare_generic(ann_node, branch);
         }
-        if isinstance(stmt, uni.IfStmt) {
-            if_returns = self._body_always_returns(list(stmt.body));
-            else_returns = False;
-            if isinstance(stmt.else_body, uni.ElseIf) {
-                else_returns = self._body_always_returns(list(stmt.else_body.body));
-                if not else_returns {
-                    continue;
-                }
-                if stmt.else_body.else_body {
-                    if isinstance(stmt.else_body.else_body, uni.ElseStmt) {
-                        else_returns = self._body_always_returns(
-                            list(stmt.else_body.else_body.body)
-                        );
-                    } elif isinstance(stmt.else_body.else_body, uni.ElseIf) {
-                        else_returns = self._body_always_returns(
-                            [stmt.else_body.else_body]
-                        );
-                    }
-                } else {
-                    else_returns = False;
-                }
-            } elif isinstance(stmt.else_body, uni.ElseStmt) {
-                else_returns = self._body_always_returns(list(stmt.else_body.body));
-            }
-            if if_returns and else_returns {
-                return True;
-            }
-        }
-        if isinstance(stmt, uni.MatchStmt) {
-            # Match statement always returns if all cases return.
-            # This handles both explicit wildcard (case _:) and exhaustive
-            # union coverage (case A() + case B() covering A|B).
-            if stmt.cases {
-                all_cases_return = True;
-                for case in stmt.cases {
-                    match_case: uni.MatchCase = case;
-                    if not self._body_always_returns(list(match_case.body)) {
-                        all_cases_return = False;
-                        break;
-                    }
-                }
-                if all_cases_return {
-                    return True;
-                }
-            }
-        }
-        if isinstance(stmt, uni.SwitchStmt) {
-            if stmt.cases {
-                has_default = False;
-                all_cases_return = True;
-                for case in stmt.cases {
-                    switch_case: uni.SwitchCase = case;
-                    if switch_case.pattern is None {
-                        has_default = True;
-                    }
-                    if not self._body_always_returns(list(switch_case.body)) {
-                        all_cases_return = False;
-                    }
-                }
-                if has_default and all_cases_return {
-                    return True;
-                }
-            }
-        }
-        if isinstance(stmt, uni.WithStmt) {
-            if self._body_always_returns(list(stmt.body)) {
-                return True;
-            }
-        }
-        if isinstance(stmt, uni.TryStmt) {
-            try_returns = self._body_always_returns(list(stmt.body));
-            if try_returns {
-                if not stmt.excepts or len(stmt.excepts) == 0 {
-                    return True;
-                }
-                all_excepts_return = True;
-                for exc in stmt.excepts {
-                    except_clause: uni.Except = exc;
-                    if not self._body_always_returns(list(except_clause.body)) {
-                        all_excepts_return = False;
-                        break;
-                    }
-                }
-                if all_excepts_return {
-                    return True;
-                }
-            }
-        }
-        if isinstance(stmt, uni.RaiseStmt) {
-            return True;
+        return;
+    }
+    if (
+        isinstance(ty, types.ClassType)
+        and ty.shared
+        and ty.shared.type_params
+        and (not ty.private or not ty.private.type_args)
+    ) {
+        self.emit(W1036, node_override=ann_node, type=ty.shared.class_name);
+    }
+}
+
+"""Emit W1037 for explicit `any` type annotations.
+
+`any` is the gradual-typing escape hatch: annotating something `any`
+silently disables member-access, call-signature, and assignment checking
+on it. That is occasionally intentional (interop boundaries, genuinely
+dynamic data), so this is a warning rather than an error — but most uses
+are oversights that hide real bugs behind an un-checkable type.
+
+`ann_node` is the annotation AST node (a type-tag expression or signature
+return type). Walks the whole subtree so nested forms each warn at their
+own `any` — `list[any]`, `any | None`, callable params/returns.
+
+Both spellings of explicit Any are caught: the lowercase `any` builtin
+keyword (matched syntactically on its `BuiltinType` node) and `typing.Any`
+(matched by type identity against the prefetched `Any` class). Matching
+`typing.Any` by resolved type rather than by name means an alias such as
+`from typing import Any as A` still warns, while a user-defined class that
+happens to be named `Any` does not."""
+impl TypeCheckPass._check_explicit_any(
+    self: TypeCheckPass, ann_node: uni.UniNode
+) -> None {
+    if isinstance(ann_node, uni.BuiltinType) and ann_node.value == "any" {
+        self.emit(W1037, node_override=ann_node);
+    }
+    for sub in ann_node.get_all_sub_nodes(uni.BuiltinType) {
+        if sub.value == "any" {
+            self.emit(W1037, node_override=sub);
         }
     }
-    return False;
+    # `typing.Any` is the same gradual-typing escape hatch as `any`, but
+    # spelled as a name reference. Only `Any`-named candidates are resolved
+    # (cheap, and avoids touching unrelated names); the type check then
+    # confirms the reference truly is the prefetched `typing.Any` class.
+    names = ann_node.get_all_sub_nodes(uni.Name);
+    if isinstance(ann_node, uni.Name) {
+        names = [ann_node] + names;
+    }
+    for nm in names {
+        if nm.sym_name != "Any" {
+            continue;
+        }
+        # For the `typing.Any` attribute form the bare `Any` token is the
+        # member of a trailer, not a standalone reference — resolve the whole
+        # trailer, but still anchor the warning at the `Any` token.
+        resolve_target: uni.Expr = nm;
+        parent = nm.parent;
+        if (
+            isinstance(parent, uni.AtomTrailer)
+            and parent.is_attr
+            and (parent.right is nm)
+        ) {
+            resolve_target = parent;
+        }
+        if self.evaluator.is_explicit_any(
+            self.evaluator.get_type_of_expression(resolve_target)
+        ) {
+            self.emit(W1037, node_override=nm);
+        }
+    }
 }
 
 """Exit a type alias node."""
@@ -646,7 +889,15 @@ impl TypeCheckPass.exit_archetype(self: TypeCheckPass, nd: uni.Archetype) -> Non
 
 """Exit an enum node - build enum type eagerly and traverse ImplDef body if present."""
 impl TypeCheckPass.exit_enum(self: TypeCheckPass, nd: uni.Enum) -> None {
-    self.evaluator.get_type_of_enum(nd);
+    cls_type = self.evaluator.get_type_of_enum(nd);
+    # Type-check each enum member name so W1051 fires for unresolved members.
+    for child in nd.kid {
+        if isinstance(child, uni.Assignment) {
+            for target in child.target {
+                self.evaluator.get_type_of_expression(target);
+            }
+        }
+    }
     if isinstance(nd.body, uni.ImplDef) {
         self.traverse(nd.body);
     }
@@ -671,39 +922,71 @@ impl TypeCheckPass.before_pass(self: TypeCheckPass) -> None {
     self.evaluator._narrowing_cache = {};
 }
 
+
 """Set type on function/method parameters for hover info."""
 impl TypeCheckPass.exit_param_var(self: TypeCheckPass, nd: uni.ParamVar) -> None {
     if (sym := nd.sym) {
-        nd.type = self.evaluator.get_type_of_symbol(sym);
+        declared_type = self.evaluator.get_type_of_symbol(sym);
+        nd.type = declared_type;
+        # Warn on bare generic parameter annotations (e.g. def f(x: list)).
+        # Skip when this param is inside an `impl` block — the decl-side
+        # ParamVar carries the same annotation and will emit the warning.
+        # Without this guard, top-level ImplDefs are visited twice (once by
+        # natural module traversal, once by the explicit traverse(nd.body)
+        # in exit_ability for the decl), producing duplicate warnings.
+        if (
+            nd.type_tag
+            and nd.type_tag.tag
+            and nd.find_parent_of_type(uni.ImplDef) is None
+        ) {
+            self._check_bare_generic(nd.type_tag.tag, declared_type);
+            self._check_explicit_any(nd.type_tag.tag);
+        }
     }
 }
 
 """Set type on class fields (has vars) and validate initializer type."""
 impl TypeCheckPass.exit_has_var(self: TypeCheckPass, nd: uni.HasVar) -> None {
     import from jaclang.compiler.type_system { types }
+    if (nd.defer and nd.kid and isinstance(nd.kid[-1], uni.Name)) {
+        postinit_nd: uni.Name = nd.kid[-1];
+        if postinit_nd.sym is None {
+            arch = nd.parent.parent if isinstance(nd.parent, uni.ArchHas) else None;
+            if isinstance(arch, uni.Archetype) {
+                postinit_sym = arch.names_in_scope.get("__post_init__");
+                if postinit_sym is not None {
+                    postinit_nd._sym = postinit_sym;
+                }
+            } elif isinstance(arch, uni.ImplDef)
+            and isinstance(arch.decl_link, uni.Archetype) {
+                # has field in a separate impl block: decl_link points to the archetype
+                if (
+                    postinit_sym := arch.decl_link.names_in_scope.get("__post_init__")
+                ) is not None {
+                    postinit_nd._sym = postinit_sym;
+                }
+            }
+        }
+    }
     if (sym := nd.sym) {
         declared_type = self.evaluator.get_type_of_symbol(sym);
         nd.type = declared_type;
-        # Warn on bare generic type annotations (e.g. has items: list instead of list[T])
-        if (
-            nd.type_tag
-            and nd.type_tag.tag
-            and isinstance(declared_type, types.ClassType)
-            and declared_type.shared
-            and declared_type.shared.type_params
-            and (not declared_type.private or not declared_type.private.type_args)
-        ) {
-            self.emit(
-                W1036,
-                node_override=nd.type_tag.tag,
-                type=declared_type.shared.class_name
-            );
+        # Warn on bare generic / explicit-any annotations (e.g. has items: list)
+        if nd.type_tag and nd.type_tag.tag {
+            self._check_bare_generic(nd.type_tag.tag, declared_type);
+            self._check_explicit_any(nd.type_tag.tag);
         }
+        # Walker-specific: `has reports` is the typed view of the walker's
+        # report channel. Require a list shape so `report X` (write side)
+        # and `(spawn W).reports` (read side) share a single element type.
+        self._check_walker_reports_shape(nd, declared_type);
         # If there's an initializer, check that its type is compatible
         # with the declared type (e.g., bad1: int = unknown_val;).
         if nd.value is not None and nd.type is not None {
             right_type = self.evaluator.get_type_of_expression(nd.value);
-            if not self.evaluator.assign_type(right_type, nd.type) {
+            if not self.evaluator.assign_type(
+                right_type, nd.type, strict=self.evaluator._is_strict_site(nd)
+            ) {
                 self.emit(
                     E1001,
                     node_override=nd,
@@ -713,6 +996,85 @@ impl TypeCheckPass.exit_has_var(self: TypeCheckPass, nd: uni.HasVar) -> None {
             }
         }
     }
+}
+
+"""Validate that `has reports` on a walker archetype is a list type.
+
+Untyped/inherited `reports: list[Any]` (from the builtin `Walker` class)
+is unaffected — this check only fires when the user *explicitly* shadows
+`reports` with a concrete shape on a walker archetype.
+"""
+impl TypeCheckPass._check_walker_reports_shape(
+    self: TypeCheckPass, nd: uni.HasVar, declared_type: object
+) -> None {
+    import from jaclang.compiler.type_system { types }
+    if nd.name.value != "reports" {
+        return;
+    }
+    arch = nd.parent.parent if isinstance(nd.parent, uni.ArchHas) else None;
+    if isinstance(arch, uni.ImplDef) and isinstance(arch.decl_link, uni.Archetype) {
+        arch = arch.decl_link;
+    }
+    if not isinstance(arch, uni.Archetype) {
+        return;
+    }
+    if arch.arch_type.value != "walker" {
+        return;
+    }
+    # Don't pile errors on top of upstream type-resolution failures.
+    if isinstance(declared_type, types.UnknownType) {
+        return;
+    }
+    if isinstance(declared_type, types.ClassType) {
+        if declared_type.is_any_type() or declared_type.is_builtin("list") {
+            return;
+        }
+    }
+    self.emit(E1112, node_override=nd, type=str(declared_type));
+}
+
+"""Find the element type of the enclosing walker's declared `has reports: list[T]`.
+
+Returns None when (a) there is no enclosing walker, (b) the walker doesn't
+locally declare `reports`, or (c) the declared shape isn't `list[T]` with a
+concrete element type. Inherited `list[Any]` from the builtin `Walker`
+returns None too — `Any` already permits everything via assign_type, so
+there's nothing to enforce.
+"""
+impl TypeCheckPass._enclosing_walker_report_elem_type(
+    self: TypeCheckPass, nd: uni.UniNode
+) -> object {
+    import from jaclang.compiler.type_system { types }
+    arch = nd.find_parent_of_type(uni.Archetype);
+    if arch is None {
+        impl_def = nd.find_parent_of_type(uni.ImplDef);
+        if impl_def is not None and isinstance(impl_def.decl_link, uni.Archetype) {
+            arch = impl_def.decl_link;
+        }
+    }
+    if not isinstance(arch, uni.Archetype) or arch.arch_type.value != "walker" {
+        return None;
+    }
+    for has_var in arch.get_has_vars() {
+        if has_var.name.value != "reports" {
+            continue;
+        }
+        if has_var.sym is None {
+            return None;
+        }
+        declared = self.evaluator.get_type_of_symbol(has_var.sym);
+        if (
+            isinstance(declared, types.ClassType)
+            and declared.is_builtin("list")
+            and declared.private
+            and declared.private.type_args
+            and len(declared.private.type_args) >= 1
+        ) {
+            return declared.private.type_args[0];
+        }
+        return None;
+    }
+    return None;
 }
 
 """Set type on for loop iteration variable and check iterability."""
@@ -799,44 +1161,59 @@ impl TypeCheckPass.exit_raise_stmt(self: TypeCheckPass, nd: uni.RaiseStmt) -> No
 """Bind alias types from context manager BEFORE visiting body."""
 impl TypeCheckPass.enter_with_stmt(self: TypeCheckPass, nd: uni.WithStmt) -> None {
     import from jaclang.compiler.type_system { types }
+    enter_method = "__aenter__" if nd.is_async else "__enter__";
     for item in nd.exprs {
         ctx_item: uni.ExprAsItem = item;
         expr_type = self.evaluator.get_type_of_expression(ctx_item.expr);
-        # Bind alias type - context managers typically return self from __enter__
-        if ctx_item.alias is not None
-        and not isinstance(expr_type, types.UnknownType) {
-            if isinstance(ctx_item.alias, uni.Name) {
-                ctx_item.alias.type = expr_type;
+        if ctx_item.alias is None
+        or not isinstance(ctx_item.alias, uni.Name)
+        or isinstance(expr_type, types.UnknownType) {
+            continue;
+        }
+        # `as x` binds the enter method's return, not the manager itself
+        # (`async with` awaits __aenter__). Fall back to the manager when the
+        # protocol can't be resolved.
+        enter_ret = self.evaluator.get_type_of_magic_method_call(
+            expr_type, enter_method, [], ctx_item.expr
+        );
+        if enter_ret is not None {
+            if nd.is_async {
+                enter_ret = self.evaluator._unwrap_awaitable_type(
+                    enter_ret, ctx_item.expr
+                );
             }
+            ctx_item.alias.type = enter_ret;
+        } else {
+            ctx_item.alias.type = expr_type;
         }
     }
 }
 
-"""Type-check with statements — verify context manager protocol."""
+"""Type-check with statements: verify the (async) context manager protocol."""
 impl TypeCheckPass.exit_with_stmt(self: TypeCheckPass, nd: uni.WithStmt) -> None {
     import from jaclang.compiler.type_system { types }
+    enter_method = "__aenter__" if nd.is_async else "__enter__";
+    exit_method = "__aexit__" if nd.is_async else "__exit__";
     for item in nd.exprs {
         ctx_item: uni.ExprAsItem = item;
         expr_type = self.evaluator.get_type_of_expression(ctx_item.expr);
         if not isinstance(expr_type, types.UnknownType) {
             enter_result = self.evaluator.get_type_of_magic_method_call(
-                expr_type, "__enter__", [], ctx_item.expr
+                expr_type, enter_method, [], ctx_item.expr
             );
             if enter_result is None {
                 self.emit(E1091, node_override=nd, type=str(expr_type));
             }
-            # Check __exit__ method exists (required for context manager protocol).
-            # Use direct member lookup instead of magic method call because
-            # __exit__ takes 3 params (exc_type, exc_val, exc_tb) that we
-            # don't have at this point — magic method call would fail on
-            # argument matching even when __exit__ exists.
+            # Direct member lookup, not a magic method call: __exit__/__aexit__
+            # take 3 args (exc_type, exc_val, exc_tb) we don't have here, so a
+            # call would fail arg-matching even when the method exists.
             if isinstance(expr_type, types.ClassType) {
                 has_exit = (
                     self.evaluator._lookup_class_member(
-                        expr_type, "__exit__"
+                        expr_type, exit_method
                     ) is not None
                     or self.evaluator._lookup_object_member(
-                        expr_type, "__exit__"
+                        expr_type, exit_method
                     ) is not None
                 );
                 if not has_exit and not expr_type.is_any_type() {
@@ -860,9 +1237,9 @@ impl TypeCheckPass.exit_assert_stmt(self: TypeCheckPass, nd: uni.AssertStmt) -> 
     }
 }
 
-"""Type-check yield expressions against enclosing function's return type."""
+"""Type-check `yield x` against the yield type of the enclosing function."""
 impl TypeCheckPass.exit_yield_expr(self: TypeCheckPass, nd: uni.YieldExpr) -> None {
-    import from jaclang.compiler.type_system { types }
+    import from jaclang.compiler.type_system { types, type_utils }
     if nd.expr is None {
         return;
     }
@@ -877,13 +1254,23 @@ impl TypeCheckPass.exit_yield_expr(self: TypeCheckPass, nd: uni.YieldExpr) -> No
         return;
     }
 
+    is_async = isinstance(scope, uni.Ability) and scope.is_async;
+    yield_type = type_utils.get_generator_yield_type(return_type, is_async);
+    expected_yield = (
+        self.evaluator._convert_to_instance(yield_type)
+            if yield_type is not None
+            else return_type
+    );
+
     if not nd.with_from {
-        if not self.evaluator.assign_type(yielded_type, return_type) {
+        if not self.evaluator.assign_type(
+            yielded_type, expected_yield, strict=self.evaluator._is_strict_site(nd)
+        ) {
             self.emit(
                 E1093,
                 node_override=nd,
                 actual=str(yielded_type),
-                expected=str(return_type)
+                expected=str(expected_yield)
             );
         }
     }
@@ -894,45 +1281,74 @@ impl TypeCheckPass.exit_delete_stmt(self: TypeCheckPass, nd: uni.DeleteStmt) -> 
     self.evaluator.get_type_of_expression(nd.target);
 }
 
-"""Type-check visit statement target expression — must be a node type."""
+"""Type-check visit statement target expression.
+
+The runtime accepts (see `JacWalker.visit` in jac0core/runtime.jac):
+    Node | Edge | ObjectSpatialPath
+    | list/tuple/set/frozenset of (Node | Edge)
+
+The validator recurses into collection element types and union members so
+that the element type itself is constrained, not just the container kind.
+Unparameterized containers and Any/Unknown pass — there's not enough
+information to diagnose without false positives.
+"""
 impl TypeCheckPass.exit_visit_stmt(self: TypeCheckPass, nd: uni.VisitStmt) -> None {
     import from jaclang.compiler.type_system { types }
     target_type = self.evaluator.get_type_of_expression(nd.target);
-    # Validate the visit target is a node (or unknown/any which we can't check)
-    if (
-        not isinstance(target_type, types.UnknownType)
-        and not target_type.is_any_type()
-    ) {
-        is_valid = False;
-        if isinstance(target_type, types.ClassType) {
-            if target_type.is_node_type() {
-                is_valid = True;
+    path_class = self.evaluator.prefetch.path_class;
+
+    def is_valid_visit_target(t: types.TypeBase) -> bool {
+        if t.is_any_type() or isinstance(t, types.UnknownType) {
+            return True;
+        }
+        if isinstance(t, types.ClassType) {
+            if t.is_node_type() or t.is_edge_type() {
+                return True;
             }
-            # Allow collections of nodes (e.g., list[NodeType])
+            if path_class is not None and t.shared == path_class.shared {
+                return True;
+            }
             if (
-                target_type.is_builtin()
-                and target_type.shared.class_name in (
-                    "list",
-                    "tuple",
-                    "set",
-                    "frozenset"
-                )
+                t.is_builtin()
+                and t.shared.class_name in ("list", "tuple", "set", "frozenset")
             ) {
-                is_valid = True;
+                if t.private.type_args and len(t.private.type_args) > 0 {
+                    return all(is_valid_visit_target(a) for a in t.private.type_args);
+                }
+                # Unparameterized collection — accept (matches connect operand).
+                return True;
             }
         }
-        if isinstance(target_type, types.UnionType) {
-            is_valid = True;  # Could contain nodes, don't over-diagnose
+        if isinstance(t, types.UnionType) {
+            return all(is_valid_visit_target(m) for m in t.types);
         }
-        if not is_valid {
-            self.emit(E1094, node_override=nd, type=str(target_type));
-        }
+        return False;
+    }
+
+    if not is_valid_visit_target(target_type) {
+        self.emit(E1094, node_override=nd, type=str(target_type));
     }
 }
 
-"""Type-check report statement expression."""
+"""Type-check report statement expression against the enclosing walker's
+declared `has reports: list[T]` element type.
+
+If the walker doesn't declare a typed `reports` shape, fall back to the
+inherited `list[Any]` and emit no diagnostic — `Any` already permits
+anything. The check only fires when the walker has opted in by writing
+`has reports: list[T]`.
+"""
 impl TypeCheckPass.exit_report_stmt(self: TypeCheckPass, nd: uni.ReportStmt) -> None {
-    self.evaluator.get_type_of_expression(nd.expr);
+    expr_type = self.evaluator.get_type_of_expression(nd.expr);
+    elem_type = self._enclosing_walker_report_elem_type(nd);
+    if elem_type is None {
+        return;
+    }
+    if not self.evaluator.assign_type(expr_type, elem_type) {
+        self.emit(
+            E1113, node_override=nd, actual=str(expr_type), expected=str(elem_type)
+        );
+    }
 }
 
 """Validate postinit bodies assign to all 'by postinit' fields."""
@@ -1000,10 +1416,21 @@ This validates all TypeVar usages including nested ones like `list[T]`.
 impl TypeCheckPass.exit_sub_tag(self: TypeCheckPass, nd: uni.SubTag[uni.T]) -> None {
     if isinstance(nd.tag, uni.Expr) {
         self.evaluator.validate_typevar_in_type_expr(nd.tag);
+        # Evaluate the annotation so the tag Expr carries a resolved `.type`.
+        # Symbol-type resolution only annotates the tag for the symbol kinds
+        # whose path happens to evaluate it; doing it here covers every
+        # annotation uniformly. Codegen backends (notably NaIRGenPass) lower
+        # Expr.type directly instead of re-deriving structure from the
+        # annotation AST. get_type_of_expression is memoized, so this is a
+        # no-op when the tag was already evaluated.
+        if nd.tag?.type is None {
+            self.evaluator.get_type_of_expression(nd.tag);
+        }
     }
 }
 
-"""Evaluate types for each Name in a tuple/list unpacking pattern."""
+"""Evaluate types for each Name leaf in a destructure pattern, recursing
+into nested containers."""
 impl TypeCheckPass._eval_unpacking_names(
     self: TypeCheckPass, container: uni.Expr
 ) -> None {
@@ -1011,6 +1438,8 @@ impl TypeCheckPass._eval_unpacking_names(
         for val in container.values {
             if isinstance(val, uni.Name) {
                 self.evaluator.get_type_of_expression(val);
+            } elif isinstance(val, (uni.TupleVal, uni.ListVal)) {
+                self._eval_unpacking_names(val);
             }
         }
     }

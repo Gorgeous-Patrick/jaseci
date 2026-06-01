@@ -19,8 +19,10 @@ import from byllm.exceptions {
     OutputConversionError,
     ConfigurationError,
     UnknownToolError,
-    FinishToolError
+    FinishToolError,
+    McpError
 }
+import from byllm.mcp { McpClient, McpTool }
 import from byllm.types { Tool, Message, MessageRole }
 import dataclasses;
 import from jaclang { JacRuntimeInterface as Jac }
@@ -121,6 +123,15 @@ test "image input" {
     assert "The image shows a hot air balloon shaped like a heart" in stdout_value;
 }
 
+test "image param with sem string doesn't crash Message.to_dict" {
+    captured_output = io.StringIO();
+    sys.stdout = captured_output;
+    jac_import("image_with_sem", base_path=FIXTURE_DIR + "/");
+    sys.stdout = sys.__stdout__;
+    stdout_value = captured_output.getvalue();
+    assert "IMAGE_SEM_PASS" in stdout_value;
+}
+
 test "streaming output" {
     captured_output = io.StringIO();
     sys.stdout = captured_output;
@@ -159,6 +170,24 @@ test "logging stream react" {
     sys.stdout = sys.__stdout__;
     stdout_value = captured_output.getvalue();
     assert "REACT_LOGGING_PASS" in stdout_value;
+}
+
+test "conversation kwarg writes back history with tool calls preserved" {
+    captured_output = io.StringIO();
+    sys.stdout = captured_output;
+    jac_import("conversation_param", base_path=FIXTURE_DIR + "/");
+    sys.stdout = sys.__stdout__;
+    stdout_value = captured_output.getvalue();
+    assert "CONV_PARAM_PASS" in stdout_value;
+}
+
+test "streaming + conversation persists assistant message and emits dicts" {
+    captured_output = io.StringIO();
+    sys.stdout = captured_output;
+    jac_import("streaming_conversation", base_path=FIXTURE_DIR + "/");
+    sys.stdout = sys.__stdout__;
+    stdout_value = captured_output.getvalue();
+    assert "STREAM_CONV_PASS" in stdout_value;
 }
 
 test "by expr" {
@@ -349,6 +378,33 @@ test "visit by for routing" {
     assert "Math Result: 35" in stdout_value;
 }
 
+test "streaming visit by routes and streams tokens to handler" {
+    # `visit [-->] by model(stream=True, stream_handler=fn)` streams the routing
+    # decision token-by-token to the handler (the jac ai --ui firehose path)
+    # while the structured choice still selects the successor edge.
+    captured_output = io.StringIO();
+    sys.stdout = captured_output;
+    jac_import("streaming_visit_by", base_path=FIXTURE_DIR + "/");
+    sys.stdout = sys.__stdout__;
+    stdout_value = captured_output.getvalue();
+    assert "STREAMING_VISIT_BY_PASS" in stdout_value;
+    # The structured choice [1] picked the second successor edge.
+    assert "VISITED: green" in stdout_value;
+    assert "VISITED: red" not in stdout_value;
+}
+
+test "structured streaming without a handler is rejected" {
+    # Streaming a non-str return needs a stream_handler to consume the events;
+    # omitting it raises ConfigurationError up front (the guard the visit-by
+    # streaming path relaxes only when a handler is supplied).
+    captured_output = io.StringIO();
+    sys.stdout = captured_output;
+    jac_import("streaming_structured_no_handler", base_path=FIXTURE_DIR + "/");
+    sys.stdout = sys.__stdout__;
+    stdout_value = captured_output.getvalue();
+    assert "STREAMING_GUARD_PASS" in stdout_value;
+}
+
 test "http client with system prompt override" {
     captured_output = io.StringIO();
     sys.stdout = captured_output;
@@ -358,8 +414,18 @@ test "http client with system prompt override" {
     );
     sys.stdout = sys.__stdout__;
     stdout_value = captured_output.getvalue();
+
+    # Both calls' responses surface.
     assert "Hello, Alice! It's great to meet you." in stdout_value;
+    assert "Hi Alice, welcome!" in stdout_value;
+
+    # jac.toml base SYSTEM reaches the prompt for both calls.
     assert "You are a friendly assistant. Greet the person" in stdout_value;
+
+    # Per-call `system_prompt` on `say_hello_brief` extends the base — both
+    # texts must appear together in the SYSTEM payload of that second call.
+    assert "Respond in three words maximum." in stdout_value;
+
     assert (
         "'api_base': 'https://your_api_base_here/v1/chat/completions'" in stdout_value
     );
@@ -567,6 +633,45 @@ test "builtin llm compiles without glob" {
     sys.stdout = sys.__stdout__;
 }
 
+import from pathlib { Path }
+import from byllm.config_loader { get_byllm_config, reset_byllm_config }
+import from jaclang.jac0core.runtime { JacRuntime }
+
+glob GEMINI_FIXTURE = os.path.join(FIXTURE_DIR, "jac_toml_gemini");
+
+
+test "byllm config reads model from jac.toml" {
+    # Explicit project_dir pointing at a jac.toml with gemini model
+    reset_byllm_config();
+    config = get_byllm_config(Path(GEMINI_FIXTURE));
+    assert config.get_model_config()['default_model'] == "gemini/gemini-1.5-pro";
+}
+
+test "byllm config defaults to gpt-4o-mini when no jac.toml" {
+    # fixtures/ dir has no jac.toml, so built-in defaults apply
+    reset_byllm_config();
+    config = get_byllm_config(Path(FIXTURE_DIR));
+    assert config.get_model_config()['default_model'] == "gpt-4o-mini";
+}
+
+test "byllm config uses full_target_path to find jac.toml regardless of cwd" {
+    # cwd is /tmp, but full_target_path points at the gemini fixture —
+    # the correct jac.toml must still be picked up
+    orig = JacRuntime.get_full_target_path();
+    orig_cwd = os.getcwd();
+    JacRuntime.set_full_target_path(os.path.join(GEMINI_FIXTURE, "main.jac"));
+    reset_byllm_config();
+    os.chdir("/tmp");
+    try {
+        config = get_byllm_config();
+        assert config.get_model_config()['default_model'] == "gemini/gemini-1.5-pro";
+    } finally {
+        os.chdir(orig_cwd);
+        JacRuntime.set_full_target_path(orig);
+        reset_byllm_config();
+    }
+}
+
 # Note: OutputConversionError tests call MTRuntime.parse_response directly because
 # MockLLM.dispatch_no_streaming bypasses parse_response, returning the pre-built
 # output object straight from CompletionResult. The error lives in parse_response,
@@ -719,10 +824,11 @@ test "configuration error on bare dict return type" {
     assert raised , "Expected ConfigurationError for bare dict return type";
 }
 
-# UnknownToolError is raised in BaseLLM.dispatch_no_streaming when the LLM responds
-# with a tool_call whose name is not registered in MTRuntime.tools.
+# An unregistered tool name is recovered, not fatal: dispatch_no_streaming
+# returns a tool call that reports the error back so the model can retry,
+# rather than crashing the whole turn.
 # model_call_no_stream is mocked so no real API key is needed.
-test "unknown tool error when llm calls unregistered tool" {
+test "unregistered tool call is recovered not fatal" {
     model = Model(model_name="test-model");
     messages_list = [
         Message(role=MessageRole.SYSTEM, content="You are a helpful assistant."),
@@ -746,18 +852,20 @@ test "unknown tool error when llm calls unregistered tool" {
 
     };
 
-    raised = False;
     with unittest.mock.patch.object(
         model, "model_call_no_stream", return_value=fake_response
     ) {
-        try {
-            model.dispatch_no_streaming(mt_run);
-        } except UnknownToolError as e {
-            raised = True;
-            assert "nonexistent_tool" in str(e) , f"Error should name the tool, got: {e}";
-        }
+        result = model.dispatch_no_streaming(mt_run);
     }
-    assert raised , "Expected UnknownToolError for unregistered tool name";
+    # No exception: the unknown tool is surfaced as a recoverable tool result.
+    assert len(result.tool_calls) == 1 , "Expected one recovered tool call";
+    err_result = result.tool_calls[0]();
+    assert "nonexistent_tool" in str(err_result.content) , (
+        f"Recovered result should name the tool, got: {err_result.content}"
+    );
+    assert "Tool error" in str(err_result.content) , (
+        f"Recovered result should be a tool error, got: {err_result.content}"
+    );
 }
 
 # FinishToolError is raised inside the finish_tool closure when the final output
@@ -820,9 +928,7 @@ test "litellm debug enabled via config" {
     verbose_proxy_logger.disabled = False;
 
     with unittest.mock.patch.dict(
-        _byllm_llm_mod._litellm_config,
-        {"debug": True, "drop_params": True},
-        clear=True
+        _byllm_llm_mod._litellm_config, {"debug": True, "drop_params": True}, clear=True
     ) {
         model = Model(model_name="gpt-4o-mini");
         assert not verbose_logger.disabled , "verbose_logger should remain enabled when debug=True";
@@ -961,9 +1067,7 @@ test "all exception types log and propagate regardless of debug" {
             with unittest.mock.patch(
                 "litellm.completion",
                 side_effect=litellm.exceptions.RateLimitError(
-                    message="quota exceeded",
-                    llm_provider="openai",
-                    model="gpt-4o-mini"
+                    message="quota exceeded", llm_provider="openai", model="gpt-4o-mini"
                 )
             ) {
                 raised = False;
@@ -1015,7 +1119,6 @@ test "model pool router fallback" {
     assert "fallback_success" in stdout_value;
 }
 
-
 """Test ModelPool load-balancing (simple-shuffle): all three deployments share the
 pool-model alias; three independent calls all succeed and the alias is pool-model."""
 test "model pool router load balance" {
@@ -1029,7 +1132,6 @@ test "model pool router load balance" {
     assert "pool_alias:pool-model" in stdout_value;
     assert stdout_value.count("load_balance_response") == 3;
 }
-
 
 """Test ModelPool propagates router exceptions: when the LiteLLM Router
 raises (all deployments exhausted) the exception reaches the caller."""
@@ -1045,7 +1147,6 @@ test "model pool router all fail" {
     assert "UNEXPECTED" not in stdout_value;
 }
 
-
 """Test ModelPool cost-based-routing uses the async path (acompletion).
 LiteLLM Router only supports cost-based-routing via acompletion(); ModelPool
 bridges this via ThreadPoolExecutor to stay safe in async frameworks."""
@@ -1059,7 +1160,6 @@ test "model pool router cost based" {
     stdout_value = captured_output.getvalue();
     assert "cost_based_success" in stdout_value;
 }
-
 
 """Test ModelPool LiteLLM Router model_list initialisation.
 Fallback strategy: unique per-model aliases + fallbacks list.
@@ -1079,4 +1179,462 @@ test "model pool router init" {
     assert "lb_pool_alias:pool-model" in stdout_value;
     assert "lb_deploy_count:3" in stdout_value;
     assert "lb_all_share_alias:True" in stdout_value;
+}
+
+# MCP integration tests
+glob _dummy_mcp_client = McpClient(url="http://example.invalid/mcp");
+
+test "McpTool implements Tool interface" {
+    tool = McpTool(
+        name="get_weather",
+        description="Fetch weather for a city.",
+        input_schema={
+            "type": "object",
+            "properties": {"city": {"type": "string"}},
+            "required": ["city"]
+        },
+        _client=_dummy_mcp_client
+    );
+    assert tool.get_name() == "get_weather";
+    assert not tool.is_finish_tool();
+    # parse_arguments is a passthrough — MCP schema is the source of truth.
+    assert tool.parse_arguments({"city": "Paris"}) == {"city": "Paris"};
+}
+
+test "McpTool.get_json_schema wraps MCP inputSchema in OpenAI envelope" {
+    input_schema = {
+        "type": "object",
+        "properties": {"q": {"type": "string"}},
+        "required": ["q"]
+    };
+    tool = McpTool(
+        name="search",
+        description="Search the web.",
+        input_schema=input_schema,
+        _client=_dummy_mcp_client
+    );
+    schema = tool.get_json_schema();
+    assert schema["type"] == "function";
+    assert schema["function"]["name"] == "search";
+    assert schema["function"]["description"] == "Search the web.";
+    assert schema["function"]["parameters"] == input_schema;
+}
+
+test "McpTool plugs into MTRuntime.get_tool() polymorphically" {
+    mcp_tool = McpTool(
+        name="lookup",
+        description="Look something up.",
+        input_schema={"type": "object", "properties": {}},
+        _client=_dummy_mcp_client
+    );
+    mt_run = MTRuntime(
+        messages=[],
+        resp_type=None,
+        stream=False,
+        tools=[],
+        call_params={},
+        mtir=None  # type: ignore[arg-type]
+    );
+    # Mutate tools list via dynamic access — IDE type checker flags
+    # list[Tool | McpTool] as invariant, but the actual compiler accepts it.
+    getattr(mt_run, "tools").append(mcp_tool);
+    found = mt_run.get_tool("lookup");
+    assert found is mcp_tool , "MTRuntime.get_tool should resolve McpTool by name";
+    assert mt_run.get_tool("nonexistent") is None;
+    # get_tool_list calls get_json_schema on every tool — must not blow up.
+    schemas = mt_run.get_tool_list();
+    assert len(schemas) == 1;
+    assert schemas[0]["function"]["name"] == "lookup";
+}
+
+test "McpClient errors when neither command nor url is set" {
+    client = McpClient();
+    err: McpError | None = None;
+    try {
+        client.connect();
+    } except McpError as e {
+        err = e;
+    }
+    assert err is not None , "McpClient must require command or url";
+}
+
+test "McpClient raises McpError when mcp package is missing" {
+    with unittest.mock.patch.dict(
+        sys.modules, {"mcp": None, "mcp.client": None, "mcp.client.session": None}
+    ) {
+        client = McpClient(command="echo", args=["test"]);
+        err: McpError | None = None;
+        try {
+            client.connect();
+        } except McpError as e {
+            err = e;
+        }
+        assert err is not None , "connect() must raise McpError when mcp is not installed";
+        assert "pip install" in str(err);
+    }
+}
+
+"""Test ModelPool streaming fallback path."""
+test "model pool streaming fallback" {
+    captured_output = io.StringIO();
+    sys.stdout = captured_output;
+
+    jac_import("model_pool_streaming_fallback", base_path=FIXTURE_DIR + "/");
+
+    sys.stdout = sys.__stdout__;
+    stdout_value = captured_output.getvalue();
+    assert "output:stream_fallback_success" in stdout_value;
+    assert "primary_tried:True" in stdout_value;
+    assert "fallback_tried:True" in stdout_value;
+    assert "order_correct:True" in stdout_value;
+    # Scenario B: mid-stream failure — exception must propagate, no fallback
+    assert "mid_raised:True" in stdout_value;
+    assert "mid_partial_received:True" in stdout_value;
+    assert "mid_fallback_not_tried:True" in stdout_value;
+    assert "mid_should_not_appear:True" in stdout_value;
+}
+
+import from byllm.llm {
+    _is_prompt_caching_eligible,
+    _apply_prompt_caching,
+    _CACHE_CONTROL_EPHEMERAL
+}
+
+test "prompt caching marks system, last non-system message, and last tool for anthropic models" {
+    # Eligibility: Anthropic yes, others no
+    assert _is_prompt_caching_eligible("anthropic/claude-sonnet-4-20250514") == True;
+    assert _is_prompt_caching_eligible("claude-3-opus-20240229") == True;
+    assert _is_prompt_caching_eligible("gpt-4o") == False;
+
+    # Multi-turn ReAct conversation, with list-content on the last message
+    messages = [
+        {"role": "system", "content": "You are an agent."},
+        {"role": "user", "content": "Do something"},
+        {"role": "assistant", "content": "Calling a tool."},
+        {
+            "role": "tool",
+            "content": [
+                {"type": "text", "text": "first"},
+                {"type": "text", "text": "last"}
+            ]
+        }
+    ];
+    tools = [
+        {"type": "function", "function": {"name": "read_file"}},
+        {"type": "function", "function": {"name": "finish_tool"}}
+    ];
+    _apply_prompt_caching(messages, tools);
+
+    # System marked, intermediate messages NOT marked, last message's last block marked
+    assert messages[0].get("cache_control") == _CACHE_CONTROL_EPHEMERAL;
+    assert "cache_control" not in messages[1];
+    assert "cache_control" not in messages[2];
+    assert "cache_control" not in messages[3].get("content")[0];
+    assert messages[3].get("content")[-1].get(
+        "cache_control"
+    ) == _CACHE_CONTROL_EPHEMERAL;
+    # Only last tool marked
+    assert "cache_control" not in tools[0];
+    assert tools[-1].get("cache_control") == _CACHE_CONTROL_EPHEMERAL;
+}
+
+test "prompt caching disabled via config" {
+    with unittest.mock.patch.object(
+        _byllm_llm_mod._byllm_config,
+        'get_prompt_caching_config',
+        return_value={'enabled': False}
+    ) {
+        assert _is_prompt_caching_eligible(
+            "anthropic/claude-sonnet-4-20250514"
+        ) == False;
+    }
+}
+
+import asyncio;
+import inspect;
+
+test "acall_llm proxy is a coroutine function" {
+    assert inspect.iscoroutinefunction(Jac.acall_llm) , (
+        "Jac.acall_llm must be an async function so async walkers can await it"
+    );
+}
+
+test "model_call_no_stream_async raises and logs AuthenticationError" {
+    log_output = io.StringIO();
+    _loguru_logger.remove();
+    handler_id = _loguru_logger.add(log_output, level="ERROR");
+    try {
+        with unittest.mock.patch.dict(
+            _byllm_llm_mod._litellm_config,
+            {"debug": False, "drop_params": True},
+            clear=True
+        ) {
+            model = Model(model_name="gpt-4o-mini");
+            auth_err = litellm.exceptions.AuthenticationError(
+                message="Invalid API key", llm_provider="openai", model="gpt-4o-mini"
+            );
+            async def _run_no_stream_auth {
+                with unittest.mock.patch("litellm.acompletion", side_effect=auth_err) {
+                    raised = False;
+                    try {
+                        await model.model_call_no_stream_async(
+                            {"model": "gpt-4o-mini", "messages": []}
+                        );
+                    } except AuthenticationError as e {
+                        raised = True;
+                        assert "Invalid API key" in str(e);
+                    }
+                    assert raised , "AuthenticationError should propagate from async path";
+                }
+            }
+            asyncio.run(_run_no_stream_auth());
+            log_value = log_output.getvalue();
+            assert "LLM AuthenticationError" in log_value , (
+                f"logger.error should fire for async AuthenticationError, got: {log_value}"
+            );
+        }
+    } finally {
+        _loguru_logger.remove(handler_id);
+    }
+}
+
+test "model_call_with_stream_async raises and logs RateLimitError" {
+    log_output = io.StringIO();
+    _loguru_logger.remove();
+    handler_id = _loguru_logger.add(log_output, level="ERROR");
+    try {
+        with unittest.mock.patch.dict(
+            _byllm_llm_mod._litellm_config,
+            {"debug": False, "drop_params": True},
+            clear=True
+        ) {
+            model = Model(model_name="gpt-4o-mini");
+            rate_err = litellm.exceptions.RateLimitError(
+                message="Rate limit exceeded",
+                llm_provider="openai",
+                model="gpt-4o-mini"
+            );
+            async def _run_stream_rate {
+                with unittest.mock.patch("litellm.acompletion", side_effect=rate_err) {
+                    raised = False;
+                    try {
+                        await model.model_call_with_stream_async(
+                            {"model": "gpt-4o-mini", "messages": []}
+                        );
+                    } except RateLimitError as e {
+                        raised = True;
+                        assert "Rate limit" in str(e);
+                    }
+                    assert raised , "RateLimitError should propagate from async stream path";
+                }
+            }
+            asyncio.run(_run_stream_rate());
+            log_value = log_output.getvalue();
+            assert "LLM RateLimitError" in log_value , (
+                f"logger.error should fire for async stream RateLimitError, got: {log_value}"
+            );
+        }
+    } finally {
+        _loguru_logger.remove(handler_id);
+    }
+}
+
+test "model_call_http_async returns json response" {
+    mock_response = unittest.mock.MagicMock();
+    mock_response.json.return_value = {"choices": [{"message": {"content": "ok"}}]};
+    async def _run_http_async {
+        mock_client = unittest.mock.AsyncMock();
+        mock_client.__aenter__.return_value = mock_client;
+        mock_client.post.return_value = mock_response;
+        with unittest.mock.patch("httpx.AsyncClient", return_value=mock_client) {
+            model = Model(model_name="gpt-4o-mini");
+            result = await model.model_call_http_async(
+                url="https://example.com/v1/chat/completions",
+                token="test-token",
+                payload={"model": "gpt-4o-mini", "messages": []},
+                ca_bundle=None
+            );
+            return result;
+        }
+    }
+    result = asyncio.run(_run_http_async());
+    assert result == {"choices": [{"message": {"content": "ok"}}]};
+}
+
+import ast as ast3;
+import from jaclang.jac0core.program { JacProgram }
+
+test "async by llm() codegen emits await Jac.acall_llm not call_llm" {
+    # Compile the fixture that has both an async and a sync by llm() function.
+    code_gen = (prog := JacProgram()).compile(
+        os.path.join(FIXTURE_DIR, "async_by_llm.jac")
+    );
+    assert not prog.errors_had , f"Compilation errors: {prog.errors_had}";
+    assert code_gen.gen.py_ast and isinstance(code_gen.gen.py_ast[0], ast3.Module) , (
+        "Expected a compiled Python AST module"
+    );
+    py_source = ast3.unparse(code_gen.gen.py_ast[0]);
+
+    # Async function must use acall_llm, wrapped in await.
+    assert "acall_llm" in py_source , (
+        f"Expected 'acall_llm' in generated source for async by llm(). Got:\n{py_source}"
+    );
+
+    # Sync function must still use call_llm (no await).
+    assert "call_llm" in py_source , (
+        f"Expected 'call_llm' in generated source for sync by llm(). Got:\n{py_source}"
+    );
+
+    # The async body must contain an Await node whose value is a Call to acall_llm.
+    # The codegen imports acall_llm directly (Name node), not as Jac.acall_llm (Attribute).
+    def _is_acall_llm_call(`node: object) -> bool {
+        if not (isinstance(`node, ast3.Call)) {
+            return False;
+        }
+        func = `node.func;
+        return (
+            (isinstance(func, ast3.Name) and func.id == "acall_llm")
+            or (isinstance(func, ast3.Attribute) and func.attr == "acall_llm")
+        );
+    }
+    await_nodes = [
+        n
+        for n in ast3.walk(code_gen.gen.py_ast[0])
+        if isinstance(n, ast3.Await) and _is_acall_llm_call(n.value)
+    ];
+    assert len(await_nodes) >= 1 , (
+        "Expected at least one ast3.Await(value=Call(acall_llm, ...)) in generated AST"
+    );
+
+    # All acall_llm calls must be wrapped in Await — no bare unawaited calls.
+    all_acall_nodes = [
+        n
+        for n in ast3.walk(code_gen.gen.py_ast[0])
+        if _is_acall_llm_call(n)
+    ];
+    awaited_values = {
+        id(n.value)
+        for n in ast3.walk(code_gen.gen.py_ast[0])
+        if isinstance(n, ast3.Await)
+    };
+    bare_acall_nodes = [
+        n
+        for n in all_acall_nodes
+        if id(n) not in awaited_values
+    ];
+    assert len(bare_acall_nodes) == 0 , (
+        f"Found {len(bare_acall_nodes)} bare (non-awaited) acall_llm call(s) — "
+        "async by llm() must always be awaited"
+    );
+}
+
+test "async by llm() end-to-end with mocked acall_llm" {
+    # Compile the fixture and execute it with acall_llm mocked to return "summary".
+    code_gen = (prog := JacProgram()).compile(
+        os.path.join(FIXTURE_DIR, "async_by_llm.jac")
+    );
+    assert not prog.errors_had , f"Compilation errors: {prog.errors_had}";
+    assert code_gen.gen.py_ast and isinstance(code_gen.gen.py_ast[0], ast3.Module);
+
+    compiled = compile(code_gen.gen.py_ast[0], filename="<ast>", mode="exec");
+    module = types.ModuleType("async_by_llm_fixture");
+    module.__dict__["__file__"] = code_gen.loc.mod_path;
+
+    async def _run_end_to_end -> str {
+        # Patch acall_llm so no real API call is made.
+        async def _fake_acall_llm(**kwargs: object) -> object {
+            return "summary";
+        }
+        # acall_llm is imported directly from jaclang.jac0core.jaclib into the
+        # compiled module's namespace, so we patch it there.
+        import jaclang.jac0core.jaclib as _jaclib;
+        with unittest.mock.patch.object(_jaclib, "acall_llm", _fake_acall_llm) {
+            exec(compiled, module.__dict__);
+            result = await module.__dict__["get_summary"](text="hello world");
+            return result;
+        }
+    }
+    result = asyncio.run(_run_end_to_end());
+    assert result == "summary" , (
+        f"Expected mocked acall_llm result 'summary', got: {result!r}"
+    );
+}
+
+
+"""Text tool protocol: a reply object carrying a tool call as plain text must
+be recovered into a structured `tool_calls` field.
+
+Regression for the ollama/gemma loop: `recover_tool_calls` only handled dict
+replies, so the litellm path (which yields a `Message` *object*) silently
+no-opped -- the model's `<tool_call>` text was never executed and the agent
+re-issued the same call forever. The fix coerces object replies to a dict and
+returns it, so callers pick up the recovered call.
+"""
+test "recover_tool_calls handles an object-shaped reply" {
+    import from byllm.tool_protocol { recover_tool_calls }
+    import from types { SimpleNamespace }
+    # Mimics a litellm Message object: attribute access, no dict-ness.
+    msg = SimpleNamespace(
+        role="assistant",
+        content="<tool_call>{\"name\": \"get_count\", \"arguments\": {}}</tool_call>",
+        tool_calls=None
+    );
+    out = recover_tool_calls(msg, ["get_count", "finish_tool"]);
+    assert isinstance(out, dict) , "must return a dict the ReAct loop can read";
+    tcs = out.get("tool_calls");
+    assert tcs , "the text tool call must be recovered into tool_calls";
+    assert tcs[0].function.name == "get_count";
+    assert "<tool_call>" not in (out.get("content") or "") , (
+        "the consumed call text must be stripped from content"
+    );
+}
+
+
+"""Text tool protocol: tool-call and tool-result history must linearise to text
+for models whose chat template has no `tool` role (e.g. gemma)."""
+test "linearize_tool_messages renders calls and results as text" {
+    import from byllm.tool_protocol { linearize_tool_messages }
+    import from types { SimpleNamespace }
+    msgs = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "how many?"},
+        # assistant tool-call message (object-shaped tool_calls, content stripped)
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                SimpleNamespace(
+                    function=SimpleNamespace(name="get_count", arguments="{}")
+                )
+            ]
+        },
+        # tool result (identified by tool_call_id)
+        {"role": "tool", "tool_call_id": "abc", "name": "get_count", "content": "7"}
+    ];
+    out = linearize_tool_messages(msgs);
+    # System + user pass through untouched.
+    assert out[0]["role"] == "system";
+    assert out[1]["role"] == "user";
+    # Assistant tool call becomes <tool_call> text.
+    assert out[2]["role"] == "assistant";
+    assert "<tool_call>" in out[2]["content"];
+    assert "get_count" in out[2]["content"];
+    # Tool result becomes a readable user message (no dropped tool role).
+    assert out[3]["role"] == "user";
+    assert "<tool_response>" in out[3]["content"];
+    assert "7" in out[3]["content"];
+}
+
+
+"""Gemma-family models route through the text tool protocol automatically,
+since their chat template cannot consume `role:tool` results."""
+test "gemma models default to the text tool protocol" {
+    m = Model(model_name="ollama/gemma4:31b");
+    assert m.supports_native_tools == False;
+    # An explicit override still wins.
+    m2 = Model(model_name="ollama/gemma4:31b", config={"native_tools": True});
+    assert m2.supports_native_tools == True;
+    # A model without the gemma template keeps native tools.
+    m3 = Model(model_name="gpt-4o");
+    assert m3.supports_native_tools == True;
 }

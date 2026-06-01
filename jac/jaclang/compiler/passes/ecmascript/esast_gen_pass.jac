@@ -10,7 +10,7 @@ the ESTree specification by:
    - Control flow statements (if/else, loops, try/catch)
    - Data structures (arrays, objects)
    - Special Jac features (walkers, abilities, archetypes) converted to JS classes
-   - Data spatial operations converted to appropriate JS patterns
+   - Object spatial operations converted to appropriate JS patterns
 
 3. Managing imports and module dependencies
 4. Preserving source location information
@@ -30,11 +30,25 @@ import from jaclang.jac0core.constant { CodeContext, SymbolType }
 import from jaclang.jac0core.constant { Tokens as Tok }
 import from jaclang.jac0core.passes.ast_gen { BaseAstGenPass }
 import from jaclang.jac0core.passes.ast_gen.jsx_processor { EsJsxProcessor }
+import from jaclang.jac0core.codeinfo { ClientManifest }
+import from jaclang.compiler.passes.ecmascript.scoped_styles {
+    ScopedStyleSheet,
+    load_style_annex
+}
 import from jaclang.jac0core.modresolver {
     convert_to_js_import_path,
     resolve_relative_path
 }
-import from jaclang.jac0core.diagnostics { E5010, E5011, E5012, W5013, W5014 }
+import from jaclang.jac0core.diagnostics {
+    E2025,
+    E5010,
+    E5011,
+    E5012,
+    W5013,
+    W5014,
+    W5015,
+    E5080
+}
 
 glob _T = TypeVar('_T', bound=es.Node),
      ES_LOGICAL_OPS: dict[(Tok, str)] = {Tok.KW_AND: '&&', Tok.KW_OR: '||'},
@@ -63,6 +77,8 @@ glob _T = TypeVar('_T', bound=es.Node),
          Tok.GT: '>',
          Tok.LTE: '<=',
          Tok.GTE: '>=',
+         Tok.KW_IS: '===',
+         Tok.KW_ISN: '!==',
          Tok.KW_IN: 'in',
          Tok.KW_NIN: 'in'
      },
@@ -122,7 +138,27 @@ glob _T = TypeVar('_T', bound=es.Node),
          Tok.BW_AND_EQ: "emit_op_iand",
          Tok.BW_XOR_EQ: "emit_op_ixor"
      },
+     # Python-only method names that have no JS equivalent. When the static
+     # type of the receiver cannot be proven (issue #5508 / #5453), the
+     # codegen routes these calls through `_jac.poly.<method>(target, ...)`,
+     # which dispatches to the native JS operation at runtime.
+     POLYMORPHIC_METHODS: set[str] = {
+         "lower",
+         "upper",
+         "strip",
+         "lstrip",
+         "rstrip",
+         "append",
+         "extend",
+         "pop"
+     },
      LiteralValue = str | bool | int | float | None;
+
+"""Name of the synthesized children accumulator local for a JSX `{...}`
+slot. The outermost slot in a given scope uses this name; nested slot
+scopes (a `try`/`awaiting`/`except` arm's own accumulator) get a unique
+`__jac_view_kids_N` suffix so hoisted `let` bindings never collide."""
+glob VIEW_ACC: str = "__jac_view_kids";
 
 """Track declarations within a lexical scope."""
 obj ScopeInfo {
@@ -137,8 +173,7 @@ obj AssignmentTargetInfo {
         left: (es.Pattern | es.Expression),
         reference: (es.Expression | None),
         decl_name: (str | None),
-        pattern_names: list[tuple[(str, uni.Name)]],
-        is_first: bool;
+        pattern_names: list[tuple[(str, uni.Name)]];
 }
 
 """Describes the walker-side of a spawn expression."""
@@ -160,14 +195,58 @@ obj SpawnCallParts {
         target: SpawnTargetInfo;
 }
 
+"""Resolved function-call argument slot."""
+obj CallArgSlot {
+    has name: (str | None),
+        value: (es.Expression | es.SpreadElement | None);
+}
+
 """Jac to ECMAScript AST transpilation pass."""
 obj EsastGenPass(BaseAstGenPass[es.Statement]) {
+    has child_passes: list[EsastGenPass] = [],
+        imports: list[es.ImportDeclaration] = [],
+        exports: list[es.ExportNamedDeclaration] = [],
+        scope_stack: list[ScopeInfo] = [],
+        scope_map: dict[(uni.UniScopeNode, ScopeInfo)] = {},
+        client_manifest: (ClientManifest | None) = None,
+        jsx_processor: (EsJsxProcessor | None) = None,
+        scoped_styles: (ScopedStyleSheet | None) = None,
+        # Reactive state variables: var_name -> setter_name (e.g., "count" -> "setCount")
+        reactive_vars: dict[str, str] = {},
+        # Stack to save/restore reactive_vars per function boundary
+        reactive_vars_stack: list[dict[str, str]] = [],
+        # Runtime imports auto-injected by the codegen; tracked to avoid duplicates
+        injected_imports: set[str] = set(),
+        # JSX `{...}` slot view-lowering state. Holds the accumulator name of each
+        # enclosing slot scope (a `str`), or `None` for a nested-`def` barrier that
+        # suspends lowering. The topmost `str` is the accumulator a JSX statement
+        # pushes into; a `None` on top means we are inside a nested function and
+        # JSX should NOT be accumulated. The counter gives nested slot scopes
+        # (try/awaiting/except arms) unique local names.
+        _view_stack: list[(str | None)] = [],
+        # The first slot keeps the bare `__jac_view_kids` name; every later slot
+        # (sibling or nested) draws a unique `__jac_view_kids_N` suffix.
+        _view_used_base: bool = False,
+        _view_acc_counter: int = 0,
+        # TryStmt nodes (by id) being lowered into a `<JacAwaiting>` wrapper, so
+        # the clause handlers know to scope their own accumulators.
+        _view_awaiting_tries: set[int] = set(),
+        # JS function stubs for def:pub functions imported via sv import
+        sv_import_stubs: list[es.Statement] = [],
+        # True iff the primitive emitter produced `_jac.*` calls and the runtime needs importing
+        needs_jac_runtime: bool = False,
+        # Primitive emitter instances for codegen dispatch (lazily initialized to avoid circular imports)
+        _primitive_emitters: (dict[str, object] | None) = None,
+        _builtin_emitter: (object | None) = None,
+        _primitives_es_mod: (object | None) = None;
+
     def before_pass -> None;
     def enter_node(nd: uni.UniNode) -> None;
     def exit_node(nd: uni.UniNode) -> None;
     def sync_loc(es_node: _T, jac_node: (uni.UniNode | None) = None) -> _T;
     def _push_scope(nd: uni.UniScopeNode) -> None;
     def _pop_scope(nd: uni.UniScopeNode) -> None;
+    def _alt_branch_scope_to_finalize(nd: uni.UniNode) -> (uni.UniScopeNode | None);
     def _current_scope -> (ScopeInfo | None);
     def _is_declared_in_any_scope(name: str) -> bool;
     def _register_declaration(name: str) -> None;
@@ -207,7 +286,6 @@ obj EsastGenPass(BaseAstGenPass[es.Statement]) {
         nd: uni.BinaryExpr, parts: SpawnCallParts
     ) -> es.AwaitExpression;
 
-    def _analyze_body_effects(body_nodes: Sequence[uni.UniNode]) -> dict;
     def _collect_stmt_body(body: (Sequence[uni.UniNode] | None)) -> list[es.Statement];
     def _get_ast_or_default(
         nd: (uni.UniNode | None),
@@ -238,6 +316,7 @@ obj EsastGenPass(BaseAstGenPass[es.Statement]) {
     def _get_setter_name(var_name: str) -> str;
     def _has_import(name: str) -> bool;
     def _inject_runtime_import(name: str, nd: uni.UniNode) -> None;
+    def _ref_head_name(expr: (uni.UniNode | None)) -> (str | None);
     def _register_jac_runtime_import -> None;
     def _transform_to_useeffect(nd: uni.Ability) -> None;
     def exit_jsx_element(nd: uni.JsxElement) -> None;
@@ -246,12 +325,52 @@ obj EsastGenPass(BaseAstGenPass[es.Statement]) {
     def exit_jsx_normal_attribute(nd: uni.JsxNormalAttribute) -> None;
     def exit_jsx_text(nd: uni.JsxText) -> None;
     def exit_jsx_expression(nd: uni.JsxExpression) -> None;
+    def enter_jsx_slot(nd: uni.JsxSlot) -> None;
+    def exit_jsx_slot(nd: uni.JsxSlot) -> None;
+    def exit_jsx_comment(nd: uni.JsxComment) -> None;
+    def enter_try_stmt(nd: uni.TryStmt) -> None;
+    def enter_except(nd: uni.Except) -> None;
+    def enter_awaiting_clause(nd: uni.AwaitingClause) -> None;
+    def exit_awaiting_clause(nd: uni.AwaitingClause) -> None;
+    # ----- JSX `{...}` slot view-lowering (direct es_ast) ------------------
+    """Name of the slot accumulator currently in scope, or None when not
+    directly inside a slot body (e.g. inside a nested `def` barrier)."""
+    def _cur_view_acc -> (str | None);
+
+    """Push a fresh slot-accumulator scope and return its local name."""
+    def _push_view_acc -> str;
+
+    """Build `acc.push(<value>);` — accumulate one template element."""
+    def _view_push_stmt(
+        acc_name: str, value: es.Expression, anchor: uni.UniNode
+    ) -> es.ExpressionStatement;
+
+    """Build `<>{children...}</>` as a `__jacJsx(null, {}, [children])` call."""
+    def _jsx_fragment(
+        children: list[es.Expression], anchor: uni.UniNode
+    ) -> es.CallExpression;
+
+    """Build `return <>{acc}</>;` — the fragment of all content so far."""
+    def _view_fragment_return(
+        acc_name: str, anchor: uni.UniNode
+    ) -> es.ReturnStatement;
+
+    """Wrap a lowered slot body in an inline accumulator IIFE expression."""
+    def _build_view_iife(
+        body_nodes: (Sequence[uni.UniNode] | None), acc_name: str, anchor: uni.UniNode
+    ) -> es.CallExpression;
+
+    """Assemble the `<JacAwaiting>`/`<JacClientErrorBoundary>` wrapper for a
+    slot `try { ... } awaiting { ... } except { ... }` on the cl target."""
+    def _build_awaiting_wrapper(nd: uni.TryStmt, try_acc: str) -> None;
+
     def exit_if_stmt(nd: uni.IfStmt) -> None;
     def exit_else_if(nd: uni.ElseIf) -> None;
     def exit_else_stmt(nd: uni.ElseStmt) -> None;
     def exit_while_stmt(nd: uni.WhileStmt) -> None;
     def exit_iter_for_stmt(nd: uni.IterForStmt) -> None;
     def exit_in_for_stmt(nd: uni.InForStmt) -> None;
+    def _target_to_pattern(target: es.Node, loc: uni.UniNode) -> es.Node;
     def exit_try_stmt(nd: uni.TryStmt) -> None;
     def exit_except(nd: uni.Except) -> None;
     def exit_finally_stmt(nd: uni.FinallyStmt) -> None;
@@ -263,6 +382,7 @@ obj EsastGenPass(BaseAstGenPass[es.Statement]) {
     def exit_switch_stmt(nd: uni.SwitchStmt) -> None;
     def exit_switch_case(nd: uni.SwitchCase) -> None;
     def _ensure_emitters -> None;
+    def _resolve_primitive_type_name(_obj_type: object) -> str;
     def _try_primitive_op(
         expr_node: uni.UniNode,
         emit_method: str,
@@ -271,7 +391,31 @@ obj EsastGenPass(BaseAstGenPass[es.Statement]) {
         jac_node: uni.UniNode
     ) -> (es.Expression | None);
 
+    def _expr_type_name(expr_node: uni.UniNode) -> str;
+    def _is_collection_expr(expr_node: uni.UniNode) -> bool;
+    def _build_jac_ref(path: list[str], jac_node: uni.UniNode) -> es.Expression;
+    def _build_jac_call(
+        path: list[str], args: list[es.Expression], jac_node: uni.UniNode
+    ) -> es.Expression;
+
+    def _coerce_truthy(
+        expr_node: (uni.UniNode | None), es_expr: es.Expression, jac_node: uni.UniNode
+    ) -> es.Expression;
+
+    def _is_literal_index(idx_es: es.Expression) -> bool;
+    def _lower_subscript(
+        target_node: uni.UniNode,
+        obj_es: es.Expression,
+        idx_es: es.Expression,
+        jac_node: uni.UniNode
+    ) -> es.Expression;
+
+    def _try_subscript_setitem(
+        target: uni.UniNode, value_es: (es.Expression | None), jac_node: uni.UniNode
+    ) -> (es.Statement | None);
+
     def exit_binary_expr(nd: uni.BinaryExpr) -> None;
+    def exit_cfg_expr(nd: uni.CfgExpr) -> None;
     def exit_bool_expr(nd: uni.BoolExpr) -> None;
     def exit_compare_expr(nd: uni.CompareExpr) -> None;
     def exit_unary_expr(nd: uni.UnaryExpr) -> None;
@@ -280,8 +424,66 @@ obj EsastGenPass(BaseAstGenPass[es.Statement]) {
     ) -> tuple[(es.Pattern | es.Expression), (es.Expression | None), (str | None)];
 
     def _collect_pattern_names(target: uni.UniNode) -> list[tuple[(str, uni.Name)]];
-    def _is_name_first_definition(name_node: uni.Name) -> bool;
     def exit_assignment(nd: uni.Assignment) -> None;
+    def _resolve_source_module(nd: uni.Import) -> (uni.Module | None);
+    def _ability_from_symbol(sym: (uni.Symbol | None)) -> (uni.Ability | None);
+    def _resolve_call_ability(nd: uni.FuncCall) -> (uni.Ability | None);
+    def _param_names_from_ability(ability_node: uni.Ability) -> list[str];
+    def _param_type_map_from_ability(ability_node: uni.Ability) -> dict[(str, str)];
+    def _wrap_to_wire_if_boundary(
+        expr: es.Expression,
+        type_name: str,
+        boundary_types: dict[(str, Any)],
+        jac_node: uni.UniNode
+    ) -> es.Expression;
+
+    def _extract_return_type(
+        ability_node: uni.Ability, func_name: str, manifest: any
+    ) -> str;
+
+    def _wrap_return_with_boundary(
+        call_expr: es.Expression,
+        ret_type: str,
+        boundary_types: dict[(str, Any)],
+        jac_node: uni.UniNode,
+        pre_awaited: bool
+    ) -> es.Expression;
+
+    def _resolve_call_arg_slots(
+        nd: uni.FuncCall,
+        args: list[(es.Expression | es.SpreadElement)],
+        props: list[(es.Property | es.SpreadElement)],
+        param_names: list[str],
+        func_name: str,
+        spread_read_source: (es.Expression | None)
+    ) -> list[CallArgSlot];
+
+    def _call_args_from_slots(
+        slots: list[CallArgSlot]
+    ) -> (list[(es.Expression | es.SpreadElement)] | None);
+
+    def _kwargs_spread_arg(
+        props: list[(es.Property | es.SpreadElement)], nd: uni.FuncCall
+    ) -> (es.Expression | None);
+
+    def _kwargs_spread_needs_temp(
+        props: list[(es.Property | es.SpreadElement)]
+    ) -> bool;
+
+    def _make_kwargs_spread_context(
+        props: list[(es.Property | es.SpreadElement)], nd: uni.FuncCall
+    ) -> tuple[((es.Expression | None), (es.Expression | None))];
+
+    def _wrap_with_kwargs_temp(
+        expr: es.Expression, spread_arg: es.Expression, nd: uni.FuncCall
+    ) -> es.Expression;
+
+    def _try_lower_server_rpc_call(
+        nd: uni.FuncCall,
+        args: list[(es.Expression | es.SpreadElement)],
+        props: list[(es.Property | es.SpreadElement)]
+    ) -> (es.Expression | None);
+
     def exit_func_call(nd: uni.FuncCall) -> None;
     def exit_index_slice(nd: uni.IndexSlice) -> None;
     def exit_special_var_ref(nd: uni.SpecialVarRef) -> None;
@@ -313,6 +515,7 @@ obj EsastGenPass(BaseAstGenPass[es.Statement]) {
     def exit_f_string(nd: uni.FString) -> None;
     def exit_if_else_expr(nd: uni.IfElseExpr) -> None;
     def exit_await_expr(nd: uni.AwaitExpr) -> None;
+    def exit_cast_expr(nd: uni.CastExpr) -> None;
     def exit_null(nd: uni.Null) -> None;
     def exit_name(nd: uni.Name) -> None;
     def exit_global_vars(nd: uni.GlobalVars) -> None;

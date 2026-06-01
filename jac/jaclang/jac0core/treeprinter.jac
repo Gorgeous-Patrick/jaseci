@@ -2,14 +2,8 @@
 import ast as ast3;
 import builtins;
 import html;
-import from typing { TYPE_CHECKING }
 import jaclang.jac0core.unitree as uni;
-
-with entry {
-    if TYPE_CHECKING {
-        import from jaclang.jac0core.unitree { UniNode, UniScopeNode }
-    }
-}
+import type from jaclang.jac0core.unitree { UniNode, UniScopeNode }
 
 glob id_bag: dict = {},
      id_used: int = 0,
@@ -71,11 +65,13 @@ glob id_bag: dict = {},
          'RevisitStmt': '#d8f3dc',
          'DisengageStmt': '#d8f3dc',
          'AwaitExpr': '#fbeb93',
+         'CastExpr': '#fbeb93',
          'GlobalStmt': '#ffc596',
          'NonLocalStmt': '#ffc596',
          'Assignment': '#ffc596',
          'BinaryExpr': '#fbeb93',
          'CompareExpr': '#fbeb93',
+         'CfgExpr': '#fbeb93',
          'BoolExpr': '#fbeb93',
          'LambdaExpr': '#fbeb93',
          'UnaryExpr': '#fbeb93',
@@ -337,7 +333,9 @@ def print_ast_tree(
             );
         }
     } elif isinstance(root, ast3.AST) {
-        tree_str = f"{get_location_info(root)}	{markers}{__node_repr_in_py_tree(root)}\n";
+        tree_str = f"{get_location_info(root)}	{markers}{__node_repr_in_py_tree(
+            root
+        )}\n";
         for (i_a, child_a) in enumerate(ast3.iter_child_nodes(root)) {
             is_last = i_a == (len(`list(ast3.iter_child_nodes(root))) - 1);
             tree_str += print_ast_tree(
@@ -363,19 +361,9 @@ class SymbolTree {
         children: (list[SymbolTree] | None) = None
     ) -> None;
 
-    """Get parent node."""
-    @property
-    def parent(self: SymbolTree) -> (SymbolTree | None) {
-        return self.__parent;
-    }
-
-    """Set parent node."""
-    @parent.setter
-    def parent(self: SymbolTree, parent_node: (SymbolTree | None)) {
-        if parent_node {
-            self.__parent = parent_node;
-            parent_node.kid.append(self);
-        }
+    has parent: (SymbolTree | None) {
+        getter;
+        setter(self: SymbolTree, parent_node: (SymbolTree | None));
     }
 }
 

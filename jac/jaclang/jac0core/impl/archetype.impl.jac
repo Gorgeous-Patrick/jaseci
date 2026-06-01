@@ -5,6 +5,31 @@ impl Access.check(anchor: str) -> (AccessLevel | None) {
     return self.anchors.get(anchor);
 }
 
+"""Serialize PermissionDenied into a JSON-safe dict for the response envelope."""
+impl PermissionDenied.to_dict -> dict[(str, Any)] {
+    return {
+        "operation": self.operation,
+        "target_id": self.target_id,
+        "target_type": self.target_type,
+        "target_owner": self.target_owner,
+        "required": self.required.name,
+        "actual": self.actual.name,
+        "message": self.message()
+    };
+}
+
+"""Render PermissionDenied as a single-line user-facing message."""
+impl PermissionDenied.message -> str {
+    owner = self.target_owner or "<system>";
+    return (
+        f"Permission denied: {self.operation} on "
+        f"{self.target_type}[{self.target_id}] owned by root[{owner}]; "
+        f"required {self.required.name}, have {self.actual.name}. "
+        f"Hint: at the owner-side call `grant(node, level={self.required.name})`, "
+        f"or expose an ability on the target node and route writes through it."
+    );
+}
+
 """Filter edge."""
 impl ObjectSpatialDestination.edge_filter(arch: Archetype) -> bool {
     return (not self.edge or self.edge(arch));
@@ -39,9 +64,9 @@ impl ObjectSpatialPath.convert(
     if callable(filter) {
         return filter;
     } elif isinstance(filter, `list) {
-        return lambda i: Any : (i in filter);
+        return lambda i: any : (i in filter);
     }
-    return lambda i: Any : (i == filter);
+    return lambda i: any : (i == filter);
 }
 
 """Append destination."""
@@ -169,11 +194,15 @@ impl Anchor.__getstate__ -> dict[(str, Any)] {
 """Deserialize Anchor."""
 impl Anchor.__setstate__(state: dict[(str, Any)]) -> None {
     self.__dict__.update(state);
-    # Initialize is_updated to False since loaded data hasn't been modified yet
-    self.is_updated = False;
     if (self.is_populated() and self.archetype) {
         self.archetype.__jac__ = self;
         self.hash = hash(dumps(self));
+    }
+    # Snapshot initial edge IDs for merge-based conflict resolution
+    if isinstance(self, NodeAnchor) {
+        self.__dict__['_initial_edge_ids'] = frozenset(
+            e.id for e in self.__dict__.get('edges', [])
+        );
     }
 }
 
@@ -198,9 +227,7 @@ impl Anchor.`report -> AnchorReport {
     return AnchorReport(
         id=self.id.hex,
         context=asdict(self.archetype)
-            if (
-                is_dataclass(self.archetype) and not isinstance(self.archetype, `type)
-            )
+            if (is_dataclass(self.archetype) and not isinstance(self.archetype, `type))
             else {}
     );
 }
@@ -242,27 +269,30 @@ impl NodeAnchor.__getstate__ -> dict[(str, object)] {
     return state;
 }
 
-"""Get decoded topology index (decoded once and cached on the anchor instance)."""
-impl NodeAnchor.get_topology_index -> Any {
-    import from jaclang.runtimelib.topology_index { TopologyIndex }
-    cached = getattr(self, "_topology_index_cache", None);
-    if cached is not None {
-        return cached;
+"""Compute edge delta (added, removed) since this node was loaded from DB.
+Returns None if no snapshot exists (newly created node)."""
+impl NodeAnchor.edge_delta -> (tuple[(set[UUID], set[UUID])] | None) {
+    initial_fs: (frozenset | None) = self.__dict__.get('_initial_edge_ids');
+    if initial_fs is None {
+        return None;
     }
-    if self.topology_index_data {
-        idx = TopologyIndex.decode(self.topology_index_data);
-    } else {
-        idx = TopologyIndex();
-    }
-    self._topology_index_cache = idx;
-    return idx;
+    initial: set[UUID] = set(initial_fs);
+    current: set[UUID] = set(e.id for e in self.edges);
+    return (current - initial, initial - current);
 }
 
-"""Set topology index from TopologyIndex object (encodes to blob, invalidates cache)."""
-impl NodeAnchor.set_topology_index(index: Any) -> None {
+"""Get decoded topology index (lazy-decoded from blob)."""
+impl NodeAnchor.get_topology_index -> any {
+    import from jaclang.runtimelib.topology_index { TopologyIndex }
+    if self.topology_index_data {
+        return TopologyIndex.decode(self.topology_index_data);
+    }
+    return TopologyIndex();
+}
+
+"""Set topology index from TopologyIndex object (encodes to blob)."""
+impl NodeAnchor.set_topology_index(index: any) -> None {
     self.topology_index_data = index.encode();
-    self._topology_index_cache = index;
-    self.is_updated = True;
 }
 
 """Serialize Edge Anchor."""
@@ -287,7 +317,7 @@ impl Archetype.__jac__ -> Anchor {
 }
 
 """Configure subclasses."""
-impl Archetype.__init_subclass__(cls: Any, **kwargs: object) -> None {
+impl Archetype.__init_subclass__(cls: any, **kwargs: object) -> None {
     super.__init_subclass__(**kwargs);
     if not cls.__dict__.get('__jac_base__', False) {
         import from jaclang { JacRuntimeInterface as _ }
@@ -298,10 +328,8 @@ impl Archetype.__init_subclass__(cls: Any, **kwargs: object) -> None {
     }
 }
 
-"""Set attribute on archetype."""
-impl Archetype.__setattr__(name: str, value: Any) -> None {
-    object.__setattr__(self, name, value);
-}
+"""No-op base post-init; exists so subclass `super.postinit()` calls resolve."""
+impl Archetype.postinit -> None { }
 
 """Override repr for archetype."""
 impl Archetype.__repr__ -> str {
@@ -334,11 +362,35 @@ impl Root.__repr__ -> str {
 impl ObjectSpatialFunction.trigger -> (
     type | UnionType | tuple[((type | UnionType), ...)] | None
 ) {
-    parameters = signature(self.func, eval_str=True).parameters;
-    if (len(parameters) >= 2) {
+    # Resolve the trigger value. Fast path: the compiler stamps a lazy thunk
+    # (see PyastGenPass `set_trigger`) carrying the trigger type, so no runtime
+    # signature reflection is needed. The thunk defers type resolution to first
+    # access (here), after the whole module — including forward-referenced
+    # types — is defined. Fall back to inspecting the ability signature when no
+    # thunk was stamped. cached_property memoizes the resolved value.
+    if self.trigger_override is not _NO_TRIGGER {
+        ty = self.trigger_override();
+    } else {
+        parameters = signature(self.func, eval_str=True).parameters;
+        if len(parameters) < 2 {
+            return None;
+        }
         second_param = `list(parameters.values())[1];
         ty = second_param.annotation;
-        return ty if (ty != _empty) else None;
+        if ty == _empty {
+            return None;
+        }
     }
-    return None;
+    # An ability trigger must be a class, not an instance. Validate on both
+    # resolution paths so e.g. `with root entry` (the `root` instance) raises
+    # here instead of being silently classified as a non-matching trigger.
+    if isinstance(ty, Archetype) {
+        raise TypeError(
+            f"Ability trigger must be a class, not an instance of `{type(
+                ty
+            ).__name__}`. "
+            f"Use `with {type(ty).__name__} entry` instead."
+        );
+    }
+    return ty;
 }

@@ -8,5 +8,10 @@ exclude = [
     "*/examples/*",
     "*/tests/*",
     "console.impl.jac",
-    "cli_boot.jac"
+    "cli_boot.jac",
 ]
+
+[plugins.byllm.model]
+default_model = "anthropic/claude-sonnet-4-6"
+#default_model = "ollama/gemma4:31b"
+#default_model = "ollama/qwen3-coder"

@@ -8,7 +8,7 @@
 - [Walkers](#walkers) - Walker declaration, visit, report, disengage
 - [Graph Construction](#graph-construction) - Creating and connecting nodes
 - [Graph Traversal](#graph-traversal) - Filtered traversal, entry/exit events
-- [Data Spatial Queries](#data-spatial-queries) - Edge references, attribute filtering
+- [Object Spatial Queries](#object-spatial-queries) - Edge references, attribute filtering
 - [Typed Context Blocks](#typed-context-blocks) - Type-based dispatch
 
 ---
@@ -408,6 +408,22 @@ with entry {
 }
 ```
 
+You can declare `has reports` with a type to get compile-time checking on `report` statements:
+
+```jac
+walker DataCollector {
+    has reports: list[int];
+
+    can start with Root entry { visit [-->]; }
+    can collect with DataNode entry {
+        report here.value;  # checked against int
+        visit [-->];
+    }
+}
+```
+
+If omitted, `reports` defaults to `list[any]`. See [Walker Response Patterns](walker-responses.md#typing-your-reports) for details.
+
 ### 5 The `disengage` Statement
 
 The `disengage` statement immediately terminates a walker's traversal. Use it when the walker has found what it was looking for (like a search hitting its target) or when a condition means further traversal would be pointless. It's the walker equivalent of `return` from a recursive function.
@@ -422,6 +438,29 @@ walker Searcher {
             disengage;  # Stop traversal
         }
         visit [-->];
+    }
+}
+```
+
+#### `skip` vs `disengage`
+
+`skip` and `disengage` are easy to confuse, but they operate at different scopes. `skip` is a return-family statement (alongside `return`/`yield`/`report`) -- it is **not** a loop control like `continue`, despite the "skip an iteration" connotation of the word.
+
+| Statement | Effect |
+|-----------|--------|
+| `skip;` | Returns from the **current ability only** -- equivalent to a bare `return;`. The walker continues: any sibling abilities bound to the same node still run, and traversal proceeds through nodes already queued by `visit`. |
+| `disengage;` | Terminates the **whole walker** -- no further abilities run and no further nodes are visited. |
+
+Because `skip` is just an early `return`, a `skip` reached *before* this ability's `visit` statement means this ability queued no next nodes; the walker will only continue to nodes queued elsewhere (and stops if none remain).
+
+```jac
+walker Auditor {
+    can check with Account entry {
+        if not here.active {
+            skip;          # this account isn't ours to process; move on
+        }
+        report here.balance;
+        visit [-->];       # not reached for inactive accounts
     }
 }
 ```
@@ -503,9 +542,12 @@ walker list_todos {
 }
 ```
 
+!!! note
+    `main.jac` is the default entry point. If your file has a different name (e.g., `app.jac`), pass it explicitly: `jac start app.jac`.
+
 ```bash
 # Run as API server
-jac start app.jac
+jac start
 
 # Call via HTTP
 curl -X POST http://localhost:8000/walker/add_todo \
@@ -731,6 +773,8 @@ walker:priv DeleteWithChildren {
 | `commit()` | Commit pending changes |
 | `printgraph(root)` | Print graph structure to stdout (output depends on graph size; may require logging configuration to see results) |
 
+> See [Persistence & Schema Migration](../persistence.md) for how persisted graph data tolerates schema changes across runs (added/removed fields, type changes, class renames) and how to inspect or rescue data with [`jac db`](../cli/index.md#database-operations).
+
 ```jac
 node Person { has name: str; }
 
@@ -843,7 +887,7 @@ node Room {
 
 ---
 
-## Data Spatial Queries
+## Object Spatial Queries
 
 ### 1 Edge Reference Syntax
 
@@ -934,16 +978,17 @@ Typed context blocks let you conditionally execute code based on the runtime typ
 The syntax uses `->Type{code}` with no space between the arrow and type name:
 
 ```jac
+node Animal { has name: str = ""; }
+node Dog(Animal) {}
+node Cat(Animal) {}
+
 walker AnimalVisitor {
     can visit with Animal entry {
         # Typed context block for Dog (subtype of Animal)
-        ->Dog{print(f"{here.name} is a {here.breed} dog");}
+        ->Dog{print(f"{here.name} is a dog");}
 
         # Typed context block for Cat (subtype of Animal)
         ->Cat{print(f"{here.name} says meow");}
-
-        # Default case (any other Animal type)
-        ->_{print(f"{here.name} is some animal");}
     }
 }
 ```
@@ -953,36 +998,38 @@ walker AnimalVisitor {
 - No space between `->` and the type name: `->Dog{` not `-> Dog {`
 - Opening brace immediately follows the type
 - Code typically on same line with closing brace
-- Use `->_` for default/catch-all case
+- For a default/catch-all branch, add a final ability triggered on the base type (e.g. `can default with Animal entry { ... }`) or use an `else` branch on an `if isinstance(...)` chain. The `->_{}` wildcard form is not supported.
 
-!!! warning "Known Limitation"
-    The `->_{}` wildcard/default case is not currently supported at runtime and will produce a `name '_' is not defined` error. Use an explicit base type or `else` branch instead.
+### 2 Union-Based Dispatch
 
-### 2 Tuple-Based Dispatch
+A single ability can fire on multiple node types using the `|` union syntax:
 
 ```jac
+node Node1 { has v: int = 0; }
+node Node2 { has v: int = 0; }
+
 walker Processor {
-    can process with (Node1, Node2) entry {
-        # Handle when visiting involves both types
+    can process with Node1 | Node2 entry {
+        # Handles either node type; here is typed as Node1 | Node2
+        print(here.v);
     }
 }
 ```
 
 ### 3 Context Blocks in Nodes
 
-Nodes reacting to different walker types:
+Nodes can react to a specific walker by naming the walker type as the trigger. To handle *any* walker, use the anonymous form (`can handle with entry { ... }`) -- there is no built-in `Walker` catch-all type.
 
 ```jac
+walker Reader {}
+walker Writer { has new_value: int = 0; }
+
 node DataNode {
-    has value: int;
+    has value: int = 0;
 
-    can handle with Walker entry {
-        ->Reader{print(f"Read value: {self.value}");}
-
-        ->Writer{
-            self.value = visitor.new_value;
-            print(f"Updated to: {self.value}");
-        }
+    # Anonymous ability fires for every walker that visits this node
+    can handle with entry {
+        print(f"Visited by {type(visitor).__name__}, value={self.value}");
     }
 }
 ```

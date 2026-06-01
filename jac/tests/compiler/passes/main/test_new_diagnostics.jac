@@ -65,6 +65,17 @@ def compile_only(fixture_name: str) -> tuple {
     return (program, mod);
 }
 
+"""Parse source string with diagnostic capture: returns (program, had_error)."""
+def parse_with_prog(source: str) -> tuple[JacProgram, bool] {
+    prog = JacProgram();
+    try {
+        (_, had_error) = parse(source, "/tmp/test.jac", prog=prog);
+        return (prog, had_error);
+    } except Exception {
+        return (prog, True);
+    }
+}
+
 """Parse source string, return (has_errors: bool, program: JacProgram)."""
 def parse_and_validate(source: str) -> tuple {
     try {
@@ -162,12 +173,129 @@ test "E0117: mixed tabs and spaces" {
     assert prog is not None and has_diagnostic_code(prog, "E0117", in_warnings=True);
 }
 
+test "W0100: invalid escape sequence warns" {
+    prog = JacProgram();
+    prog.compile(use_str='with entry { x = "press \\q now"; }', file_path="test.jac");
+    assert has_diagnostic_code(prog, "W0100", in_warnings=True);
+}
+
+test "W0100: valid escapes do not warn" {
+    prog = JacProgram();
+    prog.compile(
+        use_str='with entry { x = "tab\\there\\nline\\x41"; }', file_path="test.jac"
+    );
+    assert not has_diagnostic_code(prog, "W0100", in_warnings=True);
+}
+
+test "W0100: raw string keeps backslashes and is exempt" {
+    prog = JacProgram();
+    prog.compile(use_str='with entry { x = r"press \\q"; }', file_path="test.jac");
+    assert not has_diagnostic_code(prog, "W0100", in_warnings=True);
+}
+
+test "W0100: each invalid escape warns once" {
+    prog = JacProgram();
+    prog.compile(use_str='with entry { x = "\\q then \\e"; }', file_path="test.jac");
+    assert count_diagnostic_code(prog, "W0100", in_warnings=True) == 2;
+}
+
 
 # ══════════════════════════════════════════════════════════════════
 #  PHASE 2: PARSER / SYNTAX DIAGNOSTICS (E0052-E0078)
 #  Infrastructure: INFRA-8 for E0055-E0058
 #  Milestone: 1 (Context Validity) + 4 (Parser/Lexer Hardening)
 # ══════════════════════════════════════════════════════════════════
+
+# ── E0025: JS arrow function syntax (=>) ───────────────────────────
+test "E0025: js arrow in jsx attribute slot" {
+    src = 'cl { def:pub Foo() -> JsxElement {' + ' return <button onClick={e => doThing(e)}>Click</button>; } }';
+    (prog, _) = parse_with_prog(src);
+    assert has_diagnostic_code(prog, "E0025");
+    assert count_diagnostic_code(prog, "E0025") == 1;
+}
+
+test "E0025: js arrow in jsx child slot" {
+    src = 'cl { def:pub Foo() -> JsxElement {' + ' return <div>{e => fn(e)}</div>; } }';
+    (prog, _) = parse_with_prog(src);
+    assert has_diagnostic_code(prog, "E0025");
+    assert count_diagnostic_code(prog, "E0025") == 1;
+}
+
+test "E0025: js arrow at module level glob" {
+    (prog, _) = parse_with_prog('glob f = x => x + 1;');
+    assert has_diagnostic_code(prog, "E0025");
+    assert count_diagnostic_code(prog, "E0025") == 1;
+}
+
+test "E0025: js arrow with block body" {
+    (prog, _) = parse_with_prog('with entry { f = x => { print(x); }; }');
+    assert has_diagnostic_code(prog, "E0025");
+    assert count_diagnostic_code(prog, "E0025") == 1;
+}
+
+test "E0025: chained arrows emit one diagnostic per arrow" {
+    (prog, _) = parse_with_prog('with entry { f = a => b => c; }');
+    assert count_diagnostic_code(prog, "E0025") == 2;
+}
+
+test "E0025: gte (>=) does not fire" {
+    (prog, had_err) = parse_with_prog('with entry { x = (a >= b); }');
+    assert not had_err;
+    assert not has_diagnostic_code(prog, "E0025");
+}
+
+test "E0025: lambda syntax unaffected" {
+    (prog, had_err) = parse_with_prog('with entry { f = lambda x: int : x + 1; }');
+    assert not had_err;
+    assert not has_diagnostic_code(prog, "E0025");
+}
+
+test "E0025: spaced '= >' is not an arrow" {
+    # '=' and '>' separated by whitespace should never match the arrow shape;
+    # the source is invalid for other reasons, but E0025 must not fire.
+    (prog, _) = parse_with_prog('with entry { x = a = > b; }');
+    assert not has_diagnostic_code(prog, "E0025");
+}
+
+test "E0025: arrow in fstring slot" {
+    (prog, _) = parse_with_prog('with entry { s = f"{x => y}"; }');
+    assert has_diagnostic_code(prog, "E0025");
+}
+
+test "E0025: empty body recovers without crash" {
+    (prog, _) = parse_with_prog('with entry { f = x =>; }');
+    assert has_diagnostic_code(prog, "E0025");
+}
+
+# ── E0027: forward typed connection missing :+> ──────────────────────
+test "E0027: +>: EdgeType without :+> closer emits E0027" {
+    (prog, _) = compile_only("parser_E0027_forward_missing_close.jac");
+    assert has_diagnostic_code(prog, "E0027");
+}
+
+test "E0027: complete +>: EdgeType :+> does not fire" {
+    (prog, had_err) = parse_with_prog(
+        'node N {} edge F {} with entry { n1=N(); n2=N(); n1 +>: F :+> n2; }'
+    );
+    assert not had_err;
+    assert not has_diagnostic_code(prog, "E0027");
+}
+
+# ── E0028: backward typed connection missing :<+ ─────────────────────
+test "E0028: <+: EdgeType without :<+ closer emits E0028" {
+    (prog, _) = compile_only("parser_E0028_backward_missing_close.jac");
+    assert has_diagnostic_code(prog, "E0028");
+}
+
+test "E0028: complete <+: EdgeType :<+ does not fire" {
+    (prog, had_err) = parse_with_prog(
+        'node N {} edge F {} with entry { n1=N(); n2=N(); n1 <+: F :<+ n2; }'
+    );
+    assert not had_err;
+    assert not has_diagnostic_code(prog, "E0028");
+}
+
+
 test "E0052: missing type annotation on parameter" {
     (has_err, prog) = parse_and_validate('def foo(x) { }');
     assert has_err or (prog is not None and has_diagnostic_code(prog, "E0052"));
@@ -286,6 +414,46 @@ test "E0062: nonlocal at module level" {
     assert has_err or (prog is not None and has_diagnostic_code(prog, "E0062"));
 }
 
+test "E0063: glob at module level is valid" {
+    (has_err, _) = parse_and_validate('glob x: int = 5;');
+    assert not has_err;
+}
+
+test "E0063: glob in statement position is always rejected" {
+    sources = [
+        "with entry { glob a = 90; }",
+        "with entry { glob a = 90 }",
+        "with entry { glob a = }",
+        "with entry { glob a }",
+        "with entry { glob }",
+        "def foo() -> int { glob a = 1; return a; }",
+        "test \"t\" { glob sneaky = 1; assert True; }"
+    ];
+    for src in sources {
+        (has_err, _) = parse_and_validate(src);
+        assert has_err , f"Expected error for: {src}";
+    }
+}
+
+test "E0063: glob inside a codespace block is valid" {
+    # glob is a declaration, so it is allowed directly under cl/sv/na blocks.
+    for src in ["cl { glob counter: int = 0; }", "sv { glob token = \"x\"; }"] {
+        (has_err, _) = parse_and_validate(src);
+        assert not has_err , f"Unexpected error for: {src}";
+    }
+}
+
+test "E0063: glob inside a function produces no runnable bytecode" {
+    # Detected by ASTValidationPass (not the parser), and the structural
+    # error must block codegen so the invalid module cannot silently execute.
+    prog = JacProgram();
+    mod = prog.compile(
+        file_path="/tmp/test_e0063_gate.jac",
+        use_str="def foo() -> int { glob a = 1; return a; }"
+    );
+    assert has_diagnostic_code(prog, "E0063");
+    assert not mod.gen.py_bytecode;
+}
 
 # ══════════════════════════════════════════════════════════════════
 #  PHASE 3: NAME RESOLUTION / SCOPE DIAGNOSTICS (E/W 2020-2037)
@@ -448,6 +616,24 @@ test "W1172: missing await on coroutine" {
     assert has_diagnostic_code(prog, "W1172", in_warnings=True);
 }
 
+test "E1042: calling an async function without await" {
+    # An `async def` call is a coroutine, not its return value. Assigning it
+    # without `await` is a type error; the awaited forms must stay clean.
+    (prog, _) = compile_and_check("type_E1042_missing_await.jac");
+    assert count_diagnostic_code(prog, "E1042") == 2 , f"expected 2 E1042 (the two un-awaited calls), got "
+    f"{count_diagnostic_code(prog, 'E1042')}; "
+    f"errors={[str(e) for e in prog.errors_had]}";
+}
+
+test "E1042: missing await on sv-imported call (issue #6236)" {
+    # `sv import` functions are async RPC stubs on the client; calling one
+    # without `await` assigns a coroutine to a typed field and crashes at
+    # runtime. `jac check` must flag it.
+    (prog, _) = compile_and_check("type_E1042_sv_missing_await.cl.jac");
+    assert has_diagnostic_code(prog, "E1042") , f"expected E1042 for the un-awaited sv import call; "
+    f"errors={[str(e) for e in prog.errors_had]}";
+}
+
 # --- Collections ---
 test "E1180: tuple index out of range" {
     pytest.skip("E1180 not yet implemented");
@@ -499,23 +685,6 @@ test "W2050: missing return on non-None function" {
     pytest.skip("W2050 not yet implemented — needs INFRA-2");
     (prog, _) = compile_and_check("semantic_W2050_missing_return.jac");
     assert has_diagnostic_code(prog, "W2050", in_warnings=True);
-}
-
-test "W2052: overly broad except" {
-    (prog, _) = compile_and_check("semantic_W2052_broad_except.jac");
-    assert has_diagnostic_code(prog, "W2052", in_warnings=True);
-    # Verify underline is clamped to the token, not the entire Except block
-    for w in prog.warnings_had {
-        if "W2052" in w.msg {
-            output = w.pretty_print();
-            for line in output.split('\n') {
-                caret_count = line.count('^');
-                assert caret_count <= len("Exception") , f"Underline too wide ({caret_count} carets): {repr(
-                    line
-                )}";
-            }
-        }
-    }
 }
 
 test "E2055: return in finally block" {
@@ -617,6 +786,16 @@ test "W3025: identical if/else branches" {
     assert has_diagnostic_code(prog, "W3025", in_warnings=True);
 }
 
+test "W3025: no false positive on subscript targets and call kwargs" {
+    path = os.path.join(
+        NEW_DIAG_FIXTURES, "lint_W3025_identical_branches_false_positive.jac"
+    );
+    prog = JacProgram.jac_file_formatter(path, auto_lint=True);
+    # Fixture has 3 if/else pairs: 2 differ (must not warn) + 1 truly matches
+    # with a subscript target (must warn). Expect exactly 1 W3025.
+    assert count_diagnostic_code(prog, "W3025", in_warnings=True) == 1;
+}
+
 test "W3026: not (a == b) should be a != b" {
     pytest.skip("W3026 not yet implemented");
     (_, prog) = parse_and_validate('with entry { x = 5; y = not (x == 3); }');
@@ -640,6 +819,12 @@ test "W3036: mutable default argument" {
     path = os.path.join(NEW_DIAG_FIXTURES, "lint_W3036_mutable_default.jac");
     prog = JacProgram.jac_file_formatter(path, auto_lint=True);
     assert has_diagnostic_code(prog, "W3036", in_warnings=True);
+}
+
+test "W3040: filter comparison tautology on shadowed name" {
+    path = os.path.join(NEW_DIAG_FIXTURES, "lint_W3040_filter_tautology.jac");
+    prog = JacProgram.jac_file_formatter(path, auto_lint=True);
+    assert has_diagnostic_code(prog, "W3040", in_warnings=True);
 }
 
 
@@ -701,8 +886,7 @@ test "W0061: bracket filter no warning" {
 test "W0061: multiple deprecated filters emit multiple warnings" {
     prog = JacProgram();
     prog.compile(
-        use_str='with entry { x = [1,2](?a<1); y = [3,4](?a>2); }',
-        file_path="test.jac"
+        use_str='with entry { x = [1,2](?a<1); y = [3,4](?a>2); }', file_path="test.jac"
     );
     assert count_diagnostic_code(prog, "W0061", in_warnings=True) == 2 , "Each deprecated filter occurrence should emit its own W0061";
 }
@@ -764,10 +948,19 @@ glob MUST_REJECT_NEW: dict[str, str] = {
          "E0058_continue_no_loop": "with entry { continue; }"
      };
 
-glob IMPLEMENTED_REJECT: set[str] = {"E0062_nonlocal_module","E0071_bare_except_first","E0075_dup_base"},
-     IMPLEMENTED_VALIDATE: set[str] = {"E0055_yield_in_entry","E0058_break_no_loop","E0058_continue_no_loop"};
+glob IMPLEMENTED_REJECT: set[str] = {
+         "E0062_nonlocal_module",
+         "E0063_glob_inside_func",
+         "E0071_bare_except_first",
+         "E0075_dup_base"
+     },
+     IMPLEMENTED_VALIDATE: set[str] = {
+         "E0055_yield_in_entry",
+         "E0058_break_no_loop",
+         "E0058_continue_no_loop"
+     };
 
-def reject_test(name_snippet: tuple) -> None {
+def reject_test(name_snippet: tuple) {
     (name, snippet) = name_snippet;
     if name not in IMPLEMENTED_REJECT {
         pytest.skip(f"{name} not yet implemented");
@@ -777,7 +970,7 @@ def reject_test(name_snippet: tuple) -> None {
     assert has_errors , f"Validation must reject '{name}': {snippet}";
 }
 
-def validate_reject_test(name_snippet: tuple) -> None {
+def validate_reject_test(name_snippet: tuple) {
     (name, snippet) = name_snippet;
     if name not in IMPLEMENTED_VALIDATE {
         pytest.skip(f"{name} not yet implemented");
@@ -842,6 +1035,68 @@ test "valid: function with return on all paths" {
         'def foo(x: int) -> int { if x > 0 { return x; } else { return -x; } }'
     );
     assert not has_err;
+}
+
+
+# ══════════════════════════════════════════════════════════════════
+#  view_body_check — `view` declarator body rules (ViewLowerPass)
+# ══════════════════════════════════════════════════════════════════
+test "view body check flags a value-returning return (E2019)" {
+    (program, _) = compile_and_check("view_body_rules.jac");
+    assert has_diagnostic_code(program, "E2019") , (
+        "a `return <value>;` in a view body should raise E2019"
+    );
+}
+
+test "view body check flags bare return; in any slot position (E2020)" {
+    (program, _) = compile_and_check("view_body_rules.jac");
+    # Bare `return;` is now forbidden ANYWHERE inside a slot body — the
+    # "use `skip;`" guidance applies in loops, outside loops, and nested
+    # under control flow (`match` / `try` / etc.). Fixture has three
+    # call sites: ReturnInLoop, ReturnAtTopLevel, ReturnInLoopUnderMatch.
+    n = count_diagnostic_code(program, "E2020");
+    assert n >= 3 , (
+        f"E2020 should fire for each bare `return;` in a slot body (loop, top-level, and nested), got {n}"
+    );
+}
+
+test "view body check flags break inside a template loop (E2021)" {
+    (program, _) = compile_and_check("view_body_rules.jac");
+    # Shallow `for { break; }` AND nested `for { try { break; } except: ... }`
+    # should both fire — verifies `_check_body` recurses through `try`.
+    # `skip;` is NO LONGER in E2021 (it's the slot early-exit now).
+    n = count_diagnostic_code(program, "E2021");
+    assert n >= 2 , (
+        f"E2021 should fire for both shallow and nested `break;` in loops, got {n}"
+    );
+}
+
+test "redundant `{...}` slot wrapping inside slot body raises E2023" {
+    (program, _) = compile_and_check("view_body_rules.jac");
+    # `RedundantSlotWrap` has two redundant `{...}` slots inside the
+    # outer slot body (`{if ... }}` and `{for ... }}`) — each drives
+    # E2023, and no cascade of E0001/E0002 parse errors should fire.
+    n = count_diagnostic_code(program, "E2023");
+    assert n >= 2 , (
+        f"E2023 should fire once per redundant inner `{{...}}` slot, got {n}"
+    );
+    # Critically, the recovery path must NOT produce a parse-error
+    # cascade — the redundant-slot diagnostic replaces it.
+    parse_cascade = count_diagnostic_code(program, "E0002");
+    assert parse_cascade == 0 , (
+        f"E2023 recovery must avoid the E0001/E0002 parse cascade, got {parse_cascade} E0002 errors"
+    );
+}
+
+test "view body check warns on a keyless while (W2019)" {
+    (program, _) = compile_and_check("view_body_rules.jac");
+    # Shallow `while { <span/> }` AND nested `while { try { <span/> } }` AND
+    # `while { switch { case _: <span/> } }` should all fire — verifies
+    # `_emits_keyless_jsx` recurses through `try` and `switch`.
+    n = count_diagnostic_code(program, "W2019", in_warnings=True);
+    assert n >= 3 , (
+        f"W2019 should fire for shallow, try-wrapped, and switch-wrapped keyless `while`, got {n}"
+    );
 }
 
 

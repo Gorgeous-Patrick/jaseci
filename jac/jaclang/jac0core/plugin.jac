@@ -47,7 +47,7 @@ def _get_argnames(func: Callable[(..., Any)]) -> (tuple[(str, ...)] | None) {
             )
         );
     } except (ValueError, TypeError) { }
-    code = getattr(func, '__code__', None);
+    code = func?.__code__;
     if code is not None {
         nargs = code.co_argcount + code.co_kwonlyargcount;
         return tuple(code.co_varnames[:nargs]);
@@ -114,18 +114,14 @@ obj PluginManager {
 }
 
 def _canonical_name(plugin: object) -> str {
-    return getattr(plugin, '__name__', None) or `type(plugin).__name__;
+    return plugin?.__name__ or `type(plugin).__name__;
 }
 
 """Thin wrapper around importlib.metadata.Distribution."""
 obj _DistFacade {
     has _dist: importlib.metadata.Distribution;
-
-    @property
-    def project_name -> str;
-
-    @property
-    def version -> str;
+    has project_name: str { getter; }
+    has version: str { getter; }
 
     def __getattr__(attr: str) -> object;
 }

@@ -7,10 +7,31 @@ impl DocIRGenPass.exit_jsx_expression(nd: uni.JsxExpression) -> None {
     nd.gen.doc_ir = self.concat(parts, ast_node=nd);
 }
 
+"""Generate DocIR for JSX statement-form slots.
+
+The slot's body is always kept as raw statements — no pass desugars it in
+place (the cl accumulator lowering happens at codegen, in EsastGenPass) —
+so concatenating the kid doc_irs reproduces the source
+`{ stmt; stmt; ... }` shape verbatim from the faithful surface tokens."""
+impl DocIRGenPass.exit_jsx_slot(nd: uni.JsxSlot) -> None {
+    parts: list[doc.DocType] = [];
+    for i in nd.kid {
+        parts.append(i.gen.doc_ir);
+    }
+    nd.gen.doc_ir = self.concat(parts, ast_node=nd);
+}
+
 """Generate DocIR for JSX text — normalize via single source of truth."""
 impl DocIRGenPass.exit_jsx_text(nd: uni.JsxText) -> None {
     source_tok = nd.kid[0] if nd.kid else None;
     nd.gen.doc_ir = doc.Text(nd.get_normalized_text(), source_token=source_tok);
+}
+
+"""Generate DocIR for JSX block comment — emit the raw `{#* ... *#}` text."""
+impl DocIRGenPass.exit_jsx_comment(nd: uni.JsxComment) -> None {
+    source_tok = nd.kid[0] if nd.kid else None;
+    raw = nd.value.value if isinstance(nd.value, uni.Token) else str(nd.value);
+    nd.gen.doc_ir = doc.Text(raw, source_token=source_tok);
 }
 
 """Generate DocIR for JSX normal attributes."""
@@ -74,15 +95,48 @@ impl DocIRGenPass.exit_jsx_element(nd: uni.JsxElement) -> None {
         parts: list[doc.DocType] = [start_token.gen.doc_ir];
         if name_node {
             parts.append(name_node.gen.doc_ir);
+        } elif not nd.is_fragment {
+            # No JsxElementName and not a fragment — this is a dynamic tag
+            # (`<@expr ...>` / `</@expr>`) where the tag region is built
+            # from the `@` token plus the tag expression (and `{`/`}` for
+            # the brace-wrapped form). Emit every kid that sits between
+            # start_token and end_token in source order, skipping
+            # attributes (emitted separately below) and any child JSX
+            # content (emitted by the children handler below). Fragments
+            # are excluded so their children aren't duplicated here.
+            for k in nd.kid {
+                if k is start_token or k is end_token {
+                    continue;
+                }
+                if (
+                    isinstance(k, uni.JsxNormalAttribute)
+                    or isinstance(k, uni.JsxSpreadAttribute)
+                ) {
+                    continue;
+                }
+                parts.append(k.gen.doc_ir);
+            }
         }
-        # Use soft lines for attributes - formatter decides based on line length
+        # Attributes live in their own Group so the opening-tag flat/break
+        # decision is independent of the children flat/break decision. This
+        # mirrors Prettier-JSX: when the whole element doesn't fit as one
+        # line but the opening tag alone does, we keep the opening tag flat
+        # and only break the children region.
         if attr_docs {
-            # Indent attributes with soft line breaks
             attr_content: list[doc.DocType] = [self.line()];
             attr_content.extend(self.intersperse(attr_docs, self.line()));
-            parts.append(self.indent(self.concat(attr_content), ast_node=nd));
-            # When broken: newline before closing bracket; when flat: nothing
-            parts.append(self.if_break(self.line(), self.concat([])));
+            attr_group = self.group(
+                self.concat(
+                    [
+                        self.indent(self.concat(attr_content), ast_node=nd),
+                        # When broken: newline before closing bracket;
+                        # when flat: nothing.
+                        self.if_break(self.line(), self.concat([]))
+                    ]
+                ),
+                ast_node=nd
+            );
+            parts.append(attr_group);
         }
         is_self_closing = end_token.name == Tok.JSX_SELF_CLOSE;
         if (not is_self_closing and nd.children) {
@@ -92,26 +146,57 @@ impl DocIRGenPass.exit_jsx_element(nd: uni.JsxElement) -> None {
                 child_parts.append(self.hard_line());
             }
             self.trim_trailing_line(child_parts);
-            inline_child_types = (uni.JsxText, uni.JsxExpression);
+            inline_child_types = (uni.JsxText, uni.JsxExpression, uni.JsxComment);
             all_inline_children = (
                 nd.children
                 and all(isinstance(child, inline_child_types) for child in nd.children)
             );
+            # Children live in their own Group so the attributes-group budget
+            # isn't charged for the children's flat width when computing
+            # whether the opening tag can stay inline. _flat_first_line_width
+            # stops at Group boundaries, so wrapping here makes the attribute
+            # and children decisions truly independent. `break_contiguous=True`
+            # also forces the children to break whenever the outer element
+            # breaks — this prevents the ugly "opening tag on 3 lines, then
+            # children inlined on the closing `>` line" case.
             if all_inline_children {
+                # Prettier-style rule: for JSX with only inline children
+                # (text / expression) keep the element flat when it fits the
+                # print width. Tight lines render as empty when the enclosing
+                # Group is flat and as a newline+indent when it breaks, so the
+                # Group decides rather than forcing a break.
                 inline_doc = self.concat([child.gen.doc_ir for child in nd.children]);
                 parts.append(
-                    self.indent(
-                        self.concat([self.hard_line(), inline_doc]), ast_node=nd
+                    self.group(
+                        self.concat(
+                            [
+                                self.indent(
+                                    self.concat([self.tight_line(), inline_doc]),
+                                    ast_node=nd
+                                ),
+                                self.tight_line()
+                            ]
+                        ),
+                        break_contiguous=True,
+                        ast_node=nd
                     )
                 );
-                parts.append(self.hard_line());
             } elif child_parts {
                 parts.append(
-                    self.indent(
-                        self.concat([self.hard_line(), *child_parts]), ast_node=nd
+                    self.group(
+                        self.concat(
+                            [
+                                self.indent(
+                                    self.concat([self.hard_line(), *child_parts]),
+                                    ast_node=nd
+                                ),
+                                self.hard_line()
+                            ]
+                        ),
+                        break_contiguous=True,
+                        ast_node=nd
                     )
                 );
-                parts.append(self.hard_line());
             }
         }
         if is_self_closing {
@@ -142,17 +227,47 @@ impl DocIRGenPass.exit_jsx_element(nd: uni.JsxElement) -> None {
         and all(isinstance(child, inline_child_types) for child in nd.children)
     );
     parts = [opening_doc];
+    # Children live in their own Group so _flat_first_line_width stops at
+    # the children-group boundary when computing budgets for the opening
+    # tag's sub-groups (e.g. attribute groups). This is what enables
+    # prettier-JSX's "keep opening tag inline, break children independently"
+    # behavior on wrapper elements like `<p attr>text</p>`. The
+    # `break_contiguous=True` flag also forces the children to break
+    # whenever the outer wrapper element breaks, preventing children from
+    # being inlined on the same line as a multi-line opening tag's `>`.
     if all_inline_children {
+        # Same prettier-style rule as above: tight lines let the enclosing
+        # Group decide flat vs broken based on print width.
         inline_doc = self.concat([child.gen.doc_ir for child in nd.children]);
         parts.append(
-            self.indent(self.concat([self.hard_line(), inline_doc]), ast_node=nd)
+            self.group(
+                self.concat(
+                    [
+                        self.indent(
+                            self.concat([self.tight_line(), inline_doc]), ast_node=nd
+                        ),
+                        self.tight_line()
+                    ]
+                ),
+                break_contiguous=True,
+                ast_node=nd
+            )
         );
-        parts.append(self.hard_line());
     } elif child_parts {
         parts.append(
-            self.indent(self.concat([self.hard_line(), *child_parts]), ast_node=nd)
+            self.group(
+                self.concat(
+                    [
+                        self.indent(
+                            self.concat([self.hard_line(), *child_parts]), ast_node=nd
+                        ),
+                        self.hard_line()
+                    ]
+                ),
+                break_contiguous=True,
+                ast_node=nd
+            )
         );
-        parts.append(self.hard_line());
     }
     parts.append(closing_doc);
     nd.gen.doc_ir = self.group(self.concat(parts), ast_node=nd);
@@ -187,10 +302,7 @@ impl DocIRGenPass.exit_string(nd: uni.String) -> None {
     );
     if is_escaped_curly {
         nd.gen.doc_ir = self.concat(
-            [
-                self.text(nd.value, source_token=nd),
-                self.text(nd.value, source_token=nd)
-            ]
+            [self.text(nd.value, source_token=nd), self.text(nd.value, source_token=nd)]
         );
         return;
     }
@@ -214,10 +326,37 @@ impl DocIRGenPass.exit_int(nd: uni.Int) -> None {
 
 """Generate DocIR for names."""
 impl DocIRGenPass.exit_name(nd: uni.Name) -> None {
-    if nd.is_kwesc {
-        nd.gen.doc_ir = self.text(f"`{nd.value}", source_token=nd);
+    name_text = f"`{nd.value}" if nd.is_kwesc else nd.value;
+    by_kid = next(
+        (
+            k
+            for k in nd.kid
+            if isinstance(k, uni.Token) and k.name == Tok.KW_BY
+        ),
+        None
+    );
+    if by_kid is not None {
+        # Bare genai body (`by <name>;`): the parser attaches `by` and `;`
+        # as kids of this Name node. Render them so they are not lost.
+        semi_kid = next(
+            (
+                k
+                for k in nd.kid
+                if isinstance(k, uni.Semi)
+            ),
+            None
+        );
+        parts: list[doc.DocType] = [
+            by_kid.gen.doc_ir,
+            self.space(),
+            self.text(name_text, source_token=nd)
+        ];
+        if semi_kid is not None {
+            parts.append(semi_kid.gen.doc_ir);
+        }
+        nd.gen.doc_ir = self.concat(parts, ast_node=nd);
     } else {
-        nd.gen.doc_ir = self.text(nd.value, source_token=nd);
+        nd.gen.doc_ir = self.text(name_text, source_token=nd);
     }
 }
 
@@ -288,8 +427,7 @@ impl DocIRGenPass.exit_impl_def(nd: uni.ImplDef) -> None {
         ) {
             parts.append(i.gen.doc_ir);
         } elif (
-            in_body
-            or (isinstance(nd.body, Sequence) and nd.body and (i == nd.body[0]))
+            in_body or (isinstance(nd.body, Sequence) and nd.body and (i == nd.body[0]))
         ) {
             if not in_body {
                 parts.pop();
@@ -316,6 +454,11 @@ impl DocIRGenPass.exit_impl_def(nd: uni.ImplDef) -> None {
             parts.append(self.space());
         } elif (isinstance(i, uni.Token) and (i.name == Tok.DECOR_OP)) {
             parts.append(i.gen.doc_ir);
+        } elif isinstance(i, uni.EventSignature) {
+            # Space it off the target name, else `start` + `with` -> `startwith`.
+            parts.append(self.space());
+            parts.append(i.gen.doc_ir);
+            parts.append(self.space());
         } else {
             parts.append(i.gen.doc_ir);
             parts.append(self.space());
@@ -402,6 +545,24 @@ impl DocIRGenPass.exit_enum(nd: uni.Enum) -> None {
             if (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
                 body_parts.append(self.line());
             }
+        } elif (isinstance(i, uni.Token) and (i.name == Tok.COLON)) {
+            # Typed-base colon (`enum X: int`): no space before, one after.
+            parts.pop();
+            parts.append(i.gen.doc_ir);
+            parts.append(self.space());
+        } elif (isinstance(i, uni.Token) and (i.name == Tok.LPAREN)) {
+            # Base-class list (`enum X(A, B)`): no space before `(` or after it.
+            parts.pop();
+            parts.append(i.gen.doc_ir);
+        } elif (isinstance(i, uni.Token) and (i.name == Tok.RPAREN)) {
+            parts.pop();
+            parts.append(i.gen.doc_ir);
+            parts.append(self.space());
+        } elif (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
+            # Base-class separator (body commas are handled by `in_body` above).
+            parts.pop();
+            parts.append(i.gen.doc_ir);
+            parts.append(self.space());
         } elif isinstance(i, uni.SubTag) {
             parts.pop();
             parts.append(i.gen.doc_ir);
@@ -657,10 +818,13 @@ impl DocIRGenPass.exit_py_inline_code(nd: uni.PyInlineCode) -> None {
 impl DocIRGenPass.exit_assign_compr(nd: uni.AssignCompr) -> None {
     parts: list[doc.DocType] = [];
     for i in nd.kid {
-        parts.append(i.gen.doc_ir);
+        if isinstance(i, uni.Token) and i.name == Tok.COMMA {
+            parts.append(doc.Text(", "));
+        } else {
+            parts.append(self.remove_all_spaces(i.gen.doc_ir));
+        }
     }
-    compact_doc = self.remove_all_spaces(self.concat(parts));
-    nd.gen.doc_ir = self.group(compact_doc);
+    nd.gen.doc_ir = self.group(self.concat(parts));
 }
 
 """Generate DocIR for filter comprehensions."""
@@ -826,8 +990,46 @@ impl DocIRGenPass.exit_module_code(nd: uni.ModuleCode) -> None {
     nd.gen.doc_ir = self.group(self.concat(parts, ast_node=nd), ast_node=nd);
 }
 
+"""Emit section-header form: 'to cl:' / 'to sv:' / 'to na:' on its own line
+with no space before the colon, a blank-line separator, then the body
+statements at the same column as the header (no indent).
+"""
+impl DocIRGenPass.emit_section_header_block(nd: uni.UniNode) -> None {
+    parts: list[doc.DocType] = [];
+    prev_body_item: (uni.UniNode | None) = None;
+    past_header = False;
+    for i in nd.kid {
+        if not past_header {
+            if isinstance(i, uni.Token) and (i.name == Tok.KW_TO) {
+                parts.append(i.gen.doc_ir);
+                parts.append(self.space());
+            } elif isinstance(i, uni.Token) and (i.name == Tok.COLON) {
+                parts.append(i.gen.doc_ir);
+                parts.append(self.hard_line());
+                parts.append(self.hard_line());
+                past_header = True;
+            } else {
+                parts.append(i.gen.doc_ir);
+            }
+        } else {
+            self.add_body_stmt_with_spacing(parts, i, prev_body_item);
+            prev_body_item = i;
+        }
+    }
+    self.trim_trailing_line(parts);
+    nd.gen.doc_ir = self.concat(parts, ast_node=nd);
+}
+
 """Generate DocIR for client blocks (cl { ... })."""
 impl DocIRGenPass.exit_client_block(nd: uni.ClientBlock) -> None {
+    if (
+        len(nd.kid) > 0
+        and isinstance(nd.kid[0], uni.Token)
+        and (nd.kid[0].name == Tok.KW_TO)
+    ) {
+        self.emit_section_header_block(nd);
+        return;
+    }
     parts: list[doc.DocType] = [];
     body_parts: list[doc.DocType] = [];
     in_body = False;
@@ -864,6 +1066,14 @@ impl DocIRGenPass.exit_client_block(nd: uni.ClientBlock) -> None {
 
 """Generate DocIR for server blocks (sv { ... })."""
 impl DocIRGenPass.exit_server_block(nd: uni.ServerBlock) -> None {
+    if (
+        len(nd.kid) > 0
+        and isinstance(nd.kid[0], uni.Token)
+        and (nd.kid[0].name == Tok.KW_TO)
+    ) {
+        self.emit_section_header_block(nd);
+        return;
+    }
     parts: list[doc.DocType] = [];
     body_parts: list[doc.DocType] = [];
     in_body = False;
@@ -900,6 +1110,14 @@ impl DocIRGenPass.exit_server_block(nd: uni.ServerBlock) -> None {
 
 """Generate DocIR for native blocks (na { ... })."""
 impl DocIRGenPass.exit_native_block(nd: uni.NativeBlock) -> None {
+    if (
+        len(nd.kid) > 0
+        and isinstance(nd.kid[0], uni.Token)
+        and (nd.kid[0].name == Tok.KW_TO)
+    ) {
+        self.emit_section_header_block(nd);
+        return;
+    }
     parts: list[doc.DocType] = [];
     body_parts: list[doc.DocType] = [];
     in_body = False;
@@ -1055,6 +1273,11 @@ impl DocIRGenPass.exit_await_expr(nd: uni.AwaitExpr) -> None {
     self._assign_space_group(nd);
 }
 
+"""Generate DocIR for type-cast expressions."""
+impl DocIRGenPass.exit_cast_expr(nd: uni.CastExpr) -> None {
+    self._assign_space_group(nd);
+}
+
 """Generate DocIR for keyword arguments."""
 impl DocIRGenPass.exit_k_w_pair(nd: uni.KWPair) -> None {
     self._assign_group_concat(nd);
@@ -1152,9 +1375,67 @@ impl DocIRGenPass.exit_edge_ref_trailer(nd: uni.EdgeRefTrailer) -> None {
 """Generate DocIR for lambda expressions."""
 impl DocIRGenPass.exit_lambda_expr(nd: uni.LambdaExpr) -> None {
     parts: list[doc.DocType] = [];
+    # Multi-statement code-block lambdas need a function-body-style layout:
+    # hard break after `{`, indented body with hard breaks between
+    # statements, hard break before `}`. Without this the lambda body
+    # concatenates onto a single logical line and the formatter produces
+    # jammed output like `}timer = setTimeout(...)`.
+    body_stmts = list(nd.body) if isinstance(nd.body, Sequence) else [];
+    has_multi_stmt_body = len(body_stmts) > 1;
+    # Single-stmt body: add space before `}` only when the statement ends with `;`
+    # not `}` (e.g. if/while/try-except blocks already close with `}`, no extra
+    # space needed). Walk last-kid chain iteratively since nodes like TryStmt have
+    # a non-Token last kid (ExceptClause) that itself ends with RBRACE.
+    _sbrace = len(body_stmts) == 0;
+    if len(body_stmts) == 1 and body_stmts[0].kid {
+        _cur = body_stmts[0];
+        while _cur.kid {
+            _last = _cur.kid[-1];
+            if isinstance(_last, uni.Token) {
+                _sbrace = _last.name == Tok.RBRACE;
+                break;
+            }
+            _cur = _last;
+        }
+    }
+    single_body_ends_with_brace = _sbrace;
+    body_parts: list[doc.DocType] = [];
+    in_body = False;
     for i in nd.kid {
+        if (
+            has_multi_stmt_body and isinstance(i, uni.Token) and (i.name == Tok.LBRACE)
+        ) {
+            parts.append(i.gen.doc_ir);
+            in_body = True;
+            continue;
+        }
+        if (
+            has_multi_stmt_body and isinstance(i, uni.Token) and (i.name == Tok.RBRACE)
+        ) {
+            in_body = False;
+            self.trim_trailing_line(body_parts);
+            parts.append(self.indent(self.concat(body_parts), ast_node=nd));
+            if body_parts {
+                parts.append(self.hard_line());
+            } else {
+                parts.append(self.space());
+            }
+            parts.append(i.gen.doc_ir);
+            continue;
+        }
+        if in_body {
+            if (i in body_stmts) {
+                body_parts.append(self.hard_line());
+                body_parts.append(i.gen.doc_ir);
+            } else {
+                body_parts.append(i.gen.doc_ir);
+            }
+            continue;
+        }
         if (isinstance(i, uni.Token) and (i.name == Tok.RBRACE)) {
-            # Don't add trailing space after closing brace of code block lambda
+            if not single_body_ends_with_brace {
+                parts.append(self.space());
+            }
             parts.append(i.gen.doc_ir);
         } elif isinstance(i, uni.Token) {
             parts.append(i.gen.doc_ir);
@@ -1204,16 +1485,22 @@ impl DocIRGenPass.exit_unary_expr(nd: uni.UnaryExpr) -> None {
     nd.gen.doc_ir = self.group(self.concat(parts, ast_node=nd), ast_node=nd);
 }
 
+"""CfgExpr: propagate inner expression's DocIR."""
+impl DocIRGenPass.exit_cfg_expr(nd: uni.CfgExpr) -> None {
+    nd.gen.doc_ir = nd.expr.gen.doc_ir;
+}
+
 """Generate DocIR for boolean expressions (and/or)."""
 impl DocIRGenPass.exit_bool_expr(nd: uni.BoolExpr) -> None {
     exprs: list[uni.UniNode] = [];
     parts: list[doc.DocType] = [];
     def __flatten_bool_expr(expr: uni.Expr) -> list[uni.UniNode] {
-        if isinstance(expr, uni.BoolExpr) {
+        inner = expr.expr if isinstance(expr, uni.CfgExpr) else expr;
+        if isinstance(inner, uni.BoolExpr) {
             out: list[uni.UniNode] = [];
-            for val in expr.values {
+            for val in inner.values {
                 out += __flatten_bool_expr(val);
-                out.append(expr.op);
+                out.append(inner.op);
             }
             out.pop();
             return out;
@@ -1339,11 +1626,49 @@ impl DocIRGenPass.exit_with_stmt(nd: uni.WithStmt) -> None {
 
 """Generate DocIR for set values."""
 impl DocIRGenPass.exit_set_val(nd: uni.SetVal) -> None {
-    parts: list[doc.DocType] = [];
+    nd.gen.doc_ir = self.format_comma_collection(nd);
+}
+
+"""Lay out a comma-delimited literal: flat with a space after each comma, or,
+when the group breaks, one element per line wrapped in an indented block. Shared
+by list, set, and tuple literals so their comma handling cannot drift apart."""
+impl DocIRGenPass.format_comma_collection(nd: uni.UniNode) -> doc.DocType {
+    flat_parts: list[doc.DocType] = [];
     for i in nd.kid {
-        parts.append(i.gen.doc_ir);
+        if (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
+            flat_parts.append(i.gen.doc_ir);
+            flat_parts.append(self.space());
+        } else {
+            flat_parts.append(i.gen.doc_ir);
+        }
     }
-    nd.gen.doc_ir = self.group(self.concat(parts, ast_node=nd), ast_node=nd);
+    not_broke = self.concat(flat_parts, ast_node=nd);
+    broken_parts: list[doc.DocType] = [];
+    for i in nd.kid {
+        if (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
+            broken_parts.append(i.gen.doc_ir);
+            broken_parts.append(self.hard_line());
+        } else {
+            broken_parts.append(i.gen.doc_ir);
+        }
+    }
+    if (len(broken_parts) >= 3) {
+        broke = self.concat(
+            [
+                broken_parts[0],
+                self.indent(
+                    self.concat([self.hard_line(), *broken_parts[1:-1]], ast_node=nd),
+                    ast_node=nd
+                ),
+                self.hard_line(),
+                broken_parts[-1]
+            ],
+            ast_node=nd
+        );
+    } else {
+        broke = self.concat(broken_parts, ast_node=nd);
+    }
+    return self.group(self.if_break(broke, not_broke), ast_node=nd);
 }
 
 """Generate DocIR for multiline strings."""
@@ -1359,38 +1684,7 @@ impl DocIRGenPass.exit_multi_string(nd: uni.MultiString) -> None {
 
 """Generate DocIR for tuple values."""
 impl DocIRGenPass.exit_tuple_val(nd: uni.TupleVal) -> None {
-    parts: list[doc.DocType] = [];
-    for i in nd.kid {
-        if (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
-            parts.append(i.gen.doc_ir);
-            parts.append(self.space());
-        } else {
-            parts.append(i.gen.doc_ir);
-        }
-    }
-    not_broke = self.concat(parts);
-    parts = [];
-    for i in nd.kid {
-        if (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
-            parts.append(i.gen.doc_ir);
-            parts.append(self.hard_line());
-        } else {
-            parts.append(i.gen.doc_ir);
-        }
-    }
-    if (len(parts) >= 3) {
-        broke = self.concat(
-            [
-                parts[0],
-                self.indent(self.concat([self.hard_line(), *parts[1:-1]])),
-                self.hard_line(),
-                parts[-1]
-            ]
-        );
-    } else {
-        broke = self.concat(parts);
-    }
-    nd.gen.doc_ir = self.group(self.if_break(broke, not_broke));
+    nd.gen.doc_ir = self.format_comma_collection(nd);
 }
 
 """Generate DocIR for finally statements."""
@@ -1479,17 +1773,51 @@ impl DocIRGenPass.exit_arch_has(nd: uni.ArchHas) -> None {
     nd.gen.doc_ir = self.group(self.concat(parts, ast_node=nd), ast_node=nd);
 }
 
-"""Generate DocIR for has variable declarations."""
+"""Generate DocIR for has variable declarations.
+
+A plain `has x: T = v` emits inline. A property `has x: T { getter; setter;
+deleter; }` emits its accessor block as a group with soft lines: a block of
+signature-only stubs collapses to one line when it fits, while any accessor
+carrying a body (whose own DocIR contains hard lines) forces the block to
+break onto indented lines.
+"""
 impl DocIRGenPass.exit_has_var(nd: uni.HasVar) -> None {
     parts: list[doc.DocType] = [];
+    acc_docs: list[doc.DocType] = [];
+    lbrace_doc: (doc.DocType | None) = None;
+    in_acc = False;
     for i in nd.kid {
         if (isinstance(i, uni.Token) and (i.name == Tok.EQ)) {
             parts.append(self.space());
             parts.append(i.gen.doc_ir);
             parts.append(self.space());
-        } elif (isinstance(i, uni.Token) and (i.name in [Tok.KW_BY, Tok.KW_POST_INIT])) {
+        } elif (
+            isinstance(i, uni.Token) and (i.name in [Tok.KW_BY, Tok.KW_POST_INIT])
+        ) {
             parts.append(self.space());
             parts.append(i.gen.doc_ir);
+        } elif (isinstance(i, uni.Token) and (i.name == Tok.LBRACE)) {
+            lbrace_doc = i.gen.doc_ir;
+            in_acc = True;
+        } elif (isinstance(i, uni.Token) and (i.name == Tok.RBRACE)) {
+            in_acc = False;
+            inner: list[doc.DocType] = [];
+            for ad in acc_docs {
+                inner.append(self.line());
+                inner.append(ad);
+            }
+            block = self.concat(
+                [
+                    lbrace_doc,
+                    self.indent(self.concat(inner), ast_node=nd),
+                    self.line(),
+                    i.gen.doc_ir
+                ]
+            );
+            parts.append(self.space());
+            parts.append(self.group(block, ast_node=nd));
+        } elif in_acc {
+            acc_docs.append(i.gen.doc_ir);
         } else {
             parts.append(i.gen.doc_ir);
         }
@@ -1570,42 +1898,7 @@ impl DocIRGenPass.exit_dict_val(nd: uni.DictVal) -> None {
 
 """Generate DocIR for list values."""
 impl DocIRGenPass.exit_list_val(nd: uni.ListVal) -> None {
-    parts: list[doc.DocType] = [];
-    for i in nd.kid {
-        if (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
-            parts.append(i.gen.doc_ir);
-            parts.append(self.space());
-        } else {
-            parts.append(i.gen.doc_ir);
-        }
-    }
-    not_broke = self.concat(parts, ast_node=nd);
-    parts = [];
-    for i in nd.kid {
-        if (isinstance(i, uni.Token) and (i.name == Tok.COMMA)) {
-            parts.append(i.gen.doc_ir);
-            parts.append(self.hard_line());
-        } else {
-            parts.append(i.gen.doc_ir);
-        }
-    }
-    if (len(parts) >= 3) {
-        broke = self.concat(
-            [
-                parts[0],
-                self.indent(
-                    self.concat([self.hard_line(), *parts[1:-1]], ast_node=nd),
-                    ast_node=nd
-                ),
-                self.hard_line(),
-                parts[-1]
-            ],
-            ast_node=nd
-        );
-    } else {
-        broke = self.concat(parts, ast_node=nd);
-    }
-    nd.gen.doc_ir = self.group(self.if_break(broke, not_broke), ast_node=nd);
+    nd.gen.doc_ir = self.format_comma_collection(nd);
 }
 
 """Generate DocIR for atom trailers."""
@@ -1664,20 +1957,37 @@ impl DocIRGenPass.exit_func_call(nd: uni.FuncCall) -> None {
 """Generate DocIR for return statements."""
 impl DocIRGenPass.exit_return_stmt(nd: uni.ReturnStmt) -> None {
     parts: list[doc.DocType] = [];
-    # Check if returning a JSX element directly (not wrapped in parens)
+    # Returning a JSX element directly (not wrapped in parens) gets its own
+    # layout: a soft line between `return` and the element so it stays on the
+    # same line when it fits the print width and drops onto its own indented
+    # line when it doesn't. Multi-line JSX carries hard lines internally, which
+    # force the enclosing group to break — so `return <Tag .../>;` and
+    # `return <p>Hello</p>;` collapse to one line while large trees still
+    # break after `return`.
     is_jsx_return = isinstance(nd.expr, uni.JsxElement);
+    if is_jsx_return {
+        for i in nd.kid {
+            if (isinstance(i, uni.Token) and (i.name == Tok.SEMI)) {
+                parts.append(i.gen.doc_ir);
+            } elif isinstance(i, uni.JsxElement) {
+                parts.append(self.indent(self.concat([self.line(), i.gen.doc_ir])));
+            } else {
+                parts.append(i.gen.doc_ir);
+            }
+        }
+        nd.gen.doc_ir = self.group(self.concat(parts, ast_node=nd), ast_node=nd);
+        return;
+    }
     for i in nd.kid {
         if (isinstance(i, uni.Token) and (i.name == Tok.SEMI)) {
             parts.pop();
             parts.append(i.gen.doc_ir);
-        } elif (is_jsx_return and isinstance(i, uni.JsxElement)) {
-            # For JSX returns, add hard line and indent
-            parts.append(self.indent(self.concat([self.hard_line(), i.gen.doc_ir])));
         } else {
             parts.append(i.gen.doc_ir);
         }
         parts.append(self.space());
     }
+    parts.pop();
     nd.gen.doc_ir = self.group(self.concat(parts, ast_node=nd), ast_node=nd);
 }
 
@@ -1753,7 +2063,54 @@ impl DocIRGenPass.exit_else_if(nd: uni.ElseIf) -> None {
 
 """Generate DocIR for if statements."""
 impl DocIRGenPass.exit_if_stmt(nd: uni.IfStmt) -> None {
-    parts: list[doc.DocType] = [];
+    # Context-sensitive flat-capable detection: when an `if` statement sits
+    # directly inside a lambda body with a single trivial body statement and
+    # no else branch, emit a compact `if cond { stmt; }` shape that the
+    # enclosing Group can keep flat when it fits. For every other case —
+    # top-level, nested, multi-statement, or with an else — we fall back to
+    # the original hard-line layout so statement-level `if` blocks always
+    # break onto their own lines, matching idiomatic Jac style.
+    flat_capable = (
+        isinstance(nd.parent, uni.LambdaExpr)
+        and not (isinstance(nd.parent.body, Sequence) and len(list(nd.parent.body)) > 1)
+        and (nd.else_body is None)
+        and (len(nd.body) == 1)
+        and not self.has_gap(nd, nd.body[0])
+    );
+    if flat_capable {
+        # Flat-capable layout uses `self.line()` (a prettier-style soft line:
+        # a single space when flat, newline+indent when the enclosing group
+        # breaks) before and after the body statement. The Group wrapping
+        # the whole if-stmt then decides flat vs broken based on width.
+        # The opening `{` is intentionally NOT followed by a trailing space
+        # via the default-else path — the `line()` before the body provides
+        # that space in flat mode and a newline+indent in broken mode.
+        parts: list[doc.DocType] = [];
+        body_placed = False;
+        for i in nd.kid {
+            if (isinstance(i, uni.Token) and (i.name == Tok.LBRACE)) {
+                parts.append(i.gen.doc_ir);
+            } elif (isinstance(i, uni.Token) and (i.name == Tok.RBRACE)) {
+                parts.append(self.line());
+                parts.append(i.gen.doc_ir);
+            } elif (isinstance(nd.body, Sequence) and self.is_within(i, nd.body)) {
+                if not body_placed {
+                    parts.append(
+                        self.indent(
+                            self.concat([self.line(), i.gen.doc_ir]), ast_node=nd
+                        )
+                    );
+                    body_placed = True;
+                }
+            } else {
+                parts.append(i.gen.doc_ir);
+                parts.append(self.space());
+            }
+        }
+        nd.gen.doc_ir = self.group(self.concat(parts, ast_node=nd), ast_node=nd);
+        return;
+    }
+    parts = [];
     body_parts: list[doc.DocType] = [self.hard_line()];
     prev_body_item: (uni.UniNode | None) = None;
     for i in nd.kid {
@@ -1846,7 +2203,9 @@ impl DocIRGenPass.exit_func_signature(nd: uni.FuncSignature) -> None {
         if (isinstance(i, uni.Token) and (i.name == Tok.LPAREN) and has_any_params) {
             in_params = True;
             parts.append(i.gen.doc_ir);
-        } elif (isinstance(i, uni.Token) and (i.name == Tok.RPAREN) and has_any_params) {
+        } elif (
+            isinstance(i, uni.Token) and (i.name == Tok.RPAREN) and has_any_params
+        ) {
             in_params = False;
             has_parens = True;
             if isinstance(indent_parts[-1], doc.Line) {
@@ -1924,12 +2283,19 @@ impl DocIRGenPass.exit_ability(nd: uni.Ability) -> None {
         } elif in_body {
             self.add_body_stmt_with_spacing(body_parts, i, prev_body_item);
             prev_body_item = i;
-        } elif (not in_body and isinstance(i, uni.Token) and (i.name == Tok.DECOR_OP)) {
+        } elif (
+            not in_body and isinstance(i, uni.Token) and (i.name == Tok.DECOR_OP)
+        ) {
             parts.append(i.gen.doc_ir);
         } elif (isinstance(i, uni.Token) and (i.name == Tok.SEMI)) {
             parts.pop();
             parts.append(i.gen.doc_ir);
-            parts.append(self.space());
+            # Property accessor stubs (`getter;`) are laid out by the enclosing
+            # has-var group, which supplies its own separators; a trailing space
+            # here would double up when the block collapses to one line.
+            if (nd.accessor_kind == "") {
+                parts.append(self.space());
+            }
         } elif isinstance(i, uni.SubTag) {
             parts.pop();
             parts.append(i.gen.doc_ir);
@@ -2002,7 +2368,9 @@ impl DocIRGenPass.exit_archetype(nd: uni.Archetype) -> None {
             parts.pop();
             parts.append(i.gen.doc_ir);
             parts.append(self.space());
-        } elif (not in_body and isinstance(i, uni.Token) and (i.name == Tok.DECOR_OP)) {
+        } elif (
+            not in_body and isinstance(i, uni.Token) and (i.name == Tok.DECOR_OP)
+        ) {
             parts.append(i.gen.doc_ir);
         } elif isinstance(i, uni.SubTag) {
             parts.pop();
@@ -2156,10 +2524,7 @@ impl DocIRGenPass.exit_module(nd: uni.Module) -> None {
         if (
             (isinstance(i, uni.Import) and isinstance(prev_kid, uni.Import))
             or (
-                (
-                    isinstance(i, uni.GlobalVars)
-                    and isinstance(prev_kid, uni.GlobalVars)
-                )
+                (isinstance(i, uni.GlobalVars) and isinstance(prev_kid, uni.GlobalVars))
                 or (prev_kid == nd.doc)
             )
         ) {
@@ -2293,9 +2658,7 @@ impl DocIRGenPass.is_within(
     (start, end, kid) = (block[0].loc, block[-1].loc, kid_node.loc);
     first = (
         (start.first_line < kid.first_line)
-        or (
-            (start.first_line == kid.first_line) and (start.col_start <= kid.col_start)
-        )
+        or ((start.first_line == kid.first_line) and (start.col_start <= kid.col_start))
     );
     last = (
         (end.last_line > kid.last_line)

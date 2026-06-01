@@ -290,6 +290,108 @@ glob JAC_RUNTIME_JS_OBJECT: str = r"""{
     }
   },
 
+  // Runtime-polymorphic helpers used when the static type of the receiver is
+  // not provably str/list/etc., so the codegen cannot pick a typed emitter.
+  // Each helper checks the JS type and dispatches to the native operation;
+  // if the value is not a JS primitive of the expected shape, it falls back
+  // to calling the same-named method on the object so user-defined classes
+  // that implement Python-style methods still work.
+  poly: {
+    lower(s) { return typeof s === "string" ? s.toLowerCase() : s.lower(); },
+    upper(s) { return typeof s === "string" ? s.toUpperCase() : s.upper(); },
+    strip(s, chars) {
+      if (typeof s === "string") {
+        if (chars === undefined) return s.trim();
+        let i = 0, j = s.length;
+        while (i < j && chars.indexOf(s[i]) !== -1) i++;
+        while (j > i && chars.indexOf(s[j - 1]) !== -1) j--;
+        return s.slice(i, j);
+      }
+      return chars === undefined ? s.strip() : s.strip(chars);
+    },
+    lstrip(s, chars) {
+      if (typeof s === "string") {
+        if (chars === undefined) return s.replace(/^\s+/, "");
+        let i = 0;
+        while (i < s.length && chars.indexOf(s[i]) !== -1) i++;
+        return s.slice(i);
+      }
+      return chars === undefined ? s.lstrip() : s.lstrip(chars);
+    },
+    rstrip(s, chars) {
+      if (typeof s === "string") {
+        if (chars === undefined) return s.replace(/\s+$/, "");
+        let j = s.length;
+        while (j > 0 && chars.indexOf(s[j - 1]) !== -1) j--;
+        return s.slice(0, j);
+      }
+      return chars === undefined ? s.rstrip() : s.rstrip(chars);
+    },
+    append(a, x) {
+      if (Array.isArray(a)) { a.push(x); return null; }
+      return a.append(x);
+    },
+    extend(a, b) {
+      if (Array.isArray(a)) { for (const v of b) a.push(v); return null; }
+      return a.extend(b);
+    },
+    pop(a, i) {
+      if (Array.isArray(a)) {
+        if (i === undefined) return a.pop();
+        const idx = i < 0 ? a.length + i : i;
+        return a.splice(idx, 1)[0];
+      }
+      return i === undefined ? a.pop() : a.pop(i);
+    },
+    contains(c, x) {
+      // Python-equivalent membership for a value of unknown static type.
+      // string -> substring; array (list/tuple/range) -> element;
+      // Set/Map -> key/element; plain object (dict) -> own key.
+      if (typeof c === "string") return c.includes(x);
+      if (Array.isArray(c)) return c.includes(x);
+      if (c instanceof Set || c instanceof Map) return c.has(x);
+      if (c !== null && typeof c === "object") {
+        return Object.prototype.hasOwnProperty.call(c, x);
+      }
+      return false;
+    },
+    getitem(c, i) {
+      // Subscript read for a value of unknown static type. This is a faithful
+      // superset of a raw `c[i]`: it only adds Python's negative indexing for
+      // sequences (string/array) and otherwise preserves JS semantics exactly
+      // (mapping/object access, out-of-range -> `undefined`, no new throws).
+      if (typeof i === "number" && i < 0
+          && (typeof c === "string" || Array.isArray(c))) {
+        return c[c.length + i];
+      }
+      if (c instanceof Map) return c.get(i);
+      return c[i];
+    },
+    setitem(c, i, v) {
+      // Subscript assignment for a value of unknown/list static type. A
+      // negative index writes the array element counted from the end (a raw
+      // JS `c[-1] = v` would instead create a bogus "-1" property); every
+      // other case behaves like a plain `c[i] = v`.
+      if (typeof i === "number" && i < 0 && Array.isArray(c)) {
+        c[c.length + i] = v;
+        return v;
+      }
+      if (c instanceof Map) { c.set(i, v); return v; }
+      c[i] = v;
+      return v;
+    },
+    and_(a, bf) {
+      // Python `a and b`: returns `a` when it is falsy, else evaluates and
+      // returns `b`. `bf` is a thunk so the right operand keeps short-circuit
+      // (lazy) evaluation, and `a` is evaluated exactly once by the caller.
+      return _jac.builtin.bool(a) ? bf() : a;
+    },
+    or_(a, bf) {
+      // Python `a or b`: returns `a` when it is truthy, else `b`.
+      return _jac.builtin.bool(a) ? a : bf();
+    }
+  },
+
   list: {
     remove(arr, val) {
       const i = arr.indexOf(val);
@@ -934,6 +1036,12 @@ glob JAC_RUNTIME_JS_OBJECT: str = r"""{
       }
       return obj._jac_id;
     },
+    // unsafe_html(x) returns a sentinel object that the JSX flattener
+    // recognises and renders as raw HTML via dangerouslySetInnerHTML.
+    // Named "unsafe" so the security implication is visible at the use site.
+    unsafe_html(html) {
+      return { __jacUnsafeHtml: String(html == null ? "" : html) };
+    },
     hash(obj) { return _jac.builtin.id(obj); },
     repr(obj) { return JSON.stringify(obj); },
     pow(base, exp, mod) {
@@ -1048,55 +1156,45 @@ glob JAC_RUNTIME_JS_OBJECT: str = r"""{
     }
   },
 
-  exc: (() => {
-    class BaseException extends Error { constructor(m) { super(m); this.name = 'BaseException'; } }
-    class Exception extends BaseException { constructor(m) { super(m); this.name = 'Exception'; } }
-    class ArithmeticError extends Exception { constructor(m) { super(m); this.name = 'ArithmeticError'; } }
-    class ZeroDivisionError extends ArithmeticError { constructor(m) { super(m); this.name = 'ZeroDivisionError'; } }
-    class OverflowError extends ArithmeticError { constructor(m) { super(m); this.name = 'OverflowError'; } }
-    class FloatingPointError extends ArithmeticError { constructor(m) { super(m); this.name = 'FloatingPointError'; } }
-    class LookupError extends Exception { constructor(m) { super(m); this.name = 'LookupError'; } }
-    class IndexError extends LookupError { constructor(m) { super(m); this.name = 'IndexError'; } }
-    class KeyError extends LookupError { constructor(m) { super(m); this.name = 'KeyError'; } }
-    class ValueError extends Exception { constructor(m) { super(m); this.name = 'ValueError'; } }
-    class TypeError_ extends Exception { constructor(m) { super(m); this.name = 'TypeError'; } }
-    class AttributeError extends Exception { constructor(m) { super(m); this.name = 'AttributeError'; } }
-    class RuntimeError extends Exception { constructor(m) { super(m); this.name = 'RuntimeError'; } }
-    class NotImplementedError extends RuntimeError { constructor(m) { super(m); this.name = 'NotImplementedError'; } }
-    class RecursionError extends RuntimeError { constructor(m) { super(m); this.name = 'RecursionError'; } }
-    class OSError extends Exception { constructor(m) { super(m); this.name = 'OSError'; } }
-    class FileNotFoundError extends OSError { constructor(m) { super(m); this.name = 'FileNotFoundError'; } }
-    class FileExistsError extends OSError { constructor(m) { super(m); this.name = 'FileExistsError'; } }
-    class PermissionError extends OSError { constructor(m) { super(m); this.name = 'PermissionError'; } }
-    class TimeoutError extends OSError { constructor(m) { super(m); this.name = 'TimeoutError'; } }
-    class IsADirectoryError extends OSError { constructor(m) { super(m); this.name = 'IsADirectoryError'; } }
-    class NotADirectoryError extends OSError { constructor(m) { super(m); this.name = 'NotADirectoryError'; } }
-    class AssertionError extends Exception { constructor(m) { super(m); this.name = 'AssertionError'; } }
-    class ImportError extends Exception { constructor(m) { super(m); this.name = 'ImportError'; } }
-    class ModuleNotFoundError extends ImportError { constructor(m) { super(m); this.name = 'ModuleNotFoundError'; } }
-    class NameError extends Exception { constructor(m) { super(m); this.name = 'NameError'; } }
-    class UnboundLocalError extends NameError { constructor(m) { super(m); this.name = 'UnboundLocalError'; } }
-    class StopIteration extends Exception { constructor(m) { super(m); this.name = 'StopIteration'; } }
-    class StopAsyncIteration extends Exception { constructor(m) { super(m); this.name = 'StopAsyncIteration'; } }
-    class EOFError extends Exception { constructor(m) { super(m); this.name = 'EOFError'; } }
-    class MemoryError extends Exception { constructor(m) { super(m); this.name = 'MemoryError'; } }
-    class ReferenceError_ extends Exception { constructor(m) { super(m); this.name = 'ReferenceError'; } }
-    class KeyboardInterrupt extends BaseException { constructor(m) { super(m); this.name = 'KeyboardInterrupt'; } }
-    class SystemExit extends BaseException { constructor(m) { super(m); this.name = 'SystemExit'; } }
-    class GeneratorExit extends BaseException { constructor(m) { super(m); this.name = 'GeneratorExit'; } }
-    return {
-      BaseException, Exception,
-      ArithmeticError, ZeroDivisionError, OverflowError, FloatingPointError,
-      LookupError, IndexError, KeyError,
-      ValueError, TypeError: TypeError_, AttributeError,
-      RuntimeError, NotImplementedError, RecursionError,
-      OSError, FileNotFoundError, FileExistsError, PermissionError,
-      TimeoutError, IsADirectoryError, NotADirectoryError,
-      AssertionError, ImportError, ModuleNotFoundError,
-      NameError, UnboundLocalError,
-      StopIteration, StopAsyncIteration, EOFError, MemoryError,
-      ReferenceError: ReferenceError_,
-      KeyboardInterrupt, SystemExit, GeneratorExit
-    };
-  })()
-}""";
+  exc: __JAC_EXC_RUNTIME__
+}""",
+     # JS globals shadowed by builtin exception names; defined under an aliased
+     # local name and re-exported under their real name so generated code can
+     # reference _jac.exc.<RealName> without colliding with the host global.
+     _JS_RESERVED_EXC_NAMES: set[str] = {"TypeError", "ReferenceError"};
+
+"""Build the `_jac.exc` IIFE from the canonical exception hierarchy.
+
+Emits one JS class per exception (in topological order so each `extends`
+references an already-declared parent) and returns the export map, all derived
+from JAC_TYPE_REGISTRY so the hierarchy lives in exactly one place.
+"""
+def _build_exc_runtime_js -> str {
+    import from jaclang.compiler.type_registry { JAC_TYPE_REGISTRY }
+    lines: list[str] = ["(() => {"];
+    exports: list[str] = [];
+    for (name, parent) in JAC_TYPE_REGISTRY.exception_entries() {
+        local = (name + "_") if name in _JS_RESERVED_EXC_NAMES else name;
+        parent_local = (
+            "Error"
+                if parent is None
+                else ((parent + "_") if parent in _JS_RESERVED_EXC_NAMES else parent)
+        );
+        lines.append(
+            "    class " + local + " extends " + parent_local + " { constructor(m) { super(m); this.name = '" + name + "'; } }"
+        );
+        exports.append(
+            (name + ": " + local) if name in _JS_RESERVED_EXC_NAMES else name
+        );
+    }
+    lines.append("    return { " + ", ".join(exports) + " };");
+    lines.append("  })()");
+    return "\n".join(lines);
+}
+
+"""Return the fully-assembled `_jac` runtime object literal (raw JS string)."""
+def build_jac_runtime_js -> str {
+    return JAC_RUNTIME_JS_OBJECT.replace(
+        "__JAC_EXC_RUNTIME__", _build_exc_runtime_js()
+    );
+}

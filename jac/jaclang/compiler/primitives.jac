@@ -348,7 +348,10 @@ class StrEmitter[V, C] {
         self: StrEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
 
-    def emit_find(self: StrEmitter, ctx: C, target: V, args: list[V]) -> (V | None) abs;
+    def emit_find(
+        self: StrEmitter, ctx: C, target: V, args: list[V]
+    ) -> (V | None) abs;
+
     def emit_rfind(
         self: StrEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
@@ -405,7 +408,10 @@ class StrEmitter[V, C] {
         self: StrEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
 
-    def emit_join(self: StrEmitter, ctx: C, target: V, args: list[V]) -> (V | None) abs;
+    def emit_join(
+        self: StrEmitter, ctx: C, target: V, args: list[V]
+    ) -> (V | None) abs;
+
     def emit_partition(
         self: StrEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
@@ -793,7 +799,10 @@ class ListEmitter[V, C] {
         self: ListEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
 
-    def emit_pop(self: ListEmitter, ctx: C, target: V, args: list[V]) -> (V | None) abs;
+    def emit_pop(
+        self: ListEmitter, ctx: C, target: V, args: list[V]
+    ) -> (V | None) abs;
+
     def emit_clear(
         self: ListEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
@@ -879,7 +888,10 @@ class ListEmitter[V, C] {
 
 class DictEmitter[V, C] {
     # --- Named methods ---
-    def emit_get(self: DictEmitter, ctx: C, target: V, args: list[V]) -> (V | None) abs;
+    def emit_get(
+        self: DictEmitter, ctx: C, target: V, args: list[V]
+    ) -> (V | None) abs;
+
     def emit_keys(
         self: DictEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
@@ -892,7 +904,10 @@ class DictEmitter[V, C] {
         self: DictEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
 
-    def emit_pop(self: DictEmitter, ctx: C, target: V, args: list[V]) -> (V | None) abs;
+    def emit_pop(
+        self: DictEmitter, ctx: C, target: V, args: list[V]
+    ) -> (V | None) abs;
+
     def emit_popitem(
         self: DictEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
@@ -1004,7 +1019,9 @@ class SetEmitter[V, C] {
         self: SetEmitter, ctx: C, target: V, args: list[V]
     ) -> (V | None) abs;
 
-    def emit_copy(self: SetEmitter, ctx: C, target: V, args: list[V]) -> (V | None) abs;
+    def emit_copy(
+        self: SetEmitter, ctx: C, target: V, args: list[V]
+    ) -> (V | None) abs;
     # --- Set algebra operators ---
     def emit_op_or(
         self: SetEmitter, ctx: C, target: V, args: list[V]
@@ -1328,9 +1345,14 @@ class BuiltinEmitter[V, C] {
 #  Exception Types
 # =============================================================================
 #
-# Canonical exception hierarchy. All backends must implement hierarchy-aware
-# type matching so that `except ArithmeticError` catches ZeroDivisionError,
+# Exception hierarchy. All backends must implement hierarchy-aware type
+# matching so that `except ArithmeticError` catches ZeroDivisionError,
 # OverflowError, and FloatingPointError.
+#
+# The authoritative, machine-readable hierarchy consumed by every backend lives
+# in `JAC_TYPE_REGISTRY` (jaclang/compiler/type_registry.jac); the tree below is
+# the human-readable view of it. The UnicodeError subtree is aspirational and
+# not yet implemented in the registry.
 #
 #   BaseException
 #   ├── Exception

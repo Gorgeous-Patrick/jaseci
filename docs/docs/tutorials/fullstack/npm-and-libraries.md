@@ -7,6 +7,9 @@ Jac's client-side compiler gives you full access to the npm ecosystem. You can i
 > - Completed: [State Management](state.md)
 > - Time: ~30 minutes
 
+!!! note "npm imports and `jac check`"
+    npm packages bundle correctly under `jac start`, but the static checker has no `.d.ts`-equivalent stubs for them yet, so attribute access on imported npm symbols (`useRef().current`, `axios.get`, lodash methods, shadcn primitives, etc.) shows up as Unknown under isolated `jac check`. The snippets below run as written; a typed-stub story for npm imports lands as a separate type-checker improvement.
+
 ---
 
 ## Adding NPM Dependencies
@@ -120,6 +123,15 @@ def:pub TextInput() -> JsxElement {
     </div>;
 }
 ```
+
+!!! tip "Prefer the `Ref[T]` field form for component refs"
+    For a ref you hold for the life of a component, declare it as a typed
+    `has`-field instead of a manual import: `has inputRef: Ref[HTMLInputElement] = Ref();`
+    compiles to the same `useRef(null)`, auto-imports `useRef`, and gives
+    `.current` a real type (`HTMLInputElement | None`). See
+    [Refs with `Ref[T]`](state.md). The manual `import from react { useRef }`
+    form shown here is still useful for inline locals and value refs created
+    mid-function.
 
 Common uses for `useRef`:
 
@@ -244,7 +256,7 @@ def:pub app() -> JsxElement {
 Use ternary expressions for dynamic Tailwind classes:
 
 ```jac
-def:pub Tab(props: Any) -> JsxElement {
+def:pub Tab(props: any) -> JsxElement {
     activeCls = "border-primary text-foreground";
     inactiveCls = "border-transparent text-muted-foreground hover:text-foreground";
 
@@ -262,50 +274,62 @@ def:pub Tab(props: Any) -> JsxElement {
 
 ## shadcn/ui Integration
 
-[shadcn/ui](https://ui.shadcn.com/) is a popular component library built on Radix UI primitives and Tailwind CSS. The `jac-shadcn` plugin provides first-class support -- install it with `pip install jac-shadcn`, then use `jac add --shadcn` to fetch pre-built, themed components from the [jac-shadcn registry](https://jac-shadcn.jaseci.org).
+[shadcn/ui](https://ui.shadcn.com/) is a popular component library built on Radix UI primitives and Tailwind CSS. The [`jac-super`](https://pypi.org/project/jac-super/) plugin provides first-class support -- the full component set ships bundled with the plugin, so `jac add --shadcn` installs pre-built, themed components **offline** (no registry fetch).
 
 ### Installation & Setup
 
 ```bash
-pip install jac-shadcn
+pip install jac-super
 ```
 
-Create a new project with shadcn theming:
+Create a new themed project (fully offline -- the component set, styles, and color themes all ship with the plugin):
 
 ```bash
-jac create --use 'https://jac-shadcn.jaseci.org/jacpack' myapp
+jac create --use jac-shadcn --theme rose --font inter myapp
 cd myapp
 jac install
 ```
 
-Or add to an existing project by adding the `[jac-shadcn]` section to your `jac.toml`:
+This scaffolds a themed starter: a generated `global.css` (theme colors + font + radius), `lib/utils.cl.jac`, and `button`/`card` components for the chosen style, plus a `main.jac` that demos them. All theme flags are optional and default to `nova`/`neutral`/`figtree`:
 
-```toml
-[jac-shadcn]
-style = "nova"
-baseColor = "neutral"
-theme = "neutral"
-font = "figtree"
-radius = "default"
-menuAccent = "subtle"
-menuColor = "default"
-registry = "https://jac-shadcn.jaseci.org"
+| Flag | Values | Default |
+|------|--------|---------|
+| `--style` | `nova`, `vega`, `maia`, `lyra`, `mira` | `nova` |
+| `--baseColor` | `neutral`, `stone`, `zinc`, `gray` | `neutral` |
+| `--theme` | `rose`, `emerald`, `blue`, `amber`, … | `neutral` |
+| `--font` | `inter`, `outfit`, `geist`, … | `figtree` |
+| `--radius` | `none`, `small`, `medium`, `large` | `default` |
+| `--menuAccent` | `subtle`, `bold` | `subtle` |
+
+The chosen values are written to the `[jac-shadcn]` section of `jac.toml`.
+
+### Re-theme in place
+
+Change the theme of an existing project without recreating it -- `jac retheme` regenerates `global.css` from `[jac-shadcn]` (and, when `--style` changes, re-resolves the components already in `components/ui/`):
+
+```bash
+jac retheme --theme emerald --font outfit   # switch accent + font
+jac retheme --style mira                     # switch style, restyle installed components
+jac retheme                                  # regenerate from the current jac.toml config
 ```
 
-Then add and use components:
+### Add more components
 
 ```bash
 jac add --shadcn button card dialog
 ```
 
-This fetches resolved `.cl.jac` components into `components/ui/`, installs peer dependencies automatically, and creates the `cn()` utility if needed.
+This resolves the chosen style's `.cl.jac` components into `components/ui/`, installs peer dependencies automatically, and creates the `cn()` utility if needed -- all from the bundled component set, no network required.
 
 ### Adding Components to Your Code
 
-```jac
-cl import from "./components/ui/button" { Button }
+Components install as `components/ui/<name>.cl.jac`, keeping their hyphenated registry names (`button.cl.jac`, `dropdown-menu.cl.jac`). **Quote the import path** -- it is required for hyphenated names (an unquoted `dropdown-menu` is a parse error) -- and make the leading dots relative to the importing file's folder: `.components.ui.<name>` from a root file like `main.jac`, `.ui.<name>` from a file in `components/`.
 
+```jac
 cl {
+    import from ".components.ui.button" { Button }
+    import from ".components.ui.dropdown-menu" { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent }
+
     def:pub MyPage() -> JsxElement {
         return <div>
             <Button variant="outline">Click me</Button>
@@ -316,20 +340,19 @@ cl {
 
 ### The cn() Utility in Jac
 
-The standard shadcn `cn()` utility can be written entirely in Jac (no TypeScript needed):
+`jac add --shadcn` and `jac create --use jac-shadcn` generate `lib/utils.cl.jac` for you, so you rarely write this by hand. For reference, the standard shadcn `cn()` utility is written entirely in Jac (no TypeScript needed) using a variadic parameter:
 
 ```jac
 # lib/utils.cl.jac
-import from "clsx" { clsx }
-import from "tailwind-merge" { twMerge }
+cl import from "clsx" { clsx }
+cl import from "tailwind-merge" { twMerge }
 
-def:pub cn(inputs: Any) -> str {
-    args = [].slice.call(arguments);
-    return twMerge(clsx(args));
+def:pub cn(*inputs: any) -> str {
+    return twMerge(clsx(inputs));
 }
 ```
 
-Required dependencies:
+Required dependencies (added automatically by `jac add --shadcn`):
 
 ```toml
 [dependencies.npm]
@@ -339,6 +362,8 @@ tailwind-merge = "*"
 
 ### Building shadcn Components in Jac
 
+`jac add --shadcn` already installs the full, production-ready primitives into `components/ui/`, so you don't normally hand-write them -- build your own higher-level components on top instead. The simplified examples below are illustrative: they show how a bundled component is structured (CVA for variants, a `...lib.utils` import for `cn()`, JSX prop spread) and how you'd author a custom one.
+
 Here's how the shadcn Button component looks in Jac, using Class Variance Authority (CVA) for variant management:
 
 ```jac
@@ -346,7 +371,7 @@ Here's how the shadcn Button component looks in Jac, using Class Variance Author
 import from "class-variance-authority" { cva }
 import from ...lib.utils { cn }
 
-glob _buttonVariants: Any = cva(
+glob _buttonVariants: any = cva(
     "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
     {
         "variants": {
@@ -370,7 +395,7 @@ glob _buttonVariants: Any = cva(
     }
 );
 
-def:pub Button(props: Any) -> JsxElement {
+def:pub Button(props: any) -> JsxElement {
     variant = props.variant or "default";
     size = props.size or "default";
     computedClass = cn(
@@ -378,7 +403,7 @@ def:pub Button(props: Any) -> JsxElement {
         props.className
     );
 
-    return <button className={computedClass} {...props}>
+    return <button className={computedClass} {**props}>
         {props.children}
     </button>;
 }
@@ -400,19 +425,19 @@ shadcn components wrap Radix UI primitives. Here's a Dialog example in Jac:
 import from "radix-ui" { Dialog as DialogPrimitive }
 import from ...lib.utils { cn }
 
-def:pub Dialog(props: Any) -> JsxElement {
-    return <DialogPrimitive.Root {...props}>
+def:pub Dialog(props: any) -> JsxElement {
+    return <DialogPrimitive.Root {**props}>
         {props.children}
     </DialogPrimitive.Root>;
 }
 
-def:pub DialogTrigger(props: Any) -> JsxElement {
-    return <DialogPrimitive.Trigger {...props}>
+def:pub DialogTrigger(props: any) -> JsxElement {
+    return <DialogPrimitive.Trigger {**props}>
         {props.children}
     </DialogPrimitive.Trigger>;
 }
 
-def:pub DialogContent(props: Any) -> JsxElement {
+def:pub DialogContent(props: any) -> JsxElement {
     return <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
             className={cn("fixed inset-0 z-50 bg-black/50", props.overlayClassName)}
@@ -505,7 +530,7 @@ def:pub CodeEditor() -> JsxElement {
         language="python"
         theme="vs-dark"
         value={code}
-        onChange={lambda value: Any -> None { code = value; }}
+        onChange={lambda value: any -> None { code = value; }}
     />;
 }
 ```
@@ -567,7 +592,7 @@ def:pub SplitView() -> JsxElement {
 | Import package | `import from "<package>" { named_export }` |
 | Import React hooks | `import from react { useRef, useCallback }` |
 | Setup Tailwind | Add vite plugin config + CSS import |
-| Setup shadcn | `pip install jac-shadcn` + `[jac-shadcn]` in jac.toml |
+| Setup shadcn | `pip install jac-super` + `[jac-shadcn]` in jac.toml |
 | Use cn() utility | Write in Jac with clsx + tailwind-merge |
 
 ---

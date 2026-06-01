@@ -390,6 +390,7 @@ class Import:
     names: list = field(default_factory=list)
     alias: str = ""
     is_from: bool = False
+    is_typed: bool = False
 
 
 @dataclass
@@ -413,6 +414,7 @@ class TypeAliasDef:
 class EnumDef:
     name: str = ""
     bases: str = ""
+    value_type: str = ""  # `enum X: T { ... }` shorthand: T as raw text
     body: list = field(default_factory=list)
     decorators: list = field(default_factory=list)
 
@@ -440,11 +442,23 @@ class Param:
 
 
 @dataclass
+class Accessor:
+    # kind: "getter" | "setter" | "deleter"
+    kind: str = ""
+    params: list = field(default_factory=list)
+    return_type: str = ""
+    # body is None for a signature-only stub (impl provides it elsewhere)
+    body: list | None = None
+
+
+@dataclass
 class HasVar:
     name: str = ""
     type_ann: str = ""
     default: str = ""
     by_postinit: bool = False
+    # Native property accessor blocks: `has x: T { getter; setter(v: T); }`
+    accessors: list = field(default_factory=list)
 
 
 @dataclass
@@ -1160,6 +1174,11 @@ class Parser:
 
     def _parse_import(self) -> Import:
         self._expect(TT.NAME, "import")
+        # Optional `type` keyword for annotation-only imports.
+        is_typed = False
+        if self._at(TT.NAME, "type"):
+            self._advance()
+            is_typed = True
         if self._at(TT.NAME, "from"):
             self._advance()  # consume 'from'
             module = self._collect_dotted()
@@ -1190,14 +1209,14 @@ class Parser:
                 self._match(TT.COMMA)
             self._expect(TT.RBRACE)
             self._match(TT.SEMI)
-            return Import(module=module, names=names, is_from=True)
+            return Import(module=module, names=names, is_from=True, is_typed=is_typed)
         else:
             module = self._collect_dotted()
             alias = ""
             if self._match(TT.NAME, "as"):
                 alias = self._expect(TT.NAME).value
             self._match(TT.SEMI)
-            return Import(module=module, alias=alias, is_from=False)
+            return Import(module=module, alias=alias, is_from=False, is_typed=is_typed)
 
     # ── Classes ───────────────────────────────────────────────────────────
 
@@ -1241,13 +1260,26 @@ class Parser:
         self._expect(TT.NAME, "enum")
         name = self._expect(TT.NAME).value
         bases = ""
-        if self._match(TT.LPAREN):
+        value_type = ""
+        # Typed-base shorthand `enum X: T { ... }` — mutually exclusive with
+        # the parenthesized form `enum X(B) { ... }`. T is collected as raw
+        # text and routed to the codegen which expands int -> IntEnum,
+        # str -> StrEnum, and anything else into a mixin pattern.
+        if self._match(TT.COLON):
+            value_type = self._collect_until(TT.LBRACE).strip()
+        elif self._match(TT.LPAREN):
             bases = self._collect_until(TT.RPAREN)
             self._expect(TT.RPAREN)
         self._expect(TT.LBRACE)
         body = self._parse_enum_body()
         self._expect(TT.RBRACE)
-        return EnumDef(name=name, bases=bases, body=body, decorators=decorators)
+        return EnumDef(
+            name=name,
+            bases=bases,
+            value_type=value_type,
+            body=body,
+            decorators=decorators,
+        )
 
     def _parse_enum_body(self) -> list:
         """Parse enum body — handles comma OR semicolon separated members."""
@@ -1389,6 +1421,15 @@ class Parser:
             type_ann = self._collect_type(stop_vals={"="}, stop_names={"by"})
             default = ""
             by_postinit = False
+            accessors: list[Accessor] = []
+            if self._at(TT.LBRACE):
+                # Native property: `has x: T { getter; setter(v: T); deleter; }`.
+                accessors = self._parse_accessors()
+                vars_list.append(
+                    HasVar(name=name, type_ann=type_ann, accessors=accessors)
+                )
+                # An accessor block ends the has statement (no trailing `;`).
+                break
             if self._match_op("="):
                 default = self._collect_until(TT.COMMA, TT.SEMI)
             elif self._at(TT.NAME, "by"):
@@ -1415,6 +1456,33 @@ class Parser:
                 self._advance()
                 self._advance()
         return HasDecl(vars=vars_list)
+
+    def _parse_accessors(self) -> list[Accessor]:
+        """Parse a `{ getter; setter(v: T); deleter; }` property accessor block."""
+        self._expect(TT.LBRACE)
+        accessors: list[Accessor] = []
+        while not self._at(TT.RBRACE):
+            kind = self._expect(TT.NAME).value  # getter | setter | deleter
+            params: list[Param] = []
+            if self._at(TT.LPAREN):
+                self._advance()
+                params = self._parse_params()
+                self._expect(TT.RPAREN)
+            return_type = ""
+            if self._match(TT.ARROW):
+                return_type = self._collect_type()
+            body: list | None = None
+            if self._at(TT.LBRACE):
+                self._advance()
+                body = self._parse_body()
+                self._expect(TT.RBRACE)
+            else:
+                self._expect(TT.SEMI)
+            accessors.append(
+                Accessor(kind=kind, params=params, return_type=return_type, body=body)
+            )
+        self._expect(TT.RBRACE)
+        return accessors
 
     # ── Glob Declarations ─────────────────────────────────────────────────
 
@@ -1735,6 +1803,7 @@ class CodeGen:
         self.indent = 0
         self.needs_dataclass_import = False
         self.needs_enum_import = False
+        self.needs_typing_import = False
         self.impl_registry: dict[str, list[ImplDef]] = {}
         self._in_class = False
 
@@ -1766,6 +1835,8 @@ class CodeGen:
             self._line("from dataclasses import dataclass, field")
         if self.needs_enum_import:
             self._line("import enum")
+        if self.needs_typing_import:
+            self._line("from typing import TYPE_CHECKING")
         self._line()
         for node in module.body:
             self._emit(node)
@@ -1780,8 +1851,11 @@ class CodeGen:
                         self.needs_dataclass_import = True
                 self._scan_needs(node.body)
             elif isinstance(node, EnumDef):
-                if not node.bases:
+                if not node.bases or node.value_type:
                     self.needs_enum_import = True
+            elif isinstance(node, Import):
+                if node.is_typed:
+                    self.needs_typing_import = True
             elif isinstance(node, WithEntry):
                 self._scan_needs(node.body)
 
@@ -1852,6 +1926,19 @@ class CodeGen:
     # ── Imports ───────────────────────────────────────────────────────────
 
     def _emit_import(self, node: Import) -> None:
+        if node.is_typed:
+            if node.is_from:
+                names = ", ".join(node.names)
+                stmt = f"from {node.module} import {names}"
+            elif node.alias:
+                stmt = f"import {node.module} as {node.alias}"
+            else:
+                stmt = f"import {node.module}"
+            self._line("if TYPE_CHECKING:")
+            self.indent += 1
+            self._line(stmt)
+            self.indent -= 1
+            return
         if node.is_from:
             names = ", ".join(node.names)
             self._line(f"from {node.module} import {names}")
@@ -1868,8 +1955,14 @@ class CodeGen:
         if node.is_dataclass:
             has_dc = any("dataclass" in d for d in node.decorators)
             if not has_dc:
-                # Check if the class has 'has' fields
-                has_fields = any(isinstance(n, HasDecl) for n in node.body)
+                # Check if the class has 'has' fields. Property-only `has`
+                # declarations (accessor blocks) are not dataclass fields, so a
+                # class whose only `has` is a property must keep its inherited
+                # __init__ rather than getting an arg-less generated one.
+                has_fields = any(
+                    isinstance(n, HasDecl) and any(not v.accessors for v in n.vars)
+                    for n in node.body
+                )
                 # Check if the class has a manual __init__ (def init)
                 impls = self.impl_registry.get(node.name, [])
                 has_init = any(
@@ -1929,6 +2022,16 @@ class CodeGen:
                         continue  # Skip stub; impl will provide the method
                 self._emit(bnode)
             for impl in impls:
+                parts = impl.target.split(".")
+                mname = parts[-1] if len(parts) > 1 else parts[0]
+                mname = _dunder_names.get(mname, mname)
+                # Native property accessor impls (`Cls.prop.getter`) have no
+                # FuncDef stub; emit them directly.
+                if len(parts) >= 2 and parts[-1] in ("getter", "setter", "deleter"):
+                    self._emit_impl_as_method(impl, stub_lookup)
+                    continue
+                if mname not in stub_lookup:
+                    continue
                 self._emit_impl_as_method(impl, stub_lookup)
             self._in_class = prev_in_class
         self.indent -= 1
@@ -1941,7 +2044,18 @@ class CodeGen:
     def _emit_enum(self, node: EnumDef) -> None:
         for dec in node.decorators:
             self._line(f"@{dec}")
-        if node.bases:
+        if node.value_type:
+            # Typed-base shorthand: int -> IntEnum, str -> StrEnum, anything
+            # else uses Python's mixin pattern `class X(T, enum.Enum)`.
+            self.needs_enum_import = True
+            vt = node.value_type
+            if vt == "int":
+                bases = "enum.IntEnum"
+            elif vt == "str":
+                bases = "enum.StrEnum"
+            else:
+                bases = f"{vt}, enum.Enum"
+        elif node.bases:
             bases = node.bases
         else:
             bases = "enum.Enum"
@@ -1989,10 +2103,27 @@ class CodeGen:
         self.indent += 1
         prev_in_class = self._in_class
         self._in_class = False  # nested functions are not methods
-        self._emit_body(node.body)
+        # Module-level impl stitching: a top-level forward-decl `def foo(...);`
+        # paired with `impl foo(...) { body }` in the same module or an
+        # .impl.jac file. The full compiler uses DeclImplMatchPass for this;
+        # jac0 (bootstrap) approximates by splicing the impl's body into the
+        # stub's emitted function. Class-method impls remain stitched in
+        # `_emit_class` where they have access to the surrounding class body.
+        body = node.body
+        if not prev_in_class and self._is_stub_body(body):
+            for impl in self.impl_registry.get(node.name, []):
+                if "." not in impl.target:
+                    body = impl.body
+                    break
+        self._emit_body(body)
         self._in_class = prev_in_class
         self.indent -= 1
         self._line()
+
+    @staticmethod
+    def _is_stub_body(body: list) -> bool:
+        """A forward-decl stub is a body of a single PassStmt (from `def f(...);`)."""
+        return len(body) == 1 and isinstance(body[0], PassStmt)
 
     def _format_params(self, params: list[Param]) -> str:
         parts: list[str] = []
@@ -2012,8 +2143,41 @@ class CodeGen:
 
     # ── Has ───────────────────────────────────────────────────────────────
 
+    def _emit_property_accessor(
+        self, prop_name: str, kind: str, params: list, return_type: str, body: list
+    ) -> None:
+        """Emit one decorated property accessor method (getter/setter/deleter)."""
+        if kind == "getter":
+            self._line("@property")
+        elif kind == "setter":
+            self._line(f"@{prop_name}.setter")
+        else:  # deleter
+            self._line(f"@{prop_name}.deleter")
+        func_params = list(params)
+        if not func_params or func_params[0].name not in ("self", "cls"):
+            func_params.insert(0, Param(name="self"))
+        ps = self._format_params(func_params)
+        ret = f" -> {return_type}" if return_type else ""
+        self._line(f"def {prop_name}({ps}){ret}:")
+        self.indent += 1
+        prev_in_class = self._in_class
+        self._in_class = False
+        self._emit_body(body)
+        self._in_class = prev_in_class
+        self.indent -= 1
+        self._line()
+
     def _emit_has(self, node: HasDecl) -> None:
         for var in node.vars:
+            if var.accessors:
+                # Native property: not a dataclass field. Inline-bodied accessors
+                # emit here; signature-only stubs are filled by their impl.
+                for acc in var.accessors:
+                    if acc.body is not None:
+                        self._emit_property_accessor(
+                            var.name, acc.kind, acc.params, acc.return_type, acc.body
+                        )
+                continue
             if var.by_postinit:
                 self._line(f"{var.name}: {var.type_ann} = field(init=False)")
             elif var.default:
@@ -2049,6 +2213,12 @@ class CodeGen:
         self, impl: ImplDef, stub_lookup: dict[str, FuncDef] | None = None
     ) -> None:
         parts = impl.target.split(".")
+        # Native property accessor impl: `impl Cls.prop.getter/.setter/.deleter`.
+        if len(parts) >= 2 and parts[-1] in ("getter", "setter", "deleter"):
+            self._emit_property_accessor(
+                parts[-2], parts[-1], impl.params, impl.return_type, impl.body
+            )
+            return
         method_name = parts[-1] if len(parts) > 1 else parts[0]
         _dunder_names = {"init": "__init__", "postinit": "__post_init__"}
         method_name = _dunder_names.get(method_name, method_name)

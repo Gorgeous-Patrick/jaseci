@@ -7,7 +7,7 @@ import from copy { copy }
 import from enum { IntEnum }
 import from hashlib { md5 }
 import from types { EllipsisType }
-import from typing { TYPE_CHECKING, Any, cast }
+import from typing { Any, cast }
 import from jaclang.jac0core.bccache { discover_base_file }
 import from jaclang.jac0core.codeinfo { CodeGenTarget, CodeLocInfo }
 import from jaclang.jac0core.constant {
@@ -22,12 +22,7 @@ import from jaclang.jac0core.constant { JacSemTokenModifier as SemTokMod }
 import from jaclang.jac0core.constant { JacSemTokenType as SemTokType }
 import from jaclang.jac0core.constant { Tokens as Tok }
 import from jaclang.jac0core.modresolver { resolve_relative_path }
-
-with entry {
-    if TYPE_CHECKING {
-        import from jaclang.compiler.type_system.types { TypeBase }
-    }
-}
+import type from jaclang.compiler.type_system.types { TypeBase }
 
 import from jaclang.jac0core.treeprinter {
     print_ast_tree,
@@ -47,25 +42,13 @@ obj UniNode {
         loc: CodeLocInfo by postinit;
 
     def postinit -> None;
-    @property
-    def gen -> CodeGenTarget {
-        if (self._gen is None) {
-            self._gen = CodeGenTarget();
-        }
-        return self._gen;
-    }
 
-    @gen.setter
-    def gen(value: CodeGenTarget) {
-        self._gen = value;
-    }
-
-    @property
-    def _sub_node_tab -> dict[(type, list[UniNode])];
+    has gen: CodeGenTarget { getter; setter(value: CodeGenTarget); }
+    has _sub_node_tab: dict[(type, list[UniNode])] { getter; }
 
     def _construct_sub_node_tab -> None;
-    @property
-    def sym_tab -> UniScopeNode;
+
+    has sym_tab: UniScopeNode { getter; }
 
     def add_kids_left(
         nodes: Sequence[UniNode], pos_update: bool = True, parent_update: bool = False
@@ -97,6 +80,13 @@ obj UniNode {
 
 """Symbol."""
 obj Symbol {
+    has defn: list[NameAtom] by postinit,
+        uses: list[NameAtom] by postinit,
+        access: SymbolAccess by postinit,
+        parent_tab: (UniScopeNode | None) by postinit,
+        imported: bool by postinit,
+        semstr: str by postinit;
+
     def init(
         defn: NameAtom,
         access: SymbolAccess,
@@ -104,20 +94,11 @@ obj Symbol {
         imported: bool = False
     ) -> None;
 
-    @property
-    def decl -> NameAtom;
-
-    @property
-    def sym_name -> str;
-
-    @property
-    def sym_type -> SymbolType;
-
-    @property
-    def sym_dotted_name -> str;
-
-    @property
-    def symbol_table -> (UniScopeNode | None);
+    has decl: NameAtom { getter; }
+    has sym_name: str { getter; }
+    has sym_type: SymbolType { getter; }
+    has sym_dotted_name: str { getter; }
+    has symbol_table: (UniScopeNode | None) { getter; }
 
     def add_defn(nd: NameAtom) -> None;
     def add_use(nd: NameAtom) -> None;
@@ -191,20 +172,11 @@ obj AstSymbolNode(UniNode) {
         sym_name: str, name_spec: NameAtom, sym_category: SymbolType
     ) -> None;
 
-    @property
-    def sym -> (Symbol | None);
-
-    @property
-    def sym_name -> str;
-
-    @property
-    def sym_category -> SymbolType;
-
-    @property
-    def py_ctx_func -> type[ast3.AST];
-
-    @property
-    def type_sym_tab -> (UniScopeNode | None);
+    has sym: (Symbol | None) { getter; }
+    has sym_name: str { getter; }
+    has sym_category: SymbolType { getter; }
+    has py_ctx_func: type[ast3.AST] { getter; }
+    has type_sym_tab: (UniScopeNode | None) { getter; }
 }
 
 """Nodes that have link to a symbol in symbol table."""
@@ -215,12 +187,8 @@ obj AstSymbolStubNode(AstSymbolNode) {
 """Nodes that have access."""
 obj AstAccessNode(UniNode) {
     has access: (SubTag[Token] | None) = None;
-
-    @property
-    def access_type -> SymbolAccess;
-
-    @property
-    def public_access -> bool;
+    has access_type: SymbolAccess { getter; }
+    has public_access: bool { getter; }
 }
 
 """Base class for nodes that can be marked with execution context
@@ -271,7 +239,7 @@ obj UniCFGNode(UniNode) {
 }
 
 """A CFG node that branches on a condition with true/false targets.
-Used by BoolExpr (short-circuit) and IfElseExpr (ternary)."""
+Used by CfgExpr wrappers inside BoolExpr operands and IfElseExpr branches."""
 obj ConditionalNode(UniCFGNode) {
     has sc_true_target: (UniCFGNode | None) = None,
         sc_false_target: (UniCFGNode | None) = None;
@@ -311,19 +279,23 @@ are evaluated to produce a value.
 obj Expr(UniNode) {
     has _type_sym_tab: (UniScopeNode | None) by postinit,
         type: (TypeBase | None) by postinit,
-        attached_tokens: (list[Token] | None) by postinit,
-        backend_type_tag: (str | None) by postinit;
+        attached_tokens: (list[Token] | None) by postinit;
 
     def postinit -> None;
-    @property
-    def type_sym_tab -> (UniScopeNode | None) {
-        return self._type_sym_tab;
-    }
 
-    @type_sym_tab.setter
-    def type_sym_tab(type_sym_tab: UniScopeNode) {
-        self._type_sym_tab = type_sym_tab;
+    has type_sym_tab: (UniScopeNode | None) {
+        getter;
+        setter(type_sym_tab: UniScopeNode);
     }
+}
+
+"""Wrapper that promotes an expression to a CFG-participating conditional node.
+Used for each BoolExpr operand and each IfElseExpr branch so that type
+narrowing can be resolved with a single backward CFG walk."""
+obj CfgExpr(Expr, ConditionalNode) {
+    has expr: Expr;
+
+    def postinit -> None;
 }
 
 """AtomExpr node type for Jac Ast."""
@@ -348,9 +320,7 @@ obj CodeBlockStmt(UniCFGNode) {
 """AstImplNeedingNode node type for Jac Ast."""
 obj AstImplNeedingNode[T](AstSymbolNode) {
     has body: (T | None);
-
-    @property
-    def needs_impl -> bool;
+    has needs_impl: bool { getter; }
 }
 
 """NameAtom node type for Jac Ast."""
@@ -363,21 +333,10 @@ obj NameAtom(AtomExpr, EnumBlockStmt) {
         is_getattr_resolved: bool = False;
 
     def postinit -> None;
-    @property
-    def sym -> (Symbol | None) {
-        return self._sym;
-    }
 
-    @sym.setter
-    def sym(sym: Symbol) {
-        self._sym = sym;
-    }
-
-    @property
-    def sym_name -> str;
-
-    @property
-    def sym_category -> SymbolType;
+    has sym: (Symbol | None) { getter; setter(sym: Symbol); }
+    has sym_name: str { getter; }
+    has sym_category: SymbolType { getter; }
 
     def create_symbol(
         access: SymbolAccess,
@@ -385,21 +344,13 @@ obj NameAtom(AtomExpr, EnumBlockStmt) {
         imported: bool = False
     ) -> Symbol;
 
-    @property
-    def clean_type -> str;
-
-    @property
-    def py_ctx_func -> type[ast3.expr_context] {
-        return self._py_ctx_func;
+    has clean_type: str { getter; }
+    has py_ctx_func: type[ast3.expr_context] {
+        getter;
+        setter(py_ctx_func: type[ast3.expr_context]);
     }
 
-    @py_ctx_func.setter
-    def py_ctx_func(py_ctx_func: type[ast3.expr_context]) {
-        self._py_ctx_func = py_ctx_func;
-    }
-
-    @property
-    def sem_token -> (tuple[(SemTokType, SemTokMod)] | None);
+    has sem_token: (tuple[(SemTokType, SemTokMod)] | None) { getter; }
 }
 
 """ArchSpec node type for Jac Ast."""
@@ -433,8 +384,8 @@ obj Module(AstDocNode, UniScopeNode) {
         is_raised_from_py: bool = False;
 
     def postinit -> None;
-    @property
-    def annexable_by -> (str | None);
+
+    has annexable_by: (str | None) { getter; }
 
     def format -> str;
     def unparse(requires_format: bool = True) -> str;
@@ -471,7 +422,9 @@ obj Module(AstDocNode, UniScopeNode) {
 
 """Whole Program node type for Jac Ast."""
 obj ProgramModule(UniNode) {
-    has main_mod: (Module | None) = None;
+    has main_mod: (Module | None) = None,
+        main: Module by postinit,
+        hub: dict[(str, Module)] by postinit;
 
     def postinit -> None;
 }
@@ -560,31 +513,28 @@ obj Import(ContextAwareNode, ElementStmt, CodeBlockStmt) {
     has from_loc: (ModulePath | None),
         items: (Sequence[ModuleItem] | Sequence[ModulePath]),
         is_absorb: bool,
-        clib_decls: (Sequence[UniNode] | None) = None;
+        is_typed: bool = False,
+        clib_decls: (Sequence[UniNode] | None) = None,
+        hint: (SubTag[Token] | None) by postinit;
 
     def postinit -> None;
-    @property
-    def is_py -> bool;
 
-    @property
-    def is_jac -> bool;
-
-    @property
-    def __jac_detected -> bool;
+    has is_py: bool { getter; }
+    has is_jac: bool { getter; }
+    has __jac_detected: bool { getter; }
 }
 
 """ModulePath node type for Jac Ast."""
 obj ModulePath(UniNode) {
     has path: (Sequence[(Name | String)] | None),
         level: int,
-        alias: (Name | None);
+        alias: (Name | None),
+        abs_path: (str | None) by postinit;
 
     def postinit -> None;
-    @property
-    def is_import_from -> bool;
 
-    @property
-    def dot_path_str -> str;
+    has is_import_from: bool { getter; }
+    has dot_path_str: str { getter; }
 
     def resolve_relative_path(target_item: (str | None) = None) -> str;
     def resolve_relative_path_list -> list[str];
@@ -599,14 +549,13 @@ obj ModulePath(UniNode) {
     """
 obj ModuleItem(UniNode) {
     has name: (Name | Token),
-        alias: (Name | None);
+        alias: (Name | None),
+        abs_path: (str | None) by postinit;
 
     def postinit -> None;
-    @property
-    def from_parent -> Import;
 
-    @property
-    def from_mod_path -> ModulePath;
+    has from_parent: Import { getter; }
+    has from_mod_path: ModulePath { getter; }
 
     def resolve_relative_path -> str;
 }
@@ -620,8 +569,8 @@ obj Archetype(ContextAwareNode, ArchSpec, AstAccessNode, ArchBlockStmt, AstImplN
 
     def postinit -> None;
     def _get_impl_resolved_body -> list;
-    @property
-    def is_abstract -> bool;
+
+    has is_abstract: bool { getter; }
 
     def get_has_vars -> list[HasVar];
     def get_methods -> list[Ability];
@@ -642,15 +591,23 @@ obj ImplDef(ContextAwareNode, CodeBlockStmt, ElementStmt, ArchBlockStmt, AstSymb
 """SemDef node type for Jac Ast."""
 obj SemDef(ElementStmt, AstSymbolNode, UniScopeNode) {
     has target: Sequence[NameAtom],
-        value: String;
+        value: MultiString;
 
     def postinit -> None;
     def create_sem_name_node -> Name;
 }
 
-"""Enum node type for Jac Ast."""
+"""Enum node type for Jac Ast.
+
+`value_type` holds the typed-base shorthand `: T` from `enum X: T { ... }`
+(desugars to `class X(IntEnum)` for int, `class X(StrEnum)` for str, and the
+mixin pattern `class X(T, Enum)` for everything else). `base_classes` holds
+the parenthesized form `enum X(B1, B2) { ... }`. The two are mutually
+exclusive at the grammar level — the parser never populates both.
+"""
 obj Enum(ContextAwareNode, ArchSpec, AstAccessNode, AstImplNeedingNode, ArchBlockStmt, UniScopeNode) {
     has name: Name,
+        value_type: (Expr | None),
         base_classes: (Sequence[Expr] | None);
 
     def postinit -> None;
@@ -665,23 +622,16 @@ obj Ability(ContextAwareNode, AstAccessNode, ElementStmt, AstAsyncNode, ArchBloc
         is_abstract: bool,
         signature: FuncSignature | EventSignature | None,
         decorators: (Sequence[Expr] | None) = None,
-        type_params: (Sequence[TypeParam] | None) = None;
+        type_params: (Sequence[TypeParam] | None) = None,
+        accessor_kind: str = "";  # "" | "property" | "setter" | "deleter"
 
     def postinit -> None;
-    @property
-    def is_method -> bool;
 
-    @property
-    def is_cls_method -> bool;
-
-    @property
-    def is_def -> bool;
-
-    @property
-    def method_owner -> Archetype | Enum | None;
-
-    @property
-    def is_genai_ability -> bool;
+    has is_method: bool { getter; }
+    has is_cls_method: bool { getter; }
+    has is_def: bool { getter; }
+    has method_owner: Archetype | Enum | None { getter; }
+    has is_genai_ability: bool { getter; }
 
     def get_pos_argc_range -> tuple[(int, int)];
     def py_resolve_name -> str;
@@ -698,11 +648,9 @@ obj FuncSignature(UniNode) {
 
     def postinit -> None;
     def get_parameters -> list[ParamVar];
-    @property
-    def is_static -> bool;
 
-    @property
-    def is_in_py_class -> bool;
+    has is_static: bool { getter; }
+    has is_in_py_class: bool { getter; }
 }
 
 """EventSignature node type for Jac Ast."""
@@ -728,14 +676,13 @@ class ParamKind(IntEnum) {
 obj ParamVar(AstSymbolNode, AstTypedVarNode) {
     has name: Name,
         unpack: (Token | None),
-        value: (Expr | None);
+        value: (Expr | None),
+        param_kind: ParamKind by postinit;
 
     def postinit -> None;
-    @property
-    def is_vararg -> bool;
 
-    @property
-    def is_kwargs -> bool;
+    has is_vararg: bool { getter; }
+    has is_kwargs: bool { getter; }
 }
 
 """ArchHas node type for Jac Ast."""
@@ -751,7 +698,8 @@ obj ArchHas(AstAccessNode, AstDocNode, ArchBlockStmt, CodeBlockStmt) {
 obj HasVar(AstSymbolNode, AstTypedVarNode) {
     has name: Name,
         value: (Expr | None),
-        defer: bool;
+        defer: bool,
+        accessors: (Sequence[Ability] | None) = None;
 
     def postinit -> None;
 }
@@ -794,7 +742,22 @@ obj ExprStmt(CodeBlockStmt) {
 obj TryStmt(AstElseBodyNode, CodeBlockStmt, UniScopeNode) {
     has body: Sequence[CodeBlockStmt],
         excepts: Sequence[Except],
+        awaiting_body: (AwaitingClause | None),
         finally_body: (FinallyStmt | None);
+
+    def postinit -> None;
+}
+
+"""AwaitingClause node type for Jac Ast.
+
+Holds the `awaiting { ... }` arm of a `try` statement. Renders/produces
+a value during the dispatched-but-not-joined window of any `flow`/`wait`
+work inside the `try` body. In a JSX slot on the `cl` target, lowered
+into the React `Suspense` fallback of the synthesized `<JacAwaiting>`
+wrapper. On `sv`/`na` the clause is currently ignored with W2020 until
+the streaming-SSR and native-thread lowerings land."""
+obj AwaitingClause(CodeBlockStmt, UniScopeNode) {
+    has body: Sequence[CodeBlockStmt];
 
     def postinit -> None;
 }
@@ -886,8 +849,8 @@ obj DeleteStmt(CodeBlockStmt) {
     has target: Expr;
 
     def postinit -> None;
-    @property
-    def py_ast_targets -> list[ast3.AST];
+
+    has py_ast_targets: list[ast3.AST] { getter; }
 }
 
 """ReportStmt node type for Jac Ast."""
@@ -920,6 +883,16 @@ obj DisengageStmt(WalkerStmtOnlyNode, CodeBlockStmt) {
 """AwaitExpr node type for Jac Ast."""
 obj AwaitExpr(Expr) {
     has target: Expr;
+
+    def postinit -> None;
+}
+
+"""CastExpr node type for Jac Ast.
+Represents `value as cast_type` -- an unchecked, type-erased cast. At runtime
+it evaluates to `value` unchanged; statically its type is `cast_type`."""
+obj CastExpr(Expr) {
+    has value: Expr,
+        cast_type: Expr;
 
     def postinit -> None;
 }
@@ -970,10 +943,12 @@ obj CompareExpr(Expr) {
     def postinit -> None;
 }
 
-"""BoolExpr node type for Jac Ast."""
-obj BoolExpr(Expr, ConditionalNode) {
+"""BoolExpr node type for Jac Ast.
+Each operand is wrapped in a CfgExpr so that short-circuit evaluation
+is modeled at the expression level in the CFG."""
+obj BoolExpr(Expr) {
     has op: Token,
-        values: list[Expr];
+        values: list[CfgExpr];
 
     def postinit -> None;
 }
@@ -994,11 +969,13 @@ obj UnaryExpr(Expr) {
     def postinit -> None;
 }
 
-"""IfElseExpr node type for Jac Ast."""
+"""IfElseExpr node type for Jac Ast.
+Each branch is wrapped in a CfgExpr so that conditional evaluation
+is modeled at the expression level in the CFG."""
 obj IfElseExpr(Expr) {
-    has condition: Expr,
-        value: Expr,
-        else_value: Expr;
+    has condition: CfgExpr,
+        value: CfgExpr,
+        else_value: CfgExpr;
 
     def postinit -> None;
 }
@@ -1008,6 +985,10 @@ obj MultiString(AtomExpr) {
     has strings: Sequence[(String | FString)];
 
     def postinit -> None;
+    # The concatenated literal value, joining the plain-string parts (f-string
+    # parts are dynamic and contribute nothing static). Used for a `sem` value,
+    # whose parts are always plain strings.
+    has lit_value: str { getter; }
 }
 
 """FString node type for Jac Ast."""
@@ -1073,7 +1054,7 @@ obj KWPair(UniNode) {
 }
 
 """InnerCompr node type for Jac Ast."""
-obj InnerCompr(AstAsyncNode, UniScopeNode) {
+obj InnerCompr(AstAsyncNode, UniScopeNode, UniCFGNode) {
     has target: Expr,
         collection: Expr,
         conditional: (list[Expr] | None);
@@ -1081,8 +1062,15 @@ obj InnerCompr(AstAsyncNode, UniScopeNode) {
     def postinit -> None;
 }
 
-"""ListCompr node type for Jac Ast."""
-obj ListCompr(AtomExpr, UniScopeNode) {
+"""ListCompr node type for Jac Ast.
+
+Inherits UniCFGNode so the comprehension is a flow-sensitive node:
+cfg_build_pass wires each `if` filter as a CfgExpr predecessor whose
+true edge feeds back into the comprehension itself, so the existing
+CFG narrowing engine threads filter narrowing into the head expression
+without any side-channel state on the type evaluator.
+"""
+obj ListCompr(AtomExpr, UniScopeNode, UniCFGNode) {
     has out_expr: Expr,
         compr: list[InnerCompr];
 
@@ -1095,8 +1083,12 @@ obj GenCompr(ListCompr) {}
 """SetCompr node type for Jac Ast."""
 obj SetCompr(ListCompr) {}
 
-"""DictCompr node type for Jac Ast."""
-obj DictCompr(AtomExpr, UniScopeNode) {
+"""DictCompr node type for Jac Ast.
+
+Same UniCFGNode rationale as ListCompr -- the conditional filters wire
+through the CFG so narrowing flows into the head key/value expressions.
+"""
+obj DictCompr(AtomExpr, UniScopeNode, UniCFGNode) {
     has kv_pair: KVPair,
         compr: list[InnerCompr];
 
@@ -1112,8 +1104,8 @@ obj AtomTrailer(Expr) {
         is_genai: bool = False;
 
     def postinit -> None;
-    @property
-    def as_attr_list -> list[AstSymbolNode];
+
+    has as_attr_list: list[AstSymbolNode] { getter; }
 }
 
 """AtomUnit node type for Jac Ast."""
@@ -1211,7 +1203,8 @@ obj JsxElement(AtomExpr) {
         attributes: (Sequence[JsxAttribute] | None),
         children: (Sequence[(JsxChild | JsxElement)] | None),
         is_self_closing: bool,
-        is_fragment: bool;
+        is_fragment: bool,
+        dynamic_tag: (Expr | None) = None;
 
     def postinit -> None;
     def get_body_start_line -> (int | None);
@@ -1237,10 +1230,16 @@ obj JsxSpreadAttribute(JsxAttribute) {
     def postinit -> None;
 }
 
-"""JsxNormalAttribute node type for Jac Ast."""
+"""JsxNormalAttribute node type for Jac Ast.
+
+The `is_shorthand` flag marks attributes parsed from the `{name}` JSX
+attribute shorthand — semantically identical to `name={name}` but the
+formatter must round-trip the shorter spelling. Both `name` and `value`
+point at the same identifier when this flag is set."""
 obj JsxNormalAttribute(JsxAttribute) {
     has name: (Name | Token),
-        value: String | Expr | None;
+        value: String | Expr | None,
+        is_shorthand: bool = False;
 
     def postinit -> None;
 }
@@ -1261,6 +1260,41 @@ obj JsxText(JsxChild) {
 """JsxExpression node type for Jac Ast."""
 obj JsxExpression(JsxChild) {
     has expr: Expr;
+
+    def postinit -> None;
+}
+
+"""JsxSlot: a `{...}` JSX child whose body is a sequence of statements.
+
+When a `{...}` slot in JSX child position contains anything other than a
+single expression -- a JSX statement, control flow yielding JSX, an
+assignment followed by an expression, an explicit `return` guard -- the
+parser emits a `JsxSlot` instead of `JsxExpression`. The slot lowers to
+an IIFE that runs the body and returns either the accumulated JSX
+children fragment (if any JSX was emitted statement-by-statement) or the
+value of the last expression.
+
+Single-expression slots (`{name}`, `{1 + 2}`, `{<p>hi</p>}`) still emit
+`JsxExpression` so the cheap path (no IIFE) is preserved.
+"""
+obj JsxSlot(JsxChild) {
+    has body: list[UniNode];
+    # The body holds the author's faithful `{ stmt; ... }` statement
+    # template. No pre-codegen pass mutates it — the cl-target accumulator
+    # IIFE is synthesized at codegen time (EsastGenPass), so the surface
+    # tokens round-trip through the formatter/unparser unchanged.
+    def postinit -> None;
+}
+
+"""JsxComment node type for Jac Ast.
+
+Represents a Jac-native JSX block comment of the form ``{#* ... *#}``.
+The whole brace-wrapped span is owned by this node so the formatter can
+round-trip the comment verbatim; codegen passes treat it as a no-op
+child and emit nothing.
+"""
+obj JsxComment(JsxChild) {
+    has value: Token;
 
     def postinit -> None;
 }
@@ -1371,6 +1405,17 @@ obj MatchArch(MatchPattern) {
 
 """Token node type for Jac Ast."""
 obj Token(UniNode) {
+    has orig_src: Source by postinit,
+        line_no: int by postinit,
+        end_line: int by postinit,
+        c_start: int by postinit,
+        c_end: int by postinit,
+        pos_start: int by postinit,
+        pos_end: int by postinit,
+        # True for tokens synthesized during parsing (e.g. by `gen_token`),
+        # whose source positions are approximate; comment injection skips them.
+        _is_synthetic: bool = False;
+
     def init(
         orig_src: Source,
         name: str,
@@ -1427,6 +1472,8 @@ obj Name(Token, NameAtom) {
 
 """SpecialVarRef node type for Jac Ast."""
 obj SpecialVarRef(Name) {
+    has orig: Name by postinit;
+
     def init(var: Name, is_enum_stmt: bool = False) -> None;
     def py_resolve_name -> str;
 }
@@ -1461,10 +1508,9 @@ obj Literal(Token, AtomExpr) {
         pos_end: int
     ) -> None;
 
-    @property
-    def lit_value -> int | str | float | bool | None | Callable[
-        ([], Any)
-    ] | EllipsisType;
+    has lit_value: int | str | float | bool | None | Callable[([], Any)] | EllipsisType {
+        getter;
+    }
 }
 
 """BuiltinType node type for Jac Ast."""
@@ -1473,8 +1519,7 @@ obj BuiltinType(Name, Literal) {
         SYMBOL_TYPE = SymbolType.VAR;
     }
 
-    @property
-    def lit_value -> Callable[([], Any)];
+    has lit_value: Callable[([], Any)] { getter; }
 }
 
 """Float node type for Jac Ast."""
@@ -1483,8 +1528,7 @@ obj Float(Literal) {
         SYMBOL_TYPE = SymbolType.NUMBER;
     }
 
-    @property
-    def lit_value -> float;
+    has lit_value: float { getter; }
 }
 
 """Int node type for Jac Ast."""
@@ -1493,8 +1537,7 @@ obj Int(Literal) {
         SYMBOL_TYPE = SymbolType.NUMBER;
     }
 
-    @property
-    def lit_value -> int;
+    has lit_value: int { getter; }
 }
 
 """String node type for Jac Ast."""
@@ -1503,8 +1546,7 @@ obj String(Literal) {
         SYMBOL_TYPE = SymbolType.STRING;
     }
 
-    @property
-    def lit_value -> str;
+    has lit_value: str { getter; }
 }
 
 """Bool node type for Jac Ast."""
@@ -1513,8 +1555,7 @@ obj Bool(Literal) {
         SYMBOL_TYPE = SymbolType.BOOL;
     }
 
-    @property
-    def lit_value -> bool;
+    has lit_value: bool { getter; }
 }
 
 """Null node type for Jac Ast."""
@@ -1523,8 +1564,7 @@ obj Null(Literal) {
         SYMBOL_TYPE = SymbolType.NULL;
     }
 
-    @property
-    def lit_value -> None;
+    has lit_value: None { getter; }
 }
 
 """Ellipsis node type for Jac Ast."""
@@ -1533,8 +1573,7 @@ obj Ellipsis(Literal) {
         SYMBOL_TYPE = SymbolType.NULL;
     }
 
-    @property
-    def lit_value -> EllipsisType;
+    has lit_value: EllipsisType { getter; }
 }
 
 """EmptyToken node type for Jac Ast."""
@@ -1573,21 +1612,25 @@ obj CommentToken(Token) {
         is_inline: bool = False
     ) -> None;
 
-    @property
-    def left_node -> (UniNode | None);
-
-    @property
-    def right_node -> (UniNode | None);
+    has left_node: (UniNode | None) { getter; }
+    has right_node: (UniNode | None) { getter; }
 }
 
 """SourceString node type for Jac Ast."""
 obj Source(EmptyToken) {
+    has comments: list[CommentToken] by postinit,
+        inline_suppressions: dict[int, set[str]] by postinit,
+        file_path: str by postinit;
+
     def init(source: str, mod_path: str) -> None;
-    @property
-    def code -> str;
+
+    has code: str { getter; }
 }
 
 """SourceString node type for Jac Ast."""
 obj PythonModuleAst(EmptyToken) {
+    has orig_src: Source by postinit,
+        file_path: str by postinit;
+
     def init(ast: ast3.Module, orig_src: Source) -> None;
 }

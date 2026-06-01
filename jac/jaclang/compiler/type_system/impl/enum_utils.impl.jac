@@ -1,18 +1,12 @@
 """
 Implementations for enum type checking utilities.
 """
-import from typing { TYPE_CHECKING }
 import jaclang.jac0core.unitree as uni;
 import from jaclang.compiler.type_system { types }
 import from jaclang.jac0core.diagnostics { E1001 }
-
-with entry {
-    if TYPE_CHECKING {
-        import from jaclang.compiler.type_system.type_evaluator {
-            TypeEvaluator,
-            PrefetchedTypes
-        }
-    }
+import type from jaclang.compiler.type_system.type_evaluator {
+    TypeEvaluator,
+    PrefetchedTypes
 }
 
 """Check if a name should be excluded from enum membership."""
@@ -42,7 +36,7 @@ impl create_enum_member_info(
     if val := assignment.value {
         if isinstance(val, uni.Int) {
             value_type = evaluator.prefetch.int_class if evaluator.prefetch else None;
-            literal_value = int(val.value);
+            literal_value = val.lit_value;
         } elif isinstance(val, uni.String) {
             value_type = evaluator.prefetch.str_class if evaluator.prefetch else None;
             literal_value = val.value;
@@ -55,6 +49,30 @@ impl create_enum_member_info(
     return types.EnumMemberInfo(
         member_name=member_name, value_type=value_type, literal_value=literal_value
     );
+}
+
+"""Validate a per-member type annotation against the member's value type."""
+impl validate_enum_member_annotation(
+    assignment: uni.Assignment,
+    member_info: types.EnumMemberInfo,
+    evaluator: "TypeEvaluator"
+) -> None {
+    if assignment.type_tag is None or member_info.value_type is None {
+        return;
+    }
+    annotation_type = evaluator.get_type_of_expression(assignment.type_tag.tag);
+    if (
+        isinstance(annotation_type, types.ClassType)
+        and isinstance(member_info.value_type, types.ClassType)
+        and annotation_type.shared != member_info.value_type.shared
+    ) {
+        evaluator.emit_diag(
+            E1001,
+            assignment,
+            actual=str(member_info.value_type),
+            expected=str(annotation_type)
+        );
+    }
 }
 
 """Build enum members map for an enum or class-based enum."""
@@ -99,6 +117,11 @@ impl build_enum_members(
                         expected=str(enum_value_type)
                     );
                 }
+                # Validate per-member type annotation (e.g., PENDING: int = "wrong").
+                # The member's resolved type is EnumMemberType, so the generic
+                # exit_assignment path cannot perform this check; we validate it
+                # here where the member's declared value-type context is known.
+                validate_enum_member_annotation(stmt, member_info, evaluator);
                 members[member_info.member_name] = member_info;
                 # Next member should get current value + 1
                 # Example: FIRST=1, SECOND=2, THIRD=10, FOURTH → FOURTH gets 11 (not 3)

@@ -13,19 +13,56 @@ impl JacAccessValidation._resolve_anchor(
     return (anchor, jctx);
 }
 
-"""Check if current root has at least min_level access to target anchor."""
+"""Check if current root has at least min_level access to target anchor.
+
+When the check fails for a write-class operation (anything other than
+`read`), build a typed PermissionDenied diagnostic, push it onto the
+request-scoped ExecutionContext.diagnostics list, and either raise
+PermissionError (strict mode) or log a warning. Read denials are part of
+normal traversal (you just don't see foreign nodes) and stay silent —
+emitting on every reachable foreign node would be noise.
+
+Strict-mode raise happens *after* the diagnostic is recorded, so a
+caller that catches the PermissionError still sees it on ctx.diagnostics.
+"""
 impl JacAccessValidation._check_access(
     `to: Anchor, min_level: AccessLevel, operation: str
 ) -> bool {
-    access_level = JacRuntimeInterface.check_access_level(`to) > min_level;
-    if not access_level {
+    actual = JacRuntimeInterface.check_access_level(`to);
+    granted = actual.value > min_level.value;
+    if not granted {
         logger.info(
             "Current root doesn't have " + operation + " access to " + `to.__class__.__name__ + " " + `to.archetype.__class__.__name__ + "[" + str(
                 `to.id
             ) + "]"
         );
+        if operation != "read" {
+            # `min_level` is the strict-greater-than threshold (e.g.
+            # CONNECT for write_access). The user-facing "required"
+            # level is the next step up — the level they actually need
+            # to pass the check.
+            required = AccessLevel(min_level.value + 1);
+            diag = PermissionDenied(
+                operation=operation,
+                target_id=str(`to.id),
+                target_type=`to.archetype.__class__.__name__,
+                target_owner=str(`to.root) if `to.root else None,
+                required=required,
+                actual=actual
+            );
+            try {
+                ctx = JacRuntimeInterface.get_context();
+                ctx.diagnostics.append(diag);
+            } except Exception {
+                ;
+            }
+            if JacRuntime.strict_permissions {
+                raise PermissionError(diag.message());
+            }
+            logger.warning(diag.message());
+        }
     }
-    return access_level;
+    return granted;
 }
 
 """Allow all access from target root graph to current Archetype."""
@@ -35,7 +72,7 @@ impl JacAccessValidation.allow_root(
     if (level is None) {
         level = AccessLevel.READ;
     }
-    level = AccessLevel.cast(level);
+    level = access_level_cast(level);
     (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
     access = anchor.access.roots;
     _root_id = str(root_id);
@@ -52,7 +89,7 @@ impl JacAccessValidation.disallow_root(
     if (level is None) {
         level = AccessLevel.READ;
     }
-    level = AccessLevel.cast(level);
+    level = access_level_cast(level);
     (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
     access = anchor.access.roots;
     access.anchors.pop(str(root_id), None);
@@ -66,7 +103,7 @@ impl JacAccessValidation.perm_grant(
     if (level is None) {
         level = AccessLevel.READ;
     }
-    level = AccessLevel.cast(level);
+    level = access_level_cast(level);
     (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
     if (level != anchor.access.all) {
         anchor.access.all = level;
@@ -77,7 +114,7 @@ impl JacAccessValidation.perm_grant(
 """Disallow others to access current Archetype."""
 impl JacAccessValidation.perm_revoke(archetype: Archetype) -> None {
     (anchor, jctx) = JacAccessValidation._resolve_anchor(archetype);
-    if (anchor.access.all > AccessLevel.NO_ACCESS) {
+    if (anchor.access.all.value > AccessLevel.NO_ACCESS.value) {
         anchor.access.all = AccessLevel.NO_ACCESS;
         jctx.mem.put(anchor);
     }
@@ -89,13 +126,17 @@ impl JacAccessValidation.check_read_access(`to: Anchor) -> bool {
 }
 
 """Connect Access Validation."""
-impl JacAccessValidation.check_connect_access(`to: Anchor) -> bool {
-    return JacAccessValidation._check_access(`to, AccessLevel.READ, "connect");
+impl JacAccessValidation.check_connect_access(
+    `to: Anchor, op_hint: str = "connect"
+) -> bool {
+    return JacAccessValidation._check_access(`to, AccessLevel.READ, op_hint);
 }
 
 """Write Access Validation."""
-impl JacAccessValidation.check_write_access(`to: Anchor) -> bool {
-    return JacAccessValidation._check_access(`to, AccessLevel.CONNECT, "write");
+impl JacAccessValidation.check_write_access(
+    `to: Anchor, op_hint: str = "write"
+) -> bool {
+    return JacAccessValidation._check_access(`to, AccessLevel.CONNECT, op_hint);
 }
 
 """Access validation."""
@@ -115,17 +156,16 @@ impl JacAccessValidation.check_access_level(
         return AccessLevel.WRITE;
     }
     if (
-        not no_custom
-        and ((custom_level := `to.archetype.__jac_access__()) is not None)
+        not no_custom and ((custom_level := `to.archetype.__jac_access__()) is not None)
     ) {
-        return AccessLevel.cast(custom_level);
+        return access_level_cast(custom_level);
     }
     access_level = AccessLevel.NO_ACCESS;
-    if ((to_access := `to.access).all > AccessLevel.NO_ACCESS) {
+    if ((to_access := `to.access).all.value > AccessLevel.NO_ACCESS.value) {
         access_level = to_access.all;
     }
     if (`to.root and isinstance((to_root := jctx.mem.get(`to.root)), Anchor)) {
-        if (to_root.access.all > access_level) {
+        if (to_root.access.all.value > access_level.value) {
             access_level = to_root.access.all;
         }
         if ((level := to_root.access.roots.check(str(jroot.id))) is not None) {
@@ -147,6 +187,9 @@ impl JacNode.get_edges(
     for nd in origin {
         nanch = nd.__jac__;
         for anchor in nanch.edges {
+            effective_dir = EdgeDir.ANY
+                if anchor.is_undirected
+                else destination.direction;
             if (
                 (source := anchor.source)
                 and (target := anchor.target)
@@ -155,7 +198,7 @@ impl JacNode.get_edges(
                 and target.archetype
             ) {
                 if (
-                    (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
+                    (effective_dir in [EdgeDir.OUT, EdgeDir.ANY])
                     and (nanch == source)
                     and destination.node_filter(target.archetype)
                     and JacRuntimeInterface.check_read_access(target)
@@ -163,7 +206,7 @@ impl JacNode.get_edges(
                     edges[anchor] = anchor.archetype;
                 }
                 if (
-                    (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
+                    (effective_dir in [EdgeDir.IN, EdgeDir.ANY])
                     and (nanch == target)
                     and destination.node_filter(source.archetype)
                     and JacRuntimeInterface.check_read_access(source)
@@ -187,6 +230,9 @@ impl JacNode.get_edges_with_node(
     for nd in origin {
         nanch = nd.__jac__;
         for anchor in nanch.edges {
+            effective_dir = EdgeDir.ANY
+                if anchor.is_undirected
+                else destination.direction;
             if (
                 (source := anchor.source)
                 and (target := anchor.target)
@@ -195,7 +241,7 @@ impl JacNode.get_edges_with_node(
                 and target.archetype
             ) {
                 if (
-                    (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
+                    (effective_dir in [EdgeDir.OUT, EdgeDir.ANY])
                     and (nanch == source)
                     and destination.node_filter(target.archetype)
                     and JacRuntimeInterface.check_read_access(target)
@@ -204,7 +250,7 @@ impl JacNode.get_edges_with_node(
                     loc[target] = target.archetype;
                 }
                 if (
-                    (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
+                    (effective_dir in [EdgeDir.IN, EdgeDir.ANY])
                     and (nanch == target)
                     and destination.node_filter(source.archetype)
                     and JacRuntimeInterface.check_read_access(source)
@@ -227,6 +273,9 @@ impl JacNode.edges_to_nodes(
     for nd in origin {
         nanch = nd.__jac__;
         for anchor in nanch.edges {
+            effective_dir = EdgeDir.ANY
+                if anchor.is_undirected
+                else destination.direction;
             if (
                 (source := anchor.source)
                 and (target := anchor.target)
@@ -235,7 +284,7 @@ impl JacNode.edges_to_nodes(
                 and target.archetype
             ) {
                 if (
-                    (destination.direction in [EdgeDir.OUT, EdgeDir.ANY])
+                    (effective_dir in [EdgeDir.OUT, EdgeDir.ANY])
                     and (nanch == source)
                     and destination.node_filter(target.archetype)
                     and JacRuntimeInterface.check_read_access(target)
@@ -243,7 +292,7 @@ impl JacNode.edges_to_nodes(
                     nodes[target] = target.archetype;
                 }
                 if (
-                    (destination.direction in [EdgeDir.IN, EdgeDir.ANY])
+                    (effective_dir in [EdgeDir.IN, EdgeDir.ANY])
                     and (nanch == target)
                     and destination.node_filter(source.archetype)
                     and JacRuntimeInterface.check_read_access(source)
@@ -277,219 +326,50 @@ impl JacWalker.`visit(
     `walker: WalkerArchetype,
     expr:
         (
-            list[
-                (NodeArchetype | EdgeArchetype)
-            ] | list[NodeArchetype] | list[EdgeArchetype] | NodeArchetype | EdgeArchetype | ObjectSpatialPath
+            list[(NodeArchetype | EdgeArchetype)] | list[NodeArchetype] | list[
+                EdgeArchetype
+            ] | NodeArchetype | EdgeArchetype | ObjectSpatialPath
         ),
     insert_loc: int = -1
 ) -> bool {
+    # Resolve a path expression to its archetype list, then enqueue the
+    # corresponding anchors onto the active walk via the portable kernel.
+    import from jaclang.jac0core.osp_kernel { osp_visit }
     if isinstance(expr, ObjectSpatialPath) {
         expr.from_visit = True;
         expr = JacRuntimeInterface.refs(expr);
     }
-    if isinstance(`walker, WalkerArchetype) {
-        'Walker visits node.';
-        wanch = `walker.__jac__;
-        before_len = len(wanch.next);
-        next = [];
-        for anchor in (i.__jac__ for i in expr)
-            if isinstance(expr, `list)
-            else [expr.__jac__]
-                if isinstance(expr, (NodeArchetype, EdgeArchetype))
-                else [] {
-            if (anchor not in wanch.ignores) {
-                if isinstance(anchor, (NodeAnchor, EdgeAnchor)) {
-                    next.append(anchor);
-                } else {
-                    raise ValueError('Anchor should be NodeAnchor or EdgeAnchor.');
-                }
-            }
-        }
-        if (insert_loc < -len(wanch.next)) {
-            insert_loc = 0;
-        } elif (insert_loc < 0) {
-            insert_loc += len(wanch.next) + 1;
-        }
-        wanch.next = wanch.next[:insert_loc] + next + wanch.next[insert_loc:];
-        return (len(wanch.next) > before_len);
-    } else {
+    if not isinstance(`walker, WalkerArchetype) {
         raise TypeError('Invalid walker object');
     }
+    items: list = `list(expr)
+        if isinstance(expr, `list)
+        else ([expr] if isinstance(expr, (NodeArchetype, EdgeArchetype)) else []);
+    targets: list = [];
+    for arch in items {
+        anchor = arch.__jac__;
+        if not isinstance(anchor, (NodeAnchor, EdgeAnchor)) {
+            raise ValueError('Anchor should be NodeAnchor or EdgeAnchor.');
+        }
+        targets.append(anchor);
+    }
+    return osp_visit(targets, insert_loc);
 }
 
-"""Execute all entry abilities for current location.
+"""Jac's spawn operator feature.
 
-    Returns True if walker should continue, False if disengaged.
-    """
-impl JacWalker._execute_entries(
-    warch: WalkerArchetype,
-    `walker: WalkerAnchor,
-    current_loc: (NodeArchetype | EdgeArchetype)
-) -> bool {
-    import from jaclang.runtimelib.utils { all_issubclass }
-    for i in warch._jac_entry_funcs_ {
-        if (
-            i.trigger
-            and (
-                all_issubclass(i.trigger, NodeArchetype)
-                or all_issubclass(i.trigger, EdgeArchetype)
-            )
-            and isinstance(current_loc, i.trigger)
-        ) {
-            i.func(warch, current_loc);
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in current_loc._jac_entry_funcs_ {
-        if not i.trigger {
-            i.func(current_loc, warch);
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in current_loc._jac_entry_funcs_ {
-        if (
-            i.trigger
-            and all_issubclass(i.trigger, WalkerArchetype)
-            and isinstance(warch, i.trigger)
-        ) {
-            i.func(current_loc, warch);
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    return True;
-}
-
-"""Execute all exit abilities for current location.
-
-    Returns True if walker should continue, False if disengaged.
-    """
-impl JacWalker._execute_exits(
-    warch: WalkerArchetype,
-    `walker: WalkerAnchor,
-    current_loc: (NodeArchetype | EdgeArchetype)
-) -> bool {
-    import from jaclang.runtimelib.utils { all_issubclass }
-    for i in current_loc._jac_exit_funcs_ {
-        if (
-            i.trigger
-            and all_issubclass(i.trigger, WalkerArchetype)
-            and isinstance(warch, i.trigger)
-        ) {
-            i.func(current_loc, warch);
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in current_loc._jac_exit_funcs_ {
-        if not i.trigger {
-            i.func(current_loc, warch);
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in warch._jac_exit_funcs_ {
-        if (
-            i.trigger
-            and (
-                all_issubclass(i.trigger, NodeArchetype)
-                or all_issubclass(i.trigger, EdgeArchetype)
-            )
-            and isinstance(current_loc, i.trigger)
-        ) {
-            i.func(warch, current_loc);
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    return True;
-}
-
-"""Iterative DFS visit — avoids Python recursion limit for deep graphs.
-
-    1. Execute entries for this node
-    2. Visit all children added during entry (iterative, not recursive)
-    3. Execute exits for this node (post-order)
-
-    Returns True if walker should continue, False if disengaged.
-    """
-impl JacWalker._visit_node_recursive(
-    warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
-) -> bool {
-    # Stack entries: (anchor, exiting: bool)
-    # exiting=False -> execute entries, schedule children + exit
-    # exiting=True  -> execute exits (post-order)
-    stack: list = [(anchor, False)];
-    while stack {
-        (current_anchor, exiting) = stack.pop();
-        current_loc = current_anchor.archetype;
-        if not exiting {
-            if not current_loc {
-                continue;
-            }
-            `walker.path.append(current_anchor);
-            if not JacWalker._execute_entries(warch, `walker, current_loc) {
-                return False;
-            }
-            stack.append((current_anchor, True));
-        } else {
-            if current_loc
-            and not JacWalker._execute_exits(warch, `walker, current_loc) {
-                return False;
-            }
-        }
-        children: list = [];
-        while `walker.next {
-            child = `walker.next.pop(0);
-            if child not in `walker.ignores {
-                children.append(child);
-            }
-        }
-        for child in reversed(children) {
-            stack.append((child, False));
-        }
-    }
-    return True;
-}
-
-"""Jac's spawn operator feature with recursive DFS semantics.
-
-    Entry abilities execute when entering a node, exit abilities execute
-    after all descendants are visited (post-order/LIFO).
+    Lowers to the portable Object-Spatial kernel; see `osp_kernel` for the
+    traversal algorithm (DFS recursion, post-order exits, queue-FIFO across
+    branches, opt-in visit-once via `ignores`) and `osp_kernel_sv` for the sv
+    `OspRuntime` (anchor unwrap, report bubbling, persistence commit).
     """
 impl JacWalker.spawn_call(
     `walker: WalkerAnchor, nd: (NodeAnchor | EdgeAnchor)
 ) -> WalkerArchetype {
-    import from jaclang.runtimelib.context { CallState }
+    import from jaclang.jac0core.osp_kernel { osp_spawn }
+    import from jaclang.jac0core.osp_kernel_sv { desc_for, make_sv_runtime }
     warch = `walker.archetype;
-    `walker.path = [];
-    current_loc = nd.archetype;
-    ctx = JacRuntimeInterface.get_context();
-    call_state = ctx.call_state.get(None);
-    owns_call_state = False;
-    if not call_state {
-        call_token = ctx.call_state.set(CallState());
-        call_state = ctx.call_state.get();
-        owns_call_state = True;
-    }
-    import from time { perf_counter as _perf_counter }
-    import from csv { writer as _csv_writer }
-    # Profiling variables
-    topo_idx_time_ms = 0.0;
-    ttg_time_ms = 0.0;
-    prefetch_time_ms = 0.0;
-    ttg_total_time_ms = 0.0;
-    resolve_total_ms = 0.0;
     # TTG prefetch: predict traversal and warm the cache before walking.
-    ttg_block_start = _perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
@@ -501,21 +381,14 @@ impl JacWalker.spawn_call(
             ) {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
-                topo_idx_start = _perf_counter();
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
-                    topo_idx_end = _perf_counter();
-                    topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
-                    ttg_start = _perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
                         warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
                     );
-                    ttg_end = _perf_counter();
-                    ttg_time_ms = (ttg_end - ttg_start) * 1000;
-                    resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
-                        prefetch_start = _perf_counter();
+                        ctx = JacRuntimeInterface.get_context();
                         if cfg.run.async_prefetch {
                             import threading;
                             _t = threading.Thread(
@@ -528,299 +401,33 @@ impl JacWalker.spawn_call(
                         } else {
                             ctx.mem.prefetch(prefetch_ids);
                         }
-                        prefetch_end = _perf_counter();
-                        prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
                 }
             }
         } except Exception as e {
-            ;  # Prefetch is best-effort; do not break walker execution.
             logger.debug(f"TTG prefetch failed: {e}");
         }
     }
-    ttg_block_end = _perf_counter();
-    ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
-    walker_start = _perf_counter();
-    logger.info("Start running");
-    try {
-        for i in warch._jac_entry_funcs_ {
-            if not i.trigger {
-                i.func(warch, current_loc);
-            }
-            if `walker.disengaged {
-                `walker.ignores = [];
-                return warch;
-            }
-        }
-        while `walker.next {
-            next_anchor = `walker.next.pop(0);
-            if (
-                (next_anchor not in `walker.ignores)
-                and not JacWalker._visit_node_recursive(warch, `walker, next_anchor)
-            ) {
-                break;
-            }
-        }
-        if `walker.path {
-            current_loc = `walker.path[-1].archetype;
-        }
-        for i in warch._jac_exit_funcs_ {
-            if not i.trigger {
-                i.func(warch, current_loc);
-            }
-            if `walker.disengaged {
-                break;
-            }
-        }
-        `walker.ignores = [];
-        return warch;
-    } finally {
-        walker_end = _perf_counter();
-        walker_time_ms = (walker_end - walker_start) * 1000;
-        profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
-        if profile_csv_path {
-            os.makedirs(os.path.dirname(profile_csv_path) or ".", exist_ok=True);
-            file_exists = os.path.exists(profile_csv_path);
-            with open(profile_csv_path, "a", newline="") as f {
-                writer = _csv_writer(f);
-                if not file_exists {
-                    writer.writerow(
-                        [
-                            "node_num",
-                            "edge_num",
-                            "tweet_num",
-                            "ttg_enabled",
-                            "ttg_total_ms",
-                            "topo_idx_ms",
-                            "ttg_ms",
-                            "prefetch_ms",
-                            "walker_ms",
-                            "resolve_total_ms"
-                        ]
-                    );
-                }
-                node_num = os.environ.get("JAC_NODE_NUM", "");
-                edge_num = os.environ.get("JAC_EDGE_NUM", "");
-                tweet_num = os.environ.get("JAC_TWEET_NUM", "");
-                ttg_enabled = "enabled" if ttg_time_ms > 0 else "disabled";
-                writer.writerow(
-                    [
-                        node_num,
-                        edge_num,
-                        tweet_num,
-                        ttg_enabled,
-                        f"{ttg_total_time_ms:.3f}",
-                        f"{topo_idx_time_ms:.3f}",
-                        f"{ttg_time_ms:.3f}",
-                        f"{prefetch_time_ms:.3f}",
-                        f"{walker_time_ms:.3f}",
-                        f"{resolve_total_ms:.3f}"
-                    ]
-                );
-            }
-        }
-        if owns_call_state {
-            reports = [];
-            while not call_state.reports.empty() {
-                item = call_state.reports.get_nowait();
-                if item is not call_state._sentinel {
-                    reports.append(item);
-                }
-            }
-            warch.reports = reports;
-            ctx.call_state.reset(call_token);
-        }
-    }
+    osp_spawn(make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next));
+    return warch;
 }
 
-"""Async version: Execute all entry abilities for current location.
+"""Jac's async spawn operator feature.
 
-    Returns True if walker should continue, False if disengaged.
-    """
-impl JacWalker._async_execute_entries(
-    warch: WalkerArchetype,
-    `walker: WalkerAnchor,
-    current_loc: (NodeArchetype | EdgeArchetype)
-) -> bool {
-    import from jaclang.runtimelib.utils { all_issubclass }
-    for i in warch._jac_entry_funcs_ {
-        if (
-            i.trigger
-            and (
-                all_issubclass(i.trigger, NodeArchetype)
-                or all_issubclass(i.trigger, EdgeArchetype)
-            )
-            and isinstance(current_loc, i.trigger)
-        ) {
-            result = i.func(warch, current_loc);
-            if isinstance(result, Coroutine) {
-                await result;
-            }
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in current_loc._jac_entry_funcs_ {
-        if not i.trigger {
-            result = i.func(current_loc, warch);
-            if isinstance(result, Coroutine) {
-                await result;
-            }
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in current_loc._jac_entry_funcs_ {
-        if (
-            i.trigger
-            and all_issubclass(i.trigger, WalkerArchetype)
-            and isinstance(warch, i.trigger)
-        ) {
-            result = i.func(current_loc, warch);
-            if isinstance(result, Coroutine) {
-                await result;
-            }
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    return True;
-}
-
-"""Async version: Execute all exit abilities for current location.
-
-    Returns True if walker should continue, False if disengaged.
-    """
-impl JacWalker._async_execute_exits(
-    warch: WalkerArchetype,
-    `walker: WalkerAnchor,
-    current_loc: (NodeArchetype | EdgeArchetype)
-) -> bool {
-    import from jaclang.runtimelib.utils { all_issubclass }
-    for i in current_loc._jac_exit_funcs_ {
-        if (
-            i.trigger
-            and all_issubclass(i.trigger, WalkerArchetype)
-            and isinstance(warch, i.trigger)
-        ) {
-            result = i.func(current_loc, warch);
-            if isinstance(result, Coroutine) {
-                await result;
-            }
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in current_loc._jac_exit_funcs_ {
-        if not i.trigger {
-            result = i.func(current_loc, warch);
-            if isinstance(result, Coroutine) {
-                await result;
-            }
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    for i in warch._jac_exit_funcs_ {
-        if (
-            i.trigger
-            and (
-                all_issubclass(i.trigger, NodeArchetype)
-                or all_issubclass(i.trigger, EdgeArchetype)
-            )
-            and isinstance(current_loc, i.trigger)
-        ) {
-            result = i.func(warch, current_loc);
-            if isinstance(result, Coroutine) {
-                await result;
-            }
-        }
-        if `walker.disengaged {
-            return False;
-        }
-    }
-    return True;
-}
-
-"""Async iterative DFS visit — avoids Python recursion limit for deep graphs.
-
-    1. Execute entries for this node
-    2. Visit all children added during entry (iterative, not recursive)
-    3. Execute exits for this node (post-order)
-
-    Returns True if walker should continue, False if disengaged.
-    """
-impl JacWalker._async_visit_node_recursive(
-    warch: WalkerArchetype, `walker: WalkerAnchor, anchor: (NodeAnchor | EdgeAnchor)
-) -> bool {
-    stack: list = [(anchor, False)];
-    while stack {
-        (current_anchor, exiting) = stack.pop();
-        current_loc = current_anchor.archetype;
-        if not exiting {
-            if not current_loc {
-                continue;
-            }
-            `walker.path.append(current_anchor);
-            if not await JacWalker._async_execute_entries(warch, `walker, current_loc) {
-                return False;
-            }
-            stack.append((current_anchor, True));
-        } else {
-            if current_loc
-            and not await JacWalker._async_execute_exits(warch, `walker, current_loc) {
-                return False;
-            }
-        }
-        children: list = [];
-        while `walker.next {
-            child = `walker.next.pop(0);
-            if child not in `walker.ignores {
-                children.append(child);
-            }
-        }
-        for child in reversed(children) {
-            stack.append((child, False));
-        }
-    }
-    return True;
-}
-
-"""Jac's async spawn operator feature with recursive DFS semantics.
-
-    Entry abilities execute when entering a node, exit abilities execute
-    after all descendants are visited (post-order/LIFO).
+    Lowers to the portable Object-Spatial kernel via `osp_spawn_async`, which
+    awaits any coroutine result returned by an ability. Same traversal
+    semantics + `OspRuntime` plumbing as the sync path.
     """
 impl JacWalker.async_spawn_call(
     `walker: WalkerAnchor, nd: (NodeAnchor | EdgeAnchor)
 ) -> WalkerArchetype {
-    import from jaclang.runtimelib.context { CallState }
-    warch = `walker.archetype;
-    `walker.path = [];
-    current_loc = nd.archetype;
-    ctx = JacRuntimeInterface.get_context();
-    call_state = ctx.call_state.get(None);
-    owns_call_state = False;
-    if not call_state {
-        call_token = ctx.call_state.set(CallState());
-        call_state = ctx.call_state.get();
-        owns_call_state = True;
+    import from jaclang.jac0core.osp_kernel_sv {
+        osp_spawn_async,
+        desc_for,
+        make_sv_runtime
     }
-    import from time { perf_counter as _perf_counter }
-    import from csv { writer as _csv_writer }
-    # Profiling variables
-    topo_idx_time_ms = 0.0;
-    ttg_time_ms = 0.0;
-    prefetch_time_ms = 0.0;
-    ttg_total_time_ms = 0.0;
-    resolve_total_ms = 0.0;
+    warch = `walker.archetype;
     # TTG prefetch: predict traversal and warm the cache before walking.
-    ttg_block_start = _perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
@@ -832,21 +439,14 @@ impl JacWalker.async_spawn_call(
             ) {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
-                topo_idx_start = _perf_counter();
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
-                    topo_idx_end = _perf_counter();
-                    topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
-                    ttg_start = _perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
                         warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
                     );
-                    ttg_end = _perf_counter();
-                    ttg_time_ms = (ttg_end - ttg_start) * 1000;
-                    resolve_total_ms = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
                     if prefetch_ids {
-                        prefetch_start = _perf_counter();
+                        ctx = JacRuntimeInterface.get_context();
                         if cfg.run.async_prefetch {
                             import threading;
                             _t = threading.Thread(
@@ -859,116 +459,17 @@ impl JacWalker.async_spawn_call(
                         } else {
                             ctx.mem.prefetch(prefetch_ids);
                         }
-                        prefetch_end = _perf_counter();
-                        prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
                 }
             }
         } except Exception as e {
-            ;  # Prefetch is best-effort; do not break walker execution.
             logger.debug(f"TTG prefetch failed: {e}");
         }
     }
-    ttg_block_end = _perf_counter();
-    ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
-    walker_start = _perf_counter();
-    try {
-        for i in warch._jac_entry_funcs_ {
-            if not i.trigger {
-                result = i.func(warch, current_loc);
-                if isinstance(result, Coroutine) {
-                    await result;
-                }
-            }
-            if `walker.disengaged {
-                `walker.ignores = [];
-                return warch;
-            }
-        }
-        while `walker.next {
-            next_anchor = `walker.next.pop(0);
-            if (
-                (next_anchor not in `walker.ignores)
-                and not await JacWalker._async_visit_node_recursive(
-                    warch, `walker, next_anchor
-                )
-            ) {
-                break;
-            }
-        }
-        if `walker.path {
-            current_loc = `walker.path[-1].archetype;
-        }
-        for i in warch._jac_exit_funcs_ {
-            if not i.trigger {
-                result = i.func(warch, current_loc);
-                if isinstance(result, Coroutine) {
-                    await result;
-                }
-            }
-            if `walker.disengaged {
-                break;
-            }
-        }
-        `walker.ignores = [];
-        return warch;
-    } finally {
-        walker_end = _perf_counter();
-        walker_time_ms = (walker_end - walker_start) * 1000;
-        profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
-        if profile_csv_path {
-            os.makedirs(os.path.dirname(profile_csv_path) or ".", exist_ok=True);
-            file_exists = os.path.exists(profile_csv_path);
-            with open(profile_csv_path, "a", newline="") as f {
-                writer = _csv_writer(f);
-                if not file_exists {
-                    writer.writerow(
-                        [
-                            "node_num",
-                            "edge_num",
-                            "tweet_num",
-                            "ttg_enabled",
-                            "ttg_total_ms",
-                            "topo_idx_ms",
-                            "ttg_ms",
-                            "prefetch_ms",
-                            "walker_ms",
-                            "resolve_total_ms"
-                        ]
-                    );
-                }
-                node_num = os.environ.get("JAC_NODE_NUM", "");
-                edge_num = os.environ.get("JAC_EDGE_NUM", "");
-                tweet_num = os.environ.get("JAC_TWEET_NUM", "");
-                ttg_enabled = "enabled" if ttg_time_ms > 0 else "disabled";
-                writer.writerow(
-                    [
-                        node_num,
-                        edge_num,
-                        tweet_num,
-                        ttg_enabled,
-                        f"{ttg_total_time_ms:.3f}",
-                        f"{topo_idx_time_ms:.3f}",
-                        f"{ttg_time_ms:.3f}",
-                        f"{prefetch_time_ms:.3f}",
-                        f"{walker_time_ms:.3f}",
-                        f"{resolve_total_ms:.3f}"
-                    ]
-                );
-            }
-        }
-        if owns_call_state {
-            reports = [];
-            while not call_state.reports.empty() {
-                item = call_state.reports.get_nowait();
-                if item is not call_state._sentinel {
-                    reports.append(item);
-                }
-            }
-            warch.reports = reports;
-            ctx.call_state.reset(call_token);
-        }
-    }
+    await osp_spawn_async(
+        make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next)
+    );
+    return warch;
 }
 
 impl JacWalker.`spawn(
@@ -1023,7 +524,11 @@ impl JacWalker.`spawn(
 
 """Jac's disengage stmt feature."""
 impl JacWalker.`disengage(`walker: WalkerArchetype) -> bool {
+    import from jaclang.jac0core.osp_kernel { osp_disengage }
+    # Mirror onto the walker anchor for backwards-compatible read access while
+    # signalling the active kernel scope to halt.
     `walker.__jac__.disengaged = True;
+    osp_disengage();
     return True;
 }
 
@@ -1133,8 +638,26 @@ impl JacBuiltin.printgraph(
 """Create Jac CLI cmds."""
 impl JacCmd.create_cmd -> None { }
 
-"""Set Class References."""
-impl JacBasics.setup -> None { }
+"""Run the `jac ai` coding agent -- the built-in byLLM implementation.
+
+This is the default hook implementation: it lazily imports the bundled
+byLLM-powered agent so the core CLI keeps no hard dependency on byLLM. A
+plugin that registers its own `run_ai_agent` hook outranks this one and
+replaces the agent entirely.
+"""
+impl JacCmd.run_ai_agent(req: object) -> int {
+    try {
+        import from jaclang.cli.ai_agent { run_agent }
+    } except ImportError {
+        import from jaclang.cli.console { console }
+        console.error(
+            "`jac ai` needs the byLLM plugin, which is not installed.",
+            hint="Install it with:  pip install byllm"
+        );
+        return 1;
+    }
+    return run_agent(req);
+}
 
 """Get current execution context (request-scoped if available, else global)."""
 impl JacBasics.get_context -> ExecutionContext {
@@ -1162,6 +685,15 @@ impl JacBasics.commit(anchor: Anchor | Archetype | None = None) -> None {
     ctx.mem.commit(anchor);
 }
 
+"""Async commit — persists through the async Memory surface."""
+impl JacBasics.acommit(anchor: Anchor | Archetype | None = None) -> None {
+    if isinstance(anchor, Archetype) {
+        anchor = anchor.__jac__;
+    }
+    ctx = JacRuntimeInterface.get_context();
+    await ctx.mem.acommit(anchor);
+}
+
 """Purge current or target graph."""
 impl JacBasics.reset_graph(root: (Root | None) = None) -> int {
     import pickle;
@@ -1172,7 +704,7 @@ impl JacBasics.reset_graph(root: (Root | None) = None) -> int {
     deleted_count = 0;
     deleted_ids: set[UUID] = `set();
     persistence = mem.l3;
-    conn = getattr(persistence, '__conn__', None) if persistence else None;
+    conn = persistence?.__conn__ if persistence else None;
     if (conn and isinstance(conn, sqlite3.Connection)) {
         cursor = conn.execute('SELECT data FROM anchors');
         anchors = [pickle.loads(row[0]) for row in cursor.fetchall()];
@@ -1206,9 +738,29 @@ impl JacBasics.get_object(id: str) -> (Archetype | None) {
     return None;
 }
 
+"""Async mirror of get_object — resolves through the async Memory surface."""
+impl JacBasics.aget_object(id: str) -> (Archetype | None) {
+    if (id == 'root') {
+        return JacRuntimeInterface.get_context().user_root.archetype;
+    }
+    `obj = await JacRuntimeInterface.get_context().mem.aget(UUID(id));
+    if `obj is not None {
+        return `obj.archetype;
+    }
+    return None;
+}
+
 """Get object reference id."""
 impl JacBasics.object_ref(`obj: Archetype) -> str {
-    return `obj.__jac__.id.hex;
+    anchor = `obj.__jac__;
+    if isinstance(anchor, ObjectAnchor) {
+        try {
+            JacRuntimeInterface.get_context().mem.put(anchor);
+        } except Exception as e {
+            logger.warning(f"object_ref: failed to register anchor in memory: {e}");
+        }
+    }
+    return anchor.id.hex;
 }
 
 """Create a obj archetype."""
@@ -1220,14 +772,19 @@ impl JacBasics.make_archetype(cls: type[Archetype]) -> type[Archetype] {
         (fn.name, fn) for fn in cls._jac_exit_funcs_
     );
     for func in cls.__dict__.values() {
-        if callable(func) {
+        if callable(func) and (func?.__jac_entry or func?.__jac_exit) {
+            # Trigger is compiler-stamped via @set_trigger; absent only for
+            # hand-built/dynamic archetypes, where DSFunc falls back to inspect.
+            dsfunc = JacRuntimeInterface.DSFunc(
+                func.__name__, func, func.__jac_trigger__
+            )
+                if func?.__jac_trigger__
+                else JacRuntimeInterface.DSFunc(func.__name__, func);
             if func?.__jac_entry {
-                entries[func.__name__] = JacRuntimeInterface.DSFunc(
-                    func.__name__, func
-                );
+                entries[func.__name__] = dsfunc;
             }
             if func?.__jac_exit {
-                exits[func.__name__] = JacRuntimeInterface.DSFunc(func.__name__, func);
+                exits[func.__name__] = dsfunc;
             }
         }
     }
@@ -1357,7 +914,9 @@ impl JacBasics.jac_import(
             import from jaclang.meta_importer { JacMetaImporter }
             finder = JacMetaImporter();
             spec = finder.find_spec(module_name, None);
-            if (spec and spec.origin and spec.origin.endswith('.jac') and (lng == 'py')) {
+            if (
+                spec and spec.origin and spec.origin.endswith('.jac') and (lng == 'py')
+            ) {
                 spec = None;
             }
             if ((not spec or not spec.origin) and (lng == 'py')) {
@@ -1448,10 +1007,12 @@ impl JacBasics.jac_test(description: str = "") -> Callable {
         file_path = getfile(test_fun);
         func_name = test_fun.__name__;
         def test_deco {
-            test_fun(JacTestCheck());
+            test_fun();
         }
         test_deco.__name__ = test_fun.__name__;
-        JacTestCheck.add_test(file_path, func_name, test_deco, display_name=description);
+        JacTestCheck.add_test(
+            file_path, func_name, test_deco, display_name=description
+        );
         return test_deco;
     }
     return decorator;
@@ -1532,7 +1093,9 @@ impl JacBasics.run_test(
                         f"\n\n\t\t* Inside {root_dir}/{file} *"
                     );
                     JacTestCheck.reset();
-                    JacRuntimeInterface.jac_import(target=file[:-4], base_path=root_dir);
+                    JacRuntimeInterface.jac_import(
+                        target=file[:-4], base_path=root_dir
+                    );
                     JacTestCheck.run_test(
                         xit, maxfail, verbose, os.path.abspath(file), func_name
                     );
@@ -1565,16 +1128,29 @@ impl JacBasics.field(
     return field(`init=`init);
 }
 
+
 """Jac's report stmt feature."""
-impl JacBasics.log_report(expr: Any, custom: bool = False) -> None {
-    ctx = JacRuntimeInterface.get_context();
+impl JacBasics.log_report(expr: any, custom: bool = False) -> None {
+    import from jaclang.jac0core.osp_kernel { osp_report, _current_scope }
     if custom {
-        ctx.custom = expr;
+        JacRuntimeInterface.get_context().custom = expr;
     } else {
         JacConsole.get_console().print(expr);
-        call_state = ctx.call_state.get(None);
-        if call_state {
-            call_state.reports.put_nowait(expr);
+        if _current_scope() is not None {
+            # Inside a walk: hand the value to the kernel scope, which bubbles
+            # collected reports to the request CallState at the spawn boundary.
+            osp_report(expr);
+        } else {
+            # No active walk (e.g. `report` inside a plain `def:pub` function
+            # served via `/function/...`): bridge straight to the request
+            # CallState -- the same sink the in-walk path reaches when the
+            # kernel bubbles `scope.reports`. This preserves function-level
+            # reports (including streamed generator reports). No CallState
+            # (cl/na, or outside a server request) -> no-op.
+            cs = JacRuntimeInterface.get_context().call_state.get(None);
+            if cs is not None {
+                cs.reports.put_nowait(expr);
+            }
         }
     }
 }
@@ -1582,7 +1158,8 @@ impl JacBasics.log_report(expr: Any, custom: bool = False) -> None {
 """Jac's apply_dir stmt feature."""
 impl JacBasics.refs(
     path: ObjectSpatialPath | NodeArchetype | list[NodeArchetype],
-    post_filter: (Callable[([Archetype], bool)] | None) = None
+    post_filter: (Callable[([Archetype], bool)] | None) = None,
+    slc: (slice | None) = None
 ) -> list[NodeArchetype] | list[EdgeArchetype] | list[(NodeArchetype | EdgeArchetype)] {
     if not isinstance(path, ObjectSpatialPath) {
         path = ObjectSpatialPath(path, [ObjectSpatialDestination(EdgeDir.OUT)]);
@@ -1594,34 +1171,24 @@ impl JacBasics.refs(
             last.nd = post_filter;
         } else {
             orig_nd = last.nd;
-            last.nd = lambda i: Any : (orig_nd(i) and post_filter(i));
+            last.nd = lambda i: any : (orig_nd(i) and post_filter(i));
         }
     }
-    # Try topology index optimization for non-edge-only queries
+    # Try the storage-aware planner for non-edge-only queries. The planner
+    # owns the strategy ladder: backend pushdown (e.g. Mongo `_id $in + field`
+    # predicates) → topology_index narrowing → batch_get materialization. It
+    # returns NodeAnchors when a fast path applies, or None to signal that
+    # the caller must fall back to the linear edge-walk below.
     if not path.edge_only {
-        import from jaclang.runtimelib.topo_utils { plan_query, batch_load_nodes }
-        planned_ids = plan_query(path);
-        if planned_ids is not None {
-            # Index resolved which nodes survive type filters.
-            # For single-hop, preserve edge-list order via origin walk.
-            # For multi-hop, load by ID (order not guaranteed by edges_to_nodes either).
-            destinations = path.destinations[:-1]
-                if path.edge_only
-                else path.destinations;
-            use_origin = path.origin if len(destinations) <= 1 else None;
-            nodes = batch_load_nodes(planned_ids, origin=use_origin);
-            destinations = path.destinations;
-            if destinations {
-                last_dest = destinations[-1];
-                if last_dest.nd {
-                    nodes = [
-                        n
-                        for n in nodes
-                        if last_dest.node_filter(n)
-                    ];
-                }
-            }
-            return nodes;
+        import from jaclang.runtimelib.planner { execute_path }
+        ctx = JacRuntimeInterface.get_context();
+        planned = execute_path(ctx.mem, path, slc);
+        if planned is not None {
+            return [
+                a.archetype
+                for a in planned
+                if a.archetype is not None
+            ];
         }
     }
     # Fallback: original approach
@@ -1633,11 +1200,19 @@ impl JacBasics.refs(
     }
     if path.edge_only {
         if path.from_visit {
-            return JacRuntimeInterface.get_edges_with_node(
+            result = JacRuntimeInterface.get_edges_with_node(
                 origin, path.destinations[-1]
             );
+        } else {
+            result = JacRuntimeInterface.get_edges(origin, path.destinations[-1]);
         }
-        return JacRuntimeInterface.get_edges(origin, path.destinations[-1]);
+        if slc is not None {
+            result = result[slc];
+        }
+        return result;
+    }
+    if slc is not None {
+        origin = origin[slc];
     }
     return origin;
 }
@@ -1674,10 +1249,12 @@ impl JacBasics.connect(
     edges = [];
     for i in left {
         _left = i.__jac__;
-        if JacRuntimeInterface.check_connect_access(_left) {
+        if JacRuntimeInterface.check_connect_access(_left, op_hint="edge_write") {
             for j in right {
                 _right = j.__jac__;
-                if JacRuntimeInterface.check_connect_access(_right) {
+                if JacRuntimeInterface.check_connect_access(
+                    _right, op_hint="edge_write"
+                ) {
                     edges.append(
                         JacRuntimeInterface.build_edge(
                             is_undirected=undir,
@@ -1718,7 +1295,9 @@ impl JacBasics.disconnect(
                     (dir in [EdgeDir.OUT, EdgeDir.ANY])
                     and (nd == source)
                     and (target.archetype in right)
-                    and JacRuntimeInterface.check_connect_access(target)
+                    and JacRuntimeInterface.check_connect_access(
+                        target, op_hint="edge_delete"
+                    )
                 ) {
                     JacRuntimeInterface.destroy([anchor])
                         if anchor.persistent
@@ -1729,7 +1308,9 @@ impl JacBasics.disconnect(
                     (dir in [EdgeDir.IN, EdgeDir.ANY])
                     and (nd == target)
                     and (source.archetype in right)
-                    and JacRuntimeInterface.check_connect_access(source)
+                    and JacRuntimeInterface.check_connect_access(
+                        source, op_hint="edge_delete"
+                    )
                 ) {
                     JacRuntimeInterface.destroy([anchor])
                         if anchor.persistent
@@ -1744,7 +1325,7 @@ impl JacBasics.disconnect(
 
 """Jac's assign comprehension feature."""
 impl JacBasics.assign_all(
-    target: list[T], attr_val: tuple[(tuple[str], tuple[Any])]
+    target: list[T], attr_val: tuple[(tuple[str], tuple[any])]
 ) -> list[T] {
     for `obj in target {
         (attrs, values) = attr_val;
@@ -1756,7 +1337,7 @@ impl JacBasics.assign_all(
 }
 
 """Jac's safe subscript feature."""
-impl JacBasics.safe_subscript(`obj: Any, key: Any) -> Any {
+impl JacBasics.safe_subscript(`obj: any, key: any) -> any {
     try {
         return `obj[key];
     } except (KeyError, IndexError, TypeError) {
@@ -1849,7 +1430,7 @@ impl JacBasics.destroy(objs: Archetype | Anchor | list[(Archetype | Anchor)]) ->
             return;
         }
         anchor = `obj.__jac__ if isinstance(`obj, Archetype) else `obj;
-        if JacRuntimeInterface.check_write_access(anchor) {
+        if JacRuntimeInterface.check_write_access(anchor, op_hint="delete") {
             match anchor {
                 case NodeAnchor():
                     for `edge in anchor.edges[:] {
@@ -1886,6 +1467,17 @@ impl JacBasics.on_entry(func: Callable) -> Callable {
 impl JacBasics.on_exit(func: Callable) -> Callable {
     setattr(func, '__jac_exit', True);
     return func;
+}
+
+"""Stamp an ability with its compiler-known trigger type (a lazy thunk)."""
+impl JacBasics.set_trigger(
+    trigger_thunk: Callable
+) -> Callable[([Callable], Callable)] {
+    def deco(func: Callable) -> Callable {
+        setattr(func, '__jac_trigger__', trigger_thunk);
+        return func;
+    }
+    return deco;
 }
 
 """Get the client bundle builder instance."""
@@ -1933,6 +1525,284 @@ impl JacConsole.get_console -> ConsoleImpl {
 impl JacAPIServer.get_api_server_class -> type {
     import from jaclang.runtimelib.server { JacAPIServer }
     return JacAPIServer;
+}
+
+"""Default implementation: spawn a base JacAPIServer in a background thread.
+
+    Steps:
+      1. Pick a free port (deterministic per module name).
+      2. Build a base JacAPIServer (NOT plugin-resolved) with port=0 so
+         postinit skips its create_server hook.
+      3. Wire up a vanilla HTTPServer manually using its handler.
+      4. Run serve_forever in a daemon thread.
+      5. Poll /functions until the server is responsive.
+      6. Register the URL via sv_client.register().
+    """
+impl JacAPIServer.ensure_sv_service(module_name: str, base_path: str) -> None {
+    import os;
+    import socket;
+    import time;
+    import threading;
+    import urllib.request;
+    import from http.server { HTTPServer }
+    import from jaclang.runtimelib { sv_client }
+    import from jaclang.runtimelib.server { JacAPIServer as CoreJacAPIServer }
+    if module_name in sv_client._registry {
+        return;
+    }
+    if module_name in sv_client._test_clients {
+        return;
+    }
+    base_port = 18000 + (hash(module_name) % 1000);
+    port = base_port;
+    bind_ok = False;
+    for _ in range(100) {
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1);
+        try {
+            s.bind(('127.0.0.1', port));
+            s.close();
+            bind_ok = True;
+            break;
+        } except OSError {
+            s.close();
+            port = port + 1;
+        }
+    }
+    if not bind_ok {
+        raise RuntimeError(f"Could not find free port near {base_port}");
+    }
+    # is_sv_sibling=True tells the spawned sibling to skip its own
+    # eager-spawn pass (_ensure_sv_siblings), so the parent is the sole
+    # source of provider spawns and we don't race on cold start.
+    srv = CoreJacAPIServer(
+        module_name=module_name, port=0, base_path=base_path, is_sv_sibling=True
+    );
+    srv.port = port;
+    srv.load_module();
+    handler_class = srv.create_handler();
+    httpd = HTTPServer(('127.0.0.1', port), handler_class);
+    srv.server = httpd;
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True);
+    thread.start();
+    time.sleep(0.05);
+    base_url = f"http://127.0.0.1:{port}";
+    deadline = time.time() + 10.0;
+    healthy = False;
+    while time.time() < deadline {
+        try {
+            with urllib.request.urlopen(f"{base_url}/functions", timeout=1) as resp {
+                if resp.status < 500 {
+                    healthy = True;
+                    break;
+                }
+            }
+        } except Exception {
+            time.sleep(0.05);
+        }
+    }
+    if not healthy {
+        raise RuntimeError(
+            f"sv-to-sv service '{module_name}' did not become healthy at {base_url}"
+        );
+    }
+    sv_client.register(module_name, base_url);
+}
+
+"""Default sv-to-sv RPC transport: plain httpx.post, no auth, no retries.
+
+Plugins override this to inject auth forwarding, retries, circuit breakers,
+or tracing. The resolution order for the target (test client, registry,
+env var, ensure_sv_service) is handled by sv_client.call before this runs.
+
+Two response shapes are honoured:
+
+  - JSON envelope (`Content-Type: application/json`): the existing
+    TransportResponse wire format. Decoded and unwrapped.
+  - SSE stream (`Content-Type: text/event-stream`): the function on
+    the other end returned an iterator. We hand back a Python
+    generator that yields parsed event dicts as they arrive — the
+    caller's `for ev in sv_func(...)` loop sees live events instead
+    of a str-ified generator object. See jac/jaclang/runtimelib/
+    sv_sse.jac for the framing contract.
+"""
+impl JacAPIServer.sv_service_call(module_name: str, func_name: str, args: dict) -> any {
+    import from jaclang.runtimelib { sv_client }
+    import from jaclang.runtimelib.sv_sse { consume_sse_stream }
+
+    func_label = f"{module_name}.{func_name}";
+
+    if module_name in sv_client._test_clients {
+        # TestClient path: open via stream() so we can pivot to SSE if
+        # the downstream returns a generator. The body is unread until
+        # we explicitly .read() (JSON path) or iter_lines() (SSE path).
+        client = sv_client._test_clients[module_name];
+        stream_cm = client.stream("POST", f"/function/{func_name}", json=args);
+        resp = stream_cm.__enter__();
+        ct = resp.headers.get("content-type", "");
+        if ct.startswith("text/event-stream") {
+            # Hand off lifecycle to the wrapper. It will exhaust
+            # iter_lines() and call __exit__ on the cm in finally —
+            # we MUST NOT exit it here.
+            return _wrap_sse_keepalive(stream_cm, resp, None, func_label);
+        }
+        try {
+            # Streaming responses don't auto-read the body; call .read()
+            # before .json() (httpx raises ResponseNotRead otherwise).
+            resp.read();
+            data = resp.json();
+        } finally {
+            stream_cm.__exit__(None, None, None);
+        }
+    } else {
+        url = sv_client.resolve_url(module_name);
+        try {
+            import httpx;
+        } except ImportError {
+            raise RuntimeError(
+                "httpx is required for sv-to-sv RPC calls. " + "Install it via `pip install httpx`."
+            );
+        }
+        client = httpx.Client();
+        stream_cm = client.stream("POST", f"{url}/function/{func_name}", json=args);
+        resp = stream_cm.__enter__();
+        ct = resp.headers.get("content-type", "");
+        if ct.startswith("text/event-stream") {
+            return _wrap_sse_keepalive(stream_cm, resp, client, func_label);
+        }
+        try {
+            resp.read();
+            data = resp.json();
+        } finally {
+            stream_cm.__exit__(None, None, None);
+            client.close();
+        }
+    }
+
+    if isinstance(data, dict) and data.get("ok") {
+        result_envelope = data.get("data");
+        if isinstance(result_envelope, dict) and ("result" in result_envelope) {
+            return result_envelope["result"];
+        }
+        return result_envelope;
+    }
+
+    err = (data.get("error") if isinstance(data, dict) else None) or {};
+    msg = err.get("message") if isinstance(err, dict) else str(err);
+    raise RuntimeError(
+        f"sv-to-sv RPC '{module_name}.{func_name}' failed: {msg or 'unknown error'}"
+    );
+}
+
+"""Default sv-to-sv walker spawn transport.
+
+Posts the JSON-serialised `has` field dict to `/walker/<walker_name>`
+on the resolved provider, decodes the TransportResponse envelope,
+and rehydrates `data.result` into an instance of the consumer-side
+stub class via `stub_cls._from_wire`. The walker's `reports` list
+(at envelope-level `data.reports`) is attached to the rehydrated
+instance so consumer code can read `walker_inst.reports[0]` without
+plumbing through the envelope.
+
+Plugins override this method to add auth, retries, circuit breakers,
+or tracing the same way they override sv_service_call.
+"""
+impl JacAPIServer.sv_walker_call(
+    module_name: str, walker_name: str, args: dict, stub_cls: any
+) -> any {
+    import from jaclang.runtimelib { sv_client }
+
+    label = f"{module_name}.{walker_name}";
+
+    if module_name in sv_client._test_clients {
+        client = sv_client._test_clients[module_name];
+        resp = client.post(f"/walker/{walker_name}", json=args);
+        data = resp.json();
+    } else {
+        url = sv_client.resolve_url(module_name);
+        try {
+            import httpx;
+        } except ImportError {
+            raise RuntimeError(
+                "httpx is required for sv-to-sv RPC calls. " + "Install it via `pip install httpx`."
+            );
+        }
+        client = httpx.Client();
+        try {
+            resp = client.post(f"{url}/walker/{walker_name}", json=args);
+            data = resp.json();
+        } finally {
+            client.close();
+        }
+    }
+
+    if isinstance(data, dict) and data.get("ok") {
+        envelope = data.get("data") or {};
+        result_dict = envelope.get("result") if isinstance(envelope, dict) else None;
+        reports = envelope.get("reports") if isinstance(envelope, dict) else None;
+        instance = stub_cls._from_wire(result_dict)
+            if (stub_cls is not None and result_dict is not None)
+            else result_dict;
+        if instance is not None and reports is not None {
+            try {
+                instance.reports = reports;
+            } except Exception {
+                pass;
+            }
+        }
+        return instance;
+    }
+
+    err = (data.get("error") if isinstance(data, dict) else None) or {};
+    msg = err.get("message") if isinstance(err, dict) else str(err);
+    raise RuntimeError(
+        f"sv-to-sv walker spawn '{label}' failed: {msg or 'unknown error'}"
+    );
+}
+
+
+"""Drive consume_sse_stream against an already-entered httpx Response,
+then `__exit__` the parent context manager (and `close()` the owning
+Client, if any) once the consumer is done iterating. Hoisted to module
+scope (Jac doesn't support nested defs).
+
+`client` may be None — the TestClient code path passes None because
+the TestClient instance is owned by sv_client._test_clients and lives
+beyond the call.
+"""
+def _wrap_sse_keepalive(
+    stream_cm: any, resp: any, client: any, func_label: str
+) -> any {
+    import from jaclang.runtimelib.sv_sse { consume_sse_stream }
+    try {
+        for ev in consume_sse_stream(resp, func_label) {
+            yield ev;
+        }
+    } finally {
+        try {
+            stream_cm.__exit__(None, None, None);
+        } except Exception {
+            ;
+        }
+        if client {
+            try {
+                client.close();
+            } except Exception {
+                ;
+            }
+        }
+    }
+}
+
+"""Default sv-service registry: a snapshot of sv_client._registry.
+
+Plugins (e.g. jac-scale's KubernetesDeployer) override this to source
+URLs from a different authority without touching the gateway or other
+callers that consume the registry.
+"""
+impl JacAPIServer.get_sv_registry -> dict[str, str] {
+    import from jaclang.runtimelib { sv_client }
+    return dict(sv_client._registry);
 }
 
 """Create the API server instance.
@@ -2089,11 +1959,43 @@ impl JacByLLM.`sem(semstr: str, inner_semstr: dict[(str, str)]) -> Callable {
 }
 
 """Call the LLM model."""
-impl JacByLLM.call_llm(model: LLMModel, mt_run: MTRuntime) -> Any {
+impl JacByLLM.call_llm(model: LLMModel, mt_run: MTRuntime) -> any {
     import from jaclang.utils { NonGPT }
     try {
         random_value_for_type = cast(
-            Callable[([Any], Any)], NonGPT.random_value_for_type
+            Callable[([any], Any)], NonGPT.random_value_for_type
+        );
+    } except AttributeError {
+        def random_value_for_type(_t: object) -> object {
+            return None;
+        }
+    }
+    try {
+        type_hints = get_type_hints(
+            mt_run.caller,
+            globalns=getattr(mt_run.caller, '__globals__', {}),
+            localns=None,
+            include_extras=True
+        );
+    } except Exception {
+        type_hints = getattr(mt_run.caller, '__annotations__', {});
+    }
+    return_type = type_hints.get('return', Any);
+    return random_value_for_type(return_type);
+}
+
+"""Base stub for acall_llm — returns random value. byllm overrides with native async dispatch.
+
+Uses await so this impl compiles to an async def, matching the static async def declaration
+and ensuring inspect.iscoroutinefunction returns True even when byllm is not installed.
+"""
+impl JacByLLM.acall_llm(model: LLMModel, mt_run: MTRuntime) -> any {
+    import asyncio;
+    import from jaclang.utils { NonGPT }
+    await asyncio.sleep(0);
+    try {
+        random_value_for_type = cast(
+            Callable[([any], Any)], NonGPT.random_value_for_type
         );
     } except AttributeError {
         def random_value_for_type(_t: object) -> object {
@@ -2170,7 +2072,7 @@ allowed
     Currently not implemented - raises NotImplementedError.
     Plugins like byllm can override this via the plugin hook system.
     """
-impl JacByLLM.by_operator(lhs: Any, rhs: Any) -> Any {
+impl JacByLLM.by_operator(lhs: any, rhs: any) -> any {
     raise NotImplementedError(
         "The 'by' operator is not yet implemented. This feature is reserved for future use."
     );
@@ -2185,7 +2087,7 @@ impl JacByLLM.by_operator(lhs: Any, rhs: Any) -> Any {
     Model instance based on jac.toml settings.
     """
 impl JacByLLM.default_llm -> LLMModel {
-    _cache = getattr(JacByLLM, '_default_llm_instance', None);
+    _cache = JacByLLM?._default_llm_instance;
     if (_cache is not None) {
         return _cache;
     }
@@ -2227,12 +2129,21 @@ impl JacByLLM.get_mtir_from_map(scope: str) -> (Info | None) {
                    Pass user's root ID for authenticated server requests.
 
     Storage backend is configured via plugins/environment, not per-context.
-    For file backend: auto-generates path from JacRuntime.base_path_dir.
+    For file backend: the new ctx's L3 path is derived from its own
+    `base_path_dir` / `full_target_path` (passed explicitly, or seeded
+    from `Jac.get_base_path_dir()` / `Jac.get_full_target_path()` for
+    bootstrap callers that haven't been migrated to explicit args).
     For database backends (jac-scale): configured via environment variables.
     """
-impl JacUtils.create_j_context(user_root: (str | None)) -> ExecutionContext {
+impl JacUtils.create_j_context(
+    user_root: (str | None),
+    base_path_dir: (str | None) = None,
+    full_target_path: (str | None) = None
+) -> ExecutionContext {
     import from jaclang.runtimelib.context { ExecutionContext }
-    ctx = ExecutionContext();
+    ctx = ExecutionContext(
+        base_path_dir=base_path_dir, full_target_path=full_target_path
+    );
     if (user_root is not None) {
         ctx.set_user_root(user_root);
     }
@@ -2335,7 +2246,7 @@ impl JacUtils.create_archetype_from_source(
     keep_temporary_files: bool = False
 ) -> (types.ModuleType | None) {
     if not base_path {
-        base_path = JacRuntime.base_path_dir or os.getcwd();
+        base_path = JacRuntime.get_base_path_dir() or os.getcwd();
     }
     if (base_path and not os.path.exists(base_path)) {
         os.makedirs(base_path);
@@ -2345,11 +2256,7 @@ impl JacUtils.create_archetype_from_source(
     }
     import tempfile;
     with tempfile.NamedTemporaryFile(
-        mode='w',
-        suffix='.jac',
-        prefix=(module_name + '_'),
-        dir=base_path,
-        delete=False
+        mode='w', suffix='.jac', prefix=(module_name + '_'), dir=base_path, delete=False
     ) as tmp_file {
         tmp_file_path = tmp_file.name;
         tmp_file.write(source_code);
@@ -2387,7 +2294,7 @@ impl JacUtils.update_walker(
             old_module = JacRuntime.loaded_modules[module_name];
             result = JacRuntimeInterface.jac_import(
                 target=module_name,
-                base_path=(JacRuntime.base_path_dir or os.getcwd()),
+                base_path=(JacRuntime.get_base_path_dir() or os.getcwd()),
                 items=items,
                 reload_module=True,
                 lng='jac'
@@ -2434,7 +2341,9 @@ impl JacUtils.spawn_walker(
     walker_name: str, attributes: (dict | None) = None, module_name: str = '__main__'
 ) -> WalkerArchetype {
     walker_class = JacRuntimeInterface.get_archetype(module_name, walker_name);
-    if (isinstance(walker_class, `type) and issubclass(walker_class, WalkerArchetype)) {
+    if (
+        isinstance(walker_class, `type) and issubclass(walker_class, WalkerArchetype)
+    ) {
         if (attributes is None) {
             attributes = {};
         }
@@ -2463,7 +2372,7 @@ impl JacUtils.thread_run(func: Callable, *args: object) -> Future {
 }
 
 """Wait for a thread to finish."""
-impl JacUtils.thread_wait(future: Any) -> None {
+impl JacUtils.thread_wait(future: any) -> None {
     return future.result();
 }
 
@@ -2588,7 +2497,7 @@ impl JacRuntimeInterface.get_user_manager(base_path: str) -> UserManager {
     """
 impl JacRuntimeInterface.store(
     base_path: str = './storage', create_dirs: bool = True
-) -> Any {
+) -> any {
     import from jaclang.runtimelib.storage { LocalStorage }
     return LocalStorage(base_path=base_path, create_dirs=create_dirs);
 }
@@ -2598,7 +2507,7 @@ impl JacRuntimeInterface.store(
     The compiler is separate from the program and handles all compilation
     operations. It persists across program resets and can be reused.
     """
-impl JacRuntime.get_compiler(cls: Any) -> JacCompiler {
+impl JacRuntime.get_compiler(cls: any) -> JacCompiler {
     if (cls.compiler is None) {
         import from jaclang.jac0core.compiler { JacCompiler }
         cls.compiler = JacCompiler();
@@ -2607,7 +2516,7 @@ impl JacRuntime.get_compiler(cls: Any) -> JacCompiler {
 }
 
 """Get or create the JacProgram instance."""
-impl JacRuntime.get_program(cls: Any) -> JacProgram {
+impl JacRuntime.get_program(cls: any) -> JacProgram {
     if (cls.program is None) {
         import from jaclang.jac0core.program { JacProgram }
         cls.program = JacProgram();
@@ -2615,18 +2524,38 @@ impl JacRuntime.get_program(cls: Any) -> JacProgram {
     return cls.program;
 }
 
-"""Set the base path for the machine.
+"""Return the seed base path for new contexts."""
+impl JacRuntime.get_base_path_dir -> (str | None) {
+    return _default_base_path_dir[0];
+}
+
+"""Return the seed target path for new contexts."""
+impl JacRuntime.get_full_target_path -> (str | None) {
+    return _default_full_target_path[0];
+}
+
+"""Set the seed base path used to bootstrap new contexts.
 
     When base_path is None, L3 persistence is disabled (faster for tests).
+    Already-constructed contexts are unaffected — they carry their own
+    `base_path_dir` captured at postinit time.
     """
 impl JacRuntime.set_base_path(base_path: (str | None)) -> None {
     if (base_path is None) {
-        JacRuntime.base_path_dir = None;
+        _default_base_path_dir[0] = None;
     } else {
-        JacRuntime.base_path_dir = base_path
+        _default_base_path_dir[0] = base_path
             if os.path.isdir(base_path)
             else os.path.dirname(base_path);
     }
+}
+
+"""Set the seed target path used to bootstrap new contexts.
+
+    Already-constructed contexts are unaffected.
+    """
+impl JacRuntime.set_full_target_path(target_path: (str | None)) -> None {
+    _default_full_target_path[0] = target_path;
 }
 
 """Set the context for the machine."""
@@ -2634,16 +2563,12 @@ impl JacRuntime.set_context(context: ExecutionContext) -> None {
     JacRuntime.exec_ctx = context;
 }
 
-"""Set request-scoped execution context (for web servers)."""
-impl JacRuntime.set_request_context(context: ExecutionContext) -> None {
-    _request_context.set(context);
+"""Push a request-scoped execution context; returns a reset token."""
+impl JacRuntime.push_request_context(context: ExecutionContext) -> any {
+    return _request_context.set(context);
 }
 
-"""Clear request-scoped context and commit changes."""
-impl JacRuntime.clear_request_context -> None {
-    ctx = _request_context.get();
-    if ctx is not None {
-        ctx.close();
-        _request_context.set(None);
-    }
+"""Reset the request-scoped context using a push token."""
+impl JacRuntime.reset_request_context(token: any) -> None {
+    _request_context.reset(token);
 }

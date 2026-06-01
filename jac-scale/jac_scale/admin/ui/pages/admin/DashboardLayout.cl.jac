@@ -15,6 +15,7 @@ cl {
     import from .monitoring.MetricsPage { MetricsPage }
     import from .monitoring.LLMMetricsPage { LLMMetricsPage }
     import from .monitoring.LLMTracesPage { LLMTracesPage }
+    import from .logs.LogsPage { LogsPage }
     import from .placeholder.PlaceholderPage {
         SessionsPage,
         ApiKeysPage,
@@ -24,7 +25,6 @@ cl {
         WalkersPage,
         JobsPage,
         WebhooksPage,
-        LogsPage,
         HealthPage,
         AlertsConfigPage,
         ConfigPage,
@@ -109,14 +109,10 @@ cl {
             if categoryRoutes {
                 PageComponent = categoryRoutes[activeSubTab];
                 if PageComponent {
-                    return
-                        <PageComponent/>;
+                    return <PageComponent/>;
                 }
             }
-            return
-                <div className="text-slate-500">
-                    Page not found
-                </div>;
+            return <div className="text-slate-500">Page not found</div>;
         }
 
         return
@@ -138,9 +134,7 @@ cl {
                     />
                 </header>
                 <Alert message={alert["message"]} type={alert["alertType"]}/>
-                <main className="p-4">
-                    {renderContent()}
-                </main>
+                <main className="p-4">{renderContent()}</main>
             </div>;
     }
 }

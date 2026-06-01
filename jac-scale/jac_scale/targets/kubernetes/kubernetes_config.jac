@@ -1,5 +1,4 @@
 """Kubernetes-specific configuration."""
-import from typing { Any }
 import from jac_scale.abstractions.config.base_config { BaseConfig }
 
 """Configuration for Kubernetes deployments."""
@@ -14,6 +13,14 @@ obj KubernetesConfig(BaseConfig) {
         cpu_limit: (str | None) = None,
         memory_request: (str | None) = None,
         memory_limit: (str | None) = None,
+        # Probe defaults match upstream's pre-microservice baseline so the
+        # monolith all-in-one path keeps the rollout-grace window it
+        # expected (slow first-boot apps with multiple init containers
+        # need ~13min of liveness grace before restart-looping).
+        # Microservice-mode apps that want tighter drain semantics set
+        # `[plugins.scale.kubernetes].liveness_failure_threshold` etc.
+        # in jac.toml explicitly; we don't tighten the defaults globally
+        # because the parent KubernetesTarget shares this config object.
         readiness_initial_delay: int = 10,
         readiness_period: int = 20,
         liveness_initial_delay: int = 10,
@@ -29,6 +36,7 @@ obj KubernetesConfig(BaseConfig) {
         wait_image: str = 'busybox',
         # Storage configuration
         pvc_size: str = '5Gi',
+        mongodb_storage_size: str = '1Gi',
         # Timing configuration
         resource_deletion_wait: int = 5,
         aws_nlb_wait: int = 60,
@@ -44,6 +52,7 @@ obj KubernetesConfig(BaseConfig) {
         plugin_versions: dict[str, str] = {},
         monitoring_enabled: bool = False,
         k8s_metrics_enabled: bool = True,
+        loki_enabled: bool = False,
         prometheus_admin_password: str = 'Adminpassword123',
         # Dashboard configuration
         redis_dashboard: bool = False,
@@ -58,6 +67,22 @@ obj KubernetesConfig(BaseConfig) {
         redis_password: str = 'password',
         # Ingress configuration
         ingress_node_port: int = 30080,
+        # When True, skip deploying a dedicated NGINX controller and instead
+        # attach Ingress resources to an existing shared controller identified
+        # by shared_ingress_class (default 'nginx').
+        shared_ingress: bool = False,
+        shared_ingress_class: str = 'nginx',
+        # Extra annotations merged onto the Ingress metadata in shared mode.
+        # These drive non-nginx controllers (e.g. AWS ALB group / ACM cert /
+        # scheme, Traefik, GKE) without baking any cloud-specific values into
+        # jac-scale; the caller supplies them. nginx-specific tuning is only
+        # emitted when the controller class is 'nginx'.
+        shared_ingress_annotations: dict[str, str] = {},
+        # Whether the shared controller terminates TLS for `domain` (so the
+        # reported service URL uses https). nginx+cert-manager sets spec.tls and
+        # is detected automatically; controllers that terminate TLS out-of-band
+        # (e.g. ALB via an ACM certificate-arn annotation) set this explicitly.
+        shared_ingress_tls: bool = False,
         # Rate limiting (DDoS protection) — applied as NGINX Ingress annotations.
         # limit_rps: sustained requests/sec per client IP.
         # limit_burst_multiplier: burst headroom (burst = limit_rps * multiplier).
@@ -68,9 +93,16 @@ obj KubernetesConfig(BaseConfig) {
         ingress_session_affinity: bool = True,
         # Domain / TLS configuration
         domain: str = "",
-        cert_manager_email: str = "";
+        cert_manager_email: str = "",
+        # Microservice deployments default to the namespace `default`
+        # ServiceAccount (no RBAC). Apps that need cluster API access
+        # (e.g. sandbox-spawning apps that watch pods, create namespaces)
+        # point this at a pre-bound SA. The microservice target does
+        # not create the SA - it must already exist in the namespace,
+        # with whatever RoleBindings / ClusterRoleBindings the app needs.
+        service_account_name: str = "";
 
-    override def to_dict -> dict[str, Any] {
+    override def to_dict -> dict[str, any] {
         base = super.to_dict();
         base.update(
             {
@@ -99,6 +131,7 @@ obj KubernetesConfig(BaseConfig) {
                 'wait_image': self.wait_image,
                 # Storage configuration
                 'pvc_size': self.pvc_size,
+                'mongodb_storage_size': self.mongodb_storage_size,
                 # Timing configuration
                 'resource_deletion_wait': self.resource_deletion_wait,
                 'aws_nlb_wait': self.aws_nlb_wait,
@@ -116,6 +149,7 @@ obj KubernetesConfig(BaseConfig) {
                 # Monitoring configuration
                 'monitoring_enabled': self.monitoring_enabled,
                 'k8s_metrics_enabled': self.k8s_metrics_enabled,
+                'loki_enabled': self.loki_enabled,
                 'prometheus_admin_password': self.prometheus_admin_password,
                 # Dashboard configuration
                 'redis_dashboard': self.redis_dashboard,
@@ -130,19 +164,24 @@ obj KubernetesConfig(BaseConfig) {
                 'redis_password': self.redis_password,
                 # Ingress configuration
                 'ingress_node_port': self.ingress_node_port,
+                'shared_ingress': self.shared_ingress,
+                'shared_ingress_class': self.shared_ingress_class,
+                'shared_ingress_annotations': self.shared_ingress_annotations,
+                'shared_ingress_tls': self.shared_ingress_tls,
                 'ingress_limit_rps': self.ingress_limit_rps,
                 'ingress_limit_burst_multiplier': self.ingress_limit_burst_multiplier,
                 'ingress_limit_connections': self.ingress_limit_connections,
                 'ingress_session_affinity': self.ingress_session_affinity,
                 # Domain / TLS configuration
                 'domain': self.domain,
-                'cert_manager_email': self.cert_manager_email
+                'cert_manager_email': self.cert_manager_email,
+                'service_account_name': self.service_account_name
             }
         );
         return base;
     }
 
-    static def from_dict(cls: type, config: dict[str, Any]) -> KubernetesConfig {
+    static def from_dict(cls: type, config: dict[str, any]) -> KubernetesConfig {
         return cls(
             app_name=config.get('app_name', 'jaseci'),
             namespace=config.get('namespace', 'default'),
@@ -169,6 +208,7 @@ obj KubernetesConfig(BaseConfig) {
             busybox_image=config.get('busybox_image', 'busybox:1.36'),
             wait_image=config.get('wait_image', 'busybox'),
             pvc_size=config.get('pvc_size', '5Gi'),
+            mongodb_storage_size=config.get('mongodb_storage_size', '1Gi'),
             resource_deletion_wait=config.get('resource_deletion_wait', 5),
             aws_nlb_wait=config.get('aws_nlb_wait', 60),
             app_mount_path=config.get('app_mount_path', '/app'),
@@ -184,6 +224,7 @@ obj KubernetesConfig(BaseConfig) {
             plugin_versions=config.get('plugin_versions', {}),
             monitoring_enabled=config.get('monitoring_enabled', False),
             k8s_metrics_enabled=config.get('k8s_metrics_enabled', True),
+            loki_enabled=config.get('loki_enabled', False),
             prometheus_admin_password=config.get(
                 'prometheus_admin_password', 'Adminpassword123'
             ),
@@ -198,6 +239,10 @@ obj KubernetesConfig(BaseConfig) {
             redis_username=config.get('redis_username', 'admin'),
             redis_password=config.get('redis_password', 'password'),
             ingress_node_port=config.get('ingress_node_port', 30080),
+            shared_ingress=config.get('shared_ingress', False),
+            shared_ingress_class=config.get('shared_ingress_class', 'nginx'),
+            shared_ingress_annotations=config.get('shared_ingress_annotations', {}),
+            shared_ingress_tls=config.get('shared_ingress_tls', False),
             ingress_limit_rps=config.get('ingress_limit_rps', 20),
             ingress_limit_burst_multiplier=config.get(
                 'ingress_limit_burst_multiplier', 5
@@ -205,7 +250,8 @@ obj KubernetesConfig(BaseConfig) {
             ingress_limit_connections=config.get('ingress_limit_connections', 20),
             ingress_session_affinity=config.get('ingress_session_affinity', True),
             domain=config.get('domain', ''),
-            cert_manager_email=config.get('cert_manager_email', '')
+            cert_manager_email=config.get('cert_manager_email', ''),
+            service_account_name=config.get('service_account_name', '')
         );
     }
 }

@@ -14,8 +14,10 @@ import from byllm.types {
     MessageRole,
     MessageType,
     Text,
-    Tool
+    Tool,
+    ToolCallResultMsg
 }
+import from byllm.mcp { McpTool }
 
 """Intermediate representation for LLM function calls.
 
@@ -28,10 +30,7 @@ obj MTIR {
         call_params: dict[(str, object)],
         ir_info: Info;
 
-    @property
-    def runtime -> MTRuntime {
-        return MTRuntime.factory(self);
-    }
+    has runtime: MTRuntime { getter; }
 }
 
 """Runtime context for LLM interactions.
@@ -43,16 +42,29 @@ obj MTRuntime {
     has messages: list[MessageType],
         resp_type: type | None,
         stream: bool,
-        tools: list[Tool],
+        tools: list[Tool | McpTool],
         call_params: dict[(str, object)],
-        mtir: MTIR | None = None;
+        mtir: MTIR | None = None,
+        # IDs of byllm-injected messages excluded from the persisted view.
+        _scaffolding_ids: list[int] = [],
+        # Caller's list bound via `by llm(conversation=<list>)`, written
+        # back in place after the ReAct loop. None when not conversational.
+        _conversation_list: object = None,
+        # Structured final value captured during a streamed ReAct loop so a
+        # handler-driven invoke can return the parsed result after the event
+        # stream is fully consumed.
+        _final_output: object = None,
+        _has_final_output: bool = False;
 
     static def factory(mtir: MTIR) -> MTRuntime;
     def dispatch_params -> dict[str, object];
     def add_message(message: MessageType) -> None;
+    def add_scaffolding_message(message: MessageType) -> None;
     def get_msg_list -> list[dict[(str, object)] | LiteLLMMessage];
+    def get_history_for_persist -> list[MessageType];
+    def write_back_conversation -> None;
     def parse_response(response: str) -> object;
-    def get_tool(tool_name: str) -> Tool | None;
+    def get_tool(tool_name: str) -> Tool | McpTool | None;
     def get_tool_list -> list[dict];
     def get_output_schema -> dict | None;
 }

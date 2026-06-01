@@ -12,8 +12,7 @@ impl UniNode.postinit -> None {
 
 
 """Lazy initialization of sub node table."""
-@property
-impl UniNode._sub_node_tab -> dict[(type, list[UniNode])] {
+impl UniNode._sub_node_tab.getter -> dict[(type, list[UniNode])] {
     if (self.__sub_node_tab is None) {
         self.__sub_node_tab = {};
         self._construct_sub_node_tab();
@@ -47,8 +46,7 @@ impl UniNode._construct_sub_node_tab -> None {
 For version conditionals, some scopes (IfStmt, ElseStmt) are unlinked.
 We skip unlinked scopes and return the first linked scope (or Module root).
 """
-@property
-impl UniNode.sym_tab -> UniScopeNode {
+impl UniNode.sym_tab.getter -> UniScopeNode {
     nd: (UniNode | None) = self;
     # TODO: Refactor this wile doing JS symtab
     while nd is not None {
@@ -297,36 +295,32 @@ impl Symbol.init(
     parent_tab: (UniScopeNode | None) = None,
     imported: bool = False
 ) -> None {
-    self.defn: list[NameAtom] = [defn];
-    self.uses: list[NameAtom] = [];
-    self.imported: bool = imported;
+    self.defn = [defn];
+    self.uses = [];
+    self.imported = imported;
     defn.sym = self;
-    self.access: SymbolAccess = access;
+    self.access = access;
     self.parent_tab = parent_tab;
-    self.semstr: str = '';
+    self.semstr = '';
 }
 
 """Get decl."""
-@property
-impl Symbol.decl -> NameAtom {
+impl Symbol.decl.getter -> NameAtom {
     return self.defn[0];
 }
 
 """Get name."""
-@property
-impl Symbol.sym_name -> str {
+impl Symbol.sym_name.getter -> str {
     return self.decl.sym_name;
 }
 
 """Get sym_type."""
-@property
-impl Symbol.sym_type -> SymbolType {
+impl Symbol.sym_type.getter -> SymbolType {
     return self.decl.sym_category;
 }
 
 """Return a full path of the symbol."""
-@property
-impl Symbol.sym_dotted_name -> str {
+impl Symbol.sym_dotted_name.getter -> str {
     out = [self.defn[0].sym_name];
     current_tab: (UniScopeNode | None) = self.parent_tab;
     while (current_tab is not None) {
@@ -338,8 +332,7 @@ impl Symbol.sym_dotted_name -> str {
 }
 
 """Get symbol table."""
-@property
-impl Symbol.symbol_table -> (UniScopeNode | None) {
+impl Symbol.symbol_table.getter -> (UniScopeNode | None) {
     if self.parent_tab {
         return self.parent_tab.find_scope(self.sym_name);
     }
@@ -631,29 +624,24 @@ impl AstSymbolNode._init_symbol(
 }
 
 
-@property
-impl AstSymbolNode.sym -> (Symbol | None) {
+impl AstSymbolNode.sym.getter -> (Symbol | None) {
     return self.name_spec.sym;
 }
 
-@property
-impl AstSymbolNode.sym_name -> str {
+impl AstSymbolNode.sym_name.getter -> str {
     return self.name_spec.sym_name;
 }
 
-@property
-impl AstSymbolNode.sym_category -> SymbolType {
+impl AstSymbolNode.sym_category.getter -> SymbolType {
     return self.name_spec.sym_category;
 }
 
-@property
-impl AstSymbolNode.py_ctx_func -> type[ast3.AST] {
+impl AstSymbolNode.py_ctx_func.getter -> type[ast3.AST] {
     return self.name_spec.py_ctx_func;
 }
 
 """Get type symbol table."""
-@property
-impl AstSymbolNode.type_sym_tab -> (UniScopeNode | None) {
+impl AstSymbolNode.type_sym_tab.getter -> (UniScopeNode | None) {
     return self.name_spec.type_sym_tab;
 }
 
@@ -667,8 +655,7 @@ impl AstSymbolStubNode._init_stub(sym_type: SymbolType) -> None {
 }
 
 
-@property
-impl AstAccessNode.access_type -> SymbolAccess {
+impl AstAccessNode.access_type.getter -> SymbolAccess {
     return SymbolAccess.PRIVATE
         if (self.access and (self.access.tag.name == Tok.KW_PRIV))
         else SymbolAccess.PROTECTED
@@ -676,8 +663,7 @@ impl AstAccessNode.access_type -> SymbolAccess {
             else SymbolAccess.PUBLIC;
 }
 
-@property
-impl AstAccessNode.public_access -> bool {
+impl AstAccessNode.public_access.getter -> bool {
     return (self.access_type == SymbolAccess.PUBLIC);
 }
 
@@ -721,6 +707,13 @@ impl ConditionalNode.postinit -> None {
     UniCFGNode.postinit(self);
 }
 
+"""Initialize CfgExpr (expression-level CFG wrapper)."""
+impl CfgExpr.postinit -> None {
+    UniNode.postinit(self);
+    Expr.postinit(self);
+    ConditionalNode.postinit(self);
+}
+
 
 """Get head by walking up the CFG iteratively."""
 impl UniCFGNode.get_head -> UniCFGNode {
@@ -729,10 +722,11 @@ impl UniCFGNode.get_head -> UniCFGNode {
         nd.bb_in
         and (len(nd.bb_in) == 1)
         and not isinstance(
-            nd, (InForStmt, IterForStmt, WhileStmt, ConditionalNode)
+            nd, (InForStmt, IterForStmt, WhileStmt, ConditionalNode, InnerCompr)
         )
         and not isinstance(
-            nd.bb_in[0], (InForStmt, IterForStmt, WhileStmt, ConditionalNode)
+            nd.bb_in[0],
+            (InForStmt, IterForStmt, WhileStmt, ConditionalNode, InnerCompr)
         )
         and nd.bb_in[0].bb_out
         and (len(nd.bb_in[0].bb_out) == 1)
@@ -749,9 +743,12 @@ impl UniCFGNode.get_tail -> UniCFGNode {
         nd.bb_out
         and (len(nd.bb_out) == 1)
         and not isinstance(
-            nd, (InForStmt, IterForStmt, WhileStmt, ConditionalNode)
+            nd, (InForStmt, IterForStmt, WhileStmt, ConditionalNode, InnerCompr)
         )
-        and not isinstance(nd.bb_out[0], (InForStmt, IterForStmt, WhileStmt))
+        and not isinstance(
+            nd.bb_out[0],
+            (InForStmt, IterForStmt, WhileStmt, ConditionalNode, InnerCompr)
+        )
         and nd.bb_out[0].bb_in
         and (len(nd.bb_out[0].bb_in) == 1)
     ) {
@@ -764,7 +761,6 @@ impl Expr.postinit -> None {
     self._type_sym_tab = None;
     self.type = None;
     self.attached_tokens = None;
-    self.backend_type_tag = None;
 }
 
 
@@ -774,8 +770,7 @@ impl CodeBlockStmt.postinit -> None {
 }
 
 
-@property
-impl AstImplNeedingNode.needs_impl -> bool {
+impl AstImplNeedingNode.needs_impl.getter -> bool {
     return (self.body is None);
 }
 
@@ -789,13 +784,11 @@ impl NameAtom.postinit -> None {
 }
 
 
-@property
-impl NameAtom.sym_name -> str {
+impl NameAtom.sym_name.getter -> str {
     return self._sym_name;
 }
 
-@property
-impl NameAtom.sym_category -> SymbolType {
+impl NameAtom.sym_category.getter -> SymbolType {
     return self._sym_category;
 }
 
@@ -809,8 +802,7 @@ impl NameAtom.create_symbol(
     return sym;
 }
 
-@property
-impl NameAtom.clean_type -> str {
+impl NameAtom.clean_type.getter -> str {
     if self.type {
         return str(self.type).replace('builtins.', '');
     }
@@ -818,8 +810,7 @@ impl NameAtom.clean_type -> str {
 }
 
 """Resolve semantic token."""
-@property
-impl NameAtom.sem_token -> (tuple[(SemTokType, SemTokMod)] | None) {
+impl NameAtom.sem_token.getter -> (tuple[(SemTokType, SemTokMod)] | None) {
     if isinstance(self.name_of, BuiltinType) {
         return (SemTokType.CLASS, SemTokMod.DECLARATION);
     }
@@ -897,8 +888,7 @@ impl Module.postinit -> None {
         - Module-specific folder: foo.impl/bar.impl.jac -> foo.jac
         - Shared folder: impl/foo.impl.jac -> foo.jac
         """
-@property
-impl Module.annexable_by -> (str | None) {
+impl Module.annexable_by.getter -> (str | None) {
     if self.stub_only {
         return None;
     }
@@ -932,9 +922,7 @@ impl ProgramModule.postinit -> None {
     self.main = self.main_mod or Module.make_stub();
     self.kid = [self.main];
     UniNode.postinit(self);
-    self.hub: dict[(str, Module)] = {self.loc.mod_path: self.main_mod}
-        if self.main_mod
-        else {};
+    self.hub = {self.loc.mod_path: self.main_mod} if self.main_mod else {};
 }
 
 
@@ -1046,8 +1034,7 @@ impl Import.postinit -> None {
 
 
 """Check if import is python."""
-@property
-impl Import.is_py -> bool {
+impl Import.is_py.getter -> bool {
     if (self.hint and (self.hint.tag.value == 'py')) {
         return True;
     }
@@ -1058,8 +1045,7 @@ impl Import.is_py -> bool {
 }
 
 """Check if import is jac."""
-@property
-impl Import.is_jac -> bool {
+impl Import.is_jac.getter -> bool {
     if (self.hint and (self.hint.tag.value == 'jac')) {
         return True;
     }
@@ -1070,8 +1056,7 @@ impl Import.is_jac -> bool {
 }
 
 """Check if import is jac."""
-@property
-impl Import.__jac_detected -> bool {
+impl Import.__jac_detected.getter -> bool {
     if self.from_loc {
         if self.from_loc.resolve_relative_path().endswith(('.jac', '.cl.jac')) {
             return True;
@@ -1108,14 +1093,13 @@ impl Import.__jac_detected -> bool {
 }
 
 impl ModulePath.postinit -> None {
-    self.abs_path: (str | None) = None;
+    self.abs_path = None;
     UniNode.postinit(self);
 }
 
 
 """Check if this modulepath is from import."""
-@property
-impl ModulePath.is_import_from -> bool {
+impl ModulePath.is_import_from.getter -> bool {
     if (self.parent and isinstance(self.parent, Import)) {
         return (self.parent.from_loc == self);
     }
@@ -1123,37 +1107,18 @@ impl ModulePath.is_import_from -> bool {
 }
 
 """Get path string."""
-@property
-impl ModulePath.dot_path_str -> str {
+impl ModulePath.dot_path_str.getter -> str {
     if (self.path and (len(self.path) == 1) and isinstance(self.path[0], String)) {
         return (('.' * self.level) + self.path[0].lit_value);
     }
     return (
-        ('.' * self.level) + '.'.join(
-            [p.value for p in self.path] if self.path else []
-        )
+        ('.' * self.level) + '.'.join([p.value for p in self.path] if self.path else [])
     );
 }
 
 """Convert an import target string into a relative file path."""
 impl ModulePath.resolve_relative_path(target_item: (str | None) = None) -> str {
     target = self.dot_path_str + (f".{target_item}" if target_item else '');
-    if target.startswith('@jac/') {
-        import jaclang.runtimelib;
-        runtime_dir = os.path.dirname(jaclang.runtimelib.__file__);
-        module_name = target[5:];
-        module_map = {'runtime': 'client_runtime.cl.jac'};
-        if (module_name in module_map) {
-            return os.path.join(runtime_dir, module_map[module_name]);
-        }
-        for ext in ['.cl.jac', '.jac', '.js'] {
-            path = os.path.join(runtime_dir, (module_name + ext));
-            if os.path.exists(path) {
-                return path;
-            }
-        }
-        return os.path.join(runtime_dir, (module_name + '.jac'));
-    }
     return resolve_relative_path(target, self.loc.mod_path);
 }
 
@@ -1212,13 +1177,12 @@ impl ModulePath.resolve_relative_path_list -> list[str] {
 
 impl ModuleItem.postinit -> None {
     UniNode.postinit(self);
-    self.abs_path: (str | None) = None;
+    self.abs_path = None;
 }
 
 
 """Get import parent."""
-@property
-impl ModuleItem.from_parent -> Import {
+impl ModuleItem.from_parent.getter -> Import {
     if (not self.parent or not isinstance(self.parent, Import)) {
         raise ValueError('Import parent not found. Not Possible.');
     }
@@ -1226,8 +1190,7 @@ impl ModuleItem.from_parent -> Import {
 }
 
 """Get relevant module path."""
-@property
-impl ModuleItem.from_mod_path -> ModulePath {
+impl ModuleItem.from_mod_path.getter -> ModulePath {
     if not self.from_parent.from_loc {
         raise ValueError('Module items should have module path. Not Possible.');
     }
@@ -1274,14 +1237,11 @@ impl Archetype._get_impl_resolved_body -> list {
     return `list(self.body)
         if isinstance(self.body, Sequence)
         else `list(self.body.body)
-            if (
-                isinstance(self.body, ImplDef) and isinstance(self.body.body, Sequence)
-            )
+            if (isinstance(self.body, ImplDef) and isinstance(self.body.body, Sequence))
             else [];
 }
 
-@property
-impl Archetype.is_abstract -> bool {
+impl Archetype.is_abstract.getter -> bool {
     body = self._get_impl_resolved_body();
     return `any((isinstance(i, Ability) and i.is_abstract) for i in body);
 }
@@ -1432,14 +1392,12 @@ impl Ability.postinit -> None {
 }
 
 
-@property
-impl Ability.is_method -> bool {
+impl Ability.is_method.getter -> bool {
     return (self.method_owner is not None);
 }
 
 """Check if this ability is a class method."""
-@property
-impl Ability.is_cls_method -> bool {
+impl Ability.is_cls_method.getter -> bool {
     return (
         self.is_classmethod
         or (
@@ -1452,13 +1410,11 @@ impl Ability.is_cls_method -> bool {
     );
 }
 
-@property
-impl Ability.is_def -> bool {
+impl Ability.is_def.getter -> bool {
     return (not self.signature or isinstance(self.signature, FuncSignature));
 }
 
-@property
-impl Ability.method_owner -> Archetype | Enum | None {
+impl Ability.method_owner.getter -> Archetype | Enum | None {
     found = (
         self.parent
             if (self.parent and isinstance(self.parent, (Archetype, Enum)))
@@ -1473,11 +1429,19 @@ impl Ability.method_owner -> Archetype | Enum | None {
             )
             else None
     );
+    if (found is None) and (self.accessor_kind != "") {
+        nodew = self.parent;
+        while nodew is not None {
+            if isinstance(nodew, (Archetype, Enum)) {
+                return nodew;
+            }
+            nodew = nodew.parent;
+        }
+    }
     return found;
 }
 
-@property
-impl Ability.is_genai_ability -> bool {
+impl Ability.is_genai_ability.getter -> bool {
     return isinstance(self.body, Expr);
 }
 
@@ -1542,8 +1506,7 @@ impl FuncSignature.get_parameters -> list[ParamVar] {
     return params;
 }
 
-@property
-impl FuncSignature.is_static -> bool {
+impl FuncSignature.is_static.getter -> bool {
     return (
         (isinstance(self.parent, Ability) and self.parent.is_static)
         or (
@@ -1554,8 +1517,7 @@ impl FuncSignature.is_static -> bool {
     );
 }
 
-@property
-impl FuncSignature.is_in_py_class -> bool {
+impl FuncSignature.is_in_py_class.getter -> bool {
     is_archi = self.find_parent_of_type(Archetype);
     is_class = (is_archi is not None) and (is_archi.arch_type.name == Tok.KW_CLASS);
     return (
@@ -1583,21 +1545,16 @@ impl ParamVar.postinit -> None {
     self.param_kind = ParamKind.NORMAL;
     UniNode.postinit(self);
     AstSymbolNode._init_symbol(
-        self,
-        sym_name=self.name.value,
-        name_spec=self.name,
-        sym_category=SymbolType.VAR
+        self, sym_name=self.name.value, name_spec=self.name, sym_category=SymbolType.VAR
     );
 }
 
 
-@property
-impl ParamVar.is_vararg -> bool {
+impl ParamVar.is_vararg.getter -> bool {
     return bool((self.unpack and (self.unpack.name == Tok.STAR_MUL.name)));
 }
 
-@property
-impl ParamVar.is_kwargs -> bool {
+impl ParamVar.is_kwargs.getter -> bool {
     return bool((self.unpack and (self.unpack.name == Tok.STAR_POW.name)));
 }
 
@@ -1673,6 +1630,14 @@ impl FinallyStmt.postinit -> None {
 }
 
 
+impl AwaitingClause.postinit -> None {
+    self.body = `list(self.body);
+    UniNode.postinit(self);
+    UniScopeNode._init_scope(self, name=f"{self.__class__.__name__}");
+    CodeBlockStmt.postinit(self);
+}
+
+
 impl IterForStmt.postinit -> None {
     self.body = `list(self.body);
     UniNode.postinit(self);
@@ -1735,8 +1700,7 @@ impl DeleteStmt.postinit -> None {
 
 
 """Get Python AST targets (without setting ctx)."""
-@property
-impl DeleteStmt.py_ast_targets -> list[ast3.AST] {
+impl DeleteStmt.py_ast_targets.getter -> list[ast3.AST] {
     return [i.gen.py_ast[0] for i in self.target.values]
         if (isinstance(self.target, TupleVal) and self.target.values)
         else self.target.gen.py_ast;
@@ -1770,6 +1734,11 @@ impl DisengageStmt.postinit -> None {
 
 
 impl AwaitExpr.postinit -> None {
+    UniNode.postinit(self);
+    Expr.postinit(self);
+}
+
+impl CastExpr.postinit -> None {
     UniNode.postinit(self);
     Expr.postinit(self);
 }
@@ -1810,7 +1779,6 @@ impl CompareExpr.postinit -> None {
 impl BoolExpr.postinit -> None {
     UniNode.postinit(self);
     Expr.postinit(self);
-    ConditionalNode.postinit(self);
 }
 
 
@@ -1842,6 +1810,16 @@ impl MultiString.postinit -> None {
     UniNode.postinit(self);
     Expr.postinit(self);
     AstSymbolStubNode._init_stub(self, sym_type=SymbolType.STRING);
+}
+
+impl MultiString.lit_value.getter -> str {
+    parts: list[str] = [];
+    for s in self.strings {
+        if isinstance(s, String) {
+            parts.append(s.lit_value);
+        }
+    }
+    return "".join(parts);
 }
 
 
@@ -1902,6 +1880,7 @@ impl KWPair.postinit -> None {
 impl InnerCompr.postinit -> None {
     UniNode.postinit(self);
     UniScopeNode._init_scope(self, name=f"{self.__class__.__name__}");
+    UniCFGNode.postinit(self);
 }
 
 
@@ -1910,6 +1889,7 @@ impl ListCompr.postinit -> None {
     Expr.postinit(self);
     AstSymbolStubNode._init_stub(self, sym_type=SymbolType.SEQUENCE);
     UniScopeNode._init_scope(self, name=f"{self.__class__.__name__}");
+    UniCFGNode.postinit(self);
 }
 
 
@@ -1918,6 +1898,7 @@ impl DictCompr.postinit -> None {
     Expr.postinit(self);
     AstSymbolStubNode._init_stub(self, sym_type=SymbolType.SEQUENCE);
     UniScopeNode._init_scope(self, name=f"{self.__class__.__name__}");
+    UniCFGNode.postinit(self);
 }
 
 
@@ -1927,11 +1908,12 @@ impl AtomTrailer.postinit -> None {
 }
 
 
-@property
-impl AtomTrailer.as_attr_list -> list[AstSymbolNode] {
+impl AtomTrailer.as_attr_list.getter -> list[AstSymbolNode] {
     left = self.right if isinstance(self.right, AtomTrailer) else self.target;
     right = self.target if isinstance(self.right, AtomTrailer) else self.right;
-    trag_list: list[AstSymbolNode] = [right] if isinstance(right, AstSymbolNode) else [];
+    trag_list: list[AstSymbolNode] = [right]
+        if isinstance(right, AstSymbolNode)
+        else [];
     while (isinstance(left, AtomTrailer) and left.is_attr) {
         if isinstance(left.right, AstSymbolNode) {
             trag_list.insert(0, left.right);
@@ -2090,26 +2072,73 @@ impl JsxText.postinit -> None {
 
 """Normalize JSX text whitespace (single source of truth).
 
-    HTML-like rules: strip leading/trailing newline+whitespace,
-    collapse internal newline+whitespace sequences to a single space.
+    Implements Babel's JSX text-content rules so the rendered output
+    matches what React/Babel produce:
+
+      1. Split the raw text on line breaks.
+      2. Convert tabs to spaces; strip leading whitespace from every
+         line except the first, and trailing whitespace from every line
+         except the last. (i.e. only newline-crossing whitespace is
+         trimmed; same-line whitespace at the boundaries is preserved.)
+      3. Lines that are empty after step 2 are dropped entirely.
+      4. Surviving lines are joined with a single space separator.
+
+    Consequences:
+      - "{a} {b}" (single space, no newline) -> " "  (preserved)
+      - "}\n  {"  (whitespace with newline)  -> ""   (dropped)
+      - "  hello\n    world  " -> "  hello world  " (cross-line ws becomes
+        a single space; first-line leading ws and last-line trailing ws
+        are preserved.)
+
+    Returning "" tells the codegen to skip this child.
     """
 impl JsxText.get_normalized_text -> str {
     import re;
     raw = self.value.value if isinstance(self.value, Token) else str(self.value);
-    stripped = raw.strip();
-    if not stripped {
+    if not raw {
         return "";
     }
-    # Strip leading newline+whitespace, trailing whitespace
-    result = re.sub(r'^\s*\n\s*', '', raw).rstrip();
-    if not result {
-        result = stripped;
+    lines = re.split(r'\r\n|\n|\r', raw);
+    # Index of the last line that contains any non-space/tab character.
+    # Used to suppress the trailing inter-line space after the final line.
+    last_non_empty = -1;
+    for i in range(len(lines)) {
+        if re.search(r'[^ \t]', lines[i]) {
+            last_non_empty = i;
+        }
     }
-    # Collapse internal newline+whitespace to single space
-    return re.sub(r'\s*\n\s*', ' ', result);
+    result = "";
+    for i in range(len(lines)) {
+        line = lines[i].replace('\t', ' ');
+        is_first = i == 0;
+        is_last = i == len(lines) - 1;
+        if not is_first {
+            line = re.sub(r'^[ ]+', '', line);
+        }
+        if not is_last {
+            line = re.sub(r'[ ]+$', '', line);
+        }
+        if line {
+            if last_non_empty >= 0 and i != last_non_empty {
+                line += ' ';
+            }
+            result += line;
+        }
+    }
+    return result;
 }
 
 impl JsxExpression.postinit -> None {
+    JsxChild.postinit(self);
+}
+
+
+impl JsxSlot.postinit -> None {
+    JsxChild.postinit(self);
+}
+
+
+impl JsxComment.postinit -> None {
     JsxChild.postinit(self);
 }
 
@@ -2207,6 +2236,7 @@ impl Token.init(
     self.c_end = col_end;
     self.pos_start = pos_start;
     self.pos_end = pos_end;
+    self._is_synthetic = False;
     self.kid = [];
     UniNode.postinit(self);
 }
@@ -2292,6 +2322,8 @@ impl SpecialVarRef.py_resolve_name -> str {
         return 'props';
     } elif (self.orig.name == Tok.KW_SUPER) {
         return 'super';
+    } elif (self.orig.name == Tok.KW_ROOT) {
+        return Con.ROOT.value;
     } elif (self.orig.name == Tok.KW_HERE) {
         return Con.HERE.value;
     } elif (self.orig.name == Tok.KW_VISITOR) {
@@ -2333,34 +2365,29 @@ impl Literal.init(
 }
 
 """Return literal value in its python type."""
-@property
-impl Literal.lit_value -> int | str | float | bool | None | Callable[
+impl Literal.lit_value.getter -> int | str | float | bool | None | Callable[
     ([], Any)
 ] | EllipsisType {
     raise NotImplementedError;
 }
 
 """Return literal value in its python type."""
-@property
-impl BuiltinType.lit_value -> Callable[([], Any)] {
+impl BuiltinType.lit_value.getter -> Callable[([], Any)] {
     if (self.value not in Literal.type_map) {
         raise TypeError(f"ICE: {self.value} is not a callable builtin");
     }
     return Literal.type_map[self.value];
 }
 
-@property
-impl Float.lit_value -> float {
+impl Float.lit_value.getter -> float {
     return float(self.value);
 }
 
-@property
-impl Int.lit_value -> int {
+impl Int.lit_value.getter -> int {
     return int(self.value, 0);
 }
 
-@property
-impl String.lit_value -> str {
+impl String.lit_value.getter -> str {
     if isinstance(self.value, `bytes) {
         return self.value;
     }
@@ -2448,18 +2475,15 @@ impl String.lit_value -> str {
     }
 }
 
-@property
-impl Bool.lit_value -> bool {
+impl Bool.lit_value.getter -> bool {
     return (self.value == 'True');
 }
 
-@property
-impl Null.lit_value -> None {
+impl Null.lit_value.getter -> None {
     return None;
 }
 
-@property
-impl Ellipsis.lit_value -> EllipsisType {
+impl Ellipsis.lit_value.getter -> EllipsisType {
     return ...;
 }
 
@@ -2534,16 +2558,14 @@ impl CommentToken.init(
     self.loc = CodeLocInfo(*self.resolve_tok_range());
 }
 
-@property
-impl CommentToken.left_node -> (UniNode | None) {
+impl CommentToken.left_node.getter -> (UniNode | None) {
     if (self.parent and ((idx := self.parent.kid.index(self)) > 0)) {
         return self.parent.kid[(idx - 1)];
     }
     return None;
 }
 
-@property
-impl CommentToken.right_node -> (UniNode | None) {
+impl CommentToken.right_node.getter -> (UniNode | None) {
     if (
         self.parent
         and ((idx := self.parent.kid.index(self)) < (len(self.parent.kid) - 1))
@@ -2558,13 +2580,12 @@ impl Source.init(source: str, mod_path: str) -> None {
     self.value = source;
     self.hash = md5(source.encode()).hexdigest();
     self.file_path = mod_path;
-    self.comments: list[CommentToken] = [];
-    self.inline_suppressions: dict[int, set[str]] = {};
+    self.comments = [];
+    self.inline_suppressions = {};
 }
 
 """Return the source code as string."""
-@property
-impl Source.code -> str {
+impl Source.code.getter -> str {
     return self.value;
 }
 
@@ -2573,4 +2594,39 @@ impl PythonModuleAst.init(ast: ast3.Module, orig_src: Source) -> None {
     self.ast = ast;
     self.orig_src = orig_src;
     self.file_path = orig_src.file_path;
+}
+
+impl UniNode.gen.getter -> CodeGenTarget {
+    if (self._gen is None) {
+        self._gen = CodeGenTarget();
+    }
+    return self._gen;
+}
+
+impl UniNode.gen.setter(value: CodeGenTarget) {
+    self._gen = value;
+}
+
+impl Expr.type_sym_tab.getter -> (UniScopeNode | None) {
+    return self._type_sym_tab;
+}
+
+impl Expr.type_sym_tab.setter(type_sym_tab: UniScopeNode) {
+    self._type_sym_tab = type_sym_tab;
+}
+
+impl NameAtom.sym.getter -> (Symbol | None) {
+    return self._sym;
+}
+
+impl NameAtom.sym.setter(sym: Symbol) {
+    self._sym = sym;
+}
+
+impl NameAtom.py_ctx_func.getter -> type[ast3.expr_context] {
+    return self._py_ctx_func;
+}
+
+impl NameAtom.py_ctx_func.setter(py_ctx_func: type[ast3.expr_context]) {
+    self._py_ctx_func = py_ctx_func;
 }

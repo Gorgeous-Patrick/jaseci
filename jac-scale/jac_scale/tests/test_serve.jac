@@ -22,7 +22,6 @@ import pytest;
 import jwt as pyjwt;
 import from datetime { UTC, datetime, timedelta }
 import from pathlib { Path }
-import from typing { Any }
 import from jac_scale.tests.scale_test_client {
     ScaleTestClient,
     make_client,
@@ -32,6 +31,41 @@ import from jac_scale.tests.scale_test_client {
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+"""Build identity-based register payload."""
+def register_payload(username: str, password: str) -> dict[str, any] {
+    return {
+        "identities": [{"type": "username", "value": username}],
+        "credential": {"type": "password", "password": password}
+    };
+}
+
+"""Build identity-based login payload."""
+def login_payload(username: str, password: str) -> dict[str, any] {
+    return {
+        "identity": {"type": "username", "value": username},
+        "credential": {"type": "password", "password": password}
+    };
+}
+
+"""Register a user via the test client, return the response data."""
+def do_register(client: any, username: str, password: str) -> dict[str, any] {
+    response = client.post("/user/register", json=register_payload(username, password));
+    return extract_data(response.json());
+}
+
+"""Login a user via the test client, return the response data (includes token)."""
+def do_login(client: any, username: str, password: str) -> dict[str, any] {
+    response = client.post("/user/login", json=login_payload(username, password));
+    return extract_data(response.json());
+}
+
+"""Register + login, return token."""
+def register_and_get_token(client: any, username: str, password: str) -> str {
+    do_register(client, username, password);
+    result = do_login(client, username, password);
+    return result["token"];
+}
+
 """Get a free port by binding to port 0 and releasing it."""
 def get_free_port -> int {
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s {
@@ -44,10 +78,10 @@ def get_free_port -> int {
 
 """Extract data from TransportResponse envelope format."""
 def _extract_transport_response_data(
-    json_response: dict[str, Any] | list[Any]
-) -> dict[str, Any] | list[Any] {
+    json_response: dict[str, any] | list[any]
+) -> dict[str, any] | list[any] {
     if isinstance(json_response, list) and len(json_response) == 2 {
-        body: dict[str, Any] = json_response[1];
+        body: dict[str, any] = json_response[1];
         json_response = body;
     }
 
@@ -60,7 +94,7 @@ def _extract_transport_response_data(
             return json_response["data"];
         } elif not json_response.get("ok") and json_response.get("error") {
             error_info = json_response["error"];
-            result: dict[str, Any] = {
+            result: dict[str, any] = {
                 "error": error_info.get("message", "Unknown error")
             };
             if "code" in error_info {
@@ -345,57 +379,76 @@ test "static and schema endpoints" {
 }
 
 # =============================================================================
-# GROUP 2: USER AUTHENTICATION TESTS (Register, Login, Token Refresh)
+# GROUP 2: USER AUTH & PROFILE (Register, Login, Token Refresh, /user/me)
 # =============================================================================
 test "user registration and login" {
     client = make_client();
     try {
-        # Test: user creation
+        # Test: user creation (identity-based)
         test_username = f"testuser_{uuid.uuid4().hex[:8]}";
         response = client.post(
             "/user/register",
-            json={"username": test_username, "password": "testpass123"}
+            json={
+                "identities": [{"type": "username", "value": test_username}],
+                "credential": {"type": "password", "password": "testpass123"}
+            }
         );
         result = extract_data(response.json());
-        assert "username" in result;
-        assert "token" in result;
-        assert "root_id" in result;
-        assert result["username"] == test_username;
+        assert "user_id" in result;
+        assert "message" in result;
 
         # Test: status code 201 for successful registration
         status_user = f"status_{uuid.uuid4().hex[:8]}";
         response = client.post(
-            "/user/register", json={"username": status_user, "password": "password123"}
+            "/user/register",
+            json={
+                "identities": [{"type": "username", "value": status_user}],
+                "credential": {"type": "password", "password": "password123"}
+            }
         );
         assert response.status_code == 201;
         data = extract_data(response.json());
-        assert "token" in data;
-        assert data["username"] == status_user;
+        assert "user_id" in data;
 
         # Test: status code 400 for duplicate registration
         response = client.post(
-            "/user/register", json={"username": status_user, "password": "password123"}
+            "/user/register",
+            json={
+                "identities": [{"type": "username", "value": status_user}],
+                "credential": {"type": "password", "password": "password123"}
+            }
         );
         assert response.status_code == 400;
 
-        # Test: user login
+        # Test: user login (identity-based)
         login_username = f"login_{uuid.uuid4().hex[:8]}";
         response = client.post(
             "/user/register",
-            json={"username": login_username, "password": "loginpass"}
+            json={
+                "identities": [{"type": "username", "value": login_username}],
+                "credential": {"type": "password", "password": "loginpass"}
+            }
         );
         create_result = extract_data(response.json());
         response = client.post(
-            "/user/login", json={"username": login_username, "password": "loginpass"}
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": login_username},
+                "credential": {"type": "password", "password": "loginpass"}
+            }
         );
         login_result = extract_data(response.json());
         assert "token" in login_result;
-        assert login_result["username"] == login_username;
-        assert login_result["root_id"] == create_result["root_id"];
+        assert "user_id" in login_result;
+        assert "root_id" in login_result;
 
         # Test: status code 200 for successful login
         response = client.post(
-            "/user/login", json={"username": login_username, "password": "loginpass"}
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": login_username},
+                "credential": {"type": "password", "password": "loginpass"}
+            }
         );
         assert response.status_code == 200;
 
@@ -403,44 +456,144 @@ test "user registration and login" {
         fail_username = f"fail_{uuid.uuid4().hex[:8]}";
         response = client.post(
             "/user/register",
-            json={"username": fail_username, "password": "correctpass"}
+            json={
+                "identities": [{"type": "username", "value": fail_username}],
+                "credential": {"type": "password", "password": "correctpass"}
+            }
         );
         response = client.post(
-            "/user/login", json={"username": fail_username, "password": "wrongpass"}
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": fail_username},
+                "credential": {"type": "password", "password": "wrongpass"}
+            }
         );
         login_result = extract_data(response.json());
         assert "error" in login_result;
 
         # Test: status code 401 for invalid credentials
         response = client.post(
-            "/user/login", json={"username": fail_username, "password": "wrongpass"}
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": fail_username},
+                "credential": {"type": "password", "password": "wrongpass"}
+            }
         );
         assert response.status_code == 401;
         data = extract_data(response.json());
         assert data["error"] == "Invalid credentials";
 
-        # Test: status code 400/422 for missing credentials
-        response = client.post("/user/login", json={"username": "test"});
-        assert response.status_code in [400, 422];
-
-        response = client.post("/user/login", json={"password": "password123"});
-        assert response.status_code in [400, 422];
-
+        # Test: validation error for missing/invalid structure (422 from FastAPI Pydantic validation)
         response = client.post("/user/login", json={});
-        assert response.status_code in [400, 422];
+        assert response.status_code in (400, 422);
 
         response = client.post(
-            "/user/login", json={"username": "", "password": "password123"}
+            "/user/login",
+            json={"identity": {}, "credential": {"type": "password", "password": "x"}}
         );
-        assert response.status_code == 400;
-        data = extract_data(response.json());
-        assert data["error"] == "Username and password required";
+        assert response.status_code in (400, 422);
+
+        response = client.post(
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": ""},
+                "credential": {"type": "password", "password": "x"}
+            }
+        );
+        assert response.status_code in (400, 422);
 
         # Test: nonexistent user returns 401
         response = client.post(
-            "/user/login", json={"username": "nonexistent", "password": "password"}
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": "nonexistent"},
+                "credential": {"type": "password", "password": "password"}
+            }
         );
         assert response.status_code == 401;
+    } finally {
+        client.close();
+    }
+}
+
+test "email identity register and login" {
+    client = make_client();
+    try {
+        suffix = uuid.uuid4().hex[:8];
+        cred = {"type": "password", "password": "pw"};
+
+        # Username-only identity
+        uname = f"u_{suffix}";
+        r = client.post(
+            "/user/register",
+            json={
+                "identities": [{"type": "username", "value": uname}],
+                "credential": cred
+            }
+        );
+        assert r.status_code == 201;
+        r = client.post(
+            "/user/login",
+            json={"identity": {"type": "username", "value": uname}, "credential": cred}
+        );
+        assert r.status_code == 200;
+        assert "token" in extract_data(r.json());
+
+        # Email-only identity
+        email = f"e_{suffix}@example.com";
+        r = client.post(
+            "/user/register",
+            json={"identities": [{"type": "email", "value": email}], "credential": cred}
+        );
+        assert r.status_code == 201;
+        r = client.post(
+            "/user/login",
+            json={"identity": {"type": "email", "value": email}, "credential": cred}
+        );
+        assert r.status_code == 200;
+        assert "token" in extract_data(r.json());
+
+        # Both username + email: login works via either identity
+        both_u = f"both_{suffix}";
+        both_e = f"both_{suffix}@example.com";
+        r = client.post(
+            "/user/register",
+            json={
+                "identities": [
+                    {"type": "username", "value": both_u},
+                    {"type": "email", "value": both_e}
+                ],
+                "credential": cred
+            }
+        );
+        assert r.status_code == 201;
+        r = client.post(
+            "/user/login",
+            json={"identity": {"type": "username", "value": both_u}, "credential": cred}
+        );
+        assert r.status_code == 200;
+        r = client.post(
+            "/user/login",
+            json={"identity": {"type": "email", "value": both_e}, "credential": cred}
+        );
+        assert r.status_code == 200;
+
+        # Invalid email strings are rejected by validation
+        for bad in ["notanemail", "bad@", "@bad.com", "a b@x.com", ""] {
+            r = client.post(
+                "/user/register",
+                json={
+                    "identities": [{"type": "email", "value": bad}],
+                    "credential": cred
+                }
+            );
+            assert r.status_code in (400, 422) , f"bad email '{bad}' accepted on register";
+            r = client.post(
+                "/user/login",
+                json={"identity": {"type": "email", "value": bad}, "credential": cred}
+            );
+            assert r.status_code in (400, 422) , f"bad email '{bad}' accepted on login";
+        }
     } finally {
         client.close();
     }
@@ -478,7 +631,9 @@ test "token refresh functionality" {
         # Test: refresh token with invalid/malformed tokens (all return same error)
         invalid_tokens = ["invalid.token.here", "not.a.jwt", "invalid_token_string"];
         for invalid_token in invalid_tokens {
-            response = client.post("/user/refresh-token", json={"token": invalid_token});
+            response = client.post(
+                "/user/refresh-token", json={"token": invalid_token}
+            );
             refresh_result = extract_data(response.json());
             assert "error" in refresh_result;
             assert refresh_result["error"] == "Invalid or expired token";
@@ -491,15 +646,10 @@ test "token refresh functionality" {
         assert response.status_code == 401;
 
         # Test: refresh token with bearer prefix
-        response = client.post(
-            "/user/register",
-            json={
-                "username": f"refresh_bearer_{uuid.uuid4().hex[:8]}",
-                "password": "password123"
-            }
+        refresh_bearer_user = f"refresh_bearer_{uuid.uuid4().hex[:8]}";
+        original_token = register_and_get_token(
+            client, refresh_bearer_user, "password123"
         );
-        create_result = extract_data(response.json());
-        original_token = create_result["token"];
 
         response = client.post(
             "/user/refresh-token", json={"token": f"Bearer {original_token}"}
@@ -518,9 +668,7 @@ test "token refresh functionality" {
 
         # Test: refresh token too old
         old_user = f"refresh_old_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": old_user, "password": "password123"}
-        );
+        do_register(client, old_user, "password123");
         very_old_token = _create_very_old_token(old_user, days_ago=15);
         response = client.post("/user/refresh-token", json={"token": very_old_token});
         refresh_result = extract_data(response.json());
@@ -535,15 +683,8 @@ test "token refresh functionality" {
         assert refresh_result["error"] == "Invalid or expired token";
 
         # Test: refresh token multiple times
-        response = client.post(
-            "/user/register",
-            json={
-                "username": f"refresh_multi_{uuid.uuid4().hex[:8]}",
-                "password": "password123"
-            }
-        );
-        create_result = extract_data(response.json());
-        token1 = create_result["token"];
+        refresh_multi_user = f"refresh_multi_{uuid.uuid4().hex[:8]}";
+        token1 = register_and_get_token(client, refresh_multi_user, "password123");
 
         response = client.post("/user/refresh-token", json={"token": token1});
         refresh_result1 = extract_data(response.json());
@@ -556,27 +697,21 @@ test "token refresh functionality" {
         assert token3 != token2;
         assert token3 != token1;
 
-        # Test: refresh token preserves username
+        # Test: refresh token preserves user_id
         username = f"refresh_preserve_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "password123"}
-        );
-        create_result = extract_data(response.json());
-        original_token = create_result["token"];
+        token = register_and_get_token(client, username, "password123");
 
-        response = client.post("/user/refresh-token", json={"token": original_token});
+        response = client.post("/user/refresh-token", json={"token": token});
         refresh_result = extract_data(response.json());
         new_token = refresh_result["token"];
 
         secret = "supersecretkey_for_testing_only!";
         algorithm = "HS256";
 
-        original_payload = pyjwt.decode(original_token, secret, algorithms=[algorithm]);
+        original_payload = pyjwt.decode(token, secret, algorithms=[algorithm]);
         new_payload = pyjwt.decode(new_token, secret, algorithms=[algorithm]);
 
-        assert original_payload["username"] == username;
-        assert new_payload["username"] == username;
-        assert original_payload["username"] == new_payload["username"];
+        assert original_payload["user_id"] == new_payload["user_id"];
     } finally {
         client.close();
     }
@@ -589,18 +724,38 @@ test "integration auth flow" {
 
         # Register
         register_response = client.post(
-            "/user/register", json={"username": username, "password": "secure123"}
+            "/user/register",
+            json={
+                "identities": [{"type": "username", "value": username}],
+                "credential": {"type": "password", "password": "secure123"}
+            }
         );
         assert register_response.status_code == 201;
         data = extract_data(register_response.json());
-        token1 = data["token"];
+        assert "user_id" in data;
 
-        # Login
+        # Login (first time)
         login_response = client.post(
-            "/user/login", json={"username": username, "password": "secure123"}
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": username},
+                "credential": {"type": "password", "password": "secure123"}
+            }
         );
         assert login_response.status_code == 200;
         data = extract_data(login_response.json());
+        token1 = data["token"];
+
+        # Login (second time)
+        login_response2 = client.post(
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": username},
+                "credential": {"type": "password", "password": "secure123"}
+            }
+        );
+        assert login_response2.status_code == 200;
+        data = extract_data(login_response2.json());
         token2 = data["token"];
 
         # Refresh
@@ -611,7 +766,11 @@ test "integration auth flow" {
 
         # Failed login
         fail_response = client.post(
-            "/user/login", json={"username": username, "password": "wrongpass"}
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": username},
+                "credential": {"type": "password", "password": "wrongpass"}
+            }
         );
         assert fail_response.status_code == 401;
 
@@ -624,6 +783,190 @@ test "integration auth flow" {
     }
 }
 
+"""Register a user (optionally with a profile) and return (user_id, token).
+Used by the /user/me tests below."""
+def _me_register_and_login(
+    client: ScaleTestClient,
+    username: str,
+    password: str = "pw12345",
+    profile: dict[str, any] | None = None
+) -> tuple[str, str] {
+    body: dict[str, any] = {
+        "identities": [{"type": "username", "value": username}],
+        "credential": {"type": "password", "password": password}
+    };
+    if profile is not None {
+        body["profile"] = profile;
+    }
+    register = client.post("/user/register", json=body);
+    assert register.status_code == 201 , f"register failed: {register.json()}";
+    user_id = extract_data(register.json())["user_id"];
+
+    login = client.post(
+        "/user/login",
+        json={
+            "identity": {"type": "username", "value": username},
+            "credential": {"type": "password", "password": password}
+        }
+    );
+    assert login.status_code == 200 , f"login failed: {login.json()}";
+    return (user_id, extract_data(login.json())["token"]);
+}
+
+test "GET /user/me returns MeResponse shape without credentials" {
+    client = make_client();
+    try {
+        profile = {"firstname": "Alice", "city": "NYC", "age": 30};
+        username = f"me_get_{uuid.uuid4().hex[:8]}";
+        (user_id, token) = _me_register_and_login(client, username, profile=profile);
+
+        response = client.get("/user/me", headers={"Authorization": f"Bearer {token}"});
+        assert response.status_code == 200;
+        data = extract_data(response.json());
+
+        assert data["user_id"] == user_id , f"user_id: {data}";
+        assert data["role"] == "user" , f"role: {data}";
+        assert data["status"] == "active" , f"status: {data}";
+        assert data["profile"] == profile , f"profile: {data}";
+
+        assert len(data["identities"]) == 1 , f"identities: {data['identities']}";
+        ident = data["identities"][0];
+        assert ident["type"] == "username" , f"identity: {ident}";
+        assert ident["value"] == username , f"identity value: {ident}";
+        assert isinstance(ident["verified"], bool) , f"verified: {ident}";
+        assert ident["is_recovery"] is False , f"is_recovery: {ident}";
+        # Internal storage fields must not leak.
+        assert "value_normalized" not in ident , f"leaked: {ident}";
+        assert "external_id" not in ident , f"leaked: {ident}";
+
+        for forbidden in ["credentials", "password", "password_hash"] {
+            assert forbidden not in data , f"leaked {forbidden}: {data}";
+        }
+    } finally {
+        client.close();
+    }
+}
+
+test "/user/me rejects missing or invalid token with 401" {
+    client = make_client();
+    try {
+        assert client.get("/user/me").status_code == 401;
+        assert client.get(
+            "/user/me", headers={"Authorization": "Bearer not-a-real-token"}
+        ).status_code == 401;
+        assert client.raw_client.patch(
+            "/user/me", json={"profile": {"firstname": "Alice"}}
+        ).status_code == 401;
+    } finally {
+        client.close();
+    }
+}
+
+test "PATCH /user/me merges new keys with existing profile" {
+    client = make_client();
+    try {
+        username = f"me_merge_{uuid.uuid4().hex[:8]}";
+        (_, token) = _me_register_and_login(
+            client, username, profile={"firstname": "Alice", "city": "NYC"}
+        );
+
+        response = client.raw_client.patch(
+            "/user/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"profile": {"city": "Boston", "phone": "555-1234"}}
+        );
+        assert response.status_code == 200;
+        data = extract_data(response.json());
+        assert data["message"] == "Profile updated";
+        merged = {"firstname": "Alice", "city": "Boston", "phone": "555-1234"};
+        assert data["profile"] == merged , f"merged: {data}";
+
+        # Verify the merge persisted via GET /user/me.
+        me = client.get("/user/me", headers={"Authorization": f"Bearer {token}"});
+        assert extract_data(me.json())["profile"] == merged;
+    } finally {
+        client.close();
+    }
+}
+
+test "PATCH /user/me preserves server-managed profile.sso" {
+    client = make_client();
+    try {
+        username = f"me_sso_{uuid.uuid4().hex[:8]}";
+        (user_id, token) = _me_register_and_login(
+            client, username, profile={"firstname": "Alice"}
+        );
+        # Seed profile.sso via the internal helper (bypasses validator,
+        # mimicking what the SSO callback does).
+        sso_seed = {
+            "sso": {
+                "google": {
+                    "display_name": "Alice G",
+                    "first_name": "Alice",
+                    "last_name": "G",
+                    "picture": "https://example.invalid/p.png"
+                }
+            }
+        };
+        client.server.user_manager.update_profile(user_id, sso_seed);
+
+        response = client.raw_client.patch(
+            "/user/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"profile": {"firstname": "Bob"}}
+        );
+        assert response.status_code == 200;
+        merged = extract_data(response.json())["profile"];
+        assert merged["firstname"] == "Bob";
+        assert merged["sso"] == sso_seed["sso"] , f"sso lost: {merged}";
+    } finally {
+        client.close();
+    }
+}
+
+test "PATCH /user/me rejects reserved sso key and bad value type with 422" {
+    client = make_client();
+    try {
+        username = f"me_422_{uuid.uuid4().hex[:8]}";
+        (_, token) = _me_register_and_login(client, username);
+
+        reserved = client.raw_client.patch(
+            "/user/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"profile": {"sso": {"google": {"display_name": "x"}}}}
+        );
+        assert reserved.status_code == 422;
+
+        bad_value = client.raw_client.patch(
+            "/user/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"profile": {"tags": ["a", "b"]}}
+        );
+        assert bad_value.status_code == 422;
+    } finally {
+        client.close();
+    }
+}
+
+test "POST /user/register applies AfterValidator to reject reserved sso key" {
+    client = make_client();
+    try {
+        response = client.post(
+            "/user/register",
+            json={
+                "identities": [
+                    {"type": "username", "value": f"reg_{uuid.uuid4().hex[:8]}"}
+                ],
+                "credential": {"type": "password", "password": "pw12345"},
+                "profile": {"sso": {"google": {"display_name": "x"}}}
+            }
+        );
+        assert response.status_code == 422;
+    } finally {
+        client.close();
+    }
+}
+
 # =============================================================================
 # GROUP 3: API OPERATIONS (Functions and Walkers)
 # =============================================================================
@@ -631,12 +974,25 @@ test "function calls" {
     client = make_client();
     try {
         # Create a user for authenticated calls
+        func_user = f"funcuser_{uuid.uuid4().hex[:8]}";
         response = client.post(
             "/user/register",
-            json={"username": f"funcuser_{uuid.uuid4().hex[:8]}", "password": "pass"}
+            json={
+                "identities": [{"type": "username", "value": func_user}],
+                "credential": {"type": "password", "password": "pass"}
+            }
         );
         create_result = extract_data(response.json());
-        token = create_result["token"];
+        assert "user_id" in create_result;
+        response = client.post(
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": func_user},
+                "credential": {"type": "password", "password": "pass"}
+            }
+        );
+        login_result = extract_data(response.json());
+        token = login_result["token"];
 
         # Test: call function add_numbers
         response = client.post(
@@ -700,16 +1056,64 @@ test "function calls" {
     }
 }
 
+"""Regression: `report` inside a plain `def:pub` function (no walk scope) must
+reach the response. The OSP kernel migration routed `report` through the walk
+scope only, silently dropping function-level reports; this is the fast,
+in-process guard for the slow dev-mode `FunctionStream` path."""
+test "function report streams (in-process)" {
+    client = make_client();
+    try {
+        func_user = f"fnrep_{uuid.uuid4().hex[:8]}";
+        client.register_user(func_user, "pass");
+        token = client.login_user(func_user, "pass");
+
+        response = client.post(
+            "/function/FunctionStream",
+            json={"count": 2},
+            headers={"Authorization": f"Bearer {token}"}
+        );
+        assert response.status_code == 200 , (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        );
+        ct = response.headers.get("content-type");
+        assert ct == "text/event-stream; charset=utf-8" , (
+            f"function report was dropped: expected SSE, got {ct!r} / {response.text!r}"
+        );
+        content = response.text;
+        for payload in ["Func 0", "Func 1"] {
+            assert f'data: "{payload}"' in content , (
+                f"Missing SSE-framed payload {payload!r} in: {content!r}"
+            );
+        }
+        assert "event: end" in content , f"Missing SSE terminator in: {content!r}";
+    } finally {
+        client.close();
+    }
+}
+
 test "walker calls" {
     client = make_client();
     try {
         # Create a user for authenticated calls
+        walker_user = f"walkeruser_{uuid.uuid4().hex[:8]}";
         response = client.post(
             "/user/register",
-            json={"username": f"walkeruser_{uuid.uuid4().hex[:8]}", "password": "pass"}
+            json={
+                "identities": [{"type": "username", "value": walker_user}],
+                "credential": {"type": "password", "password": "pass"}
+            }
         );
         create_result = extract_data(response.json());
-        token = create_result["token"];
+        assert "user_id" in create_result;
+        response = client.post(
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": walker_user},
+                "credential": {"type": "password", "password": "pass"}
+            }
+        );
+        login_result = extract_data(response.json());
+        token = login_result["token"];
 
         # Test: status code 200 for walker success
         response = client.post(
@@ -778,22 +1182,83 @@ test "walker calls" {
         assert "nodes" in data and "edges" in data;
 
         # Create a node and verify it appears for authenticated user
+        g_user = f"guser_{uuid.uuid4().hex[:8]}";
         response = client.post(
             "/user/register",
-            json={"username": f"guser_{uuid.uuid4().hex[:8]}", "password": "gpass"}
+            json={
+                "identities": [{"type": "username", "value": g_user}],
+                "credential": {"type": "password", "password": "gpass"}
+            }
         );
         reg = extract_data(response.json());
+        assert "user_id" in reg;
+        response = client.post(
+            "/user/login",
+            json={
+                "identity": {"type": "username", "value": g_user},
+                "credential": {"type": "password", "password": "gpass"}
+            }
+        );
+        reg_login = extract_data(response.json());
         response = client.post(
             "/walker/CreateTask",
             json={"title": "T1", "priority": 1},
-            headers={"Authorization": f"Bearer {reg['token']}"}
+            headers={"Authorization": f"Bearer {reg_login['token']}"}
         );
         auth_resp = client.get(
-            "/graph/data", headers={"Authorization": f"Bearer {reg['token']}"}
+            "/graph/data", headers={"Authorization": f"Bearer {reg_login['token']}"}
         );
         auth_data = auth_resp.json();
         assert len(auth_data["nodes"]) == 2;
         assert len(auth_data["edges"]) == 1;
+    } finally {
+        client.close();
+    }
+}
+
+# Regression: walkers with mutable defaults like `has tags: list[str] = []`
+# compile to dataclass fields with `default_factory=...`. Earlier the
+# introspector returned the dataclasses._HAS_DEFAULT_FACTORY sentinel for
+# such params, which Pydantic then crashed on while validating the request
+# body of any call that omitted those fields ("'_HAS_DEFAULT_FACTORY_CLASS'
+# object is not iterable").
+test "walker default-factory list field accepts empty body" {
+    client = make_client();
+    try {
+        # Empty body: every defaulted field must be filled in by the
+        # walker's own __init__ from its factory, not by the request schema.
+        response = client.post("/walker/CollectWithDefault", json={});
+        assert response.status_code == 200 , (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        );
+        data = extract_data(response.json())["reports"][0];
+        assert data["tags"] == [];
+        assert data["seen"] == {};
+
+        # Explicit value: still works, factory was only the fallback path.
+        response = client.post(
+            "/walker/CollectWithDefault", json={"tags": ["a", "b", "a"]}
+        );
+        assert response.status_code == 200;
+        data = extract_data(response.json())["reports"][0];
+        assert data["tags"] == ["a", "b", "a"];
+        assert data["seen"] == {"a": 2, "b": 1};
+
+        # OpenAPI schema must expose the resolved default, not a sentinel,
+        # so generated clients and /docs render correctly.
+        spec = client.get("/openapi.json").json();
+        body_schema = spec["paths"]["/walker/CollectWithDefault"]["post"]["requestBody"][
+            "content"
+        ]["application/json"]["schema"];
+        # Schema may be inline or via $ref; resolve once if needed.
+        if "$ref" in body_schema {
+            ref = body_schema["$ref"].split("/")[-1];
+            body_schema = spec["components"]["schemas"][ref];
+        }
+        tags_default = body_schema["properties"]["tags"].get("default");
+        seen_default = body_schema["properties"]["seen"].get("default");
+        assert tags_default == [] , f"Expected [] default, got {tags_default}";
+        assert seen_default == {} , f"Expected {{}} default, got {seen_default}";
     } finally {
         client.close();
     }
@@ -805,272 +1270,88 @@ test "walker calls" {
 test "user management operations" {
     client = make_client();
     try {
-        # Test: update username success
-        username = f"olduser_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "password123"}
-        );
-        create_result = extract_data(response.json());
-        original_token = create_result["token"];
-        original_root_id = create_result["root_id"];
+        # Test: update password success
+        username = f"passuser_{uuid.uuid4().hex[:8]}";
+        token = register_and_get_token(client, username, "oldpass123");
 
-        new_username = f"newuser_{uuid.uuid4().hex[:8]}";
         response = client.put(
-            "/user/username",
-            json={"current_username": username, "new_username": new_username},
-            headers={"Authorization": f"Bearer {original_token}"}
+            "/user/password",
+            json={"current_password": "oldpass123", "new_password": "newpass456"},
+            headers={"Authorization": f"Bearer {token}"}
         );
         update_result = extract_data(response.json());
+        assert "message" in update_result;
 
-        assert "username" in update_result;
-        assert update_result["username"] == new_username;
-        assert "token" in update_result;
-        assert "root_id" in update_result;
-        assert update_result["root_id"] == original_root_id;
+        # Verify login with new password works
+        login_result = do_login(client, username, "newpass456");
+        assert "user_id" in login_result;
 
-        # Verify login with new username works
+        # Verify login with old password fails
         response = client.post(
-            "/user/login", json={"username": new_username, "password": "password123"}
-        );
-        login_result = extract_data(response.json());
-        assert login_result["username"] == new_username;
-        assert "token" in login_result;
-
-        # Verify login with old username fails
-        login_response = client.post(
-            "/user/login", json={"username": username, "password": "password123"}
-        );
-        assert login_response.status_code == 401;
-
-        # Test: update username requires auth
-        username = f"authtest_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "password123"}
-        );
-        response = client.put(
-            "/user/username",
-            json={"current_username": username, "new_username": "newname"}
+            "/user/login", json=login_payload(username, "oldpass123")
         );
         assert response.status_code == 401;
 
-        # Test: update username cannot update other users
-        user1_name = f"user1_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": user1_name, "password": "pass1"}
-        );
-        user1_result = extract_data(response.json());
-        user1_token = user1_result["token"];
-
-        user2_name = f"user2_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": user2_name, "password": "pass2"}
-        );
-
-        response = client.put(
-            "/user/username",
-            json={"current_username": user2_name, "new_username": "hacked"},
-            headers={"Authorization": f"Bearer {user1_token}"}
-        );
-        assert response.status_code == 403;
-
-        # Test: update username duplicate fails
-        user1_name = f"dup1_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": user1_name, "password": "pass1"}
-        );
-        user1_result = extract_data(response.json());
-        user1_token = user1_result["token"];
-
-        user2_name = f"dup2_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": user2_name, "password": "pass2"}
-        );
-
-        response = client.put(
-            "/user/username",
-            json={"current_username": user1_name, "new_username": user2_name},
-            headers={"Authorization": f"Bearer {user1_token}"}
-        );
-        assert response.status_code == 400;
-
-        # Test: update username empty validation
-        username = f"testuser_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "password123"}
-        );
-        user_result = extract_data(response.json());
-        token = user_result["token"];
-
-        response = client.put(
-            "/user/username",
-            json={"current_username": username, "new_username": ""},
-            headers={"Authorization": f"Bearer {token}"}
-        );
-        assert response.status_code == 400;
-
-        # Test: update password success
-        username = f"passuser_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "oldpass123"}
-        );
-        create_result = extract_data(response.json());
-        token = create_result["token"];
-
-        response = client.put(
-            "/user/password",
-            json={
-                "username": username,
-                "current_password": "oldpass123",
-                "new_password": "newpass456"
-            },
-            headers={"Authorization": f"Bearer {token}"}
-        );
-        update_result = extract_data(response.json());
-
-        assert "username" in update_result;
-        assert update_result["username"] == username;
-        assert "message" in update_result or "success" in str(update_result).lower();
-
-        # Verify login with new password works
-        response = client.post(
-            "/user/login", json={"username": username, "password": "newpass456"}
-        );
-        login_result = extract_data(response.json());
-        assert login_result["username"] == username;
-
-        # Verify login with old password fails
-        login_response = client.post(
-            "/user/login", json={"username": username, "password": "oldpass123"}
-        );
-        assert login_response.status_code == 401;
-
         # Test: update password requires auth
         username = f"noauthuser_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "password123"}
-        );
-
+        do_register(client, username, "password123");
         response = client.put(
             "/user/password",
-            json={
-                "username": username,
-                "current_password": "password123",
-                "new_password": "newpass"
-            }
+            json={"current_password": "password123", "new_password": "newpass"}
         );
         assert response.status_code == 401;
 
         # Test: update password wrong current password
         username = f"wrongpass_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "correctpass"}
-        );
-        user_result = extract_data(response.json());
-        token = user_result["token"];
-
+        token = register_and_get_token(client, username, "correctpass");
         response = client.put(
             "/user/password",
-            json={
-                "username": username,
-                "current_password": "wrongpass",
-                "new_password": "newpass"
-            },
+            json={"current_password": "wrongpass", "new_password": "newpass"},
             headers={"Authorization": f"Bearer {token}"}
         );
         assert response.status_code == 400;
 
-        # Test: update password cannot update other users
+        # Test: update password with other user's token (wrong current password returns 400)
         user1_name = f"passuser1_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": user1_name, "password": "pass1"}
-        );
-        user1_result = extract_data(response.json());
-        user1_token = user1_result["token"];
-
+        user1_token = register_and_get_token(client, user1_name, "pass1");
         user2_name = f"passuser2_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": user2_name, "password": "pass2"}
-        );
-
+        do_register(client, user2_name, "pass2");
         response = client.put(
             "/user/password",
-            json={
-                "username": user2_name,
-                "current_password": "pass2",
-                "new_password": "hacked"
-            },
+            json={"current_password": "pass2", "new_password": "hacked"},
             headers={"Authorization": f"Bearer {user1_token}"}
         );
-        assert response.status_code == 403;
-
-        # Test: update password empty validation
-        username = f"emptypass_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "oldpass"}
-        );
-        user_result = extract_data(response.json());
-        token = user_result["token"];
-
-        response = client.put(
-            "/user/password",
-            json={
-                "username": username,
-                "current_password": "oldpass",
-                "new_password": ""
-            },
-            headers={"Authorization": f"Bearer {token}"}
-        );
         assert response.status_code == 400;
 
-        # Test: username and password update flow (combined)
-        username = f"original_{uuid.uuid4().hex[:8]}";
-        response = client.post(
-            "/user/register", json={"username": username, "password": "oldpass"}
-        );
-        create_result = extract_data(response.json());
-        token = create_result["token"];
-        root_id = create_result["root_id"];
-
-        new_username = f"updated_{uuid.uuid4().hex[:8]}";
+        # Test: update password empty validation (Pydantic rejects empty strings)
+        username = f"emptypass_{uuid.uuid4().hex[:8]}";
+        token = register_and_get_token(client, username, "oldpass");
         response = client.put(
-            "/user/username",
-            json={"current_username": username, "new_username": new_username},
+            "/user/password",
+            json={"current_password": "oldpass", "new_password": ""},
             headers={"Authorization": f"Bearer {token}"}
         );
-        username_update = extract_data(response.json());
-        new_token = username_update["token"];
-        assert username_update["root_id"] == root_id;
+        assert response.status_code in (400, 422);
+
+        # Test: password update then login with new password
+        username = f"combined_{uuid.uuid4().hex[:8]}";
+        token = register_and_get_token(client, username, "oldpass");
+        login_result = do_login(client, username, "oldpass");
+        root_id = login_result["root_id"];
 
         response = client.put(
             "/user/password",
-            json={
-                "username": new_username,
-                "current_password": "oldpass",
-                "new_password": "newpass"
-            },
-            headers={"Authorization": f"Bearer {new_token}"}
+            json={"current_password": "oldpass", "new_password": "newpass"},
+            headers={"Authorization": f"Bearer {token}"}
         );
-        password_update = extract_data(response.json());
-        assert password_update["username"] == new_username;
+        assert "message" in extract_data(response.json());
 
-        response = client.post(
-            "/user/login", json={"username": new_username, "password": "newpass"}
-        );
-        login_result = extract_data(response.json());
-        assert login_result["username"] == new_username;
+        # New password works, old fails
+        login_result = do_login(client, username, "newpass");
         assert login_result["root_id"] == root_id;
 
-        # Old username should fail
-        old_username_response = client.post(
-            "/user/login", json={"username": username, "password": "newpass"}
-        );
-        assert old_username_response.status_code == 401;
-
-        # Old password should fail
-        old_password_response = client.post(
-            "/user/login", json={"username": new_username, "password": "oldpass"}
-        );
-        assert old_password_response.status_code == 401;
+        response = client.post("/user/login", json=login_payload(username, "oldpass"));
+        assert response.status_code == 401;
     } finally {
         client.close();
     }
@@ -1195,14 +1476,20 @@ test "websocket functionality" {
 
         response = requests.post(
             f"{sv_base_url}/user/register",
-            json={"username": username, "password": password},
+            json={
+                "identities": [{"type": "username", "value": username}],
+                "credential": {"type": "password", "password": password}
+            },
             timeout=10
         );
         assert response.status_code in (200, 201) , f"Failed to create user: {response.text}";
 
         response = requests.post(
             f"{sv_base_url}/user/login",
-            json={"username": username, "password": password},
+            json={
+                "identity": {"type": "username", "value": username},
+                "credential": {"type": "password", "password": password}
+            },
             timeout=10
         );
         assert response.status_code == 200 , f"Failed to login: {response.text}";
@@ -1231,14 +1518,20 @@ test "websocket functionality" {
         username = f"ws_query_user_{uuid.uuid4().hex[:8]}";
         response = requests.post(
             f"{sv_base_url}/user/register",
-            json={"username": username, "password": password},
+            json={
+                "identities": [{"type": "username", "value": username}],
+                "credential": {"type": "password", "password": password}
+            },
             timeout=10
         );
         assert response.status_code in (200, 201);
 
         response = requests.post(
             f"{sv_base_url}/user/login",
-            json={"username": username, "password": password},
+            json={
+                "identity": {"type": "username", "value": username},
+                "credential": {"type": "password", "password": password}
+            },
             timeout=10
         );
         assert response.status_code == 200;
@@ -1319,14 +1612,20 @@ test "websocket functionality" {
 
             response = requests.post(
                 f"{sv_base_url}/user/register",
-                json={"username": username, "password": password},
+                json={
+                    "identities": [{"type": "username", "value": username}],
+                    "credential": {"type": "password", "password": password}
+                },
                 timeout=10
             );
             assert response.status_code in (200, 201);
 
             response = requests.post(
                 f"{sv_base_url}/user/login",
-                json={"username": username, "password": password},
+                json={
+                    "identity": {"type": "username", "value": username},
+                    "credential": {"type": "password", "password": password}
+                },
                 timeout=10
             );
             assert response.status_code == 200;
@@ -1388,7 +1687,7 @@ glob dm_fixtures_dir: Path = Path(__file__).parent / "fixtures",
      dm_base_url: str = f"http://localhost:{dm_api_port}";
 
 """Extract data from TransportResponse envelope for dev mode."""
-def _extract_data_dev(json_response: dict[str, Any]) -> dict[str, Any] {
+def _extract_data_dev(json_response: dict[str, any]) -> dict[str, any] {
     if isinstance(json_response, dict) and "ok" in json_response {
         if json_response.get("ok") and json_response.get("data") is not None {
             return json_response["data"];
@@ -1439,7 +1738,9 @@ def setup_dev_mode_server -> subprocess.Popen {
         try {
             response = requests.get(f"{dm_base_url}/healthz", timeout=2);
             if response.status_code == 200 {
-                print(f"Dev mode server started successfully on API port {dm_api_port}");
+                print(
+                    f"Dev mode server started successfully on API port {dm_api_port}"
+                );
                 server_ready = True;
                 break;
             }
@@ -1475,13 +1776,25 @@ test "dev mode operations" {
     sp = setup_dev_mode_server();
     try {
         # Test: dev mode walker body parsing
+        devtest_user = f"devtest_{uuid.uuid4().hex[:8]}";
         register_response = requests.post(
             f"{dm_base_url}/user/register",
-            json={"username": f"devtest_{uuid.uuid4().hex[:8]}", "password": "pass"},
+            json={
+                "identities": [{"type": "username", "value": devtest_user}],
+                "credential": {"type": "password", "password": "pass"}
+            },
             timeout=10
         );
         assert register_response.status_code == 201;
-        token = _extract_data_dev(register_response.json())["token"];
+        login_response = requests.post(
+            f"{dm_base_url}/user/login",
+            json={
+                "identity": {"type": "username", "value": devtest_user},
+                "credential": {"type": "password", "password": "pass"}
+            },
+            timeout=10
+        );
+        token = _extract_data_dev(login_response.json())["token"];
 
         response = requests.post(
             f"{dm_base_url}/walker/CreateTask",
@@ -1497,13 +1810,25 @@ test "dev mode operations" {
         assert "result" in data or "reports" in data , f"Unexpected response: {data}";
 
         # Test: dev mode function body parsing
+        devfunc_user = f"devfunc_{uuid.uuid4().hex[:8]}";
         register_response = requests.post(
             f"{dm_base_url}/user/register",
-            json={"username": f"devfunc_{uuid.uuid4().hex[:8]}", "password": "pass"},
+            json={
+                "identities": [{"type": "username", "value": devfunc_user}],
+                "credential": {"type": "password", "password": "pass"}
+            },
             timeout=10
         );
         assert register_response.status_code == 201;
-        token = _extract_data_dev(register_response.json())["token"];
+        login_response = requests.post(
+            f"{dm_base_url}/user/login",
+            json={
+                "identity": {"type": "username", "value": devfunc_user},
+                "credential": {"type": "password", "password": "pass"}
+            },
+            timeout=10
+        );
+        token = _extract_data_dev(login_response.json())["token"];
 
         response = requests.post(
             f"{dm_base_url}/function/add_numbers",
@@ -1540,11 +1865,22 @@ test "dev mode operations" {
         username = f"asyncuser_{uuid.uuid4().hex[:8]}";
         register_response = requests.post(
             f"{dm_base_url}/user/register",
-            json={"username": username, "password": "password123"},
+            json={
+                "identities": [{"type": "username", "value": username}],
+                "credential": {"type": "password", "password": "password123"}
+            },
             timeout=10
         );
         assert register_response.status_code == 201;
-        token = _extract_data_dev(register_response.json())["token"];
+        login_response = requests.post(
+            f"{dm_base_url}/user/login",
+            json={
+                "identity": {"type": "username", "value": username},
+                "credential": {"type": "password", "password": "password123"}
+            },
+            timeout=10
+        );
+        token = _extract_data_dev(login_response.json())["token"];
 
         response = requests.post(
             f"{dm_base_url}/walker/AsyncCreateTask",
@@ -1591,8 +1927,12 @@ test "dev mode operations" {
             }
         }
 
-        expected = "Report 0Report 1Report 2";
-        assert content == expected , f"Expected '{expected}', got '{content}'";
+        for payload in ["Report 0", "Report 1", "Report 2"] {
+            assert f'data: "{payload}"' in content , (
+                f"Missing SSE-framed payload {payload!r} in: {content!r}"
+            );
+        }
+        assert "event: end" in content , f"Missing SSE terminator in: {content!r}";
 
         # Test: function stream response
         response = requests.post(
@@ -1616,8 +1956,12 @@ test "dev mode operations" {
             }
         }
 
-        expected = "Func 0Func 1";
-        assert content == expected , f"Expected '{expected}', got '{content}'";
+        for payload in ["Func 0", "Func 1"] {
+            assert f'data: "{payload}"' in content , (
+                f"Missing SSE-framed payload {payload!r} in: {content!r}"
+            );
+        }
+        assert "event: end" in content , f"Missing SSE terminator in: {content!r}";
     } finally {
         teardown_dev_mode_server(sp);
     }
@@ -1898,6 +2242,133 @@ test "server startup - port fallback integration" {
     }
 }
 
+# =============================================================================
+# HEALTH CHECK FILTER UNIT TESTS
+# =============================================================================
+"""Test that HealthCheckFilter is not attached by default (suppress_health_check_logs defaults to false)."""
+test "health check filter is disabled by default" {
+    import logging;
+    import from jac_scale.config_loader { get_scale_config, reset_scale_config }
+    import from jac_scale.jserver.jfast_api { ConsoleLogHandler, HealthCheckFilter }
+
+    reset_scale_config();
+    cfg = get_scale_config();
+    server_cfg = cfg.get_server_config();
+
+    assert not server_cfg.get('suppress_health_check_logs', False) , "suppress_health_check_logs should default to False";
+
+    # Verify that when False, no HealthCheckFilter is added to the handler
+    handler = ConsoleLogHandler();
+    handler.setFormatter(logging.Formatter("%(message)s"));
+    if server_cfg.get('suppress_health_check_logs', False) {
+        handler.addFilter(HealthCheckFilter());
+    }
+    assert not any(isinstance(f, HealthCheckFilter) for f in handler.filters) , "HealthCheckFilter should not be attached when suppress_health_check_logs is false";
+
+    reset_scale_config();
+}
+
+"""Test HealthCheckFilter suppresses noisy health-check access log entries."""
+test "health check filter suppresses health endpoint log records" {
+    import logging;
+    import from jac_scale.jserver.jfast_api { HealthCheckFilter }
+
+    def make_record(msg: str) -> logging.LogRecord {
+        return logging.LogRecord(
+            name="uvicorn.access",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg=msg,
+            args=(),
+            exc_info=None
+        );
+    }
+
+    f = HealthCheckFilter();
+
+    # These should be suppressed (filter returns False)
+    suppressed = [
+        '127.0.0.1:12345 - "GET /health HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET /docs HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET / HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET /openapi.json HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET /healthz HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET /healthz/ready HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET /healthz/live HTTP/1.1" 200',
+
+    ];
+    for msg in suppressed {
+        assert not f.filter(make_record(msg)) , f"Expected suppressed: {msg}";
+    }
+
+    # These should pass through (filter returns True)
+    allowed = [
+        '127.0.0.1:12345 - "GET /walker/MyWalker HTTP/1.1" 200',
+        '127.0.0.1:12345 - "POST /user/login HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET /graph HTTP/1.1" 200',
+        '127.0.0.1:12345 - "POST /function/add_numbers HTTP/1.1" 200',
+        '127.0.0.1:12345 - "GET /health/extra HTTP/1.1" 200',
+
+    ];
+    for msg in allowed {
+        assert f.filter(make_record(msg)) , f"Expected allowed: {msg}";
+    }
+}
+
+"""Test that HealthCheckFilter integrates correctly with Python's logging Handler."""
+test "health check filter blocks records when attached to a handler" {
+    import logging;
+    import from jac_scale.jserver.jfast_api { HealthCheckFilter }
+
+    class _CapturingHandler(logging.Handler) {
+        has captured: list = [];
+
+        def emit(self: _CapturingHandler, record: logging.LogRecord) {
+            self.captured.append(record.getMessage());
+        }
+    }
+
+    def make_record(msg: str) -> logging.LogRecord {
+        return logging.LogRecord(
+            name="uvicorn.access",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg=msg,
+            args=(),
+            exc_info=None
+        );
+    }
+
+    handler = _CapturingHandler();
+    handler.setFormatter(logging.Formatter("%(message)s"));
+    handler.addFilter(HealthCheckFilter());
+
+    records = [
+        ('127.0.0.1 - "GET /health HTTP/1.1" 200', False),
+        ('127.0.0.1 - "GET /docs HTTP/1.1" 200', False),
+        ('127.0.0.1 - "GET / HTTP/1.1" 200', False),
+        ('127.0.0.1 - "GET /openapi.json HTTP/1.1" 200', False),
+        ('127.0.0.1 - "GET /healthz HTTP/1.1" 200', False),
+        ('127.0.0.1 - "GET /healthz/ready HTTP/1.1" 200', False),
+        ('127.0.0.1 - "GET /healthz/live HTTP/1.1" 200', False),
+        ('127.0.0.1 - "POST /user/login HTTP/1.1" 200', True),
+        ('127.0.0.1 - "GET /walker/Foo HTTP/1.1" 200', True),
+
+    ];
+
+    for (msg, should_appear) in records {
+        handler.captured = [];
+        handler.handle(make_record(msg));
+        if should_appear {
+            assert len(handler.captured) == 1 , f"Expected handler to receive: {msg}";
+        } else {
+            assert len(handler.captured) == 0 , f"Expected handler to suppress: {msg}";
+        }
+    }
+}
+
 """Test that jac start --client pwa uses jac-scale server (422 from /user/login = FastAPI validation)."""
 test "pwa target uses jac-scale server" {
     import tempfile;
@@ -1946,9 +2417,8 @@ theme_color = "#000000"
                     resp = requests.post(
                         f"http://127.0.0.1:{port}/user/login", json={}, timeout=2
                     );
-                    if resp.status_code == 422 {
+                    if resp.status_code in [400, 422] {
                         return;  # Test passed — jac-scale's FastAPI is running
-
                     }
                 } except (requests.ConnectionError, requests.Timeout) {
                     time.sleep(1);
@@ -1968,5 +2438,105 @@ theme_color = "#000000"
                 server.kill();
             }
         }
+    }
+}
+
+# =============================================================================
+# GROUP 8: JWT MIDDLEWARE
+# =============================================================================
+test "jwt middleware: per-user isolation and token rejection" {
+    client = make_client();
+    try {
+        def reg(name: str) -> str {
+            r = client.post(
+                "/user/register",
+                json={
+                    "identities": [{"type": "username", "value": name}],
+                    "credential": {"type": "password", "password": "Pass!99"}
+                }
+            );
+            assert r.status_code == 201;
+            login = client.post(
+                "/user/login",
+                json={
+                    "identity": {"type": "username", "value": name},
+                    "credential": {"type": "password", "password": "Pass!99"}
+                }
+            );
+            assert login.status_code == 200;
+            return extract_data(login.json())["token"];
+        }
+        def task_titles(tok: str) -> set[str] {
+            r = client.post(
+                "/walker/ListTasks", json={}, headers={"Authorization": f"Bearer {tok}"}
+            );
+            assert r.status_code == 200;
+            raw = extract_data(r.json())["reports"][0];
+            items = raw if isinstance(raw, list) else [raw];
+            return {
+                t.get("title") or t.get("context", {}).get("title")
+                for t in items
+                if isinstance(t, dict)
+            };
+        }
+
+        tok_a = reg(f"alice_{uuid.uuid4().hex[:6]}");
+        tok_b = reg(f"bob_{uuid.uuid4().hex[:6]}");
+
+        for (tok, title) in [(tok_a, "task_alice"), (tok_b, "task_bob")] {
+            r = client.post(
+                "/walker/CreateTask",
+                json={"title": title, "priority": 1},
+                headers={"Authorization": f"Bearer {tok}"}
+            );
+            assert r.status_code == 200 , f"CreateTask failed for {title}: {r.text}";
+        }
+
+        assert task_titles(tok_a) == {"task_alice"} , f"Isolation failure: {task_titles(
+            tok_a
+        )}";
+        assert task_titles(tok_b) == {"task_bob"} , f"Isolation failure: {task_titles(
+            tok_b
+        )}";
+
+        forged = pyjwt.encode(
+            {"username": "x", "exp": datetime.now(UTC) + timedelta(hours=1)},
+            "wrong_key",
+            algorithm="HS256"
+        );
+        bad_token_cases = [
+            ({"Authorization": f"Bearer {forged}"}, "forged secret"),
+            ({"Authorization": f"Bearer {_create_expired_token('x')}"}, "expired"),
+            ({"Authorization": "Bearer not.a.jwt"}, "malformed"),
+
+        ];
+
+        # Bad tokens must be rejected on auth-required endpoints.
+        for (hdrs, label) in bad_token_cases {
+            r = client.post("/walker/CreateTask", json={"title": "x"}, headers=hdrs);
+            assert r.status_code == 401 , f"{label} on auth endpoint: expected 401, got {r.status_code}";
+        }
+
+        # No token on auth-required endpoint must also be rejected.
+        r = client.post("/walker/CreateTask", json={"title": "x"});
+        assert r.status_code == 401 , f"no token on auth endpoint: expected 401, got {r.status_code}";
+
+        # Bad tokens on public (pub) endpoints must be ignored — the request
+        # should succeed as guest rather than returning 401.
+        for (hdrs, label) in bad_token_cases {
+            r = client.post("/walker/PublicInfo", json={}, headers=hdrs);
+            assert r.status_code == 200 , f"{label} on pub walker: expected 200 (guest), got {r.status_code}";
+        }
+        # No token on a public endpoint must still work (anonymous access).
+        assert client.post("/walker/PublicInfo", json={}).status_code == 200 , "pub walker broken for anonymous requests";
+
+        # Same check for pub functions — bad tokens must be ignored.
+        for (hdrs, label) in bad_token_cases {
+            r = client.post("/function/public_status", json={}, headers=hdrs);
+            assert r.status_code == 200 , f"{label} on pub function: expected 200 (guest), got {r.status_code}";
+        }
+        assert client.post("/function/public_status", json={}).status_code == 200 , "pub function broken for anonymous requests";
+    } finally {
+        client.close();
     }
 }

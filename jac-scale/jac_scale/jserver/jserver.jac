@@ -27,8 +27,9 @@ obj APIParameter {
     has name: str,
         `type: ParameterType = ParameterType.QUERY,
         data_type: str = 'str',
+        type_obj: any = None,
         required: bool = True,
-        `default: Any = None,
+        `default: any = None,
         description: str = '';
 }
 
@@ -53,6 +54,7 @@ obj JEndPoint {
         callback: Callable[(..., Any)],
         parameters: (list[APIParameter] | None) = None,
         response_model: (type[BaseModel] | None) = None,
+        request_model: (type[BaseModel] | None) = None,
         tags: (list[str] | None) = None,
         summary: (str | None) = None,
         description: (str | None) = None;

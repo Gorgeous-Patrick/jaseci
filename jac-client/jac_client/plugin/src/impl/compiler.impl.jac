@@ -69,6 +69,7 @@ impl ViteCompiler.compile_and_bundle(
 
 """Create the main entry file for Vite bundling."""
 impl ViteCompiler.create_entry_file(self: ViteCompiler, module_path: Path) -> None {
+    import from jaclang.runtimelib.react_entry { build_simple_react_entry_script }
     # Use _entry.js to avoid conflict with compiled modules that may be named main.js
     entry_file = self.compiled_dir / '_entry.js';
     if self._has_pages {
@@ -76,8 +77,7 @@ impl ViteCompiler.create_entry_file(self: ViteCompiler, module_path: Path) -> No
         entry_content = self._create_pages_entry_content(module_path);
     } else {
         # Explicit routing mode: import app from entry module (original behavior)
-        app_module_name = module_path.stem;
-        entry_content = f'import React from "react";\nimport {{ createRoot }} from "react-dom/client";\nimport {{ app as App }} from "./{app_module_name}.js";\nimport {{ JacClientErrorBoundary, ErrorFallback, __jacInstallErrorHandlers }} from "@jac/runtime";\n\n__jacInstallErrorHandlers();\nconst root = createRoot(document.getElementById("root"));\nroot.render(\n\tReact.createElement(\n\t\tJacClientErrorBoundary,{{ FallbackComponent: ErrorFallback }},\n\t\tReact.createElement(App, null)\n\t)\n);\n';
+        entry_content = build_simple_react_entry_script(module_path.stem);
     }
     entry_file.write_text(entry_content, encoding='utf-8');
 }
@@ -106,7 +106,7 @@ impl ViteCompiler._create_pages_entry_content(
     lines.append('import { createRoot } from "react-dom/client";');
     lines.append('import { BrowserRouter, Routes, Route } from "react-router-dom";');
     lines.append(
-        'import { JacClientErrorBoundary, ErrorFallback, AuthGuard, __jacInstallErrorHandlers } from "@jac/runtime";'
+        'import { JacClientErrorBoundary, ErrorFallback, AuthGuard, __jacInstallErrorHandlers, __jacReactErrorHandler } from "@jac/runtime";'
     );
     lines.append('import { routes, layouts } from "./_routes.js";');
     lines.append('');
@@ -134,7 +134,9 @@ impl ViteCompiler._create_pages_entry_content(
     lines.append(
         f'function _AuthGuardRoute() {{ return AuthGuard("{auth_redirect}"); }}'
     );
-    lines.append('const authGuardElement = React.createElement(_AuthGuardRoute, null);');
+    lines.append(
+        'const authGuardElement = React.createElement(_AuthGuardRoute, null);'
+    );
     lines.append('');
     # --- Single App component with one BrowserRouter ---
     lines.append('function App() {');
@@ -172,7 +174,7 @@ impl ViteCompiler._create_pages_entry_content(
     lines.append('const root = createRoot(document.getElementById("root"));');
     lines.append('root.render(');
     lines.append(
-        '\tReact.createElement(JacClientErrorBoundary, { FallbackComponent: ErrorFallback }, appElement)'
+        '\tReact.createElement(JacClientErrorBoundary, { FallbackComponent: ErrorFallback, onError: __jacReactErrorHandler }, appElement)'
     );
     lines.append(');');
     lines.append('');
@@ -300,55 +302,9 @@ impl ViteCompiler.compile_dependencies_recursively(
     output_path.parent.mkdir(parents=True, exist_ok=True);
     source_header = f"/* Source: {module_path} */\n";
     output_path.write_text(source_header + combined_js, encoding='utf-8');
-    # Generate source map for .jac → .js line mapping
-    try {
-        import from jaclang.runtimelib.source_mapping { generate_source_map_json }
-        import from jaclang.jac0core.runtime { JacRuntime as Jac }
-        hub_key = str(module_path);
-        hub_mod = Jac.program.mod.hub.get(hub_key);
-        if hub_mod and hub_mod.gen.es_ast {
-            import from jaclang.compiler.passes.ecmascript.es_unparse {
-                es_to_js_with_map
-            }
-            (_, line_map) = es_to_js_with_map(hub_mod.gen.es_ast);
-            if line_map {
-                # Compute exact offset: count the lines in the written file
-                # before the raw generated code starts.
-                # Written file = source_header + combined_js
-                # combined_js = runtime_imports_prefix + raw_js
-                # So offset = lines in (source_header + runtime_imports_prefix)
-                raw_js = hub_mod.gen.js or '';
-                full_output = source_header + combined_js;
-                # Find where raw_js starts in full_output
-                raw_start_idx = full_output.find(raw_js);
-                if raw_start_idx > 0 {
-                    prefix = full_output[:raw_start_idx];
-                    header_lines = prefix.count('\n');
-                } else {
-                    header_lines = 0;
-                }
-                if header_lines > 0 {
-                    line_map = [
-                        (out + header_lines, src_l, src_c)
-                        for (out, src_l, src_c) in line_map
-                    ];
-                }
-                map_json = generate_source_map_json(
-                    source_file=str(module_path),
-                    output_file=output_path.name,
-                    line_map=line_map
-                );
-                map_path = output_path.parent / f"{output_path.name}.map";
-                map_path.write_text(map_json, encoding='utf-8');
-                # Append sourceMappingURL so Vite chains through to .jac
-                with open(output_path, 'a', encoding='utf-8') as f {
-                    f.write(f"\n//# sourceMappingURL={output_path.name}.map\n");
-                }
-            }
-        }
-    } except Exception as e {
-        console.warning(f"Failed to generate source map for '{module_path}': {e}");
-    }
+    self._write_source_map(
+        mod, str(module_path), output_path, source_header + combined_js
+    );
     if (not manifest or not manifest.imports) {
         return;
     }
@@ -367,7 +323,7 @@ impl ViteCompiler.compile_dependencies_recursively(
             );
         } elif (path_obj.suffix == '.js') {
             self._copy_js_file(path_obj, source_root);
-        } elif (path_obj.suffix in {'.ts','.tsx'}) {
+        } elif (path_obj.suffix in {'.ts', '.tsx'}) {
             self._copy_ts_file(path_obj, source_root);
         } elif path_obj.is_file() {
             self._copy_asset_file(path_obj, source_root);
@@ -384,15 +340,17 @@ impl ViteCompiler.compile_runtime_utils(self: ViteCompiler) -> tuple[str, list[s
     (runtimeutils_js, mod, runtimeutils_manifest) = self.jac_compiler.compile_module(
         runtime_utils_path
     );
-    runtimeutils_exports_list = self.jac_compiler.extract_exports(runtimeutils_manifest);
+    runtimeutils_exports_list = self.jac_compiler.extract_exports(
+        runtimeutils_manifest
+    );
     glob_names = list(runtimeutils_manifest.globals) if runtimeutils_manifest else [];
     all_exports = sorted(
         set(runtimeutils_exports_list + self.ROUTER_EXPORTS + glob_names)
     );
     self.compiled_dir.mkdir(parents=True, exist_ok=True);
-    (self.compiled_dir / 'client_runtime.js').write_text(
-        runtimeutils_js, encoding='utf-8'
-    );
+    runtime_out = self.compiled_dir / 'client_runtime.js';
+    runtime_out.write_text(runtimeutils_js, encoding='utf-8');
+    self._write_source_map(mod, str(runtime_utils_path), runtime_out, runtimeutils_js);
     return (runtimeutils_js, all_exports);
 }
 
@@ -411,8 +369,61 @@ impl ViteCompiler.compile_pwa_runtime(self: ViteCompiler) -> tuple[str, list[str
     glob_names = list(pwa_manifest.globals) if pwa_manifest else [];
     all_exports = sorted(set(pwa_exports_list + glob_names));
     self.compiled_dir.mkdir(parents=True, exist_ok=True);
-    (self.compiled_dir / 'pwa_runtime.js').write_text(pwa_js, encoding='utf-8');
+    pwa_out = self.compiled_dir / 'pwa_runtime.js';
+    pwa_out.write_text(pwa_js, encoding='utf-8');
+    self._write_source_map(mod, str(pwa_runtime_path), pwa_out, pwa_js);
     return (pwa_js, all_exports);
+}
+
+"""Write the per-file source map for a freshly compiled module and chain the
+compiled JS to it via a `//# sourceMappingURL` comment.
+
+Maps the generated JS lines back to the original `.jac` source lines so a
+client-side error stack resolves to the real source location -- not the
+compiled-JS line. A no-op when the module produced no ES AST or no line map.
+
+Crucially this uses `mod` -- the module the bundler just compiled and already
+holds -- rather than re-fetching it from `Jac.program.mod.hub`: a fullstack /
+interop build compiles client modules into a separate codespace, leaving the
+hub empty, so a hub lookup would silently miss and skip the map. `full_output`
+is the exact text written to disk (source header + runtime-import prefix + raw
+JS); its prefix lines are counted so the map's output lines line up on disk.
+"""
+impl ViteCompiler._write_source_map(
+    self: ViteCompiler, mod: Any, source_file: str, output_path: Path, full_output: str
+) -> None {
+    if (not mod or not mod.gen.es_ast) {
+        return;
+    }
+    try {
+        import from jaclang.compiler.passes.ecmascript.es_unparse { es_to_js_with_map }
+        import from jaclang.runtimelib.source_mapping { generate_source_map_json }
+        (_, line_map) = es_to_js_with_map(mod.gen.es_ast);
+        if not line_map {
+            return;
+        }
+        # The raw generated JS sits after whatever prefix the caller prepended
+        # (source header + optional runtime-import line); shift the map's output
+        # lines past it so they match the file on disk.
+        raw_js = mod.gen.js or '';
+        raw_start = full_output.find(raw_js) if raw_js else -1;
+        header_lines = full_output[:raw_start].count('\n') if (raw_start > 0) else 0;
+        if header_lines > 0 {
+            line_map = [
+                (out + header_lines, src_l, src_c) for (out, src_l, src_c) in line_map
+            ];
+        }
+        map_json = generate_source_map_json(
+            source_file=source_file, output_file=output_path.name, line_map=line_map
+        );
+        map_path = output_path.parent / f"{output_path.name}.map";
+        map_path.write_text(map_json, encoding='utf-8');
+        with open(output_path, 'a', encoding='utf-8') as f {
+            f.write(f"\n//# sourceMappingURL={output_path.name}.map\n");
+        }
+    } except Exception as e {
+        console.warning(f"Failed to generate source map for '{source_file}': {e}");
+    }
 }
 
 """Convert a .jac relative path string to .js, handling compound extensions."""
@@ -529,24 +540,13 @@ impl ViteCompiler.init(
     vite_output_dir: (Path | None) = None,
     vite_minify: bool = False,
     runtime_path: (Path | None) = None,
-    compile_to_js_func:
-        (Callable[([Path], tuple[(str, (ModuleType | None))])] | None) = None,
-    extract_exports_func: (Callable[([Any], list[str])] | None) = None,
-    extract_globals_func:
-        (Callable[([Any, ModuleType], dict[(str, Any)])] | None) = None
+    compile_to_js_func: Callable[([Path], tuple[(str, (ModuleType | None))])],
+    extract_exports_func: Callable[([any], list[str])],
+    extract_globals_func: Callable[([any, ModuleType], dict[(str, Any)])]
 ) {
     if (not vite_package_json or not vite_package_json.exists()) {
         raise ClientBundleError(
             'Vite package.json not found. Set vite_package_json when using ViteCompiler'
-        );
-    }
-    if (
-        (compile_to_js_func is None)
-        or (extract_exports_func is None)
-        or (extract_globals_func is None)
-    ) {
-        raise ClientBundleError(
-            'compile_to_js_func, extract_exports_func, and extract_globals_func are required'
         );
     }
     self.vite_package_json = vite_package_json;

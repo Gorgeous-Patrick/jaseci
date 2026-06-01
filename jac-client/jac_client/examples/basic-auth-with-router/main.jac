@@ -20,7 +20,7 @@ cl {
         isLoggedIn = jacIsLoggedIn();
         navigate = useNavigate();
 
-        def handleLogout(e: Any) {
+        def handleLogout(e: any) {
             e.preventDefault();
             jacLogout();
             navigate("/login");
@@ -114,7 +114,7 @@ cl {
 
         navigate = useNavigate();
 
-        async def handleLogin(e: Any) -> None {
+        async def handleLogin(e: any) -> None {
             e.preventDefault();
             error = "";
             if not username or not password {
@@ -129,11 +129,11 @@ cl {
             }
         }
 
-        def handleUsernameChange(e: Any) {
+        def handleUsernameChange(e: any) {
             username = e.target.value;
         }
 
-        def handlePasswordChange(e: Any) {
+        def handlePasswordChange(e: any) {
             password = e.target.value;
         }
 
@@ -222,9 +222,7 @@ cl {
                         }}
                     >
                         Need an account?
-                        <Link to="/signup">
-                            Sign up
-                        </Link>
+                        <Link to="/signup">Sign up</Link>
                     </p>
                 </div>
             </div>;
@@ -238,7 +236,7 @@ cl {
 
         navigate = useNavigate();
 
-        async def handleSignup(e: Any) -> None {
+        async def handleSignup(e: any) -> None {
             e.preventDefault();
             error = "";
             if not username or not password {
@@ -247,17 +245,23 @@ cl {
             }
             result = await jacSignup(username, password);
             if result["success"] {
-                navigate("/dashboard");
+                # /user/register does not return a token, sign in to start a session
+                logged_in = await jacLogin(username, password);
+                if logged_in {
+                    navigate("/dashboard");
+                } else {
+                    error = "Account created but login failed";
+                }
             } else {
                 error = result["error"] if result["error"] else "Signup failed";
             }
         }
 
-        def handleUsernameChange(e: Any) {
+        def handleUsernameChange(e: any) {
             username = e.target.value;
         }
 
-        def handlePasswordChange(e: Any) {
+        def handlePasswordChange(e: any) {
             password = e.target.value;
         }
 
@@ -346,9 +350,7 @@ cl {
                         }}
                     >
                         Have an account?
-                        <Link to="/login">
-                            Login
-                        </Link>
+                        <Link to="/login">Login</Link>
                     </p>
                 </div>
             </div>;
@@ -358,8 +360,7 @@ cl {
     def DashboardPage -> JsxElement {
         # Check if user is logged in, redirect if not
         if not jacIsLoggedIn() {
-            return
-                <Navigate to="/login"/>;
+            return <Navigate to="/login"/>;
         }
 
         return
@@ -418,11 +419,9 @@ cl {
     # Home/Landing Page - auto-redirect based on auth status
     def HomePage -> JsxElement {
         if jacIsLoggedIn() {
-            return
-                <Navigate to="/dashboard"/>;
+            return <Navigate to="/dashboard"/>;
         }
-        return
-            <Navigate to="/login"/>;
+        return <Navigate to="/login"/>;
     }
 
     # Main App with React Router

@@ -322,7 +322,20 @@ impl GrammarExtractPass._stage_dedup_tokens(rules: list) -> list {
     return result;
 }
 
-"""Remove error-recovery alternatives from the 'statement' rule."""
+"""Remove error-recovery alternatives from the 'statement' rule.
+
+Two shapes get stripped:
+
+1. Bare orphaned control-flow tokens (`KW_ELIF` / `KW_ELSE` / `KW_EXCEPT`
+   / `KW_FINALLY` / `KW_CASE`) — the parser handles these only to emit
+   E0032 ("orphaned control-flow clause"); they aren't valid statements.
+2. The redundant-slot-wrap recovery shape `"{" statement ";"? "}"?` —
+   the parser accepts this in `parse_statement` only when
+   `_view_body_depth > 0` (i.e. inside a JSX slot body) to emit E2023
+   with a single targeted message instead of an E0001/E0002 cascade.
+   It's not a real grammar production, so it doesn't belong in the
+   extracted spec.
+"""
 impl GrammarExtractPass._stage_remove_errors(rules: list) -> list {
     error_recovery_tokens: set = set(
         ["KW_ELIF", "KW_ELSE", "KW_EXCEPT", "KW_FINALLY", "KW_CASE"]
@@ -335,6 +348,9 @@ impl GrammarExtractPass._stage_remove_errors(rules: list) -> list {
                 if isinstance(choice, GTok) and choice.name in error_recovery_tokens {
                     continue;
                 }
+                if self._is_redundant_slot_wrap_recovery(choice) {
+                    continue;
+                }
                 filtered.append(choice);
             }
             result.append(GrammarRule(name=rule.name, body=GAlt(choices=filtered)));
@@ -343,6 +359,46 @@ impl GrammarExtractPass._stage_remove_errors(rules: list) -> list {
         }
     }
     return result;
+}
+
+"""True when `expr` is the `"{" statement ";"? "}"?` E2023-recovery shape.
+
+The grammar extractor walks `parse_statement` mechanically and would
+otherwise lift the redundant-slot recovery branch into the `statement`
+rule. The branch is guarded by `_view_body_depth > 0` at runtime — a
+predicate the extractor can't see — so the resulting grammar would
+misleadingly suggest `{stmt}` is a universal statement form. This
+matcher pulls that specific shape back out.
+"""
+impl GrammarExtractPass._is_redundant_slot_wrap_recovery(expr: GExpr) -> bool {
+    if not isinstance(expr, GSeq) {
+        return False;
+    }
+    items = expr.items;
+    if len(items) != 4 {
+        return False;
+    }
+    if not (isinstance(items[0], GTok) and items[0].name == "LBRACE") {
+        return False;
+    }
+    if not (isinstance(items[1], GRef) and items[1].name == "statement") {
+        return False;
+    }
+    if not (
+        isinstance(items[2], GOpt)
+        and isinstance(items[2].inner, GTok)
+        and items[2].inner.name == "SEMI"
+    ) {
+        return False;
+    }
+    if not (
+        isinstance(items[3], GOpt)
+        and isinstance(items[3].inner, GTok)
+        and items[3].inner.name == "RBRACE"
+    ) {
+        return False;
+    }
+    return True;
 }
 
 """Remove unreachable rules (defined but never referenced from module)."""
@@ -753,6 +809,9 @@ impl GrammarExtractPass.has_early_return(stmts: list) -> bool {
 
 """Check if condition is a negated check pattern."""
 impl GrammarExtractPass.is_negated_check(cond: uni.Expr) -> bool {
+    if isinstance(cond, uni.CfgExpr) {
+        return self.is_negated_check(cond.expr);
+    }
     if isinstance(cond, uni.UnaryExpr) {
         if cond.op is not None and cond.op?.value and cond.op.value == "not" {
             if isinstance(cond.operand, uni.FuncCall) {
@@ -760,7 +819,9 @@ impl GrammarExtractPass.is_negated_check(cond: uni.Expr) -> bool {
                 if method is not None {
                     sem = METHOD_TABLE.get(method);
                     if sem is not None
-                    and (sem.kind.startswith("lookahead") or sem.kind == "consume_opt") {
+                    and (
+                        sem.kind.startswith("lookahead") or sem.kind == "consume_opt"
+                    ) {
                         return True;
                     }
                 }
@@ -1448,7 +1509,8 @@ impl GrammarExtractPass._merge_or_conditions(exprs: list) -> ConditionResult | N
     all_toks: list = [];
     found_method: str | None = None;
     found_kind: str | None = None;
-    for val in exprs {
+    for raw_val in exprs {
+        val = raw_val.expr if isinstance(raw_val, uni.CfgExpr) else raw_val;
         if isinstance(val, uni.FuncCall) {
             m = self.get_self_method(val.target);
             if m is not None {
@@ -1485,6 +1547,10 @@ impl GrammarExtractPass._merge_or_conditions(exprs: list) -> ConditionResult | N
 
 """Analyze condition. Returns ConditionResult or None."""
 impl GrammarExtractPass.interpret_condition(cond: uni.Expr) -> ConditionResult | None {
+    # Unwrap CfgExpr transparently
+    if isinstance(cond, uni.CfgExpr) {
+        return self.interpret_condition(cond.expr);
+    }
     # Unwrap parenthesized expressions (AtomUnit wraps inner expr in parens)
     if isinstance(cond, uni.AtomUnit) and cond.value is not None {
         return self.interpret_condition(cond.value);
@@ -1809,6 +1875,9 @@ impl GrammarExtractPass.get_token_args(call: uni.FuncCall) -> list {
 
 """Extract a FuncCall from an expression, if present."""
 impl GrammarExtractPass.get_call_from_expr(expr: uni.Expr) -> uni.FuncCall | None {
+    if isinstance(expr, uni.CfgExpr) {
+        return self.get_call_from_expr(expr.expr);
+    }
     if isinstance(expr, uni.FuncCall) {
         return expr;
     }

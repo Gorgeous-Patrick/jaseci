@@ -7,12 +7,8 @@ import marshal;
 import os;
 import sys;
 import types;
-import from typing { Any }
 import from jaclang.cli.console { console }
-import from jaclang.cli.commands.cli_helpers {
-    ensure_jac_runtime as _ensure_jac_runtime,
-    proc_file as _proc_file
-}
+import from jaclang.cli.commands.cli_helpers { proc_file as _proc_file }
 
 """Discover jac.toml from the file's directory when an absolute/relative path is given.
 
@@ -28,8 +24,8 @@ def _discover_config_from_file(filename: str) -> None {
     import from jaclang.jac0core.runtime { JacRuntime as Jac }
 
     file_path = Path(filename).resolve();
-    # Store entry file path for runtime utilities (called before _proc_file)
-    Jac.full_target_path = str(file_path);
+    # Seed the bootstrap target so new contexts get the right L3 identity.
+    Jac.set_full_target_path(str(file_path));
     file_dir = file_path.parent;
 
     # Preserve the active profile from any previously loaded config so that
@@ -93,11 +89,22 @@ impl run(
     diagnostics: str = "",
     args: list = []
 ) -> int {
-    _ensure_jac_runtime();
     import from jaclang.jac0core.runtime { JacRuntime as Jac }
     import from jaclang.project.config { get_config }
     # Re-discover config from the file's directory (handles absolute paths)
     _discover_config_from_file(filename);
+    # --no-cache: wipe all .jac_ir/ cache directories under the file's source tree.
+    if not cache {
+        import glob as _glob;
+        import shutil;
+        _src_root = os.path.dirname(os.path.abspath(filename)) or ".";
+        cache_dirs = _glob.glob(
+            os.path.join(_src_root, "**", ".jac_ir"), recursive=True
+        );
+        for cache_dir in cache_dirs {
+            shutil.rmtree(cache_dir, ignore_errors=True);
+        }
+    }
     # Resolve diagnostics level: CLI flag > jac.toml > default ("error")
     if not diagnostics {
         cfg = get_config();
@@ -150,9 +157,7 @@ impl run(
                     na_program._auto_promote_target = full_path;
                     ir_mod = na_program.compile(file_path=full_path);
                     if (
-                        ir_mod
-                        and ir_mod.gen.native_compat
-                        and ir_mod.gen.native_engine
+                        ir_mod and ir_mod.gen.native_compat and ir_mod.gen.native_engine
                     ) {
                         # Auto-promoted native module: execute via JIT
                         import ctypes;
@@ -234,18 +239,17 @@ impl enter(
     entrypoint: str,
     args: list = [],
     main: bool = True,
-    root: str = '',
+    `root: str = '',
     nd: str = ''
 ) -> int {
-    _ensure_jac_runtime();
     import from jaclang.jac0core.runtime { JacRuntime as Jac }
     import from jaclang.jac0core.constructs { WalkerArchetype }
     # Re-discover config from the file's directory (handles absolute paths)
     _discover_config_from_file(filename);
     (base, mod, mach) = _proc_file(filename);
     # Set user root if provided (for permission boundary)
-    if root {
-        mach.set_user_root(root);
+    if `root {
+        mach.set_user_root(`root);
     }
     if filename.endswith('.jac') {
         ret_module = Jac.jac_import(
@@ -287,12 +291,13 @@ impl start(
     api_port: int = 0,
     no_client: bool = False
 ) -> int {
-    _ensure_jac_runtime();
     import from jaclang.jac0core.runtime { JacRuntime as Jac }
     import from pathlib { Path }
     if not Path(filename).exists() {
         if filename == "main.jac" {
-            console.error(f"Error: File 'main.jac' not found in the current directory.");
+            console.error(
+                f"Error: File 'main.jac' not found in the current directory."
+            );
             console.error(f"  Current directory: {os.getcwd()}");
             console.error(
                 "  Please specify a file: jac start <filename.jac> or make sure main.jac exists in the current directory"
@@ -375,7 +380,9 @@ impl start(
             import from jaclang.runtimelib.watcher { JacFileWatcher }
 
             watcher = JacFileWatcher(watch_paths=[base]);
-            hot_reloader = HotReloader(base_path=base, module_name=mod, watcher=watcher);
+            hot_reloader = HotReloader(
+                base_path=base, module_name=mod, watcher=watcher
+            );
             hot_reloader.start();
             # Connect the hot reloader to the server for HMR support
             if server?.enable_hmr {
@@ -415,9 +422,7 @@ impl start(
                 _print_startup_message(
                     dev,
                     no_client,
-                    vite_port
-                        if (dev and not no_client)
-                        else actual_port,
+                    vite_port if (dev and not no_client) else actual_port,
                     actual_port,
                     base
                 )
@@ -449,15 +454,26 @@ impl start(
     }
 }
 
+"""Return True if watchdog is importable in the current process."""
+def _watchdog_importable -> bool {
+    import importlib;
+    try {
+        importlib.invalidate_caches();
+        import watchdog;
+        return True;
+    } except ImportError {
+        return False;
+    }
+}
+
 """Ensure watchdog is installed, auto-install if missing."""
 def _ensure_watchdog_installed -> bool {
     import from jaclang.project.config { get_config }
-    import from jaclang.project.dependencies { DependencyInstaller }
+    import from jaclang.project.dependencies { DependencyInstaller, add_venv_to_path }
 
-    try {
-        import watchdog;
+    if _watchdog_importable() {
         return True;
-    } except ImportError { }
+    }
 
     config = get_config();
     if config is None {
@@ -471,8 +487,18 @@ def _ensure_watchdog_installed -> bool {
     );
     installer = DependencyInstaller(config=config, verbose=False);
     if installer.install_package(["watchdog>=3.0.0"]) {
-        console.success("watchdog installed");
-        return True;
+        add_venv_to_path(config);
+        if _watchdog_importable() {
+            console.success("watchdog installed");
+            return True;
+        }
+        console.error(
+            "\n  Error: watchdog was installed in the project venv but cannot be imported.\n"
+        );
+        console.error(
+            "  Run 'jac install --dev' using a Jac install that matches the project venv Python version.\n"
+        );
+        return False;
     }
     console.error("\n  Error: Failed to install watchdog\n");
     return False;
@@ -575,7 +601,7 @@ def _print_startup_message(
 }
 
 """Start Vite dev server for HMR mode."""
-def _start_vite_dev_server(base_path: str, vite_port: int, api_port: int) -> Any {
+def _start_vite_dev_server(base_path: str, vite_port: int, api_port: int) -> any {
     import from pathlib { Path }
 
     try {

@@ -1,6 +1,6 @@
 # jac-client Reference
 
-jac-client adds client-side compilation to Jac so you can write React-style UI components using `cl { }` blocks or `.cl.jac` files. The compiler separates your code automatically -- server-side logic compiles to Python, while client-side components compile to JavaScript with React as the rendering engine.
+jac-client adds client-side compilation to Jac so you can write React-style UI components using `cl { }` blocks (or `.cl.jac` files). The compiler separates your code automatically -- server-side logic compiles to Python, while client-side components compile to JavaScript with React as the rendering engine.
 
 You also get project scaffolding (`jac create --use client`), npm dependency management, a Vite-powered dev server with HMR, and automatic HTTP bridge generation so your client components can call server walkers without manual API wiring. This reference covers installation, project structure, the module system, component authoring, and build configuration.
 
@@ -29,15 +29,19 @@ cd myapp
 myapp/
 ├── jac.toml           # Project configuration
 ├── main.jac           # Entry point with app() function
+├── README.md          # Project readme
+├── AGENTS.md          # Agent guide for the project
 ├── components/        # Reusable components
-│   └── Button.tsx     # TypeScript components supported
-└── styles/            # CSS files
-    └── main.css
+│   └── Button.cl.jac  # Example component (.cl.jac = client-side)
+└── assets/            # Static assets (images, fonts)
 ```
+
+TypeScript/TSX and CSS files are also supported -- drop a `.tsx` component or
+a `.css` file anywhere in the project and import it from your Jac code.
 
 ### The `.cl.jac` Convention
 
-Files ending in `.cl.jac` are automatically treated as client-side code -- no `cl { }` wrapper needed:
+Files ending in `.cl.jac` are automatically treated as client-side code -- no `cl { }` block needed:
 
 ```jac
 # components/Header.cl.jac -- automatically client-side
@@ -46,7 +50,7 @@ def:pub Header() -> JsxElement {
 }
 ```
 
-This is equivalent to wrapping the contents in `cl { }` in a regular `.jac` file.
+This is equivalent to wrapping a regular `.jac` file's contents in a `cl { }` block.
 
 ---
 
@@ -65,7 +69,6 @@ import sys, json;
 import datetime as dt;
 
 # From import
-import from typing { List, Dict, Optional }
 import from math { sqrt, pi, log as logarithm }
 
 # Relative imports
@@ -113,20 +116,20 @@ walker:priv InternalProcess { }
 
 ## Server-Side Development
 
-### Server Code Blocks
+### Server Sections
 
 ```jac
-sv {
-    # Server-only block
-    node User {
-        has email: str;
-    }
+# Server-only section
+node User {
+    has email: str;
 }
 
-# Single-statement form (no braces)
+# Single-statement form (no header, no braces)
 sv import from .database { connect_db }
 sv node SecretData { has value: str; }
 ```
+
+> **Note on `sv import` between two server modules.** When both the importer and the importee are server-context modules running as separate microservices, `sv import` generates HTTP client stubs instead of pulling the provider into the consumer's process. The same source also works as a monolith. See [Microservice Interop (sv-to-sv)](jac-scale.md#microservice-interop-sv-to-sv) in the jac-scale reference for details.
 
 ### REST API with jac start
 
@@ -145,8 +148,11 @@ walker:pub GetUsers {
 
 Start the server:
 
+!!! note
+    `main.jac` is the default entry point. All `jac start` commands below omit the filename. If your entry point differs (e.g., `app.jac`), pass it explicitly: `jac start app.jac`.
+
 ```bash
-jac start main.jac --port 8000
+jac start --port 8000
 ```
 
 ### Typed Object Passing
@@ -161,11 +167,11 @@ node Task {
 
 # Server: return typed objects directly
 def:pub get_tasks -> list[Task] {
-    return [root()-->][?:Task];
+    return [root-->][?:Task];
 }
 
 def:pub create_task(title: str) -> Task {
-    task = root() ++> Task(title=title);
+    task = root ++> Task(title=title);
     return task[0];
 }
 
@@ -227,9 +233,9 @@ with entry {
 
 ---
 
-## Client Blocks
+## Client Sections
 
-Use `cl { }` to define client-side (React) code:
+Wrap client-side (React) code in a `cl { ... }` block -- the braces bracket exactly the tagged region, which is the clearest way to mix client and server code in one file:
 
 ```jac
 cl {
@@ -241,6 +247,24 @@ cl {
 }
 ```
 
+A `cl { ... }` block also works inside a function or class body to locally override the active codespace. In `.cl.jac` files, the whole file is already client-side, so no wrapper is needed.
+
+### Section Headers
+
+As an alternative to a block, the `to cl:` section header tags **every following module-level element** as client-side, until the next `to X:` header or end of file. This is convenient for a file that is mostly client code, since it avoids a wrapping block:
+
+```jac
+to cl:
+
+def:pub app() -> JsxElement {
+    return <div>
+        <h1>Hello, World!</h1>
+    </div>;
+}
+```
+
+You can switch back with `to sv:`, `to na:`, or end the file.
+
 ### Single-Statement Forms
 
 For one-off client-side declarations, use the single-statement `cl` prefix:
@@ -250,10 +274,9 @@ cl import from react { useState }
 cl glob THEME: str = "dark";
 ```
 
-This also works for component definitions, which is the preferred shorthand for single-component files:
+This also works for component definitions -- a handy shorthand for a single tagged declaration inside a mostly-server file:
 
 ```jac
-# Equivalent to wrapping in cl { }
 cl def:pub app -> JsxElement {
     has count: int = 0;
     return <div>Count: {count}</div>;
@@ -278,14 +301,19 @@ cl {
 
 ### Function Components
 
+Declare each prop as a named, typed parameter -- the type-checker validates
+every JSX call site per attribute. `children` is the special prop that holds
+the JSX nested between a component's tags:
+
 ```jac
 cl {
-    def:pub Button(props: dict) -> JsxElement {
-        return <button
-            className={props.get("className", "")}
-            onClick={props.get("onClick")}
-        >
-            {props.children}
+    def:pub Button(
+        className: str = "",
+        onClick: MouseEventHandler = None,
+        children: any = None
+    ) -> JsxElement {
+        return <button className={className} onClick={onClick}>
+            {children}
         </button>;
     }
 }
@@ -295,11 +323,11 @@ cl {
 
 ```jac
 cl {
-    def:pub Card(props: dict) -> JsxElement {
+    def:pub Card(title: str, description: str = "", children: any = None) -> JsxElement {
         return <div className="card">
-            <h2>{props["title"]}</h2>
-            <p>{props["description"]}</p>
-            {props.children}
+            <h2>{title}</h2>
+            <p>{description}</p>
+            {children}
         </div>;
     }
 }
@@ -327,7 +355,7 @@ cl {
 
 ### The `has` Keyword
 
-Inside `cl { }` blocks, `has` creates reactive state:
+Inside client-tagged code (a `cl { }` block, a `.cl.jac` file, or a `to cl:` section), `has` creates reactive state:
 
 ```jac
 cl {
@@ -471,11 +499,11 @@ cl {
 
     glob AppContext = createContext(None);
 
-    def:pub AppProvider(props: dict) -> JsxElement {
+    def:pub AppProvider(children: any = None) -> JsxElement {
         has theme: str = "light";
 
         return <AppContext.Provider value={{"theme": theme}}>
-            {props.children}
+            {children}
         </AppContext.Provider>;
     }
 
@@ -540,7 +568,7 @@ cl {
 
         # Fetch data on component mount
         async can with entry {
-            result = root() spawn get_tasks();
+            result = root spawn get_tasks();
             if result.reports and result.reports.length > 0 {
                 tasks = result.reports[0];
             }
@@ -571,8 +599,8 @@ The `spawn` call returns a result object:
 
 | Syntax | Description |
 |--------|-------------|
-| `root() spawn WalkerName()` | Spawn walker from root node |
-| `root() spawn WalkerName(arg=value)` | Spawn with parameters |
+| `root spawn WalkerName()` | Spawn walker from root node |
+| `root spawn WalkerName(arg=value)` | Spawn with parameters |
 | `node_id spawn WalkerName()` | Spawn from specific node |
 
 The spawn call returns a result object with:
@@ -591,7 +619,7 @@ cl {
 
         # Create
         async def handle_add(title: str) -> None {
-            result = root() spawn add_task(title=title);
+            result = root spawn add_task(title=title);
             if result.reports and result.reports.length > 0 {
                 tasks = tasks + [result.reports[0]];
             }
@@ -599,7 +627,7 @@ cl {
 
         # Update
         async def handle_toggle(task_id: str) -> None {
-            result = root() spawn toggle_task(task_id=task_id);
+            result = root spawn toggle_task(task_id=task_id);
             if result.reports and result.reports[0]["success"] {
                 tasks = [
                     {**t, "completed": not t["completed"]} if t["id"] == task_id else t
@@ -610,7 +638,7 @@ cl {
 
         # Delete
         async def handle_delete(task_id: str) -> None {
-            result = root() spawn delete_task(task_id=task_id);
+            result = root spawn delete_task(task_id=task_id);
             if result.reports and result.reports[0]["success"] {
                 tasks = [t for t in tasks if t["id"] != task_id];
             }
@@ -635,7 +663,7 @@ cl {
         async can with entry {
             loading = True;
             try {
-                result = root() spawn get_data();
+                result = root spawn get_data();
                 if result.reports and result.reports.length > 0 {
                     data = result.reports[0];
                 }
@@ -669,7 +697,7 @@ cl {
         has data: any = None;
 
         async def fetch_data() -> None {
-            result = root() spawn get_live_data();
+            result = root spawn get_live_data();
             if result.reports and result.reports.length > 0 {
                 data = result.reports[0];
             }
@@ -677,9 +705,11 @@ cl {
 
         async can with entry { await fetch_data(); }
 
-        useEffect(lambda -> None {
-            interval = setInterval(lambda -> None { fetch_data(); }, 5000);
-            return lambda -> None { clearInterval(interval); };
+        # The outer lambda must NOT be annotated `-> None` -- a cleanup effect
+        # returns a function, so `-> None` would be a type error.
+        useEffect(lambda {
+            interval = setInterval(lambda { fetch_data(); }, 5000);
+            return lambda { clearInterval(interval); };
         }, []);
 
         return <div>{data and <p>Last updated: {data["timestamp"]}</p>}</div>;
@@ -735,7 +765,7 @@ cl {
         params = useParams();
         return <div>
             <Link to="/users">Back</Link>
-            <h1>User {params.id}</h1>
+            <h1>User {params["id"]}</h1>
         </div>;
     }
 }
@@ -825,8 +855,8 @@ cl {
 ```jac
 cl import from "@jac/runtime" { Outlet }
 
-# pages/layout.jac -- root layout wrapping all pages
 cl {
+    # pages/layout.jac -- root layout wrapping all pages
     def:pub layout() -> JsxElement {
         return <>
             <nav>...</nav>
@@ -834,10 +864,8 @@ cl {
             <footer>...</footer>
         </>;
     }
-}
 
-# pages/dashboard/layout.jac -- nested dashboard layout
-cl {
+    # pages/dashboard/layout.jac -- nested dashboard layout
     def:pub DashboardLayout() -> JsxElement {
         # Child routes render where Outlet is placed
         return <div>
@@ -856,7 +884,7 @@ Import from `@jac/runtime`:
 
 | Hook | Returns | Usage |
 |------|---------|-------|
-| `useParams()` | dict | Access URL parameters: `params.id` |
+| `useParams()` | dict | Access URL parameters: `params["id"]` |
 | `useNavigate()` | function | Navigate programmatically: `navigate("/path")`, `navigate(-1)` |
 | `useLocation()` | object | Current location: `location.pathname`, `location.search` |
 | `Link` | component | Navigation: `<Link to="/path">Text</Link>` |
@@ -998,8 +1026,8 @@ Use `AuthGuard` to protect routes in file-based routing:
 ```jac
 cl import from "@jac/runtime" { AuthGuard, Outlet }
 
-# pages/(auth)/layout.jac
 cl {
+    # pages/(auth)/layout.jac
     def:pub layout() -> JsxElement {
         return <AuthGuard redirect="/login">
             <Outlet />
@@ -1052,6 +1080,72 @@ cl {
 }
 ```
 
+### Scoped CSS (`.style.css` annexes)
+
+A `.style.css` file that **shares a base name** with a `.cl.jac` module is
+treated as a scoped-style annex -- the two files form one logical module. The
+compiler hashes every class selector the annex declares with a per-module
+digest, rewrites the CSS rule selectors, and rewrites JSX `className`/`class`
+literals in the module that reference a declared class to the same hashed
+form. Class names are scoped to the component automatically, so two modules
+can both declare `.card` without colliding.
+
+Given `Card.style.css` beside `Card.cl.jac`:
+
+```css
+/* Card.style.css */
+.card {
+    padding: 1rem;
+    border: 1px solid #ccc;
+}
+.card-title { font-weight: 600; }
+
+/* :global(...) opts out of scoping -- the inner selector is kept verbatim. */
+:global(html) { box-sizing: border-box; }
+```
+
+```jac
+# Card.cl.jac
+def:pub Card(title: str, body: str) -> JsxElement {
+    return <article className="card">
+        <h2 className="card-title">{title}</h2>
+        <p>{body}</p>
+    </article>;
+}
+```
+
+the compiler hashes the selectors and rewrites the matching `className`
+literals to agree (hashes are stable per module):
+
+```js
+import "./Card.css";
+function Card(props) {
+  const {title, body} = props;
+  return __jacJsx("article", {"className": "card-1419142b"},
+    [__jacJsx("h2", {"className": "card-title-769bf254"}, [title]),
+     __jacJsx("p", {}, [body])]);
+}
+```
+
+```css
+/* emitted sidecar Card.css */
+.card-1419142b { padding: 1rem; border: 1px solid #ccc; }
+.card-title-769bf254 { font-weight: 600; }
+html { box-sizing: border-box; }   /* :global(...) unwrapped */
+```
+
+Key points:
+
+- **No import needed.** The annex is paired by base name; the compiler injects
+  the side-effect `import "./<base>.css";` for you.
+- **Only declared classes are rewritten.** A `className` token with no matching
+  selector in the annex is left untouched, so you can mix scoped and global
+  (e.g. Tailwind) classes in the same `className`.
+- **`:global(...)` is the escape hatch** for selectors that must stay
+  unscoped (resets, third-party class targets, element selectors).
+- Scoped styles are per-module; for app-wide styles (themes, resets, Tailwind)
+  use a plain shared `import "./global.css";` instead.
+
 ### cn() Utility (Tailwind/shadcn)
 
 ```jac
@@ -1078,16 +1172,15 @@ cl {
 }
 ```
 
-> **Note:** The `cn()` utility is a local file you create in your project. You can write it entirely in Jac (no TypeScript needed):
+> **Note:** In jac-shadcn projects `jac add --shadcn` / `jac create --use jac-shadcn` generate `lib/utils.cl.jac` for you. You can also write `cn()` by hand -- entirely in Jac (no TypeScript needed) with a variadic parameter:
 >
 > ```jac
 > # lib/utils.cl.jac
-> import from "clsx" { clsx }
-> import from "tailwind-merge" { twMerge }
+> cl import from "clsx" { clsx }
+> cl import from "tailwind-merge" { twMerge }
 >
-> def:pub cn(inputs: Any) -> str {
->     args = [].slice.call(arguments);
->     return twMerge(clsx(args));
+> def:pub cn(*inputs: any) -> str {
+>     return twMerge(clsx(inputs));
 > }
 > ```
 >
@@ -1110,11 +1203,73 @@ cl {
 
             {items}
 
-            <button {...props}>Click</button>
+            <button {**props} {variable}>Click</button>
         </div>;
     }
 }
 ```
+
+Two brace forms appear in attribute position. `{**props}` is a **spread** -- it forwards every key of `props` as an attribute. The JS-idiomatic `{...props}` spread is also accepted but emits `W0063` ("prefer `{**expr}`"), so `{**props}` is the canonical Jac form. `{variable}` is the **`{name}` shorthand** -- when an attribute's value is a variable of the same name it expands to `variable={variable}`, so `<Box {title} {count} {onClick}/>` is sugar for `<Box title={title} count={count} onClick={onClick}/>`. The shorthand is still validated per-attribute against the component signature.
+
+### Suspense Fallbacks: `try` with `awaiting`
+
+A `try` slot whose body needs to wait on async work can name its loading state with an `awaiting` clause. The cl lowering wraps the slot in `<JacAwaiting fallback={...}>{...}</JacAwaiting>` from `@jac/runtime` -- a `React.Suspense` shim -- so the `awaiting` body renders during the dispatched-but-not-joined window and the `try` body takes over once it settles. On `sv` and `na` targets the `awaiting` body is dropped with a `W2020` warning until the streaming-SSR and native-thread lowerings land.
+
+```jac
+cl {
+    def:pub Profile(user_id: int) -> JsxElement {
+        return <article>
+            {try {
+                <ResolvedProfile id={user_id}/>
+            } awaiting {
+                <p>Loading profile…</p>
+            }}
+        </article>;
+    }
+}
+```
+
+Add an `except` arm to name the error state. On the cl target the slot then lowers to a `<JacClientErrorBoundary fallback={...}>` (auto-imported from `@jac/runtime`, where it re-exports [`react-error-boundary`'s `ErrorBoundary`](#jacclienterrorboundary)) **wrapping** the `<JacAwaiting>` node, so a throw in the resolved `try` body -- including from data the suspense shim awaited -- is caught and the `except` body renders in its place:
+
+```jac
+cl {
+    def:pub Profile(user_id: int) -> JsxElement {
+        return <article>
+            {try {
+                <ResolvedProfile id={user_id}/>
+            } awaiting {
+                <p>Loading profile…</p>
+            } except Exception {
+                <p>Could not load profile.</p>
+            }}
+        </article>;
+    }
+}
+```
+
+Because a JS error boundary catches every error regardless of declared type, per-type dispatch and the optional `except ... as <name>` binding are not modeled -- the except bodies are concatenated in source order into the boundary's fallback. See the [components tutorial](../../tutorials/fullstack/components.md#try-with-awaiting-suspense-shaped-fallback) for the full model -- semantics, the `flow`/`wait` integration story, and the v1 caveats (`finally` rejected via `E2022`).
+
+### Comments inside JSX
+
+Use Jac's block-comment syntax wrapped in a JSX expression slot -- `{#* ... *#}` -- to leave a note inside a JSX tree. The comment renders nothing and is preserved verbatim by `jac format`:
+
+```jac
+cl {
+    def:pub App() -> JsxElement {
+        return <div>
+            <h1>Hello</h1>
+            {#* TODO: replace with a custom Button component *#}
+            <button>Click me</button>
+        </div>;
+    }
+}
+```
+
+A few rules to keep in mind:
+
+- **Line comments don't work in JSX text.** A `#` outside an expression slot is treated as literal text -- HTML allows `#` in content, so the lexer can't reinterpret it. Wrap the note in `{#* ... *#}` instead.
+- **The standard React form `{/* ... */}` is not supported.** Inside an expression slot, `/` and `*` parse as Jac operators, so a JSX comment must use Jac-native `{#* ... *#}`.
+- **`{#* ... *#}` is the only no-op JSX slot.** An empty `{}` is still a parse error -- the slot must contain either a real expression or a block comment.
 
 ---
 
@@ -1367,28 +1522,30 @@ This generates `.jac/client/configs/postcss.config.js` and `.jac/client/configs/
 
 ### shadcn/ui Configuration
 
-The `[jac-shadcn]` section configures the shadcn/ui component system. This controls the visual style, color theme, font, and border radius used by shadcn components in your project.
+The `[jac-shadcn]` section configures the shadcn/ui component system, provided by the [`jac-super`](https://pypi.org/project/jac-super/) plugin. It controls the visual style, color theme, font, and border radius used by shadcn components in your project. Everything is resolved **offline** from data bundled with `jac-super`:
+
+- `jac create --use jac-shadcn [--style … --theme … --font … --radius … --baseColor … --menuAccent …]` scaffolds a themed starter and writes these fields here.
+- `jac retheme [--theme … --font … --style …]` regenerates `global.css` from this section (and re-resolves installed components when `style` changes).
+- `jac add --shadcn <name>` reads `style` to choose which style's Tailwind classes to emit.
 
 ```toml
 [jac-shadcn]
-style = "nova"            # Component style variant
+style = "nova"            # Component style variant (read by `jac add`)
 baseColor = "neutral"     # Base color palette
 theme = "amber"           # Accent color theme
 font = "inter"            # Font family
 radius = "default"        # Border radius preset
 menuAccent = "subtle"     # Menu accent style
 menuColor = "default"     # Menu color scheme
-registry = "https://jac-shadcn.jaseci.org"  # Component registry URL
 ```
 
 | Key | Description | Examples |
 |-----|-------------|---------|
-| `style` | Component style variant | `"nova"`, `"default"` |
-| `baseColor` | Base neutral color palette | `"neutral"`, `"slate"`, `"zinc"`, `"gray"` |
+| `style` | Component style variant -- read by `jac add` to resolve bundled components | `"nova"`, `"vega"`, `"maia"`, `"lyra"`, `"mira"` |
+| `baseColor` | Base neutral color palette | `"neutral"`, `"stone"`, `"zinc"`, `"gray"` |
 | `theme` | Accent/primary color | `"amber"`, `"blue"`, `"green"`, `"red"` |
-| `font` | Typography font family | `"inter"`, `"geist"`, `"system"` |
-| `radius` | Border radius preset | `"default"`, `"sm"`, `"md"`, `"lg"`, `"none"` |
-| `registry` | shadcn component registry URL | Custom registry for Jac-compatible components |
+| `font` | Typography font family | `"figtree"` (default), `"inter"`, `"geist"`, `"outfit"` |
+| `radius` | Border radius preset | `"default"`, `"none"`, `"small"`, `"medium"`, `"large"` |
 
 shadcn components use semantic color tokens (`bg-primary`, `text-foreground`, `border-border`) that automatically adapt to the configured theme. See the [NPM Packages & UI Libraries tutorial](../../tutorials/fullstack/npm-and-libraries.md) for component authoring patterns.
 
@@ -1448,6 +1605,17 @@ minify = true
 
 Defaults to `true` for `jac build` and `false` for `jac start --dev`.
 
+### Base Path
+
+Control the base path for asset resolution (JS/CSS) in the generated `index.html`. Useful for deploying the app on a subpath (e.g., `https://example.com/myapp/`).
+
+```toml
+[plugins.client]
+base_path = "/myapp/"
+```
+
+Defaults to `"/"`. Can also be set to `"./"` for relative path resolution if needed.
+
 ---
 
 ## CLI Commands
@@ -1461,8 +1629,10 @@ Defaults to `true` for `jac build` and `false` for `jac start --dev`.
 | `jac start --dev` | Dev server with HMR |
 | `jac start --client pwa` | Start PWA (builds then serves) |
 | `jac start --client desktop` | Start desktop app in dev mode |
+| `jac start --client mobile` | Start mobile app on device/simulator |
 | `jac build` | Build for production (web) |
 | `jac build --client desktop` | Build desktop app |
+| `jac build --client mobile` | Build mobile app (Android/iOS) |
 | `jac build --client pwa` | Build PWA with offline support |
 | `jac setup desktop` | One-time desktop target setup (Tauri) |
 | `jac setup pwa` | One-time PWA setup (icons directory) |
@@ -1494,8 +1664,10 @@ jac build [filename] [--client TARGET] [-p PLATFORM]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `filename` | Path to .jac file | `main.jac` |
-| `--client` | Build target (`web`, `desktop`, `pwa`) | `web` |
-| `-p, --platform` | Desktop platform (`windows`, `macos`, `linux`, `all`) | Current platform |
+| `--client` | Build target (`web`, `desktop`, `pwa`, `mobile`) | `web` |
+| `-p, --platform` | Platform for desktop (`windows`, `macos`, `linux`, `all`) or mobile (`android`, `ios`) builds | Current platform |
+
+For desktop builds, the **client-only** variant (web bundle inside a Tauri shell, no bundled sidecar) is enabled by setting `client_only = true` under `[desktop]` in `jac.toml` rather than via a CLI flag -- see [Desktop Target → Client-Only Mode](#client-only-mode). In all desktop builds the build environment sets `JAC_BUILD=1` so import-time server starts stay inert.
 
 **Examples:**
 
@@ -1517,6 +1689,12 @@ jac build --client desktop --platform windows
 
 # Build for all platforms
 jac build --client desktop --platform all
+
+# Build mobile app for Android
+jac build --client mobile --platform android
+
+# Build mobile app for iOS
+jac build --client mobile --platform ios
 ```
 
 ### jac setup
@@ -1524,12 +1702,13 @@ jac build --client desktop --platform all
 One-time initialization for a build target.
 
 ```bash
-jac setup <target>
+jac setup <target> [-p PLATFORM]
 ```
 
 | Option | Description |
 |--------|-------------|
-| `target` | Target to setup (`desktop`, `pwa`) |
+| `target` | Target to setup (`desktop`, `mobile`, `pwa`) |
+| `-p, --platform` | Mobile setup platform (`android`, `ios`, `all`) |
 
 **Examples:**
 
@@ -1539,6 +1718,12 @@ jac setup desktop
 
 # Setup PWA target (creates pwa_icons/ directory)
 jac setup pwa
+
+# Setup mobile target for one platform only
+jac setup mobile --platform ios
+
+# Setup both mobile platforms (macOS only)
+jac setup mobile --platform all
 ```
 
 ### Extended Core Commands
@@ -1564,6 +1749,7 @@ jac-client supports building for multiple deployment targets from a single codeb
 |--------|---------|--------|----------------|
 | **Web** (default) | `jac build` | `.jac/client/dist/` | No |
 | **Desktop** (Tauri) | `jac build --client desktop` | Native installers | Yes |
+| **Mobile** (Capacitor) | `jac build --client mobile --platform android` | Android APK / iOS build products | Yes |
 | **PWA** | `jac build --client pwa` | Installable web app | No |
 
 ### Web Target (Default)
@@ -1579,12 +1765,16 @@ jac start --dev              # Dev server with HMR
 
 ### Desktop Target (Tauri)
 
-Native desktop applications using Tauri. Creates installers for Windows, macOS, and Linux.
+Native desktop applications using Tauri. The full-stack Jac app -- frontend bundle, Jac runtime, and your backend walkers/functions -- ships as a single installer for Windows, macOS, and Linux. End users do not need Python or Node installed.
+
+**Architecture:**
+
+A desktop build produces a Tauri shell that hosts a webview pointed at a bundled **sidecar** -- a PyInstaller-frozen executable containing Python, jaclang, jac-client, your `.jac` sources, and any configured plugins. On launch, Tauri spawns the sidecar on a free local port, reads `JAC_SIDECAR_PORT=<port>` from its stdout, and injects the resulting URL into the webview before any page JavaScript runs. The webview is the same client bundle the web target produces; the sidecar is the same backend `jac start` would run, just frozen.
 
 **Prerequisites:**
 
 - Rust/Cargo: [rustup.rs](https://rustup.rs)
-- Build tools (platform-specific)
+- Platform build tools (Visual Studio Build Tools on Windows, Xcode Command Line Tools on macOS, `webkit2gtk` + `libssl` + `librsvg` on Linux)
 
 **Setup & Build:**
 
@@ -1593,7 +1783,7 @@ Native desktop applications using Tauri. Creates installers for Windows, macOS, 
 jac setup desktop
 
 # 2. Development with hot reload
-jac start main.jac --client desktop --dev
+jac start --client desktop --dev
 
 # 3. Build installer for current platform
 jac build --client desktop
@@ -1606,11 +1796,191 @@ jac build --client desktop --platform linux
 
 **Output:** Installers in `src-tauri/target/release/bundle/`:
 
-- Windows: `.exe` installer
+- Windows: `.exe` installer (NSIS) or `.msi`
 - macOS: `.dmg` or `.app` bundle
 - Linux: `.AppImage`, `.deb`, or `.rpm`
 
-**Configuration:** Edit `src-tauri/tauri.conf.json` to customize window size, title, and app metadata.
+**Configuration:** Window size, title, identifier, and other Tauri metadata are configured under `[desktop]` in `jac.toml` (the build regenerates `src-tauri/tauri.conf.json` from it on every build):
+
+```toml
+[desktop]
+name = "MyApp"
+identifier = "com.example.myapp"
+version = "1.0.0"
+
+[desktop.window]
+title = "MyApp"
+width = 1200
+height = 800
+min_width = 800
+min_height = 600
+
+[desktop.platforms]
+windows = true
+macos = true
+linux = true
+```
+
+**Python Dependencies:**
+
+Desktop builds automatically install and bundle Python dependencies from `jac.toml`:
+
+```toml
+[dependencies]
+websockets = ">=12.0"
+httpx = ">=0.27.0"
+```
+
+These are auto-installed into the bundling environment before PyInstaller runs -- no manual `pip install` needed. During the build, `JAC_BUILD=1` is set in the environment so any Jac code that auto-starts a server at import time stays inert (preventing port conflicts and unnecessary work).
+
+**Plugin Bundling:**
+
+Desktop builds bundle Jac plugins into the sidecar executable using PyInstaller's `collect_all()` plus `importlib.metadata.requires()` for transitive dependency discovery. Configure which plugins to include via `[desktop.plugins]` in `jac.toml`:
+
+```toml
+[desktop.plugins]
+jac_scale = true   # jac-scale: FastAPI server, auth, persistence (default: true)
+byllm = true       # byllm/litellm for LLM support (default: true)
+jac_coder = true   # jac-coder: AI coding features (default: true)
+jac_mcp = true     # jac-mcp: MCP server integration (default: true)
+```
+
+**Notes:**
+
+- Plugins must be installed (`pip install jac-scale byllm jac-coder jac-mcp`) before building -- the build collects them from your current Python environment.
+- `jac_client` itself is **always** bundled as a core package regardless of this config, because the sidecar entry point imports it directly. Setting `jac_client = false` is ignored.
+- The build excludes build-artifact directories (`src-tauri/`, `node_modules/`, `dist/`, `.jac/client/`) when collecting `.jac` files, so rebuilds do not recursively nest previous sidecar bundles.
+
+**Bundled Jac Sources:**
+
+All `.jac` files, `jac.toml`, and the `assets/` directory are copied into `src-tauri/jac/` and shipped as Tauri bundle resources. At runtime, the sidecar looks up `main.jac` in this bundled location first, falling back to parent directories. This is what makes desktop installs fully self-contained.
+
+**Extra Data Files:**
+
+Ship additional files into the sidecar bundle via `[desktop.bundle] extra_data` in `jac.toml`. Values are [glob patterns](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob) rooted at the project directory. Matches keep their relative paths inside the bundle, so `Path(__file__).parent / "config/prompts.yaml"` still resolves at runtime.
+
+```toml
+[desktop.bundle]
+extra_data = [
+    "config/*.yaml",
+    "data/seed.json",
+    "prompts/**/*.txt",
+]
+```
+
+#### Data Persistence on Installed Builds
+
+Installed desktop apps live in **read-only** locations -- `/usr/lib/`, `/opt/`, `C:\Program Files\`, or an AppImage's `/tmp/.mount_AppXXX/` squashfs. The Jac runtime and jac-scale write to disk relative to the working directory by default (the SQLite database `database.db`, the `.jac/data/` directory, session files), and those writes will fail or crash on a read-only mount.
+
+The sidecar resolves this at startup, **before** importing any Jac module, by setting the `JAC_DATA_PATH` environment variable to a writable location and `chdir`-ing into it. The Jac runtime's `get_db_path()` and jac-scale's config loader both honor this variable.
+
+**Default fallback chain** (the sidecar picks the first one that exists or can be created and passes a touch/unlink probe):
+
+| Platform | Default | First fallback | Second fallback |
+|----------|---------|----------------|-----------------|
+| Linux / macOS | `~/.local/share/jac-app` | `~/.jac-app` | `/tmp/jac-app-{uid}` |
+| Windows | `%LOCALAPPDATA%\jac-app` | `~/AppData/Local/jac-app` | `%TEMP%\jac-app` |
+
+**Override the default** by passing `--data-path` to the sidecar (useful when running the bundled sidecar binary by hand for debugging, or when wiring it into a launcher you control):
+
+```bash
+./src-tauri/binaries/jac-sidecar --data-path /var/lib/myapp
+```
+
+You can also export `JAC_DATA_PATH` before launching the app to point at a custom location for that run. The path you choose must be writable by the user running the app -- the sidecar will probe it and fail loudly if it cannot.
+
+**AppImage-specific environment cleanup:** AppImage runtimes inject `PYTHONHOME`, `PYTHONPATH`, and `PYTHONDONTWRITEBYTECODE` into the environment, which break the bundled Python interpreter inside the sidecar. The generated Tauri `main.rs` strips these variables before spawning the sidecar process.
+
+#### Client-Only Mode
+
+For setups where the desktop app is just a thin native shell around a remote backend (e.g., a hosted jac-scale deployment), set `client_only = true` under `[desktop]` in `jac.toml`:
+
+```toml
+[desktop]
+client_only = true
+
+[plugins.client.api]
+base_url = "https://api.example.com"
+```
+
+In this mode the build:
+
+- **Skips sidecar bundling entirely** -- no PyInstaller step, no Python bundle, smaller installer.
+- **Requires** `[plugins.client.api] base_url` to be set; the build raises a `RuntimeError` if it is missing, since the webview has no local backend to talk to.
+- **Still produces a full Tauri installer** -- only the backend half is omitted.
+
+It is also useful in CI, where you may want to verify the web bundle compiles inside a desktop build without paying for the PyInstaller round-trip.
+
+#### Runtime API URL Injection (Debugging)
+
+Desktop builds do **not** embed the API base URL at compile time. Tauri allocates the sidecar port dynamically, then injects `window.__JAC_API_BASE_URL__` into the webview via an `initialization_script` before any page JavaScript executes. A `get_api_url` Tauri command is also exposed as a fallback for code that needs to query the URL after page load.
+
+If you are debugging an "API not reachable" issue inside an installed desktop app:
+
+1. Run the sidecar binary directly from `src-tauri/binaries/` -- it logs to stderr and prints `JAC_SIDECAR_PORT=<port>` to stdout on startup.
+2. Use the **Debug** page in the `all-in-one` example app (under `examples/all-in-one/pages/debug.jac`), which shows the resolved API base URL, Tauri runtime detection, `get_api_url` invoke results, and interactive walker/HTTP probes.
+3. Check the data path the sidecar settled on -- it logs `[sidecar] Cannot use data path …` lines for any candidate it had to skip.
+
+### Mobile Target (Capacitor)
+
+Native mobile applications for Android and iOS using [Capacitor](https://capacitorjs.com/). The same web bundle the web target produces is wrapped in a native shell, producing an Android APK or an iOS app.
+
+**Prerequisites:**
+
+- Node.js (or Bun)
+- **Android**: Java/JDK 21+, Android SDK ([Android Studio](https://developer.android.com/studio))
+- **iOS** (macOS only): Xcode, Xcode Command Line Tools, [CocoaPods](https://cocoapods.org/)
+
+**Setup & Build:**
+
+```bash
+# 1. One-time setup (defaults from config / host)
+jac setup mobile
+
+# Optional explicit setup platform
+jac setup mobile --platform android
+jac setup mobile --platform ios     # macOS only
+jac setup mobile --platform all     # both on macOS
+
+# 2. Development: build and launch on device/simulator
+jac start main.jac --client mobile                    # Android (default)
+jac start main.jac --client mobile --platform ios
+
+# 3. Build for Android
+jac build --client mobile --platform android
+
+# 4. Build for iOS
+jac build --client mobile --platform ios
+```
+
+**Output:**
+
+- Android: APK in `android/app/build/outputs/apk/`
+- iOS: Xcode build products in `ios/App/build/`
+
+**Configuration** via `[plugins.client.mobile]` in `jac.toml`:
+
+```toml
+[plugins.client.mobile]
+app_name = "My App"
+app_id = "com.example.myapp"
+release = false          # true for release builds
+bundle = false           # true to produce AAB instead of APK (Android)
+default_platform = "android"  # default for jac start --client mobile
+ios_sdk = "iphonesimulator"   # or "iphoneos" for device builds
+ios_destination = "platform=iOS Simulator,name=iPhone 16,OS=latest"
+```
+
+**Notes:**
+
+- `jac setup mobile` uses `--platform` when provided, otherwise `[plugins.client.mobile].default_platform`, otherwise host default (`ios` on macOS, `android` elsewhere).
+- Mobile dev networking is auto-resolved by default; use `--host <ip>` only when you need to force a specific host.
+- Android mobile dev auto-attempts `adb reverse` for Vite/API ports before launching Capacitor.
+- iOS device builds and App Store archives require Xcode provisioning profiles. Use `npx cap open ios` to open the project in Xcode for signing configuration.
+- Android release builds and signing require a keystore configured in `android/app/build.gradle`.
+- Native Capacitor plugins (camera, geolocation, etc.) can be added via `jac add --npm @capacitor/<plugin>` followed by `npx cap sync`.
+
+For a step-by-step tutorial, see [Building a Mobile App](../../tutorials/fullstack/mobile.md).
 
 ### PWA Target
 
@@ -1791,16 +2161,16 @@ jac-client uses [Bun](https://bun.sh/) for package management and JavaScript bun
 
 ```bash
 # Basic
-jac start main.jac
+jac start
 
 # With hot module replacement
-jac start main.jac --dev
+jac start --dev
 
 # HMR without client bundling (API only)
-jac start main.jac --dev --no-client
+jac start --dev --no-client
 
 # Dev server for desktop target
-jac start main.jac --client desktop
+jac start --client desktop
 ```
 
 ### API Proxy
@@ -2074,29 +2444,31 @@ Anchors provide persistent object references across sessions, allowing nodes and
 
 ### Constructing Browser Objects
 
-Jac does not have a `new` keyword. Use `Reflect.construct()` to instantiate browser built-in constructors:
+Jac does not have a JavaScript-style `new` keyword. Use the `new(...)` ambient builtin to instantiate browser built-in constructors; the compiler lowers it to `Reflect.construct(Cls, [args])` in the emitted JavaScript:
 
 <!-- jac-skip -->
 ```jac
 cl {
     # WebSocket
-    ws = Reflect.construct(WebSocket, [url]);
+    ws = new(WebSocket, url);
 
     # URL
-    url = Reflect.construct(URL, [String(baseUrl)]);
+    url = new(URL, String(baseUrl));
 
     # Date
-    now = Reflect.construct(Date, []);
+    now = new(Date);
 
     # Promise
-    p = Reflect.construct(Promise, [lambda(resolve: Any, reject: Any) {
+    p = new(Promise, lambda(resolve: any, reject: any) {
         resolve.call(None, "done");
-    }]);
+    });
 
     # CustomEvent
-    evt = Reflect.construct(CustomEvent, ["my-event", {"detail": data}]);
+    evt = new(CustomEvent, "my-event", {"detail": data});
 }
 ```
+
+`new(Cls, ...args)` is portable: it works in any codespace. On the server it is a thin wrapper for `Cls(*args)`; in `cl` blocks the compiler rewrites the call into `Reflect.construct(Cls, [args])` so it can drive JS class constructors that require `new`.
 
 ### Callback Invocations
 
@@ -2106,7 +2478,7 @@ When passing callbacks to be invoked later, use `.call(None, ...)`:
 ```jac
 cl {
     handler = myCallback;
-    ws.onmessage = lambda(e: Any) {
+    ws.onmessage = lambda(e: any) {
         handler.call(None, JSON.parse(e.data));
     };
 }
@@ -2119,7 +2491,7 @@ Use `glob` for state shared across a module:
 ```jac
 cl {
     glob initialized: bool = False;
-    glob cache: Any = None;
+    glob cache: any = None;
 }
 ```
 
@@ -2133,7 +2505,7 @@ For more patterns, see the [Advanced Patterns & JS Interop tutorial](../../tutor
 
 ```bash
 # Enable with --dev flag
-jac start main.jac --dev
+jac start --dev
 ```
 
 Changes to `.jac` files automatically reload without restart.
