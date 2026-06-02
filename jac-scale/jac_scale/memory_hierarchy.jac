@@ -198,4 +198,5 @@ obj ScaleTieredMemory(TieredMemory) {
     async def acommit(anchor: (Anchor | None) = None) -> None;
     def close -> None;
     def batch_get(ids: list[UUID]) -> dict[UUID, Anchor];
+    def prefetch(ids: Iterable[UUID]) -> None;
 }

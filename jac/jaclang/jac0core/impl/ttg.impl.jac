@@ -41,7 +41,7 @@ impl JacTTGGenerator._find_walker_ast_node(
     if py_module is None {
         return None;
     }
-    file_path = getattr(py_module, '__file__', None);
+    file_path = py_module?.__file__;
     if file_path is None {
         return None;
     }
@@ -105,10 +105,10 @@ impl JacTTGGenerator._extract_edge_step(
     direction = 2;  # Default: outgoing
     # Check if this is an EdgeOpRef
     if isinstance(item, uni.EdgeOpRef) {
-        fc = getattr(item, 'filter_cond', None);
+        fc = item?.filter_cond;
         if fc is not None {
             # Extract edge type from f_type
-            ft = getattr(fc, 'f_type', None);
+            ft = fc?.f_type;
             if ft is not None {
                 # Check if f_type is already a Name/Token directly
                 type_name: (str | None) = None;
@@ -130,7 +130,7 @@ impl JacTTGGenerator._extract_edge_step(
             }
         }
         # Extract direction
-        edge_dir = getattr(item, 'edge_dir', None);
+        edge_dir = item?.edge_dir;
         if edge_dir is not None {
             dir_name = getattr(edge_dir, 'name', '');
             if 'IN' in str(dir_name) {
@@ -143,7 +143,7 @@ impl JacTTGGenerator._extract_edge_step(
         }
     } elif isinstance(item, uni.FilterCompr) {
         # This is a node filter like [?:Profile]
-        ft = getattr(item, 'f_type', None);
+        ft = item?.f_type;
         if ft is not None {
             # Check if f_type is already a Name/Token directly
             type_name: (str | None) = None;
@@ -179,7 +179,7 @@ impl JacTTGGenerator._extract_visits_from_ast(
 ) -> list[VisitType] {
     warch_cls = `type(warch);
     # Check cache first.
-    cached = getattr(warch_cls, '__jac_ttg_visits__', None);
+    cached = warch_cls?.__jac_ttg_visits__;
     if (cached is not None and len(cached) > 0) {
         return cached;
     }
@@ -340,21 +340,9 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
                 break;
             }
         }
-        # Only prefetch edges for nodes that actually fire a visit statement.
-        # batch_load_nodes is only called when refs() runs a visit, so
-        # target-only nodes (no matching visit pattern) need no edge prefetch.
-        if will_visit and cur_lid is not None {
-            for (_et, _nbr_lid, eid) in _adj_index.get(cur_lid, []) {
-                if len(prefetch) >= max_length {
-                    break;
-                }
-                if eid not in seen {
-                    seen.add(eid);
-                    prefetch.append(eid);
-                    _edge_count += 1;
-                }
-            }
-        }
+        # Edge prefetch skipped: the topology index resolves traversal
+        # paths directly to target node IDs without materializing edges.
+        # Walkers with edge-triggered abilities would need this restored.
     }
     import from logging { getLogger as _getLogger }
     _avg_resolve = _resolve_ms / _resolve_calls if _resolve_calls > 0 else 0.0;
