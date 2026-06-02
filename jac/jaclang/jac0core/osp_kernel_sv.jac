@@ -333,46 +333,61 @@ async def _run_untyped_async(slots: list[Slot], a: any, b: any) -> None {
     }
 }
 
-"""Async DFS-recursive visit (mirrors `osp_kernel._visit_recursive` but
+"""Async iterative DFS visit (mirrors `osp_kernel._visit_recursive` but
 `await`s coroutine returns from abilities)."""
 async def _visit_recursive_async(
     rt: OspRuntime, scope: WalkScope, wdesc: WalkerDesc, loc: any
 ) -> bool {
-    scope.path.append(loc);
-    loc_tag: int = rt.tag_of(loc);
-    ndesc = rt.node_desc(loc_tag);
-    await _run_typed_async(rt, wdesc.entry, scope.wlk, loc);
-    if scope.disengaged {
-        return False;
-    }
-    await _run_untyped_async(ndesc.entry, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    await _run_typed_async(rt, ndesc.entry, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    while scope.next and (not scope.disengaged) {
-        child = scope.next.pop(0);
-        if child not in scope.ignores {
-            if not await _visit_recursive_async(rt, scope, wdesc, child) {
+    stack: list = [(loc, False)];
+    while stack {
+        (cur, exiting) = stack.pop();
+        if scope.disengaged {
+            return False;
+        }
+        if not exiting {
+            scope.path.append(cur);
+            loc_tag: int = rt.tag_of(cur);
+            ndesc = rt.node_desc(loc_tag);
+            await _run_typed_async(rt, wdesc.entry, scope.wlk, cur);
+            if scope.disengaged {
+                return False;
+            }
+            await _run_untyped_async(ndesc.entry, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            await _run_typed_async(rt, ndesc.entry, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            stack.append((cur, True));
+            children: list = [];
+            while scope.next {
+                child = scope.next.pop(0);
+                if child not in scope.ignores {
+                    children.append(child);
+                }
+            }
+            for child in reversed(children) {
+                stack.append((child, False));
+            }
+        } else {
+            loc_tag: int = rt.tag_of(cur);
+            ndesc = rt.node_desc(loc_tag);
+            await _run_typed_async(rt, ndesc.exit, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            await _run_untyped_async(ndesc.exit, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            await _run_typed_async(rt, wdesc.exit, scope.wlk, cur);
+            if scope.disengaged {
                 return False;
             }
         }
     }
-    if scope.disengaged {
-        return False;
-    }
-    await _run_typed_async(rt, ndesc.exit, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    await _run_untyped_async(ndesc.exit, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    await _run_typed_async(rt, wdesc.exit, scope.wlk, loc);
     return not scope.disengaged;
 }
 

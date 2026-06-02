@@ -497,6 +497,10 @@ impl ExecutionManager.spawn_walker_sync(
         return await self._finalize_call_response(call_state, result);
     } except Exception as e {
         import traceback;
+        import logging;
+        logging.getLogger("jaclang.server").error(
+            f"Walker execution failed: {e}\n{traceback.format_exc()}"
+        );
         return {'error': str(e), 'traceback': traceback.format_exc()};
     } finally {
         ctx.call_state.reset(call_token);
@@ -579,6 +583,10 @@ impl ExecutionManager.spawn_walker_async(
         return await self._finalize_call_response(call_state, result);
     } except Exception as e {
         import traceback;
+        import logging;
+        logging.getLogger("jaclang.server").error(
+            f"Walker execution failed: {e}\n{traceback.format_exc()}"
+        );
         return {'error': str(e), 'traceback': traceback.format_exc()};
     } finally {
         ctx.call_state.reset(call_token);
