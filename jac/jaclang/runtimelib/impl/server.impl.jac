@@ -460,6 +460,7 @@ impl ExecutionManager.spawn_walker_sync(
     (ctx, req_token) = await _begin_request_context(root_id);
     call_token = ctx.call_state.set(CallState());
     call_state = ctx.call_state.get();
+    _profile_dir = os.environ.get("JAC_PROFILE_DIR");
     try {
         `walker = walker_cls(**fields);
         if target_node_id {
@@ -470,12 +471,28 @@ impl ExecutionManager.spawn_walker_sync(
         } else {
             target_node = ctx.get_root();
         }
-        result = await asyncio.to_thread(Jac.spawn, `walker, target_node);
+        _spawn_result_box = [None];
+        def _jac_walker_execute {
+            _spawn_result_box[0] = Jac.spawn(`walker, target_node);
+        }
+        if _profile_dir {
+            with _jac_profiler_lock {
+                yappi.set_clock_type("wall");
+                yappi.start(builtins=False);
+            }
+        }
+        _jac_walker_execute();
+        result = _spawn_result_box[0];
         # Defensive: if a caller reaches this path with a walker whose
         # spawn path returned a coroutine, await it on the loop rather
         # than returning an unawaited coroutine object.
         if iscoroutine(result) {
             result = await result;
+        }
+        if _profile_dir {
+            with _jac_profiler_lock {
+                yappi.stop();
+            }
         }
         return await self._finalize_call_response(call_state, result);
     } except Exception as e {
@@ -483,6 +500,28 @@ impl ExecutionManager.spawn_walker_sync(
         return {'error': str(e), 'traceback': traceback.format_exc()};
     } finally {
         ctx.call_state.reset(call_token);
+        if _profile_dir {
+            with _jac_profiler_lock {
+                if yappi.is_running() {
+                    yappi.stop();
+                }
+                os.makedirs(_profile_dir, exist_ok=True);
+                _prof_path = os.path.join(_profile_dir, "jac_server.prof");
+                _func_stats = yappi.get_func_stats();
+                _func_stats.save(_prof_path, type="pstat");
+                yappi.clear_stats();
+                _txt_path = os.path.join(_profile_dir, "jac_server.txt");
+                try {
+                    with open(_txt_path, "w") as _f {
+                        _ps = pstats.Stats(_prof_path, stream=_f);
+                        _ps.sort_stats("cumulative");
+                        _ps.print_stats();
+                    }
+                } except Exception {
+                    pass;
+                }
+            }
+        }
         Jac.reset_request_context(req_token);
     }
 }

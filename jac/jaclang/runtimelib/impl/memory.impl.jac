@@ -1746,6 +1746,47 @@ impl TieredMemory.reset_l3_fetch_count -> None {
     }
 }
 
+"""Prefetch: batch-load anchors from L3 (DB) into L2 (cache).
+
+Uses bulk_exists (1 Redis pipeline) to find missing IDs, find_raw (1 MongoDB
+$in query) to batch-fetch from L3, and bulk_put_raw (1 Redis MSET) to store.
+Total: 3 round-trips regardless of ID count. No-op if L2 is unavailable.
+"""
+impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
+    if self.l3 is None or self.l2 is None {
+        return;
+    }
+    id_list = list(ids);
+    if not id_list {
+        return;
+    }
+    # 1 round-trip: batch EXISTS via pipeline
+    existing = self.l2.bulk_exists(id_list);
+    missing_ids = [
+        uid
+        for uid in id_list
+        if uid not in existing
+    ];
+    if not missing_ids {
+        return;
+    }
+    raw_items = list(self.l3.find_raw(missing_ids));
+    if raw_items {
+        self.l2.bulk_put_raw(raw_items);
+        # Also promote to L1 so the walker never hits Redis
+        import from jaclang.runtimelib.serializer { Serializer }
+        for (uid, data) in raw_items {
+            if uid not in self.__mem__ {
+                anchor = Serializer.deserialize(data);
+                if anchor {
+                    anchor.is_updated = False;
+                    self.__mem__.setdefault(uid, anchor);
+                }
+            }
+        }
+    }
+}
+
 """Commit - syncs L3 persistence if available."""
 impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
     if self.l3 {

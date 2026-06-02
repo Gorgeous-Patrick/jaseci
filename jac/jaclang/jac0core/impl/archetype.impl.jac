@@ -281,18 +281,27 @@ impl NodeAnchor.edge_delta -> (tuple[(set[UUID], set[UUID])] | None) {
     return (current - initial, initial - current);
 }
 
-"""Get decoded topology index (lazy-decoded from blob)."""
+"""Get decoded topology index (decoded once and cached on the anchor instance)."""
 impl NodeAnchor.get_topology_index -> any {
     import from jaclang.runtimelib.topology_index { TopologyIndex }
-    if self.topology_index_data {
-        return TopologyIndex.decode(self.topology_index_data);
+    cached = self?._topology_index_cache;
+    if cached is not None {
+        return cached;
     }
-    return TopologyIndex();
+    if self.topology_index_data {
+        idx = TopologyIndex.decode(self.topology_index_data);
+    } else {
+        idx = TopologyIndex();
+    }
+    self._topology_index_cache = idx;
+    return idx;
 }
 
-"""Set topology index from TopologyIndex object (encodes to blob)."""
+"""Set topology index from TopologyIndex object (encodes to blob, updates cache)."""
 impl NodeAnchor.set_topology_index(index: any) -> None {
     self.topology_index_data = index.encode();
+    self._topology_index_cache = index;
+    self.is_updated = True;
 }
 
 """Serialize Edge Anchor."""
