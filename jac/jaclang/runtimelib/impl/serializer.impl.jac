@@ -760,12 +760,13 @@ impl Serializer._compute_hash(anchor: Anchor) -> int {
     import from json { dumps }
     try {
         data = Serializer.serialize(anchor, include_type=True);
-        # Exclude topology_index_data from hash — it's a derived cache,
-        # not user-mutable state. Including it would double the cost of
-        # every serialize round-trip for large graphs.
-        if isinstance(data, dict) {
-            data.pop('topology_index_data', None);
-        }
+        # TODO: topology_index_data was previously excluded from the hash
+        # as a "derived cache", but this caused the root anchor's topology
+        # updates to never be committed to MongoDB. Keeping it in the hash
+        # for now so sync detects topology changes.
+        # if isinstance(data, dict) {
+        #     data.pop('topology_index_data', None);
+        # }
         return hash(dumps(data, sort_keys=True));
     } except Exception {
         return 0;
