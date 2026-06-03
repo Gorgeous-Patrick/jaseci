@@ -56,6 +56,25 @@ class JacTTGGenerator {
         cls: type[JacTTGGenerator], scope: uni.UniNode, item: uni.UniNode
     ) -> tuple[str | None, str | None, int];
 
+    """Extract edge chains from an EdgeRefTrailer AST node."""
+    @classmethod
+    def _extract_chains_from_trailer(
+        cls: type[JacTTGGenerator], scope: uni.UniNode, trailer: uni.EdgeRefTrailer
+    ) -> list[tuple[str | None, str | None, int]];
+
+    """Extract all edge chains from any AST body (ability, method, etc)."""
+    @classmethod
+    def _extract_refs_from_body(
+        cls: type[JacTTGGenerator], body: uni.UniNode
+    ) -> list[list[tuple[str | None, str | None, int]]];
+
+    """Trace FuncCall nodes in an ability body, resolve to archetype methods,
+    and extract their refs expressions as VisitTypes."""
+    @classmethod
+    def _trace_method_calls(
+        cls: type[JacTTGGenerator], ability: uni.Ability
+    ) -> list[VisitType];
+
     @classmethod
     def get_ttg_prefetch_list(
         cls: type[JacTTGGenerator],

@@ -166,12 +166,145 @@ impl JacTTGGenerator._extract_edge_step(
     return (edge_type_name, node_filter_name, direction);
 }
 
+"""Extract edge chains from an EdgeRefTrailer AST node."""
+@classmethod
+impl JacTTGGenerator._extract_chains_from_trailer(
+    cls: type[JacTTGGenerator], scope: uni.UniNode, trailer: uni.EdgeRefTrailer
+) -> list[tuple[str | None, str | None, int]] {
+    edge_chain: list[tuple[str | None, str | None, int]] = [];
+    chain_items = getattr(trailer, 'chain', []);
+    for item in chain_items {
+        step = cls._extract_edge_step(scope, item);
+        if step[0] is not None {
+            edge_chain.append(step);
+        } elif step[1] is not None {
+            if len(edge_chain) > 0 {
+                prev = edge_chain[-1];
+                edge_chain[-1] = (prev[0], step[1], prev[2]);
+            }
+        }
+    }
+    if len(edge_chain) == 0 {
+        edge_refs = trailer.get_all_sub_nodes(uni.EdgeOpRef);
+        for edge_ref in edge_refs {
+            step = cls._extract_edge_step(scope, edge_ref);
+            if step[0] is not None {
+                edge_chain.append(step);
+            }
+        }
+    }
+    return edge_chain;
+}
+
+"""Extract all edge chains from any AST body (ability, method, etc).
+Returns a list of edge chains — one per EdgeRefTrailer found."""
+@classmethod
+impl JacTTGGenerator._extract_refs_from_body(
+    cls: type[JacTTGGenerator], body: uni.UniNode
+) -> list[list[tuple[str | None, str | None, int]]] {
+    result: list[list[tuple[str | None, str | None, int]]] = [];
+    trailers = body.get_all_sub_nodes(uni.EdgeRefTrailer);
+    for trailer in trailers {
+        chain = cls._extract_chains_from_trailer(body, trailer);
+        if len(chain) > 0 {
+            result.append(chain);
+        }
+    }
+    return result;
+}
+
+"""Trace FuncCall nodes in an ability body, resolve to archetype methods,
+and extract their refs expressions as VisitTypes."""
+@classmethod
+impl JacTTGGenerator._trace_method_calls(
+    cls: type[JacTTGGenerator], ability: uni.Ability
+) -> list[VisitType] {
+    result: list[VisitType] = [];
+    seen_methods: set[str] = set();
+    func_calls = ability.get_all_sub_nodes(uni.FuncCall);
+    for call in func_calls {
+        # Resolve the function name. For attr access (e.g. here.to_profile_view()),
+        # we need the method name. For simple calls, use the target name directly.
+        method_name: (str | None) = None;
+        if isinstance(call.target, uni.AtomTrailer) {
+            # e.g. here.to_profile_view() — get the last Name in the chain
+            names = call.target.get_all_sub_nodes(uni.Name);
+            if len(names) > 0 {
+                method_name = names[-1].value;
+            }
+        } elif isinstance(call.target, uni.NameAtom) {
+            method_name = call.target.value;
+        }
+        if method_name is None or method_name in seen_methods {
+            continue;
+        }
+        seen_methods.add(method_name);
+        # Try to resolve via symbol table
+        resolved_arch = cls._resolve_archetype(call, method_name);
+        if resolved_arch is not None {
+            # Found the archetype — look for the method within it
+            for method in resolved_arch.get_all_sub_nodes(uni.Ability) {
+                if method.name_ref is not None
+                and method.name_ref.value == method_name {
+                    # Extract refs from this method body
+                    chains = cls._extract_refs_from_body(method);
+                    owner_type = resolved_arch.name.value;
+                    for chain in chains {
+                        first_edge = chain[0][0] if len(chain) > 0 else None;
+                        result.append(
+                            VisitType(
+                                from_node_type=owner_type,
+                                edge_type=first_edge,
+                                edge_chain=chain if len(chain) > 0 else None
+                            )
+                        );
+                    }
+                    break;
+                }
+            }
+            continue;
+        }
+        # Fallback: try to find the method on any archetype in the module
+        # by searching all archetypes for a matching ability name.
+        module = ability.find_parent_of_type(uni.Module);
+        if module is None {
+            continue;
+        }
+        for arch in module.get_all_sub_nodes(uni.Archetype) {
+            for method in arch.get_all_sub_nodes(uni.Ability) {
+                if method.name_ref is not None
+                and method.name_ref.value == method_name {
+                    chains = cls._extract_refs_from_body(method);
+                    owner_type = arch.name.value;
+                    for chain in chains {
+                        first_edge = chain[0][0] if len(chain) > 0 else None;
+                        result.append(
+                            VisitType(
+                                from_node_type=owner_type,
+                                edge_type=first_edge,
+                                edge_chain=chain if len(chain) > 0 else None
+                            )
+                        );
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    return result;
+}
+
 """Extract visit types from a walker's AST at runtime.
 
 Finds the walker's AST Archetype node, then for each ability with an
-EventSignature extracts the from-node type, and for each VisitStmt
-extracts the full edge chain from EdgeRefTrailer. Results are
-returned as VisitType instances and cached on the walker class.
+EventSignature:
+  1. Extracts edge chains from VisitStmt nodes (explicit visit statements)
+  2. Extracts edge chains from standalone refs expressions (EdgeRefTrailer
+     outside of VisitStmt, e.g. `tweets = [self-->[?:Tweet]]`)
+  3. Traces FuncCall nodes to resolve called methods on archetypes and
+     extracts their refs expressions recursively
+
+Results are returned as VisitType instances and cached on the walker class.
 """
 @classmethod
 impl JacTTGGenerator._extract_visits_from_ast(
@@ -188,18 +321,17 @@ impl JacTTGGenerator._extract_visits_from_ast(
     if ast_node is None {
         return [];
     }
-    # Extract visits using the same logic as the old JacTTGPass.
     result: list[VisitType] = [];
     abilities = ast_node.get_all_sub_nodes(uni.Ability);
     for ability in abilities {
         event_sigs = ability.get_all_sub_nodes(uni.EventSignature);
-        if (len(event_sigs) == 0) {
+        if len(event_sigs) == 0 {
             continue;
         }
         # Determine the from-node type from the event signature.
         node_type_name: (str | None) = None;
         node_type_names = event_sigs[0].get_all_sub_nodes(uni.Name);
-        if (len(node_type_names) > 0) {
+        if len(node_type_names) > 0 {
             node_arch = cls._resolve_archetype(
                 node_type_names[0], node_type_names[0].value
             );
@@ -207,51 +339,49 @@ impl JacTTGGenerator._extract_visits_from_ast(
                 node_type_name = node_arch.name.value;
             }
         }
-        # Collect visit statements within this ability.
+        # 1. Extract from VisitStmt nodes (explicit visit statements).
         visit_stmts = ability.get_all_sub_nodes(uni.VisitStmt);
         for visit_stmt in visit_stmts {
-            # Build the edge chain from EdgeRefTrailer or EdgeOpRef nodes
-            edge_chain: list[tuple[str | None, str | None, int]] = [];
-            # First, try to get EdgeRefTrailer which contains the full chain
-            edge_trailers = visit_stmt.get_all_sub_nodes(uni.EdgeRefTrailer);
-            if (len(edge_trailers) > 0) {
-                trailer = edge_trailers[0];
-                chain_items = getattr(trailer, 'chain', []);
-                for item in chain_items {
-                    step = cls._extract_edge_step(visit_stmt, item);
-                    # Only add if it has edge type (skip pure node filters for now)
-                    if step[0] is not None {
-                        edge_chain.append(step);
-                    } elif step[1] is not None {
-                        # Node filter - attach to previous step if exists
-                        if (len(edge_chain) > 0) {
-                            prev = edge_chain[-1];
-                            edge_chain[-1] = (prev[0], step[1], prev[2]);
-                        }
-                    }
-                }
+            chains = cls._extract_refs_from_body(visit_stmt);
+            for chain in chains {
+                first_edge = chain[0][0] if len(chain) > 0 else None;
+                result.append(
+                    VisitType(
+                        from_node_type=node_type_name,
+                        edge_type=first_edge,
+                        edge_chain=chain if len(chain) > 0 else None
+                    )
+                );
             }
-            # Fallback: extract from EdgeOpRef nodes directly
-            if (len(edge_chain) == 0) {
-                edge_refs = visit_stmt.get_all_sub_nodes(uni.EdgeOpRef);
-                for edge_ref in edge_refs {
-                    step = cls._extract_edge_step(visit_stmt, edge_ref);
-                    if step[0] is not None {
-                        edge_chain.append(step);
-                    }
-                }
-            }
-            # Create VisitType with edge_chain
-            # For backwards compatibility, also set edge_type to first edge
-            first_edge = edge_chain[0][0] if (len(edge_chain) > 0) else None;
-            result.append(
-                VisitType(
-                    from_node_type=node_type_name,
-                    edge_type=first_edge,
-                    edge_chain=edge_chain if (len(edge_chain) > 0) else None
-                )
-            );
         }
+        # 2. Extract standalone refs expressions in the ability body
+        #    (EdgeRefTrailer not inside a VisitStmt).
+        visit_trailer_ids: set[int] = set();
+        for vs in visit_stmts {
+            for t in vs.get_all_sub_nodes(uni.EdgeRefTrailer) {
+                visit_trailer_ids.add(id(t));
+            }
+        }
+        all_trailers = ability.get_all_sub_nodes(uni.EdgeRefTrailer);
+        for trailer in all_trailers {
+            if id(trailer) in visit_trailer_ids {
+                continue;
+            }
+            chain = cls._extract_chains_from_trailer(ability, trailer);
+            if len(chain) > 0 {
+                first_edge = chain[0][0] if len(chain) > 0 else None;
+                result.append(
+                    VisitType(
+                        from_node_type=node_type_name,
+                        edge_type=first_edge,
+                        edge_chain=chain if len(chain) > 0 else None
+                    )
+                );
+            }
+        }
+        # 3. Trace into method calls to extract refs from called methods.
+        method_visits = cls._trace_method_calls(ability);
+        result.extend(method_visits);
     }
     # Cache on the class for subsequent calls.
     warch_cls.__jac_ttg_visits__ = result;
