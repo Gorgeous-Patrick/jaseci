@@ -368,8 +368,17 @@ impl JacWalker.spawn_call(
 ) -> WalkerArchetype {
     import from jaclang.jac0core.osp_kernel { osp_spawn }
     import from jaclang.jac0core.osp_kernel_sv { desc_for, make_sv_runtime }
+    import from time { perf_counter as _perf_counter }
+    import from csv { writer as _csv_writer }
     warch = `walker.archetype;
+    # Profiling variables
+    topo_idx_time_ms = 0.0;
+    ttg_time_ms = 0.0;
+    prefetch_time_ms = 0.0;
+    ttg_total_time_ms = 0.0;
+    resolve_total_ms = 0.0;
     # TTG prefetch: predict traversal and warm the cache before walking.
+    ttg_block_start = _perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
@@ -381,14 +390,24 @@ impl JacWalker.spawn_call(
             ) {
                 import from jaclang.jac0core.ttg { JacTTGGenerator }
                 import from jaclang.runtimelib.topo_utils { _get_root_anchor }
+                topo_idx_start = _perf_counter();
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
+                    topo_idx_end = _perf_counter();
+                    topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
+                    ttg_start = _perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
                         warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
                     );
+                    ttg_end = _perf_counter();
+                    ttg_time_ms = (ttg_end - ttg_start) * 1000;
+                    resolve_total_ms = getattr(
+                        JacTTGGenerator, '_last_resolve_ms', 0.0
+                    );
                     if prefetch_ids {
                         ctx = JacRuntimeInterface.get_context();
+                        prefetch_start = _perf_counter();
                         if cfg.run.async_prefetch {
                             import threading;
                             _t = threading.Thread(
@@ -401,6 +420,8 @@ impl JacWalker.spawn_call(
                         } else {
                             ctx.mem.prefetch(prefetch_ids);
                         }
+                        prefetch_end = _perf_counter();
+                        prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
                 }
             }
@@ -408,7 +429,55 @@ impl JacWalker.spawn_call(
             logger.debug(f"TTG prefetch failed: {e}");
         }
     }
+    ttg_block_end = _perf_counter();
+    ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
+    walker_start = _perf_counter();
     osp_spawn(make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next));
+    walker_end = _perf_counter();
+    walker_time_ms = (walker_end - walker_start) * 1000;
+    # Write per-spawn CSV row if JAC_PROFILE_CSV is set.
+    profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
+    if profile_csv_path {
+        os.makedirs(os.path.dirname(profile_csv_path) or ".", exist_ok=True);
+        file_exists = os.path.exists(profile_csv_path);
+        with open(profile_csv_path, "a", newline="") as f {
+            writer = _csv_writer(f);
+            if not file_exists {
+                writer.writerow(
+                    [
+                        "node_num",
+                        "edge_num",
+                        "tweet_num",
+                        "ttg_enabled",
+                        "ttg_total_ms",
+                        "topo_idx_ms",
+                        "ttg_ms",
+                        "prefetch_ms",
+                        "walker_ms",
+                        "resolve_total_ms"
+                    ]
+                );
+            }
+            node_num = os.environ.get("JAC_NODE_NUM", "");
+            edge_num = os.environ.get("JAC_EDGE_NUM", "");
+            tweet_num = os.environ.get("JAC_TWEET_NUM", "");
+            ttg_enabled = "enabled" if ttg_time_ms > 0 else "disabled";
+            writer.writerow(
+                [
+                    node_num,
+                    edge_num,
+                    tweet_num,
+                    ttg_enabled,
+                    f"{ttg_total_time_ms:.3f}",
+                    f"{topo_idx_time_ms:.3f}",
+                    f"{ttg_time_ms:.3f}",
+                    f"{prefetch_time_ms:.3f}",
+                    f"{walker_time_ms:.3f}",
+                    f"{resolve_total_ms:.3f}"
+                ]
+            );
+        }
+    }
     return warch;
 }
 
