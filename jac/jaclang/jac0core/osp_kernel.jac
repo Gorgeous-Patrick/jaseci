@@ -162,16 +162,16 @@ def run_untyped(slots: list[Slot], a: any, b: any) -> None {
     }
 }
 
-"""DFS-recursive visit of one location.
+"""Iterative DFS visit — avoids Python recursion limit for deep graphs.
 
-Entry phase order:
+Entry phase order per location:
   (1) walker abilities whose trigger matches `loc`,
   (2) loc's untyped abilities,
   (3) loc's abilities whose trigger matches the walker.
 
-Then recurse into every child added by the entries (DFS, FIFO within siblings).
+Then visit all children added by entries (DFS, FIFO within siblings).
 
-Exit phase order (reverse of entry):
+Exit phase order (reverse of entry, post-order):
   (4) loc's abilities whose trigger matches the walker,
   (5) loc's untyped abilities,
   (6) walker abilities whose trigger matches `loc`.
@@ -180,44 +180,56 @@ Returns False if the walk disengaged mid-visit."""
 def _visit_recursive(
     rt: OspRuntime, scope: WalkScope, wdesc: WalkerDesc, loc: any
 ) -> bool {
-    scope.path.append(loc);
-    loc_tag: int = rt.tag_of(loc);
-    ndesc = rt.node_desc(loc_tag);
-    # Entries
-    run_typed(rt, wdesc.entry, scope.wlk, loc);
-    if scope.disengaged {
-        return False;
-    }
-    run_untyped(ndesc.entry, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    run_typed(rt, ndesc.entry, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    # Recurse children added by entries (DFS, FIFO siblings).
-    while scope.next and (not scope.disengaged) {
-        child = scope.next.pop(0);
-        if child not in scope.ignores {
-            if not _visit_recursive(rt, scope, wdesc, child) {
+    stack: list = [(loc, False)];
+    while stack {
+        (cur, exiting) = stack.pop();
+        if scope.disengaged {
+            return False;
+        }
+        if not exiting {
+            scope.path.append(cur);
+            loc_tag: int = rt.tag_of(cur);
+            ndesc = rt.node_desc(loc_tag);
+            run_typed(rt, wdesc.entry, scope.wlk, cur);
+            if scope.disengaged {
+                return False;
+            }
+            run_untyped(ndesc.entry, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            run_typed(rt, ndesc.entry, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            stack.append((cur, True));
+            children: list = [];
+            while scope.next {
+                child = scope.next.pop(0);
+                if child not in scope.ignores {
+                    children.append(child);
+                }
+            }
+            for child in reversed(children) {
+                stack.append((child, False));
+            }
+        } else {
+            loc_tag: int = rt.tag_of(cur);
+            ndesc = rt.node_desc(loc_tag);
+            run_typed(rt, ndesc.exit, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            run_untyped(ndesc.exit, cur, scope.wlk);
+            if scope.disengaged {
+                return False;
+            }
+            run_typed(rt, wdesc.exit, scope.wlk, cur);
+            if scope.disengaged {
                 return False;
             }
         }
     }
-    if scope.disengaged {
-        return False;
-    }
-    # Exits (reverse phase order).
-    run_typed(rt, ndesc.exit, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    run_untyped(ndesc.exit, loc, scope.wlk);
-    if scope.disengaged {
-        return False;
-    }
-    run_typed(rt, wdesc.exit, scope.wlk, loc);
     return not scope.disengaged;
 }
 
