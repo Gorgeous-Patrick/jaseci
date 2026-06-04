@@ -159,18 +159,11 @@ impl ScaleTieredMemory.acommit(anchor: (Anchor | None) = None) -> None {
     }
 }
 
-"""Prefetch with field-hash snapshotting for dirty detection correctness."""
+"""Prefetch anchors into L1. Skips field-hash snapshotting — unmodified
+anchors are skipped at commit via _compute_hash; modified ones fall back
+to a full document write (correct, just not partial-field optimized)."""
 impl ScaleTieredMemory.prefetch(ids: Iterable[UUID]) -> None {
-    before_ids = set(self.__mem__.keys());
     super.prefetch(ids);
-    # Snapshot field hashes for newly loaded anchors so that unmodified
-    # prefetched anchors aren't treated as fully dirty at commit time.
-    for uid in set(self.__mem__.keys()) - before_ids {
-        anchor = self.__mem__.get(uid);
-        if anchor {
-            _snapshot_field_hashes(anchor);
-        }
-    }
 }
 
 """Close all backends."""
