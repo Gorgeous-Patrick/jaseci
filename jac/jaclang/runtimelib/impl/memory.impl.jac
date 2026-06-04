@@ -1760,17 +1760,7 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not id_list {
         return;
     }
-    # 1 round-trip: batch EXISTS via pipeline
-    existing = self.l2.bulk_exists(id_list);
-    missing_ids = [
-        uid
-        for uid in id_list
-        if uid not in existing
-    ];
-    if not missing_ids {
-        return;
-    }
-    raw_items = list(self.l3.find_raw(missing_ids));
+    raw_items = list(self.l3.find_raw(id_list));
     if raw_items {
         self.l2.bulk_put_raw(raw_items);
         # Also promote to L1 so the walker never hits Redis
