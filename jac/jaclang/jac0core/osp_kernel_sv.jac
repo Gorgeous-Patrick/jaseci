@@ -338,13 +338,13 @@ async def _run_untyped_async(slots: list[Slot], a: any, b: any) -> None {
 async def _visit_recursive_async(
     rt: OspRuntime, scope: WalkScope, wdesc: WalkerDesc, loc: any
 ) -> bool {
-    stack: list = [(loc, False)];
+    stack: list = [(loc, 0)];
     while stack {
-        (cur, exiting) = stack.pop();
+        (cur, phase) = stack.pop();
         if scope.disengaged {
             return False;
         }
-        if not exiting {
+        if phase == 0 {
             scope.path.append(cur);
             loc_tag: int = rt.tag_of(cur);
             ndesc = rt.node_desc(loc_tag);
@@ -360,16 +360,21 @@ async def _visit_recursive_async(
             if scope.disengaged {
                 return False;
             }
-            stack.append((cur, True));
-            children: list = [];
+            stack.append((cur, 1));
+        } elif phase == 1 {
+            child = None;
             while scope.next {
-                child = scope.next.pop(0);
-                if child not in scope.ignores {
-                    children.append(child);
+                candidate = scope.next.pop(0);
+                if candidate not in scope.ignores {
+                    child = candidate;
+                    break;
                 }
             }
-            for child in reversed(children) {
-                stack.append((child, False));
+            if child is not None {
+                stack.append((cur, 1));
+                stack.append((child, 0));
+            } else {
+                stack.append((cur, 2));
             }
         } else {
             loc_tag: int = rt.tag_of(cur);

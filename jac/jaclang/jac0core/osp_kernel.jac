@@ -164,12 +164,15 @@ def run_untyped(slots: list[Slot], a: any, b: any) -> None {
 
 """Iterative DFS visit — avoids Python recursion limit for deep graphs.
 
+Mirrors the recursive version exactly: after running entries for a node,
+take ONE child from scope.next at a time (the shared queue), process it
+fully (entries -> its children -> exits) before taking the next sibling.
+This preserves the nested DFS order where siblings share scope.next.
+
 Entry phase order per location:
   (1) walker abilities whose trigger matches `loc`,
   (2) loc's untyped abilities,
   (3) loc's abilities whose trigger matches the walker.
-
-Then visit all children added by entries (DFS, FIFO within siblings).
 
 Exit phase order (reverse of entry, post-order):
   (4) loc's abilities whose trigger matches the walker,
@@ -180,20 +183,23 @@ Returns False if the walk disengaged mid-visit."""
 def _visit_recursive(
     rt: OspRuntime, scope: WalkScope, wdesc: WalkerDesc, loc: any
 ) -> bool {
-    # Stack entries: (loc, exiting)
-    # exiting=False -> execute entries, schedule children + exit
-    # exiting=True  -> execute exits (post-order)
-    stack: list = [(loc, False)];
+    # Stack entries: (loc, phase)
+    # phase 0 -> execute entries, then push phase 1
+    # phase 1 -> take one child from scope.next if available, push self
+    #            again (phase 1) then push child (phase 0); if no children
+    #            left, push phase 2
+    # phase 2 -> execute exits
+    stack: list = [(loc, 0)];
     while stack {
-        (cur, exiting) = stack.pop();
+        (cur, phase) = stack.pop();
         if scope.disengaged {
             return False;
         }
-        if not exiting {
+        if phase == 0 {
+            # Entry phase
             scope.path.append(cur);
             loc_tag: int = rt.tag_of(cur);
             ndesc = rt.node_desc(loc_tag);
-            # Entries
             run_typed(rt, wdesc.entry, scope.wlk, cur);
             if scope.disengaged {
                 return False;
@@ -206,23 +212,35 @@ def _visit_recursive(
             if scope.disengaged {
                 return False;
             }
-            # Schedule exit (will run after all children).
-            stack.append((cur, True));
-            # Collect children added by entries, push in reverse for DFS order.
-            children: list = [];
+            # After entries, move to child-processing phase.
+            stack.append((cur, 1));
+        } elif phase == 1 {
+            # Child-processing phase: pop ONE child from scope.next.
+            # This mirrors the recursive `while scope.next` loop that
+            # processes one child at a time, allowing nested children
+            # to interleave via the shared scope.next queue.
+            child = None;
             while scope.next {
-                child = scope.next.pop(0);
-                if child not in scope.ignores {
-                    children.append(child);
+                candidate = scope.next.pop(0);
+                if candidate not in scope.ignores {
+                    child = candidate;
+                    break;
                 }
             }
-            for child in reversed(children) {
-                stack.append((child, False));
+            if child is not None {
+                # Push self again to check for more children after this
+                # child's subtree completes.
+                stack.append((cur, 1));
+                # Push child for entry processing.
+                stack.append((child, 0));
+            } else {
+                # No more children — proceed to exits.
+                stack.append((cur, 2));
             }
         } else {
+            # Exit phase (phase 2)
             loc_tag: int = rt.tag_of(cur);
             ndesc = rt.node_desc(loc_tag);
-            # Exits (reverse phase order).
             run_typed(rt, ndesc.exit, cur, scope.wlk);
             if scope.disengaged {
                 return False;
