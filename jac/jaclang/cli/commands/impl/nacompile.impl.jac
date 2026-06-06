@@ -248,9 +248,13 @@ impl nacompile(
     # Step 5: Determine needed libraries
     # Note: libgc (Boehm GC) no longer needed - using reference counting
     if is_macos {
+        # libm is part of libSystem on macOS.
         needed_libs: list[str] = ["/usr/lib/libSystem.B.dylib"];
     } else {
-        needed_libs: list[str] = ["libc.so.6"];
+        # libm.so.6 supplies math-module symbols (e.g. hypot) that are not all
+        # re-exported from libc; the loader only binds referenced symbols, so
+        # linking it unconditionally is harmless (issue #6404).
+        needed_libs: list[str] = ["libc.so.6", "libm.so.6"];
     }
 
     # Add C shared libraries discovered during compilation (e.g. libuv.so.1)
