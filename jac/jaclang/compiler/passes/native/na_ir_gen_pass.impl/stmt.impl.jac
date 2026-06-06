@@ -761,7 +761,13 @@ impl NaIRGenPass._codegen_assignment(nd: uni.Assignment) -> None {
     self._dict_val_type_hint = None;
     if nd.type_tag and nd.type_tag.tag {
         tag_node = nd.type_tag.tag;
-        tag_name = self._get_name(tag_node);
+        # `dict[K, V]` parses as an AtomTrailer whose base name lives on `.target`
+        # (e.g. Name("dict")); `_get_name` on the whole trailer is None. Read the
+        # base name so a local `d: dict[str, any] = {...}` gets the jacval value
+        # hint, not just the return-type path (see #6449).
+        tag_name = self._get_name(tag_node.target)
+            if isinstance(tag_node, uni.AtomTrailer)
+            else self._get_name(tag_node);
         if tag_name == "dict" and isinstance(tag_node, uni.AtomTrailer) {
             if tag_node?.right and tag_node.right?.slices {
                 slices = tag_node.right.slices or [];

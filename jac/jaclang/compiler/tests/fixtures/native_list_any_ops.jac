@@ -148,3 +148,61 @@ na {
                 "stack_empty": 0 if stack else 1};
     }
 }
+
+# --- #6449: scalar / boxed `any` values must round-trip through the native
+#     JacVal representation. Faithful gradual typing: anything sv does with
+#     `any`, na must do too. Covers (a) a scalar boxed into an `any` local,
+#     (b) reading scalar/str values out of a `dict[str, any]` *local*, and
+#     (c) a tuple whose element is `any` stored in a list, popped, unpacked
+#     (the titled bug; also exercises i64 -> `any` boxing at the call site). ---
+def any_scalar_box_py() -> dict {
+    x: any = 555;
+    y: any = 3.5;
+    z: any = "hi";
+    return {"x": x, "y": y, "z": z};
+}
+
+na {
+    def any_scalar_box_na() -> dict[str, any] {
+        x: any = 555;
+        y: any = 3.5;
+        z: any = "hi";
+        return {"x": x, "y": y, "z": z};
+    }
+}
+
+def any_dict_local_py() -> dict {
+    d: dict = {"l": 555, "s": "hi"};
+    li: int = d["l"];
+    return {"l": li, "s": d["s"]};
+}
+
+na {
+    def any_dict_local_na() -> dict[str, any] {
+        d: dict[str, any] = {"l": 555, "s": "hi"};
+        li: int = d["l"];
+        return {"l": li, "s": d["s"]};
+    }
+}
+
+def any_tuple_helper_py(loc: any) -> dict {
+    s: list = [(loc, 0)];
+    (cur, phase) = s.pop();
+    return {"cur": cur, "phase": phase};
+}
+
+def any_tuple_roundtrip_py() -> dict {
+    return any_tuple_helper_py(555);
+}
+
+na {
+    def any_tuple_helper_na(loc: any) -> dict[str, any] {
+        s: list = [(loc, 0)];
+        (cur, phase) = s.pop();
+        return {"cur": cur, "phase": phase};
+    }
+
+    def any_tuple_roundtrip_na() -> dict[str, any] {
+        return any_tuple_helper_na(555);
+    }
+}

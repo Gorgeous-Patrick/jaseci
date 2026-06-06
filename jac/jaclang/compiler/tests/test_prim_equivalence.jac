@@ -122,6 +122,37 @@ test "native list container truthiness dfs" {
     );
 }
 
+# --- #6449: scalar/boxed `any` values round-trip through the native JacVal, na required ---
+test "native any scalar box" {
+    run_with_both(
+        "native_list_any_ops.jac",
+        "any_scalar_box_py",
+        "any_scalar_box_cl",
+        "any_scalar_box_na",
+        require=["na"]
+    );
+}
+
+test "native any dict local read" {
+    run_with_both(
+        "native_list_any_ops.jac",
+        "any_dict_local_py",
+        "any_dict_local_cl",
+        "any_dict_local_na",
+        require=["na"]
+    );
+}
+
+test "native any tuple roundtrip" {
+    run_with_both(
+        "native_list_any_ops.jac",
+        "any_tuple_roundtrip_py",
+        "any_tuple_roundtrip_cl",
+        "any_tuple_roundtrip_na",
+        require=["na"]
+    );
+}
+
 # --- Collection Types (DictEmitter) ---
 test "dict" {
     run_with_both("prim_dict.jac", "dict_py", "dict_cl", "dict_na");

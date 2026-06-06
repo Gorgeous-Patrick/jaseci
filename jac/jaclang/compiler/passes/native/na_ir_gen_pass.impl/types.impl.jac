@@ -376,6 +376,19 @@ impl NaIRGenPass._coerce_type_inner(val: ir.Value, target_type: ir.Type) -> ir.V
     if val.type == target_type {
         return val;
     }
+    # Gradual `any` boxing/unboxing — the single seam through which scalar/pointer
+    # values cross the `JacVal` (tagged-union) boundary. Routing it here means call
+    # args, returns, local assignments, and every list/dict/tuple element coercion
+    # round-trip `any` faithfully (sv parity) instead of mismatching or corrupting
+    # the value at each site. See #6449.
+    if self?.jacval_type {
+        if target_type == self.jacval_type and val.type != self.jacval_type {
+            return self._box_to_jacval(val);
+        }
+        if val.type == self.jacval_type and target_type != self.jacval_type {
+            return self._unbox_from_jacval(val, target_type);
+        }
+    }
     # Int → Double (f64)
     if isinstance(val.type, ir.IntType) and isinstance(target_type, ir.DoubleType) {
         return self.builder.sitofp(val, target_type, name="cast");
