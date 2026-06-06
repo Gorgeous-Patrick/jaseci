@@ -24,7 +24,7 @@ Jac is also batteries-included -- it bundles LLVM, ships its own native linker, 
 | [npm package (npmjs.com)](#npm-package) | | ● | | | npm | | npm³ |
 | [Full-stack app](#full-stack-app) | ● | ● | | ● | | | -- |
 | [In-browser native (wasm)](#in-browser-native-wasm) | | ● | ● | ● | | | -- |
-| [Desktop app](#desktop-app) | ● | ● | | ● | | desktop | Tauri² |
+| [Desktop app](#desktop-app) | ● | ● | | ● | | desktop | WebKit² |
 | [Mobile app (webview)](#mobile-app-webview) | ◐ | ● | | | | mobile | Android SDK / Xcode |
 | [Full-stack package](#on-the-roadmap) 🚧 | ● | ● | | | attach | | -- |
 | [Mobile app (React Native)](#on-the-roadmap) 🚧 | ◐ | SDK | | | | RN | Android SDK / Xcode |
@@ -407,17 +407,18 @@ primes below 20000 (computed in wasm): 2262
 
 ### Desktop app
 
-Wrap the *same* full-stack app in a native desktop window. Jac uses **PyTauri** (Python, no Rust toolchain): your client bundle renders in the webview and your server runs as a frozen sidecar binary.
+Wrap the *same* full-stack app in a native desktop window. Jac compiles your `cl`
+UI into **one `jac nacompile`d binary that embeds the OS webview** (WebKitGTK /
+WKWebView / WebView2) - no Rust toolchain, no PyInstaller, no separate process.
 
 ```bash
-pip install jac-desktop      # adds the "desktop" client target
-jac setup desktop            # one-time scaffold (src-pytauri/)
+pip install jac-desktop      # adds the "desktop" client target (no setup step)
 
-jac start --client desktop --dev      # develop with live reload
-jac build --client desktop            # build the app
+jac build --client desktop            # -> .jac/client/desktop/<app>  (single binary)
+jac start --client desktop            # build + launch the native window
 ```
 
-Window title, size, and bundled plugins are configured under `[plugins.desktop]` in `jac.toml`. Builds are per-OS (`--platform windows|macos|linux`).
+Window title and size are configured under `[plugins.desktop]` in `jac.toml`.
 
 :octicons-arrow-right-24: Full tutorial: [Desktop App](../tutorials/fullstack/desktop.md)
 

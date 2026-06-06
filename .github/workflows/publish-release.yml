@@ -7,7 +7,7 @@ on:
   # Manual re-publish: if the auto-trigger run failed partway (e.g. a build
   # error after the release/* PR was already merged), re-fire publishing for
   # selected packages. Versions are read from each package's manifest on the
-  # current ref — no need to re-merge a release/* PR. Tier ordering and the
+  # current ref - no need to re-merge a release/* PR. Tier ordering and the
   # "already on PyPI" skip still apply, so re-running is safe.
   workflow_dispatch:
     inputs:
@@ -152,11 +152,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      # Python 3.14 is set up for precompile EXCEPT for jac-desktop, whose
-      # pytauri-wheel dependency has no cp314 wheel yet; precompiling for 3.14
-      # there forces a from-source Rust build of the Tauri runtime that fails.
       - name: Set up Python 3.14 (for precompile)
-        if: matrix.precompile == true && matrix.name != 'jac-desktop'
+        if: matrix.precompile == true
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
@@ -239,7 +236,7 @@ jobs:
           path: ${{ matrix.dir }}/dist/*
 
   # ============================================================================
-  # Publish npm packages (npmjs.org) — independent of the PyPI tiers.
+  # Publish npm packages (npmjs.org) - independent of the PyPI tiers.
   # A package opts in with an [npm] section in its jac.toml; the Jac client
   # runtime (@jaseci/runtime) is published alongside jaclang so JSX/component
   # packages have a runtime dependency to resolve against.
