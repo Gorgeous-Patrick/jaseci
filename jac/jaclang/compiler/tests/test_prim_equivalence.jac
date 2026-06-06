@@ -112,6 +112,16 @@ test "native list any unpack stack" {
     );
 }
 
+test "native list container truthiness dfs" {
+    run_with_both(
+        "native_list_any_ops.jac",
+        "dfs_stack_py",
+        "dfs_stack_cl",
+        "dfs_stack_na",
+        require=["na"]
+    );
+}
+
 # --- Collection Types (DictEmitter) ---
 test "dict" {
     run_with_both("prim_dict.jac", "dict_py", "dict_cl", "dict_na");

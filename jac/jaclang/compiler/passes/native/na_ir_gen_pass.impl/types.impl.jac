@@ -315,6 +315,44 @@ impl NaIRGenPass._to_bool(val: ir.Value) -> ir.Value {
         );
     }
     if isinstance(val.type, ir.PointerType) {
+        # Container truthiness (Python semantics): a list/dict/set is falsy when
+        # EMPTY, not when null. Every container struct stores its length as field
+        # 0 (i64), so test that instead of the pointer — otherwise `while stack`
+        # tests the always-non-null pointer, loops forever, and pop() runs past
+        # empty into out-of-bounds memory (see #6435 item 5).
+        _is_container = False;
+        for (_, _lt) in self.list_types.items() {
+            if val.type == _lt.as_pointer() {
+                _is_container = True;
+                break;
+            }
+        }
+        if not _is_container {
+            for (_, _dt) in self.dict_types.items() {
+                if val.type == _dt.as_pointer() {
+                    _is_container = True;
+                    break;
+                }
+            }
+        }
+        if not _is_container {
+            for (_, _st) in self.set_types.items() {
+                if val.type == _st.as_pointer() {
+                    _is_container = True;
+                    break;
+                }
+            }
+        }
+        if _is_container {
+            _i32 = ir.IntType(32);
+            _len_ptr = self.builder.gep(
+                val, [ir.Constant(_i32, 0), ir.Constant(_i32, 0)], name="tobool.len.ptr"
+            );
+            _len = self.builder.load(_len_ptr, name="tobool.len");
+            return self.builder.icmp_unsigned(
+                "!=", _len, ir.Constant(ir.IntType(64), 0), name="tobool"
+            );
+        }
         null_ptr = ir.Constant(val.type, None);
         return self.builder.icmp_unsigned("!=", val, null_ptr, name="tobool");
     }
