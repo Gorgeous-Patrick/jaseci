@@ -819,7 +819,7 @@ impl EsastGenPass.exit_atom_unit(nd: uni.AtomUnit) -> None {
 impl EsastGenPass.exit_lambda_expr(nd: uni.LambdaExpr) -> None {
     params: list[es.Pattern] = [];
     if isinstance(nd.signature, uni.FuncSignature) {
-        for param in nd.signature.params {
+        for param in nd.signature.get_parameters() {
             if param.gen.es_ast {
                 params.append(cast(es.Pattern, param.gen.es_ast));
             }
@@ -4006,7 +4006,14 @@ impl EsastGenPass.exit_arch_has(nd: uni.ArchHas) -> None {
 impl EsastGenPass.exit_param_var(nd: uni.ParamVar) -> None {
     param_id = self.sync_loc(es.Identifier(name=nd.name.sym_name), jac_node=nd.name);
     self._register_declaration(param_id.name);
-    if nd.value and nd.value.gen.es_ast {
+    if nd.is_vararg or nd.is_kwargs {
+        # `*args` / `**kwargs` -> JS rest parameter `...args`. (JS has no keyword
+        # args, so `**kwargs` degrades to a trailing rest; positional `*args` is
+        # exact.) Without this the param is emitted as a bare identifier and then
+        # dropped during signature assembly, leaving the body referencing an
+        # undefined name.
+        nd.gen.es_ast = self.sync_loc(es.RestElement(argument=param_id), jac_node=nd);
+    } elif nd.value and nd.value.gen.es_ast {
         nd.gen.es_ast = self.sync_loc(
             es.AssignmentPattern(
                 left=param_id, right=cast(es.Expression, nd.value.gen.es_ast)
@@ -4082,7 +4089,7 @@ impl EsastGenPass.exit_ability(nd: uni.Ability) -> None {
     params: list[es.Pattern] = [];
     destructure_stmts: list[es.Statement] = [];
     destructure_props: list[es.AssignmentProperty | es.RestElement] = [];
-    if isinstance(nd.signature, uni.FuncSignature) and nd.signature.params {
+    if isinstance(nd.signature, uni.FuncSignature) and nd.signature.get_parameters() {
         if is_jsx_in_return
         and not (
             len(nd.signature.params) == 1
@@ -4147,7 +4154,7 @@ impl EsastGenPass.exit_ability(nd: uni.Ability) -> None {
                     component=nd.name_ref.sym_name
                 );
             }
-            for param in nd.signature.params {
+            for param in nd.signature.get_parameters() {
                 if param.gen.es_ast {
                     params.append(cast(es.Pattern, param.gen.es_ast));
                 }
