@@ -581,6 +581,12 @@ impl NaIRGenPass._codegen_compare(nd: uni.CompareExpr) -> (ir.Value | None) {
                         result, ir.IntType(64), name="notin.i64"
                     );
                 }
+                # Release `left_coerced` (not `_cmp_left_orig`): a value-tuple
+                # key is boxed into a fresh owned heap tuple by _coerce_type, and
+                # that box — borrowed by `contains` — is what leaks otherwise.
+                self._release_owned_operands(
+                    left_coerced, _cmp_right_orig, op="cmp_in_dict"
+                );
                 return result;
             }
         }
@@ -602,6 +608,10 @@ impl NaIRGenPass._codegen_compare(nd: uni.CompareExpr) -> (ir.Value | None) {
                         result, ir.IntType(64), name="notin.i64"
                     );
                 }
+                # Release the boxed/coerced element (see dict path above).
+                self._release_owned_operands(
+                    left_coerced, _cmp_right_orig, op="cmp_in_set"
+                );
                 return result;
             }
         }
@@ -653,6 +663,10 @@ impl NaIRGenPass._codegen_compare(nd: uni.CompareExpr) -> (ir.Value | None) {
                     );
                     result = self.builder.zext(result, i64, name="notin.i64");
                 }
+                # Release the boxed/coerced element (see dict path above).
+                self._release_owned_operands(
+                    left_coerced, _cmp_right_orig, op="cmp_in_list"
+                );
                 return result;
             }
         }

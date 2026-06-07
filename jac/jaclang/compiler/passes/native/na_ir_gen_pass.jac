@@ -825,6 +825,11 @@ obj NaIRGenPass(ModuleCodegenPass) {
     # propagated through _coerce_type so bitcasts/inttoptr keep the marker.
     def _mark_owned(val: ir.Value) -> ir.Value;
     def _is_owned(val: ir.Value) -> bool;
+    def _release_owned_operands(
+        left_orig: ir.Value, right_orig: ir.Value, op: str = ""
+    ) -> None;
+
+    def _release_owned_args(call_args: list, op: str = "call_arg") -> None;
     def _rc_call_with_ctx(
         fn: ir.Function, args: list, op: str, loc: str = "", name: str = ""
     ) -> ir.Value;
