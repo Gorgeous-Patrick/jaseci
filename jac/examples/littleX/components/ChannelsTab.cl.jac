@@ -18,7 +18,7 @@ import from .ui.dialog {
 }
 import from .TweetCard { TweetCard }
 import from .Composer { Composer }
-sv import from ..server { ChannelView, TweetView }
+sv import from ..social_graph { ChannelView, TweetView }
 
 def:pub ChannelsTab(
     channels: list[ChannelView],

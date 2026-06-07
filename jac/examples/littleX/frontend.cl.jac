@@ -6,7 +6,7 @@ for handler implementations.
 """
 
 import from "@jac/runtime" { jacSignup, jacLogin, jacLogout, jacIsLoggedIn }
-sv import from .server {
+sv import from .social_graph {
     setup_profile,
     get_profile,
     get_all_profiles,
@@ -25,7 +25,13 @@ sv import from .server {
     get_channel_detail,
     create_channel_tweet
 }
-sv import from .server { UserView, TweetView, ChannelView, TrendingTag, ProfileView }
+sv import from .social_graph {
+    UserView,
+    TweetView,
+    ChannelView,
+    TrendingTag,
+    ProfileView
+}
 import from "lucide-react" { Feather, Sun, Moon, Pencil }
 import from .components.ui.button { Button }
 import from .components.AuthForm { AuthForm }

@@ -987,6 +987,27 @@ impl EsastGenPass._resolve_source_module(nd: uni.Import) -> (uni.Module | None) 
     return None;
 }
 
+"""Record the backend module bound by an `sv import` into the client manifest.
+
+A full-stack cl test boots the module it `sv import`s rather than guessing the
+backend by filename, so we capture the resolved local `.jac` path here."""
+impl EsastGenPass._record_sv_backend(nd: uni.Import) -> None {
+    import from pathlib { Path }
+    if not nd.from_loc {
+        return;
+    }
+    resolved_path = nd.from_loc.resolve_relative_path();
+    if not resolved_path {
+        return;
+    }
+    abs_path = str(Path(resolved_path).resolve());
+    if abs_path.endswith(".jac")
+    and Path(abs_path).exists()
+    and (abs_path not in self.client_manifest.server_imports) {
+        self.client_manifest.server_imports.append(abs_path);
+    }
+}
+
 """Return the ability node represented by a symbol definition."""
 impl EsastGenPass._ability_from_symbol(
     sym: (uni.Symbol | None)
@@ -5068,6 +5089,7 @@ impl EsastGenPass.exit_import(nd: uni.Import) -> None {
     ) {
         if (nd.from_loc and nd.items) {
             self._generate_sv_import_stubs(nd);
+            self._record_sv_backend(nd);
         }
         return;
     }

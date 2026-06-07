@@ -1,6 +1,6 @@
 """Integration tests for the littleX fullstack backend.
 
-These exercise `server.jac` end-to-end over real HTTP semantics using
+These exercise `social_graph.jac` end-to-end over real HTTP semantics using
 `JacTestClient` - no OS port is opened. Each test gets an isolated graph
 (a fresh temp `base_path`), so tests never see each other's data.
 
@@ -12,7 +12,7 @@ import pytest;
 import from tempfile { mkdtemp }
 import from jaclang.runtimelib.testing { JacTestClient, TestResponse }
 
-glob SERVER = os.path.join(os.path.dirname(__file__), "server.jac");
+glob SERVER = os.path.join(os.path.dirname(__file__), "..", "social_graph.jac");
 
 """Spin up a test client backed by a fresh, isolated graph."""
 def make_client -> JacTestClient {

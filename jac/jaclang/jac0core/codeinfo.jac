@@ -18,7 +18,11 @@ obj ClientManifest {
         has_client: bool = False,
         imports: dict[(str, str)] = field(default_factory=`dict),
         endpoint_effects: dict[(str, dict)] = field(default_factory=`dict),
-        tests: list[dict[(str, str)]] = field(default_factory=`list);
+        tests: list[dict[(str, str)]] = field(default_factory=`list),
+        # Absolute paths of server (`sv import`) modules this client file binds
+        # to. A full-stack cl test boots these directly instead of guessing the
+        # backend by filename.
+        server_imports: list[str] = field(default_factory=`list);
 }
 
 """Codespace context for interop bindings."""
