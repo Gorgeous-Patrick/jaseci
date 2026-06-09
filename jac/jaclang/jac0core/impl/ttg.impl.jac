@@ -310,10 +310,20 @@ impl JacTTGGenerator._extract_visits_from_ast(
 ) -> list[VisitType] {
     warch_cls = `type(warch);
     # Check cache first.
+    import from logging { getLogger as _cache_log }
+    _cache_dbg = _cache_log(__name__);
     cached = warch_cls?.__jac_ttg_visits__;
     if (cached is not None and len(cached) > 0) {
+        _cache_dbg.info(
+            f"[TTG-EXTRACT] cache HIT for {warch_cls.__name__}, returning {len(
+                cached
+            )} visits"
+        );
         return cached;
     }
+    _cache_dbg.info(
+        f"[TTG-EXTRACT] cache MISS for {warch_cls.__name__}, extracting from AST"
+    );
     # Find the AST node for this walker.
     ast_node = cls._find_walker_ast_node(warch_cls);
     if ast_node is None {
@@ -339,13 +349,26 @@ impl JacTTGGenerator._extract_visits_from_ast(
         }
         # 1. Extract from VisitStmt nodes (explicit visit statements).
         visit_stmts = ability.get_all_sub_nodes(uni.VisitStmt);
+        import from logging { getLogger as _ext_log }
+        _ext_dbg = _ext_log(__name__);
         for visit_stmt in visit_stmts {
             chains = cls._extract_refs_from_body(visit_stmt);
+            # Check if the visit target starts from a local variable
+            # (e.g. `visit [me-->...]`). If so, we don't know the type
+            # of the starting node, so use None (wildcard).
+            visit_from = node_type_name;
+            chain_items = getattr(visit_stmt.target, 'chain', []);
+            if chain_items and isinstance(chain_items[0], uni.Name) {
+                root_name = chain_items[0].value;
+                if root_name not in ('self', 'here') {
+                    visit_from = None;
+                }
+            }
             for chain in chains {
                 first_edge = chain[0][0] if len(chain) > 0 else None;
                 result.append(
                     VisitType(
-                        from_node_type=node_type_name,
+                        from_node_type=visit_from,
                         edge_type=first_edge,
                         edge_chain=chain if len(chain) > 0 else None
                     )
