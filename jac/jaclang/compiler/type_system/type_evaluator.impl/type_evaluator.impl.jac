@@ -3611,10 +3611,17 @@ impl TypeEvaluator._unwrap_awaitable_type(t: TypeBase, node_: uni.UniNode) -> Ty
     return t;
 }
 
-"""True if `expr` calls a function bound by `sv import` in the enclosing
-module. Such functions lower to async RPC stubs on the client, so their
-calls return coroutines even though the server declaration is synchronous.
-Mirrors the codegen signal (`KW_SERVER` source-context token).
+"""True if `expr` calls a function bound by a CLIENT-context `sv import` in
+the enclosing module. Only the cl->sv edge lowers to an async RPC stub, so
+only there do the calls return coroutines that must be `await`ed even though
+the server declaration is synchronous.
+
+An sv->sv import (a server module consuming another server) lowers instead
+to a *synchronous* `def` stub (see `PyastGenPass._gen_py_sv_func_stub`): the
+runtime spawns the provider as its own process and routes the call, so the
+call returns the bare value and must NOT be treated as awaitable. We mirror
+`BoundaryAnalysisPass`'s client/server split exactly — a `.cl.jac` module, or
+any `sv import` nested in a `cl { ... }` block, is the client edge.
 
 Scoped per module (keyed by `id(module)`) so a server function called from
 server code — the same shared symbol — is not affected.
@@ -3631,10 +3638,20 @@ impl TypeEvaluator._is_sv_async_call(expr: uni.FuncCall) -> bool {
     mod_key = id(mod);
     syms = self._sv_async_syms_cache.get(mod_key);
     if syms is None {
+        # A whole `.cl.jac` module is client code; a `cl { ... }` block makes
+        # an individual import client code even inside a server module.
+        mod_is_client_file = (
+            mod.loc is not None and mod.loc.mod_path.endswith(".cl.jac")
+        );
         syms = set();
         for imp in mod.get_all_sub_nodes(uni.Import) {
             tok = imp._source_context_token();
             if tok is None or tok.name != Tok.KW_SERVER {
+                continue;
+            }
+            # Only the cl->sv edge becomes an async stub; an sv->sv import
+            # stays synchronous, so its calls are not coroutines.
+            if not (mod_is_client_file or imp.in_client_context()) {
                 continue;
             }
             for item in imp.items {
