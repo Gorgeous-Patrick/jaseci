@@ -628,9 +628,9 @@ impl TypeEvaluator._get_type_of_expression_core(
                         # and is required for proper type checking of overloaded functions.
                         if isinstance(sym_type, types.FunctionType) {
                             overloaded_fns: list[types.FunctionType] = [sym_type];
-                            # Look up all symbols with the same name to find overloads
-                            all_syms = base_type.symbol_table.lookup_all(
-                                expr.right.value, deep=False
+                            # Overloads, including version-guarded ones.
+                            all_syms = type_utils.collect_member_syms(
+                                base_type.symbol_table, expr.right.value
                             );
                             for overload_symbol in all_syms {
                                 if overload_symbol == sym {
@@ -922,6 +922,34 @@ impl TypeEvaluator._get_type_of_expression_core(
                         );
                         expr.right.type = implicit_init_type;
                         return implicit_init_type;
+                    }
+                    # TypedDict instances expose dict methods. get/pop/setdefault
+                    # get per-field overloads so a literal key resolves precisely;
+                    # the rest (keys, items, values, ...) resolve against the
+                    # equivalent dict[str, V].
+                    if base_type.is_typeddict() {
+                        if expr.right.value in ("get", "pop", "setdefault") {
+                            synth = self._synthesize_typeddict_method(
+                                base_type, expr.right.value
+                            );
+                            if synth is not None {
+                                expr.right.type = synth;
+                                return synth;
+                            }
+                        }
+                        td_dict = self._typeddict_as_dict(base_type);
+                        if (
+                            td_dict is not None
+                            and (
+                                td_member := self._lookup_object_member(
+                                    td_dict, expr.right.value
+                                )
+                            )
+                        ) {
+                            td_member_ty = self.get_type_of_member(td_member, td_dict);
+                            expr.right.type = td_member_ty;
+                            return td_member_ty;
+                        }
                     }
                     # Check for __getattr__ override before reporting error.
                     # When a class defines __getattr__, any attribute access that doesn't
@@ -1372,6 +1400,32 @@ impl TypeEvaluator._get_type_of_expression_core(
                         # Bare ClassVar without type arg - return Unknown
                         return types.UnknownType();
                     }
+                    # --- Handle Literal special form ---
+                    # Literal["a"] / Literal[1, 2] build literal-typed instances
+                    # (a union when multiple values are given) so distinct
+                    # literals stay distinct for assignability and overloads.
+                    if target_name == "Literal" {
+                        lit_types: list[types.TypeBase] = [];
+                        if isinstance(expr.right, uni.IndexSlice)
+                        and expr.right.slices {
+                            lit_vals = expr.right.slices[0].start;
+                            val_exprs = lit_vals.values
+                                if isinstance(lit_vals, uni.TupleVal)
+                                else [lit_vals];
+                            for val in val_exprs {
+                                if lt := self._literal_type_from_expr(val) {
+                                    lit_types.append(lt);
+                                }
+                            }
+                        }
+                        if len(lit_types) == 1 {
+                            return lit_types[0];
+                        }
+                        if len(lit_types) > 1 {
+                            return types.UnionType(types=lit_types);
+                        }
+                        return types.UnknownType();
+                    }
                 }
                 # Subscript on Any should return Any, not Unknown (check before generic
                 # specialization to avoid Any's subscript returning Any[Unknown]).
@@ -1467,6 +1521,19 @@ impl TypeEvaluator._get_type_of_expression_core(
                     and expr.right.slices
                 ) {
                     subscript_arg = expr.right.slices[0].start;
+                }
+                # TypedDict subscript: td["field"] resolves to the field type.
+                if (
+                    isinstance(base_type, types.ClassType)
+                    and base_type.is_class_instance()
+                    and base_type.is_typeddict()
+                ) {
+                    td_result = self._get_typeddict_indexed_type(
+                        base_type, subscript_arg, expr
+                    );
+                    if td_result is not None {
+                        return td_result;
+                    }
                 }
                 result = self.get_type_of_magic_method_call(
                     base_type, "__getitem__", [subscript_arg], expr
@@ -1832,6 +1899,29 @@ impl TypeEvaluator._get_type_of_expression_core(
                     if (method := self._get_enclosing_method(expr)) {
                         if isinstance(method.signature, uni.EventSignature) {
                             if arch := method.signature.arch_tag_info {
+                                # A tuple trigger `with (A, B) entry` fires on
+                                # any listed archetype, so the implicit `here`/
+                                # `visitor` is the *union* of the member instance
+                                # types -- not a tuple of them. Typing it as the
+                                # union lets `here.attr` resolve against the
+                                # common members (matching py/sv) instead of
+                                # failing on `tuple` having no such attribute.
+                                if isinstance(arch, uni.TupleVal) {
+                                    member_insts: list[types.TypeBase] = [];
+                                    for member in (arch.values or []) {
+                                        member_insts.append(
+                                            self._convert_to_instance(
+                                                self.get_type_of_expression(member)
+                                            )
+                                        );
+                                    }
+                                    if len(member_insts) == 1 {
+                                        return member_insts[0];
+                                    }
+                                    if member_insts {
+                                        return types.UnionType(types=member_insts);
+                                    }
+                                }
                                 type_arch_cls = self.get_type_of_expression(arch);
                                 type_arch_inst = self._convert_to_instance(
                                     type_arch_cls
@@ -1952,22 +2042,24 @@ impl TypeEvaluator._get_type_of_expression_core(
                     if isinstance(symbol_type, types.FunctionType) {
                         overloaded_ty: types.OverloadedType | None = None;
                         overloaded_fns: list[types.FunctionType] = [symbol_type];
-                        # Find the scope where the symbol is defined to check for overloads
-                        symbol_scope: uni.UniScopeNode | None = symbol.parent_tab;
-                        if symbol_scope is None {
-                            # If parent_tab is None, try to find the scope from the declaration
-                            if symbol.decl
-                            and symbol.decl.find_parent_of_type(uni.UniScopeNode) {
-                                symbol_scope = symbol.decl.find_parent_of_type(
-                                    uni.UniScopeNode
-                                );
-                            }
+                        # Collect sibling overloads at the symbol's definition
+                        # scope. Follow re-export chains (e.g. an `@overload`-ed
+                        # function imported through several `__init__` layers, as
+                        # SQLAlchemy's `create_engine`) so the overloads at the
+                        # `def` site are found, not the lone re-export.
+                        def_sym = self.resolve_to_definition_symbol(symbol);
+                        symbol_scope: uni.UniScopeNode | None = def_sym.parent_tab;
+                        if symbol_scope is None and def_sym.decl {
+                            symbol_scope = def_sym.decl.find_parent_of_type(
+                                uni.UniScopeNode
+                            );
                         }
-                        # Check if there are overloads in the symbol's scope
                         if symbol_scope {
-                            all_syms = symbol_scope.lookup_all(expr.value, deep=False);
+                            all_syms = type_utils.collect_member_syms(
+                                symbol_scope, def_sym.sym_name
+                            );
                             for overload_symbol in all_syms {
-                                if overload_symbol == symbol {
+                                if overload_symbol == def_sym {
                                     continue;
                                 }
                                 overload_type = self.get_type_of_symbol(
@@ -2039,6 +2131,25 @@ impl TypeEvaluator._get_type_of_expression_core(
     }
     # TODO: More expressions.
     return types.UnknownType();
+}
+
+"""Widen literal types to their base class for an inferred declared type.
+
+`Literal["x"]` -> `str`, `Literal[1]` -> `int`, etc. Unions are widened
+member-wise; non-literal and non-class types pass through unchanged. Applied
+when freezing the declared type of an unannotated variable at its first
+binding, so the frozen type is the base class rather than the initial
+value's literal.
+"""
+impl TypeEvaluator._widen_literal_for_declaration(ty: TypeBase) -> TypeBase {
+    if isinstance(ty, types.ClassType) and ty.is_literal_type() {
+        return ty.clone_with_literal(None);
+    }
+    if isinstance(ty, types.UnionType) and ty.types is not None {
+        widened = [self._widen_literal_for_declaration(member) for member in ty.types];
+        return types.UnionType(types=widened);
+    }
+    return ty;
 }
 
 """Return the declared type of the symbol."""
@@ -2130,46 +2241,25 @@ impl TypeEvaluator._get_type_of_symbol(symbol: uni.Symbol) -> TypeBase {
                         if elem := self._extract_tuple_element_type(rhs_type, idx) {
                             return elem;
                         }
+                        # Non-tuple iterables (bytes, str, range, ...) bind
+                        # every target to the same iteration element type.
+                        if elem := self._get_iterable_element_type(
+                            rhs_type, unpack_assignment.value
+                        ) {
+                            return elem;
+                        }
                     }
                 }
-                # ---- Handle tuple unpacking in for loops: for (a, b, c) in <expr> ----
-                # Similar to Pyright's evaluateTypesForForStatement + assignTypeToTupleOrListNode
+                # Tuple unpacking in for loops / comprehensions:
+                # `for (a, b, c) in <expr>`. The loop element (e.g.
+                # tuple[int, Item] from enumerate) is unpacked positionally.
                 elif isinstance(unpack_assignment, (uni.InForStmt, uni.InnerCompr)) {
                     collection_type = self.get_type_of_expression(
                         unpack_assignment.collection
                     );
-                    # Get the iterator type from __iter__
-                    iter_type = self.get_type_of_magic_method_call(
-                        collection_type, "__iter__", [], unpack_assignment
+                    elem_type = self._get_iterable_element_type(
+                        collection_type, unpack_assignment
                     );
-                    elem_type: types.TypeBase | None = None;
-                    if isinstance(iter_type, types.ClassType) {
-                        # Get element type from __next__ - this gives the actual iteration element
-                        # For enumerate[Item], __next__ returns tuple[int, Item]
-                        next_type = self.get_type_of_magic_method_call(
-                            iter_type, "__next__", [], unpack_assignment
-                        );
-                        if next_type and not isinstance(next_type, types.UnknownType) {
-                            elem_type = self._convert_to_instance(next_type);
-                        } elif iter_type.private
-                        and iter_type.private.type_args
-                        and len(iter_type.private.type_args) == 1 {
-                            # Fallback: try to extract from type_args
-                            elem_type = iter_type.private.type_args[0];
-                            # If element type is a TypeVar, specialize it using collection's type_args
-                            if isinstance(elem_type, types.TypeVarType)
-                            and isinstance(collection_type, types.ClassType)
-                            and collection_type.private.type_args {
-                                specialized = iter_type.specialize_generics(
-                                    collection_type.private.type_args
-                                );
-                                if len(specialized.private.type_args) == 1 {
-                                    elem_type = specialized.private.type_args[0];
-                                }
-                            }
-                        }
-                    }
-                    # Now extract the tuple element at the correct index
                     if elem_type is not None {
                         idx = -1;
                         for (vi, v) in enumerate(unpack_container.values) {
@@ -2211,7 +2301,12 @@ impl TypeEvaluator._get_type_of_symbol(symbol: uni.Symbol) -> TypeBase {
                     return self._convert_to_instance(annotation_type);
                 } else {  # Assignment without a type annotation.
                     if node_.parent.value is not None {
-                        return self.get_type_of_expression(node_.parent.value);
+                        # The declared type is frozen at the first binding;
+                        # widen literals so it is the base class, not the
+                        # initial value's `Literal[...]`. Use sites stay narrow.
+                        return self._widen_literal_for_declaration(
+                            self.get_type_of_expression(node_.parent.value)
+                        );
                     }
                 }
             }
@@ -3054,12 +3149,12 @@ impl TypeEvaluator.assign_type(
             }
         }
 
-        # Case 3: Literal["x"] -> Literal["y"] (same base type)
-        # Allow any literal to be assigned to another literal of the same base type.
-        # This effectively widens both to the base type (e.g., str).
+        # Case 3: Literal["x"] -> Literal["y"] (same base type) is assignable
+        # only when the values are equal. Distinct literals must not match, so
+        # literal-typed overloads (e.g. TypedDict get/pop) discriminate on key.
         if src_type.is_literal_type() and dest_type.is_literal_type() {
             if src_type.shared == dest_type.shared {
-                return True;
+                return src_type.get_literal_value() == dest_type.get_literal_value();
             }
         }
 
@@ -3516,10 +3611,17 @@ impl TypeEvaluator._unwrap_awaitable_type(t: TypeBase, node_: uni.UniNode) -> Ty
     return t;
 }
 
-"""True if `expr` calls a function bound by `sv import` in the enclosing
-module. Such functions lower to async RPC stubs on the client, so their
-calls return coroutines even though the server declaration is synchronous.
-Mirrors the codegen signal (`KW_SERVER` source-context token).
+"""True if `expr` calls a function bound by a CLIENT-context `sv import` in
+the enclosing module. Only the cl->sv edge lowers to an async RPC stub, so
+only there do the calls return coroutines that must be `await`ed even though
+the server declaration is synchronous.
+
+An sv->sv import (a server module consuming another server) lowers instead
+to a *synchronous* `def` stub (see `PyastGenPass._gen_py_sv_func_stub`): the
+runtime spawns the provider as its own process and routes the call, so the
+call returns the bare value and must NOT be treated as awaitable. We mirror
+`BoundaryAnalysisPass`'s client/server split exactly — a `.cl.jac` module, or
+any `sv import` nested in a `cl { ... }` block, is the client edge.
 
 Scoped per module (keyed by `id(module)`) so a server function called from
 server code — the same shared symbol — is not affected.
@@ -3536,10 +3638,20 @@ impl TypeEvaluator._is_sv_async_call(expr: uni.FuncCall) -> bool {
     mod_key = id(mod);
     syms = self._sv_async_syms_cache.get(mod_key);
     if syms is None {
+        # A whole `.cl.jac` module is client code; a `cl { ... }` block makes
+        # an individual import client code even inside a server module.
+        mod_is_client_file = (
+            mod.loc is not None and mod.loc.mod_path.endswith(".cl.jac")
+        );
         syms = set();
         for imp in mod.get_all_sub_nodes(uni.Import) {
             tok = imp._source_context_token();
             if tok is None or tok.name != Tok.KW_SERVER {
+                continue;
+            }
+            # Only the cl->sv edge becomes an async stub; an sv->sv import
+            # stays synchronous, so its calls are not coroutines.
+            if not (mod_is_client_file or imp.in_client_context()) {
                 continue;
             }
             for item in imp.items {
@@ -5448,6 +5560,14 @@ impl TypeEvaluator._resolve_py_ast_type_node(
             and base.symbol_table is not None
         ) {
             member = base.symbol_table.lookup(ast_node.attr);
+            if member is None
+            and (
+                inner := type_utils.collect_member_syms(
+                    base.symbol_table, ast_node.attr
+                )
+            ) {
+                member = inner[0];
+            }
             if member {
                 return self.get_type_of_symbol(member);
             }

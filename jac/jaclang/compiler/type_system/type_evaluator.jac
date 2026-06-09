@@ -48,6 +48,7 @@ import from jaclang.jac0core.diagnostics {
     E1035,
     E1040,
     E1041,
+    E1043,
     E1050,
     E1051,
     E1052,
@@ -302,6 +303,12 @@ obj TypeEvaluator {
     def pop_symbol_resolution(symbol: uni.Symbol) -> bool;
     # Pyright equivalent function name = getEffectiveTypeOfSymbol.
     def get_type_of_symbol(symbol: uni.Symbol) -> TypeBase;
+    # Follow an imported symbol's re-export chain to its defining symbol, so
+    # overload collection happens at the definition scope, not a re-export one.
+    def resolve_to_definition_symbol(symbol: uni.Symbol) -> uni.Symbol;
+    # Widen literal types (e.g. Literal["x"] -> str) for the *declared* type
+    # of an unannotated variable, inferred from its first binding.
+    def _widen_literal_for_declaration(ty: TypeBase) -> TypeBase;
     # NOTE: This function doesn't exists in pyright, however it exists as a helper function
     # for the following functions.
     def _import_module_from_path(
@@ -488,6 +495,10 @@ obj TypeEvaluator {
         tuple_type: TypeBase, path: list[int]
     ) -> TypeBase | None;
 
+    def _get_iterable_element_type(
+        iterable_type: TypeBase, node_for_error: uni.Expr | None = None
+    ) -> TypeBase | None;
+
     def _convert_to_instance(jtype: TypeBase) -> TypeBase;
     def _type_in_list(ty: TypeBase, type_list: list[TypeBase]) -> bool;
     def _collect_unique_types(ty: TypeBase, result: list[TypeBase]) -> None;
@@ -564,6 +575,22 @@ obj TypeEvaluator {
     def _build_field_params(
         class_type: types.ClassType, skip_deferred: bool = True
     ) -> dict[str, types.Parameter];
+
+    def _literal_type_from_expr(val: uni.Expr) -> types.TypeBase | None;
+    def _build_typeddict_fields(
+        class_type: types.ClassType
+    ) -> dict[str, types.TypeBase];
+
+    def _has_typeddict_special_form_base(node_: uni.Archetype) -> bool;
+    def _typeddict_value_union(base_type: types.ClassType) -> types.TypeBase;
+    def _get_typeddict_indexed_type(
+        base_type: types.ClassType, key_expr: uni.Expr, err_node: uni.UniNode
+    ) -> types.TypeBase | None;
+
+    def _typeddict_as_dict(base_type: types.ClassType) -> types.ClassType | None;
+    def _synthesize_typeddict_method(
+        base_type: types.ClassType, method: str
+    ) -> types.OverloadedType | None;
 
     def _create_dataclass_init_method(
         class_type: types.ClassType

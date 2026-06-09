@@ -2,7 +2,19 @@
 
 This document provides a summary of new features, improvements, and bug fixes in each version of **byLLM** (formerly MTLLM). For details on changes that might require updates to your existing code, please refer to the [Breaking Changes](../breaking-changes.md) page.
 
-## byllm 0.6.11 (Latest Release)
+## byllm 0.6.14 (Latest Release)
+
+### New Features
+
+- **Feat: Multimodal tool results are provider-portable**: Tool-result images are now rerouted into a trailing user message at request time, unblocking providers that reject  images in `role: "tool"` (e.g. OpenAI) while Anthropic continues to work.
+
+## byllm 0.6.12
+
+### New Features
+
+- **Add: `system_prompt` parameter on `by llm()`**: New optional kwarg accepting a `str` or zero-arg `Callable[[], str]`. Extends - does not replace the base SYSTEM (`jac.toml` override or `SYSTEM_PERSONA`). Precedence: per-call > `jac.toml` > default. Lets conversational apps (`by llm(conversation=<list>)`) place the agent's standing persona in the cacheable SYSTEM slot instead of the function sem, where it would otherwise duplicate into chat history each turn. Backward compatible.
+
+## byllm 0.6.11
 
 ### New Features
 

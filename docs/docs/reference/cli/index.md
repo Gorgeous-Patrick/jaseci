@@ -1865,7 +1865,7 @@ jac build [filename] [--client TARGET] [-p PLATFORM]
 |--------|-------------|---------|
 | `filename` | Path to .jac file | `main.jac` |
 | `--client` | Build target (`web`, `desktop`, `pwa`, `mobile`) | `web` |
-| `-p, --platform` | Platform for desktop (`windows`, `macos`, `linux`, `all`) or mobile (`android`, `ios`) builds | Current platform |
+| `-p, --platform` | **Mobile:** `android`, `ios`, `all`. **Desktop:** `windows` names the sidecar `jac-sidecar.exe` | Current platform |
 
 **Examples:**
 
@@ -1876,7 +1876,7 @@ jac build
 # Build desktop app
 jac build --client desktop
 
-# Build for Windows
+# Build on Windows for the windows binary
 jac build --client desktop --platform windows
 
 # Build mobile app for Android
@@ -1899,9 +1899,6 @@ For `target=mobile`, `--platform` supports `android`, `ios`, or `all`.
 **Examples:**
 
 ```bash
-# Setup Tauri for desktop builds
-jac setup desktop
-
 # Setup Capacitor for mobile builds
 jac setup mobile
 
@@ -1921,6 +1918,13 @@ jac setup mobile --platform all
 | `jac start` | `--client <target>` | Client build target for dev server |
 | `jac add` | `--npm` | Add npm (client-side) dependency |
 | `jac remove` | `--npm` | Remove npm (client-side) dependency |
+
+#### Desktop builds
+
+The `desktop` client target is provided by `pip install jac-desktop`. There is no
+separate `jac desktop` command and no setup step - build and run with
+`jac build --client desktop` / `jac start --client desktop`. See the
+[jac-desktop Reference](../plugins/jac-desktop.md) for configuration.
 
 ---
 

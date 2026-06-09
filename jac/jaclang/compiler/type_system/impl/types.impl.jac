@@ -248,6 +248,11 @@ impl ClassType.is_namedtuple -> bool {
     return self.shared.is_namedtuple;
 }
 
+"""Return true if this class is a TypedDict."""
+impl ClassType.is_typeddict -> bool {
+    return self.shared.is_typeddict;
+}
+
 """Return true if this class is an enum class."""
 impl ClassType.is_enum_class -> bool {
     return self.shared.is_enum_class;
@@ -276,8 +281,9 @@ impl ClassType.lookup_member_symbol(
     member: str, r_overloaded: list | None = None
 ) -> (Symbol | None) {
     import jaclang.jac0core.unitree as uni;
+    import from jaclang.compiler.type_system.type_utils { collect_member_syms }
     for cls in self.shared.mro {
-        all_syms = cls.shared.symbol_table.lookup_all(member, deep=False);
+        all_syms = collect_member_syms(cls.shared.symbol_table, member);
         if all_syms {
             if r_overloaded is not None and len(all_syms) > 1 {
                 r_overloaded.extend(all_syms[1:]);
