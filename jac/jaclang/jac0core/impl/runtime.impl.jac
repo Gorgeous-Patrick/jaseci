@@ -396,6 +396,15 @@ impl JacWalker.spawn_call(
                     topo_idx = root_anchor.get_topology_index();
                     topo_idx_end = _perf_counter();
                     topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
+                    logger.info(
+                        f"[TTG-DEBUG] topology_index: nodes={len(
+                            topo_idx.node_table
+                        )}, "
+                        f"edges={len(topo_idx.adj_list)}, "
+                        f"topology_index_data={'present'
+                            if root_anchor.topology_index_data
+                            else 'None'}"
+                    );
                     ttg_start = _perf_counter();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
                         warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit

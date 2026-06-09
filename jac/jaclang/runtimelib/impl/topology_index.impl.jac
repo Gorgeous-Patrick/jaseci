@@ -94,8 +94,8 @@ impl TopologyIndex.remove_node(node_id: UUID) -> None {
         return;
     }
     self.adj_list = [
-        (s, et, t, eid)
-        for (s, et, t, eid) in self.adj_list
+        (s, et, t)
+        for (s, et, t) in self.adj_list
         if s != lid and t != lid
     ];
     self.buckets.pop(lid, None);
@@ -109,7 +109,7 @@ impl TopologyIndex.remove_node(node_id: UUID) -> None {
 
 """Add an edge to `adj_list` and fan out into the buckets under MRO ancestors."""
 impl TopologyIndex.add_edge(
-    source_id: UUID, target_id: UUID, edge_type_name: str, edge_id: UUID
+    source_id: UUID, target_id: UUID, edge_type_name: str
 ) -> None {
     src_lid = self.node_to_lid.get(source_id);
     tgt_lid = self.node_to_lid.get(target_id);
@@ -117,7 +117,7 @@ impl TopologyIndex.add_edge(
         return;
     }
     etid = self._ensure_type(edge_type_name);
-    self.adj_list.append((src_lid, etid, tgt_lid, edge_id));
+    self.adj_list.append((src_lid, etid, tgt_lid));
 
     (_, src_type_id, _) = self.node_table[src_lid];
     (_, tgt_type_id, _) = self.node_table[tgt_lid];
@@ -151,11 +151,11 @@ impl TopologyIndex.remove_edge(
     }
     filter_etid = self.type_to_id.get(edge_type_name) if edge_type_name else None;
 
-    new_adj: list[tuple[int, int, int, UUID]] = [];
+    new_adj: list[tuple[int, int, int]] = [];
     removed_etid: int = 0;
     removed_any = False;
     for entry in self.adj_list {
-        (s, et, t, _eid) = entry;
+        (s, et, t) = entry;
         if not removed_any and s == src_lid and t == tgt_lid {
             if filter_etid is None or et == filter_etid {
                 removed_etid = et;
@@ -172,7 +172,7 @@ impl TopologyIndex.remove_edge(
 
     edge_type_still_connects = False;
     any_edge_remains = False;
-    for (s, et, t, _eid) in self.adj_list {
+    for (s, et, t) in self.adj_list {
         if s == src_lid and t == tgt_lid {
             any_edge_remains = True;
             if et == removed_etid {
@@ -456,7 +456,7 @@ impl TopologyIndex.resolve_chain_ordered(
     # pass the per-origin allow-sets. Dedupe across parallel edges.
     ordered: list[UUID] = [];
     seen: set[int] = set();
-    for (s, _et, t, _eid) in self.adj_list {
+    for (s, _et, t) in self.adj_list {
         # OUT: origin is the source, target is the neighbor.
         if want_out and s in out_allowed and t in out_allowed[s] {
             if t not in seen {
@@ -517,9 +517,8 @@ impl TopologyIndex.encode -> bytes {
         parts.append(struct.pack("<H", type_id));
         parts.append(owner_root.bytes);
     }
-    for (src, etid, tgt, eid) in self.adj_list {
+    for (src, etid, tgt) in self.adj_list {
         parts.append(struct.pack("<HHH", src, etid, tgt));
-        parts.append(eid.bytes);
     }
     buf = bytearray();
     for p in parts {
@@ -609,9 +608,7 @@ impl TopologyIndex.decode(data: bytes) -> TopologyIndex {
         etid: int = int(unpacked[1]);
         tgt: int = int(unpacked[2]);
         offset += 6;
-        eid = UUID(bytes=data[offset:offset + 16]);
-        offset += 16;
-        idx.adj_list.append((src, etid, tgt, eid));
+        idx.adj_list.append((src, etid, tgt));
         (_, src_t, _) = idx.node_table[src];
         (_, tgt_t, _) = idx.node_table[tgt];
         src_ancestors = idx.type_mro_ids[src_t] or [src_t];

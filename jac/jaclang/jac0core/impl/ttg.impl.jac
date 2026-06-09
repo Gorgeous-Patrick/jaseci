@@ -419,12 +419,12 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     _resolve_ms = 0.0;
     _resolve_calls = 0;
     _edge_count = 0;
-    # Build adjacency index once: lid -> [(et, neighbor_lid, eid)]
+    # Build adjacency index once: lid -> [(et, neighbor_lid)]
     # Avoids O(N²) full adj_list scan per node during BFS.
     _adj_index: dict = defaultdict(list);
-    for (src_lid, _et, tgt_lid, eid) in topology_index.adj_list {
-        _adj_index[src_lid].append((_et, tgt_lid, eid));
-        _adj_index[tgt_lid].append((_et, src_lid, eid));
+    for (src_lid, _et, tgt_lid) in topology_index.adj_list {
+        _adj_index[src_lid].append((_et, tgt_lid));
+        _adj_index[tgt_lid].append((_et, src_lid));
     }
     while queue {
         if len(prefetch) >= max_length {

@@ -4,7 +4,7 @@ Stores a compact adjacency structure on root nodes so that edge-op chains
 with type filters can be resolved without loading every node from the DB.
 
 Two layered structures are kept in sync:
-  * Canonical adj_list — `(src_lid, edge_type_id, tgt_lid, edge_uuid)` quads; preserves
+  * Canonical adj_list — `(src_lid, edge_type_id, tgt_lid)` triples; preserves
     multi-edge multiplicity, source of truth for encode/decode.
   * type-keyed lookup map — type-keyed dict
     `buckets[src_lid][col_key] = (in_lids, out_lids)` where `col_key` is
@@ -17,7 +17,7 @@ Encoding format (version 2):
     [1B name_len][name_bytes...]
     [1B mro_len][mro_len × 2B ancestor_type_id]
   NodeTable:  for each node: [16B uuid][2B type_id][16B owner_root_uuid]
-  AdjList:    for each edge: [2B src_lid][2B edge_type_id][2B tgt_lid][16B edge_uuid]
+  AdjList:    for each edge: [2B src_lid][2B edge_type_id][2B tgt_lid]
 """
 
 import struct;
@@ -33,7 +33,7 @@ obj TopologyIndex {
         type_mro_ids: list[list[int]] = [],
         node_table: list[tuple[UUID, int, UUID]] = [],
         node_to_lid: dict[UUID, int] = {},
-        adj_list: list[tuple[int, int, int, UUID]] = [],
+        adj_list: list[tuple[int, int, int]] = [],
         buckets: dict[int, dict[str, tuple[set[int], set[int]]]] = {};
 
     def _ensure_type(type_name: str, mro_chain: (list[str] | None) = None) -> int;
@@ -45,10 +45,7 @@ obj TopologyIndex {
     ) -> int;
 
     def remove_node(node_id: UUID) -> None;
-    def add_edge(
-        source_id: UUID, target_id: UUID, edge_type_name: str, edge_id: UUID
-    ) -> None;
-
+    def add_edge(source_id: UUID, target_id: UUID, edge_type_name: str) -> None;
     def remove_edge(
         source_id: UUID, target_id: UUID, edge_type_name: (str | None) = None
     ) -> None;
