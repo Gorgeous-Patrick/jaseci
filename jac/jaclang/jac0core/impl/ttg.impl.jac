@@ -175,7 +175,7 @@ impl JacTTGGenerator._extract_chains_from_trailer(
     chain_items = getattr(trailer, 'chain', []);
     for item in chain_items {
         step = cls._extract_edge_step(scope, item);
-        if step[0] is not None {
+        if step[0] is not None or isinstance(item, uni.EdgeOpRef) {
             edge_chain.append(step);
         } elif step[1] is not None {
             if len(edge_chain) > 0 {
@@ -188,9 +188,7 @@ impl JacTTGGenerator._extract_chains_from_trailer(
         edge_refs = trailer.get_all_sub_nodes(uni.EdgeOpRef);
         for edge_ref in edge_refs {
             step = cls._extract_edge_step(scope, edge_ref);
-            if step[0] is not None {
-                edge_chain.append(step);
-            }
+            edge_chain.append(step);
         }
     }
     return edge_chain;
@@ -411,6 +409,20 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     visits = cls._extract_visits_from_ast(warch);
     _ast_ms = (_time.perf_counter() - _t0) * 1000;
 
+    import from logging { getLogger as _dbg_log }
+    _dbg = _dbg_log(__name__);
+    _dbg.info(
+        f"[TTG-DEBUG] extracted {len(visits)} visits: " + str(
+            [
+                (
+                    f"from={cls._resolve_type_name(v.from_node_type)}",
+                    f"edge={cls._resolve_type_name(v.edge_type)}",
+                    f"chain={v.edge_chain}"
+                ) for v in visits
+            ]
+        )
+    );
+
     prefetch: list[UUID] = [start_id];
     seen: set[UUID] = {start_id};
     import from collections { deque }
@@ -435,6 +447,9 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         cur_type = topology_index.type_table[topology_index.node_table[cur_lid][1]]
             if cur_lid is not None
             else None;
+        _dbg.info(
+            f"[TTG-DEBUG] BFS node: cur_lid={cur_lid}, cur_type={cur_type}, cur={cur}"
+        );
         will_visit = False;
         for v in visits {
             from_type = cls._resolve_type_name(v.from_node_type)
@@ -452,9 +467,11 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             } else {
                 chain = [(None, None, 2)];
             }
+            _dbg.info(f"[TTG-DEBUG]   match: from_type={from_type}, chain={chain}");
             _rc_start = _time.perf_counter();
             _results = topology_index.resolve_chain({cur}, chain);
             _resolve_ms += (_time.perf_counter() - _rc_start) * 1000;
+            _dbg.info(f"[TTG-DEBUG]   resolve_chain returned {len(_results)} results");
             _resolve_calls += 1;
             for tgt in _results {
                 if tgt not in seen {
