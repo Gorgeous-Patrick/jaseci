@@ -4,6 +4,12 @@ import inspect;
 import dis;
 import from typing { cast }
 
+# Caches keyed by id(filt.__code__). Codegen-emitted filter lambdas share
+# the same __code__ object across invocations, so bytecode disassembly and
+# closure inspection only need to run once per unique filter definition.
+glob _has_pred_cache: dict[int, bool] = {},
+     _type_name_cache: dict[int, (str | None)] = {};
+
 
 """Truthy `JAC_QUERY_TRACE` toggles per-call strategy/needs/coverage logging.
 Reads each call; cheap enough and lets users flip it without restarting."""
@@ -23,6 +29,26 @@ def _filter_type_name(filt: any) -> (str | None) {
     if filt is None {
         return None;
     }
+    try {
+        key = id(filt.__code__);
+        if key in _type_name_cache {
+            return _type_name_cache[key];
+        }
+    } except AttributeError {
+        ;
+    }
+    result = _filter_type_name_uncached(filt);
+    try {
+        _type_name_cache[id(filt.__code__)] = result;
+    } except AttributeError {
+        ;
+    }
+    return result;
+}
+
+
+"""Uncached implementation of _filter_type_name."""
+def _filter_type_name_uncached(filt: any) -> (str | None) {
     try {
         import from jaclang.jac0core.archetype { Archetype }
         if isinstance(filt, Archetype) {
@@ -61,6 +87,26 @@ def _filter_has_predicates(filt: any) -> bool {
     if filt is None {
         return False;
     }
+    try {
+        key = id(filt.__code__);
+        if key in _has_pred_cache {
+            return _has_pred_cache[key];
+        }
+    } except AttributeError {
+        ;
+    }
+    result = _filter_has_predicates_uncached(filt);
+    try {
+        _has_pred_cache[id(filt.__code__)] = result;
+    } except AttributeError {
+        ;
+    }
+    return result;
+}
+
+
+"""Uncached implementation of _filter_has_predicates."""
+def _filter_has_predicates_uncached(filt: any) -> bool {
     try {
         opcodes = {instr.opname for instr in dis.get_instructions(filt)};
     } except (TypeError, AttributeError, ValueError) {
