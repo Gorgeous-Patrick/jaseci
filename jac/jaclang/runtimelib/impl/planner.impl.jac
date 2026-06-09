@@ -4,11 +4,12 @@ import inspect;
 import dis;
 import from typing { cast }
 
-# Caches keyed by id(filt.__code__). Codegen-emitted filter lambdas share
-# the same __code__ object across invocations, so bytecode disassembly and
-# closure inspection only need to run once per unique filter definition.
-glob _has_pred_cache: dict[int, bool] = {},
-     _type_name_cache: dict[int, (str | None)] = {};
+# Caches keyed by filt.__code__ (hashable, holds a strong reference).
+# Codegen-emitted filter lambdas share the same __code__ object across
+# invocations, so bytecode disassembly and closure inspection only need
+# to run once per unique filter definition.
+glob _has_pred_cache: dict = {},
+     _type_name_cache: dict = {};
 
 
 """Truthy `JAC_QUERY_TRACE` toggles per-call strategy/needs/coverage logging.
@@ -30,7 +31,7 @@ def _filter_type_name(filt: any) -> (str | None) {
         return None;
     }
     try {
-        key = id(filt.__code__);
+        key = filt.__code__;
         if key in _type_name_cache {
             return _type_name_cache[key];
         }
@@ -39,7 +40,7 @@ def _filter_type_name(filt: any) -> (str | None) {
     }
     result = _filter_type_name_uncached(filt);
     try {
-        _type_name_cache[id(filt.__code__)] = result;
+        _type_name_cache[filt.__code__] = result;
     } except AttributeError {
         ;
     }
@@ -88,7 +89,7 @@ def _filter_has_predicates(filt: any) -> bool {
         return False;
     }
     try {
-        key = id(filt.__code__);
+        key = filt.__code__;
         if key in _has_pred_cache {
             return _has_pred_cache[key];
         }
@@ -97,7 +98,7 @@ def _filter_has_predicates(filt: any) -> bool {
     }
     result = _filter_has_predicates_uncached(filt);
     try {
-        _has_pred_cache[id(filt.__code__)] = result;
+        _has_pred_cache[filt.__code__] = result;
     } except AttributeError {
         ;
     }
