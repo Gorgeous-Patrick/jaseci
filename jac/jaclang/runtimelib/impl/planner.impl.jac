@@ -497,6 +497,19 @@ impl plan_chain(
     if not isinstance(idx, TopologyIndex) or len(idx) == 0 {
         return None;
     }
+    # Try cross-root resolution first for multi-hop chains.
+    if len(chain) > 1 {
+        import from jaclang.project.config { get_config }
+        cfg = get_config();
+        if cfg is not None and cfg.run.cross_root_resolve {
+            import from jaclang { JacRuntimeInterface }
+            ctx = JacRuntimeInterface.get_context();
+            result = idx.resolve_chain_cross_root(ctx.mem, origin_ids, chain);
+            if result {
+                return result;
+            }
+        }
+    }
     return idx.resolve_chain(origin_ids, chain, bail_on_intermediate_foreign=True);
 }
 

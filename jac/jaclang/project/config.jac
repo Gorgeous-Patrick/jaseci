@@ -52,6 +52,7 @@ obj RunConfig {
         prefetching: str = "",
         prefetch_limit: int = 200,
         async_prefetch: bool = False,
+        cross_root_resolve: bool = False,
         access_log: str = "";
 
     diagnostics: str = "error";  # "error" | "all" | "none"
