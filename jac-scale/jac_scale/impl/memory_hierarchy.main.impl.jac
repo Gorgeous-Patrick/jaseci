@@ -91,11 +91,13 @@ impl ScaleTieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 
 """Batch get with full tiered read-through: L1 → L2 MGET → L3 $in."""
 impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
+    import from jaclang.runtimelib.memory { _tiered_access_log }
     result: dict[UUID, Anchor] = {};
     l1_misses: list[UUID] = [];
     for id in ids {
         if (anchor := self.__mem__.get(id)) {
             result[id] = anchor;
+            _tiered_access_log(id, "L1", anchor);
         } else {
             l1_misses.append(id);
         }
@@ -112,6 +114,7 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
                 anchor = l2_results[id];
                 self.__mem__[id] = anchor;
                 result[id] = anchor;
+                _tiered_access_log(id, "L2", anchor);
             } else {
                 l2_misses.append(id);
             }
@@ -139,6 +142,12 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
                 } except Exception { }
             }
             result[id] = anchor;
+            _tiered_access_log(id, "L3", anchor);
+        }
+        for mid in l2_misses {
+            if mid not in l3_results {
+                _tiered_access_log(mid, "MISS");
+            }
         }
     }
     return result;

@@ -425,6 +425,7 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     warch: Any,
     start_id: UUID,
     topology_index: Any,
+    mem: Any = None,
     max_length: int = 200
 ) -> list[UUID] {
     import time as _time;
@@ -454,6 +455,19 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     _resolve_ms = 0.0;
     _resolve_calls = 0;
     _edge_count = 0;
+    # Pre-load foreign root anchors so cross-root resolution hits L1.
+    if mem is not None {
+        import from jaclang.runtimelib.topology_index { SELF_ROOT }
+        foreign_root_set: set[UUID] = set();
+        for (_nid, _tid, _owner) in topology_index.node_table {
+            if _owner != SELF_ROOT {
+                foreign_root_set.add(_owner);
+            }
+        }
+        if foreign_root_set {
+            mem.prefetch(`list(foreign_root_set));
+        }
+    }
     # Build adjacency index once: lid -> [(et, neighbor_lid)]
     # Avoids O(N²) full adj_list scan per node during BFS.
     _adj_index: dict = defaultdict(list);
@@ -470,9 +484,6 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         cur_type = topology_index.type_table[topology_index.node_table[cur_lid][1]]
             if cur_lid is not None
             else None;
-        _dbg.info(
-            f"[TTG-DEBUG] BFS node: cur_lid={cur_lid}, cur_type={cur_type}, cur={cur}"
-        );
         will_visit = False;
         for v in visits {
             from_type = cls._resolve_type_name(v.from_node_type)
@@ -490,11 +501,13 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             } else {
                 chain = [(None, None, 2)];
             }
-            _dbg.info(f"[TTG-DEBUG]   match: from_type={from_type}, chain={chain}");
             _rc_start = _time.perf_counter();
-            _results = topology_index.resolve_chain({cur}, chain);
+            if mem is not None {
+                _results = topology_index.resolve_chain_cross_root(mem, {cur}, chain);
+            } else {
+                _results = topology_index.resolve_chain({cur}, chain) or set();
+            }
             _resolve_ms += (_time.perf_counter() - _rc_start) * 1000;
-            _dbg.info(f"[TTG-DEBUG]   resolve_chain returned {len(_results)} results");
             _resolve_calls += 1;
             for tgt in _results {
                 if tgt not in seen {
@@ -516,11 +529,32 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     }
     import from logging { getLogger as _getLogger }
     _avg_resolve = _resolve_ms / _resolve_calls if _resolve_calls > 0 else 0.0;
+    # Count prefetched nodes by type
+    _type_counts: dict[str, int] = {};
+    for _pid in prefetch {
+        _plid = topology_index.node_to_lid.get(_pid);
+        if _plid is not None {
+            _ptype = topology_index.type_table[topology_index.node_table[_plid][1]];
+        } else {
+            _ptype = "unknown";
+        }
+        _type_counts[_ptype] = _type_counts.get(_ptype, 0) + 1;
+    }
+    # Count total nodes in index by type
+    _idx_type_counts: dict[str, int] = {};
+    for (_nid, _tid, _owner) in topology_index.node_table {
+        _tname = topology_index.type_table[_tid];
+        _idx_type_counts[_tname] = _idx_type_counts.get(_tname, 0) + 1;
+    }
     _getLogger(__name__).info(
         f"[TTG] ast_ms={_ast_ms:.3f}  resolve_chain_total_ms={_resolve_ms:.3f}"
         f"  resolve_calls={_resolve_calls}  avg_per_call_ms={_avg_resolve:.4f}"
         f"  nodes_in_adj={len(topology_index.adj_list)}"
         f"  prefetched={len(prefetch)}  nodes={len(prefetch) - _edge_count}  edges={_edge_count}"
+    );
+    _getLogger(__name__).info(
+        f"[TTG-COVERAGE] prefetched_by_type={_type_counts}  "
+        f"index_by_type={_idx_type_counts}  max_length={max_length}"
     );
     cls._last_resolve_ms = _resolve_ms;
     return prefetch;

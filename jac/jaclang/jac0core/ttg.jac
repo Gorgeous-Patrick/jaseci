@@ -81,6 +81,7 @@ class JacTTGGenerator {
         warch: Any,
         start_id: UUID,
         topology_index: Any,
+        mem: Any = None,
         max_length: int = 200
     ) -> list[UUID];
 }

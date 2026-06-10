@@ -51,7 +51,8 @@ obj RunConfig {
         topology_index: bool = True,
         prefetching: str = "",
         prefetch_limit: int = 200,
-        async_prefetch: bool = False;
+        async_prefetch: bool = False,
+        access_log: str = "";
 
     diagnostics: str = "error";  # "error" | "all" | "none"
 }

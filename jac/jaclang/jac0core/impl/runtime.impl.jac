@@ -406,8 +406,13 @@ impl JacWalker.spawn_call(
                             else 'None'}"
                     );
                     ttg_start = _perf_counter();
+                    _ctx = JacRuntimeInterface.get_context();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
-                        warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
+                        warch,
+                        nd.id,
+                        topo_idx,
+                        mem=_ctx.mem,
+                        max_length=cfg.run.prefetch_limit
                     );
                     ttg_end = _perf_counter();
                     ttg_time_ms = (ttg_end - ttg_start) * 1000;
@@ -520,8 +525,13 @@ impl JacWalker.async_spawn_call(
                 root_anchor = _get_root_anchor(nd);
                 if root_anchor is not None {
                     topo_idx = root_anchor.get_topology_index();
+                    _ctx2 = JacRuntimeInterface.get_context();
                     prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
-                        warch, nd.id, topo_idx, max_length=cfg.run.prefetch_limit
+                        warch,
+                        nd.id,
+                        topo_idx,
+                        mem=_ctx2.mem,
+                        max_length=cfg.run.prefetch_limit
                     );
                     if prefetch_ids {
                         ctx = JacRuntimeInterface.get_context();

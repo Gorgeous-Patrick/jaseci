@@ -22,6 +22,52 @@ glob logger = logging.getLogger(__name__),
      # schema migration. Kept in the `schema_meta` table.
      SQLITE_DB_FORMAT_VERSION: int = 1;
 
+"""Log an anchor access to the CSV file configured via [run] access_log.
+
+The file handle is lazily opened on first call and cached in a list
+(single-element mutable container avoids `glob` reassignment issues).
+"""
+glob _access_log_state: list = [None];
+
+def _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
+    fh = _access_log_state[0];
+    if fh is None {
+        try {
+            import from jaclang.project.config { get_config }
+            cfg = get_config();
+            if cfg is None or not cfg.run.access_log {
+                _access_log_state[0] = False;
+                return;
+            }
+            import pathlib;
+            p = pathlib.Path(cfg.run.access_log);
+            p.parent.mkdir(parents=True, exist_ok=True);
+            fh = p.open('w');
+            fh.write("id,tier,type\n");
+            _access_log_state[0] = fh;
+        } except Exception {
+            _access_log_state[0] = False;
+            return;
+        }
+    }
+    if fh is False {
+        return;
+    }
+    type_name = "";
+    if anchor is not None {
+        try {
+            type_name = `type(anchor).__name__;
+            if anchor?.archetype and anchor.archetype is not None {
+                type_name = `type(anchor.archetype).__name__;
+            }
+        } except Exception {
+            ;
+        }
+    }
+    fh.write(f"{id},{tier},{type_name}\n");
+    fh.flush();
+}
+
 # =============================================================================
 # Memory — default async mirrors
 # =============================================================================
@@ -1629,11 +1675,13 @@ impl TieredMemory.postinit -> None {
 impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     # L1 hit (self.__mem__ inherited from VolatileMemory)
     if (anchor := self.__mem__.get(id)) {
+        _tiered_access_log(id, "L1", anchor);
         return anchor;
     }
     # L2 hit with promotion to L1
     if self.l2 and (anchor := self.l2.get(id)) {
         self.__mem__[anchor.id] = anchor;
+        _tiered_access_log(id, "L2", anchor);
         return anchor;
     }
     # L3 fallback with promotion to L1 (and L2 if enabled)
@@ -1642,8 +1690,10 @@ impl TieredMemory.get(id: UUID) -> (Anchor | None) {
         if self.l2 {
             self.l2.put(anchor);
         }
+        _tiered_access_log(id, "L3", anchor);
         return anchor;
     }
+    _tiered_access_log(id, "MISS");
     return None;
 }
 
@@ -1839,6 +1889,7 @@ impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     for id in ids {
         if (anchor := self.__mem__.get(id)) {
             result[id] = anchor;
+            _tiered_access_log(id, "L1", anchor);
         } else {
             missing_ids.append(id);
         }
@@ -1851,6 +1902,9 @@ impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
                     self.l2.put(anchor);
                 }
                 result[anchor.id] = anchor;
+                _tiered_access_log(mid, "L3", anchor);
+            } else {
+                _tiered_access_log(mid, "MISS");
             }
         }
     }
