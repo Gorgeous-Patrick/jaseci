@@ -514,6 +514,9 @@ impl TopologyIndex.resolve_chain_cross_root(
         is_last = hop_idx == len(chain) - 1;
         next_frontier: list[tuple[TopologyIndex, set[UUID]]] = [];
         result_ids: set[UUID] = set();
+        # Accumulate foreign node IDs per root across all frontier entries
+        # so each foreign index is queried once with the full union of IDs.
+        pending_foreign: dict[UUID, set[UUID]] = {};
         for (idx, ids) in frontier {
             hop_result = idx.resolve_chain(ids, [hop]);
             if not hop_result {
@@ -531,29 +534,37 @@ impl TopologyIndex.resolve_chain_cross_root(
                     next_frontier.append((idx, local_ids));
                 }
                 for (foreign_root_id, foreign_node_ids) in cross_root_map.items() {
-                    try {
-                        root_anchor = mem.get(foreign_root_id);
-                        if not isinstance(root_anchor, NodeAnchor) {
-                            _logger.warning(
-                                "cross-root resolve: root %s is not a NodeAnchor, "
-                                "falling back to edge walk",
-                                foreign_root_id
-                            );
-                            return None;
-                        }
-                        foreign_idx = root_anchor.get_topology_index();
-                        if foreign_idx is not None and len(foreign_idx) > 0 {
-                            next_frontier.append((foreign_idx, foreign_node_ids));
-                        }
-                    } except Exception as exc {
+                    pending_foreign.setdefault(foreign_root_id, set()).update(
+                        foreign_node_ids
+                    );
+                }
+            }
+        }
+        # Resolve each foreign root once with the merged node set.
+        if not is_last {
+            for (foreign_root_id, foreign_node_ids) in pending_foreign.items() {
+                try {
+                    root_anchor = mem.get(foreign_root_id);
+                    if not isinstance(root_anchor, NodeAnchor) {
                         _logger.warning(
-                            "cross-root resolve: failed to load root %s (%s), "
+                            "cross-root resolve: root %s is not a NodeAnchor, "
                             "falling back to edge walk",
-                            foreign_root_id,
-                            exc
+                            foreign_root_id
                         );
                         return None;
                     }
+                    foreign_idx = root_anchor.get_topology_index();
+                    if foreign_idx is not None and len(foreign_idx) > 0 {
+                        next_frontier.append((foreign_idx, foreign_node_ids));
+                    }
+                } except Exception as exc {
+                    _logger.warning(
+                        "cross-root resolve: failed to load root %s (%s), "
+                        "falling back to edge walk",
+                        foreign_root_id,
+                        exc
+                    );
+                    return None;
                 }
             }
         }
