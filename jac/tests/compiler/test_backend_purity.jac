@@ -36,7 +36,7 @@ glob FORBIDDEN: dict[str, str] = {
          ("ecmascript/impl/esast_gen_pass.impl.jac", "type_tag.tag"): 7,
          ("ecmascript/impl/esast_gen_pass.impl.jac", ".lookup("): 3,
          ("native/na_ir_gen_pass.impl/calls.impl.jac", "symbol_utils"): 1,
-         ("native/na_ir_gen_pass.impl/objects.impl.jac", "symbol_utils"): 2,
+         ("native/na_ir_gen_pass.impl/objects.impl.jac", "symbol_utils"): 1,
          ("native/na_ir_gen_pass.impl/core.impl.jac", "type_tag.tag"): 2,
          ("native/na_ir_gen_pass.impl/func.impl.jac", "type_tag.tag"): 12,
          ("native/na_ir_gen_pass.impl/objects.impl.jac", "type_tag.tag"): 6,
