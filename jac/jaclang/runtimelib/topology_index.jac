@@ -93,7 +93,7 @@ obj TopologyIndex {
         mem: any,
         origin_ids: set[UUID],
         chain: list[tuple[(str | None), (str | None), int]]
-    ) -> set[UUID];
+    ) -> (set[UUID] | None);
 
     def encode -> bytes;
     static def decode(data: bytes) -> TopologyIndex;

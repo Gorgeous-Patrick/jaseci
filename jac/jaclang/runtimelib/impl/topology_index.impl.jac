@@ -493,14 +493,20 @@ impl TopologyIndex.get_cross_root_ids(node_ids: set[UUID]) -> dict[UUID, set[UUI
     return result;
 }
 
-"""Resolve a chain across root boundaries hop by hop (iterative)."""
+"""Resolve a chain across root boundaries hop by hop (iterative).
+
+Returns None when any foreign root fails to load — the partial result
+would silently omit nodes, so the caller must fall back to the
+complete (but slower) edge-walk path."""
 impl TopologyIndex.resolve_chain_cross_root(
     mem: any, origin_ids: set[UUID], chain: list[tuple[(str | None), (str | None), int]]
-) -> set[UUID] {
+) -> (set[UUID] | None) {
     if not chain {
         return origin_ids;
     }
+    import logging;
     import from jaclang.jac0core.archetype { NodeAnchor }
+    _logger = logging.getLogger(__name__);
     # Group current frontier by (topology_index, node_ids).
     # Start with all origins on `self`.
     frontier: list[tuple[TopologyIndex, set[UUID]]] = [(self, origin_ids)];
@@ -528,14 +534,25 @@ impl TopologyIndex.resolve_chain_cross_root(
                     try {
                         root_anchor = mem.get(foreign_root_id);
                         if not isinstance(root_anchor, NodeAnchor) {
-                            continue;
+                            _logger.warning(
+                                "cross-root resolve: root %s is not a NodeAnchor, "
+                                "falling back to edge walk",
+                                foreign_root_id
+                            );
+                            return None;
                         }
                         foreign_idx = root_anchor.get_topology_index();
                         if foreign_idx is not None and len(foreign_idx) > 0 {
                             next_frontier.append((foreign_idx, foreign_node_ids));
                         }
-                    } except Exception {
-                        continue;
+                    } except Exception as exc {
+                        _logger.warning(
+                            "cross-root resolve: failed to load root %s (%s), "
+                            "falling back to edge walk",
+                            foreign_root_id,
+                            exc
+                        );
+                        return None;
                     }
                 }
             }
