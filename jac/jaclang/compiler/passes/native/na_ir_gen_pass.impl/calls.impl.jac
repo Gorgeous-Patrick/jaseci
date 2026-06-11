@@ -46,6 +46,37 @@ impl NaIRGenPass._callee_sig_of(nd: uni.FuncCall) -> (uni.FuncSignature | None) 
     return sig if isinstance(sig, uni.FuncSignature) else None;
 }
 
+"""Fill omitted trailing parameters at a call site from the resolved
+callee's default-value expressions (FuncCall.callee_decl, the
+checker-stamped fact). Used by both free-function and method dispatch;
+`skip_self` accounts for the implicit receiver already in `args`."""
+impl NaIRGenPass._fill_default_args(
+    nd: uni.FuncCall, func: ir.Function, args: list, skip_self: bool = False
+) -> None {
+    callee_sig = self._callee_sig_of(nd);
+    if callee_sig is None or len(args) >= len(func.args) {
+        return;
+    }
+    sig_params = callee_sig.get_parameters();
+    base = len(args) - 1 if skip_self else len(args);
+    for pix in range(base, len(sig_params)) {
+        expected_type = func.args[len(args)].type
+            if len(args) < len(func.args)
+            else ir.IntType(64);
+        p = sig_params[pix];
+        if p.value is not None {
+            dval = self._codegen_expr(p.value);
+            if dval is not None {
+                args.append(self._coerce_type(dval, expected_type));
+            } else {
+                args.append(ir.Constant(expected_type, 0));
+            }
+        } else {
+            args.append(ir.Constant(expected_type, 0));
+        }
+    }
+}
+
 """Emit E5090 for a builtin call the native emitter could not lower.
 
 Shared by the multi-arg and single-arg builtin dispatch paths so the
@@ -722,26 +753,7 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
     }
     # Fill in missing optional parameters with the resolved callee's
     # default-value exprs (checker-stamped fact, not a name-keyed cache)
-    callee_sig = self._callee_sig_of(nd);
-    if callee_sig is not None and len(args) < len(func.args) {
-        sig_params = callee_sig.get_parameters();
-        for pix in range(len(args), len(sig_params)) {
-            p = sig_params[pix];
-            expected_type = func.args[len(args)].type
-                if len(args) < len(func.args)
-                else ir.IntType(64);
-            if p.value is not None {
-                dval = self._codegen_expr(p.value);
-                if dval is not None {
-                    args.append(self._coerce_type(dval, expected_type));
-                } else {
-                    args.append(ir.Constant(expected_type, 0));
-                }
-            } else {
-                args.append(ir.Constant(expected_type, 0));
-            }
-        }
-    }
+    self._fill_default_args(nd, func, args, skip_self=False);
     # Foreign (clib) calls: marshal per the recorded System V ABI plan. This is
     # the single authority for foreign argument/return lowering — it slices
     # struct args into register pieces / byval pointers and reconstructs the
@@ -785,12 +797,10 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
             }
         }
     }
-    # every pointer returned by a user function is owned (either via RETAIN
-    # inside the callee for borrowed refs, or via skip_var donation for named locals).
-    # Mark the call result owned so the caller's assign handler skips an extra RETAIN.
-    if isinstance(result.type, ir.PointerType) {
-        self._mark_owned(result);
-    }
+    # Every pointer returned by a user function carries a +1 (RETAIN inside
+    # the callee for borrowed refs, or skip-var donation for named locals);
+    # ownership is applied at the _codegen_expr seam from the central
+    # invariant (compiler/ownership.jac).
     return result;
 }
 # ─── External Function Support ───────────────────────────────

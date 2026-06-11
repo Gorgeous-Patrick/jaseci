@@ -199,12 +199,10 @@ impl NaIRGenPass._codegen_return(nd: uni.ReturnStmt) -> None {
         # An empty collection literal in return position types itself: the
         # checker stamps it with the declared return type (bidirectional
         # inference), so no emission-context hints are threaded here.
-        # Flag return-tuple context so borrowed pointer elements are retained
-        # as they are packed (the tuple box does not own its elements, and the
-        # owning local is torn down at scope exit below).
-        self._return_tuple_ctx = isinstance(nd.expr, uni.TupleVal);
+        # Return-position tuple packing (borrowed elements retained so they
+        # outlive scope-exit teardown) is detected by _codegen_tuple_val from
+        # the tree, not via an emission flag.
         val = self._codegen_required(nd.expr);
-        self._return_tuple_ctx = False;
         if val is not None {
             # _coerce_type propagates is_owned across any bitcast/inttoptr it
             # emits, so checking val after coerce is safe — no need to capture
@@ -1221,33 +1219,10 @@ impl NaIRGenPass._codegen_assignment(nd: uni.Assignment) -> None {
                                 else 0}"
                         );
                     }
-                    # First reassignment of a borrowed param: emit an entry-block retain
-                    # so the alloca becomes owned and the release-of-old below is balanced
-                    # (avoids double-free with the caller's own scope-exit release).
-                    if var_name in self.param_vars {
-                        if var_name not in self._param_promoted {
-                            _anchor = self._param_store_instr.get(var_name);
-                            if _anchor is not None
-                            and isinstance(alloca.type, ir.PointerType)
-                            and isinstance(alloca.type.pointee, ir.PointerType) {
-                                _saved_block = self.builder.block;
-                                self.builder.position_after(_anchor);
-                                _borrowed = self.builder.load(
-                                    alloca, name=f"{var_name}.borrowed"
-                                );
-                                self._emit_rc_retain(
-                                    _borrowed,
-                                    op="param_promote",
-                                    loc=f"{os.path.basename(self.ir_in.loc.mod_path)}:{nd.loc.first_line
-                                        if nd.loc
-                                        else 0}"
-                                );
-                                self.builder.position_at_end(_saved_block);
-                            }
-                            self._param_promoted.add(var_name);
-                        }
-                        self.param_vars.discard(var_name);
-                    }
+                    # A rebound borrowed param already owns its slot: the
+                    # entry-block +1 was emitted at function setup from the
+                    # central analysis fact (compiler/ownership.jac), so the
+                    # release-of-old below is balanced on every path.
                     old_val = self.builder.load(alloca, name=f"{var_name}.old");
                     self._emit_rc_release_typed(
                         old_val,
@@ -2000,7 +1975,7 @@ impl NaIRGenPass._codegen_for(nd: uni.InForStmt) -> None {
     actual_elem_type = helpers["elem_type"];
     inner_type: (ir.Type | None) = None;
     if elem_type_name == "ptr" {
-        inner_type = self._resolve_for_loop_elem_type(coll_name, nd.collection);
+        inner_type = self._list_elem_llvm_of(nd.collection);
         if inner_type is not None and not isinstance(inner_type, ir.PointerType) {
             inner_type = None;
         }

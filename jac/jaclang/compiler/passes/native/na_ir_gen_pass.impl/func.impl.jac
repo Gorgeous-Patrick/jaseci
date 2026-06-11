@@ -303,23 +303,32 @@ impl NaIRGenPass._codegen_ability(nd: uni.Ability) -> None {
     block = func.append_basic_block(name="entry");
     self._builder = ir.IRBuilder(block);
     self.local_vars = {};
-    # Reset per-function borrowed-param promotion state (see _codegen_assignment).
-    self._param_store_instr = {};
-    self._param_promoted = set();
     # DWARF debug info (JAC_NATIVE_DEBUG=1)
     self._attach_di_subprogram(
         func, name, self._func_loc.get(name, nd.loc.first_line if nd.loc else 0)
     );
     # Store parameters as local variables (alloca + store pattern)
     sig = (nd).signature;
+    import from jaclang.compiler.ownership { param_plainly_rebound }
     for (i, p) in enumerate(sig.get_parameters()) {
         param_name = p.name.value if p.name else f"arg{i}";
         arg_val = func.args[i];
         alloca = self.builder.alloca(arg_val.type, name=param_name);
-        _store_instr = self.builder.store(arg_val, alloca);
+        self.builder.store(arg_val, alloca);
         self.local_vars[param_name] = alloca;
-        self.param_vars.add(param_name);
-        self._param_store_instr[param_name] = _store_instr;  # for entry-block retain on reassign
+        # A borrowed param rebound by a plain assignment somewhere in the
+        # body owns its slot from birth (central analysis fact,
+        # compiler/ownership.jac): take one entry-block +1 so every
+        # overwrite-release stays balanced, and leave it out of param_vars
+        # so scope exits release it on ALL paths - including early returns
+        # emitted before the rebinding statement, which the old lazy
+        # promote-at-first-reassignment scheme leaked.
+        if isinstance(arg_val.type, ir.PointerType)
+        and param_plainly_rebound(p.name.sym if p.name else None) {
+            self._emit_rc_retain(arg_val, op="param_promote", loc=name);
+        } else {
+            self.param_vars.add(param_name);
+        }
     }
     # Generate body via manual tree-walking (handle ImplDef wrapper from DeclImplMatchPass)
     body = ModuleCodegenPass.unwrap_body(nd);

@@ -264,7 +264,7 @@ impl NaIRGenPass._osp_isa_bases(arch_name: str) -> list[int] {
     if _self_tag is not None {
         bases.append(_self_tag);
     }
-    for anc in self.mro_order.get(arch_name, [arch_name]) {
+    for anc in self._mro_of(arch_name) {
         if (anc != arch_name) and (anc in self.osp_tags) {
             bases.append(self.osp_tags[anc]);
         }

@@ -429,10 +429,8 @@ impl NaIRGenPass._codegen_dict_val(nd: uni.DictVal) -> (ir.Value | None) {
         _dk = self._dict_key_of(nd);
         _helpers = self.dict_helpers.get(_dk) if _dk is not None else None;
         if _helpers is not None {
-            _empty_d = self.builder.call(_helpers["new"], [], name="dict.empty");
-            # RC: fresh allocation - caller owns it; skip RETAIN on assign.
-            self._mark_owned(_empty_d);
-            return _empty_d;
+            # Fresh allocation: ownership applied at the _codegen_expr seam.
+            return self.builder.call(_helpers["new"], [], name="dict.empty");
         }
         return None;
     }
@@ -484,8 +482,6 @@ impl NaIRGenPass._codegen_dict_val(nd: uni.DictVal) -> (ir.Value | None) {
     dict_val = self._rc_call_with_ctx(
         helpers["new"], [], op="new", loc=_dict_new_loc, name="dict.new"
     );
-    # RC: fresh dict allocation — caller owns it; skip RETAIN on assign.
-    self._mark_owned(dict_val);
     _dinit_loc = f"{os.path.basename(self.ir_in.loc.mod_path)}:{nd.loc.first_line
         if nd.loc
         else 0}";
@@ -543,8 +539,7 @@ impl NaIRGenPass._codegen_dict_val(nd: uni.DictVal) -> (ir.Value | None) {
             }
         }
     }
-    # Dict literal is a fresh allocation — mark as owned.
-    self._mark_owned(dict_val);
+    # Fresh allocation: ownership applied at the _codegen_expr seam.
     return dict_val;
 }
 

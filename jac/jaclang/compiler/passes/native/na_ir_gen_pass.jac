@@ -166,18 +166,11 @@ obj NaIRGenPass(ModuleCodegenPass) {
         # (flattened) layout, not the declaring parent the checker reports.
         _self_arch: (str | None) = None,
         field_type_node: dict[str, dict] = {},
-        # True while codegen'ing the TupleVal of a `return (...)`. In that
-        # context borrowed (field-load / element-read) pointer elements must be
-        # retained so they outlive the owning local's scope-exit teardown — the
-        # returned tuple box does not own its elements (see _codegen_tuple_val).
-        _return_tuple_ctx: bool = False,
-        # Inheritance / vtable support (Phase 5)
-        class_hierarchy: dict[str, str] = {},
-        class_parents: dict[str, list[str]] = {},
-        mro_order: dict[str, list[str]] = {},
+        # Inheritance / vtable support (Phase 5). Hierarchy, MRO, and
+        # vtable-need are NOT copied here: they are queried from the central
+        # LayoutRegistry via _mro_of / _arch_has_vtable.
         parent_field_start: dict[str, dict[str, int]] = {},
         arch_ast_map: dict[str, object] = {},
-        has_vtable: dict[str, bool] = {},
         vtable_layouts: dict[str, list[str]] = {},
         vtable_method_indices: dict[str, dict] = {},
         vtable_globals: dict[str, ir.GlobalVariable] = {},
@@ -285,11 +278,6 @@ obj NaIRGenPass(ModuleCodegenPass) {
         # this to emit the correct two-level-namespace dylib ordinal per symbol.
         _clib_symbol_lib: dict[str, str] = {},
         _native_emit_ctx_class: (type | None) = None,
-        # Per-function tracking for borrowed-param promotion: entry-block store instruction
-        # per param (for position_after retain insertion) and set of already-promoted params.
-        # Both are reset at the start of each function/method.
-        _param_store_instr: dict[str, object] = {},
-        _param_promoted: set[str] = set(),
         # TypeBase -> ir.Type lowering memo, keyed by the canonical type key
         # (TypeBase.mangle). Per LLVM module; a hit implies any collection
         # helpers for the type were already emitted.
@@ -345,10 +333,6 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _get_or_declare_extern(
         name: str, ret_type: ir.Type, arg_types: list[ir.Type], var_arg: bool = False
     ) -> ir.Function;
-
-    def _call_extern(
-        b: ir.IRBuilder, func: ir.Function, args: list[ir.Value], name: str = ""
-    ) -> ir.Value;
     # Print support
     def _get_printf -> ir.Function;
     def _emit_print(nd: uni.FuncCall) -> (ir.Value | None);
@@ -382,6 +366,11 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _resolve_type_str(type_name: str) -> ir.Type;
     # Resolved callee signature for a call site (checker-stamped fact).
     def _callee_sig_of(nd: uni.FuncCall) -> (uni.FuncSignature | None);
+    # Fill omitted trailing params from the resolved callee's defaults.
+    def _fill_default_args(
+        nd: uni.FuncCall, func: ir.Function, args: list, skip_self: bool = False
+    ) -> None;
+
     def _get_name(nd: (uni.UniNode | None)) -> (str | None);
     def _to_bool(val: ir.Value) -> ir.Value;
     def _entry_alloca(var_type: ir.Type, name: str) -> ir.Value;
@@ -430,7 +419,6 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _native_archetypes(module: uni.Module) -> list[uni.Archetype];
     def _register_imported_struct_types -> None;
     def _extract_import_module_name(imp: uni.Import) -> (str | None);
-    def _walk_imported_module(imported_mod: uni.Module) -> None;
     def _walk_imported_module_types(imported_mod: uni.Module) -> None;
     def _walk_imported_module_type_names(imported_mod: uni.Module) -> None;
     def _walk_imported_module_abilities(imported_mod: uni.Module) -> None;
@@ -578,6 +566,9 @@ obj NaIRGenPass(ModuleCodegenPass) {
     # Phase 5: Inheritance, Vtables, and C3 MRO
     def _build_vtable(arch_name: str) -> None;
     def _emit_vtable_global(arch_name: str) -> None;
+    # Central class-model queries (LayoutRegistry is the owner; no copies).
+    def _mro_of(arch_name: str) -> list[str];
+    def _arch_has_vtable(arch_name: str) -> bool;
     def _codegen_virtual_call(
         obj_val: ir.Value, method_name: str, args: list[ir.Value], obj_type_name: str
     ) -> (ir.Value | None);
@@ -586,12 +577,7 @@ obj NaIRGenPass(ModuleCodegenPass) {
     # Phase 6: Complex Chains and Type Inference
     def _infer_type_name(val: ir.Value) -> (str | None);
     def _infer_list_elem_type(val: ir.Value) -> (str | None);
-    def _peel_list_type(type_node: (object | None)) -> tuple;
     def _infer_compr_elem_struct(compr: object) -> (str | None);
-    def _resolve_for_loop_elem_type(
-        coll_name: (str | None), coll_node: (object | None)
-    ) -> (ir.Type | None);
-
     def _infer_unpack_struct_ptr(nd: object) -> (ir.Type | None);
     # Phase 7: String Methods and Builtins
     def _codegen_string_index(
@@ -638,63 +624,39 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _sizeof_llvm(ty: ir.Type) -> ir.Value;
     def _box_value_tuple(val: ir.Value, loc: str = "") -> ir.Value;
     def _coerce_tuple_to_struct(val: ir.Value, target_struct: ir.Type) -> ir.Value;
-    # Phase 10: Comprehensions
+    # Phase 10: Comprehensions. One unified walker serves list/dict/set:
+    # `kind` selects the element emission, `spec` is the element spec or
+    # dict registry key, `val_expr` is dict-only.
     def _codegen_list_compr(nd: uni.ListCompr) -> (ir.Value | None);
-    def _codegen_compr_loops(
-        comprs: list,
-        idx: int,
-        list_val: ir.Value,
-        out_expr: uni.UniNode,
-        elem_type_name: str
-    ) -> None;
-
-    def _codegen_compr_range_loop(
-        inner: uni.InnerCompr,
-        comprs: list,
-        idx: int,
-        list_val: ir.Value,
-        out_expr: uni.UniNode,
-        elem_type_name: str,
-        conditionals: list
-    ) -> None;
-
     def _codegen_dict_compr(nd: uni.DictCompr) -> (ir.Value | None);
-    def _codegen_dict_compr_loops(
-        comprs: list,
-        idx: int,
-        dict_val: ir.Value,
-        key_expr: uni.UniNode,
-        val_expr: uni.UniNode,
-        dict_key: str
-    ) -> None;
-
-    def _codegen_dict_compr_range_loop(
-        inner: uni.InnerCompr,
-        comprs: list,
-        idx: int,
-        dict_val: ir.Value,
-        key_expr: uni.UniNode,
-        val_expr: uni.UniNode,
-        dict_key: str,
-        conditionals: list
-    ) -> None;
-
     def _codegen_set_compr(nd: uni.SetCompr) -> (ir.Value | None);
-    def _codegen_set_compr_loops(
-        comprs: list,
-        idx: int,
-        set_val: ir.Value,
-        out_expr: uni.UniNode,
-        elem_type_name: str
+    def _emit_compr_element(
+        kind: str,
+        acc: ir.Value,
+        key_expr: uni.UniNode,
+        val_expr: (uni.UniNode | None),
+        spec: str
     ) -> None;
 
-    def _codegen_set_compr_range_loop(
+    def _codegen_compr_walk(
+        comprs: list,
+        idx: int,
+        kind: str,
+        acc: ir.Value,
+        key_expr: uni.UniNode,
+        val_expr: (uni.UniNode | None),
+        spec: str
+    ) -> None;
+
+    def _codegen_compr_range_walk(
         inner: uni.InnerCompr,
         comprs: list,
         idx: int,
-        set_val: ir.Value,
-        out_expr: uni.UniNode,
-        elem_type_name: str,
+        kind: str,
+        acc: ir.Value,
+        key_expr: uni.UniNode,
+        val_expr: (uni.UniNode | None),
+        spec: str,
         conditionals: list
     ) -> None;
     # Phase 11: Global Variables
@@ -734,15 +696,11 @@ obj NaIRGenPass(ModuleCodegenPass) {
         elem_type_name: str, elem_type: ir.Type, elem_size: int = 0
     ) -> None;
 
-    def _codegen_set_val(nd: uni.SetVal) -> (ir.Value | None);
-    def _codegen_set_contains(
-        set_val: ir.Value, elem_val: ir.Value, elem_type_name: str
-    ) -> (ir.Value | None);
+    def _codegen_set_val(
+        nd: uni.SetVal
+    ) -> (ir.Value | None);  # Phase 14: Exception Handling
 
-    def _codegen_set_add(
-        set_val: ir.Value, elem_val: ir.Value, elem_type_name: str
-    ) -> None;
-    # Phase 14: Exception Handling
+
     def _get_exception_state_type -> ir.Type;
     def _declare_exception_runtime -> None;
     def _emit_exc_push_helper -> None;
@@ -844,10 +802,6 @@ obj NaIRGenPass(ModuleCodegenPass) {
     # Reference counting (Phase RC)
     def _emit_rc_helpers -> None;
     def _rc_alloc(size: ir.Value, name: str = "rc.alloc") -> ir.Value;
-    def _rc_alloc_typed(
-        size: ir.Value, target_type: ir.Type, name: str = "rc.ptr"
-    ) -> ir.Value;
-
     def _emit_rc_retain(ptr: ir.Value, op: str = "", loc: str = "") -> None;
     def _emit_rc_release_simple(ptr: ir.Value, op: str = "", loc: str = "") -> None;
     def _emit_rc_release_typed(val: ir.Value, op: str = "", loc: str = "") -> None;

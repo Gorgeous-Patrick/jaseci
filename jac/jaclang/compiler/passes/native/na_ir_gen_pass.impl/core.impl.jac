@@ -263,9 +263,7 @@ impl NaIRGenPass._export_native_layout -> None {
             );
         }
         layout.structs[arch_name] = NativeStructLayout(
-            name=arch_name,
-            fields=fields,
-            has_vtable=self.has_vtable.get(arch_name, False)
+            name=arch_name, fields=fields, has_vtable=self._arch_has_vtable(arch_name)
         );
     }
     # Enums
@@ -574,14 +572,6 @@ impl NaIRGenPass._extract_import_module_name(imp: uni.Import) -> (str | None) {
         mod_name = '.'.join(getattr(p, 'value', str(p)) for p in imp.from_loc.path);
     }
     return mod_name;
-}
-
-"""Walk an imported module's AST and register all type declarations."""
-impl NaIRGenPass._walk_imported_module(imported_mod: uni.Module) -> None {
-    # Full walk (types + abilities) — kept for any direct callers.
-    self._walk_imported_module_type_names(imported_mod);
-    self._walk_imported_module_types(imported_mod);
-    self._walk_imported_module_abilities(imported_mod);
 }
 
 """Phase-1a walk: register struct names only (empty identified types, no bodies)."""
