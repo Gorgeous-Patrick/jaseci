@@ -1885,7 +1885,7 @@ impl NaIRGenPass._codegen_for_indexed(
             if char_str is not None {
                 self.builder.store(char_str, allocas[0]);
             }
-        } else {
+        } elif kind in ("list", "dict") {
             fetch_fn = helpers["get"] if kind == "list" else helpers["get_key"];
             elem_val = self.builder.call(
                 fetch_fn, [collection_val, body_idx], name="for.elem"
@@ -1903,6 +1903,16 @@ impl NaIRGenPass._codegen_for_indexed(
                 self._emit_rc_retain(elem_val, op="for_elem", loc=_rc_loc);
             }
             self.builder.store(elem_val, allocas[0]);
+        } else {
+            # Internal contract: every iteration form must be dispatched
+            # explicitly - an unknown kind means a dispatcher bug, never a
+            # user error.
+            self.emit(
+                E9002,
+                node_override=nd,
+                details=f"unknown for-loop iteration kind '{kind}'"
+            );
+            return;
         }
     }
     _for_saved = set(self.local_vars.keys());
