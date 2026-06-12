@@ -307,3 +307,167 @@ test "encoded size beats naive bound" {
     # Generous ceiling: 80KB.
     assert len(idx.encode()) < 80000;
 }
+
+# ── Ordered results ──────────────────────────────────────────────────
+test "resolve_chain returns results in edge insertion order" {
+    idx = TopologyIndex();
+    r = uuid4();
+    idx.add_node(r, "Root");
+    # Add nodes and edges in a specific order.
+    nodes: list[UUID] = [];
+    for i in range(10) {
+        n = uuid4();
+        idx.add_node(n, "Item");
+        idx.add_edge(r, n, "Has");
+        nodes.append(n);
+    }
+    # Result order must match insertion order.
+    assert idx.resolve_chain({r}, [("Has", "Item", 2)]) == nodes;
+}
+
+test "order preserved after removing middle edge" {
+    idx = TopologyIndex();
+    r = uuid4();
+    a = uuid4();
+    b = uuid4();
+    c = uuid4();
+    for (nid, t) in [(r, "Root"), (a, "A"), (b, "B"), (c, "C")] {
+        idx.add_node(nid, t);
+    }
+    idx.add_edge(r, a, "E");
+    idx.add_edge(r, b, "E");
+    idx.add_edge(r, c, "E");
+    # Remove the middle edge; remaining order must be [a, c].
+    idx.remove_edge(r, b, "E");
+    assert idx.resolve_chain({r}, [("E", None, 2)]) == [a, c];
+}
+
+test "order preserved after encode decode round trip" {
+    idx = TopologyIndex();
+    r = uuid4();
+    idx.add_node(r, "Root");
+    nodes: list[UUID] = [];
+    for i in range(20) {
+        n = uuid4();
+        idx.add_node(n, "N");
+        idx.add_edge(r, n, "E");
+        nodes.append(n);
+    }
+    decoded = TopologyIndex.decode(idx.encode());
+    assert decoded.resolve_chain({r}, [("E", "N", 2)]) == nodes;
+}
+
+test "multi-origin results interleaved in adj_list order" {
+    # Two origins, each with edges to distinct targets added in interleaved
+    # order. The result should follow global adj_list order.
+    idx = TopologyIndex();
+    a = uuid4();
+    b = uuid4();
+    t1 = uuid4();
+    t2 = uuid4();
+    t3 = uuid4();
+    t4 = uuid4();
+    for (nid, tp) in [
+        (a, "Src"),
+        (b, "Src"),
+        (t1, "T"),
+        (t2, "T"),
+        (t3, "T"),
+        (t4, "T")
+    ] {
+        idx.add_node(nid, tp);
+    }
+    # Interleave: a->t1, b->t2, a->t3, b->t4
+    idx.add_edge(a, t1, "E");
+    idx.add_edge(b, t2, "E");
+    idx.add_edge(a, t3, "E");
+    idx.add_edge(b, t4, "E");
+    result = idx.resolve_chain({a, b}, [("E", "T", 2)]);
+    assert result == [t1, t2, t3, t4];
+}
+
+test "slicing ordered results works correctly" {
+    idx = TopologyIndex();
+    r = uuid4();
+    idx.add_node(r, "Root");
+    nodes: list[UUID] = [];
+    for i in range(10) {
+        n = uuid4();
+        idx.add_node(n, "N");
+        idx.add_edge(r, n, "E");
+        nodes.append(n);
+    }
+    result = idx.resolve_chain({r}, [("E", "N", 2)]);
+    # Slicing the ordered result should give the expected subset.
+    assert result[2:5] == nodes[2:5];
+    assert result[:3] == nodes[:3];
+    assert result[-2:] == nodes[-2:];
+}
+
+test "order correct with mixed edge types to same targets" {
+    # Multiple edge types to the same target; the target should appear at the
+    # position of its FIRST edge in adj_list (deduped).
+    idx = TopologyIndex();
+    r = uuid4();
+    a = uuid4();
+    b = uuid4();
+    for (nid, t) in [(r, "Root"), (a, "A"), (b, "B")] {
+        idx.add_node(nid, t);
+    }
+    idx.add_edge(r, a, "E1");
+    idx.add_edge(r, b, "E2");
+    idx.add_edge(r, a, "E2");  # duplicate target a via different edge type
+    # Wildcard query: a should come first (edge at pos 0), b second (pos 1).
+    # a appears again at pos 2 but is deduped.
+    result = idx.resolve_chain({r}, [(None, None, 2)]);
+    assert result == [a, b];
+}
+
+test "multi-hop order follows final hop adj_list order" {
+    # The final result order should be determined by the adj_list order of
+    # the last hop's edges, not the intermediate hops.
+    idx = TopologyIndex();
+    r = uuid4();
+    m1 = uuid4();
+    m2 = uuid4();
+    # Final targets added in specific order via different intermediate nodes.
+    leaf_a = uuid4();
+    leaf_b = uuid4();
+    leaf_c = uuid4();
+    for (nid, t) in [
+        (r, "Root"),
+        (m1, "Mid"),
+        (m2, "Mid"),
+        (leaf_a, "Leaf"),
+        (leaf_b, "Leaf"),
+        (leaf_c, "Leaf")
+    ] {
+        idx.add_node(nid, t);
+    }
+    idx.add_edge(r, m1, "E1");
+    idx.add_edge(r, m2, "E1");
+    # m2's edges come first in adj_list for the second hop.
+    idx.add_edge(m2, leaf_b, "E2");
+    idx.add_edge(m1, leaf_a, "E2");
+    idx.add_edge(m2, leaf_c, "E2");
+    result = idx.resolve_chain({r}, [("E1", "Mid", 2), ("E2", "Leaf", 2)]);
+    # leaf_b at adj pos 2, leaf_a at adj pos 3, leaf_c at adj pos 4.
+    assert result == [leaf_b, leaf_a, leaf_c];
+}
+
+test "remove_node preserves order of remaining edges" {
+    idx = TopologyIndex();
+    r = uuid4();
+    a = uuid4();
+    b = uuid4();
+    c = uuid4();
+    for (nid, t) in [(r, "Root"), (a, "A"), (b, "B"), (c, "C")] {
+        idx.add_node(nid, t);
+    }
+    idx.add_edge(r, a, "E");
+    idx.add_edge(r, b, "E");
+    idx.add_edge(r, c, "E");
+    # Removing b should leave [a, c] in order.
+    idx.remove_node(b);
+    assert idx.resolve_chain({r}, [("E", None, 2)]) == [a, c];
+}
