@@ -114,12 +114,12 @@ def build_fan_graph -> tuple[TopologyIndex, UUID, list[UUID], list[UUID]] {
 
 test "type filter narrows fanout" {
     (idx, r, a_ids, _) = build_fan_graph();
-    assert idx.resolve_chain({r}, [("EdgeX", "NodeA", 2)]) == set(a_ids);
+    assert idx.resolve_chain({r}, [("EdgeX", "NodeA", 2)]) == a_ids;
 }
 
 test "nonexistent type returns empty" {
     (idx, r, _, _) = build_fan_graph();
-    assert idx.resolve_chain({r}, [("EdgeX", "NodeC", 2)]) == set();
+    assert idx.resolve_chain({r}, [("EdgeX", "NodeC", 2)]) == [];
 }
 
 test "deep chain" {
@@ -134,9 +134,9 @@ test "deep chain" {
     idx.add_edge(r, a, "E1");
     idx.add_edge(a, b, "E2");
     idx.add_edge(b, c, "E3");
-    assert idx.resolve_chain({r}, [("E1", "A", 2), ("E2", "B", 2), ("E3", "C", 2)]) == {
+    assert idx.resolve_chain({r}, [("E1", "A", 2), ("E2", "B", 2), ("E3", "C", 2)]) == [
         c
-    };
+    ];
 }
 
 test "multi hop selective" {
@@ -157,9 +157,7 @@ test "multi hop selective" {
         idx.add_edge(a_ids[i], b, "E2");
         b_ids.append(b);
     }
-    assert idx.resolve_chain({r}, [("E1", "NodeA", 2), ("E2", "NodeB", 2)]) == set(
-        b_ids
-    );
+    assert idx.resolve_chain({r}, [("E1", "NodeA", 2), ("E2", "NodeB", 2)]) == b_ids;
 }
 
 test "cross root ids" {
@@ -187,9 +185,9 @@ test "subtype query returns instances of all descendants" {
     idx.add_edge(r, post, "Authored");
     idx.add_edge(r, article, "Authored");
     # Query by parent type — both subtypes match.
-    assert idx.resolve_chain({r}, [(None, "BaseContent", 2)]) == {post, article};
+    assert idx.resolve_chain({r}, [(None, "BaseContent", 2)]) == [post, article];
     # Query by concrete subtype — only that subtype matches.
-    assert idx.resolve_chain({r}, [(None, "PostNode", 2)]) == {post};
+    assert idx.resolve_chain({r}, [(None, "PostNode", 2)]) == [post];
 }
 
 test "MRO fan-out survives encode decode" {
@@ -200,8 +198,8 @@ test "MRO fan-out survives encode decode" {
     idx.add_node(post, "PostNode", ["PostNode", "BaseContent"]);
     idx.add_edge(r, post, "Authored");
     decoded = TopologyIndex.decode(idx.encode());
-    assert decoded.resolve_chain({r}, [(None, "BaseContent", 2)]) == {post};
-    assert decoded.resolve_chain({r}, [(None, "PostNode", 2)]) == {post};
+    assert decoded.resolve_chain({r}, [(None, "BaseContent", 2)]) == [post];
+    assert decoded.resolve_chain({r}, [(None, "PostNode", 2)]) == [post];
 }
 
 # ── Multi-edge between same pair ─────────────────────────────────────
@@ -217,24 +215,24 @@ test "multi-edge between same pair preserves edge-type isolation" {
     idx.add_edge(a, b, "Follow");
     idx.add_edge(a, b, "Like");
 
-    assert idx.resolve_chain({a}, [("Follow", None, 2)]) == {b};
-    assert idx.resolve_chain({a}, [("Like", None, 2)]) == {b};
+    assert idx.resolve_chain({a}, [("Follow", None, 2)]) == [b];
+    assert idx.resolve_chain({a}, [("Like", None, 2)]) == [b];
     # IN direction sees the same connectivity from b's bucket.
-    assert idx.resolve_chain({b}, [("Follow", None, 1)]) == {a};
-    assert idx.resolve_chain({b}, [("Like", None, 1)]) == {a};
+    assert idx.resolve_chain({b}, [("Follow", None, 1)]) == [a];
+    assert idx.resolve_chain({b}, [("Like", None, 1)]) == [a];
 
     idx.remove_edge(a, b, "Like");
     # Like is gone; Follow remains.
-    assert idx.resolve_chain({a}, [("Follow", None, 2)]) == {b};
-    assert idx.resolve_chain({a}, [("Like", None, 2)]) == set();
+    assert idx.resolve_chain({a}, [("Follow", None, 2)]) == [b];
+    assert idx.resolve_chain({a}, [("Like", None, 2)]) == [];
     # n: column for B is still populated because Follow still connects (a, b).
-    assert idx.resolve_chain({a}, [(None, "B", 2)]) == {b};
+    assert idx.resolve_chain({a}, [(None, "B", 2)]) == [b];
     # ANY direction still finds the connection.
-    assert idx.resolve_chain({a}, [(None, None, 3)]) == {b};
+    assert idx.resolve_chain({a}, [(None, None, 3)]) == [b];
 
     idx.remove_edge(a, b, "Follow");
     # Now everything is gone — n: column too.
-    assert idx.resolve_chain({a}, [(None, "B", 2)]) == set();
+    assert idx.resolve_chain({a}, [(None, "B", 2)]) == [];
 }
 
 # ── v1 → v2 migration ────────────────────────────────────────────────
@@ -274,8 +272,8 @@ test "v1 blob migrates to v2 on decode and warms up MRO via mutation" {
     assert idx.type_mro_ids == [[0], [1], [2]];
 
     # Concrete-type queries work immediately on the migrated index.
-    assert idx.resolve_chain({root_id}, [(None, "NodeA", 2)]) == {child_id};
-    assert idx.resolve_chain({root_id}, [("EdgeX", "NodeA", 2)]) == {child_id};
+    assert idx.resolve_chain({root_id}, [(None, "NodeA", 2)]) == [child_id];
+    assert idx.resolve_chain({root_id}, [("EdgeX", "NodeA", 2)]) == [child_id];
 
     # Adding a new node with a real MRO chain warms up subtype queries for
     # that type. The widen-the-check logic in _ensure_type lets the longer
@@ -283,14 +281,14 @@ test "v1 blob migrates to v2 on decode and warms up MRO via mutation" {
     new_child = uuid4();
     idx.add_node(new_child, "PostNode", ["PostNode", "BaseContent"]);
     idx.add_edge(root_id, new_child, "EdgeX");
-    assert idx.resolve_chain({root_id}, [(None, "BaseContent", 2)]) == {new_child};
-    assert idx.resolve_chain({root_id}, [(None, "PostNode", 2)]) == {new_child};
+    assert idx.resolve_chain({root_id}, [(None, "BaseContent", 2)]) == [new_child];
+    assert idx.resolve_chain({root_id}, [(None, "PostNode", 2)]) == [new_child];
 
     # Re-encoding the migrated index produces a v2 blob that round-trips.
     re_decoded = TopologyIndex.decode(idx.encode());
-    assert re_decoded.resolve_chain({root_id}, [(None, "BaseContent", 2)]) == {
+    assert re_decoded.resolve_chain({root_id}, [(None, "BaseContent", 2)]) == [
         new_child
-    };
+    ];
 }
 
 # ── Compact-encoding fidelity ────────────────────────────────────────
