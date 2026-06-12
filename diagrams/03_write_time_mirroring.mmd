@@ -1,0 +1,69 @@
+---
+title: "Diagram 3: Write-Time Edge Mirroring"
+---
+flowchart TB
+    subgraph trigger["Edge Creation: alice_profile ->:Follow:-> bob_profile"]
+        create["on_edge_created(source, target, edge)"]
+    end
+
+    create --> enabled{"_is_enabled()?\ntopology_index\nconfig flag"}
+    enabled -- "NO" --> noop["No-op"]
+    enabled -- "YES" --> get_root
+
+    get_root["source_root = _get_root_anchor(source)\n(Alice's root)"]
+    get_root --> index_source
+
+    index_source["_index_edge_into(alice_root, source, target, edge)"]
+
+    subgraph alice_write["Write to Alice's Root Index"]
+        direction TB
+        a1["add_node(alice_root.id, 'Root')"]
+        a2["add_node(alice_profile.id, 'Profile',\n  owner_root=None)\n  ← local node, owned by this root"]
+        a3["add_node(bob_profile.id, 'Profile',\n  owner_root=bob_root.id)\n  ← FOREIGN node, tagged with owner"]
+        a4["add_edge(alice_profile, bob_profile, 'Follow')"]
+        a1 --> a2 --> a3 --> a4
+    end
+
+    index_source --> alice_write
+
+    create --> cross_check{"target.root !=\nsource_root.id?\n(cross-root edge?)"}
+    cross_check -- "YES" --> index_target
+    cross_check -- "NO" --> done["Done"]
+
+    index_target["_index_edge_into(bob_root, source, target, edge)"]
+
+    subgraph bob_write["Mirror to Bob's Root Index"]
+        direction TB
+        b1["add_node(bob_root.id, 'Root')"]
+        b2["add_node(alice_profile.id, 'Profile',\n  owner_root=alice_root.id)\n  ← FOREIGN from Bob's perspective"]
+        b3["add_node(bob_profile.id, 'Profile',\n  owner_root=None)\n  ← local to Bob"]
+        b4["add_edge(alice_profile, bob_profile, 'Follow')"]
+        b1 --> b2 --> b3 --> b4
+    end
+
+    index_target --> bob_write
+    alice_write --> done
+    bob_write --> done
+
+    subgraph result["After Mirroring"]
+        direction LR
+        subgraph alice_idx["Alice's TopologyIndex"]
+            direction TB
+            ai1["node_table:\n  lid=0: Root (SELF)\n  lid=1: Profile/alice (SELF)\n  lid=2: Profile/bob (owner=bob_root)"]
+            ai2["adj_list:\n  (0, Root→Profile, 1)\n  (1, Follow, 2)  ← cross-root edge"]
+        end
+        subgraph bob_idx["Bob's TopologyIndex"]
+            direction TB
+            bi1["node_table:\n  lid=0: Root (SELF)\n  lid=1: Profile/bob (SELF)\n  lid=2: Profile/alice (owner=alice_root)"]
+            bi2["adj_list:\n  (0, Root→Profile, 1)\n  (2, Follow, 1)  ← mirrored edge"]
+        end
+    end
+
+    done --> result
+
+    style trigger fill:#fff3e0,stroke:#FF9800
+    style alice_write fill:#e3f2fd,stroke:#1565C0
+    style bob_write fill:#fce4ec,stroke:#C62828
+    style result fill:#f5f5f5,stroke:#607D8B
+    style alice_idx fill:#e3f2fd,stroke:#1565C0
+    style bob_idx fill:#fce4ec,stroke:#C62828

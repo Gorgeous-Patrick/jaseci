@@ -1,0 +1,65 @@
+---
+title: "Diagram 5: The Ordered Path — Cross-Root Gap"
+---
+flowchart TB
+    subgraph query["Query: me->:Follow:->[?:Profile]-->[?:Tweet][:5]"]
+        note["Has slice + no post_filter → ORDERED path chosen"]
+    end
+
+    query --> pco["plan_chain_ordered(alice_root, {alice_profile}, chain, slice(0,5))"]
+
+    pco --> multi{"len(chain) > 1?"}
+    multi -- "YES" --> prefix
+
+    subgraph prefix["Prefix Resolution (Hops 1..N-1)"]
+        direction TB
+        p_call["idx.resolve_chain(origin_ids, chain[:-1])\n\n⚠️ bail_on_intermediate_foreign = False (default)\n⚠️ No cross_root_resolve check\n⚠️ Plain single-index resolution"]
+        p_hop1["Hop 1: (Follow, Profile, OUT)\nAlice's index finds bob_profile\n(it's in Alice's index because Follow edge was mirrored)"]
+        p_problem["bob_profile is FOREIGN (owner_root = bob_root)\nbut resolve_chain doesn't check owner_root\nwithout bail flag — silently continues"]
+        p_result["prev = {bob_profile}\norigin_ids = {bob_profile}"]
+
+        p_call --> p_hop1 --> p_problem --> p_result
+    end
+
+    prefix --> final_hop
+
+    subgraph final_hop["Final Hop (ordered via adj_list)"]
+        direction TB
+        f_call["idx.resolve_chain_ordered(\n  {bob_profile}, None, 'Tweet', OUT, slice(0,5))"]
+        f_walk["Step 1: BUCKETS — look up bob_profile's bucket\nfor outgoing Tweet-type neighbors"]
+        f_miss["Alice's buckets have NO outgoing edges\nfrom bob_profile to any Tweet.\nBob's Post edges live in Bob's index only."]
+        f_walk2["Step 2: ADJ_LIST walk finds nothing matching"]
+        f_result["Returns [] — empty list"]
+
+        f_call --> f_walk --> f_miss --> f_walk2 --> f_result
+    end
+
+    f_result --> silent["⚠️ SILENT UNDERCOUNT\n\nreturns [] (empty list)\nnot None\n\nexecute_path returns []\nrefs() treats [] as valid result\nlegacy edge-walk NOT triggered"]
+
+    subgraph same_no_slice["Same Query WITHOUT Slice"]
+        direction TB
+        c_note["me->:Follow:->[?:Profile]-->[?:Tweet]\nNo slice + multi-hop → UNORDERED path"]
+        c_plan["plan_chain() called"]
+        c_cross["cross_root_resolve enabled:\nresolve_chain_cross_root() hops to\nbob_index for hop 2"]
+        c_bail["cross_root_resolve disabled:\nresolve_chain(bail=True)\nhits foreign bob_profile → returns None\n→ legacy edge-walk (correct)"]
+        c_result["Either way: CORRECT result"]
+        c_note --> c_plan
+        c_plan --> c_cross --> c_result
+        c_plan --> c_bail --> c_result
+    end
+
+    subgraph root_cause["Root Cause"]
+        direction TB
+        g1["plan_chain_ordered (line 535-536):\nidx.resolve_chain(origin_ids, chain[:-1])\n\nMissing: bail_on_intermediate_foreign=True\nMissing: cross_root_resolve check"]
+        g2["resolve_chain returns {bob_profile}\nwhich looks valid — it IS in the index"]
+        g3["But bob_profile's OUTGOING edges\nare NOT in alice's index\nOnly bob_profile's INCOMING edges\nwere mirrored at write time"]
+        g4["Result: [] returned as valid answer\nNot None → no fallback triggered"]
+        g1 --> g2 --> g3 --> g4
+    end
+
+    style query fill:#fff3e0,stroke:#FF9800
+    style prefix fill:#e3f2fd,stroke:#1565C0
+    style final_hop fill:#e3f2fd,stroke:#1565C0
+    style silent fill:#ffcdd2,stroke:#B71C1C,stroke-width:3px
+    style same_no_slice fill:#e8f5e9,stroke:#2E7D32
+    style root_cause fill:#ffebee,stroke:#B71C1C

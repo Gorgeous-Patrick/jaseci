@@ -1,0 +1,77 @@
+---
+title: "Diagram 1: Overall Architecture — From Jac Path to Results"
+---
+flowchart TB
+    subgraph JacCode["Jac Source Code"]
+        path["me->:Follow:->[?:Profile]-->:Post:->[?:Tweet]"]
+    end
+
+    subgraph Compiler["Compiler Output"]
+        osp["ObjectSpatialPath\n  origin: [me]\n  destinations: [\n    Dest(OUT, edge=Follow_λ, nd=Profile_λ),\n    Dest(OUT, edge=Post_λ, nd=Tweet_λ)\n  ]"]
+    end
+
+    subgraph Runtime["Runtime (runtime.impl.jac)"]
+        refs["refs(path, slc)"]
+    end
+
+    subgraph Planner["Planner (planner.jac)"]
+        ep["execute_path(mem, path, slc)"]
+        bp["_build_plan_from_path()\ninspects filter lambdas via bytecode\nextracts type names from isinstance checks"]
+        qp["QueryPlan\n  root_id, chain=[HopSpec...],\n  node_type_final, slc,\n  post_filter, id_in=None"]
+
+        ep --> bp --> qp
+    end
+
+    subgraph Resolve["Resolution (inside execute_path)"]
+        direction TB
+        two_paths{"Ordered or\nUnordered path?"}
+        topo["Topology Index\nresolve_chain() → set[UUID]\nor resolve_chain_ordered() → list[UUID]"]
+        two_paths --> topo
+    end
+
+    subgraph Materialize["Materialization (4 outcomes)"]
+        direction TB
+        o1["1. Pushdown only\nneeds ≤ caps → backend handles all\n(topo index not used)"]
+        o2["2. Topo + Pushdown (mixed)\ntopo narrows → id_in + backend query"]
+        o3["3. Topo only (floor)\ntopo narrows → batch_get in Python"]
+        o4["4. None (fallback)\nplanner can't optimize\n→ legacy edge-walk"]
+    end
+
+    subgraph Backend["Storage Backend"]
+        mongo["MongoDB / SQLite / Memory\ncapabilities(): set[str]"]
+        bg["batch_get(uuids)"]
+        explan["execute_plan(plan)\ne.g. Mongo: _id $in + arch_type filter"]
+    end
+
+    subgraph Result["Output"]
+        anchors["list[NodeAnchor] or None"]
+    end
+
+    path --> osp --> refs
+    refs --> ep
+
+    qp --> two_paths
+    topo --> o1
+    topo --> o2
+    topo --> o3
+    topo --> o4
+
+    o1 --> explan
+    o2 --> topo_then_explan["topo → id_in"]
+    topo_then_explan --> explan
+    o3 --> topo_then_bg["topo → UUIDs"]
+    topo_then_bg --> bg
+    o4 -. "returns None" .-> refs
+
+    explan --> anchors
+    bg --> anchors
+    refs -. "None → legacy\nedge-walk" .-> anchors
+
+    style JacCode fill:#e8f4f8,stroke:#2196F3
+    style Compiler fill:#e8f4f8,stroke:#2196F3
+    style Runtime fill:#fff3e0,stroke:#FF9800
+    style Planner fill:#f3e5f5,stroke:#9C27B0
+    style Resolve fill:#fce4ec,stroke:#E91E63
+    style Materialize fill:#e8f5e9,stroke:#4CAF50
+    style Backend fill:#f5f5f5,stroke:#607D8B
+    style Result fill:#e0f2f1,stroke:#009688

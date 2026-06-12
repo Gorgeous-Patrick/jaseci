@@ -1,0 +1,77 @@
+---
+title: "Diagram 4: Cross-Root Resolution (Unordered Path)"
+---
+flowchart TB
+    subgraph query["Alice's Query: me->:Follow:->[?:Profile]-->[?:Tweet]"]
+        chain["chain = [\n  (Follow, Profile, OUT),\n  (None, Tweet, OUT)\n]"]
+    end
+
+    query --> pc["plan_chain(alice_root, {alice_profile}, chain)"]
+
+    pc --> gate{"cross_root_resolve\nenabled AND\nchain > 1 hop?"}
+    gate -- "NO" --> bail_path
+    gate -- "YES" --> cross_root
+
+    subgraph cross_root["resolve_chain_cross_root(mem, origins, chain)"]
+        direction TB
+
+        init["frontier = [(alice_index, {alice_profile})]"]
+
+        subgraph hop1["Hop 1: (Follow, Profile, OUT)"]
+            direction TB
+            h1_resolve["alice_index.resolve_chain(\n  {alice_profile}, [(Follow, Profile, OUT)])\n→ {bob_profile}"]
+            h1_check["Not final hop → split local vs foreign"]
+            h1_cross["get_cross_root_ids({bob_profile})\n→ {bob_root: {bob_profile}}"]
+            h1_local["local_ids = {} (none local to Alice)"]
+            h1_load["mem.get(bob_root)\n→ bob_root_anchor\n→ bob_root_anchor.get_topology_index()\n→ bob_index"]
+            h1_frontier["frontier = [(bob_index, {bob_profile})]"]
+
+            h1_resolve --> h1_check --> h1_cross
+            h1_cross --> h1_local
+            h1_cross --> h1_load
+            h1_local --> h1_frontier
+            h1_load --> h1_frontier
+        end
+
+        subgraph hop2["Hop 2: (None, Tweet, OUT) — FINAL"]
+            direction TB
+            h2_resolve["bob_index.resolve_chain(\n  {bob_profile}, [(None, Tweet, OUT)])\n→ {bob_tweet}"]
+            h2_final["Final hop → collect into result_ids"]
+            h2_result["result_ids = {bob_tweet}"]
+
+            h2_resolve --> h2_final --> h2_result
+        end
+
+        init --> hop1
+        hop1 --> hop2
+    end
+
+    h2_result --> success["return {bob_tweet}"]
+
+    subgraph bail_path["Fallback: resolve_chain with bail"]
+        direction TB
+        bail_resolve["resolve_chain(origins, chain,\n  bail_on_intermediate_foreign=True)"]
+        bail_hop1["Hop 1 → lands on bob_profile\n  owner_root = bob_root ≠ SELF_ROOT"]
+        bail_detect["Intermediate hop hit foreign node\n→ return None"]
+        bail_fallback["Planner returns None\n→ runtime uses legacy edge-walk"]
+
+        bail_resolve --> bail_hop1 --> bail_detect --> bail_fallback
+    end
+
+    subgraph error_handling["Cross-Root Error Handling"]
+        direction TB
+        err1["Foreign root fails to load\n→ return None → legacy fallback"]
+        err2["Foreign root is not NodeAnchor\n→ return None → legacy fallback"]
+        err3["Foreign index is empty\n→ skip that root, continue"]
+    end
+
+    cross_root -. "any failure" .-> error_handling
+    error_handling --> bail_fallback
+
+    style query fill:#fff3e0,stroke:#FF9800
+    style cross_root fill:#e8f5e9,stroke:#2E7D32
+    style hop1 fill:#e3f2fd,stroke:#1565C0
+    style hop2 fill:#fce4ec,stroke:#C62828
+    style bail_path fill:#ffebee,stroke:#B71C1C
+    style error_handling fill:#f5f5f5,stroke:#607D8B
+    style success fill:#e8f5e9,stroke:#2E7D32

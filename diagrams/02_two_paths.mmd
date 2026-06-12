@@ -1,0 +1,85 @@
+---
+title: "Diagram 2: execute_path — The Two Paths"
+---
+flowchart TB
+    ep["execute_path(mem, path, slc)"]
+
+    build["_build_plan_from_path()\n\nFor each hop, inspects filter lambdas:\n• Edge filter has predicates? → return None\n• Intermediate node filter has predicates? → return None\n• Last hop node predicate? → OK, becomes post_filter\n• No type filters anywhere? → return None"]
+
+    build_fail["return None\n→ runtime falls back to legacy edge-walk"]
+
+    ep --> build
+    build -- "can't build plan" --> build_fail
+
+    root_check["_path_root_anchor()\nFind owning root anchor"]
+    build -- "plan built" --> root_check
+    root_check -- "root not found" --> build_fail
+
+    qp["QueryPlan ready:\n  chain, slc, post_filter, node_type_final"]
+    root_check -- "root found" --> qp
+
+    qp --> decision
+
+    decision{"use_ordered?\n\npost_filter is None\nAND\n(has slice OR single-hop)"}
+
+    decision -- "YES" --> ordered
+    decision -- "NO" --> unordered
+
+    subgraph ordered["ORDERED PATH — plan_chain_ordered()"]
+        direction TB
+        o_idx_check{"Root has\nnon-empty index?"}
+        o_idx_check -- "NO" --> o_none["return None"]
+        o_idx_check -- "YES" --> o_hop_check
+
+        o_hop_check{"Multi-hop\nchain?"}
+        o_hop_check -- "Single hop" --> o_direct
+        o_hop_check -- "Multi-hop" --> o_prefix
+
+        o_prefix["Prefix hops:\nresolve_chain(origin, chain[:-1])\n\nUses BUCKETS\nNo bail_on_foreign ⚠️\nNo cross_root_resolve ⚠️"]
+        o_prefix --> o_direct
+
+        o_direct["Final hop:\nresolve_chain_ordered(origins, edge, node, dir, slc)\n\nBUCKETS build allow-sets\nADJ_LIST walk for insertion order\nSlice applied directly"]
+
+        o_direct --> o_result["list[UUID] — ordered, sliced\n(may be [] — treated as valid!)"]
+    end
+
+    subgraph unordered["UNORDERED PATH — plan_chain()"]
+        direction TB
+        u_idx_check{"Root has\nnon-empty index?"}
+        u_idx_check -- "NO" --> u_none["return None"]
+        u_idx_check -- "YES" --> u_cross
+
+        u_cross{"cross_root_resolve\nenabled AND\nchain > 1 hop?"}
+        u_cross -- "YES" --> u_crossroot
+        u_cross -- "NO" --> u_bail
+
+        u_crossroot["resolve_chain_cross_root()\nHops between roots' indexes"]
+        u_crossroot -- "succeeds" --> u_result
+        u_crossroot -- "returns None" --> u_bail
+
+        u_bail["resolve_chain(bail_on_intermediate_foreign=True)\nWithin single root only"]
+        u_bail -- "completes" --> u_result
+        u_bail -- "returns None\n(hit foreign node)" --> u_none
+
+        u_result["set[UUID] — unordered"]
+    end
+
+    o_none --> build_fail
+    u_none --> build_fail
+
+    o_result --> materialize["_materialize_ids()\nbatch_get UUIDs → NodeAnchors\n(no post_filter on ordered path)"]
+
+    u_result --> pushdown_check{"needs ≤ caps?\nBackend covers\nreduced plan?"}
+    pushdown_check -- "YES\n(topo + pushdown)" --> mixed["Backend execute_plan\nwith id_in = narrowed UUIDs\nthen apply post_filter in Python"]
+    pushdown_check -- "NO\n(topo only)" --> floor["_materialize_ids()\nbatch_get + post_filter + slice\nall in Python"]
+
+    materialize --> final["list[NodeAnchor]\nreturned to refs()"]
+    mixed --> final
+    floor --> final
+
+    style ordered fill:#e3f2fd,stroke:#1565C0
+    style unordered fill:#fce4ec,stroke:#C62828
+    style decision fill:#fff9c4,stroke:#F9A825
+    style build_fail fill:#ffebee,stroke:#B71C1C
+    style final fill:#e8f5e9,stroke:#2E7D32
+    style o_result fill:#fff9c4,stroke:#F9A825
