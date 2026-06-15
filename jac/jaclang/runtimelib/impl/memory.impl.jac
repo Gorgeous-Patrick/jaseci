@@ -1861,9 +1861,27 @@ impl TieredMemory.capabilities -> set[str] {
     return set();
 }
 
+"""Operators that _l1_matches_plan can evaluate in-process."""
+glob _L1_KNOWN_OPS: set = {'$eq', '$ne', '$lt', '$lte', '$gt', '$gte', '$in', '$nin'};
+
+"""True when every operator in the plan's field_predicates is in the
+known set. Unknown/backend-specific operators (e.g. $regex, $exists)
+make the plan ineligible for the L1 shortcut."""
+def _l1_can_evaluate(plan: QueryPlan) -> bool {
+    for constraint in plan.field_predicates.values() {
+        if isinstance(constraint, dict) {
+            if not set(constraint.keys()) <= _L1_KNOWN_OPS {
+                return False;
+            }
+        }
+    }
+    return True;
+}
+
 """Check whether an L1-cached anchor satisfies the plan's type and field
 predicates. Operators mirror the cross-backend vocabulary from QueryPlan:
-$eq, $ne, $lt, $lte, $gt, $gte, $in, $nin. A bare value is treated as $eq."""
+$eq, $ne, $lt, $lte, $gt, $gte, $in, $nin. A bare value is treated as $eq.
+Callers must gate on _l1_can_evaluate first."""
 def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> bool {
     if plan.node_type_final is not None {
         if not (
@@ -1919,7 +1937,7 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
     if self.l3 is None {
         return;
     }
-    if plan.id_in is not None {
+    if plan.id_in is not None and _l1_can_evaluate(plan) {
         # Phase 1: partition into L1 hits and L3 misses.
         l1_hits: list = [];
         l3_miss_ids: set = set();
