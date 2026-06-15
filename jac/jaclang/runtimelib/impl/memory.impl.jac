@@ -1861,14 +1861,112 @@ impl TieredMemory.capabilities -> set[str] {
     return set();
 }
 
+"""Check whether an L1-cached anchor satisfies the plan's type and field
+predicates. Operators mirror the cross-backend vocabulary from QueryPlan:
+$eq, $ne, $lt, $lte, $gt, $gte, $in, $nin. A bare value is treated as $eq."""
+def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> bool {
+    if plan.node_type_final is not None {
+        if not (
+            isinstance(anchor, NodeAnchor)
+            and anchor.archetype is not None
+            and `type(anchor.archetype).__name__ == plan.node_type_final
+        ) {
+            return False;
+        }
+    }
+    if plan.field_predicates and anchor.archetype is not None {
+        arch = anchor.archetype;
+        for (field, constraint) in plan.field_predicates.items() {
+            val = getattr(arch, field, None);
+            if isinstance(constraint, dict) {
+                for (op, expected) in constraint.items() {
+                    if op == '$eq' and val != expected {
+                        return False;
+                    } elif op == '$ne' and val == expected {
+                        return False;
+                    } elif op == '$lt' and not (val is not None and val < expected) {
+                        return False;
+                    } elif op == '$lte' and not (val is not None and val <= expected) {
+                        return False;
+                    } elif op == '$gt' and not (val is not None and val > expected) {
+                        return False;
+                    } elif op == '$gte' and not (val is not None and val >= expected) {
+                        return False;
+                    } elif op == '$in' and val not in expected {
+                        return False;
+                    } elif op == '$nin' and val in expected {
+                        return False;
+                    }
+                }
+            } else {
+                if val != constraint {
+                    return False;
+                }
+            }
+        }
+    }
+    return True;
+}
+
 """Delegate pushdown to L3 and promote loaded anchors into L1 so subsequent
-gets are cache hits (same pattern as `batch_get`)."""
+gets are cache hits (same pattern as `batch_get`).
+
+When the plan carries pre-narrowed IDs (`id_in`), L1 is checked first and
+only misses are sent to L3. Without this, every narrowed ID goes to the
+database even when the anchor is already cached — wasting round trips and
+deserialization on data the prefetcher or an earlier hop already loaded."""
 impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None] {
     if self.l3 is None {
         return;
     }
+    if plan.id_in is not None {
+        l3_miss_ids: set = set();
+        for uid in plan.id_in {
+            existing = self.__mem__.get(uid);
+            if existing is not None {
+                if _l1_matches_plan(existing, plan) {
+                    yield existing;
+                }
+            } else {
+                l3_miss_ids.add(uid);
+            }
+        }
+        if l3_miss_ids {
+            if 'id_in' in self.l3.capabilities() {
+                reduced = QueryPlan(
+                    root_id=plan.root_id,
+                    chain=plan.chain,
+                    field_predicates=plan.field_predicates,
+                    id_in=l3_miss_ids,
+                    slc=plan.slc,
+                    node_type_final=plan.node_type_final,
+                    post_filter=plan.post_filter
+                );
+                for anchor in self.l3.execute_plan(reduced) {
+                    self.__mem__[anchor.id] = anchor;
+                    if self.l2 {
+                        self.l2.put(anchor);
+                    }
+                    yield anchor;
+                }
+            } else {
+                for mid in l3_miss_ids {
+                    anchor = self.l3.get(mid);
+                    if anchor is not None {
+                        if _l1_matches_plan(anchor, plan) {
+                            self.__mem__[anchor.id] = anchor;
+                            if self.l2 {
+                                self.l2.put(anchor);
+                            }
+                            yield anchor;
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
     for anchor in self.l3.execute_plan(plan) {
-        # Promote to L1 unless already there
         existing = self.__mem__.get(anchor.id);
         if existing is None {
             self.__mem__[anchor.id] = anchor;
