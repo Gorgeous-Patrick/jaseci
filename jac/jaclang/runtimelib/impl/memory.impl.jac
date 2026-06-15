@@ -2223,10 +2223,26 @@ impl TieredMemory.capabilities -> set[str] {
     return set();
 }
 
+"""Operators that _l1_matches_plan can evaluate in-process."""
+glob _L1_KNOWN_OPS: set = {'$eq', '$ne', '$lt', '$lte', '$gt', '$gte', '$in', '$nin'};
+
+"""True when every operator in the plan's field_predicates is in the
+known set. Unknown/backend-specific operators (e.g. $regex, $exists)
+make the plan ineligible for the L1 shortcut."""
+def _l1_can_evaluate(plan: QueryPlan) -> bool {
+    for constraint in plan.field_predicates.values() {
+        if isinstance(constraint, dict) {
+            if not set(constraint.keys()) <= _L1_KNOWN_OPS {
+                return False;
+            }
+        }
+    }
+    return True;
+}
+
 """Check whether an L1-cached anchor satisfies the plan's type and field
-predicates. Operators mirror the cross-backend vocabulary from QueryPlan:
-$eq, $ne, $lt, $lte, $gt, $gte, $in, $nin. A bare value is treated as $eq."""
-def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> (bool | None) {
+predicates. Callers must gate on _l1_can_evaluate first."""
+def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> bool {
     if plan.node_type_final is not None {
         if not (
             isinstance(anchor, NodeAnchor)
@@ -2258,10 +2274,6 @@ def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> (bool | None) {
                         return False;
                     } elif op == '$nin' and val in expected {
                         return False;
-                    } else {
-                        # Unknown/backend-specific operator — cannot
-                        # evaluate in L1.
-                        return None;
                     }
                 }
             } else {
@@ -2285,20 +2297,15 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
     if self.l3 is None {
         return;
     }
-    if plan.id_in is not None {
-        # Phase 1: partition into L1 hits, L1 rejects, and L3 misses.
-        # _l1_matches_plan returns True (match), False (reject), or
-        # None (unknown operator — must delegate to L3).
+    if plan.id_in is not None and _l1_can_evaluate(plan) {
+        # Phase 1: partition into L1 hits and L3 misses.
         l1_hits: list = [];
         l3_miss_ids: set = set();
         for uid in plan.id_in {
             existing = self.__mem__.get(uid);
             if existing is not None {
-                match = _l1_matches_plan(existing, plan);
-                if match is True {
+                if _l1_matches_plan(existing, plan) {
                     l1_hits.append(existing);
-                } elif match is None {
-                    l3_miss_ids.add(uid);
                 }
             } else {
                 l3_miss_ids.add(uid);
