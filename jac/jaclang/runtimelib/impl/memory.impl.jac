@@ -2223,6 +2223,53 @@ impl TieredMemory.capabilities -> set[str] {
     return set();
 }
 
+"""Check whether an L1-cached anchor satisfies the plan's type and field
+predicates. Operators mirror the cross-backend vocabulary from QueryPlan:
+$eq, $ne, $lt, $lte, $gt, $gte, $in, $nin. A bare value is treated as $eq."""
+def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> bool {
+    if plan.node_type_final is not None {
+        if not (
+            isinstance(anchor, NodeAnchor)
+            and anchor.archetype is not None
+            and `type(anchor.archetype).__name__ == plan.node_type_final
+        ) {
+            return False;
+        }
+    }
+    if plan.field_predicates and anchor.archetype is not None {
+        arch = anchor.archetype;
+        for (field, constraint) in plan.field_predicates.items() {
+            val = getattr(arch, field, None);
+            if isinstance(constraint, dict) {
+                for (op, expected) in constraint.items() {
+                    if op == '$eq' and val != expected {
+                        return False;
+                    } elif op == '$ne' and val == expected {
+                        return False;
+                    } elif op == '$lt' and not (val is not None and val < expected) {
+                        return False;
+                    } elif op == '$lte' and not (val is not None and val <= expected) {
+                        return False;
+                    } elif op == '$gt' and not (val is not None and val > expected) {
+                        return False;
+                    } elif op == '$gte' and not (val is not None and val >= expected) {
+                        return False;
+                    } elif op == '$in' and val not in expected {
+                        return False;
+                    } elif op == '$nin' and val in expected {
+                        return False;
+                    }
+                }
+            } else {
+                if val != constraint {
+                    return False;
+                }
+            }
+        }
+    }
+    return True;
+}
+
 """Delegate pushdown to L3 and promote loaded anchors into L1 so subsequent
 gets are cache hits (same pattern as `batch_get`).
 
@@ -2239,7 +2286,9 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
         for uid in plan.id_in {
             existing = self.__mem__.get(uid);
             if existing is not None {
-                yield existing;
+                if _l1_matches_plan(existing, plan) {
+                    yield existing;
+                }
             } else {
                 l3_miss_ids.add(uid);
             }
