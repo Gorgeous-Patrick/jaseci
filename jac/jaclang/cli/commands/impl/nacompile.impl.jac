@@ -196,19 +196,13 @@ impl nacompile(
         );
     }
 
-    # Scrub: wipe all .jac_ir/ cache directories under the source tree
+    # Scrub: wipe cached compilation artifacts under the source tree
     if scrub {
-        import glob as _glob;
-        import shutil;
+        import from jaclang.jac0core.jir { scrub_cache_dirs }
         src_root = os.path.dirname(os.path.abspath(filename)) or ".";
-        cache_dirs = _glob.glob(
-            os.path.join(src_root, "**", ".jac_ir"), recursive=True
-        );
-        for cache_dir in cache_dirs {
-            shutil.rmtree(cache_dir, ignore_errors=True);
-        }
-        if cache_dirs {
-            console.print(f"  Scrubbed {len(cache_dirs)} .jac_ir cache dir(s).");
+        _scrubbed = scrub_cache_dirs(src_root);
+        if _scrubbed {
+            console.print(f"  Scrubbed {_scrubbed} cache dir(s).");
         }
     }
 
