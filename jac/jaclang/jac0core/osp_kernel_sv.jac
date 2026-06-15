@@ -270,10 +270,17 @@ def _sv_on_complete(scope: WalkScope, ok: bool) {
     } except Exception {
         ;
     }
-    # Persistence is NOT owned by the kernel. The caller decides when to
-    # commit: the HTTP server commits in _finalize_call_response / middleware,
-    # CLI flows commit in ExecutionContext.close(). This avoids redundant
-    # hash-scans of the entire L1 cache on every spawn.
+    if ok {
+        # Commit the deferred L1 buffer to durable storage (mirrors sv's
+        # ExecutionManager.spawn_walker so direct `walker spawn node` flows
+        # persist without manual Jac.commit()). On native / client builds the
+        # context's mem.commit is a no-op so this is safe to call uniformly.
+        try {
+            JacRuntimeInterface.get_context().mem.commit();
+        } except Exception {
+            ;
+        }
+    }
 }
 
 """The server's OspRuntime: type-tag intrinsics + descriptor lookup, bridged to

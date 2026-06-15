@@ -1947,8 +1947,7 @@ impl TieredMemory.delete(id: UUID) -> None {
 that persists CLI runs (`jac run` flows end at close, not at an explicit
 commit). A failed request must abort() before close to discard its work."""
 impl TieredMemory.close -> None {
-    # close() only releases resources — no commit. Callers are responsible
-    # for committing before close. See https://github.com/jaseci-labs/jaseci/issues/6699.
+    self.commit();
     if self.l3 {
         self.l3.close();
     }
