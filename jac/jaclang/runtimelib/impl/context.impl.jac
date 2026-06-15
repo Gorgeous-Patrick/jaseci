@@ -90,7 +90,11 @@ impl ExecutionContext.close -> None {
     if self._parent is not None {
         return;
     }
-    # TieredMemory handles syncing to persistence and closing all tiers
+    # Persist any uncommitted changes before releasing resources.
+    # In the server path, the middleware/finalize already committed so
+    # this is a no-op (changeset is empty). In CLI/test paths, this is
+    # the authoritative commit point.
+    self.mem.commit();
     self.mem.close();
 }
 

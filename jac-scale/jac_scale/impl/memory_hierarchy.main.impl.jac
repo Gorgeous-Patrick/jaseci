@@ -221,31 +221,23 @@ impl ScaleTieredMemory.acommit(anchor: (Anchor | None) = None) -> None {
     }
 }
 
-"""Close all backends. The commit here is the backstop for non-spawn
-endpoints that mutate without an explicit commit — and the retry for a
-spawn whose acommit flush failed (a failed flush leaves _committed False);
-a failed walker's abort leaves nothing to collect either way. A backstop
-failure still propagates (silent data loss is worse), but the tiers are
-closed and L1 dropped regardless."""
+"""Release all backend resources. Does NOT commit — callers are responsible
+for committing before close (the server middleware and ExecutionContext.close
+both handle this). Mixing commit into close caused redundant hash-scans;
+see https://github.com/jaseci-labs/jaseci/issues/6699."""
 impl ScaleTieredMemory.close -> None {
-    try {
-        if not self._committed {
-            self.commit();
-        }
-    } finally {
-        if self.l3 {
-            self.l3.close();
-        }
-        if self.l2 {
-            self.l2.close();
-        }
-        # Drop this context's L1 from the invalidation registry.
-        if self._l1_id {
-            deregister_l1(self._l1_id);
-        }
-        self.__mem__.clear();
-        self.changes.clear();
+    if self.l3 {
+        self.l3.close();
     }
+    if self.l2 {
+        self.l2.close();
+    }
+    # Drop this context's L1 from the invalidation registry.
+    if self._l1_id {
+        deregister_l1(self._l1_id);
+    }
+    self.__mem__.clear();
+    self.changes.clear();
 }
 
 """If a sibling write flagged `id` stale, drop our copy (only if clean) so the
