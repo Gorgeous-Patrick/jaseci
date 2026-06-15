@@ -2252,7 +2252,10 @@ def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> bool {
             return False;
         }
     }
-    if plan.field_predicates and anchor.archetype is not None {
+    if plan.field_predicates {
+        if anchor.archetype is None {
+            return False;
+        }
         arch = anchor.archetype;
         for (field, constraint) in plan.field_predicates.items() {
             val = getattr(arch, field, None);
