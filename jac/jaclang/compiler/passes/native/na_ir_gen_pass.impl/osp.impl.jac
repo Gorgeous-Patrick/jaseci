@@ -234,9 +234,29 @@ impl NaIRGenPass._register_imported_osp_archetypes(imported_mod: uni.Module) -> 
 (`++>`), a `spawn`, a `visit`, or an edge ref (`[-->]`) — anywhere in its
 native-context statements. Distinct from declaring OSP archetypes: usage is
 what requires the kernel + adjacency at runtime. Same work-stack sweep idiom
-as `native_capability_violations`."""
+as `native_capability_violations`.
+
+A head decl's body that lives in an impl annex (`.na.impl.jac`) or a variant
+file is held in a SEPARATE module reachable through `mod.impl_mod` /
+`mod.variant_mod`, never through the head module's `kid` tree (DeclImplMatchPass
+sets `decl.body = <ImplDef from the annex module>`, it does not splice the annex
+statements into the head). So an OSP construct that lives ONLY in an impl annex
+— e.g. a `build_arena` whose body wires a `spawn`/connect — is invisible to a
+head-only `kid` sweep, leaving the module mis-classified as a non-OSP user; any
+OSP archetype it imports then never gets a stable type-tag and the connect/spawn
+fails with E5090 ("not materialized") or mis-codegens to a runtime SIGSEGV.
+Scan the annex/variant modules too — mirrors `module_native_compat`."""
 impl NaIRGenPass._module_uses_osp(module: uni.Module) -> bool {
-    for stmt in ModuleCodegenPass.iter_context_stmts(module, CodeContext.NATIVE) {
+    roots: list = list(
+        ModuleCodegenPass.iter_context_stmts(module, CodeContext.NATIVE)
+    );
+    # Impl annexes (`.na.impl.jac`) and variant bodies are wholly native context;
+    # take their top-level statements (the ImplDefs) directly — `iter_context_stmts`
+    # keys on per-statement context tags the annex ImplDefs do not carry.
+    for annex in list(module.impl_mod) + list(module.variant_mod) {
+        roots.extend(annex.body);
+    }
+    for stmt in roots {
         work: list = [stmt];
         while work {
             nd = work.pop();
