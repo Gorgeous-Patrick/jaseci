@@ -2226,7 +2226,7 @@ impl TieredMemory.capabilities -> set[str] {
 """Check whether an L1-cached anchor satisfies the plan's type and field
 predicates. Operators mirror the cross-backend vocabulary from QueryPlan:
 $eq, $ne, $lt, $lte, $gt, $gte, $in, $nin. A bare value is treated as $eq."""
-def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> bool {
+def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> (bool | None) {
     if plan.node_type_final is not None {
         if not (
             isinstance(anchor, NodeAnchor)
@@ -2258,6 +2258,10 @@ def _l1_matches_plan(anchor: Anchor, plan: QueryPlan) -> bool {
                         return False;
                     } elif op == '$nin' and val in expected {
                         return False;
+                    } else {
+                        # Unknown/backend-specific operator — cannot
+                        # evaluate in L1.
+                        return None;
                     }
                 }
             } else {
@@ -2282,14 +2286,19 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
         return;
     }
     if plan.id_in is not None {
-        # Phase 1: partition into L1 hits and L3 misses.
+        # Phase 1: partition into L1 hits, L1 rejects, and L3 misses.
+        # _l1_matches_plan returns True (match), False (reject), or
+        # None (unknown operator — must delegate to L3).
         l1_hits: list = [];
         l3_miss_ids: set = set();
         for uid in plan.id_in {
             existing = self.__mem__.get(uid);
             if existing is not None {
-                if _l1_matches_plan(existing, plan) {
+                match = _l1_matches_plan(existing, plan);
+                if match is True {
                     l1_hits.append(existing);
+                } elif match is None {
+                    l3_miss_ids.add(uid);
                 }
             } else {
                 l3_miss_ids.add(uid);
