@@ -2224,13 +2224,47 @@ impl TieredMemory.capabilities -> set[str] {
 }
 
 """Delegate pushdown to L3 and promote loaded anchors into L1 so subsequent
-gets are cache hits (same pattern as `batch_get`)."""
+gets are cache hits (same pattern as `batch_get`).
+
+When the plan carries pre-narrowed IDs (`id_in`), L1 is checked first and
+only misses are sent to L3. Without this, every narrowed ID goes to the
+database even when the anchor is already cached — wasting round trips and
+deserialization on data the prefetcher or an earlier hop already loaded."""
 impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None] {
     if self.l3 is None {
         return;
     }
+    if plan.id_in is not None {
+        l3_miss_ids: set = set();
+        for uid in plan.id_in {
+            existing = self.__mem__.get(uid);
+            if existing is not None {
+                yield existing;
+            } else {
+                l3_miss_ids.add(uid);
+            }
+        }
+        if l3_miss_ids {
+            reduced = QueryPlan(
+                root_id=plan.root_id,
+                chain=plan.chain,
+                field_predicates=plan.field_predicates,
+                id_in=l3_miss_ids,
+                slc=plan.slc,
+                node_type_final=plan.node_type_final,
+                post_filter=plan.post_filter
+            );
+            for anchor in self.l3.execute_plan(reduced) {
+                self.__mem__[anchor.id] = anchor;
+                if self.l2 {
+                    self.l2.put(anchor);
+                }
+                yield anchor;
+            }
+        }
+        return;
+    }
     for anchor in self.l3.execute_plan(plan) {
-        # Promote to L1 unless already there
         existing = self.__mem__.get(anchor.id);
         if existing is None {
             self.__mem__[anchor.id] = anchor;
