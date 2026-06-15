@@ -2294,21 +2294,38 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
             }
         }
         if l3_miss_ids {
-            reduced = QueryPlan(
-                root_id=plan.root_id,
-                chain=plan.chain,
-                field_predicates=plan.field_predicates,
-                id_in=l3_miss_ids,
-                slc=plan.slc,
-                node_type_final=plan.node_type_final,
-                post_filter=plan.post_filter
-            );
-            for anchor in self.l3.execute_plan(reduced) {
-                self.__mem__[anchor.id] = anchor;
-                if self.l2 {
-                    self.l2.put(anchor);
+            # If L3 supports id_in pushdown, use execute_plan with
+            # a reduced plan. Otherwise fall back to individual gets.
+            if 'id_in' in self.l3.capabilities() {
+                reduced = QueryPlan(
+                    root_id=plan.root_id,
+                    chain=plan.chain,
+                    field_predicates=plan.field_predicates,
+                    id_in=l3_miss_ids,
+                    slc=plan.slc,
+                    node_type_final=plan.node_type_final,
+                    post_filter=plan.post_filter
+                );
+                for anchor in self.l3.execute_plan(reduced) {
+                    self.__mem__[anchor.id] = anchor;
+                    if self.l2 {
+                        self.l2.put(anchor);
+                    }
+                    yield anchor;
                 }
-                yield anchor;
+            } else {
+                for mid in l3_miss_ids {
+                    anchor = self.l3.get(mid);
+                    if anchor is not None {
+                        if _l1_matches_plan(anchor, plan) {
+                            self.__mem__[anchor.id] = anchor;
+                            if self.l2 {
+                                self.l2.put(anchor);
+                            }
+                            yield anchor;
+                        }
+                    }
+                }
             }
         }
         return;
