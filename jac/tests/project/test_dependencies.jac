@@ -1861,3 +1861,48 @@ test "update always uses upgrade flag" {
         shutil.rmtree(tmp, ignore_errors=True);
     }
 }
+
+# ===== TestInstallPackageIntoActivatedEnv =====
+test "jac install <pkg> works outside a project directory" {
+    # Core contract: packages path bypasses jac.toml requirement entirely.
+    import from jaclang.cli.commands { project as proj_cmds }
+    tmp = tempfile.mkdtemp(prefix="jac_test_");
+    original_cwd = os.getcwd();
+    try {
+        os.chdir(tmp);
+        mock_result = MagicMock();
+        mock_result.returncode = 0;
+        mock_result.stdout = "Successfully installed pip-24.0";
+        mock_result.stderr = "";
+        with patch("subprocess.run", return_value=mock_result) {
+            result = proj_cmds.install(packages=["pip"], no_deps=True);
+        }
+        assert result == 0;
+    } finally {
+        os.chdir(original_cwd);
+        shutil.rmtree(tmp, ignore_errors=True);
+    }
+}
+
+test "install package failure returns error code" {
+    # Error path: pip failure propagates as exit 1.
+    reset_config();
+    import from jaclang.cli.commands { project as proj_cmds }
+    tmp = tempfile.mkdtemp(prefix="jac_test_");
+    original_cwd = os.getcwd();
+    try {
+        os.chdir(tmp);
+        mock_result = MagicMock();
+        mock_result.returncode = 1;
+        mock_result.stderr = "ERROR: Could not find a version that satisfies the requirement badpkg";
+        mock_result.stdout = "";
+        with patch("subprocess.run", return_value=mock_result) {
+            result = proj_cmds.install(packages=["badpkg"]);
+        }
+        assert result == 1;
+    } finally {
+        os.chdir(original_cwd);
+        shutil.rmtree(tmp, ignore_errors=True);
+        reset_config();
+    }
+}
