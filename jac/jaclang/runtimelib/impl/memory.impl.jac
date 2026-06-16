@@ -2314,11 +2314,16 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
     # must go to L3 for its stable ordering — L1's set-iteration order
     # is nondeterministic and would produce wrong pagination windows.
     if plan.id_in is not None and plan.slc is None and _l1_can_evaluate(plan) {
+        _needs_arch = plan.node_type_final is not None or bool(plan.field_predicates);
         l3_miss_ids: set = set();
         for uid in plan.id_in {
             existing = self.__mem__.get(uid);
             if existing is not None {
-                if _l1_matches_plan(existing, plan) {
+                # Stub anchors (not populated) can't be evaluated against
+                # type/field filters — delegate to L3 for the full document.
+                if _needs_arch and not existing.is_populated() {
+                    l3_miss_ids.add(uid);
+                } elif _l1_matches_plan(existing, plan) {
                     yield existing;
                 }
             } else {
