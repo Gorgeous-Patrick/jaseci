@@ -544,11 +544,12 @@ impl install(
     dry_run: bool = False,
     no_deps: bool = False,
     quiet: bool = False,
-    prefer_binary: bool = False
+    prefer_binary: bool = False,
+    no_uv: bool = False
 ) -> int {
     import from pathlib { Path }
     import from jaclang.project.config { get_config }
-    import from jaclang.project.dependencies { DependencyInstaller }
+    import from jaclang.project.dependencies { DependencyInstaller, pip_command }
     import from jaclang.project.dep_registry { get_dependency_registry }
 
     flag_defs: list = [
@@ -590,7 +591,10 @@ impl install(
                 return 1;
             }
             installer = DependencyInstaller(
-                config=config, verbose=verbose, install_flags=install_flags
+                config=config,
+                verbose=verbose,
+                install_flags=install_flags,
+                use_uv=not no_uv
             );
             dep_specs = installer.get_pip_package_specs(include_dev=dev);
             if extras {
@@ -620,13 +624,13 @@ impl install(
                 f"\n  Installing {len(all_dep_specs)} dependencies...", style="muted"
             );
             result = subprocess.run(
-                [
+                pip_command(
                     sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "--upgrade"
-                ] + install_flags + all_dep_specs,
+                    ["install", "--upgrade"] + (
+                        installer.install_flags or []
+                    ) + all_dep_specs,
+                    installer.use_uv
+                ),
                 capture_output=not verbose,
                 text=True,
             );
@@ -661,7 +665,7 @@ impl install(
         return 1;
     }
     installer = DependencyInstaller(
-        config=config, verbose=verbose, install_flags=install_flags
+        config=config, verbose=verbose, install_flags=install_flags, use_uv=not no_uv
     );
     console.print(
         f"\n📦 Installing dependencies for {config.project.name}", style="bold"
@@ -1316,12 +1320,14 @@ def _run_precompile_in_venv(
             venv_python = str(venv_dir / "bin" / "python");
             venv_jac = str(venv_dir / "bin" / "jac");
         }
+        import from jaclang.project.dependencies { pip_command }
+        use_uv: bool = not bool(os.environ.get("JAC_NO_UV"));
         jac_install = subprocess.run(
-            [venv_python, "-m", "pip", "install", jac_spec, "--quiet"],
+            pip_command(venv_python, ["install", jac_spec, "--quiet"], use_uv),
             capture_output=True
         );
         if jac_install.returncode != 0 {
-            return f"pip install {jac_spec} failed:\n{jac_install.stderr.decode(
+            return f"install {jac_spec} failed:\n{jac_install.stderr.decode(
                 errors='replace'
             )}";
         }
@@ -1338,11 +1344,11 @@ def _run_precompile_in_venv(
         }
         if dep_specs {
             deps_install = subprocess.run(
-                [venv_python, "-m", "pip", "install"] + dep_specs + ["--quiet"],
+                pip_command(venv_python, ["install"] + dep_specs + ["--quiet"], use_uv),
                 capture_output=True
             );
             if deps_install.returncode != 0 {
-                return f"pip install project deps failed:\n{deps_install.stderr.decode(
+                return f"install project deps failed:\n{deps_install.stderr.decode(
                     errors='replace'
                 )}";
             }
