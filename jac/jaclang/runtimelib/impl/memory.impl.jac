@@ -2309,56 +2309,29 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
     if self.l3 is None {
         return;
     }
-    if plan.id_in is not None and _l1_can_evaluate(plan) {
-        # Phase 1: partition into L1 hits and L3 misses.
-        l1_hits: list = [];
+    # L1 shortcut: when the plan has pre-narrowed IDs and no slice,
+    # serve L1 hits directly and only send misses to L3. Sliced plans
+    # must go to L3 for its stable ordering — L1's set-iteration order
+    # is nondeterministic and would produce wrong pagination windows.
+    if plan.id_in is not None and plan.slc is None and _l1_can_evaluate(plan) {
         l3_miss_ids: set = set();
         for uid in plan.id_in {
             existing = self.__mem__.get(uid);
             if existing is not None {
                 if _l1_matches_plan(existing, plan) {
-                    l1_hits.append(existing);
+                    yield existing;
                 }
             } else {
                 l3_miss_ids.add(uid);
             }
         }
-        # Phase 2: compute how many L3 results we still need.
-        # L1 hits satisfy the front of the slice; L3 only needs to
-        # fill the remainder, so its cursor limit stays tight.
-        l3_slc: (slice | None) = None;
-        if plan.slc is not None and (plan.slc.step is None or plan.slc.step == 1) {
-            _start = plan.slc.start or 0;
-            _stop = plan.slc.stop;
-            l1_count = len(l1_hits);
-            if _start >= l1_count {
-                l3_slc = slice(
-                    _start - l1_count, _stop - l1_count if _stop is not None else None
-                );
-                l1_hits = [];
-            } elif _stop is not None {
-                remaining = _stop - l1_count;
-                l1_hits = l1_hits[_start:_stop];
-                l3_slc = slice(0, max(0, remaining)) if remaining > 0 else None;
-                l3_miss_ids = set() if remaining <= 0 else l3_miss_ids;
-            } else {
-                l1_hits = l1_hits[_start:];
-            }
-        }
-        for anchor in l1_hits {
-            yield anchor;
-        }
-        # Phase 3: fetch L3 misses with the adjusted slice.
         if l3_miss_ids {
-            # If L3 supports id_in pushdown, use execute_plan with
-            # a reduced plan. Otherwise fall back to individual gets.
             if 'id_in' in self.l3.capabilities() {
                 reduced = QueryPlan(
                     root_id=plan.root_id,
                     chain=plan.chain,
                     field_predicates=plan.field_predicates,
                     id_in=l3_miss_ids,
-                    slc=l3_slc,
                     node_type_final=plan.node_type_final,
                     post_filter=plan.post_filter
                 );
@@ -2370,29 +2343,15 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
                     yield anchor;
                 }
             } else {
-                _limit = (l3_slc.stop - (l3_slc.start or 0))
-                    if (l3_slc is not None and l3_slc.stop is not None)
-                    else None;
-                _skip = l3_slc.start if l3_slc is not None else 0;
-                _counted = 0;
-                _yielded = 0;
                 for mid in l3_miss_ids {
-                    if _limit is not None and _yielded >= _limit {
-                        break;
-                    }
                     anchor = self.l3.get(mid);
                     if anchor is not None {
                         if _l1_matches_plan(anchor, plan) {
-                            if _counted < _skip {
-                                _counted += 1;
-                                continue;
-                            }
                             self.__mem__[anchor.id] = anchor;
                             if self.l2 {
                                 self.l2.put(anchor);
                             }
                             yield anchor;
-                            _yielded += 1;
                         }
                     }
                 }
