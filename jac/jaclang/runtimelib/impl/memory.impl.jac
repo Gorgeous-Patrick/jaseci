@@ -2224,7 +2224,16 @@ impl TieredMemory.capabilities -> set[str] {
 }
 
 """Operators that _l1_matches_plan can evaluate in-process."""
-glob _L1_KNOWN_OPS: set = {'$eq', '$ne', '$lt', '$lte', '$gt', '$gte', '$in', '$nin'};
+glob _L1_KNOWN_OPS: set = {
+         '$eq',
+         '$ne',
+         '$lt',
+         '$lte',
+         '$gt',
+         '$gte',
+         '$in',
+         '$nin'
+     };
 
 """True when every operator in the plan's field_predicates is in the
 known set. Unknown/backend-specific operators (e.g. $regex, $exists)
