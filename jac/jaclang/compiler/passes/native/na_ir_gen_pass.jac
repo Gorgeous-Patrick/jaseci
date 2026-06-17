@@ -12,7 +12,7 @@ import from llvmlite { ir }
 import jaclang.jac0core.unitree as uni;
 import from jaclang.jac0core.passes.module_codegen_pass { ModuleCodegenPass }
 import from jaclang.jac0core.constant { CodeContext, Tokens as Tok }
-import from jaclang.jac0core.diagnostics { E5026, E5060, E5090, E5091, E9002 }
+import from jaclang.jac0core.diagnostics { E2018, E5026, E5060, E5090, E5091, E9002 }
 import from jaclang.jac0core.osp_model { OspAnalysis, OspModel, stable_osp_tag }
 
 
@@ -396,6 +396,7 @@ obj NaIRGenPass(ModuleCodegenPass) {
     def _get_snprintf_fmt(fmt: str) -> ir.GlobalVariable;
     # Helper methods
     def _resolve_jac_type(type_expr: (uni.UniNode | None)) -> ir.Type;
+    def _emit_unlowerable_type(type_expr: uni.UniNode, tb: any) -> ir.Type;
     # Unified TypeBase -> LLVM lowering (consumes the central type checker's
     # result; returns None when a type category is not yet handled).
     def _lower_type(t: any) -> (ir.Type | None);

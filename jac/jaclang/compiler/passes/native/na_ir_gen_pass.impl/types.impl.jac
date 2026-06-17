@@ -448,14 +448,11 @@ An annotation Expr carries a `.type` (TypeBase) populated by TypeCheckPass;
 _lower_type maps it to an LLVM type. Every native type now flows through the
 central checker -- primitives, user structs/enums, collections, and the
 runtime `File` (modeled by na_builtins.pyi) -- including annotations in
-imported .na.jac modules (type-checked on load, #6117). The former name-based
-fallback (struct_types / type_map lookups) is gone: with `File` modeled
-centrally (#6118) it was reached zero times across the native suite.
+imported .na.jac modules (type-checked on load). The former name-based
+fallback (struct_types / type_map lookups) is gone.
 
-An annotation that reaches codegen without a `.type` is an E9002 ICE: the
-typed-tree contract (Phase 0) guarantees inference ran, so a missing type
-is a pipeline bug, never a user error. A present-but-unlowerable type still
-defaults to i64 (capability gap, E5090 territory -- tightened separately).
+An annotation that reaches codegen without a `.type` is an E9002 ICE. Unlowerable
+types are reported via `_emit_unlowerable_type` instead of defaulting to i64.
 """
 impl NaIRGenPass._resolve_jac_type(type_expr: (uni.UniNode | None)) -> ir.Type {
     if type_expr is None {
@@ -468,7 +465,7 @@ impl NaIRGenPass._resolve_jac_type(type_expr: (uni.UniNode | None)) -> ir.Type {
         if lowered is not None {
             return lowered;
         }
-        return ir.IntType(64);
+        return self._emit_unlowerable_type(type_expr, _ptb);
     }
     if isinstance(type_expr, uni.Expr) {
         if type_expr.type is None {
@@ -486,6 +483,34 @@ impl NaIRGenPass._resolve_jac_type(type_expr: (uni.UniNode | None)) -> ir.Type {
         if lowered is not None {
             return lowered;
         }
+        return self._emit_unlowerable_type(type_expr, type_expr.type);
+    }
+    return ir.IntType(64);
+}
+
+"""Emit E2018 for UnknownType, E5090 for other unlowerable types; return defensive i64."""
+impl NaIRGenPass._emit_unlowerable_type(type_expr: uni.UniNode, tb: any) -> ir.Type {
+    is_unknown = False;
+    try {
+        import from jaclang.compiler.type_system.types { UnknownType as _UnknownType }
+        is_unknown = isinstance(tb, _UnknownType);
+    } except ImportError { }
+    # Use type_tag for HasVar/Param so E2018 shows the written name, not '<Unknown>'.
+    if isinstance(type_expr, uni.Expr) {
+        _label = type_expr.unparse();
+    } else {
+        _tag = type_expr?.type_tag;
+        _label = self._get_name(_tag?.tag) or str(tb);
+    }
+    if is_unknown {
+        self.emit(
+            E2018,
+            node_override=type_expr,
+            name=_label,
+            position="native type annotation position"
+        );
+    } else {
+        self.emit(E5090, node_override=type_expr, kind="type", name=_label);
     }
     return ir.IntType(64);
 }
@@ -493,7 +518,8 @@ impl NaIRGenPass._resolve_jac_type(type_expr: (uni.UniNode | None)) -> ir.Type {
 """Resolve a type for C library declarations -- clib structs use value types, not pointers."""
 impl NaIRGenPass._resolve_clib_type(type_expr: (uni.UniNode | None)) -> ir.Type {
     if type_expr is None {
-        return ir.IntType(64);
+        # Omitted return on a clib decl is void per Jac semantics, not i64.
+        return ir.VoidType();
     }
     # Check if this is a clib struct name -- return VALUE type (not pointer)
     type_name: (str | None) = None;
