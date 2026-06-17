@@ -348,6 +348,9 @@ obj TieredMemory(VolatileMemory) {
     def commit(anchor: (Anchor | None) = None) -> None;
     def prefetch(ids: Iterable[UUID]) -> None;
     def batch_get(ids: list[UUID]) -> dict[UUID, Anchor];
+    # Lazy deserialization — thread-safe raw data store/promote.
+    def store_raw(uid: UUID, data: object) -> None;
+    def promote_raw(uid: UUID) -> (Anchor | None);
     # Pushdown protocol — delegate to L3 (the only tier that can push down).
     def capabilities -> set[str];
     def execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None];

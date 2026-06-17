@@ -1651,6 +1651,7 @@ impl TieredMemory.postinit -> None {
     # Initialize L1 (inherited from VolatileMemory)
     self.__mem__ = {};
     self.__raw__ = {};
+    self._raw_lock = threading.Lock();
     self.__gc__ = set();
     # Initialize L2 cache if requested
     if self.use_cache {
@@ -1672,6 +1673,37 @@ impl TieredMemory.postinit -> None {
     }
 }
 
+"""Store raw prefetched data for lazy deserialization (thread-safe)."""
+impl TieredMemory.store_raw(uid: UUID, data: object) -> None {
+    with self._raw_lock {
+        if uid not in self.__mem__ {
+            self.__raw__[uid] = data;
+        }
+    }
+}
+
+"""Try to promote a raw entry to __mem__ (thread-safe). Returns the
+deserialized anchor or None if not in __raw__."""
+impl TieredMemory.promote_raw(uid: UUID) -> (Anchor | None) {
+    with self._raw_lock {
+        raw = self.__raw__.pop(uid, None);
+    }
+    if raw is None {
+        return None;
+    }
+    import from jaclang.runtimelib.serializer { Serializer }
+    try {
+        anchor = Serializer.deserialize(raw);
+    } except Exception as e {
+        logger.error(f"promote_raw deserialize failed for {uid}: {e}");
+        return None;
+    }
+    if anchor is not None {
+        self.__mem__[uid] = anchor;
+    }
+    return anchor;
+}
+
 """Get anchor with read-through: L1 -> raw -> L2 -> L3 with promotion."""
 impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     # L1 hit (self.__mem__ inherited from VolatileMemory)
@@ -1680,15 +1712,10 @@ impl TieredMemory.get(id: UUID) -> (Anchor | None) {
         return anchor;
     }
     # Lazy raw hit — deserialize prefetched data on first access
-    raw = self.__raw__.pop(id, None);
-    if raw is not None {
-        import from jaclang.runtimelib.serializer { Serializer }
-        anchor = Serializer.deserialize(raw);
-        if anchor is not None {
-            self.__mem__[id] = anchor;
-            _tiered_access_log(id, "L1", anchor);
-            return anchor;
-        }
+    anchor = self.promote_raw(id);
+    if anchor is not None {
+        _tiered_access_log(id, "L1", anchor);
+        return anchor;
     }
     # L2 hit with promotion to L1
     if self.l2 and (anchor := self.l2.get(id)) {
@@ -1844,18 +1871,16 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     raw_items = list(self.l3.find_raw(id_list));
     if raw_items {
         self.l2.bulk_put_raw(raw_items);
-        # Store raw data for lazy deserialization. No CPU-bound
-        # Serializer.deserialize here — deserialization happens on
-        # first access in get() / batch_get().
+        # Store raw data for lazy deserialization (thread-safe).
+        # No CPU-bound Serializer.deserialize here — deserialization
+        # happens on first access via promote_raw().
         for (uid, data) in raw_items {
-            if uid not in self.__mem__ {
-                self.__raw__[uid] = data;
-            }
+            self.store_raw(uid, data);
         }
     }
 }
 
-"""Commit - syncs L3 persistence if available."""
+
 impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
     if self.l3 {
         self.l3.sync();
@@ -1872,7 +1897,16 @@ impl TieredMemory.capabilities -> set[str] {
 }
 
 """Operators that _l1_matches_plan can evaluate in-process."""
-glob _L1_KNOWN_OPS: set = {'$eq', '$ne', '$lt', '$lte', '$gt', '$gte', '$in', '$nin'};
+glob _L1_KNOWN_OPS: set = {
+         '$eq',
+         '$ne',
+         '$lt',
+         '$lte',
+         '$gt',
+         '$gte',
+         '$in',
+         '$nin'
+     };
 
 """True when every operator in the plan's field_predicates is in the
 known set. Unknown/backend-specific operators (e.g. $regex, $exists)
@@ -1955,20 +1989,12 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
     # must go to L3 for its stable ordering — L1's set-iteration order
     # is nondeterministic and would produce wrong pagination windows.
     if plan.id_in is not None and plan.slc is None and _l1_can_evaluate(plan) {
-        import from jaclang.runtimelib.serializer { Serializer as _Ser }
         _needs_arch = plan.node_type_final is not None or bool(plan.field_predicates);
         l3_miss_ids: set = set();
         for uid in plan.id_in {
             existing = self.__mem__.get(uid);
             if existing is None {
-                # Check __raw__ for prefetched-but-not-deserialized data
-                raw = self.__raw__.pop(uid, None);
-                if raw is not None {
-                    existing = _Ser.deserialize(raw);
-                    if existing is not None {
-                        self.__mem__[uid] = existing;
-                    }
-                }
+                existing = self.promote_raw(uid);
             }
             if existing is not None {
                 # Stub anchors (not populated) can't be evaluated against
@@ -2032,7 +2058,6 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
 
 """Batch get: check L1, then load L3 misses, promote all to L1/L2."""
 impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
-    import from jaclang.runtimelib.serializer { Serializer }
     result: dict[UUID, Anchor] = {};
     missing_ids: list[UUID] = [];
     for id in ids {
@@ -2040,33 +2065,13 @@ impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             result[id] = anchor;
             _tiered_access_log(id, "L1", anchor);
         } else {
-            # Check __raw__ for prefetched-but-not-deserialized data
-            raw = self.__raw__.pop(id, None);
-            if raw is not None {
-                anchor = Serializer.deserialize(raw);
-                if anchor is not None {
-                    self.__mem__[id] = anchor;
-                    result[id] = anchor;
-                    _tiered_access_log(id, "L1", anchor);
-                    continue;
-                }
-            }
-            missing_ids.append(id);
-        }
-    }
-    if missing_ids and self.l3 {
-        for mid in missing_ids {
-            if (anchor := self.l3.get(mid)) {
-                self.__mem__[anchor.id] = anchor;
-                if self.l2 {
-                    self.l2.put(anchor);
-                }
-                result[anchor.id] = anchor;
-                _tiered_access_log(mid, "L3", anchor);
-            } else {
-                _tiered_access_log(mid, "MISS");
+            anchor = self.promote_raw(id);
+            if anchor is not None {
+                result[id] = anchor;
+                _tiered_access_log(id, "L1", anchor);
+                continue;
             }
         }
+        missing_ids.append(id);
     }
-    return result;
 }
