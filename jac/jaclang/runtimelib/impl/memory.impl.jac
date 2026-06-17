@@ -1650,6 +1650,7 @@ impl TieredMemory.postinit -> None {
     import from jaclang.runtimelib.utils { get_db_path }
     # Initialize L1 (inherited from VolatileMemory)
     self.__mem__ = {};
+    self.__raw__ = {};
     self.__gc__ = set();
     # Initialize L2 cache if requested
     if self.use_cache {
@@ -1671,12 +1672,23 @@ impl TieredMemory.postinit -> None {
     }
 }
 
-"""Get anchor with read-through: L1 -> L2 -> L3 with promotion."""
+"""Get anchor with read-through: L1 -> raw -> L2 -> L3 with promotion."""
 impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     # L1 hit (self.__mem__ inherited from VolatileMemory)
     if (anchor := self.__mem__.get(id)) {
         _tiered_access_log(id, "L1", anchor);
         return anchor;
+    }
+    # Lazy raw hit — deserialize prefetched data on first access
+    raw = self.__raw__.pop(id, None);
+    if raw is not None {
+        import from jaclang.runtimelib.serializer { Serializer }
+        anchor = Serializer.deserialize(raw);
+        if anchor is not None {
+            self.__mem__[id] = anchor;
+            _tiered_access_log(id, "L1", anchor);
+            return anchor;
+        }
     }
     # L2 hit with promotion to L1
     if self.l2 and (anchor := self.l2.get(id)) {
@@ -1777,6 +1789,7 @@ impl TieredMemory.close -> None {
     }
     # Clear L1 (inherited from VolatileMemory)
     self.__mem__.clear();
+    self.__raw__.clear();
     self.__gc__.clear();
 }
 
@@ -1831,15 +1844,12 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     raw_items = list(self.l3.find_raw(id_list));
     if raw_items {
         self.l2.bulk_put_raw(raw_items);
-        # Also promote to L1 so the walker never hits Redis
-        import from jaclang.runtimelib.serializer { Serializer }
+        # Store raw data for lazy deserialization. No CPU-bound
+        # Serializer.deserialize here — deserialization happens on
+        # first access in get() / batch_get().
         for (uid, data) in raw_items {
             if uid not in self.__mem__ {
-                anchor = Serializer.deserialize(data);
-                if anchor {
-                    anchor.is_updated = False;
-                    self.__mem__.setdefault(uid, anchor);
-                }
+                self.__raw__[uid] = data;
             }
         }
     }
@@ -1945,10 +1955,21 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
     # must go to L3 for its stable ordering — L1's set-iteration order
     # is nondeterministic and would produce wrong pagination windows.
     if plan.id_in is not None and plan.slc is None and _l1_can_evaluate(plan) {
+        import from jaclang.runtimelib.serializer { Serializer as _Ser }
         _needs_arch = plan.node_type_final is not None or bool(plan.field_predicates);
         l3_miss_ids: set = set();
         for uid in plan.id_in {
             existing = self.__mem__.get(uid);
+            if existing is None {
+                # Check __raw__ for prefetched-but-not-deserialized data
+                raw = self.__raw__.pop(uid, None);
+                if raw is not None {
+                    existing = _Ser.deserialize(raw);
+                    if existing is not None {
+                        self.__mem__[uid] = existing;
+                    }
+                }
+            }
             if existing is not None {
                 # Stub anchors (not populated) can't be evaluated against
                 # type/field filters — delegate to L3 for the full document.
@@ -2011,6 +2032,7 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
 
 """Batch get: check L1, then load L3 misses, promote all to L1/L2."""
 impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
+    import from jaclang.runtimelib.serializer { Serializer }
     result: dict[UUID, Anchor] = {};
     missing_ids: list[UUID] = [];
     for id in ids {
@@ -2018,6 +2040,17 @@ impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             result[id] = anchor;
             _tiered_access_log(id, "L1", anchor);
         } else {
+            # Check __raw__ for prefetched-but-not-deserialized data
+            raw = self.__raw__.pop(id, None);
+            if raw is not None {
+                anchor = Serializer.deserialize(raw);
+                if anchor is not None {
+                    self.__mem__[id] = anchor;
+                    result[id] = anchor;
+                    _tiered_access_log(id, "L1", anchor);
+                    continue;
+                }
+            }
             missing_ids.append(id);
         }
     }

@@ -7,6 +7,7 @@ Storage configuration comes from environment variables or jac.toml.
 impl ScaleTieredMemory.postinit -> None {
     # L1: Initialize volatile memory (inherited from VolatileMemory via TieredMemory)
     self.__mem__ = {};
+    self.__raw__ = {};
     self.__gc__ = set();
     # L2: Try to initialize Redis cache (replaces LocalCacheMemory)
     redis_backend = RedisBackend();
@@ -92,6 +93,7 @@ impl ScaleTieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 """Batch get with full tiered read-through: L1 → L2 MGET → L3 $in."""
 impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     import from jaclang.runtimelib.memory { _tiered_access_log }
+    import from jaclang.runtimelib.serializer { Serializer }
     result: dict[UUID, Anchor] = {};
     l1_misses: list[UUID] = [];
     for id in ids {
@@ -99,6 +101,17 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
             result[id] = anchor;
             _tiered_access_log(id, "L1", anchor);
         } else {
+            # Check __raw__ for prefetched-but-not-deserialized data
+            raw = self.__raw__.pop(id, None);
+            if raw is not None {
+                anchor = Serializer.deserialize(raw);
+                if anchor is not None {
+                    self.__mem__[id] = anchor;
+                    result[id] = anchor;
+                    _tiered_access_log(id, "L1", anchor);
+                    continue;
+                }
+            }
             l1_misses.append(id);
         }
     }
@@ -188,5 +201,6 @@ impl ScaleTieredMemory.close -> None {
         self.l2.close();
     }
     self.__mem__.clear();
+    self.__raw__.clear();
     self.__gc__.clear();
 }
