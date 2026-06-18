@@ -1090,9 +1090,15 @@ test "sync writes endpoint nodes before the edges that reference them" {
         written.append(anchor);
         orig_write(anchor);
     }
-    def _rec_atomic(anchor: NodeAnchor, added: list, removed: list, fields: set) {
+    def _rec_atomic(
+        anchor: NodeAnchor,
+        added: list,
+        removed: list,
+        fields: set,
+        cas_version: (int | None) = None
+    ) {
         written.append(anchor);
-        orig_atomic(anchor, added, removed, fields);
+        orig_atomic(anchor, added, removed, fields, cas_version);
     }
     backend._write_to_db = _rec_write;
     backend._put_node_atomic = _rec_atomic;
