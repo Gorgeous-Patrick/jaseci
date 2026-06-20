@@ -8,7 +8,7 @@ license = "MIT"
 readme = "README.md"
 keywords = ["jac", "jaclang", "jaseci", "desktop", "webview", "native"]
 requires-python = ">=3.12"
-entry-point = "jac_desktop/plugin.jac"
+entry-point = "jac_desktop/plugin/__init__.jac"
 
 [project.urls]
 repository = "https://github.com/jaseci-labs/jaseci"
@@ -27,9 +27,11 @@ packages = ["jac_desktop*"]
 # Explicit globs so tests/ and build caches don't end up in the wheel.
 jac_desktop = [
     "native/webview/webview.na.jac",
+    "native/plugin_bridge.na.jac",
     "native/webview/build_libwebview.sh",
     "native/webview/install_webkit_deps.sh",
     "native/webview/README.md",
+    "plugin/desktop_api.cl.jac",
     # The `desktop` project-kind template scaffolded by `jac create --kind desktop`.
     "templates/**/*",
     "templates/**/.*",
@@ -44,6 +46,12 @@ pytest = "==8.3.5"
 
 [entrypoints.jac]
 desktop_plugin_config = "jac_desktop.plugin_config:JacDesktopPluginConfig"
+
+[entrypoints."jac.modules"]
+desktop = "jac_desktop.plugin_config:desktop_sdk_path"
+
+[entrypoints."jac.module_exports"]
+desktop = "jac_desktop.plugin_config:desktop_sdk_exports"
 
 [entrypoints.jac_client]
 desktop = "jac_desktop.plugin:JacDesktopPlugin"
