@@ -1260,15 +1260,16 @@ impl JacBasics.refs(
             last.nd = lambda i: any : (orig_nd(i) and post_filter(i));
         }
     }
-    # Try the storage-aware planner for non-edge-only queries. The planner
-    # owns the strategy ladder: backend pushdown (e.g. Mongo `_id $in + field`
-    # predicates) → topology_index narrowing → batch_get materialization. It
-    # returns NodeAnchors when a fast path applies, or None to signal that
-    # the caller must fall back to the linear edge-walk below.
+    # Try the per-hop resolver for non-edge-only queries. The resolver walks
+    # the hop chain as a uniform per-hop fold (index narrowing at every step,
+    # with backend pushdown opportunistically applied at the final-hop
+    # materialization). It returns NodeAnchors when a fast path applies, or
+    # None to signal that the caller must fall back to the linear edge-walk
+    # below — the same parity contract `execute_path` had.
     if not path.edge_only {
-        import from jaclang.runtimelib.planner { execute_path }
+        import from jaclang.runtimelib.resolver { resolve_path_anchors }
         ctx = JacRuntimeInterface.get_context();
-        planned = execute_path(ctx.mem, path, slc);
+        planned = resolve_path_anchors(ctx.mem, path, slc);
         if planned is not None {
             return [
                 a.archetype

@@ -411,74 +411,19 @@ def _build_plan_from_path(
 }
 
 
-"""High-level path entry point. Builds a QueryPlan, runs it, returns NodeAnchors.
-
-Strategy ladder, picked by query shape:
-
-  * **sliced, no post_filter** → `plan_chain_ordered` (works for single-hop
-    AND multi-hop; multi-hop resolves the prefix as a set then walks the
-    final adj_list in order with the slice applied). This bounds L3 fetches
-    to roughly the slice size — critical for paginated queries on large
-    fanouts where the legacy unbounded path loaded the whole result first.
-
-  * **single-hop, no slice, no post_filter** → `plan_chain_ordered` with a
-    full-open slice. Canonical edge-walk order is preserved so existing
-    visit semantics are unchanged from the legacy edge-walk path.
-
-  * **anything else** (multi-hop unsliced, or any post_filter present) →
-    set narrowing via `plan_chain`, then backend pushdown if capabilities
-    cover the reduced plan, otherwise `batch_get`. post_filter applied
-    above the materialized list before any leftover slicing.
+"""High-level path entry point. Now a thin wrapper around the per-hop
+resolver in `jaclang.runtimelib.resolver`. Kept for source compatibility
+with callers that import `execute_path` directly (notably the planner-
+correctness tests in `jac/tests/runtimelib/test_topology_e2e.jac`).
 
 Returns None to signal the caller should fall back to the legacy edge-walk.
-"""
+The bail surface is identical to `resolve_path_anchors`'s — see the resolver
+module for the full decision tree."""
 impl execute_path(
     mem: any, path: any, slc: (slice | None) = None
 ) -> (list[any] | None) {
-    plan = _build_plan_from_path(mem, path, slc);
-    if plan is None {
-        return None;
-    }
-    root_anchor = _path_root_anchor(mem, path);
-    if root_anchor is None {
-        return None;
-    }
-    origin_ids: set[UUID] = {cast(UUID, nd.__jac__.id) for nd in path.origin};
-    chain_triples = _chain_triples(plan.chain);
-
-    # Ordered fast path covers single-hop walks AND sliced multi-hop. The
-    # ordered resolver applies the slice itself, so materialize doesn't.
-    use_ordered = plan.post_filter is None
-    and (slc is not None or len(plan.chain) == 1);
-    if use_ordered {
-        effective_slc = slc if slc is not None else slice(None, None, None);
-        ordered = plan_chain_ordered(
-            root_anchor, origin_ids, chain_triples, effective_slc
-        );
-        if ordered is None {
-            return None;
-        }
-        _trace('ordered', plan, f"ids={len(ordered)}");
-        return _materialize_ids(mem, ordered);
-    }
-
-    # Set-narrowing branch: multi-hop without slice, or anything with a
-    # post_filter (predicates invalidate the ordered slice invariant).
-    narrowed = plan_chain(root_anchor, origin_ids, chain_triples);
-    if narrowed is None {
-        return None;
-    }
-    plan.id_in = narrowed;
-    plan.chain = [];  # consumed by narrowing
-    _trace('path', plan, f"narrowed={len(narrowed)}");
-
-    # Backend pushdown if capable, else floor through batch_get.
-    if plan.needs() <= mem.capabilities() {
-        return _execute_pushdown(mem, plan);
-    }
-    return _materialize_ids(
-        mem, list(narrowed), post_filter=plan.post_filter, slc=plan.slc
-    );
+    import from jaclang.runtimelib.resolver { resolve_path_anchors }
+    return resolve_path_anchors(mem, path, slc);
 }
 
 
