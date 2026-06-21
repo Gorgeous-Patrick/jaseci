@@ -23,10 +23,6 @@ on:
         description: "Publish jac-scale"
         type: boolean
         default: false
-      jac-super:
-        description: "Publish jac-super"
-        type: boolean
-        default: false
       jac-mcp:
         description: "Publish jac-mcp"
         type: boolean
@@ -50,7 +46,7 @@ jobs:
           startsWith(github.event.pull_request.head.ref, 'release/')
         )
       )
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
@@ -81,12 +77,11 @@ jobs:
           IN_JACLANG: ${{ inputs.jaclang && 'jaclang' || '' }}
           IN_BYLLM: ${{ inputs['jac-byllm'] && 'jac-byllm' || '' }}
           IN_SCALE: ${{ inputs['jac-scale'] && 'jac-scale' || '' }}
-          IN_SUPER: ${{ inputs['jac-super'] && 'jac-super' || '' }}
           IN_MCP: ${{ inputs['jac-mcp'] && 'jac-mcp' || '' }}
           IN_JASECI: ${{ inputs.jaseci && 'jaseci' || '' }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            PACKAGES="$IN_JACLANG $IN_BYLLM $IN_SCALE $IN_SUPER $IN_MCP $IN_JASECI"
+            PACKAGES="$IN_JACLANG $IN_BYLLM $IN_SCALE $IN_MCP $IN_JASECI"
             echo "Manual dispatch - selected packages: $PACKAGES"
             jac run scripts/parse_release.jac --packages "$PACKAGES"
           else
@@ -99,7 +94,7 @@ jobs:
   approve-release:
     needs: parse-release
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     environment: pypi
     timeout-minutes: 60
     steps:
@@ -118,7 +113,7 @@ jobs:
     if: |
       needs.parse-release.outputs.has_releases == 'true' &&
       needs.approve-release.result == 'success'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -237,7 +232,7 @@ jobs:
   publish-npm:
     needs: [parse-release, build]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -304,7 +299,7 @@ jobs:
   publish-tier1:
     needs: [parse-release, build]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -338,7 +333,7 @@ jobs:
   wait-tier1:
     needs: [parse-release, publish-tier1]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -365,7 +360,7 @@ jobs:
   publish-tier2:
     needs: [parse-release, build, wait-tier1]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -399,7 +394,7 @@ jobs:
   wait-tier2:
     needs: [parse-release, publish-tier2]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -426,7 +421,7 @@ jobs:
   publish-tier3:
     needs: [parse-release, build, wait-tier2]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -460,7 +455,7 @@ jobs:
   wait-tier3:
     needs: [parse-release, publish-tier3]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -487,7 +482,7 @@ jobs:
   publish-tier4:
     needs: [parse-release, build, wait-tier3]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -521,7 +516,7 @@ jobs:
   wait-tier4:
     needs: [parse-release, publish-tier4]
     if: needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -551,7 +546,7 @@ jobs:
       always() &&
       needs.parse-release.outputs.has_releases == 'true' &&
       (needs.publish-tier1.result == 'success' || needs.publish-tier2.result == 'success' || needs.publish-tier3.result == 'success' || needs.publish-tier4.result == 'success')
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
@@ -618,7 +613,7 @@ jobs:
   create-github-release:
     needs: [parse-release, push-tags]
     if: always() && needs.push-tags.result == 'success'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
@@ -686,7 +681,7 @@ jobs:
   summary:
     needs: [parse-release, build, publish-tier1, publish-tier2, publish-tier3, publish-tier4, wait-tier3, wait-tier4, push-tags, create-github-release, build-standalone-binaries]
     if: always() && needs.parse-release.outputs.has_releases == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Release Summary

@@ -10,7 +10,7 @@ on:
 
 jobs:
   jac-check:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,6 @@ jobs:
           pip install -e ./jac
           jac install -e ./jac-scale --extras all
           jac install -e ./jac-byllm
-          jac install -e ./jac-super
 
       - name: Warm up compiler cache
         run: jac --version
