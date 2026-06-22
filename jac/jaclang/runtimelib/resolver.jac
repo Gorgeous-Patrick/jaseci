@@ -24,9 +24,17 @@ itself is uniform.
 import os;
 import logging;
 import from uuid { UUID }
+import from collections.abc { Callable }
 
-import from jaclang.jac0core.archetype { Anchor, NodeAnchor }
-import from jaclang.runtimelib.query_plan { QueryPlan, HopSpec }
+import from jaclang.jac0core.archetype {
+    Anchor,
+    Archetype,
+    NodeAnchor,
+    ObjectSpatialDestination,
+    ObjectSpatialPath
+}
+import from jaclang.runtimelib.memory { Memory }
+import from jaclang.runtimelib.query_plan { QueryPlan }
 
 glob logger = logging.getLogger(__name__),
      __all__ = ['ChainHop', 'resolve_hop', 'resolve_path_anchors'];
@@ -37,10 +45,10 @@ and the raw `ObjectSpatialDestination` whose callable filters the slow path
 needs. Two views of the same hop fused into one struct so the per-hop fold
 has a single parameter shape regardless of which dispatch fires."""
 obj ChainHop {
-    has edge_type: (str | None) = None,
+    has dest: ObjectSpatialDestination,
+        edge_type: (str | None) = None,
         node_type: (str | None) = None,
-        direction: int = 2,
-        dest: any = None;
+        direction: int = 2;
 }
 
 
@@ -53,13 +61,13 @@ the hop carries no useful filter and the legacy bail applies). The caller
 decides whether to fall through.
 """
 def resolve_hop(
-    mem: any,
-    current_ids: any,
+    mem: Memory,
+    current_ids: set[UUID],
     hop: ChainHop,
-    root_anchor: any,
+    root_anchor: NodeAnchor,
     hop_idx: int,
     slc: (slice | None) = None
-) -> (any);
+) -> (set[UUID] | list[UUID] | None);
 
 
 """High-level path entry point. Walks the path's hop chain via the per-hop
@@ -70,5 +78,5 @@ Returns `None` to signal "fall through to the legacy edge-walk in `refs()`"
 `execute_path`'s bail conditions; follow-ups will widen the coverage.
 """
 def resolve_path_anchors(
-    mem: any, path: any, slc: (slice | None) = None
-) -> (list[any] | None);
+    mem: Memory, path: ObjectSpatialPath, slc: (slice | None) = None
+) -> (list[NodeAnchor] | None);

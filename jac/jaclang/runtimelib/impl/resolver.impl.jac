@@ -18,12 +18,11 @@ Returns the archetype class name if the lambda is a pure `isinstance(i, T)`
 check (or an Archetype instance acting as an identity filter). Returns None
 when the filter is None or non-trivial.
 """
-def _filter_type_name(filt: any) -> (str | None) {
+def _filter_type_name(filt: (Callable[[Archetype], bool] | None)) -> (str | None) {
     if filt is None {
         return None;
     }
     try {
-        import from jaclang.jac0core.archetype { Archetype }
         if isinstance(filt, Archetype) {
             return `type(filt).__name__;
         }
@@ -35,11 +34,8 @@ def _filter_type_name(filt: any) -> (str | None) {
         for val in `list(closure.nonlocals.values()) + `list(
             closure.globals.values()
         ) {
-            if isinstance(val, `type) {
-                import from jaclang.jac0core.archetype { Archetype as Arch }
-                if issubclass(val, Arch) {
-                    return val.__name__;
-                }
+            if isinstance(val, `type) and issubclass(val, Archetype) {
+                return val.__name__;
             }
         }
     } except Exception {
@@ -56,7 +52,7 @@ RETURN; predicates introduce LOAD_ATTR / COMPARE_OP / CONTAINS_OP / IS_OP.
 Conservative on inspection failure — assume predicates present so we never
 silently skip filtering.
 """
-def _filter_has_predicates(filt: any) -> bool {
+def _filter_has_predicates(filt: (Callable[[Archetype], bool] | None)) -> bool {
     if filt is None {
         return False;
     }
@@ -106,23 +102,26 @@ def _trace_final(strategy: str, narrowed: int, extra: str = '') -> None {
 """Materialize a set of UUIDs to NodeAnchors via `batch_get`, applying
 optional post_filter and slice."""
 def _materialize_ids(
-    mem: any, ids: list[UUID], post_filter: any = None, slc: (slice | None) = None
-) -> list[any] {
+    mem: Memory,
+    ids: list[UUID],
+    post_filter: (Callable[[Archetype], bool] | None) = None,
+    slc: (slice | None) = None
+) -> list[NodeAnchor] {
     if not ids {
         return [];
     }
     import from jaclang.runtimelib.memory { TieredMemory }
-    import from jaclang.jac0core.archetype { NodeAnchor }
+    loaded: dict[UUID, Anchor];
     if isinstance(mem, TieredMemory) {
-        loaded: dict = mem.batch_get(ids);
+        loaded = mem.batch_get(ids);
     } else {
-        loaded: dict = {
+        loaded = {
             i: a
             for i in ids
-            if (a := mem.get(i))
+            if (a := mem.get(i)) is not None
         };
     }
-    result: list = [];
+    result: list[NodeAnchor] = [];
     for i in ids {
         anchor = loaded.get(i);
         if isinstance(anchor, NodeAnchor) and anchor.archetype {
@@ -140,9 +139,12 @@ def _materialize_ids(
 
 
 """Backend pushdown: hand a reduced plan to `mem.execute_plan` and apply the
-post_filter / slice fallback locally when capabilities don't cover them."""
-def _try_pushdown(mem: any, plan: QueryPlan) -> list[any] {
-    result: list = [];
+post_filter / slice fallback locally when capabilities don't cover them.
+
+Plans built by `resolve_path_anchors` are node-resolving (chain consumed,
+`id_in` carries node IDs); backends yield `NodeAnchor` for that shape."""
+def _try_pushdown(mem: Memory, plan: QueryPlan) -> list[NodeAnchor] {
+    result: list[NodeAnchor] = [];
     for anchor in mem.execute_plan(plan) {
         if (
             plan.post_filter is not None
@@ -151,7 +153,7 @@ def _try_pushdown(mem: any, plan: QueryPlan) -> list[any] {
         ) {
             continue;
         }
-        result.append(anchor);
+        result.append(cast(NodeAnchor, anchor));
     }
     if plan.slc is not None and 'slice' not in mem.capabilities() {
         result = result[plan.slc];
@@ -162,7 +164,7 @@ def _try_pushdown(mem: any, plan: QueryPlan) -> list[any] {
 
 """Resolve the root anchor that owns an ObjectSpatialPath's origin. Returns
 None when the origin isn't persistent or its owning root can't be found."""
-def _path_root_anchor(mem: any, path: any) -> any {
+def _path_root_anchor(mem: Memory, path: ObjectSpatialPath) -> (NodeAnchor | None) {
     if not path.origin {
         return None;
     }
@@ -170,7 +172,7 @@ def _path_root_anchor(mem: any, path: any) -> any {
     if not origin_anchor.persistent {
         return None;
     }
-    import from jaclang.jac0core.archetype { NodeAnchor, Root }
+    import from jaclang.jac0core.archetype { Root }
     if origin_anchor.root is None {
         if isinstance(origin_anchor, NodeAnchor)
         and isinstance(origin_anchor.archetype, Root) {
@@ -203,7 +205,7 @@ Returns None when:
   * the chain has no useful filter anywhere AND no final post_filter
     (natural edge-walk is optimal, no point engaging the index)
 """
-def _build_hops(path: any) -> (list[ChainHop] | None) {
+def _build_hops(path: ObjectSpatialPath) -> (list[ChainHop] | None) {
     if not path.origin {
         return None;
     }
@@ -265,8 +267,7 @@ typical L1-cached anchors, and we only run it after a hop has narrowed to a
 small candidate set. Future PR: swap for `TopologyIndex.get_cross_root_ids`
 or `has_foreign` to avoid the per-ID fetch for large sets.
 """
-def _has_foreign(mem: any, ids: any, root_anchor: any) -> bool {
-    import from jaclang.jac0core.archetype { NodeAnchor }
+def _has_foreign(mem: Memory, ids: set[UUID], root_anchor: NodeAnchor) -> bool {
     for uid in ids {
         try {
             anchor = mem.get(uid);
@@ -296,12 +297,12 @@ roots. This is the position-aware part of the fold — `resolve_hop` itself
 stays uniform.
 """
 def _resolve_prefix(
-    mem: any, ids: any, prefix_hops: list[ChainHop], root_anchor: any
-) -> (any) {
-    current = ids;
+    mem: Memory, ids: set[UUID], prefix_hops: list[ChainHop], root_anchor: NodeAnchor
+) -> (set[UUID] | None) {
+    current: set[UUID] = ids;
     for (i, hop) in enumerate(prefix_hops) {
         next_ids = resolve_hop(mem, current, hop, root_anchor, i, slc=None);
-        if next_ids is None {
+        if next_ids is None or isinstance(next_ids, list) {
             return None;
         }
         if _has_foreign(mem, next_ids, root_anchor) {
@@ -314,13 +315,13 @@ def _resolve_prefix(
 
 
 impl resolve_hop(
-    mem: any,
-    current_ids: any,
+    mem: Memory,
+    current_ids: set[UUID],
     hop: ChainHop,
-    root_anchor: any,
+    root_anchor: NodeAnchor,
     hop_idx: int,
     slc: (slice | None) = None
-) -> (any) {
+) -> (set[UUID] | list[UUID] | None) {
     # NB: "no useful filter" is a *chain-level* property, enforced once by
     # `_build_hops` before the fold even starts. Individual hops in the middle
     # of a chain may legitimately carry no type filter (e.g. `r --> --> leaf`),
@@ -333,13 +334,10 @@ impl resolve_hop(
     if not isinstance(idx, TopologyIndex) or len(idx) == 0 {
         return None;
     }
-    in_ids: set[UUID] = current_ids
-        if isinstance(current_ids, set)
-        else set(current_ids);
-    in_count = len(in_ids);
+    in_count = len(current_ids);
     if slc is not None {
         ordered = idx.resolve_chain_ordered(
-            in_ids, hop.edge_type, hop.node_type, hop.direction, slc
+            current_ids, hop.edge_type, hop.node_type, hop.direction, slc
         );
         _trace_hop(
             'index:ordered',
@@ -352,7 +350,7 @@ impl resolve_hop(
         return ordered;
     }
     triple = (hop.edge_type, hop.node_type, hop.direction);
-    narrowed = idx.resolve_chain(in_ids, [triple]);
+    narrowed = idx.resolve_chain(current_ids, [triple]);
     if narrowed is None {
         return None;
     }
@@ -376,8 +374,8 @@ impl resolve_hop(
      even when the user didn't pass a slice).
 """
 impl resolve_path_anchors(
-    mem: any, path: any, slc: (slice | None) = None
-) -> (list[any] | None) {
+    mem: Memory, path: ObjectSpatialPath, slc: (slice | None) = None
+) -> (list[NodeAnchor] | None) {
     chain = _build_hops(path);
     if chain is None {
         return None;
@@ -386,17 +384,19 @@ impl resolve_path_anchors(
     if root_anchor is None {
         return None;
     }
-    origin_ids: set[UUID] = {cast(UUID, nd.__jac__.id) for nd in path.origin};
-    current: any = origin_ids;
+    current: set[UUID] = {cast(UUID, nd.__jac__.id) for nd in path.origin};
     if len(chain) > 1 {
-        current = _resolve_prefix(mem, current, chain[:-1], root_anchor);
-        if current is None {
+        prefix = _resolve_prefix(mem, current, chain[:-1], root_anchor);
+        if prefix is None {
             return None;
         }
+        current = prefix;
     }
     last_hop = chain[-1];
     last_has_post_filter = _filter_has_predicates(last_hop.dest.nd);
-    post_filter = last_hop.dest.node_filter if last_has_post_filter else None;
+    post_filter: (Callable[[Archetype], bool] | None) = (
+        last_hop.dest.node_filter if last_has_post_filter else None
+    );
     use_ordered = (not last_has_post_filter) and (slc is not None or len(chain) == 1);
     effective_slc: (slice | None) = None;
     if use_ordered {
