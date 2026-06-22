@@ -411,17 +411,14 @@ def _build_plan_from_path(
 }
 
 
-"""High-level path entry point. Now a thin wrapper around the per-hop
-resolver in `jaclang.runtimelib.resolver`. Kept for source compatibility
-with callers that import `execute_path` directly (notably the planner-
+"""High-level path entry point. Thin wrapper around the per-hop resolver
+in `jaclang.runtimelib.resolver`. Kept for source compatibility with
+callers that import `execute_path` directly (notably the planner-
 correctness tests in `jac/tests/runtimelib/test_topology_e2e.jac`).
 
-Returns None to signal the caller should fall back to the legacy edge-walk.
-The bail surface is identical to `resolve_path_anchors`'s — see the resolver
-module for the full decision tree."""
-impl execute_path(
-    mem: any, path: any, slc: (slice | None) = None
-) -> (list[any] | None) {
+Always returns a list — the legacy `None` signal is gone now that the
+resolver folds per-hop and never bails the whole query."""
+impl execute_path(mem: any, path: any, slc: (slice | None) = None) -> list[any] {
     import from jaclang.runtimelib.resolver { resolve_path_anchors }
     return resolve_path_anchors(mem, path, slc);
 }

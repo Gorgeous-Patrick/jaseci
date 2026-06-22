@@ -163,7 +163,9 @@ def _try_pushdown(mem: Memory, plan: QueryPlan) -> list[NodeAnchor] {
 
 
 """Resolve the root anchor that owns an ObjectSpatialPath's origin. Returns
-None when the origin isn't persistent or its owning root can't be found."""
+None when the origin isn't persistent or its owning root can't be found.
+A None root anchor just means the per-hop fallback won't be able to use the
+index — the walk path covers it."""
 def _path_root_anchor(mem: Memory, path: ObjectSpatialPath) -> (NodeAnchor | None) {
     if not path.origin {
         return None;
@@ -192,123 +194,80 @@ def _path_root_anchor(mem: Memory, path: ObjectSpatialPath) -> (NodeAnchor | Non
 }
 
 
-"""Build a `list[ChainHop]` from the path. Mirrors today's
-`planner._build_plan_from_path` bail logic so the resolver's bail surface is
-identical to `execute_path`'s.
-
-Returns None when:
-  * `path.origin` is empty
-  * the origin's anchor is not persistent
-  * `path.edge_only=True` and there are no prefix destinations left
-  * any non-final hop has predicate edge or node filters
-  * the final hop has predicate edge filters
-  * the chain has no useful filter anywhere AND no final post_filter
-    (natural edge-walk is optimal, no point engaging the index)
-"""
-def _build_hops(path: ObjectSpatialPath) -> (list[ChainHop] | None) {
-    if not path.origin {
-        return None;
-    }
-    origin_anchor = path.origin[0].__jac__;
-    if not origin_anchor.persistent {
-        return None;
-    }
+"""Construct the per-hop chain from a path. No bail conditions: every
+destination becomes a ChainHop, with type names lifted from the filter
+lambdas where possible. Hops the index can't cover are handled at fold
+time via `_hop_via_walk`, not by rejecting the whole chain up front."""
+def _build_hops(path: ObjectSpatialPath) -> list[ChainHop] {
     destinations = path.destinations[:-1] if path.edge_only else path.destinations;
-    if not destinations {
-        return None;
-    }
     chain: list[ChainHop] = [];
-    last_idx = len(destinations) - 1;
-    has_filter = False;
-    last_has_post_filter = False;
-    for (i, dest) in enumerate(destinations) {
-        if _filter_has_predicates(dest.`edge) {
-            return None;
-        }
-        node_has_pred = _filter_has_predicates(dest.nd);
-        if i != last_idx and node_has_pred {
-            return None;
-        }
-        edge_type = _filter_type_name(dest.`edge);
-        node_type = _filter_type_name(dest.nd);
+    for dest in destinations {
         chain.append(
             ChainHop(
-                edge_type=edge_type,
-                node_type=node_type,
-                direction=dest.direction.value,
                 dest=dest,
+                edge_type=_filter_type_name(dest.`edge),
+                node_type=_filter_type_name(dest.nd),
+                direction=dest.direction.value,
             )
         );
-        if edge_type is not None or node_type is not None {
-            has_filter = True;
-        }
-        if i == last_idx and node_has_pred {
-            last_has_post_filter = True;
-        }
-    }
-    if not has_filter and not last_has_post_filter {
-        return None;
     }
     return chain;
 }
 
 
-"""Foreign-root parity guard. Returns True if any ID in `ids` belongs to a
-root other than `root_anchor.id`.
-
-This preserves today's `bail_on_intermediate_foreign=True` semantics without
-the resolver itself having to know its position. `_resolve_prefix` calls this
-after every intermediate hop; if it returns True, the prefix walker bails to
-None so `refs()` falls through to the slow loop (which crosses roots
-transparently via `nanch.edges`).
-
-Implementation: walks each ID via `mem.get` and reads `.root`. Cheap for
-typical L1-cached anchors, and we only run it after a hop has narrowed to a
-small candidate set. Future PR: swap for `TopologyIndex.get_cross_root_ids`
-or `has_foreign` to avoid the per-ID fetch for large sets.
-"""
-def _has_foreign(mem: Memory, ids: set[UUID], root_anchor: NodeAnchor) -> bool {
-    for uid in ids {
-        try {
-            anchor = mem.get(uid);
-        } except Exception {
-            continue;
-        }
-        if not isinstance(anchor, NodeAnchor) {
-            continue;
-        }
-        if anchor.root is None {
-            if anchor.id != root_anchor.id {
-                return True;
-            }
-        } elif anchor.root != root_anchor.id {
-            return True;
-        }
-    }
-    return False;
+"""Per-hop anchor walk. Materialize the current ID set to node archetypes
+and run a single `edges_to_nodes` call. The walk crosses roots, applies
+the destination's callable filters (edge filter + node filter), and works
+on transient anchors — covering every case the topology index doesn't."""
+def _hop_via_walk(
+    mem: Memory, ids: set[UUID], dest: ObjectSpatialDestination
+) -> set[UUID] {
+    import from jaclang { JacRuntimeInterface }
+    anchors = _materialize_ids(mem, list(ids));
+    archetypes: list[NodeArchetype] = [
+        cast(NodeArchetype, a.archetype)
+        for a in anchors
+        if a.archetype is not None
+    ];
+    next_nodes = JacRuntimeInterface.edges_to_nodes(archetypes, dest);
+    return {cast(UUID, n.__jac__.id) for n in next_nodes};
 }
 
 
-"""Walk the chain prefix with the foreign-root parity guard interleaved.
+"""Ordered variant of `_hop_via_walk` for the final-hop ordered branch.
+`edges_to_nodes` already walks `nanch.edges` in insertion order; this
+preserves that order so the slice has the same semantics as today's
+single-hop linear traversal."""
+def _hop_via_walk_ordered(
+    mem: Memory, ids: set[UUID], dest: ObjectSpatialDestination, slc: slice
+) -> list[UUID] {
+    import from jaclang { JacRuntimeInterface }
+    anchors = _materialize_ids(mem, list(ids));
+    archetypes: list[NodeArchetype] = [
+        cast(NodeArchetype, a.archetype)
+        for a in anchors
+        if a.archetype is not None
+    ];
+    next_nodes = JacRuntimeInterface.edges_to_nodes(archetypes, dest);
+    ordered: list[UUID] = [cast(UUID, n.__jac__.id) for n in next_nodes];
+    return ordered[slc];
+}
 
-Each hop calls the uniform `resolve_hop` with `slc=None`; between hops the
-guard fires and bails the whole walk if the intermediate output crosses
-roots. This is the position-aware part of the fold — `resolve_hop` itself
-stays uniform.
-"""
+
+"""Walk the chain prefix uniformly. No foreign-root guard, no None
+propagation — each hop's `resolve_hop` succeeds on its own (index or walk),
+so the fold never has to bail."""
 def _resolve_prefix(
-    mem: Memory, ids: set[UUID], prefix_hops: list[ChainHop], root_anchor: NodeAnchor
-) -> (set[UUID] | None) {
+    mem: Memory,
+    ids: set[UUID],
+    prefix_hops: list[ChainHop],
+    root_anchor: (NodeAnchor | None)
+) -> set[UUID] {
     current: set[UUID] = ids;
     for (i, hop) in enumerate(prefix_hops) {
         next_ids = resolve_hop(mem, current, hop, root_anchor, i, slc=None);
-        if next_ids is None or isinstance(next_ids, list) {
-            return None;
-        }
-        if _has_foreign(mem, next_ids, root_anchor) {
-            return None;
-        }
-        current = next_ids;
+        # Intermediate hops always pass slc=None → resolve_hop returns set.
+        current = cast(set[UUID], next_ids);
     }
     return current;
 }
@@ -318,79 +277,122 @@ impl resolve_hop(
     mem: Memory,
     current_ids: set[UUID],
     hop: ChainHop,
-    root_anchor: NodeAnchor,
+    root_anchor: (NodeAnchor | None),
     hop_idx: int,
     slc: (slice | None) = None
-) -> (set[UUID] | list[UUID] | None) {
-    # NB: "no useful filter" is a *chain-level* property, enforced once by
-    # `_build_hops` before the fold even starts. Individual hops in the middle
-    # of a chain may legitimately carry no type filter (e.g. `r --> --> leaf`),
-    # and the topology index handles those by matching every edge in the given
-    # direction. Bailing per-hop here would force the slow loop for any chain
-    # with an unfiltered intermediate hop — exactly what `plan_chain_ordered`
-    # avoided by walking the chain in one call.
-    import from jaclang.runtimelib.topology_index { TopologyIndex }
-    idx = root_anchor.get_topology_index();
-    if not isinstance(idx, TopologyIndex) or len(idx) == 0 {
-        return None;
-    }
+) -> (set[UUID] | list[UUID]) {
+    # The index covers this hop only when:
+    #   (a) no predicate filters (edge or node) — the index can only filter
+    #       on type names, not on lambda bodies.
+    #   (b) the path has a root anchor (transient origins have none).
+    #   (c) every input ID is known to this root's index — foreign-root IDs
+    #       have their edges in a different index that this one can't see.
+    has_pred = (
+        _filter_has_predicates(hop.dest.nd) or _filter_has_predicates(hop.dest.`edge)
+    );
     in_count = len(current_ids);
+    if not has_pred and root_anchor is not None {
+        import from jaclang.runtimelib.topology_index { TopologyIndex, SELF_ROOT }
+        idx = root_anchor.get_topology_index();
+        if (
+            isinstance(idx, TopologyIndex)
+            and len(idx) > 0
+            and all(
+                (lid := idx.node_to_lid.get(uid)) is not None
+                and idx.node_table[lid][2] == SELF_ROOT for uid in current_ids
+            )
+        ) {
+            if slc is not None {
+                ordered = idx.resolve_chain_ordered(
+                    current_ids, hop.edge_type, hop.node_type, hop.direction, slc
+                );
+                _trace_hop(
+                    'index:ordered',
+                    hop_idx,
+                    in_count,
+                    len(ordered),
+                    hop,
+                    f"slc={slc.start}:{slc.stop}"
+                );
+                return ordered;
+            }
+            triple = (hop.edge_type, hop.node_type, hop.direction);
+            narrowed = idx.resolve_chain(current_ids, [triple]);
+            if narrowed is not None {
+                _trace_hop('index:set', hop_idx, in_count, len(narrowed), hop);
+                return narrowed;
+            }
+        }
+    }
+    # Per-hop walk fallback. Handles predicates, foreign roots, missing
+    # index, and any shape `resolve_chain` declines.
     if slc is not None {
-        ordered = idx.resolve_chain_ordered(
-            current_ids, hop.edge_type, hop.node_type, hop.direction, slc
-        );
+        walked_ordered = _hop_via_walk_ordered(mem, current_ids, hop.dest, slc);
         _trace_hop(
-            'index:ordered',
+            'walk:ordered',
             hop_idx,
             in_count,
-            len(ordered),
+            len(walked_ordered),
             hop,
             f"slc={slc.start}:{slc.stop}"
         );
-        return ordered;
+        return walked_ordered;
     }
-    triple = (hop.edge_type, hop.node_type, hop.direction);
-    narrowed = idx.resolve_chain(current_ids, [triple]);
-    if narrowed is None {
-        return None;
-    }
-    _trace_hop('index:set', hop_idx, in_count, len(narrowed), hop);
-    return narrowed;
+    walked = _hop_via_walk(mem, current_ids, hop.dest);
+    _trace_hop('walk:set', hop_idx, in_count, len(walked), hop);
+    return walked;
 }
 
 
-"""High-level path entry. Position-aware glue around the uniform `resolve_hop`:
+"""High-level path entry. Always returns a list — never None.
 
-  1. `_build_hops` runs all path-shape bails (origin, persistence, predicate
-     filters, no-useful-filter).
-  2. `_path_root_anchor` resolves the owning root or bails.
-  3. The fold walks `chain[:-1]` via `_resolve_prefix` (with foreign-root
-     parity guard between hops).
-  4. The last hop runs `resolve_hop` with `effective_slc` set per today's
-     `use_ordered` policy.
-  5. Materialization: ordered results go straight to `_materialize_ids`;
-     set results try backend pushdown first (matches today's set-narrowing
-     branch — needed for parity on Mongo's `id_in + type_pushdown` queries
-     even when the user didn't pass a slice).
+  1. Empty origin → `[]`.
+  2. Transient origin (anchor not in `mem`) → inline archetype walk; can't
+     use the per-hop fold because batch_get materialization assumes anchors
+     are loadable from `mem`.
+  3. Otherwise: per-hop fold via `_resolve_prefix` + `resolve_hop`. The fold
+     itself never bails — each hop locally picks index or walk.
+  4. Materialization: ordered final-hop results go straight to
+     `_materialize_ids`; set results try backend pushdown first (parity with
+     today's set-narrowing branch — needed for Mongo's `id_in + type_pushdown`
+     queries even when the user didn't pass a slice).
 """
 impl resolve_path_anchors(
     mem: Memory, path: ObjectSpatialPath, slc: (slice | None) = None
-) -> (list[NodeAnchor] | None) {
+) -> list[NodeAnchor] {
+    if not path.origin {
+        return [];
+    }
     chain = _build_hops(path);
-    if chain is None {
-        return None;
+    if not chain {
+        # Caller landed here with no hops — return origin anchors. Practical
+        # only when `path.edge_only=True` with a single destination, and the
+        # caller (refs()) handles that shape via the edge terminator before
+        # ever calling us. Defensive default for direct callers.
+        return [nd.__jac__ for nd in path.origin];
     }
+
+    # Transient origins aren't in `mem`; the per-hop fold's batch_get
+    # materialization would lose them. Run the linear archetype walk
+    # directly — same shape as the legacy slow loop.
+    if not path.origin[0].__jac__.persistent {
+        import from jaclang { JacRuntimeInterface }
+        origin: list[NodeArchetype] = path.origin;
+        destinations = path.destinations[:-1] if path.edge_only else path.destinations;
+        for dest in destinations {
+            origin = JacRuntimeInterface.edges_to_nodes(origin, dest);
+        }
+        anchors: list[NodeAnchor] = [n.__jac__ for n in origin];
+        if slc is not None {
+            anchors = anchors[slc];
+        }
+        return anchors;
+    }
+
     root_anchor = _path_root_anchor(mem, path);
-    if root_anchor is None {
-        return None;
-    }
     current: set[UUID] = {cast(UUID, nd.__jac__.id) for nd in path.origin};
     if len(chain) > 1 {
-        prefix = _resolve_prefix(mem, current, chain[:-1], root_anchor);
-        if prefix is None {
-            return None;
-        }
-        current = prefix;
+        current = _resolve_prefix(mem, current, chain[:-1], root_anchor);
     }
     last_hop = chain[-1];
     last_has_post_filter = _filter_has_predicates(last_hop.dest.nd);
@@ -405,24 +407,24 @@ impl resolve_path_anchors(
     result = resolve_hop(
         mem, current, last_hop, root_anchor, len(chain) - 1, effective_slc
     );
-    if result is None {
-        return None;
-    }
     if isinstance(result, list) {
         return _materialize_ids(mem, result);
     }
-    # Set narrowing → try backend pushdown for parity with today's behavior.
-    plan = QueryPlan(
-        root_id=root_anchor.id,
-        chain=[],
-        id_in=result,
-        node_type_final=last_hop.node_type,
-        slc=slc,
-        post_filter=post_filter,
-    );
-    if plan.needs() <= mem.capabilities() {
-        _trace_final('pushdown', len(result));
-        return _try_pushdown(mem, plan);
+    # Set narrowing → try backend pushdown when we have a root and the
+    # capabilities cover the reduced plan.
+    if root_anchor is not None {
+        plan = QueryPlan(
+            root_id=root_anchor.id,
+            chain=[],
+            id_in=result,
+            node_type_final=last_hop.node_type,
+            slc=slc,
+            post_filter=post_filter,
+        );
+        if plan.needs() <= mem.capabilities() {
+            _trace_final('pushdown', len(result));
+            return _try_pushdown(mem, plan);
+        }
     }
     _trace_final('floor', len(result));
     return _materialize_ids(mem, list(result), post_filter=post_filter, slc=slc);

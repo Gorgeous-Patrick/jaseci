@@ -1260,47 +1260,43 @@ impl JacGraph.refs(
     # commit-time CAS that stops duplicate child creation (#6266).
     ctx = JacRuntimeInterface.get_context();
     ctx.note_traversal_reads([nd.__jac__ for nd in path.origin]);
-    # Try the per-hop resolver for non-edge-only queries. The resolver walks
-    # the hop chain as a uniform per-hop fold (index narrowing at every step,
-    # with backend pushdown opportunistically applied at the final-hop
-    # materialization). It returns NodeAnchors when a fast path applies, or
-    # None to signal that the caller must fall back to the linear edge-walk
-    # below — the same parity contract `execute_path` had.
+    # Per-hop resolver. Walks the hop chain as a uniform fold where every
+    # hop locally picks index narrowing or anchor walk, so a single
+    # awkward hop never forfeits index narrowing on the rest of the chain.
+    # `resolve_path_anchors` always returns a list — no slow-loop fallback.
+    import from jaclang.runtimelib.resolver { resolve_path_anchors }
     if not path.edge_only {
-        import from jaclang.runtimelib.resolver { resolve_path_anchors }
         planned = resolve_path_anchors(ctx.mem, path, slc);
-        if planned is not None {
-            return [
-                a.archetype
-                for a in planned
-                if a.archetype is not None
-            ];
-        }
+        return [
+            a.archetype
+            for a in planned
+            if a.archetype is not None
+        ];
     }
-    # Fallback: original approach
-    origin = path.origin;
-    destinations = path.destinations[:-1] if path.edge_only else path.destinations;
-    while destinations {
-        dest = path.destinations.pop(0);
-        origin = JacRuntimeInterface.edges_to_nodes(origin, dest);
+    # Edge-only: walk the prefix through the per-hop resolver, then run the
+    # edge terminator (`get_edges` / `get_edges_with_node`) on the resulting
+    # node archetypes.
+    origin: list[NodeArchetype];
+    if len(path.destinations) > 1 {
+        prefix_path = ObjectSpatialPath(path.origin, path.destinations[:-1]);
+        prefix_anchors = resolve_path_anchors(ctx.mem, prefix_path);
+        origin = [
+            a.archetype
+            for a in prefix_anchors
+            if a.archetype is not None
+        ];
+    } else {
+        origin = path.origin;
     }
-    if path.edge_only {
-        if path.from_visit {
-            result = JacRuntimeInterface.get_edges_with_node(
-                origin, path.destinations[-1]
-            );
-        } else {
-            result = JacRuntimeInterface.get_edges(origin, path.destinations[-1]);
-        }
-        if slc is not None {
-            result = result[slc];
-        }
-        return result;
+    if path.from_visit {
+        result = JacRuntimeInterface.get_edges_with_node(origin, path.destinations[-1]);
+    } else {
+        result = JacRuntimeInterface.get_edges(origin, path.destinations[-1]);
     }
     if slc is not None {
-        origin = origin[slc];
+        result = result[slc];
     }
-    return origin;
+    return result;
 }
 
 """Jac's apply_dir stmt feature."""

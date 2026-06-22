@@ -88,13 +88,10 @@ test "single-hop slice on last hop applies ordered+sliced result" {
 }
 
 
-test "predicate on non-final hop forces resolver to bail (parity boundary)" {
-    # This locks in the per-hop parity boundary that the follow-up PR will
-    # widen: a predicate on a non-final hop is still rejected by `_build_hops`,
-    # so `resolve_path_anchors` returns None and the slow loop produces the
-    # correct result. When `_hop_via_walk` is wired into the fold body in the
-    # follow-up PR, this expectation flips: the resolver itself will handle
-    # the predicate hop and stop returning None for this shape.
+test "predicate on non-final hop resolves via per-hop walk fallback" {
+    # The core promise of the per-hop fold: an awkward hop (predicate filter
+    # that the index can't apply) falls back to `_hop_via_walk` locally,
+    # while the *other* hops still use the index. No global bail.
     cfg = JacConfig();
     cfg.run.topology_index = True;
     set_config(cfg);
@@ -107,9 +104,8 @@ test "predicate on non-final hop forces resolver to bail (parity boundary)" {
             r +>:Hop1:+> a;
             a +>:Hop2:+> R2Hop(val=i * 10);
         }
-        # `n.val > 5` introduces LOAD_ATTR + COMPARE_OP so
-        # _filter_has_predicates returns True; _build_hops rejects this
-        # because the predicate is on a non-final hop.
+        # `n.val > 5` introduces LOAD_ATTR + COMPARE_OP — this hop walks; the
+        # second hop still uses the index.
         pred_filter = lambda n: any : isinstance(n, R1Hop) and n.val > 5;
         path = ObjectSpatialPath(
             [r],
@@ -119,12 +115,13 @@ test "predicate on non-final hop forces resolver to bail (parity boundary)" {
             ]
         );
         ctx_mem = JacRuntime.get_context().mem;
-        assert resolve_path_anchors(ctx_mem, path) is None , (
-            "resolver must bail when a non-final hop has predicates "
-            "(this PR's parity scope); follow-up PR flips this expectation"
+        anchors = resolve_path_anchors(ctx_mem, path);
+        vals = sorted([a.archetype.val for a in anchors]);
+        assert vals == [60, 70, 80, 90] , (
+            f"resolver must handle predicate-on-non-final-hop via per-hop "
+            f"walk fallback, got {vals!r}"
         );
-        # End-to-end the slow loop produces the right result: 4 R2Hops
-        # (those reachable via the val>5 R1Hops: 6, 7, 8, 9 -> 60, 70, 80, 90).
+        # End-to-end via `refs()` produces the same answer.
         leaves = [r->:Hop1:->[?:R1Hop, val>5]->:Hop2:->[?:R2Hop]];
         assert sorted([n.val for n in leaves]) == [60, 70, 80, 90];
     } finally {
