@@ -34,6 +34,7 @@ import from jaclang.jac0core.archetype {
 }
 import from jaclang.runtimelib.memory { Memory }
 import from jaclang.runtimelib.query_plan { QueryPlan }
+import from jaclang.runtimelib.topology_index { TopologyIndex }
 
 glob logger = logging.getLogger(__name__),
      __all__ = ['ChainHop', 'resolve_hop', 'resolve_path_anchors'];
@@ -66,7 +67,7 @@ def resolve_hop(
     mem: Memory,
     current_ids: set[UUID],
     hop: ChainHop,
-    root_anchor: (NodeAnchor | None),
+    idx: (TopologyIndex | None),
     hop_idx: int,
     slc: (slice | None) = None
 ) -> (set[UUID] | list[UUID]);

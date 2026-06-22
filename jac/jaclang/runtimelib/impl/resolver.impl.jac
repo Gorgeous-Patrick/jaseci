@@ -254,6 +254,23 @@ def _hop_via_walk_ordered(
 }
 
 
+"""Decode the root's topology index once per `refs()`. Returns None when
+there's no root anchor or the index isn't usable (missing, wrong type, or
+empty). Callers thread the result through the fold so `resolve_hop`
+doesn't re-decode on every hop — decode is `O(edges)` and the index can
+hold tens of thousands of edges."""
+def _get_usable_index(root_anchor: (NodeAnchor | None)) -> (TopologyIndex | None) {
+    if root_anchor is None {
+        return None;
+    }
+    idx = root_anchor.get_topology_index();
+    if not isinstance(idx, TopologyIndex) or len(idx) == 0 {
+        return None;
+    }
+    return idx;
+}
+
+
 """Walk the chain prefix uniformly. No foreign-root guard, no None
 propagation — each hop's `resolve_hop` succeeds on its own (index or walk),
 so the fold never has to bail."""
@@ -261,11 +278,11 @@ def _resolve_prefix(
     mem: Memory,
     ids: set[UUID],
     prefix_hops: list[ChainHop],
-    root_anchor: (NodeAnchor | None)
+    idx: (TopologyIndex | None)
 ) -> set[UUID] {
     current: set[UUID] = ids;
     for (i, hop) in enumerate(prefix_hops) {
-        next_ids = resolve_hop(mem, current, hop, root_anchor, i, slc=None);
+        next_ids = resolve_hop(mem, current, hop, idx, i, slc=None);
         # Intermediate hops always pass slc=None → resolve_hop returns set.
         current = cast(set[UUID], next_ids);
     }
@@ -277,30 +294,27 @@ impl resolve_hop(
     mem: Memory,
     current_ids: set[UUID],
     hop: ChainHop,
-    root_anchor: (NodeAnchor | None),
+    idx: (TopologyIndex | None),
     hop_idx: int,
     slc: (slice | None) = None
 ) -> (set[UUID] | list[UUID]) {
     # The index covers this hop only when:
     #   (a) no predicate filters (edge or node) — the index can only filter
     #       on type names, not on lambda bodies.
-    #   (b) the path has a root anchor (transient origins have none).
-    #   (c) every input ID is known to this root's index — foreign-root IDs
-    #       have their edges in a different index that this one can't see.
+    #   (b) the caller passed a usable index (decoded once per `refs()` in
+    #       `resolve_path_anchors`; None for transient origins or absent
+    #       topology data).
+    #   (c) every input ID is owned by this root — foreign-root IDs have
+    #       their edges in a different index that this one can't see.
     has_pred = (
         _filter_has_predicates(hop.dest.nd) or _filter_has_predicates(hop.dest.`edge)
     );
     in_count = len(current_ids);
-    if not has_pred and root_anchor is not None {
-        import from jaclang.runtimelib.topology_index { TopologyIndex, SELF_ROOT }
-        idx = root_anchor.get_topology_index();
-        if (
-            isinstance(idx, TopologyIndex)
-            and len(idx) > 0
-            and all(
-                (lid := idx.node_to_lid.get(uid)) is not None
-                and idx.node_table[lid][2] == SELF_ROOT for uid in current_ids
-            )
+    if not has_pred and idx is not None {
+        import from jaclang.runtimelib.topology_index { SELF_ROOT }
+        if all(
+            (lid := idx.node_to_lid.get(uid)) is not None
+            and idx.node_table[lid][2] == SELF_ROOT for uid in current_ids
         ) {
             if slc is not None {
                 ordered = idx.resolve_chain_ordered(
@@ -390,9 +404,13 @@ impl resolve_path_anchors(
     }
 
     root_anchor = _path_root_anchor(mem, path);
+    # Decode the topology index once per `refs()` call. `get_topology_index`
+    # is a full deserialization of the on-disk blob; threading the decoded
+    # form through the fold avoids `len(chain)` redundant decodes per query.
+    idx = _get_usable_index(root_anchor);
     current: set[UUID] = {cast(UUID, nd.__jac__.id) for nd in path.origin};
     if len(chain) > 1 {
-        current = _resolve_prefix(mem, current, chain[:-1], root_anchor);
+        current = _resolve_prefix(mem, current, chain[:-1], idx);
     }
     last_hop = chain[-1];
     last_has_post_filter = _filter_has_predicates(last_hop.dest.nd);
@@ -404,9 +422,7 @@ impl resolve_path_anchors(
     if use_ordered {
         effective_slc = slc if slc is not None else slice(None, None, None);
     }
-    result = resolve_hop(
-        mem, current, last_hop, root_anchor, len(chain) - 1, effective_slc
-    );
+    result = resolve_hop(mem, current, last_hop, idx, len(chain) - 1, effective_slc);
     if isinstance(result, list) {
         return _materialize_ids(mem, result);
     }
