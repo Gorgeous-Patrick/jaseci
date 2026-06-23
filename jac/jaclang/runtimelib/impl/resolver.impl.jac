@@ -1,67 +1,13 @@
 """Per-hop resolver implementation."""
 
-import inspect;
-import dis;
 import from typing { cast }
 
-
-"""Truthy `JAC_QUERY_TRACE` toggles per-hop strategy logging."""
-def _trace_enabled -> bool {
-    val = os.environ.get('JAC_QUERY_TRACE', '');
-    return val.lower() in ('1', 'true', 'yes', 'on');
-}
-
-
-"""Inspect a Jac-emitted filter lambda for archetype-type identity.
-
-Returns the archetype class name if the lambda is a pure `isinstance(i, T)`
-check (or an Archetype instance acting as an identity filter). Returns None
-when the filter is None or non-trivial.
-"""
-def _filter_type_name(filt: (Callable[[Archetype], bool] | None)) -> (str | None) {
-    if filt is None {
-        return None;
-    }
-    try {
-        if isinstance(filt, Archetype) {
-            return `type(filt).__name__;
-        }
-    } except Exception {
-        ;
-    }
-    try {
-        closure = inspect.getclosurevars(filt);
-        for val in `list(closure.nonlocals.values()) + `list(
-            closure.globals.values()
-        ) {
-            if isinstance(val, `type) and issubclass(val, Archetype) {
-                return val.__name__;
-            }
-        }
-    } except Exception {
-        ;
-    }
-    return None;
-}
-
-
-"""Detect whether a filter lambda contains predicate ops beyond type checks.
-
-Pure `isinstance(i, T)` checks compile to LOAD_GLOBAL + CALL_FUNCTION +
-RETURN; predicates introduce LOAD_ATTR / COMPARE_OP / CONTAINS_OP / IS_OP.
-Conservative on inspection failure — assume predicates present so we never
-silently skip filtering.
-"""
-def _filter_has_predicates(filt: (Callable[[Archetype], bool] | None)) -> bool {
-    if filt is None {
-        return False;
-    }
-    try {
-        opcodes = {instr.opname for instr in dis.get_instructions(filt)};
-    } except (TypeError, AttributeError, ValueError) {
-        return True;
-    }
-    return bool(opcodes & {'LOAD_ATTR', 'COMPARE_OP', 'CONTAINS_OP', 'IS_OP'});
+import from jaclang.runtimelib.query_utils {
+    _trace_enabled,
+    _filter_type_name,
+    _filter_has_predicates,
+    _materialize_ids,
+    _path_root_anchor
 }
 
 
@@ -99,45 +45,6 @@ def _trace_final(strategy: str, narrowed: int, extra: str = '') -> None {
 }
 
 
-"""Materialize a set of UUIDs to NodeAnchors via `batch_get`, applying
-optional post_filter and slice."""
-def _materialize_ids(
-    mem: Memory,
-    ids: list[UUID],
-    post_filter: (Callable[[Archetype], bool] | None) = None,
-    slc: (slice | None) = None
-) -> list[NodeAnchor] {
-    if not ids {
-        return [];
-    }
-    import from jaclang.runtimelib.memory { TieredMemory }
-    loaded: dict[UUID, Anchor];
-    if isinstance(mem, TieredMemory) {
-        loaded = mem.batch_get(ids);
-    } else {
-        loaded = {
-            i: a
-            for i in ids
-            if (a := mem.get(i)) is not None
-        };
-    }
-    result: list[NodeAnchor] = [];
-    for i in ids {
-        anchor = loaded.get(i);
-        if isinstance(anchor, NodeAnchor) and anchor.archetype {
-            if post_filter is not None and not post_filter(anchor.archetype) {
-                continue;
-            }
-            result.append(anchor);
-        }
-    }
-    if slc is not None {
-        result = result[slc];
-    }
-    return result;
-}
-
-
 """Backend pushdown: hand a reduced plan to `mem.execute_plan` and apply the
 post_filter / slice fallback locally when capabilities don't cover them.
 
@@ -159,38 +66,6 @@ def _try_pushdown(mem: Memory, plan: QueryPlan) -> list[NodeAnchor] {
         result = result[plan.slc];
     }
     return result;
-}
-
-
-"""Resolve the root anchor that owns an ObjectSpatialPath's origin. Returns
-None when the origin isn't persistent or its owning root can't be found.
-A None root anchor just means the per-hop fallback won't be able to use the
-index — the walk path covers it."""
-def _path_root_anchor(mem: Memory, path: ObjectSpatialPath) -> (NodeAnchor | None) {
-    if not path.origin {
-        return None;
-    }
-    origin_anchor = path.origin[0].__jac__;
-    if not origin_anchor.persistent {
-        return None;
-    }
-    import from jaclang.jac0core.archetype { Root }
-    if origin_anchor.root is None {
-        if isinstance(origin_anchor, NodeAnchor)
-        and isinstance(origin_anchor.archetype, Root) {
-            return origin_anchor;
-        }
-        return None;
-    }
-    try {
-        `root = mem.get(origin_anchor.root);
-        if isinstance(`root, NodeAnchor) {
-            return `root;
-        }
-    } except Exception {
-        ;
-    }
-    return None;
 }
 
 
