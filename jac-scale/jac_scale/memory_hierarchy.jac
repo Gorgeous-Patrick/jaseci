@@ -11,6 +11,7 @@ Falls back to jaclang's SqliteMemory when MongoDB is unavailable.
 """
 import json;
 import logging;
+import orjson;
 import from collections.abc { Callable, Generator, Iterable }
 import from datetime { datetime, timezone }
 import from pickle { dumps, loads }
