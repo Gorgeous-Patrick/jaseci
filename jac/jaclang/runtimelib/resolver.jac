@@ -25,7 +25,6 @@ import from uuid { UUID }
 import from collections.abc { Callable }
 
 import from jaclang.jac0core.archetype {
-    Anchor,
     Archetype,
     NodeAnchor,
     NodeArchetype,
