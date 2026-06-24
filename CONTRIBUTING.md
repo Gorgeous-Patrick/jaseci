@@ -24,20 +24,18 @@ git remote -v
 
 `jaclang` ships as the single `jac` binary (a Zig launcher + a private bundled CPython) -- there is no pip-installed jaclang. You build that binary once, then use the editable dev loop below so day-to-day edits to `jac/jaclang` run live without rebuilding.
 
-**1. Install Zig and zstd**
+**1. Install Zig**
 
-The binary is built with [Zig](https://ziglang.org/) **0.16.0** (the version is pinned -- newer/older majors will fail to build) and `zstd` (used to pack the runtime payload).
+The binary is built with [Zig](https://ziglang.org/) **0.16.0** (the version is pinned -- newer/older majors will fail to build). Zig plus a network connection are the only build-time deps: `launcher/payload.zig` does all the HTTP fetching, integrity checks, and (de)compression in Zig's std, so there's nothing else to install (the old `curl`/`git`/`zstd`/`tar` shellouts are gone).
 
 ```bash
 # Zig: download the 0.16.0 tarball for your platform and put it on PATH
 #   https://ziglang.org/download/
 # (Most distro/Homebrew zig packages lag behind; prefer the official tarball.)
 zig version          # must print 0.16.0
-
-# zstd via your package manager, e.g.:
-sudo apt-get install zstd      # Debian/Ubuntu
-brew install zstd              # macOS
 ```
+
+(One optional host tool: if `strip` is on PATH the build shrinks the bundled libpython from ~245 MiB to ~20 MiB; without it the build still succeeds, the binary is just larger.)
 
 (The vendored typeshed stdlib stubs are not committed -- `zig build` fetches them at the pinned commit on first build, so there is nothing to check out manually.)
 
