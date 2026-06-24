@@ -16,6 +16,12 @@ import from jaclang.jac0core.diagnostics { E2018, E5026, E5060, E5090, E5091, E9
 import from jaclang.jac0core.osp_model { OspAnalysis, OspModel, stable_osp_tag }
 
 
+# Reserved leading slots in every inheritance vtable (issue #6930 A2). Physical
+# slot 0 holds the class's `__name__` string pointer, so method slots start at
+# this offset. Method *indices* (vtable_method_indices) stay method-only; only
+# the physical emit/GEP sites add this header.
+glob VTABLE_HEADER_SLOTS: int = 1;
+
 # time-module function names lowered by _emit_time_call. Gated explicitly (not
 # via a None return) because time.sleep legitimately produces a void result.
 glob NATIVE_TIME_FUNCS: set[str] = {
@@ -184,6 +190,11 @@ obj NaIRGenPass(ModuleCodegenPass) {
         vtable_method_indices: dict[str, dict] = {},
         vtable_globals: dict[str, ir.GlobalVariable] = {},
         _non_overridden_methods: dict[str, set[str]] = {},
+        # Per-class name string constants (issue #6930 A2), cached by archetype
+        # name. A class WITH a vtable also publishes its name in vtable slot 0 so
+        # `self.__class__.__name__` recovers the *runtime* (subclass) name; the
+        # cache here backs the constant-load fast path for vtable-less classes.
+        _class_name_consts: dict[str, ir.Value] = {},
         # Object-Spatial kernel lowering (Phase 4 / issue #6146).
         # The OSP "program facts" (archetype kinds, stable type tags, is_a
         # relation, dispatch slots, construct usage) are NOT stored here: they are
@@ -665,6 +676,9 @@ obj NaIRGenPass(ModuleCodegenPass) {
     # Phase 5: Inheritance, Vtables, and C3 MRO
     def _build_vtable(arch_name: str) -> None;
     def _emit_vtable_global(arch_name: str) -> None;
+    # A2 (issue #6930): the per-class name string used by `__class__.__name__`.
+    def _emit_class_name_const(arch_name: str) -> ir.Value;
+    def _codegen_class_name(nd: uni.AtomTrailer) -> (ir.Value | None);
     # Central class-model queries (LayoutRegistry is the owner; no copies).
     def _mro_of(arch_name: str) -> list[str];
     def _arch_has_vtable(arch_name: str) -> bool;
