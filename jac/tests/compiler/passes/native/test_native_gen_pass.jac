@@ -108,6 +108,84 @@ test "native osp: skip in an impl-annex walker event ability (issue #6794)" {
     assert collect(5, 5, 5) == 15;
 }
 
+# --- Partial-native classes / per-method opt-out (workstream A4, #6930) ---
+test "native partial class: un-lowerable method skipped, sibling stays native" {
+    # `Literal.evaluate` uses `eval` (no native lowering). Before A4 its E5090
+    # poisoned the whole module, so the class lost its native layout and every
+    # sibling method. Now the un-lowerable method is demoted to Python-only and
+    # the rest of the class compiles: native construction + the native-eligible
+    # `length` work, the module reports no errors.
+    (eng, ir) = compile_native("partial_native.na.jac");
+    measure = get_func(eng, "measure", ctypes.c_int64, ctypes.c_char_p);
+    assert measure(b"hello") == 5;
+    assert measure(b"") == 0;
+    layout = ir.gen.native_layout;
+    # The native-eligible method is exported; the eval-using one is skipped.
+    assert "Literal.length" in layout.methods;
+    assert "Literal.evaluate" not in layout.methods;
+}
+
+test "native partial class: demotion warns on the terminal by default (#6934)" {
+    # warn_native_seams defaults True, so demoting an un-lowerable method prints
+    # a terminal warning naming the method — a silent native fallback is visible
+    # during a build. The compile still succeeds (A4 demotes, no errors).
+    _saved = sys.stderr;
+    _cap = io.StringIO();
+    sys.stderr = _cap;
+    try {
+        prog = JacProgram();
+        prog.compile(file_path=str(os.path.join(FIXTURES, "partial_native.na.jac")));
+    } finally {
+        sys.stderr = _saved;
+    }
+    assert not prog.errors_had;
+    _out = _cap.getvalue();
+    assert "native seam" in _out;
+    assert "Literal.evaluate" in _out;
+    assert "Python-only" in _out;
+}
+
+test "native partial class: native caller of a demoted method errors, not silent" {
+    # A method demoted to Python-only is not callable from native code: the
+    # native pathway cannot fall back to Python mid-stream. A native call site
+    # must surface E5090 (loud) instead of silently dropping to a null result.
+    prog = JacProgram();
+    prog.compile(
+        file_path=str(os.path.join(FIXTURES, "partial_native_native_caller.na.jac"))
+    );
+    codes = [
+        e.code.code
+        for e in (prog.errors_had or [])
+        if e.code
+    ];
+    assert "E5090" in codes , (
+        f"expected E5090 for native call to a demoted method, got {codes}"
+    );
+    # The diagnostic names the call site (the method), not the discarded
+    # eval body that was demoted away.
+    msgs = " ".join(str(e) for e in (prog.errors_had or []));
+    assert "Box.evaluate" in msgs , f"E5090 should name Box.evaluate, got: {msgs}";
+}
+
+test "native partial class: un-lowerable virtual method stays a hard error" {
+    # `render` is virtual (Base + Derived override -> vtable slot). A virtual
+    # method the backend cannot lower must NOT be demoted: native polymorphic
+    # dispatch cannot fall back to Python, and demoting it would leave a
+    # dangling vtable index / abort-stub slot. So the eval gap stays E5090.
+    prog = JacProgram();
+    prog.compile(
+        file_path=str(os.path.join(FIXTURES, "partial_native_virtual.na.jac"))
+    );
+    codes = [
+        e.code.code
+        for e in (prog.errors_had or [])
+        if e.code
+    ];
+    assert "E5090" in codes , (
+        f"expected E5090 for un-lowerable virtual method, got {codes}"
+    );
+}
+
 test "arithmetic negate" {
     (eng, _) = compile_native("arithmetic.na.jac");
     neg = get_func(eng, "negate", ctypes.c_int64, ctypes.c_int64);
