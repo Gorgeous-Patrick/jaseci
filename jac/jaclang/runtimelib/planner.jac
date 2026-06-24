@@ -43,29 +43,54 @@ glob logger = logging.getLogger(__name__),
      __all__ = ['execute_plan', 'execute_path', 'plan_chain', 'plan_chain_ordered'];
 
 
-"""Hashable carrier so `lru_cache` can key on a function's `__code__` while
-still passing the function itself through to the cached implementation
-(needed for closurevars introspection).
+"""Hashable carrier so `lru_cache` can key on a function's `__code__` plus
+the *type-valued* captures in its closure, while still passing the function
+itself through to the cached implementation for `inspect.getclosurevars`.
 
-Hash and equality both collapse to the underlying code object, so two
-different lambda function instances that share the same source bytecode
-(i.e. the same path-construction call site reached again on a later walker
-spawn) hash equal and reuse the cached result."""
+Naively keying on `__code__` alone is incorrect under a shared-helper
+codegen pattern such as:
+
+    def mk_filter(arch): return lambda x: isinstance(x, arch);
+    f_a = mk_filter(TypeA);
+    f_b = mk_filter(TypeB);
+
+Both `f_a` and `f_b` would share `__code__` but capture *different*
+archetype classes; a code-only cache would silently return the first
+result for every subsequent call. Today's Jac codegen doesn't emit that
+pattern, but nothing in the planner enforces it.
+
+Including the closure's type-valued contents (Archetype subclasses are
+always classes, so we only need to capture `type` cells) makes the key
+faithful to the computation: the cache only hits when both the bytecode
+and the captured class set match. The closure walk to extract those cells
+is a constant-time touch of `filt.__closure__`, not the expensive
+`inspect.getclosurevars` walk."""
 class _CodeKey {
     has filt: any,
-        code: any;
+        code: any,
+        closure_types: tuple;
 
     def init(self: _CodeKey, filt: any) {
         self.filt = filt;
         self.code = filt.__code__;
+        cells = filt.__closure__ if filt.__closure__ is not None else ();
+        self.closure_types = tuple(
+            c.cell_contents
+            for c in cells
+            if isinstance(c.cell_contents, `type)
+        );
     }
 
     def __hash__(self: _CodeKey) -> int {
-        return hash(self.code);
+        return hash((self.code, self.closure_types));
     }
 
     def __eq__(self: _CodeKey, other: object) -> bool {
-        return isinstance(other, _CodeKey) and self.code is other.code;
+        return (
+            isinstance(other, _CodeKey)
+            and self.code is other.code
+            and self.closure_types == other.closure_types
+        );
     }
 }
 
