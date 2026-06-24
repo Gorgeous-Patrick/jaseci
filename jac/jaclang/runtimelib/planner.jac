@@ -96,24 +96,35 @@ class _CodeKey {
 
 
 """Cached impl keyed by a `_CodeKey` wrapper whose hash is the function's
-`__code__`. Two lambdas with the same source compile to the same code
-object, so any number of fresh function instances at the same call site
-collapse to one cache entry."""
+`__code__` plus its type-valued closure captures. Two lambdas with the
+same source and same captures collapse to one cache entry.
+
+After the closurevars walk completes we drop the strong reference to the
+lambda (`key.filt = None`). Cache hits only ever compute `hash(key)` and
+run `__eq__`, neither of which touches `filt` — so dropping it bounds
+per-entry retention to the code object + the captured class tuple.
+Without this, a long-running process that exercises many distinct filter
+source-sites would accumulate live lambdas (and their closures) forever
+under `lru_cache(maxsize=None)`."""
 @lru_cache(maxsize=None)
 def _filter_type_name_by_code(key: _CodeKey) -> (str | None) {
+    result: (str | None) = None;
     try {
         closure = inspect.getclosurevars(key.filt);
         for val in `list(closure.nonlocals.values()) + `list(
             closure.globals.values()
         ) {
             if isinstance(val, `type) and issubclass(val, Archetype) {
-                return val.__name__;
+                result = val.__name__;
+                break;
             }
         }
     } except Exception {
         ;
     }
-    return None;
+    # Cache hits don't need the lambda; release it so the closure can GC.
+    key.filt = None;
+    return result;
 }
 
 
