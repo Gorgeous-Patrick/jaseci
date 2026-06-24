@@ -422,18 +422,7 @@ impl JacWalker.spawn_call(
                     if prefetch_ids {
                         ctx = JacRuntimeInterface.get_context();
                         prefetch_start = _perf_counter();
-                        if cfg.run.async_prefetch {
-                            import threading;
-                            _t = threading.Thread(
-                                target=ctx.mem.prefetch,
-                                args=(prefetch_ids, ),
-                                daemon=True,
-                            );
-                            _t.start();
-                            ctx.mem._prefetch_thread = _t;
-                        } else {
-                            ctx.mem.prefetch(prefetch_ids);
-                        }
+                        _dispatch_prefetch(ctx, prefetch_ids, cfg.run.async_prefetch);
                         prefetch_end = _perf_counter();
                         prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                     }
@@ -535,18 +524,7 @@ impl JacWalker.async_spawn_call(
                     );
                     if prefetch_ids {
                         ctx = JacRuntimeInterface.get_context();
-                        if cfg.run.async_prefetch {
-                            import threading;
-                            _t = threading.Thread(
-                                target=ctx.mem.prefetch,
-                                args=(prefetch_ids, ),
-                                daemon=True,
-                            );
-                            _t.start();
-                            ctx.mem._prefetch_thread = _t;
-                        } else {
-                            ctx.mem.prefetch(prefetch_ids);
-                        }
+                        _dispatch_prefetch(ctx, prefetch_ids, cfg.run.async_prefetch);
                     }
                 }
             }

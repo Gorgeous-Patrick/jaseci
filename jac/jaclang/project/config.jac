@@ -51,7 +51,11 @@ obj RunConfig {
         topology_index: bool = True,
         prefetching: str = "",
         prefetch_limit: int = 200,
-        async_prefetch: bool = False,
+        # ""       — synchronous (block walker until prefetch finishes)
+        # "thread" — daemon thread (overlap with walker; in-process)
+        # "process" — daemon multiprocessing.Process (overlap across cores,
+        #            with spawn cost ~100-500ms per call)
+        async_prefetch: str = "",
         cross_root_resolve: bool = False,
         access_log: str = "";
 

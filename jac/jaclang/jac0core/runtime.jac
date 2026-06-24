@@ -190,6 +190,184 @@ def _prefetch_edges(origin: list[NodeArchetype]) -> None {
     }
 }
 
+
+"""Module-level state for the "process" prefetch mode. Created lazily on
+first use — processes that never opt in pay nothing.
+
+The design is bulk transfer via shared memory + Pipe signaling:
+
+  * Worker runs prefetch into its own (fresh, local) `__raw__` dict, then
+    pickles the result into a `SharedMemory` block and sends `(name,
+    size)` to the parent through a `Pipe`. One shm allocation + one
+    bulk memcpy + one pickle round-trip per worker run.
+
+  * Parent has a daemon merger thread that drains the Pipe: opens the
+    shm, copies the bytes out, unpickles, bulk-merges into the parent's
+    `__raw__`, then `close()`+`unlink()`s the block. The parent's L1
+    stays a regular dict, so walker reads are O(1) hash-lookup.
+
+`_mp_target_mem` is captured from the first dispatch; for a long-running
+server (one process, one TieredMemory) that's a stable reference. Per-
+request contexts whose `mem` differs from the captured one won't see
+prefetched results in their own L1 (Redis still covers them via L2)."""
+glob _mp_pipe_send: any = None,
+     _mp_pipe_recv: any = None,
+     _mp_merger_thread: any = None,
+     _mp_target_mem: any = None;
+
+
+"""Background thread in the parent. Blocks on `pipe.recv()`, then for
+each `(shm_name, size)` message: attaches to the shm, unpickles the
+payload, bulk-stores into the captured `target_mem.__raw__`, and unlinks
+the block. Runs forever; daemon=True so it dies with the process."""
+def _mp_merger_loop(pipe_recv: any, target_mem: any) -> None {
+    import pickle;
+    import from multiprocessing.shared_memory { SharedMemory }
+    while True {
+        try {
+            msg = pipe_recv.recv();
+        } except EOFError {
+            return;
+        } except Exception {
+            continue;
+        }
+        try {
+            shm_name = msg[0];
+            size = msg[1];
+            shm = SharedMemory(name=shm_name);
+            try {
+                blob = bytes(shm.buf[:size]);
+                items = pickle.loads(blob);
+                for (k, v) in items.items() {
+                    target_mem.store_raw(k, v);
+                }
+            } finally {
+                shm.close();
+                shm.unlink();
+            }
+        } except Exception {
+            continue;
+        }
+    }
+}
+
+
+"""Module-level target for the multiprocess prefetch mode. Runs in a
+fresh worker process with `spawn` start method (so the parent's open
+MongoDB/Redis sockets aren't inherited — those clients aren't fork-safe).
+
+The worker constructs its own ExecutionContext, runs prefetch (which
+populates the worker's local `__raw__` and the shared L2/Redis), then
+hands the local `__raw__` to the parent via shared memory + Pipe:
+
+  1. pickle the dict
+  2. SharedMemory.create(size=len(blob)), copy bytes in
+  3. send `(name, size)` over the pipe
+  4. close (but do NOT unlink) the shm — the parent unlinks after merge
+  5. close the context, exit
+
+Defined at module scope so `multiprocessing` can pickle it by name."""
+def _mp_prefetch_target(prefetch_ids: list, pipe_send: any) {
+    try {
+        import pickle;
+        import from multiprocessing.shared_memory { SharedMemory }
+        import from jaclang.runtimelib.context { ExecutionContext }
+        _ctx = ExecutionContext();
+        try {
+            _ctx.mem.prefetch(prefetch_ids);
+            payload = dict(_ctx.mem.__raw__);
+            if payload {
+                blob = pickle.dumps(payload);
+                shm = SharedMemory(create=True, size=len(blob));
+                try {
+                    shm.buf[:len(blob)] = blob;
+                    pipe_send.send((shm.name, len(blob)));
+                } finally {
+                    shm.close();
+                }
+            }
+        } finally {
+            _ctx.close();
+        }
+    } except Exception {
+        ;
+    }
+}
+
+
+"""Run `ctx.mem.prefetch(prefetch_ids)` in the strategy chosen by
+`cfg.run.async_prefetch`:
+
+  * ""        — synchronous; blocks the walker until prefetch finishes.
+  * "thread"  — daemon thread; overlaps with walker execution in-process.
+                Parent L1 populated directly, no IPC.
+  * "process" — daemon multiprocessing.Process (spawn). Worker fetches
+                into its own L1, pickles to SharedMemory, hands the
+                block name to the parent via a Pipe. A daemon merger
+                thread in the parent unpacks the block and bulk-merges
+                into the parent's `__raw__`. Pays ~100-500ms per worker
+                spawn but the actual L1 transfer is one pickle round-trip
+                instead of N IPC calls.
+
+Unknown values fall back to sync to avoid silently skipping the prefetch."""
+def _dispatch_prefetch(ctx: any, prefetch_ids: list, mode: str) -> None {
+    if mode == "thread" {
+        import threading;
+        _t = threading.Thread(
+            target=ctx.mem.prefetch, args=(prefetch_ids, ), daemon=True,
+        );
+        _t.start();
+        ctx.mem._prefetch_thread = _t;
+        return;
+    }
+    if mode == "process" {
+        global _mp_pipe_send,_mp_pipe_recv,_mp_merger_thread,_mp_target_mem;
+        import multiprocessing;
+        import threading;
+        if _mp_pipe_send is None {
+            # First "process" dispatch: bring up the Pipe and the merger
+            # thread that drains it. We capture `ctx.mem` as the merge
+            # target — long-running servers typically use one shared
+            # TieredMemory so this is stable.
+            (_mp_pipe_recv, _mp_pipe_send) = multiprocessing.Pipe(duplex=False);
+            _mp_target_mem = ctx.mem;
+            _mp_merger_thread = threading.Thread(
+                target=_mp_merger_loop,
+                args=(_mp_pipe_recv, _mp_target_mem),
+                daemon=True,
+            );
+            _mp_merger_thread.start();
+            # forkserver: spawns *one* clean Python process at first use,
+            # pre-imports the modules listed below, and forks from there
+            # for each subsequent worker. Per-worker fork is ~5-15ms vs
+            # ~300-500ms for plain `spawn`, because the heavy jaclang +
+            # jac-scale imports happen once in the forkserver, not per
+            # worker. Fork-safety is preserved because the forkserver is
+            # a clean process — no inherited live MongoDB / Redis sockets
+            # (those get opened lazily by ExecutionContext() in each
+            # worker after the fork).
+            multiprocessing.set_forkserver_preload(
+                [
+                    'jaclang.jac0core.runtime',
+                    'jaclang.runtimelib.context',
+                    'multiprocessing.shared_memory',
+                    'pickle',
+
+                ]
+            );
+        }
+        _mp_ctx = multiprocessing.get_context("forkserver");
+        _p = _mp_ctx.Process(
+            target=_mp_prefetch_target, args=(prefetch_ids, _mp_pipe_send), daemon=True,
+        );
+        _p.start();
+        ctx.mem._prefetch_thread = _p;
+        return;
+    }
+    ctx.mem.prefetch(prefetch_ids);
+}
+
+
 """Jac Node Operations."""
 class JacNode {
     """Get edges connected to this node."""

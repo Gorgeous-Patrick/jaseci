@@ -858,7 +858,7 @@ impl _parse_toml_data(
             topology_index=run_data.get("topology_index", True),
             prefetching=run_data.get("prefetching", ""),
             prefetch_limit=run_data.get("prefetch_limit", 200),
-            async_prefetch=run_data.get("async_prefetch", False),
+            async_prefetch=run_data.get("async_prefetch", ""),
             cross_root_resolve=run_data.get("cross_root_resolve", False),
             access_log=run_data.get("access_log", ""),
             diagnostics=run_data.get("diagnostics", "error")
