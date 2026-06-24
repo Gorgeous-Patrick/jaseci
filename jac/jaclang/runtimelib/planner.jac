@@ -29,15 +29,135 @@ fallbacks or perf cliffs in CI.
 """
 
 import os;
+import inspect;
+import dis;
 import logging;
 import from collections.abc { Generator }
+import from functools { lru_cache }
 import from uuid { UUID }
 
-import from jaclang.jac0core.archetype { Anchor, NodeAnchor }
+import from jaclang.jac0core.archetype { Anchor, Archetype, NodeAnchor }
 import from jaclang.runtimelib.query_plan { QueryPlan }
 
 glob logger = logging.getLogger(__name__),
      __all__ = ['execute_plan', 'execute_path', 'plan_chain', 'plan_chain_ordered'];
+
+
+"""Hashable carrier so `lru_cache` can key on a function's `__code__` while
+still passing the function itself through to the cached implementation
+(needed for closurevars introspection).
+
+Hash and equality both collapse to the underlying code object, so two
+different lambda function instances that share the same source bytecode
+(i.e. the same path-construction call site reached again on a later walker
+spawn) hash equal and reuse the cached result."""
+class _CodeKey {
+    has filt: any,
+        code: any;
+
+    def init(self: _CodeKey, filt: any) {
+        self.filt = filt;
+        self.code = filt.__code__;
+    }
+
+    def __hash__(self: _CodeKey) -> int {
+        return hash(self.code);
+    }
+
+    def __eq__(self: _CodeKey, other: object) -> bool {
+        return isinstance(other, _CodeKey) and self.code is other.code;
+    }
+}
+
+
+"""Cached impl keyed by a `_CodeKey` wrapper whose hash is the function's
+`__code__`. Two lambdas with the same source compile to the same code
+object, so any number of fresh function instances at the same call site
+collapse to one cache entry."""
+@lru_cache(maxsize=None)
+def _filter_type_name_by_code(key: _CodeKey) -> (str | None) {
+    try {
+        closure = inspect.getclosurevars(key.filt);
+        for val in `list(closure.nonlocals.values()) + `list(
+            closure.globals.values()
+        ) {
+            if isinstance(val, `type) and issubclass(val, Archetype) {
+                return val.__name__;
+            }
+        }
+    } except Exception {
+        ;
+    }
+    return None;
+}
+
+
+"""Inspect a Jac-emitted filter lambda for archetype-type identity.
+
+Returns the archetype class name if the lambda is a pure `isinstance(i, T)`
+check (or an Archetype instance acting as an identity filter). Returns None
+when the filter is None or non-trivial.
+
+Memoized by `filt.__code__` via `_CodeKey`. Jac emits filter lambdas inline
+at the path-construction call site, so two walker spawns produce two
+distinct function objects that share the same code — keying on identity
+would never hit; keying on the code does."""
+def _filter_type_name(filt: any) -> (str | None) {
+    if filt is None {
+        return None;
+    }
+    try {
+        if isinstance(filt, Archetype) {
+            return `type(filt).__name__;
+        }
+    } except Exception {
+        ;
+    }
+    code = filt?.__code__;
+    if code is None {
+        return None;
+    }
+    return _filter_type_name_by_code(_CodeKey(filt));
+}
+
+
+"""Cached impl keyed on the bytecode object directly. `dis.get_instructions`
+accepts a code object, so no function-object juggling needed here."""
+@lru_cache(maxsize=None)
+def _filter_has_predicates_by_code(code: any) -> bool {
+    try {
+        opcodes = {instr.opname for instr in dis.get_instructions(code)};
+    } except (TypeError, AttributeError, ValueError) {
+        return True;
+    }
+    return bool(opcodes & {'LOAD_ATTR', 'COMPARE_OP', 'CONTAINS_OP', 'IS_OP'});
+}
+
+
+"""Detect whether a filter lambda contains predicate ops beyond type checks.
+
+Pure `isinstance(i, T)` checks compile to LOAD_GLOBAL + CALL_FUNCTION +
+RETURN; predicates introduce LOAD_ATTR / COMPARE_OP / CONTAINS_OP / IS_OP.
+Conservative on inspection failure — assume predicates present so we never
+silently skip filtering.
+
+Memoized by `filt.__code__`; see `_filter_type_name` for the why."""
+def _filter_has_predicates(filt: any) -> bool {
+    if filt is None {
+        return False;
+    }
+    code = filt?.__code__;
+    if code is None {
+        # Non-function callable (rare); run uncached.
+        try {
+            opcodes = {instr.opname for instr in dis.get_instructions(filt)};
+        } except (TypeError, AttributeError, ValueError) {
+            return True;
+        }
+        return bool(opcodes & {'LOAD_ATTR', 'COMPARE_OP', 'CONTAINS_OP', 'IS_OP'});
+    }
+    return _filter_has_predicates_by_code(code);
+}
 
 
 """Top-level entry point: execute a QueryPlan against a memory.

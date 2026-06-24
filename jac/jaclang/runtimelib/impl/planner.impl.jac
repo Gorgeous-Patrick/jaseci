@@ -1,7 +1,5 @@
 """Query planner implementation."""
 
-import inspect;
-import dis;
 import from typing { cast }
 
 
@@ -10,63 +8,6 @@ Reads each call; cheap enough and lets users flip it without restarting."""
 def _trace_enabled -> bool {
     val = os.environ.get('JAC_QUERY_TRACE', '');
     return val.lower() in ('1', 'true', 'yes', 'on');
-}
-
-
-"""Inspect a Jac-emitted filter lambda for archetype-type identity.
-
-Returns the archetype class name if the lambda is a pure `isinstance(i, T)`
-check (or an Archetype instance acting as an identity filter). Returns None
-when the filter is None or non-trivial.
-"""
-def _filter_type_name(filt: any) -> (str | None) {
-    if filt is None {
-        return None;
-    }
-    try {
-        import from jaclang.jac0core.archetype { Archetype }
-        if isinstance(filt, Archetype) {
-            return `type(filt).__name__;
-        }
-    } except Exception {
-        ;
-    }
-    try {
-        closure = inspect.getclosurevars(filt);
-        for val in `list(closure.nonlocals.values()) + `list(
-            closure.globals.values()
-        ) {
-            if isinstance(val, `type) {
-                import from jaclang.jac0core.archetype { Archetype as Arch }
-                if issubclass(val, Arch) {
-                    return val.__name__;
-                }
-            }
-        }
-    } except Exception {
-        ;
-    }
-    return None;
-}
-
-
-"""Detect whether a filter lambda contains predicate ops beyond type checks.
-
-Codegen emits filters as plain Python lambdas. Pure `isinstance(i, T)` checks
-compile to LOAD_GLOBAL + CALL_FUNCTION + RETURN; predicates introduce
-LOAD_ATTR / COMPARE_OP / CONTAINS_OP / IS_OP. Conservative on inspection
-failure — assume predicates present so we never silently skip filtering.
-"""
-def _filter_has_predicates(filt: any) -> bool {
-    if filt is None {
-        return False;
-    }
-    try {
-        opcodes = {instr.opname for instr in dis.get_instructions(filt)};
-    } except (TypeError, AttributeError, ValueError) {
-        return True;
-    }
-    return bool(opcodes & {'LOAD_ATTR', 'COMPARE_OP', 'CONTAINS_OP', 'IS_OP'});
 }
 
 
