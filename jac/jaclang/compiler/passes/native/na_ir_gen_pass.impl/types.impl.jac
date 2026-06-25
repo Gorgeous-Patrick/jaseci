@@ -192,6 +192,27 @@ impl NaIRGenPass._list_spec_of(expr: (uni.UniNode | None)) -> (str | None) {
     return None;
 }
 
+"""Raw primitive type name -> LLVM IR type. Single source of truth shared by
+_parse_callable_type_string and _resolve_primitive_name so the two name->IR
+tables can't drift. `Callable` maps to an opaque i64 (function pointers are
+passed as integers at the FFI boundary)."""
+impl NaIRGenPass._prim_ir_types -> dict {
+    return {
+        'int': ir.IntType(64),
+        'i64': ir.IntType(64),
+        'i32': ir.IntType(32),
+        'i16': ir.IntType(16),
+        'i8': ir.IntType(8),
+        'bool': ir.IntType(1),
+        'f64': ir.DoubleType(),
+        'f32': ir.FloatType(),
+        'str': ir.IntType(8).as_pointer(),
+        'None': ir.VoidType(),
+        'void': ir.VoidType(),
+        'Callable': ir.IntType(64)
+    };
+}
+
 """Parse a Callable[[p1, p2, ...], ret] annotation string into an LLVM
 function-pointer type ir.FunctionType(ret, [p1, ...]).as_pointer(), or None
 if the string is not a recognizable Callable subscript. Spaces are stripped
@@ -238,19 +259,7 @@ impl NaIRGenPass._parse_callable_type_string(s: str) -> (ir.Type | None) {
         return None;
     }
     ret_str = rest[1:];
-    _tm: dict = {
-        'int': ir.IntType(64),
-        'i64': ir.IntType(64),
-        'i32': ir.IntType(32),
-        'i16': ir.IntType(16),
-        'i8': ir.IntType(8),
-        'bool': ir.IntType(1),
-        'f64': ir.DoubleType(),
-        'f32': ir.FloatType(),
-        'str': ir.IntType(8).as_pointer(),
-        'None': ir.VoidType(),
-        'void': ir.VoidType()
-    };
+    _tm: dict = self._prim_ir_types();
     ret_type = _tm.get(ret_str, ir.VoidType());
     param_types: list = [];
     if params_str {
@@ -542,7 +551,7 @@ impl NaIRGenPass._lower_function_type(t: any) -> ir.Type {
 """Resolve a Jac type expression to an LLVM type.
 
 An annotation Expr carries a `.type` (TypeBase) populated by TypeCheckPass;
-_lower_type maps it to an LLVM type. Every native type now flows through the
+_lower_type maps it to an LLVM type. Most native types flow through the
 central checker -- primitives, user structs/enums, collections, and the
 runtime `File` (modeled by na_builtins.pyi) -- including annotations in
 imported .na.jac modules (type-checked on load). The former name-based
@@ -579,21 +588,7 @@ impl NaIRGenPass._resolve_primitive_name(
     if isinstance(expr, uni.Name) {
         name = expr.value;
         if name {
-            _m: dict = {
-                'int': ir.IntType(64),
-                'i64': ir.IntType(64),
-                'i32': ir.IntType(32),
-                'i16': ir.IntType(16),
-                'i8': ir.IntType(8),
-                'bool': ir.IntType(1),
-                'f64': ir.DoubleType(),
-                'f32': ir.FloatType(),
-                'void': ir.VoidType(),
-                'None': ir.VoidType(),
-                'str': ir.IntType(8).as_pointer(),
-                'Callable': ir.IntType(64),
-
-            };
+            _m: dict = self._prim_ir_types();
             if name in _m {
                 return _m[name];
             }
@@ -756,6 +751,16 @@ impl NaIRGenPass._emit_unlowerable_type(type_expr: uni.UniNode, tb: any) -> ir.T
     } else {
         self.emit(E5090, node_override=type_expr, kind="type", name=_label);
     }
+    # Catch-all: an annotated type the checker stamped but _lower_type could
+    # not lower (capability gap). Default to i64, but log so it is observable
+    # rather than silently mis-typed.
+    import logging as _logging;
+    _logging.getLogger("jaclang.native").debug(
+        "[NaIRGenPass] _resolve_jac_type: unresolved type %r (type=%s) — "
+        "defaulting to i64; consider adding an explicit type annotation",
+        type_expr,
+        type(type_expr).__name__,
+    );
     return ir.IntType(64);
 }
 
