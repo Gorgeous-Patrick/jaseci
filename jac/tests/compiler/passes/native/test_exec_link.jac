@@ -18,16 +18,13 @@ import subprocess;
 import sys;
 import tempfile;
 import from pathlib { Path }
-import jaclang;
 import from jaclang.jac0core.program { JacProgram }
 import from jaclang.jac0core.compile_options { CompileOptions }
 import from jaclang.compiler.passes.native.elf_linker { ElfLinker }
 import from jaclang.compiler.passes.native.macho_linker { MachOLinker }
-import llvmlite.binding as llvm;
+import jaclang.compiler.passes.native.llvm.binding as llvm;
 
-glob FIXTURES = str(
-         Path(jaclang.__file__).parent.parent / "tests" / "compiler" / "passes" / "native" / "fixtures"
-     ),
+glob FIXTURES = str(Path(__file__).resolve().parent / "fixtures"),
      FIXTURE = "exec_smoke.na.jac";
 
 
@@ -57,16 +54,22 @@ def _compile_ir(fixture: str, triple: str) -> str {
 }
 
 
-"""Assemble `ir_txt` for `triple` into a relocatable object using the default
-(fixed-base) model — exactly what nacompile emits for an executable. Forcing
+"""Assemble `ir_txt` for `triple` into a relocatable object using the fixed-base
+`large` code model — exactly what nacompile emits for an executable. Forcing
 `pic` here would emit GOT-relative data refs that the fixed-base ET_EXEC layout
-mislinks into a segfaulting binary, so this mirrors the real CLI path."""
+mislinks into a segfaulting binary, so this mirrors the real CLI path. The
+explicit `codemodel="large"` also matters cross-host: under the default
+`jitdefault`, llvmlite appends `-elf` to the triple on a Windows host, so a
+windows-msvc/darwin triple would emit an ELF object the PE/Mach-O linkers
+reject (#6819)."""
 def _emit_object(ir_txt: str, triple: str) -> bytes {
     llvm.initialize_all_targets();
     llvm.initialize_all_asmprinters();
     mod = llvm.parse_assembly(ir_txt);
     mod.verify();
-    tm = llvm.Target.from_triple(triple).create_target_machine(opt=2);
+    tm = llvm.Target.from_triple(triple).create_target_machine(
+        opt=2, codemodel="large"
+    );
     return tm.emit_object(mod);
 }
 
@@ -111,9 +114,51 @@ def _inject_macho(ir_txt: str) -> str {
 }
 
 
+"""Parse execSegFlags out of an embedded ad-hoc code signature.
+
+`sig_off` is the LC_CODE_SIGNATURE dataoff. Walks the SuperBlob to its
+CodeDirectory and returns the 8-byte execSegFlags field (CD offset 80). Returns
+None if the magics don't match (unsigned x86_64 binary)."""
+def _exec_seg_flags(raw: bytes, sig_off: int) -> (int | None) {
+    if struct.unpack_from(">I", raw, sig_off)[0] != 0xFADE0CC0 {  # SuperBlob
+        return None;
+    }
+    count = struct.unpack_from(">I", raw, sig_off + 8)[0];
+    idx = sig_off + 12;
+    for _ in range(count) {
+        boff = struct.unpack_from(">II", raw, idx)[1];  # (blobType, offset)
+        cd = sig_off + boff;
+        if struct.unpack_from(">I", raw, cd)[0] == 0xFADE0C02 {  # CodeDirectory
+            return struct.unpack_from(">Q", raw, cd + 80)[0];  # execSegFlags
+        }
+        idx += 8;
+    }
+    return None;
+}
+
+
+"""Return the LC_CODE_SIGNATURE dataoff (0 if the binary is unsigned)."""
+def _codesig_off(raw: bytes) -> int {
+    ncmds = struct.unpack_from("<I", raw, 16)[0];
+    off = 32;
+    for _ in range(ncmds) {
+        (cmd, cmdsize) = struct.unpack_from("<II", raw, off);
+        if cmd == 0x1D {  # LC_CODE_SIGNATURE
+            return struct.unpack_from("<I", raw, off + 8)[0];
+        }
+        off += cmdsize;
+    }
+    return 0;
+}
+
+
 # ─── tests ───────────────────────────────────────────────────────────────────
 test "ELF executable links, runs, and prints through the C ABI" {
-    triple = llvm.get_default_triple();
+    # Pin an explicit ELF triple so the emitted object is ELF on any host (the
+    # macOS native job runs this same file; its default triple is darwin, which
+    # would yield a Mach-O object that ElfLinker cannot link). Execution below
+    # stays gated to a Linux x86_64 host that can actually run the result.
+    triple = "x86_64-unknown-linux-gnu";
     relobj = _emit_object(_inject_elf(_compile_ir(FIXTURE, triple)), triple);
     d = tempfile.mkdtemp();
     out = os.path.join(d, "exec_smoke");
@@ -127,11 +172,106 @@ test "ELF executable links, runs, and prints through the C ABI" {
     assert e_type == 2 , f"expected ET_EXEC (2), got {e_type}";
 
     # Only a Linux x86_64 host can execute the produced ELF.
-    if sys.platform.startswith("linux") and ("x86_64" in triple) {
+    if sys.platform.startswith("linux") and ("x86_64" in llvm.get_default_triple()) {
         res = subprocess.run([out], capture_output=True, timeout=30);
         assert res.returncode == 0 , f"exec exited {res.returncode}, stderr={res.stderr}";
         assert b"JAC_EXEC_OK" in res.stdout , f"missing marker in stdout: {res.stdout}";
         assert b"42" in res.stdout , f"missing result in stdout: {res.stdout}";
+    }
+}
+
+
+test "multiple `with entry` blocks emit a single jac_entry (issue #6660)" {
+    # Pre-fix, _compile_ir raises DuplicatedNameError: jac_entry while lowering
+    # the second `with entry` block, so reaching this assert at all proves the
+    # crash is gone; the count asserts the concatenate-into-one invariant.
+    ir_txt = _compile_ir("multi_entry.na.jac", llvm.get_default_triple());
+    n = ir_txt.count('define void @"jac_entry"');
+    assert n == 1 , f"expected exactly one jac_entry definition, got {n}";
+}
+
+
+test "concatenated `with entry` blocks run in source order (issue #6660)" {
+    triple = llvm.get_default_triple();
+    # ElfLinker produces Linux ELF; skip link+exec on non-Linux hosts.
+    if sys.platform.startswith("linux") and ("x86_64" in triple) {
+        relobj = _emit_object(
+            _inject_elf(_compile_ir("multi_entry.na.jac", triple)), triple
+        );
+        d = tempfile.mkdtemp();
+        out = os.path.join(d, "multi_entry");
+        ok = ElfLinker.link(
+            obj_bytes=relobj, output_path=out, needed_libs=["libc.so.6"], shared=False
+        );
+        assert ok , "ElfLinker.link(shared=False) returned False";
+        res = subprocess.run([out], capture_output=True, timeout=30);
+        assert res.returncode == 0 , f"exec exited {res.returncode}, stderr={res.stderr}";
+        i = res.stdout.find(b"FIRST");
+        j = res.stdout.find(b"SECOND");
+        assert i != -1 and j != -1 , f"missing markers in stdout: {res.stdout}";
+        assert i < j , f"entry blocks ran out of order: {res.stdout}";
+    }
+}
+
+
+test "a terminating `with entry` block stops later blocks (issue #6660)" {
+    # The concatenation loop stops appending once a block leaves the LLVM block
+    # terminated. A top-level `raise` lowers to __jac_exc_raise + `unreachable`,
+    # so the second block must NOT run — matching the Python target, where a
+    # module-level raise propagates and textually-later top-level code is skipped.
+    triple = llvm.get_default_triple();
+    ir_txt = _compile_ir("multi_entry_terminator.na.jac", triple);
+    # Still concatenated into a single jac_entry (the break happens *inside* it).
+    n = ir_txt.count('define void @"jac_entry"');
+    assert n == 1 , f"expected exactly one jac_entry definition, got {n}";
+    # ElfLinker produces Linux ELF; skip link+exec on non-Linux hosts.
+    if sys.platform.startswith("linux") and ("x86_64" in triple) {
+        relobj = _emit_object(_inject_elf(ir_txt), triple);
+        d = tempfile.mkdtemp();
+        out = os.path.join(d, "multi_entry_terminator");
+        ok = ElfLinker.link(
+            obj_bytes=relobj, output_path=out, needed_libs=["libc.so.6"], shared=False
+        );
+        assert ok , "ElfLinker.link(shared=False) returned False";
+        res = subprocess.run([out], capture_output=True, timeout=30);
+        # Uncaught raise -> abort(): non-zero exit. The key invariant is that the
+        # second block never ran, so its marker must be absent from stdout.
+        assert res.returncode != 0 , f"expected non-zero exit from uncaught raise, got 0: {res.stdout}";
+        assert b"SHOULD_NOT_RUN" not in res.stdout , f"second block ran after a terminating first block: {res.stdout}";
+    }
+}
+
+
+test "glob-init runs before every `with entry` block (issue #6660)" {
+    # A glob declared *between* two entry blocks still initializes before BOTH,
+    # because __jac_glob_init is called once at the very start of jac_entry. The
+    # first block (textually above the glob) appends to it successfully, which
+    # is only possible if the glob was already initialized to a real list. This
+    # deviates, by design, from strict Python source order; the test pins the
+    # native behavior so a future change can't silently drop it.
+    triple = llvm.get_default_triple();
+    ir_txt = _compile_ir("multi_entry_glob.na.jac", triple);
+    # One jac_entry, and the glob-init preamble is present inside it.
+    assert ir_txt.count('define void @"jac_entry"') == 1 , "expected exactly one jac_entry";
+    assert "__jac_glob_init" in ir_txt , "expected a __jac_glob_init call in jac_entry";
+    # ElfLinker produces Linux ELF; skip link+exec on non-Linux hosts.
+    if sys.platform.startswith("linux") and ("x86_64" in triple) {
+        relobj = _emit_object(_inject_elf(ir_txt), triple);
+        d = tempfile.mkdtemp();
+        out = os.path.join(d, "multi_entry_glob");
+        ok = ElfLinker.link(
+            obj_bytes=relobj, output_path=out, needed_libs=["libc.so.6"], shared=False
+        );
+        assert ok , "ElfLinker.link(shared=False) returned False";
+        res = subprocess.run([out], capture_output=True, timeout=30);
+        # rc==0 proves the first block's append to the below-declared glob did
+        # not crash, i.e. __jac_glob_init ran before it. Marker order proves the
+        # blocks themselves ran in source order.
+        assert res.returncode == 0 , f"exec exited {res.returncode}, stderr={res.stderr}";
+        i = res.stdout.find(b"A_RAN");
+        j = res.stdout.find(b"B_RAN");
+        assert i != -1 and j != -1 , f"missing markers in stdout: {res.stdout}";
+        assert i < j , f"entry blocks ran out of order: {res.stdout}";
     }
 }
 
@@ -168,6 +308,32 @@ test "Mach-O executable has MH_EXECUTE filetype and an LC_MAIN entry" {
 }
 
 
+test "Mach-O arm64 executable is ad-hoc signed with CS_EXECSEG_MAIN_BINARY" {
+    # The arm64 path emits an embedded code signature. The main executable's
+    # __TEXT segment must set CS_EXECSEG_MAIN_BINARY (0x1) in execSegFlags —
+    # the counterpart to the dylib's execSegFlags == 0 (PR #6828). This pins
+    # the executable intent at the linker level so the inverted-default
+    # refactor can't silently drop the flag for executables.
+    triple = "arm64-apple-darwin";
+    relobj = _emit_object(_inject_macho(_compile_ir(FIXTURE, triple)), triple);
+    d = tempfile.mkdtemp();
+    out = os.path.join(d, "exec_smoke_arm64");
+    ok = MachOLinker.link(
+        obj_bytes=relobj,
+        output_path=out,
+        needed_libs=["/usr/lib/libSystem.B.dylib"],
+        shared=False
+    );
+    assert ok , "MachOLinker.link(shared=False) returned False for arm64";
+    raw = Path(out).read_bytes();
+    assert struct.unpack_from("<I", raw, 12)[0] == 2 , "expected MH_EXECUTE (2)";
+    sig_off = _codesig_off(raw);
+    assert sig_off != 0 , "arm64 executable is not code-signed";
+    flags = _exec_seg_flags(raw, sig_off);
+    assert flags == 0x1 , f"executable execSegFlags must be CS_EXECSEG_MAIN_BINARY (0x1), got {flags}";
+}
+
+
 # ─── #6819: Windows AOT must emit COFF, not ELF ───────────────────────────────
 # llvmlite appends "-elf" to the triple only when os.name == "nt" and
 # codemodel == "jitdefault" (its MCJIT-on-Windows workaround). nacompile's AOT
@@ -179,7 +345,7 @@ test "Mach-O executable has MH_EXECUTE filetype and an LC_MAIN entry" {
 # emit seam without a Windows runner. patch.object auto-restores os.name even
 # if an assertion below raises.
 test "AOT executable code model emits COFF, not ELF, on a Windows triple" {
-    import llvmlite.binding.targets as _tgt;
+    import jaclang.compiler.passes.native.llvm.binding.targets as _tgt;
     import from unittest.mock { patch }
     llvm.initialize_all_targets();
     llvm.initialize_all_asmprinters();
