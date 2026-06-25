@@ -214,6 +214,15 @@ test "os" {
     run_with_both("prim_os.jac", "os_py", "os_cl", "os_na", require=["na"]);
 }
 
+# --- Bundled native stdlib: os.path (Mechanism B via na_stdlib resolution
+# keystone, issue #6940). The same `import from os.path { ... }` binds CPython
+# posixpath on sv and the bundled na_stdlib/os/path.na.jac on na. ---
+test "os.path bundled" {
+    run_with_both(
+        "prim_ospath.jac", "ospath_py", "ospath_cl", "ospath_na", require=["na"]
+    );
+}
+
 # --- Stdlib: random module (CPython-faithful MT19937, issue #6404 v1) ---
 test "random" {
     run_with_both(
