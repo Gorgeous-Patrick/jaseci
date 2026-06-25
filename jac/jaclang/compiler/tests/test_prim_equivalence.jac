@@ -20,7 +20,7 @@ import from jaclang.compiler.tests.xbackend_equiv {
 
 
 # =======================================================================
-# Tests — one per emitter class in primitives.jac
+# Tests -- one per emitter class in primitives.jac
 # =======================================================================
 
 # --- Numeric Types (IntEmitter) ---
@@ -194,12 +194,12 @@ test "builtins" {
     run_with_both("prim_builtins.jac", "builtins_py", "builtins_cl", "builtins_na");
 }
 
-# --- Stdlib: math module (Mechanism A → libm, issue #6404 v1) ---
+# --- Stdlib: math module (Mechanism A -> libm, issue #6404 v1) ---
 test "math" {
     run_with_both("prim_math.jac", "math_py", "math_cl", "math_na", require=["na"]);
 }
 
-# --- Stdlib: time module (Mechanism A → clock_gettime/nanosleep, #6404 v1) ---
+# --- Stdlib: time module (Mechanism A -> clock_gettime/nanosleep, #6404 v1) ---
 test "time" {
     run_with_both("prim_time.jac", "time_py", "time_cl", "time_na", require=["na"]);
 }
@@ -209,7 +209,7 @@ test "sys" {
     run_with_both("prim_sys.jac", "sys_py", "sys_cl", "sys_na", require=["na"]);
 }
 
-# --- Stdlib: os + os.path (Mechanism A/H → libc, issue #6404 v1) ---
+# --- Stdlib: os + os.path (Mechanism A/H -> libc, issue #6404 v1) ---
 test "os" {
     run_with_both("prim_os.jac", "os_py", "os_cl", "os_na", require=["na"]);
 }
@@ -228,6 +228,14 @@ test "os.path bundled" {
 # binds CPython's zlib on sv and the bundled na_stdlib/zlib.na.jac on na. ---
 test "zlib bundled" {
     run_with_both("prim_zlib.jac", "zlib_py", "zlib_cl", "zlib_na", require=["na"]);
+}
+
+# --- Bundled native stdlib: json (Mechanism B via na_stdlib resolution
+# keystone, issue #6940 Phase 1). The same `import from json { loads, dumps }`
+# binds CPython json on sv and the bundled na_stdlib/json.na.jac on na: a
+# recursive-descent parser over boxed `any` plus a CPython-default serializer. ---
+test "json bundled" {
+    run_with_both("prim_json.jac", "json_py", "json_cl", "json_na", require=["na"]);
 }
 
 # --- Stdlib: random module (CPython-faithful MT19937, issue #6404 v1) ---
@@ -296,7 +304,7 @@ test "dict order" {
     );
 }
 
-# --- Exception Types (ExceptionEmitter) — dict-comparison for py/cl ---
+# --- Exception Types (ExceptionEmitter) -- dict-comparison for py/cl ---
 test "exception hierarchy" {
     py_result = run_py_fixture("prim_exceptions", "exceptions_py");
     try {
@@ -319,7 +327,7 @@ test "runtime error hierarchy" {
     } except Exception { }
 }
 
-# --- Exception Types (ExceptionEmitter) — NA int-returning tests ---
+# --- Exception Types (ExceptionEmitter) -- NA int-returning tests ---
 test "exception basic catch" {
     (eng, _) = compile_native("prim_exceptions.jac");
     f = get_func(eng, "test_basic_catch_na", ctypes.c_int64);
@@ -446,7 +454,7 @@ test "runtime error with finally" {
     assert f() == 11;
 }
 
-# --- Builtin Functions (BuiltinEmitter) — introspection methods ---
+# --- Builtin Functions (BuiltinEmitter) -- introspection methods ---
 # emit_enumerate, emit_zip, emit_map, emit_filter, emit_isinstance,
 # emit_issubclass, emit_type, emit_repr, emit_ascii, emit_callable,
 # emit_hash, emit_id, emit_iter, emit_next, emit_hasattr, emit_getattr,
