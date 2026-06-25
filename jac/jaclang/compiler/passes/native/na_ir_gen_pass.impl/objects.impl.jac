@@ -478,11 +478,16 @@ impl NaIRGenPass._register_static_fields(arch_name: str, archhas: uni.ArchHas) -
                 ftype = inferred;
             }
         }
-        try {
-            gv = ir.GlobalVariable(self.llvm_module, ftype, name=full_name);
-        } except Exception {
-            continue;  # duplicate (re-visited module): keep the first.
+        # A re-visited module (or a name already lowered as a plain module
+        # global) may have created this global already; keep the first. Probe
+        # the llvm module's own global table rather than catching the collision
+        # from GlobalVariable() -- a bare `except` would also swallow a genuine
+        # codegen error (bad type, malformed name) as if it were a benign
+        # duplicate.
+        if full_name in self.llvm_module.globals {
+            continue;
         }
+        gv = ir.GlobalVariable(self.llvm_module, ftype, name=full_name);
         # External linkage so a `static has` read in another module (e.g. a
         # bundled stdlib class attribute) resolves through link_in, the same way
         # public module globals do.
