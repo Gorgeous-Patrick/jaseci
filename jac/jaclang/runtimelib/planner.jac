@@ -65,33 +65,14 @@ faithful to the computation: the cache only hits when both the bytecode
 and the captured class set match. The closure walk to extract those cells
 is a constant-time touch of `filt.__closure__`, not the expensive
 `inspect.getclosurevars` walk."""
-class _CodeKey {
+obj _CodeKey {
     has filt: any,
-        code: any,
-        closure_types: tuple;
+        code: any by postinit,
+        closure_types: tuple by postinit;
 
-    def init(self: _CodeKey, filt: any) {
-        self.filt = filt;
-        self.code = filt.__code__;
-        cells = filt.__closure__ if filt.__closure__ is not None else ();
-        self.closure_types = tuple(
-            c.cell_contents
-            for c in cells
-            if isinstance(c.cell_contents, `type)
-        );
-    }
-
-    def __hash__(self: _CodeKey) -> int {
-        return hash((self.code, self.closure_types));
-    }
-
-    def __eq__(self: _CodeKey, other: object) -> bool {
-        return (
-            isinstance(other, _CodeKey)
-            and self.code is other.code
-            and self.closure_types == other.closure_types
-        );
-    }
+    def postinit -> None;
+    def __hash__ -> int;
+    def __eq__(other: object) -> bool;
 }
 
 
@@ -105,7 +86,12 @@ lambda (`key.filt = None`). Cache hits only ever compare hashes and run
 cache's per-entry retention to the code object + the captured class
 tuple. Without this, a long-running process that exercises many distinct
 filter source-sites would accumulate live lambdas (and their closures)
-forever under `lru_cache(maxsize=None)`."""
+forever under `lru_cache(maxsize=None)`.
+
+Definition stays inline (interface + body together) because the
+`@lru_cache` decorator only binds reliably when the body is in the same
+file as the `def` — Jac's impl-annex splitting drops the decorator
+otherwise."""
 @lru_cache(maxsize=None)
 def _filter_type_name_by_code(key: _CodeKey) -> (str | None) {
     result: (str | None) = None;
@@ -128,37 +114,10 @@ def _filter_type_name_by_code(key: _CodeKey) -> (str | None) {
 }
 
 
-"""Inspect a Jac-emitted filter lambda for archetype-type identity.
-
-Returns the archetype class name if the lambda is a pure `isinstance(i, T)`
-check (or an Archetype instance acting as an identity filter). Returns None
-when the filter is None or non-trivial.
-
-Memoized by `filt.__code__` via `_CodeKey`. Jac emits filter lambdas inline
-at the path-construction call site, so two walker spawns produce two
-distinct function objects that share the same code — keying on identity
-would never hit; keying on the code does."""
-def _filter_type_name(filt: any) -> (str | None) {
-    if filt is None {
-        return None;
-    }
-    try {
-        if isinstance(filt, Archetype) {
-            return `type(filt).__name__;
-        }
-    } except Exception {
-        ;
-    }
-    code = filt?.__code__;
-    if code is None {
-        return None;
-    }
-    return _filter_type_name_by_code(_CodeKey(filt));
-}
-
-
 """Cached impl keyed on the bytecode object directly. `dis.get_instructions`
-accepts a code object, so no function-object juggling needed here."""
+accepts a code object, so no function-object juggling needed here.
+
+Inline for the same decorator-binding reason as `_filter_type_name_by_code`."""
 @lru_cache(maxsize=None)
 def _filter_has_predicates_by_code(code: any) -> bool {
     try {
@@ -170,6 +129,19 @@ def _filter_has_predicates_by_code(code: any) -> bool {
 }
 
 
+"""Inspect a Jac-emitted filter lambda for archetype-type identity.
+
+Returns the archetype class name if the lambda is a pure `isinstance(i, T)`
+check (or an Archetype instance acting as an identity filter). Returns None
+when the filter is None or non-trivial.
+
+Memoized by `filt.__code__` via `_CodeKey`. Jac emits filter lambdas inline
+at the path-construction call site, so two walker spawns produce two
+distinct function objects that share the same code — keying on identity
+would never hit; keying on the code does."""
+def _filter_type_name(filt: any) -> (str | None);
+
+
 """Detect whether a filter lambda contains predicate ops beyond type checks.
 
 Pure `isinstance(i, T)` checks compile to LOAD_GLOBAL + CALL_FUNCTION +
@@ -178,22 +150,7 @@ Conservative on inspection failure — assume predicates present so we never
 silently skip filtering.
 
 Memoized by `filt.__code__`; see `_filter_type_name` for the why."""
-def _filter_has_predicates(filt: any) -> bool {
-    if filt is None {
-        return False;
-    }
-    code = filt?.__code__;
-    if code is None {
-        # Non-function callable (rare); run uncached.
-        try {
-            opcodes = {instr.opname for instr in dis.get_instructions(filt)};
-        } except (TypeError, AttributeError, ValueError) {
-            return True;
-        }
-        return bool(opcodes & {'LOAD_ATTR', 'COMPARE_OP', 'CONTAINS_OP', 'IS_OP'});
-    }
-    return _filter_has_predicates_by_code(code);
-}
+def _filter_has_predicates(filt: any) -> bool;
 
 
 """Top-level entry point: execute a QueryPlan against a memory.
