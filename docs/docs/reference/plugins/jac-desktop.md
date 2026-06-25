@@ -75,6 +75,72 @@ resizable = true
 
 ---
 
+## OS capabilities (plugin IPC)
+
+A desktop app can reach OS capabilities the browser sandbox forbids. The native
+host runs a plugin host and injects a bridge onto the webview's global:
+`window.__jac.invoke(plugin, command, args)` (async; resolves to data or throws a
+structured `PluginError`) and `window.__jac.on(event, callback)`. Rather than
+hand-writing those magic strings, import the typed `@jac/desktop` client SDK from
+`cl` code:
+
+```jac
+import from "@jac/desktop" { fs, dialog, notification }
+
+async def export_notes(text: str) -> None {
+    picked = await dialog.save_file("Export", "notes.txt");
+    if not picked["canceled"] {
+        await fs.write_file(picked["path"] as str, text);   # dict values are `any` - cast at the boundary
+        await notification.send("Saved", "Notes exported.");
+    }
+}
+```
+
+Seven built-in capability plugins ship with the desktop target (every method is
+`async`):
+
+| SDK object | Capability | Methods |
+|---|---|---|
+| `fs` | Filesystem | `read_file`, `write_file`, `list_dir`, `exists`, `mkdir`, `remove`, `stat` |
+| `dialog` | Native dialogs | `open_file`, `save_file`, `message` |
+| `clipboard` | System clipboard | `read`, `write` |
+| `notification` | OS notifications | `send` |
+| `app_window` | Window control | `set_title`, `set_size`, `fullscreen`, `terminate` |
+| `shell` | Run a command | `exec` |
+| `path` | OS directories | `home`, `data`, `config`, `cache`, `temp`, `resolve` |
+
+The window-control object is named `app_window` (not `window`) so it never
+shadows the ambient browser `window` global.
+
+`@jac/*` modules resolve through the `jac.modules` entry-point group, so SDKs like
+`@jac/desktop` are available without vendoring them into your project.
+
+### Security gating
+
+Each capability is gated under `[plugins.desktop.plugins]` in `jac.toml`. A key is
+a plugin name; its value is either `true` (enabled with defaults) or a table of
+per-plugin config. `window`, `path`, `notification`, and `dialog` are enabled by
+default; `shell` is **deny-all** by default. An unknown plugin key is reported as
+an error rather than silently ignored.
+
+```toml
+[plugins.desktop.plugins]
+fs = { allow_read = ["$HOME"], allow_write = ["$APP_DATA"] }   # glob allow-lists (defaults shown)
+clipboard = { allow_read = true, allow_write = true }
+shell = { allow = ["git *"] }                                  # patterns must be explicitly allowed
+notification = true
+```
+
+!!! warning "Pass SDK arguments positionally"
+    Call SDK methods with positional arguments, not keywords. The `cl` compiler
+    cannot resolve parameter names across the `@jac/desktop` module boundary, so a
+    keyword call such as `dialog.save_file(title="Export")` compiles to a single
+    options object in the first positional slot and the host rejects it. Use
+    `dialog.save_file("Export", "notes.txt")`. Tracked in
+    [issue #6675](https://github.com/jaseci-labs/jaseci/issues/6675).
+
+---
+
 ## How it works
 
 1. `WebTarget` builds the `cl` codespace with the standard Vite pipeline into
