@@ -46,5 +46,32 @@ bundled one. A bundled module links through the existing cross-module machinery
 Functions that need a syscall (`os.path.realpath`, `exists`, ...) stay as
 Mechanism-A intercepts, not here.
 
+## Mechanism F: FFI floor + pure-Jac surface (`zlib`)
+
+`zlib` is the first Mechanism-F module (#6940 Phase 2): the DEFLATE engine is
+never reimplemented; it is the system `libz`, reached through a thin FFI floor,
+exactly as CPython's `zlib` wraps the same library. The split is deliberate:
+
+- `_zlib_native.na.jac`: the **FFI floor**. An `import from z { def ... }` block
+  binds `libz` by logical name (`z` → `libz.so` / `libz.dylib` / `z.dll`) and
+  re-exports each entry behind a `z_`-prefixed wrapper.
+- `zlib.na.jac`: the **pure-Jac surface**: the Python-shaped API
+  (`compress` / `decompress` / `crc32` / `adler32`, CPython argument orders and
+  defaults), layered on the floor.
+
+Two conventions make foreign byte I/O work:
+
+- A **`bytes` parameter on a foreign signature** lowers to a raw `i8*` to the
+  element data (the C buffer-protocol convention), not the internal jacbytes
+  `{ i64 len, [n x i8] }` struct pointer; the element count travels through a
+  separate explicit length parameter.
+- A clib extern is declared into the **shared native symbol table under its C
+  symbol name**, so a libz symbol that collides with a public surface name (e.g.
+  `crc32`) would shadow it. Bind the non-colliding variant instead; the floor
+  uses `crc32_z` / `adler32_z`.
+
+Mechanism-F modules are native-host only: a wasm target gets a clean link error
+rather than silent breakage.
+
 [#6404]: https://github.com/jaseci-labs/jaseci/issues/6404
 [#6940]: https://github.com/jaseci-labs/jaseci/issues/6940

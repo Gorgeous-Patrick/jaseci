@@ -223,6 +223,13 @@ test "os.path bundled" {
     );
 }
 
+# --- Bundled native stdlib: zlib (Mechanism F — pure-Jac surface over the
+# system libz FFI floor, issue #6940 Phase 2). The same `import from zlib { ... }`
+# binds CPython's zlib on sv and the bundled na_stdlib/zlib.na.jac on na. ---
+test "zlib bundled" {
+    run_with_both("prim_zlib.jac", "zlib_py", "zlib_cl", "zlib_na", require=["na"]);
+}
+
 # --- Stdlib: random module (CPython-faithful MT19937, issue #6404 v1) ---
 test "random" {
     run_with_both(

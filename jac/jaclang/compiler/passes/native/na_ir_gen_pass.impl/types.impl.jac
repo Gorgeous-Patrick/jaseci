@@ -784,6 +784,14 @@ impl NaIRGenPass._resolve_clib_type(type_expr: (uni.UniNode | None)) -> ir.Type 
         }
         return self.struct_types[type_name];
     }
+    # A `bytes` / `bytearray` parameter on a foreign signature is the C
+    # buffer-protocol convention: a raw `i8*` to the element data, NOT the
+    # internal jacbytes { i64 len, [n x i8] } struct pointer. The call site
+    # passes _bytes_data_ptr(arg) to match (#6940 Phase 2). Length travels
+    # through a separate explicit C length parameter.
+    if type_name == "bytes" or type_name == "bytearray" {
+        return ir.IntType(8).as_pointer();
+    }
     # For all other types, delegate to normal resolution
     return self._resolve_jac_type(type_expr);
 }

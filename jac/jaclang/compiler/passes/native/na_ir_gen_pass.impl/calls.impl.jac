@@ -824,12 +824,30 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
         return self._codegen_clib_call(func, func_name, args);
     }
     # Type coerce arguments
+    _is_foreign = func_name in self.clib_extern_names;
     coerced: list[ir.Value] = [];
+    # `release_args` mirrors `coerced` but holds the value whose ownership we
+    # account for at this seam — the same as `coerced` except for a foreign
+    # bytes argument, where `coerced` is the interior data pointer (unowned)
+    # while the owned temporary is the original jacbytes value.
+    release_args: list[ir.Value] = [];
     for (i, arg) in enumerate(args) {
-        if i < len(func.args) {
-            coerced.append(self._coerce_type(arg, func.args[i].type));
+        if _is_foreign and self._is_bytes_value(arg) {
+            # A `bytes` / `bytearray` argument to a foreign (C) function is passed
+            # as its raw data pointer — the C buffer-protocol convention — not the
+            # internal { i64 len, [n x i8] } struct pointer. The element count
+            # travels separately through the C API's explicit length parameter.
+            # Without this, C reads the 8-byte length header as leading data
+            # (#6940 Phase 2: the FFI floor under na_stdlib zlib/zipfile).
+            coerced.append(self._bytes_data_ptr(arg));
+            release_args.append(arg);
+        } elif i < len(func.args) {
+            _c = self._coerce_type(arg, func.args[i].type);
+            coerced.append(_c);
+            release_args.append(_c);
         } else {
             coerced.append(arg);
+            release_args.append(arg);
         }
     }
     result = self.builder.call(func, coerced, name=f"call.{func_name}");
@@ -837,7 +855,7 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
     # release any owned temporaries we passed so they don't leak (e.g.
     # `f([(-1,-1), (1,1)])` — the list literal, and any value-tuple boxed by
     # _coerce_type, are owned temporaries borrowed by the callee).
-    self._release_owned_args(coerced, op="call_arg");
+    self._release_owned_args(release_args, op="call_arg");
     # Box clib extern struct return values: C returns by value (or ABI int), Jac uses pointers
     if func_name in self.clib_extern_names {
         # Check ABI integer return types first (small structs coerced to int)
