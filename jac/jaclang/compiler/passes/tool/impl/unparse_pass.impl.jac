@@ -32,10 +32,12 @@ impl UnparsePass.exit_node(nd: uni.UniNode) -> None
             attr.gen.jac = attr.value;
         }
     }
-    method_name = "exit_" + pascal_to_snake(type(nd).__name__);
-    if hasattr(self, method_name) {
-        getattr(self, method_name)(nd);
-    } elif isinstance(nd, uni.Token) {
+    super.exit_node(nd);
+}
+
+"""Render any node with no specific exit_<kind>: raw token value or joined kids."""
+impl UnparsePass.default_exit(nd: uni.UniNode) -> None {
+    if isinstance(nd, uni.Token) {
         nd.gen.jac = nd.value;
     } else {
         nd.gen.jac = " ".join(
@@ -46,7 +48,6 @@ impl UnparsePass.exit_node(nd: uni.UniNode) -> None
             ]
         );
     }
-    # ── Token Types ──────────────────────────────────────────────────────
 }
 
 """Token: return raw value."""
@@ -306,6 +307,11 @@ impl UnparsePass.exit_archetype(nd: uni.Archetype) -> None {
     }
     if nd.base_classes {
         parts.append("(" + self._comma_sep(nd.base_classes) + ")");
+    }
+    if nd.src_endpoint and nd.tgt_endpoint {
+        parts.append(
+            ": " + nd.src_endpoint.gen.jac + " --> " + nd.tgt_endpoint.gen.jac
+        );
     }
     if nd.body {
         if isinstance(nd.body, uni.ImplDef) {

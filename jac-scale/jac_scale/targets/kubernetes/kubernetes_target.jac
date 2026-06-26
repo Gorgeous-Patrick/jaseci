@@ -10,9 +10,11 @@ import from jac_scale.abstractions.models.resource_status {
 }
 import from jac_scale.abstractions.logger { Logger }
 import from jac_scale.targets.kubernetes.kubernetes_config { KubernetesConfig }
+import from jac_scale.targets.kubernetes.microservice.source_bundle { JAC_ZIG_VERSION }
 import from jac_scale.targets.kubernetes.utils.kubernetes_utils {
     COMPANION_DEFS,
     check_deployment_status,
+    check_pods_restarted,
     create_k8s_secret,
     delete_k8s_secret,
     delete_if_exists,
@@ -41,7 +43,7 @@ import from jac_scale.factories.registry_factory { ImageRegistryFactory }
 import from jac_scale.targets.kubernetes.monitoring { MonitoringDeployer }
 import from jac_scale.targets.kubernetes.ingress { IngressDeployer }
 import from jac_scale.factories.autoscaler_factory { AutoscalerFactory }
-import from jac_scale.abstractions.autoscaler { AutoscalerSpec, Trigger }
+import from jac_scale.abstractions.autoscaler { AutoscalerSpec, Trigger, TriggerAuth }
 import time;
 
 """Kubernetes deployment target implementation."""
@@ -221,7 +223,7 @@ obj KubernetesTarget(DeploymentTarget) {
         }
         commands.append(f"apt-get install -y {' '.join(base_packages)}");
 
-        # Install Bun (required for jac-client frontend builds), pinned to the
+        # Install Bun (required for client framework frontend builds), pinned to the
         # same version jac auto-installs locally (BUN_VERSION is the single
         # source of truth in jaclang.runtimelib.client.bun_installer).
         commands.append(
@@ -252,47 +254,80 @@ obj KubernetesTarget(DeploymentTarget) {
                 commands.append(f"git checkout {config.jaseci_commit}");
             }
             commands.append('git submodule update --init --recursive');
-            commands.append('pip install pluggy');
-            commands.append('pip install -e ./jac');
-            commands.append('jac install -e ./jac-scale --extras all');
-            commands.append('jac install -e ./jac-client');
-            commands.append('jac install -e ./jac-byllm');
-            commands.append('jac install -e ./jac-mcp');
+            # jaclang ships as the self-contained `jac` binary, not a pip/editable
+            # package, so the checkout is compiled with `zig build` to run the
+            # branch's own jaclang (the point of experimental mode). zstd is
+            # needed by build.zig's python-build-standalone payload step. The Zig
+            # version comes from source_bundle.JAC_ZIG_VERSION (single source of
+            # truth, tracking jac/build.zig.zon's minimum_zig_version).
+            commands.append(
+                'apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 '
+                '-o Acquire::https::Timeout=20 update || true'
+            );
+            commands.append('apt-get install -y --no-install-recommends xz-utils zstd');
+            commands.append(
+                'ZARCH="$(uname -m)"; [ "$ZARCH" = "arm64" ] && ZARCH="aarch64"'
+            );
+            commands.append(f'ZDIR="zig-${{ZARCH}}-linux-{JAC_ZIG_VERSION}"');
+            commands.append(
+                f'curl -fsSL "https://ziglang.org/download/{JAC_ZIG_VERSION}/${{ZDIR}}.tar.xz" '
+                '| tar -xJ -C /tmp'
+            );
+            commands.append('export PATH="/tmp/${ZDIR}:$PATH"');
+            commands.append('( cd jac && zig build )');
+            commands.append('export PATH="$PWD/jac/zig-out/bin:$PATH"');
+            # --global: plugins go into the binary's own site so `jac start`
+            # finds them after `cd ..` (a bare `jac install` would target a
+            # per-project .jac/venv that isn't on PATH at run time).
+            commands.append('jac install -e ./jac-scale --extras all --global');
+            # byllm/mcp are optional: a core-only fork branch may not ship them,
+            # so skip-when-absent rather than failing the bootstrap.
+            commands.append(
+                '[ ! -d ./jac-byllm ] || jac install -e ./jac-byllm --global'
+            );
+            commands.append('[ ! -d ./jac-mcp ] || jac install -e ./jac-mcp --global');
             commands.append('cd ..');
         } else {
             packages = config.plugin_versions or {};
             jaclang_v = packages.get('jaclang', 'latest');
             scale_v = packages.get('jac_scale', 'latest');
-            client_v = packages.get('jac_client', 'latest');
             byllm_v = packages.get('jac_byllm', 'latest');
             mcp_v = packages.get('jac_mcp', 'latest');
-            if jaclang_v == 'latest' {
-                commands.append('pip install jaclang');
-            } else {
-                commands.append(f'pip install jaclang=={jaclang_v}');
+            # jaclang ships as the self-contained `jac` binary (not on PyPI); the
+            # official installer fetches it from GitHub Releases onto PATH.
+            # `--version` pins to a specific jaseci release; omit it for latest.
+            install_jac = (
+                'curl -fsSL https://raw.githubusercontent.com/jaseci-labs/'
+                'jaseci/main/scripts/install.sh | bash'
+            );
+            if jaclang_v != 'latest' {
+                install_jac += f" -s -- --version {jaclang_v}";
             }
+            commands.append(install_jac);
+            commands.append('export PATH="$HOME/.local/bin:$PATH"');
+            # Plugins install --global (into the binary's own site, honoring any
+            # pins in config.plugin_versions) so `jac start` finds them: these run
+            # before `cd {app_mount_path}`, so a bare `jac install` would have no
+            # project venv to target. Extras ride in the spec as PEP 508 brackets
+            # (`jac-scale[all]`) because `--extras` is dropped for named packages.
+            # jac-scale[all] is always needed; byllm/mcp are opt-out via 'none'.
             if scale_v == 'latest' {
-                commands.append('pip install "jac-scale[all]"');
+                commands.append("jac install 'jac-scale[all]' --global");
             } else {
-                commands.append(f'pip install "jac-scale[all]=={scale_v}"');
-            }
-            if client_v == 'latest' {
-                commands.append('pip install jac-client');
-            } else {
-                commands.append(f'pip install jac-client=={client_v}');
+                commands.append(f"jac install 'jac-scale[all]=={scale_v}' --global");
             }
             if byllm_v and byllm_v != 'none' {
                 if byllm_v == 'latest' {
-                    commands.append('pip install byllm');
+                    commands.append('jac install byllm --global');
                 } else {
-                    commands.append(f'pip install byllm=={byllm_v}');
+                    commands.append(f'jac install byllm=={byllm_v} --global');
                 }
             }
             if mcp_v and mcp_v != 'none' {
                 if mcp_v == 'latest' {
-                    commands.append('pip install jac-mcp');
+                    commands.append('jac install jac-mcp --global');
                 } else {
-                    commands.append(f'pip install jac-mcp=={mcp_v}');
+                    commands.append(f'jac install jac-mcp=={mcp_v} --global');
                 }
             }
         }
@@ -1048,7 +1083,9 @@ obj KubernetesTarget(DeploymentTarget) {
                     }
                 ]
             },
-            # Prometheus — allow grafana to query on port 9090
+            # Prometheus — allow grafana and the main app to query on port 9090.
+            # The main app reads Prometheus directly for the admin Deployments
+            # view, so it needs ingress here alongside Grafana.
             {
                 'name': f"{app_name}-prometheus-network-policy",
                 'pod_selector': {'matchLabels': {'app': f"{app_name}-prometheus"}},
@@ -1059,7 +1096,8 @@ obj KubernetesTarget(DeploymentTarget) {
                                 'podSelector': {
                                     'matchLabels': {'app': f"{app_name}-grafana"}
                                 }
-                            }
+                            },
+                            {'podSelector': {'matchLabels': {'app': app_name}}}
                         ],
                         'ports': [{'protocol': 'TCP', 'port': 9090}]
                     }
@@ -1187,6 +1225,31 @@ obj KubernetesTarget(DeploymentTarget) {
         # Failure is a warning, not an error — the CNAME record may not have
         # propagated yet or DNS may not be configured yet.
         if self.k8s_config.shared_ingress {
+            # For a user's custom domain (pointed at the shared controller only
+            # after the deploy), the reachability probe can never pass at deploy
+            # time, so skip it and let the deploy complete on app readiness; DNS
+            # and the cert resolve asynchronously once the user points DNS.
+            if self.k8s_config.shared_ingress_skip_reachability {
+                if self.logger {
+                    self.logger.info(
+                        f"Shared ingress mode: skipping reachability probe for "
+                        f"'{self.k8s_config.domain}' (DNS is pointed post-deploy)."
+                    );
+                }
+                # Skip only the external DNS/HTTP probe (the user points DNS
+                # post-deploy), NOT pod readiness: still fail a crash-looping /
+                # OOMKilled / bad-image deploy rather than reporting success.
+                if check_pods_restarted(namespace, app_name) {
+                    raise Exception(
+                        "Deployment failed: application pods are restarting "
+                        "(crash loop / bad image); not marking the deploy ready."
+                    );
+                }
+                return (
+                    "Shared ingress: reachability probe skipped (pods healthy); "
+                    "point DNS at the shared controller to finish DNS/TLS."
+                );
+            }
             domain_url = f"http://{self.k8s_config.domain}";
             if self.logger {
                 self.logger.info(
@@ -1363,6 +1426,11 @@ obj KubernetesTarget(DeploymentTarget) {
 
             # 3. Load environment variables
             self.env_list = load_env_variables(app_config.code_folder);
+            # Inject K8S_APP_NAME / K8S_NAMESPACE so in-pod code (admin
+            # deployments view, monitoring helpers) can resolve sibling
+            # services like {app_name}-prometheus-service without guessing.
+            self.env_list.append({"name": "K8S_APP_NAME", "value": app_name});
+            self.env_list.append({"name": "K8S_NAMESPACE", "value": namespace});
             details["load_env_variables"] = "Successful";
 
             # 3b. Create K8s Secret from resolved secrets if configured
@@ -1522,7 +1590,34 @@ obj KubernetesTarget(DeploymentTarget) {
             }
             details["create_jaseci_application_service"] = "Successful";
             # 16. Enable horizontal pod autoscaling
-            AutoscalerFactory.create(
+            triggers = [];
+            if not self.k8s_config.extra_triggers {
+                triggers = [
+                    Trigger(
+                        type="cpu",
+                        metadata={
+                            "averageUtilization": str(
+                                self.k8s_config.cpu_utilization_target
+                            )
+                        }
+                    )
+                ];
+            }
+            for raw in self.k8s_config.extra_triggers {
+                t = Trigger(
+                    type=str(raw.get("type", "")),
+                    metadata=dict(raw.get("metadata", {})),
+                    name=raw.get("name")
+                );
+                raw_auth = raw.get("auth");
+                if raw_auth {
+                    t.auth = TriggerAuth(
+                        secret_refs=dict(raw_auth.get("secret_refs", {}))
+                    );
+                }
+                triggers.append(t);
+            }
+            autoscaler_applied = AutoscalerFactory.create(
                 self.k8s_config.autoscaler_engine,
                 self.k8s_config.to_dict(),
                 self.logger
@@ -1532,19 +1627,18 @@ obj KubernetesTarget(DeploymentTarget) {
                     namespace=namespace,
                     min_replicas=self.k8s_config.min_replicas,
                     max_replicas=self.k8s_config.max_replicas,
-                    triggers=[
-                        Trigger(
-                            type="cpu",
-                            metadata={
-                                "averageUtilization": str(
-                                    self.k8s_config.cpu_utilization_target
-                                )
-                            }
-                        )
-                    ]
+                    idle_replicas=self.k8s_config.idle_replicas,
+                    polling_interval=self.k8s_config.autoscaler_polling_interval,
+                    cooldown_period=self.k8s_config.autoscaler_cooldown,
+                    initial_cooldown_period=self.k8s_config.autoscaler_initial_cooldown,
+                    triggers=triggers
                 )
             );
-            details["create_horizontal_auto_scaler"] = "Successful";
+            # apply() returns False when preflight bailed (e.g. KEDA not installed);
+            # stamping "Successful" in that case would misreport the deploy state.
+            details["create_horizontal_auto_scaler"] = "Successful"
+                if autoscaler_applied
+                else "Skipped: autoscaler engine not available on cluster";
             # 15. Deploy monitoring stack (Prometheus / Grafana) if enabled
             monitoring = MonitoringDeployer(self.k8s_config, self.logger);
             monitoring.deploy(app_name, namespace, apps_v1, core_v1, provider);
@@ -1831,11 +1925,10 @@ obj KubernetesTarget(DeploymentTarget) {
     def _destroy_application(
         app_name: str, namespace: str, apps_v1: any, core_v1: any
     ) {
-        AutoscalerFactory.create(
+        autoscaler = AutoscalerFactory.create(
             self.k8s_config.autoscaler_engine, self.k8s_config.to_dict(), self.logger
-        ).destroy(
-            f"{app_name}-hpa", namespace
         );
+        autoscaler.destroy(autoscaler.resource_name_for(app_name), namespace);
         delete_if_exists(
             apps_v1.delete_namespaced_deployment, app_name, namespace, 'Deployment'
         );

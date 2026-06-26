@@ -63,7 +63,11 @@ impl JacCompiler.internal_program.getter -> JacProgram {
 """Get the jaclang package root path."""
 impl JacCompiler._get_jaclang_root(cls: any) -> str {
     if (cls._jaclang_root is None) {
-        cls._jaclang_root = os.path.dirname(os.path.dirname(__file__));
+        # realpath so the root matches realpath-resolved module paths even when
+        # jaclang is materialized under a symlinked dir (the single binary cache).
+        cls._jaclang_root = os.path.realpath(
+            os.path.dirname(os.path.dirname(__file__))
+        );
     }
     return cls._jaclang_root;
 }
@@ -72,7 +76,12 @@ impl JacCompiler._get_jaclang_root(cls: any) -> str {
 impl JacCompiler._resolve_program(
     file_path: str, target_program: JacProgram
 ) -> JacProgram {
-    normalized_path = os.path.normpath(file_path);
+    # realpath (not normpath) so symlinked roots resolve consistently: the
+    # single-binary cache lives under a symlinked temp dir (e.g. macOS
+    # /var -> /private/var), and stub paths arrive already `.resolve()`d, so a
+    # plain prefix check against an unresolved jaclang root would miss and leak
+    # jaclang-internal stubs into the user program's hub.
+    normalized_path = os.path.realpath(file_path);
     jaclang_root = self._get_jaclang_root();
     if normalized_path.startswith((jaclang_root + os.sep)) {
         return self.internal_program;
@@ -180,9 +189,18 @@ impl JacCompiler.get_bytecode(
                     precompiled_bc, compute_module_key(full_target), FLAG_PRECOMPILED
                 );
                 cache_path.parent.mkdir(parents=True, exist_ok=True);
-                tmp_path = cache_path.with_suffix('.tmp');
-                tmp_path.write_bytes(jir_bytes);
-                tmp_path.rename(cache_path);
+                # Process-unique temp + atomic rename. A shared `.tmp` lets
+                # concurrent compiles of the same module (parallel xdist workers,
+                # CLI + LSP) clobber each other mid-write and publish a JIR whose
+                # header validates but whose body is truncated (issue #6793 race).
+                import os as _os;
+                tmp_path = cache_path.with_suffix(f'.{_os.getpid()}.tmp');
+                try {
+                    tmp_path.write_bytes(jir_bytes);
+                    tmp_path.rename(cache_path);
+                } finally {
+                    tmp_path.unlink(missing_ok=True);
+                }
             } except Exception {
                 ;
             }
@@ -195,13 +213,24 @@ impl JacCompiler.get_bytecode(
     if is_internal {
         setup_progress.on_internal_compile(full_target);
     }
-    # Skip type checking when the type check infrastructure is not yet
-    # available. This happens during bootstrap: TypeCheckPass and
-    # TypeEvaluator are themselves internal modules that need compilation,
-    # so attempting to type-check before they're ready causes circular
-    # imports. Once bootstrap completes, all modules get type-checked.
+    # Full type checking here is for INTERNAL (jaclang.*) modules only: the
+    # compiler's own code is held to full type discipline post-bootstrap
+    # (compile() skips inference for internal modules mid-bootstrap, so this
+    # is where they get typed). It must wait until the type check
+    # infrastructure is available — TypeCheckPass and TypeEvaluator are
+    # themselves internal modules, and type-checking before they're ready
+    # causes circular imports.
+    #
+    # USER modules loaded at runtime must NOT have full diagnostics forced
+    # on them: their compile() already runs gated inference (typed-tree
+    # contract), and surfacing checker diagnostics belongs to explicit
+    # `jac check` / options.type_check (plus the native-context gate).
+    # Forcing it here would make `jac run`/`jac start` of a plain sv/cl app
+    # fail on checker false positives whenever the module cache is cold and
+    # the type system happens to be loaded (#6262).
     can_typecheck = (
-        'jaclang.compiler.passes.main.type_checker_pass' in sys.modules
+        is_internal
+        and 'jaclang.compiler.passes.main.type_checker_pass' in sys.modules
         and 'jaclang.compiler.type_system.type_evaluator' in sys.modules
         and hasattr(
             sys.modules['jaclang.compiler.passes.main.type_checker_pass'],
@@ -235,7 +264,7 @@ impl JacCompiler.get_bytecode(
             native_bc = result.gen.native_bitcode;
             if native_bc is not None {
                 import struct as _struct;
-                import llvmlite.binding as _llvm;
+                import jaclang.compiler.passes.native.llvm.binding as _llvm;
                 triple = _llvm.get_default_triple().encode('utf-8');
                 hdr = _struct.pack('<H', len(triple)) + triple;
                 sections[SEC_NATIVE_OBJ] = hdr + native_bc;
@@ -254,9 +283,17 @@ impl JacCompiler.get_bytecode(
             writer = JirWriter();
             jir_bytes = writer.write_module(result, sections=sections);
             cache_path.parent.mkdir(parents=True, exist_ok=True);
-            tmp_path = cache_path.with_suffix('.tmp');
-            tmp_path.write_bytes(jir_bytes);
-            tmp_path.rename(cache_path);
+            # Process-unique temp + atomic rename: a shared `.tmp` lets concurrent
+            # compiles of the same module clobber each other mid-write and publish
+            # a truncated JIR whose header still validates (issue #6793 race).
+            import os as _os;
+            tmp_path = cache_path.with_suffix(f'.{_os.getpid()}.tmp');
+            try {
+                tmp_path.write_bytes(jir_bytes);
+                tmp_path.rename(cache_path);
+            } finally {
+                tmp_path.unlink(missing_ok=True);
+            }
         } except Exception {
             ;
         }
@@ -278,7 +315,7 @@ impl JacCompiler._load_native_from_cache(
     cached_interop: (dict[str, any] | None)
 ) -> None {
     try {
-        import llvmlite.binding as llvm;
+        import jaclang.compiler.passes.native.llvm.binding as llvm;
         llvm.initialize_native_target();
         llvm.initialize_native_asmprinter();
         import ctypes;
@@ -337,7 +374,7 @@ impl JacCompiler._load_native_from_bitcode(
     cached_interop: (dict[str, any] | None)
 ) -> None {
     import struct as _struct;
-    import llvmlite.binding as llvm;
+    import jaclang.compiler.passes.native.llvm.binding as llvm;
     llvm.initialize_native_target();
     llvm.initialize_native_asmprinter();
     # Parse platform header: [triple_len: 2 LE] [triple: UTF-8] [bitcode ...]
@@ -565,12 +602,14 @@ impl JacCompiler.parse_str(
         mod = py_ast_ret.ir_out;
     } else {
         import from jaclang.jac0core.parser { parse as rd_parse }
+        import from jaclang.jac0core.ext_registry { codespace_of }
         (mod, had_error) = rd_parse(source_str, file_path, prog=target_program);
-        if file_path.endswith('.cl.jac') {
+        codespace = codespace_of(file_path);
+        if (codespace == 'client') {
             _coerce_client_module(mod);
-        } elif file_path.endswith('.sv.jac') {
+        } elif (codespace == 'server') {
             _coerce_server_module(mod);
-        } elif file_path.endswith('.na.jac') {
+        } elif (codespace == 'native') {
             _coerce_native_module(mod);
         }
     }
@@ -583,7 +622,11 @@ impl JacCompiler.parse_str(
         target_program.mod = uni.ProgramModule(main_mod=mod);
         target_program.mod.hub.update(old_hub);
     }
-    target_program.mod.hub[mod.loc.mod_path] = mod;
+    import from pathlib { Path as _HubPath }
+    target_program.mod.hub[str(_HubPath(mod.loc.mod_path).resolve())] = mod;
+    # JacAnnexPass splices each annex's body into the head module and coerces it
+    # to the head's deployment context (so a native head's annex globals/enums/
+    # defs survive native codegen's context filter -- issue #6754).
     JacAnnexPass(ir_in=mod, prog=target_program);
     return mod;
 }
@@ -607,11 +650,8 @@ impl JacCompiler.compile(
     # the impl, and DeclImplMatchPass connects them with full scope context.
     # Only applies when resolve_annex_parent is set to avoid affecting
     # AST-only compilation (e.g., micro suite tests).
-    if (
-        use_str is None
-        and options.resolve_annex_parent
-        and (file_path.endswith('.impl.jac') or file_path.endswith('.test.jac'))
-    ) {
+    import from jaclang.jac0core.ext_registry { is_annex }
+    if (use_str is None and options.resolve_annex_parent and is_annex(file_path)) {
         import from jaclang.jac0core.bccache { discover_base_file }
         base_path = discover_base_file(file_path);
         if (base_path and base_path not in target_program.mod.hub) {
@@ -664,83 +704,141 @@ impl JacCompiler.compile(
         actual_program, cur_mod_path
     );
     had_blocking_errors = blocking_errs_post_ir > blocking_errs_pre_ir;
-    # Native-compiled modules consume the central type checker's results:
-    # NaIRGenPass lowers Expr.type (via _lower_type) instead of running a
-    # parallel AST type resolver. Run the type-check schedule for any .na.jac
-    # module (or auto-promoted .jac) even when options.type_check is off, so
-    # codegen has a single semantic source of truth. This covers transitive
-    # imports too: when one .na.jac imports another, the nested compile gets
-    # its own TypeCheckPass run, so cross-module annotations land with
-    # `.type` populated.
-    run_type_check = options.type_check;
-    if not run_type_check {
-        # A module is native-compiled if it is a .na.jac file (whole module
-        # in native context), contains any `na { ... }` block (a .jac file
-        # with embedded native code), or is being auto-promoted to native in
-        # this program (the nacompile / `jac run --autonative` path sets
-        # `_auto_promote_native` on the program before compile). All three
-        # cases require Expr.type populated on annotations so NaIRGenPass
-        # can lower them via _lower_type. Plain .jac modules with no native
-        # surface follow the explicit `options.type_check` contract.
-        #
-        # Includes the symtab_ir_only path: when TypeEvaluator imports a
-        # .na.jac module to resolve a cross-module symbol, it compiles with
-        # symtab_ir_only=True and no codegen. We still want TypeCheckPass to
-        # run so the imported module's annotations land with .type populated,
-        # because a later NaIRGenPass walk for native cross-module linking
-        # will lower those annotations.
+    # Run type inference only when a backend consumes a checker-stamped fact:
+    # the native (na) backend lowers annotations through Expr.type, and both
+    # the native and client (cl/JavaScript) backends read FuncCall.callee_decl
+    # to lower kwargs to ordered positional args (esast_gen_pass has no
+    # re-resolution fallback). `jac check` also wants the diagnostics. The
+    # plain sv (Python) backend reads none of these (Python keeps kwargs as
+    # kwargs), so inference on a pure-sv build is wasted work: it walks the
+    # whole import graph and stamps caches nothing consumes. TypeCheckPass
+    # still self-gates diagnostic emission (full for `jac check` /
+    # native-context per #6049, suppressed otherwise per #6262).
+    run_inference = options.type_check;
+    if not run_inference {
+        import from jaclang.jac0core.ext_registry { is_native_module, is_client_module }
         mp = mod_targ.loc.mod_path if (mod_targ?.loc and mod_targ.loc) else file_path;
-        is_native_mod = bool(mp) and mp.endswith('.na.jac');
-        if not is_native_mod and mod_targ?.body {
+        is_native_mod = (bool(mp) and is_native_module(mp))
+        or (
+            actual_program._auto_promote_native
+            and mod_targ?.gen
+            and mod_targ.gen.native_compat
+        );
+        is_client_mod = bool(mp) and is_client_module(mp);
+        # A `na { }` / `cl { }` block puts native / client code in an otherwise
+        # plain .jac module; one body scan covers both extensions' inline form.
+        if (not is_native_mod or not is_client_mod) and mod_targ?.body {
             for _stmt in mod_targ.body {
                 if isinstance(_stmt, uni.NativeBlock) {
                     is_native_mod = True;
-                    break;
+                }
+                if isinstance(_stmt, uni.ClientBlock) {
+                    is_client_mod = True;
                 }
             }
         }
-        if (
-            not is_native_mod
-            and actual_program._auto_promote_native
-            and mod_targ?.gen
-            and mod_targ.gen.native_compat
-        ) {
-            is_native_mod = True;
-        }
-        if is_native_mod {
-            run_type_check = True;
-        }
-        # NOTE: client (.cl.jac) modules are deliberately NOT force-type-checked
-        # here. Unlike the native path -- where NaIRGenPass hard-depends on
-        # `Expr.type` to lower annotations -- BoundaryAnalysisPass derives every
-        # cross-boundary fact (server_exports_to_client bindings, func_access,
-        # boundary types) from the AST + symbol table alone: it reads raw
-        # annotation ASTs (`type_tag.tag`) and access tokens, never resolved
-        # `.type`. Forcing type-check on .cl.jac bought no boundary fidelity and
-        # surfaced type-checker false positives on idiomatic client code
-        # (untyped-prop access, Any-typed event handlers, kwargs override);
-        # see #6262. Plain .jac/.cl.jac modules follow the explicit
-        # `options.type_check` contract.
+        # Native consumes Expr.type even on lightweight (no_cgen /
+        # symtab_ir_only) compiles, since the cross-module native linker lowers
+        # a provider's annotations on demand. Client only reads callee_decl
+        # while EsastGenPass actually emits JS, so it is gated on real codegen
+        # (this keeps the boundary-completion walk's no_cgen=True compiles from
+        # paying a TypeCheckPass they would only waste).
+        run_inference = is_native_mod
+        or (is_client_mod and not options.no_cgen and not options.symtab_ir_only);
     }
-    if run_type_check {
-        # Explicit `jac check` (options.type_check=True) runs the full
-        # schedule — TypeCheckPass + StaticAnalysis + Portability + the
-        # enrich-pass-second-pass + Lint.
-        #
-        # The implicit native run (.na.jac trigger) only needs Expr.type
-        # populated for NaIRGenPass, so it runs the inference-only schedule
-        # (TypeCheckPass alone). Rerunning UniTreeEnrichPass / Portability /
-        # Lint mutates AST state that NaIRGenPass and the cross-module linker
-        # depend on. Diagnostics from this run are kept: native code is held
-        # to the same type discipline as the rest of Jac (#6049).
-        implicit_native = not options.type_check;
-        passes = get_native_inference_sched()
-            if implicit_native
-            else get_type_check_sched();
+    if run_inference {
+        mod_targ._inference_started = True;
+        # Flow-narrowing (`is not None` / isinstance) inside TypeInferencePass
+        # walks the CFG (UniCFGNode.bb_in/bb_out). The full IR-gen schedule
+        # built that CFG above, but a symtab_ir_only compile skipped it. Native
+        # still forces inference on those modules (imported dependency / on-
+        # demand cross-module provider lowering), so build the CFG first or the
+        # narrowing silently no-ops and a `T | None` guarded by `is not None`
+        # stays `T | None` only on the imported-module path (issue #6667). The
+        # entry path (symtab_ir_only False) already has its CFG -- skip the
+        # redundant build there.
+        if options.symtab_ir_only {
+            self.run_schedule(
+                mod=mod_targ,
+                target_program=actual_program,
+                passes=get_cfg_sched(),
+                cancel_token=options.cancel_token
+            );
+        }
+        # Diagnostic-mode intent must ride on the module, not on the
+        # program's ambient _compile_options: creating the TypeEvaluator
+        # inside TypeCheckPass.before_pass triggers nested compiles (stub
+        # prefetch, builtin imports) that each overwrite
+        # prog._compile_options with their own (non-check) options before
+        # the pass reads its diagnostic gate. See before_pass.
+        mod_targ._type_check_requested = bool(options.type_check);
+        try {
+            self.run_schedule(
+                mod=mod_targ,
+                target_program=actual_program,
+                passes=get_inference_sched(),
+                cancel_token=options.cancel_token
+            );
+        } except Exception {
+            # A partial inference run must not satisfy the dep-sweep guard:
+            # the module would be skipped on retry with an incompletely
+            # typed tree and no E9002 to catch it.
+            mod_targ._inference_started = False;
+            raise;
+        }
+        # JIR-loaded dependency modules arrive untyped (Expr.type is not
+        # serialized), while a freshly compiled dep is typed by its own
+        # nested compile. Native cross-module codegen lowers dep-module
+        # annotations through Expr.type, so the typed-tree contract must
+        # hold for every native module in the program regardless of how it
+        # was loaded. The _inference_started flag (set before each run)
+        # breaks the cycle where inferring a dep makes the evaluator
+        # compile a sibling, whose own dep sweep would re-infer modules
+        # already mid-inference.
+        import from jaclang.jac0core.ext_registry { is_native_module as _is_na }
+        for dep_mod in list(actual_program.mod.hub.values()) {
+            if (dep_mod is mod_targ) or dep_mod?._inference_started {
+                continue;
+            }
+            dep_path = dep_mod.loc.mod_path if dep_mod?.loc else '';
+            if _is_na(dep_path) {
+                dep_mod._inference_started = True;
+                # Quiet run: populate types only. A JIR-loaded tree's
+                # cross-module link state is degraded versus a fresh
+                # front-end run, so full checking here would emit false
+                # positives; diagnostics belong to each module's own
+                # entry compile.
+                dep_mod._inference_quiet = True;
+                try {
+                    self.run_schedule(
+                        mod=dep_mod,
+                        target_program=actual_program,
+                        passes=get_inference_sched(),
+                        cancel_token=options.cancel_token
+                    );
+                } except Exception {
+                    dep_mod._inference_started = False;
+                    raise;
+                } finally {
+                    # A leaked quiet flag would silently suppress every
+                    # diagnostic from this module's own entry compile later
+                    # in the same process.
+                    dep_mod._inference_quiet = False;
+                }
+            }
+        }
+    }
+    if options.type_check {
+        # Explicit `jac check`: diagnostic-only extras (StaticAnalysis /
+        # Portability / Lint) layered on the inference run above. The
+        # inference run already surfaced TYPE diagnostics in full mode;
+        # CapabilityCheckPass is NOT re-run here (it runs exactly once at the
+        # tail of get_ir_gen_sched — rerunning it mutates AST state that
+        # NaIRGenPass and the cross-module linker depend on).
         self.run_schedule(
             mod=mod_targ,
             target_program=actual_program,
-            passes=passes,
+            passes=get_type_check_sched(),
             cancel_token=options.cancel_token
         );
     }
@@ -820,7 +918,8 @@ impl JacCompiler.compile(
                 } except Exception {
                     continue;
                 }
-                if not (isinstance(cb_src, str) and cb_src.endswith('.cl.jac')) {
+                import from jaclang.jac0core.ext_registry { is_client_module }
+                if not (isinstance(cb_src, str) and is_client_module(cb_src)) {
                     continue;
                 }
                 cb_src = _cb_os.path.abspath(cb_src);
@@ -925,10 +1024,7 @@ Shared scaffold for jac_file_formatter, jac_str_formatter, and jac_file_linter.
 Returns (prog, current_mod) or (prog, None) if parse errors occurred.
 """
 impl JacCompiler._prepare_tool_program(
-    source_str: str,
-    file_path: str,
-    load_impl_annexes: bool = False,
-    load_test_annexes: bool = False
+    source_str: str, file_path: str
 ) -> tuple[JacProgram, (uni.Module | None)] {
     import from jaclang.jac0core.program { JacProgram }
     import from jaclang.jac0core.parser { parse as rd_parse }
@@ -938,35 +1034,8 @@ impl JacCompiler._prepare_tool_program(
         prog.mod = uni.ProgramModule(main_mod=current_mod);
         return (prog, None);
     }
-    # Parse-only annex loading: just parse .impl.jac/.test.jac files
-    # without running SymTabBuildPass or any compilation passes.
-    # This avoids cascading import resolution that would compile the
-    # entire dependency graph for each formatted file.
-    if load_impl_annexes or load_test_annexes {
-        import from jaclang.jac0core.bccache { discover_annex_files }
-        if load_impl_annexes {
-            for annex_path in discover_annex_files(file_path, '.impl.jac') {
-                try {
-                    annex_src = read_file_with_encoding(annex_path);
-                    (annex_mod, _) = rd_parse(annex_src, annex_path, prog=prog);
-                    current_mod.impl_mod.append(annex_mod);
-                } except Exception {
-                    ;
-                }
-            }
-        }
-        if load_test_annexes {
-            for annex_path in discover_annex_files(file_path, '.test.jac') {
-                try {
-                    annex_src = read_file_with_encoding(annex_path);
-                    (annex_mod, _) = rd_parse(annex_src, annex_path, prog=prog);
-                    current_mod.test_mod.append(annex_mod);
-                } except Exception {
-                    ;
-                }
-            }
-        }
-    }
+    # Tooling formats each file independently; annex files are formatted as
+    # their own tool programs by the caller, so nothing is attached here.
     return (prog, current_mod);
 }
 
@@ -975,9 +1044,7 @@ impl JacCompiler.jac_file_formatter(
     file_path: str, auto_lint: bool = False
 ) -> JacProgram {
     source_str = read_file_with_encoding(file_path);
-    (prog, current_mod) = JacCompiler._prepare_tool_program(
-        source_str, file_path, load_impl_annexes=auto_lint, load_test_annexes=auto_lint
-    );
+    (prog, current_mod) = JacCompiler._prepare_tool_program(source_str, file_path);
     if current_mod is None {
         return prog;
     }
@@ -1006,9 +1073,7 @@ impl JacCompiler.jac_str_formatter(
 """Lint a Jac file (report only, no formatting or output generation)."""
 impl JacCompiler.jac_file_linter(file_path: str) -> JacProgram {
     source_str = read_file_with_encoding(file_path);
-    (prog, current_mod) = JacCompiler._prepare_tool_program(
-        source_str, file_path, load_impl_annexes=True
-    );
+    (prog, current_mod) = JacCompiler._prepare_tool_program(source_str, file_path);
     if current_mod is None {
         return prog;
     }

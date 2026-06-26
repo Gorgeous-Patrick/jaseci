@@ -209,7 +209,8 @@ impl JacConfig.apply_profile(profile_name: str, _visited: set | None = None) -> 
         "format": self.format,
         "dot": self.dot,
         "cache": self.cache,
-        "environment": self.environment
+        "environment": self.environment,
+        "client": self.client
     };
     for (section, obj) in section_map.items() {
         if section in profile {
@@ -318,7 +319,8 @@ impl JacConfig.merge_from_toml_file(toml_path: Path) -> None {
         "format": self.format,
         "dot": self.dot,
         "cache": self.cache,
-        "environment": self.environment
+        "environment": self.environment,
+        "client": self.client
     };
     for (section, obj) in section_map.items() {
         if section in data {
@@ -470,9 +472,14 @@ impl JacConfig.get_build_dir -> Path {
     return base / self.build.dir;
 }
 
-"""Get the bytecode cache directory (.jac/cache)."""
+"""Get the cache directory ([build].dir / [cache].dir, default .jac/cache).
+
+The `[cache] dir` subdirectory name is honored here (defaulting to "cache"),
+so an absolute override relocates the cache wholesale while a relative one
+nests it under the build dir.
+"""
 impl JacConfig.get_cache_dir -> Path {
-    return self.get_build_dir() / "cache";
+    return self.get_build_dir() / self.cache.dir;
 }
 
 """Get the virtual environment directory (.jac/venv)."""
@@ -814,6 +821,7 @@ impl _parse_toml_data(
             requires_python=proj.get("requires-python", ""),
             jac_version=proj.get("jac-version", ""),
             entry_point=proj.get("entry-point", "main.jac"),
+            kind=proj.get("kind", ""),
             urls=proj.get("urls", {}),
             include=_parse_include(proj.get("include", {}))
         );
@@ -883,12 +891,28 @@ impl _parse_toml_data(
     }
     if "serve" in data {
         serve_data = data["serve"];
+        # Normalize + validate the OCC policy: only "retry"/"fail" are meaningful
+        # (anything else is treated as "retry" downstream). Catch a typo'd value
+        # here so a mis-set `on_conflict = "Fail"` does not silently disable
+        # fail-fast; warn once at load and fall back to the safe default.
+        on_conflict = str(serve_data.get("on_conflict", "retry")).strip().lower();
+        if on_conflict not in ("retry", "fail") {
+            import from jaclang.cli.console { console }
+            console.warning(
+                f"[serve] on_conflict='{serve_data.get('on_conflict')}' is not "
+                "'retry' or 'fail'; defaulting to 'retry'."
+            );
+            on_conflict = "retry";
+        }
         config.serve = ServeConfig(
             port=serve_data.get("port", 8000),
             session=serve_data.get("session", ""),
             main=serve_data.get("main", True),
             cl_route_prefix=serve_data.get("cl_route_prefix", "cl"),
-            base_route_app=serve_data.get("base_route_app", "")
+            base_route_app=serve_data.get("base_route_app", ""),
+            on_conflict=on_conflict,
+            conflict_max_attempts=serve_data.get("conflict_max_attempts", 5),
+            conflict_backoff_ms=serve_data.get("conflict_backoff_ms", 0)
         );
     }
     if "format" in data {
@@ -912,7 +936,9 @@ impl _parse_toml_data(
             print_errs=check_data.get("print_errs", True),
             lint=lint_config,
             suppress=check_data.get("suppress", []),
-            suppress_categories=check_data.get("suppress_categories", [])
+            suppress_categories=check_data.get("suppress_categories", []),
+            enforce_access=check_data.get("enforce_access", False),
+            warn_native_seams=check_data.get("warn_native_seams", True)
         );
     }
     if "dot" in data {
@@ -929,8 +955,7 @@ impl _parse_toml_data(
     if "cache" in data {
         cache_data = data["cache"];
         config.cache = CacheConfig(
-            enabled=cache_data.get("enabled", True),
-            dir=cache_data.get("dir", ".jac_cache")
+            enabled=cache_data.get("enabled", True), dir=cache_data.get("dir", "cache")
         );
     }
     if "storage" in data {
@@ -947,6 +972,19 @@ impl _parse_toml_data(
         ce_data = data["client_errors"];
         config.client_errors = ClientErrorsConfig(
             verbose=ce_data.get("verbose", False)
+        );
+    }
+    if "client" in data {
+        client_data = data["client"];
+        config.client = ClientConfig(framework=client_data.get("framework", "react"));
+    }
+    if "dev" in data {
+        dev_data = data["dev"];
+        # test_jobs accepts a bare int in TOML (e.g. test_jobs = 4 or 0); coerce
+        # to str so it can flow straight into pytest's `-n <jobs>` / serial check.
+        config.dev = DevConfig(
+            jaclang_source=str(dev_data.get("jaclang_source", "")),
+            test_jobs=str(dev_data.get("test_jobs", "auto"))
         );
     }
     if "plugins" in data {

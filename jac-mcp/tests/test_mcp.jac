@@ -827,6 +827,23 @@ test "run snippet invalid code fails" {
     assert result["exit_code"] != 0;
 }
 
+test "run snippet runaway loop is killed by timeout" {
+    import time;
+    # A genuinely non-terminating snippet. The old in-process thread runner
+    # could never stop this; the subprocess worker must kill it via its
+    # process group and return the timeout error promptly.
+    start = time.time();
+    result = CompilerBridge.run_snippet(
+        "with entry { while True { print(\"x\"); } }", timeout=2
+    );
+    elapsed = time.time() - start;
+    assert "exit_code" in result;
+    assert result["exit_code"] != 0;
+    assert "timed out" in result["error"];
+    # Allow slack for process spawn/teardown, but it must not run forever.
+    assert elapsed < 10;
+}
+
 test "graph viz snippet dot format" {
     result = CompilerBridge.graph_viz_snippet(_GRAPH_JAC);
     assert "graph" in result;
@@ -839,12 +856,12 @@ test "graph viz snippet mermaid format" {
     assert isinstance(result["graph"], str);
 }
 
-test "list templates has default" {
+test "list templates has cli" {
     result = CompilerBridge.list_templates();
     assert "templates" in result;
     assert len(result["templates"]) > 0;
     names = [t["name"] for t in result["templates"]];
-    assert "default" in names;
+    assert "cli" in names;
     for t in result["templates"] {
         assert "name" in t;
         assert "description" in t;

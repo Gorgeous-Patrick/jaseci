@@ -13,12 +13,17 @@ impl Arg.create(
     short: str | None = None,
     choices: list[any] | None = None,
     required: bool = False,
-    metavar: str | None = None
+    metavar: str | None = None,
+    dest: str | None = None
 ) -> Arg {
     # Auto-generate short flag from first character if not provided
     auto_short = short;
     if auto_short is None and len(name) > 0 and kind != ArgKind.POSITIONAL {
         auto_short = name[0];
+    }
+    # Required by default when a positional has no default value.
+    if kind == ArgKind.POSITIONAL and `default is None {
+        required = True;
     }
     return Arg(
         name=name,
@@ -29,7 +34,8 @@ impl Arg.create(
         short=auto_short,
         choices=choices,
         required=required,
-        metavar=metavar
+        metavar=metavar,
+        dest=dest
     );
 }
 

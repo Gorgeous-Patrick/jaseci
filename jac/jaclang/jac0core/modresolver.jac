@@ -1,13 +1,93 @@
 """Module resolver utilities."""
 import importlib.util;
 import os;
-import site;
 import sys;
+import from jaclang.jac0core.ext_registry { MODULE_SUFFIXES, language_of }
+
+# Cache of resolved project roots, keyed by the directory we started the
+# upward walk from. A `None` value records "no jac.toml above here" so we
+# never re-walk a non-project directory on the hot import path.
+glob _project_root_cache: dict = {},
+     # Stack of directories for the files currently being imported, innermost last.
+     # `jac_import` pushes the importing file's directory before executing it and
+     # pops it after. `get_jac_search_paths` reads the top so that at runtime a
+     # bare (no-dot) import resolves against the importing file's OWN directory
+     # first -- matching the compile-time resolver's own-directory-first rule (and
+     # Python's sibling-first intuition). Mirrors the existing sys.path push/pop in
+     # jac_import; the same single-threaded import assumptions apply.
+     _import_base_stack: list = [];
+
+"""Push the importing file's directory as the active import base."""
+def push_import_base(base_dir: str) {
+    _import_base_stack.append(base_dir);
+}
+
+"""Pop the active import base pushed by the most recent push_import_base."""
+def pop_import_base {
+    if _import_base_stack {
+        _import_base_stack.pop();
+    }
+}
+
+"""Find the nearest project root (the directory holding `jac.toml`).
+
+Walks upward from `start` (a file or directory path); when `start` is None the
+walk begins at the current working directory. Returns the project-root directory
+as a string, or None for standalone scripts that live outside any project.
+
+This is the anchor for "project-root absolute" imports: a no-dot import like
+`engine.math.vec3` resolves against this directory from anywhere in the project,
+independent of how deep the importing file sits. Kept as a dependency-free
+filesystem walk (no jaclang.project.config import) because it runs on the hot
+import-resolution path; results are memoized in `_project_root_cache`.
+"""
+def find_jac_project_root(start: (str | None) = None) -> (str | None) {
+    if start {
+        current = os.path.abspath(start);
+        if os.path.isfile(current) {
+            current = os.path.dirname(current);
+        }
+    } else {
+        current = os.getcwd();
+    }
+    if (current in _project_root_cache) {
+        return _project_root_cache[current];
+    }
+    found = None;
+    probe = current;
+    while True {
+        if os.path.isfile(os.path.join(probe, 'jac.toml')) {
+            found = probe;
+            break;
+        }
+        parent = os.path.dirname(probe);
+        if (parent == probe) {
+            break;
+        }
+        probe = parent;
+    }
+    _project_root_cache[current] = found;
+    return found;
+}
+
 """Construct a list of paths to search for Jac modules."""
 def get_jac_search_paths(base_path: (str | None) = None) -> list[str] {
     paths = [];
     if base_path {
         paths.append(base_path);
+    }
+    # The directory of the file currently being imported takes priority, so a
+    # bare (no-dot) import of a sibling module resolves to that sibling rather
+    # than a same-named module at the project root or cwd. This mirrors the
+    # compile-time resolver's own-directory-first rule, keeping native and
+    # interpreted resolution consistent.
+    active_base = _import_base_stack[-1] if _import_base_stack else None;
+    if active_base {
+        paths.append(active_base);
+    }
+    project_root = find_jac_project_root(base_path or active_base);
+    if project_root {
+        paths.append(project_root);
     }
     paths.append(os.getcwd());
     if ('JACPATH' in os.environ) {
@@ -17,18 +97,12 @@ def get_jac_search_paths(base_path: (str | None) = None) -> list[str] {
             if p.strip()
         );
     }
+    # sys.path already carries the bundled runtime and -- promoted to its front by
+    # _jac_finder.add_project_venv_to_path -- the project's .jac/venv. The host's
+    # system/user site-packages are deliberately NOT consulted: third-party code
+    # lives only in the project venv, so resolution stays hermetic regardless of
+    # any Python installed on the host.
     paths.extend(sys.path);
-    site_pkgs = site.getsitepackages();
-    if site_pkgs {
-        paths.extend(site_pkgs);
-    }
-    user_site = site?.getusersitepackages;
-    if user_site {
-        user_dir = user_site();
-        if user_dir {
-            paths.append(user_dir);
-        }
-    }
     return `list(
         `dict.fromkeys(
             [
@@ -71,17 +145,11 @@ def _candidate_from(base: str, parts: list[str]) -> (tuple[(str, str)] | None) {
             return (os.path.join(candidate, '__init__.pyi'), 'pyi');
         }
     }
-    if os.path.isfile((candidate + '.jac')) {
-        return ((candidate + '.jac'), 'jac');
-    }
-    if os.path.isfile((candidate + '.sv.jac')) {
-        return ((candidate + '.sv.jac'), 'jac');
-    }
-    if os.path.isfile((candidate + '.na.jac')) {
-        return ((candidate + '.na.jac'), 'jac');
-    }
-    if os.path.isfile((candidate + '.cl.jac')) {
-        return ((candidate + '.cl.jac'), 'jac');
+    # Jac module files, in canonical codespace precedence (shared registry).
+    for jac_suffix in MODULE_SUFFIXES {
+        if os.path.isfile((candidate + jac_suffix)) {
+            return ((candidate + jac_suffix), 'jac');
+        }
     }
     if os.path.isfile((candidate + '.py')) {
         return ((candidate + '.py'), 'py');
@@ -113,10 +181,10 @@ def _resolve_jac_virtual_module(target: str) -> (tuple[(str, str)] | None) {
     import jaclang.runtimelib as _runtimelib;
     runtime_dir = os.path.dirname(_runtimelib.__file__);
     module_name = target[len('@jac/'):];
-    # Well-known aliases explicitly mapped to their backing source.
-    module_map = {'runtime': 'client_runtime.cl.jac'};
-    if module_name in module_map {
-        path = os.path.join(runtime_dir, module_map[module_name]);
+    # `@jac/runtime` resolves to the framework-specific client runtime source.
+    if module_name == 'runtime' {
+        import from jaclang.runtimelib.runtime_source { resolve_client_runtime_cl_path }
+        path = resolve_client_runtime_cl_path();
         if os.path.isfile(path) {
             return (path, 'jac');
         }
@@ -127,6 +195,26 @@ def _resolve_jac_virtual_module(target: str) -> (tuple[(str, str)] | None) {
         if os.path.isfile(path) {
             return (path, lang);
         }
+    }
+    # Fallback: check packages that registered a jac.modules entry point.
+    # Plugins (e.g. jac-desktop) self-register their @jac/* modules this way
+    # without writing files into jaclang's runtimelib directory.
+    # Entry point value is "module.path:attr_or_callable". If the loaded object
+    # is callable, it is invoked and must return an absolute path string.
+    # If it is already a string, it is used directly.
+    try {
+        import importlib.metadata as _meta;
+        for ep in _meta.entry_points(group='jac.modules') {
+            if ep.name == module_name {
+                loaded = ep.load();
+                path = loaded() if callable(loaded) else loaded;
+                if isinstance(path, str) and os.path.isfile(path) {
+                    return (path, 'jac');
+                }
+            }
+        }
+    } except Exception {
+        ;
     }
     return None;
 }
@@ -140,6 +228,36 @@ ECMAScript pass (so the client manifest registers the same file).
 def resolve_jac_virtual_module_path(target: str) -> (str | None) {
     result = _resolve_jac_virtual_module(target);
     return result[0] if result else None;
+}
+
+"""Return the public export names a `@jac/*` module advertises, or [].
+
+Packages whose virtual module is built from `obj` types (which the generic
+export extractor can't see) self-describe their public symbols via a
+`jac.module_exports` entry point named for the module (e.g. `desktop`). The
+entry point resolves to a list, or a callable returning one. This keeps the
+per-SDK symbol list in the owning package instead of hardcoded in the compiler.
+"""
+def resolve_jac_virtual_module_exports(target: str) -> list[str] {
+    if not target.startswith('@jac/') {
+        return [];
+    }
+    module_name = target[len('@jac/'):];
+    try {
+        import importlib.metadata as _meta;
+        for ep in _meta.entry_points(group='jac.module_exports') {
+            if ep.name == module_name {
+                loaded = ep.load();
+                names = loaded() if callable(loaded) else loaded;
+                if isinstance(names, list) {
+                    return names;
+                }
+            }
+        }
+    } except Exception {
+        ;
+    }
+    return [];
 }
 
 """Get path aliases from project config [plugins.client.paths]."""
@@ -225,17 +343,7 @@ def resolve_module(target: str, base_path: str) -> tuple[(str, str)] {
             return res;
         }
         if os.path.isfile(alias_resolved) {
-            ext = os.path.splitext(alias_resolved)[1].lower();
-            lang = {
-                '.jac': 'jac',
-                '.py': 'py',
-                '.js': 'js',
-                '.ts': 'js',
-                '.tsx': 'js'
-            }.get(
-                ext, 'other'
-            );
-            return (alias_resolved, lang);
+            return (alias_resolved, language_of(alias_resolved));
         }
     }
     if target.startswith('.') {
@@ -270,6 +378,17 @@ def resolve_module(target: str, base_path: str) -> tuple[(str, str)] {
                 return res;
             }
         }
+        # PEP 561 stub packages: an installed `<pkg>-stubs` distribution (e.g.
+        # `types-requests` -> `requests-stubs/`) supplies type stubs for an
+        # otherwise-untyped runtime package. Prefer it over the runtime `.py`
+        # resolved by importlib below, matching mypy/pyright precedence. These
+        # live in the project venv's site-packages, already on the search path.
+        for sp in get_jac_search_paths(base_path) {
+            res = _candidate_from_stub_package(sp, actual_parts);
+            if res {
+                return res;
+            }
+        }
     }
     # Fallback to Python's importlib for modules not in typeshed
     if not target.startswith('.') {
@@ -280,21 +399,9 @@ def resolve_module(target: str, base_path: str) -> tuple[(str, str)] {
         }
         if (spec and spec.origin and (spec.origin not in {'built-in', 'frozen'})) {
             origin = os.path.normpath(spec.origin);
-            ext = os.path.splitext(origin)[1].lower();
-            if (ext in {'.jac', '.pyi', '.py', '.js', '.ts', '.jsx', '.tsx'}) {
-                if (ext == '.jac') {
-                    return (origin, 'jac');
-                }
-                if (ext == '.pyi') {
-                    return (origin, 'pyi');
-                }
-                if (ext == '.py') {
-                    return (origin, 'py');
-                }
-                if (ext in {'.js', '.ts', '.jsx', '.tsx'}) {
-                    return (origin, 'js');
-                }
-                return (origin, 'other');
+            lang = language_of(origin);
+            if (lang != 'other') {
+                return (origin, lang);
             }
         }
     }
@@ -445,16 +552,19 @@ def convert_to_js_import_path(path: str) -> str {
     return path;
 }
 
-"""Return the typeshed stubs and stdlib directories if available."""
+"""Return the vendored typeshed *stdlib* stub directory if available.
+
+Only the stdlib stubs are bundled. Third-party type stubs are NOT shipped:
+they are installed per-project into `.jac/venv` by `jac add` (as PEP 561
+`types-*` packages) and resolved from there via `_candidate_from_stub_package`.
+This keeps the binary lean and makes third-party types track the *installed*
+version instead of a stale vendored snapshot.
+"""
 def get_typeshed_paths -> list[str] {
     base = os.path.join(os.path.dirname(__file__), '..', 'vendor', 'typeshed');
     base = os.path.abspath(base);
-    stubs = os.path.join(base, 'stubs');
     stdlib = os.path.join(base, 'stdlib');
     paths = [];
-    if os.path.isdir(stubs) {
-        paths.append(stubs);
-    }
     if os.path.isdir(stdlib) {
         paths.append(stdlib);
     }
@@ -485,6 +595,46 @@ def _candidate_from_typeshed(
             if os.path.isfile(inner_pkg_init_pyi) {
                 return (inner_pkg_init_pyi, 'pyi');
             }
+        }
+    }
+    return None;
+}
+
+"""Find a PEP 561 `<pkg>-stubs` package under `base` for the import `parts`.
+
+A stub-only distribution (e.g. `types-requests`) installs a top-level
+`requests-stubs/` directory of `.pyi` files. Only the *first* import component
+gets the `-stubs` suffix; submodules resolve inside it verbatim. So
+`requests.sessions` -> `<base>/requests-stubs/sessions.pyi` (or that dir's
+`__init__.pyi`), and bare `requests` -> `<base>/requests-stubs/__init__.pyi`.
+"""
+def _candidate_from_stub_package(
+    base: str, parts: list[str]
+) -> (tuple[(str, str)] | None) {
+    if not parts {
+        return None;
+    }
+    stub_root = os.path.join(base, parts[0] + '-stubs');
+    if not os.path.isdir(stub_root) {
+        return None;
+    }
+    rest = parts[1:];
+    if not rest {
+        init_pyi = os.path.join(stub_root, '__init__.pyi');
+        if os.path.isfile(init_pyi) {
+            return (init_pyi, 'pyi');
+        }
+        return None;
+    }
+    candidate_prefix = os.path.join(stub_root, *rest);
+    module_file_pyi = candidate_prefix + '.pyi';
+    if os.path.isfile(module_file_pyi) {
+        return (module_file_pyi, 'pyi');
+    }
+    if os.path.isdir(candidate_prefix) {
+        init_pyi = os.path.join(candidate_prefix, '__init__.pyi');
+        if os.path.isfile(init_pyi) {
+            return (init_pyi, 'pyi');
         }
     }
     return None;

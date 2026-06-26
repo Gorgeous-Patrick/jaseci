@@ -14,7 +14,7 @@ import from jaclang.compiler.passes.native.linker_common {
     _build_strtab,
     _append_to_blob,
     _resolve_seg_vaddr,
-    _find_patch_target,
+    _resolve_patch_site,
     _find_entry_vaddr
 }
 
@@ -367,7 +367,8 @@ def _build_code_signature(
     code_limit: int,
     text_offset: int,
     text_size: int,
-    ident: str = "jac-binary"
+    ident: str = "jac-binary",
+    exec_seg_flags: int = 0  # pass CS_EXECSEG_MAIN_BINARY for MH_EXECUTE binaries
 ) -> bytes {
     hash_size = 32;
     n_code_slots = (code_limit + CS_PAGE_SIZE - 1) // CS_PAGE_SIZE;
@@ -400,7 +401,7 @@ def _build_code_signature(
     cd.extend(struct.pack(">Q", 0));  # codeLimit64
     cd.extend(struct.pack(">Q", text_offset));  # execSegBase
     cd.extend(struct.pack(">Q", text_size));  # execSegLimit
-    cd.extend(struct.pack(">Q", CS_EXECSEG_MAIN_BINARY));  # execSegFlags
+    cd.extend(struct.pack(">Q", exec_seg_flags));  # execSegFlags
     cd.extend(ident_bytes);
 
     # Hash each code page
@@ -1162,8 +1163,9 @@ impl MachOLinker.build_executable -> bytes {
             }
         }
 
-        # Determine patch buffer
-        _pt = _find_patch_target(
+        # Determine patch buffer, in-buffer offset, and final vaddr.
+        site = _resolve_patch_site(
+            rel.address,
             rel.target_sec,
             code_sections,
             rodata_sections,
@@ -1175,13 +1177,10 @@ impl MachOLinker.build_executable -> bytes {
             const_sec_vaddr,
             data_sec_vaddr
         );
-        if _pt is None {
+        if site is None {
             continue;
         }
-        (patch_buf, sec_off_in_blob, patch_base_vaddr) = _pt;
-
-        patch_off = sec_off_in_blob + rel.address;
-        patch_vaddr = patch_base_vaddr + rel.address;
+        (patch_buf, patch_off, patch_vaddr) = site;
 
         if is_arm64 {
             _arm64_apply_reloc(
@@ -1527,7 +1526,13 @@ impl MachOLinker.build_executable -> bytes {
 
     # ── Build and write code signature (arm64) ───────────────────
     if is_arm64 {
-        sig = _build_code_signature(bytes(output), codesig_off, 0, text_seg_size);
+        sig = _build_code_signature(
+            bytes(output),
+            codesig_off,
+            0,
+            text_seg_size,
+            exec_seg_flags=CS_EXECSEG_MAIN_BINARY
+        );
         codesig_size = len(sig);
         actual_total = codesig_off + codesig_size;
 
@@ -1575,7 +1580,11 @@ impl MachOLinker.build_executable -> bytes {
         # Re-hash: the binary changed after writing the signature
         # (LC_CODE_SIGNATURE was patched), so rehash
         sig = _build_code_signature(
-            bytes(output[:codesig_off]), codesig_off, 0, text_seg_size
+            bytes(output[:codesig_off]),
+            codesig_off,
+            0,
+            text_seg_size,
+            exec_seg_flags=CS_EXECSEG_MAIN_BINARY
         );
         output[codesig_off:codesig_off + len(sig)] = sig;
     }
@@ -1758,11 +1767,6 @@ impl MachOLinker.build_shared_object -> bytes {
     # LC_DYSYMTAB
     num_lcs += 1;
     lc_total_size += 80;
-    # LC_LOAD_DYLINKER
-    dylinker_path = "/usr/lib/dyld";
-    dylinker_str = _lc_str_pad(dylinker_path, 12);
-    num_lcs += 1;
-    lc_total_size += 12 + len(dylinker_str);
     # LC_ID_DYLIB (this library's own install name)
     _install_name = self.soname or "libjac.dylib";
     if (not _install_name.startswith("@")) and (not _install_name.startswith("/")) {
@@ -2019,6 +2023,12 @@ impl MachOLinker.build_shared_object -> bytes {
         va = _resolve_seg_vaddr(
             seg, off, text_sec_vaddr, const_sec_vaddr, data_sec_vaddr
         );
+        # Trie key is the Mach-O symbol (`_jadd`), NOT the bare Jac name. dyld's
+        # dlsym prepends a leading underscore before consulting the export trie,
+        # so a consumer's dlsym("jadd") resolves a `_jadd` entry; a bare `jadd`
+        # entry is unreachable by dlsym/ld and the dylib "loads but won't
+        # resolve" — exactly the symptom issue #6821 reported. The symbol table
+        # already carries `_mn`; the trie must match it.
         export_pairs.append((_mn, va));
     }
     export_trie = _build_export_trie(export_pairs);
@@ -2115,7 +2125,8 @@ impl MachOLinker.build_shared_object -> bytes {
                 );
             }
         }
-        _pt = _find_patch_target(
+        site = _resolve_patch_site(
+            rel.address,
             rel.target_sec,
             code_sections,
             rodata_sections,
@@ -2127,12 +2138,10 @@ impl MachOLinker.build_shared_object -> bytes {
             const_sec_vaddr,
             data_sec_vaddr
         );
-        if _pt is None {
+        if site is None {
             continue;
         }
-        (patch_buf, sec_off_in_blob, patch_base_vaddr) = _pt;
-        patch_off = sec_off_in_blob + rel.address;
-        patch_vaddr = patch_base_vaddr + rel.address;
+        (patch_buf, patch_off, patch_vaddr) = site;
         if is_arm64 {
             _arm64_apply_reloc(
                 rel.rtype, patch_buf, patch_off, sym_addr, rel.addend, patch_vaddr
@@ -2372,11 +2381,6 @@ impl MachOLinker.build_shared_object -> bytes {
     struct.pack_into("<II", output, lc_off + 64, 0, 0);
     struct.pack_into("<II", output, lc_off + 72, 0, 0);
     lc_off += 80;
-    # LC_LOAD_DYLINKER
-    dylinker_cmdsize = 12 + len(dylinker_str);
-    struct.pack_into("<III", output, lc_off, LC_LOAD_DYLINKER, dylinker_cmdsize, 12);
-    output[lc_off + 12:lc_off + 12 + len(dylinker_str)] = dylinker_str;
-    lc_off += dylinker_cmdsize;
     # LC_ID_DYLIB (this dylib's own identity)
     id_cmdsize = 24 + len(id_dylib_str);
     struct.pack_into("<III", output, lc_off, LC_ID_DYLIB, id_cmdsize, 24);
@@ -2453,7 +2457,9 @@ impl MachOLinker.build_shared_object -> bytes {
 
     # ── Code signature (arm64) ──
     if is_arm64 {
-        sig = _build_code_signature(bytes(output), codesig_off, 0, text_seg_size);
+        sig = _build_code_signature(
+            bytes(output), codesig_off, 0, text_seg_size, exec_seg_flags=0
+        );
         codesig_size = len(sig);
         actual_total = codesig_off + codesig_size;
         if actual_total > len(output) {
@@ -2486,7 +2492,7 @@ impl MachOLinker.build_shared_object -> bytes {
             scan_off += scan_size;
         }
         sig = _build_code_signature(
-            bytes(output[:codesig_off]), codesig_off, 0, text_seg_size
+            bytes(output[:codesig_off]), codesig_off, 0, text_seg_size, exec_seg_flags=0
         );
         output[codesig_off:codesig_off + len(sig)] = sig;
     }

@@ -62,7 +62,7 @@ impl NaIRGenPass._emit_rc_helpers -> None {
     self.rc_gc_disabled_gv = rc_gc_disabled_gv;
     # __rc_gc_disable() -> void
     dis_gc_fnty = ir.FunctionType(ir.VoidType(), []);
-    dis_gc_fn = ir.Function(self.llvm_module, dis_gc_fnty, name="__rc_gc_disable");
+    dis_gc_fn = self._define_function("__rc_gc_disable", dis_gc_fnty);
     dis_gc_fn.linkage = "internal";
     _bb_dis_gc = dis_gc_fn.append_basic_block("entry");
     _b_dis_gc = ir.IRBuilder(_bb_dis_gc);
@@ -70,7 +70,7 @@ impl NaIRGenPass._emit_rc_helpers -> None {
     _b_dis_gc.ret_void();
     self.rc_gc_disable_fn = dis_gc_fn;
     # __rc_gc_enable() -> void
-    en_gc_fn = ir.Function(self.llvm_module, dis_gc_fnty, name="__rc_gc_enable");
+    en_gc_fn = self._define_function("__rc_gc_enable", dis_gc_fnty);
     en_gc_fn.linkage = "internal";
     _bb_en_gc = en_gc_fn.append_basic_block("entry");
     _b_en_gc = ir.IRBuilder(_bb_en_gc);
@@ -81,7 +81,7 @@ impl NaIRGenPass._emit_rc_helpers -> None {
     # __rc_safe_free(i8* ptr): free() gated by __rc_gc_disabled.
     # All compiler-emitted frees go here so JAC_NO_GC=1 suppresses every free.
     sf_fnty = ir.FunctionType(ir.VoidType(), [i8_ptr]);
-    sf_fn = ir.Function(self.llvm_module, sf_fnty, name="__rc_safe_free");
+    sf_fn = self._define_function("__rc_safe_free", sf_fnty);
     sf_fn.linkage = "internal";
     sf_fn.args[0].name = "ptr";
     _sf_entry = sf_fn.append_basic_block("entry");
@@ -141,7 +141,7 @@ impl NaIRGenPass._emit_rc_helpers -> None {
     # ptr-8  = dtor = 0 (OFFSET UNCHANGED)
     # ptr+0  = user data
     alloc_fnty = ir.FunctionType(i8_ptr, [i64]);
-    alloc_fn = ir.Function(self.llvm_module, alloc_fnty, name="__rc_alloc");
+    alloc_fn = self._define_function("__rc_alloc", alloc_fnty);
     alloc_fn.linkage = "private";
     alloc_fn.args[0].name = "size";
     entry_bb = alloc_fn.append_basic_block("entry");
@@ -207,7 +207,7 @@ impl NaIRGenPass._emit_rc_helpers -> None {
     # Also updates the type_tag field in the live-objects node for this ptr.
     # Called from _codegen_instantiation, _box_value_tuple, etc.
     set_type_fnty = ir.FunctionType(ir.VoidType(), [i8_ptr, i8_ptr]);
-    set_type_fn = ir.Function(self.llvm_module, set_type_fnty, name="__rc_set_type");
+    set_type_fn = self._define_function("__rc_set_type", set_type_fnty);
     set_type_fn.linkage = "internal";
     set_type_fn.args[0].name = "ptr";
     set_type_fn.args[1].name = "tag";
@@ -287,7 +287,7 @@ impl NaIRGenPass._emit_rc_helpers -> None {
     # --- __rc_retain(i8* ptr) -> void ---
     # Null check, sentinel check, then increment refcount at ptr-16
     retain_fnty = ir.FunctionType(ir.VoidType(), [i8_ptr]);
-    retain_fn = ir.Function(self.llvm_module, retain_fnty, name="__rc_retain");
+    retain_fn = self._define_function("__rc_retain", retain_fnty);
     retain_fn.linkage = "private";
     retain_fn.args[0].name = "ptr";
     entry_bb = retain_fn.append_basic_block("entry");
@@ -567,14 +567,6 @@ impl NaIRGenPass._rc_alloc(size: ir.Value, name: str = "rc.alloc") -> ir.Value {
     return self.builder.call(self.rc_alloc_fn, [size], name=name);
 }
 
-"""Allocate RC-managed memory and bitcast to target pointer type."""
-impl NaIRGenPass._rc_alloc_typed(
-    size: ir.Value, target_type: ir.Type, name: str = "rc.ptr"
-) -> ir.Value {
-    raw = self._rc_alloc(size, name="rc.raw");
-    return self.builder.bitcast(raw, target_type, name=name);
-}
-
 """Emit rc_retain call for a pointer value.
 
 op: short string identifying the source-level operation (e.g. "assign", "return").
@@ -674,26 +666,27 @@ impl NaIRGenPass._emit_scope_cleanup(
 }
 
 """Release pointer-typed locals introduced inside a loop body and null
-their alloca slots.  Called before back-edge / continue / break branches
-so an early `return` from a later iteration cannot leak the previous
-iteration's value held in a still-live alloca.
+their alloca slots. Called before back-edge branches so an early
+`return` from a later iteration cannot leak the previous iteration's
+value held in a still-live alloca.
 
-`saved_locals` is the snapshot of `self.local_vars.keys()` taken before
-the loop body was codegen'd — any local present now but not in the
-snapshot was declared inside the body.
+`body_locals` is the central release list (ownership.loop_body_locals):
+names first bound inside the body. The emission-side filters stay here:
+only pointer-typed slots that were actually allocated participate, and
+raw-pointer exemptions recorded during body emission are honored.
 """
-impl NaIRGenPass._emit_loop_iter_cleanup(saved_locals: object, loc: str = "") -> None {
+impl NaIRGenPass._emit_loop_iter_cleanup(body_locals: list, loc: str = "") -> None {
     if self._builder is None or self._builder.block.is_terminated {
         return;
     }
-    for var_name in list(self.local_vars.keys()) {
-        if var_name in saved_locals {
-            continue;
-        }
+    for var_name in body_locals {
         if var_name == "self" or var_name in self.param_vars {
             continue;
         }
-        alloca = self.local_vars[var_name];
+        alloca = self.local_vars.get(var_name);
+        if alloca is None {
+            continue;
+        }
         if (
             isinstance(alloca.type, ir.PointerType)
             and isinstance(alloca.type.pointee, ir.PointerType)
@@ -746,6 +739,7 @@ impl NaIRGenPass._emit_struct_release_fn(arch_name: str) -> None {
     }
     field_types = self.struct_field_types.get(arch_name, {});
     field_indices = self.struct_field_indices.get(arch_name, {});
+    opaque_fields = self.struct_field_opaque.get(arch_name, set());
     struct_ptr_type = struct_type.as_pointer();
     i8_ptr = ir.IntType(8).as_pointer();
     i32 = ir.IntType(32);
@@ -762,6 +756,11 @@ impl NaIRGenPass._emit_struct_release_fn(arch_name: str) -> None {
     (b, done_bb) = self._emit_rc_destructor_preamble(release_fn, struct_ptr_type);
     # Release all pointer-typed fields
     for (fname, ftype) in field_types.items() {
+        # Opaque foreign slots hold an unmanaged `i8*` (always null on the native
+        # path); they are outside the RC discipline (issue #6930, A3).
+        if fname in opaque_fields {
+            continue;
+        }
         if isinstance(ftype, ir.PointerType) {
             idx = field_indices.get(fname, -1);
             if idx >= 0 {

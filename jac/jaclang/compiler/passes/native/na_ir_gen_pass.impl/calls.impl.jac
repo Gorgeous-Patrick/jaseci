@@ -15,6 +15,96 @@ impl NaIRGenPass._resolve_type_str(type_name: str) -> ir.Type {
     return ir.IntType(64);
 }
 
+"""Resolved callee signature for a call site.
+
+Consumes the checker-stamped `FuncCall.callee_decl` (Phase 4, analysis
+centralization). Call nodes synthesized after type checking (desugared
+pipe-forward) carry no stamp; for those the declaration is recovered
+through the target's stored `.sym` - a stamped-fact read, mirroring how
+`call_kind` is classified on the spot for the same nodes.
+"""
+impl NaIRGenPass._callee_sig_of(nd: uni.FuncCall) -> (uni.FuncSignature | None) {
+    decl = nd.callee_decl;
+    if decl is None {
+        sym: (uni.Symbol | None) = None;
+        if isinstance(nd.target, uni.AstSymbolNode) {
+            sym = nd.target.sym;
+        } elif isinstance(nd.target, uni.AtomTrailer)
+        and isinstance(nd.target.right, uni.AstSymbolNode) {
+            sym = nd.target.right.sym;
+        }
+        if sym is not None and sym.defn {
+            cand = sym.defn[0];
+            if isinstance(cand, uni.Ability) {
+                decl = cand;
+            } elif isinstance(cand.parent, uni.Ability) {
+                decl = cand.parent;
+            }
+        }
+    }
+    sig = decl.signature if decl is not None else None;
+    return sig if isinstance(sig, uni.FuncSignature) else None;
+}
+
+"""Fill omitted trailing parameters at a call site from the resolved
+callee's default-value expressions (FuncCall.callee_decl, the
+checker-stamped fact). Used by both free-function and method dispatch;
+`skip_self` accounts for the implicit receiver already in `args`."""
+impl NaIRGenPass._fill_default_args(
+    nd: uni.FuncCall, func: ir.Function, args: list, skip_self: bool = False
+) -> None {
+    callee_sig = self._callee_sig_of(nd);
+    if len(args) >= len(func.args) {
+        return;
+    }
+    if callee_sig is None {
+        while len(args) < len(func.args) {
+            args.append(ir.Constant(func.args[len(args)].type, 0));
+        }
+        return;
+    }
+    sig_params = callee_sig.get_parameters();
+    base = len(args) - 1 if skip_self else len(args);
+    for pix in range(base, len(sig_params)) {
+        expected_type = func.args[len(args)].type
+            if len(args) < len(func.args)
+            else ir.IntType(64);
+        p = sig_params[pix];
+        if p.value is not None {
+            dval = self._codegen_expr(p.value);
+            if dval is not None {
+                args.append(self._coerce_type(dval, expected_type));
+            } else {
+                args.append(ir.Constant(expected_type, 0));
+            }
+        } else {
+            args.append(ir.Constant(expected_type, 0));
+        }
+    }
+}
+
+"""Evaluate a call node's argument expressions in order, dropping any
+that failed to lower (their own diagnostics already fired)."""
+impl NaIRGenPass._codegen_call_args(nd: uni.FuncCall) -> list {
+    arg_vals: list[ir.Value] = [];
+    for param in (nd.params or []) {
+        v = self._codegen_expr(param);
+        if v is not None {
+            arg_vals.append(v);
+        }
+    }
+    return arg_vals;
+}
+
+"""Take a reference for a slot that is about to own `value`: a BORROWED
+value is retained; an OWNED value's +1 transfers to the slot as-is
+(compiler/ownership.jac invariant). Non-pointer values are untouched."""
+impl NaIRGenPass._emit_take_ref(value: ir.Value, op: str, loc: str = "") -> None {
+    if isinstance(value.type, ir.PointerType) and not self._is_owned(value) {
+        self._emit_rc_retain(value, op=op, loc=loc);
+    }
+}
+
 """Emit E5090 for a builtin call the native emitter could not lower.
 
 Shared by the multi-arg and single-arg builtin dispatch paths so the
@@ -34,10 +124,16 @@ impl NaIRGenPass._emit_unsupported_builtin_call(
 
 """Generate function call."""
 impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
-    import from jaclang.compiler.symbol_utils { classify_call, CallKind }
-    _call_kind = classify_call(nd);
+    # Dispatch on the checker-stamped call classification. Only call nodes
+    # synthesized after type checking (e.g. desugared pipe-forward) lack
+    # the stamp and are classified on the spot.
+    _call_kind = nd.call_kind;
+    if _call_kind is None {
+        import from jaclang.compiler.symbol_utils { classify_call }
+        _call_kind = classify_call(nd).value;
+    }
     # Handle method calls: obj.method(args)
-    if _call_kind == CallKind.METHOD {
+    if _call_kind == "method" {
         return self._codegen_method_call(nd);
     }
     func_name = self._get_name(nd.target);
@@ -45,10 +141,10 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
         return None;
     }
     # Builtin fast-paths fire only when the call actually resolves to a builtin.
-    # classify_call is shadow-aware, so a user symbol named e.g. `len` is
-    # FUNCTION and falls through to the free-function path below instead of
+    # The classification is shadow-aware, so a user symbol named e.g. `len` is
+    # "function" and falls through to the free-function path below instead of
     # being hijacked by the builtin handling.
-    if _call_kind == CallKind.BUILTIN {
+    if _call_kind == "builtin" {
         # Handle print() specially
         if func_name == "print" {
             return self._emit_print(nd);
@@ -119,27 +215,30 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
             }
             return ir.Constant(ir.DoubleType(), 0.0);
         }
+        # isinstance(x, T): lower to a JacVal tag comparison. Works on an `any`
+        # operand (runtime tag) and a concrete one (the box folds to a constant
+        # tag). The engine behind generic-over-`any` dispatch (#6421).
+        if func_name == "isinstance" {
+            return self._emit_isinstance(nd);
+        }
         # Handle len() builtin for lists, dicts, sets, and strings
         if func_name == "len" {
             params_l = nd.params or [];
             if params_l {
-                arg_name = self._get_name(params_l[0]);
                 elem_type_name: (str | None) = None;
-                if arg_name is not None and arg_name in self.var_list_elem_type {
-                    elem_type_name = self.var_list_elem_type[arg_name];
-                }
                 arg_val = self._codegen_expr(params_l[0]);
                 if arg_val is not None {
                     _len_result: (ir.Value | None) = None;
-                    # Check for dict type first
-                    if arg_name is not None and arg_name in self.var_dict_type {
-                        dict_key = self.var_dict_type[arg_name];
-                        helpers = self.dict_helpers.get(dict_key);
-                        if helpers is not None {
-                            _len_result = self.builder.call(
-                                helpers["len"], [arg_val], name="dict.len"
-                            );
-                        }
+                    # len() on an `any` (boxed JacVal): tag-dispatch at runtime so
+                    # a generic walker can measure a list/dict/set/str pulled out
+                    # of a loads() result without narrowing it first. (#6943 NA-5)
+                    if self?.jacval_type and arg_val.type == self.jacval_type {
+                        _len_result = self._codegen_any_len(arg_val);
+                    }
+                    # bytes: read the explicit length field (never strlen — the
+                    # buffer may contain embedded NULs).
+                    if _len_result is None and self._is_bytes_value(arg_val) {
+                        _len_result = self._bytes_len_val(arg_val);
                     }
                     # Check for dict type by inferring from value
                     if _len_result is None {
@@ -152,18 +251,6 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
                                 );
                                 break;
                             }
-                        }
-                    }
-                    # Check for set type
-                    if _len_result is None
-                    and arg_name is not None
-                    and arg_name in self.var_set_elem_type {
-                        set_key = self.var_set_elem_type[arg_name];
-                        helpers = self.set_helpers.get(set_key);
-                        if helpers is not None {
-                            _len_result = self.builder.call(
-                                helpers["len"], [arg_val], name="set.len"
-                            );
                         }
                     }
                     # Check for set type by inferring from value
@@ -213,6 +300,23 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
                     }
                 }
             }
+        }
+        # First-class iterator builtins (#6403 phase 2). `iter(x)` boxes a
+        # JacIter over x (its element type flows from the checker's
+        # Iterator[T]); `next(it)` pulls one element and raises StopIteration
+        # at exhaustion. For-loop driving of map/filter/... and of a stored
+        # iterator is handled earlier in `_try_iter_protocol_for`.
+        if func_name == "iter" {
+            built = self._build_iter_from_expr(nd);
+            if built is not None {
+                (iter_val, _ename, _etype) = built;
+                return iter_val;
+            }
+            self._emit_unsupported_builtin_call(nd, "iter");
+            return None;
+        }
+        if func_name == "next" {
+            return self._codegen_next(nd);
         }
         # Handle complex() constructor: complex(real, imag) -> JacComplex*
         if func_name == "complex" {
@@ -695,17 +799,10 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
         # reaches this point and is materialized from the assignment's type
         # annotation; builtin calls that truly cannot be lowered are caught at
         # their dispatch site above (where the arguments are known).
-        if _call_kind != CallKind.BUILTIN {
+        if _call_kind != "builtin" {
             self.emit(E5090, node_override=nd, kind="function", name=func_name);
         }
         return None;
-    }
-    # Propagate return type hint for for-loop element resolution
-    if func_name in self.method_ast_sigs {
-        fn_sig = self.method_ast_sigs[func_name];
-        if fn_sig?.return_type and fn_sig.return_type is not None {
-            self._last_type_node_hint = fn_sig.return_type;
-        }
     }
     # Build arguments
     args: list[ir.Value] = [];
@@ -716,26 +813,9 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
             args.append(val);
         }
     }
-    # Fill in missing optional parameters with their AST default values
-    if func_name in self.method_ast_sigs and len(args) < len(func.args) {
-        sig_params = self.method_ast_sigs[func_name].get_parameters();
-        for pix in range(len(args), len(sig_params)) {
-            p = sig_params[pix];
-            expected_type = func.args[len(args)].type
-                if len(args) < len(func.args)
-                else ir.IntType(64);
-            if p.value is not None {
-                dval = self._codegen_expr(p.value);
-                if dval is not None {
-                    args.append(self._coerce_type(dval, expected_type));
-                } else {
-                    args.append(ir.Constant(expected_type, 0));
-                }
-            } else {
-                args.append(ir.Constant(expected_type, 0));
-            }
-        }
-    }
+    # Fill in missing optional parameters with the resolved callee's
+    # default-value exprs (checker-stamped fact, not a name-keyed cache)
+    self._fill_default_args(nd, func, args, skip_self=False);
     # Foreign (clib) calls: marshal per the recorded System V ABI plan. This is
     # the single authority for foreign argument/return lowering — it slices
     # struct args into register pieces / byval pointers and reconstructs the
@@ -744,12 +824,40 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
         return self._codegen_clib_call(func, func_name, args);
     }
     # Type coerce arguments
+    _is_foreign = func_name in self.clib_extern_names;
     coerced: list[ir.Value] = [];
+    # `release_args` mirrors `coerced` but holds the value whose ownership we
+    # account for at this seam — the same as `coerced` except for a foreign
+    # bytes argument, where `coerced` is the interior data pointer (unowned)
+    # while the owned temporary is the original jacbytes value.
+    release_args: list[ir.Value] = [];
+    _i8ptr = ir.IntType(8).as_pointer();
     for (i, arg) in enumerate(args) {
-        if i < len(func.args) {
-            coerced.append(self._coerce_type(arg, func.args[i].type));
+        if (
+            _is_foreign
+            and self._is_bytes_value(arg)
+            and i < len(func.args)
+            and func.args[i].type == _i8ptr
+        ) {
+            # A `bytes` / `bytearray` argument to a foreign (C) function is passed
+            # as its raw data pointer — the C buffer-protocol convention — not the
+            # internal { i64 len, [n x i8] } struct pointer. The element count
+            # travels separately through the C API's explicit length parameter.
+            # Without this, C reads the 8-byte length header as leading data
+            # (#6940 Phase 2: the FFI floor under na_stdlib zlib/zipfile).
+            # Gate on the declared parameter actually being an `i8*`: a bytes
+            # value handed to a non-pointer slot (e.g. an `i32`) must fall through
+            # to _coerce_type so the type mismatch surfaces instead of silently
+            # producing a pointer.
+            coerced.append(self._bytes_data_ptr(arg));
+            release_args.append(arg);
+        } elif i < len(func.args) {
+            _c = self._coerce_type(arg, func.args[i].type);
+            coerced.append(_c);
+            release_args.append(_c);
         } else {
             coerced.append(arg);
+            release_args.append(arg);
         }
     }
     result = self.builder.call(func, coerced, name=f"call.{func_name}");
@@ -757,7 +865,7 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
     # release any owned temporaries we passed so they don't leak (e.g.
     # `f([(-1,-1), (1,1)])` — the list literal, and any value-tuple boxed by
     # _coerce_type, are owned temporaries borrowed by the callee).
-    self._release_owned_args(coerced, op="call_arg");
+    self._release_owned_args(release_args, op="call_arg");
     # Box clib extern struct return values: C returns by value (or ABI int), Jac uses pointers
     if func_name in self.clib_extern_names {
         # Check ABI integer return types first (small structs coerced to int)
@@ -779,12 +887,232 @@ impl NaIRGenPass._codegen_call(nd: uni.FuncCall) -> (ir.Value | None) {
             }
         }
     }
-    # every pointer returned by a user function is owned (either via RETAIN
-    # inside the callee for borrowed refs, or via skip_var donation for named locals).
-    # Mark the call result owned so the caller's assign handler skips an extra RETAIN.
-    if isinstance(result.type, ir.PointerType) {
-        self._mark_owned(result);
+    # Every pointer returned by a user function carries a +1 (RETAIN inside
+    # the callee for borrowed refs, or skip-var donation for named locals);
+    # ownership is applied at the _codegen_expr seam from the central
+    # invariant (compiler/ownership.jac).
+    return result;
+}
+# ─── isinstance-on-`any` (JacVal tag dispatch) ───────────────
+"""JacVal tag(s) that satisfy `isinstance(x, name)`.
+
+Keyed off the box scheme in `_box_to_jacval`. `int` also accepts `bool` (tag 7)
+because CPython treats `bool` as a subtype of `int`; `bool` accepts only tag 7.
+An empty result means the type operand is not lowerable here (e.g. a user
+archetype), and the caller surfaces a structured error instead of miscompiling.
+"""
+impl NaIRGenPass._jacval_tags_for_type(name: str) -> list[int] {
+    if name == "int" {
+        return [0, 7];
     }
+    if name == "bool" {
+        return [7];
+    }
+    if name == "float" {
+        return [1];
+    }
+    if name == "str" {
+        return [2];
+    }
+    if name == "list" {
+        return [3];
+    }
+    if name == "dict" {
+        return [4];
+    }
+    if name == "set" {
+        return [5];
+    }
+    return [];
+}
+
+"""Lower `isinstance(operand, T)` to a JacVal tag comparison.
+
+`T` is a type name or a tuple of type names (`isinstance(x, (int, str))`). The
+operand is boxed once — a no-op for an already-boxed `any`, and a constant the
+optimizer folds for a concrete value — then its tag byte is compared against the
+tag set for `T`. Returns an `i1`; `None` (with a structured error) when `T` names
+a type that has no native tag.
+"""
+impl NaIRGenPass._emit_isinstance(nd: uni.FuncCall) -> (ir.Value | None) {
+    i1 = ir.IntType(1);
+    i8 = ir.IntType(8);
+    params = nd.params or [];
+    if len(params) < 2 {
+        self._emit_unsupported_builtin_call(nd, "isinstance");
+        return None;
+    }
+    operand = self._codegen_expr(params[0]);
+    if operand is None {
+        return None;
+    }
+    # Collect the type name(s): a bare name or a tuple of names.
+    type_arg = params[1];
+    names: list[str] = [];
+    if isinstance(type_arg, uni.TupleVal) {
+        for v in (type_arg.values or []) {
+            nm = self._get_name(v);
+            if nm is not None {
+                names.append(nm);
+            }
+        }
+    } else {
+        nm = self._get_name(type_arg);
+        if nm is not None {
+            names.append(nm);
+        }
+    }
+    tags: list[int] = [];
+    unresolved: list[str] = [];
+    for nm in names {
+        nm_tags = self._jacval_tags_for_type(nm);
+        if not nm_tags {
+            unresolved.append(nm);
+        }
+        for t in nm_tags {
+            if t not in tags {
+                tags.append(t);
+            }
+        }
+    }
+    if unresolved {
+        if not tags {
+            # Every target name lacks a builtin JacVal tag: lower as a user
+            # archetype check via vtable-pointer identity. The helper surfaces
+            # E5090 itself if a name resolves to no native vtable.
+            return self._emit_isinstance_user(nd, operand, unresolved);
+        }
+        # Mixed builtin + user names (`isinstance(x, (int, MyNode))`) cannot be
+        # lowered soundly: the operand is either a boxed scalar or a struct
+        # pointer, never both. Surface a structured error rather than silently
+        # dropping the unsupported arm.
+        self._emit_unsupported_builtin_call(nd, "isinstance");
+        return None;
+    }
+    if not tags {
+        self._emit_unsupported_builtin_call(nd, "isinstance");
+        return None;
+    }
+    boxed = self._box_to_jacval(operand);
+    tag = self.builder.extract_value(boxed, 0, name="isinst.tag");
+    result: (ir.Value | None) = None;
+    for t in sorted(tags) {
+        cmp = self.builder.icmp_unsigned(
+            "==", tag, ir.Constant(i8, t), name="isinst.cmp"
+        );
+        result = cmp
+            if result is None
+            else self.builder.or_(result, cmp, name="isinst.or");
+    }
+    # Only the tag was inspected; release an owned pointer temporary so e.g.
+    # `isinstance([1, 2, 3], list)` does not leak the literal.
+    if isinstance(operand.type, ir.PointerType) and self._is_owned(operand) {
+        self._emit_rc_release_simple(operand, op="isinstance_arg", loc="");
+    }
+    return result;
+}
+
+"""Lower `isinstance(operand, T)` where `T` (or every member of a tuple of
+types) is a user archetype, via vtable-pointer identity.
+
+Every archetype that participates in inheritance carries its class's `__vtable`
+pointer at field 0 (set at allocation), so the runtime vtable pointer uniquely
+identifies the concrete class. The check compares the operand's field-0 pointer
+against the vtables of `T` and *all its subclasses* -- the subtype set is
+resolved statically from the C3 MRO, making this inheritance- and
+multiple-inheritance-safe with no new runtime metadata. `isinstance(None, T)` is
+False (guarded, never a deref). Returns an `i1`; `None` with a structured error
+when `operand` carries no static struct or no target resolves to a native
+vtable.
+"""
+impl NaIRGenPass._emit_isinstance_user(
+    nd: uni.FuncCall, operand: ir.Value, names: list[str]
+) -> (ir.Value | None) {
+    i1 = ir.IntType(1);
+    i8 = ir.IntType(8);
+    i32 = ir.IntType(32);
+    # The operand must be a struct pointer carrying a vtable at field 0; an
+    # `any`-typed (boxed) operand has no static struct to read.
+    if not isinstance(operand.type, ir.PointerType) {
+        self._emit_unsupported_builtin_call(nd, "isinstance");
+        return None;
+    }
+    # Concrete target set: every native archetype with an emitted vtable whose
+    # MRO contains a requested name (i.e. the name itself or a subclass of it).
+    # Iterating a dict already yields unique keys and the inner `break` stops at
+    # the first matching name, so no extra dedup is needed.
+    target_vtables: list[ir.GlobalVariable] = [];
+    for cand in self.vtable_globals {
+        cand_mro = self._mro_of(cand);
+        for name in names {
+            if name in cand_mro {
+                target_vtables.append(self.vtable_globals[cand]);
+                break;
+            }
+        }
+    }
+    if not target_vtables {
+        # No native subclass with a vtable matches (e.g. a foreign or
+        # non-polymorphic type name) -- cannot lower soundly.
+        self._emit_unsupported_builtin_call(nd, "isinstance");
+        return None;
+    }
+    # Field 0 is the vtable slot only when the operand's static struct has a
+    # vtable; for a plain struct it is the first user-declared field and must
+    # NOT be read as a vtable pointer. Resolve the operand's static struct to
+    # decide how (and whether) to read field 0.
+    struct_name = self._struct_name_of(nd.params[0] if nd.params else None);
+    if struct_name is None or struct_name not in self.struct_types {
+        # Unknown / foreign / not-lowered operand: cannot read field 0 soundly.
+        self._emit_unsupported_builtin_call(nd, "isinstance");
+        return None;
+    }
+    if struct_name not in self.vtable_globals {
+        # A locally lowered struct with no vtable participates in no inheritance,
+        # so it can never be an instance of a vtable-bearing target: the result
+        # is statically False (and field 0 is a user field, not a vtable slot).
+        if self._is_owned(operand) {
+            self._emit_rc_release_simple(operand, op="isinstance_arg", loc="");
+        }
+        return ir.Constant(i1, 0);
+    }
+    # Guard the field-0 load behind a null check: `isinstance(None, T)` is
+    # False and must not dereference.
+    pre_bb = self.builder.block;
+    null_ptr = ir.Constant(operand.type, None);
+    is_null = self.builder.icmp_unsigned(
+        "==", operand, null_ptr, name="isinst.null.chk"
+    );
+    nonnull_bb = self.builder.append_basic_block(name="isinst.nonnull");
+    merge_bb = self.builder.append_basic_block(name="isinst.merge");
+    self.builder.cbranch(is_null, merge_bb, nonnull_bb);
+    # Non-null: read the vtable pointer at field 0 and OR-compare it against
+    # every concrete target vtable base.
+    self.builder.position_at_end(nonnull_bb);
+    i8_pp = i8.as_pointer().as_pointer();
+    op_as = self.builder.bitcast(operand, i8_pp.as_pointer(), name="isinst.obj");
+    vptr = self.builder.load(op_as, name="isinst.vptr");
+    cmp: (ir.Value | None) = None;
+    for vt in target_vtables {
+        vt_base = self.builder.gep(
+            vt, [ir.Constant(i32, 0), ir.Constant(i32, 0)], name="isinst.vt.base"
+        );
+        eq = self.builder.icmp_unsigned("==", vptr, vt_base, name="isinst.eq");
+        cmp = eq if cmp is None else self.builder.or_(cmp, eq, name="isinst.or");
+    }
+    # Only the vtable pointer was inspected; release an owned operand temporary
+    # exactly once (e.g. `isinstance(make_node(), Leaf)`). Owned temporaries are
+    # never null, so this runs only on the non-null path.
+    if self._is_owned(operand) {
+        self._emit_rc_release_simple(operand, op="isinstance_arg", loc="");
+    }
+    end_nonnull = self.builder.block;
+    self.builder.branch(merge_bb);
+    # Merge: False when the operand was null, else the comparison result.
+    self.builder.position_at_end(merge_bb);
+    result = self.builder.phi(i1, name="isinst.result");
+    result.add_incoming(ir.Constant(i1, 0), pre_bb);
+    result.add_incoming(cmp, end_nonnull);
     return result;
 }
 # ─── External Function Support ───────────────────────────────

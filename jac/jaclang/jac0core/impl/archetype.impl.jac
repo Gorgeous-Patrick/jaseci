@@ -319,6 +319,22 @@ impl EdgeAnchor.__getstate__ -> dict[(str, object)] {
     return state;
 }
 
+"""Remove the given incident edge from this node (no sync-status check)."""
+impl NodeAnchor.remove_edge(`edge: EdgeAnchor) -> None {
+    for (idx, ed) in enumerate(self.edges) {
+        if (ed.id == `edge.id) {
+            self.edges.pop(idx);
+            break;
+        }
+    }
+}
+
+"""Detach this edge from its source and target nodes."""
+impl EdgeAnchor.detach -> None {
+    self.source.remove_edge(self);
+    self.target.remove_edge(self);
+}
+
 """Create default anchor."""
 @cached_property
 impl Archetype.__jac__ -> Anchor {
@@ -359,6 +375,17 @@ impl GenericEdge.__repr__ -> str {
 @cached_property
 impl Root.__jac__ -> NodeAnchor {
     return NodeAnchor(archetype=self, persistent=True, edges=[]);
+}
+
+"""Resolve `root.shared` (the deployment's shared root) on attribute miss."""
+impl Root.__getattr__(name: str) -> Root {
+    if name == 'shared' {
+        # Lazy import: archetype loads before the runtime during bootstrap.
+        import from jaclang.jac0core.runtime { JacRuntime }
+        import from typing { cast }
+        return cast(Root, JacRuntime.get_shared_root());
+    }
+    raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'");
 }
 
 """Override repr for archetype."""
