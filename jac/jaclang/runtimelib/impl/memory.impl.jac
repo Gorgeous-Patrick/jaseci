@@ -2655,14 +2655,26 @@ impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
         if (anchor := self.__mem__.get(id)) {
             result[id] = anchor;
             _tiered_access_log(id, "L1", anchor);
-        } else {
-            anchor = self.promote_raw(id);
-            if anchor is not None {
-                result[id] = anchor;
-                _tiered_access_log(id, "L1", anchor);
-                continue;
-            }
+            continue;
+        }
+        anchor = self.promote_raw(id);
+        if anchor is not None {
+            result[id] = anchor;
+            _tiered_access_log(id, "L1", anchor);
+            continue;
         }
         missing_ids.append(id);
     }
+    if missing_ids and self.l3 {
+        for mid in missing_ids {
+            if (anchor := self.l3.get(mid)) {
+                self.__mem__[anchor.id] = anchor;
+                if self.l2 {
+                    self.l2.put(anchor);
+                }
+                result[anchor.id] = anchor;
+            }
+        }
+    }
+    return result;
 }
