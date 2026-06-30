@@ -1,5 +1,4 @@
 import logging;
-import yappi;
 import pstats;
 import threading;
 import from jaclang.cli.console { console }
@@ -13,7 +12,30 @@ import from jaclang.runtimelib.auth_models {
 }
 
 glob _client_error_logger = logging.getLogger("jaclang.client_errors"),
-     _jac_profiler_lock: threading.Lock = threading.Lock();
+     _jac_profiler_lock: threading.Lock = threading.Lock(),
+     # Lazy-loaded yappi module. yappi is a C extension that re-enables
+     # the GIL on free-threaded CPython, so we defer the import until a
+     # profile request actually arrives AND `[serve] profile = true` is
+     # set in jac.toml.
+     _yappi_module: any = None;
+
+def _ensure_yappi -> any {
+    global _yappi_module;
+    if _yappi_module is None {
+        import yappi;
+        _yappi_module = yappi;
+    }
+    return _yappi_module;
+}
+
+def _resolve_profile_dir -> (str | None) {
+    import from jaclang.project.config { get_config }
+    _cfg = get_config();
+    if _cfg is None or not _cfg.serve.profile {
+        return None;
+    }
+    return os.environ.get("JAC_PROFILE_DIR");
+}
 
 impl UserManager.postinit -> None {
     import sqlite3;
@@ -460,7 +482,8 @@ impl ExecutionManager.spawn_walker_sync(
     (ctx, req_token) = await _begin_request_context(root_id);
     call_token = ctx.call_state.set(CallState());
     call_state = ctx.call_state.get();
-    _profile_dir = os.environ.get("JAC_PROFILE_DIR");
+    _profile_dir = _resolve_profile_dir();
+    _yappi = _ensure_yappi() if _profile_dir else None;
     try {
         `walker = walker_cls(**fields);
         if target_node_id {
@@ -477,8 +500,8 @@ impl ExecutionManager.spawn_walker_sync(
         }
         if _profile_dir {
             with _jac_profiler_lock {
-                yappi.set_clock_type("wall");
-                yappi.start(builtins=False);
+                _yappi.set_clock_type("wall");
+                _yappi.start(builtins=False);
             }
         }
         _jac_walker_execute();
@@ -491,7 +514,7 @@ impl ExecutionManager.spawn_walker_sync(
         }
         if _profile_dir {
             with _jac_profiler_lock {
-                yappi.stop();
+                _yappi.stop();
             }
         }
         return await self._finalize_call_response(call_state, result);
@@ -506,14 +529,14 @@ impl ExecutionManager.spawn_walker_sync(
         ctx.call_state.reset(call_token);
         if _profile_dir {
             with _jac_profiler_lock {
-                if yappi.is_running() {
-                    yappi.stop();
+                if _yappi.is_running() {
+                    _yappi.stop();
                 }
                 os.makedirs(_profile_dir, exist_ok=True);
                 _prof_path = os.path.join(_profile_dir, "jac_server.prof");
-                _func_stats = yappi.get_func_stats();
+                _func_stats = _yappi.get_func_stats();
                 _func_stats.save(_prof_path, type="pstat");
-                yappi.clear_stats();
+                _yappi.clear_stats();
                 _txt_path = os.path.join(_profile_dir, "jac_server.txt");
                 try {
                     with open(_txt_path, "w") as _f {
@@ -547,7 +570,8 @@ impl ExecutionManager.spawn_walker_async(
     (ctx, req_token) = await _begin_request_context(root_id);
     call_token = ctx.call_state.set(CallState());
     call_state = ctx.call_state.get();
-    _profile_dir = os.environ.get("JAC_PROFILE_DIR");
+    _profile_dir = _resolve_profile_dir();
+    _yappi = _ensure_yappi() if _profile_dir else None;
     try {
         `walker = walker_cls(**fields);
         if target_node_id {
@@ -564,8 +588,8 @@ impl ExecutionManager.spawn_walker_async(
         }
         if _profile_dir {
             with _jac_profiler_lock {
-                yappi.set_clock_type("wall");
-                yappi.start(builtins=False);
+                _yappi.set_clock_type("wall");
+                _yappi.start(builtins=False);
             }
         }
         _jac_walker_execute();
@@ -577,7 +601,7 @@ impl ExecutionManager.spawn_walker_async(
         }
         if _profile_dir {
             with _jac_profiler_lock {
-                yappi.stop();
+                _yappi.stop();
             }
         }
         return await self._finalize_call_response(call_state, result);
@@ -592,14 +616,14 @@ impl ExecutionManager.spawn_walker_async(
         ctx.call_state.reset(call_token);
         if _profile_dir {
             with _jac_profiler_lock {
-                if yappi.is_running() {
-                    yappi.stop();
+                if _yappi.is_running() {
+                    _yappi.stop();
                 }
                 os.makedirs(_profile_dir, exist_ok=True);
                 _prof_path = os.path.join(_profile_dir, "jac_server.prof");
-                _func_stats = yappi.get_func_stats();
+                _func_stats = _yappi.get_func_stats();
                 _func_stats.save(_prof_path, type="pstat");
-                yappi.clear_stats();
+                _yappi.clear_stats();
                 _txt_path = os.path.join(_profile_dir, "jac_server.txt");
                 try {
                     with open(_txt_path, "w") as _f {

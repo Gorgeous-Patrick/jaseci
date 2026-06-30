@@ -90,7 +90,12 @@ obj ServeConfig {
         session: str = "",
         main: bool = True,
         cl_route_prefix: str = "cl",
-        base_route_app: str = "";
+        base_route_app: str = "",
+        # Per-walker wall-clock profiling via yappi. yappi is a C extension
+        # that re-enables the GIL on free-threaded CPython, so the import
+        # is deferred to first profile request when this flag is true; off
+        # by default keeps `jac start` GIL-clean on 3.14t.
+        profile: bool = False;
 }
 
 """Format command defaults from [format] section."""

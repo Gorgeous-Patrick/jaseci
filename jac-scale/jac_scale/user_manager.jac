@@ -9,11 +9,7 @@ import from jac_scale.enums { Platforms, Operations }
 import from jac_scale.utils { generate_random_password, is_safe_loopback_redirect }
 import from jac_scale.config_loader { get_scale_config }
 import from jac_scale.sso.provider { SSOProvider, SSOUserInfo }
-import from jac_scale.identity_storage {
-    IdentityStorage,
-    MongoIdentityStorage,
-    SqliteIdentityStorage
-}
+import from jac_scale.identity_storage { IdentityStorage, MongoIdentityStorage }
 import from jaclang.jac0core.constant { Constants as Con }
 
 # Load configuration

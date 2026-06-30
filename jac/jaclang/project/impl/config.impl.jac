@@ -888,7 +888,8 @@ impl _parse_toml_data(
             session=serve_data.get("session", ""),
             main=serve_data.get("main", True),
             cl_route_prefix=serve_data.get("cl_route_prefix", "cl"),
-            base_route_app=serve_data.get("base_route_app", "")
+            base_route_app=serve_data.get("base_route_app", ""),
+            profile=serve_data.get("profile", False)
         );
     }
     if "format" in data {

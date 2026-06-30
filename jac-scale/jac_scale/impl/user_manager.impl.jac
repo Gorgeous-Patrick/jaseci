@@ -27,6 +27,10 @@ impl JacScaleUserManager.postinit -> None {
         self._identity_storage.ensure_indexes();
     } else {
         import os;
+        # Lazy import: SqliteIdentityStorage drags in SQLAlchemy, whose
+        # Cython extensions re-enable the GIL under free-threaded CPython.
+        # Mongo deployments never reach this branch and stay GIL-off.
+        import from jac_scale.identity_storage_sqlite { SqliteIdentityStorage }
         # Honor JAC_DATA_PATH so frozen sidecars on read-only system paths
         # (e.g. /usr/lib/<app>/jac for a .deb) write the SQLite store under
         # the user's data dir instead of base_path. Falls back to base_path
