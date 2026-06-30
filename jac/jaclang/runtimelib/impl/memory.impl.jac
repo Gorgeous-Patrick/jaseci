@@ -1854,12 +1854,20 @@ impl TieredMemory.reset_l3_fetch_count -> None {
     }
 }
 
-"""Prefetch: batch-load anchors from L3 (DB) into L2 (cache).
+"""Prefetch: batch-load anchors from L3 (DB) into L1 raw store.
 
-Uses bulk_exists (1 Redis pipeline) to find missing IDs, find_raw (1 MongoDB
-$in query) to batch-fetch from L3, and bulk_put_raw (1 Redis MSET) to store.
-Total: 3 round-trips regardless of ID count. No-op if L2 is unavailable.
-"""
+Pipeline (per call):
+  1. find_raw  — single MongoDB $in query, returns raw docs.
+  2. store_raw — populate `__raw__` so the walker can immediately
+                 promote_raw on first access. This step gates walker
+                 visibility, so it runs synchronously before the L2
+                 write.
+  3. bulk_put_raw — Redis MSET, dispatched on a daemon thread. Redis
+                    is L2 (a write-through cache); the walker doesn't
+                    need to wait on it, and any reader that misses L2
+                    just falls through to MongoDB (L3, source of truth).
+
+No-op if L2 is unavailable."""
 impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if self.l3 is None or self.l2 is None {
         return;
@@ -1869,15 +1877,21 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
         return;
     }
     raw_items = list(self.l3.find_raw(id_list));
-    if raw_items {
-        self.l2.bulk_put_raw(raw_items);
-        # Store raw data for lazy deserialization (thread-safe).
-        # No CPU-bound Serializer.deserialize here — deserialization
-        # happens on first access via promote_raw().
-        for (uid, data) in raw_items {
-            self.store_raw(uid, data);
-        }
+    if not raw_items {
+        return;
     }
+    # L1 first — opens the race window for the walker before we touch L2.
+    for (uid, data) in raw_items {
+        self.store_raw(uid, data);
+    }
+    # Fire-and-forget Redis write. raw_items is a fresh local list so
+    # there's no aliasing concern. If the process exits before the daemon
+    # finishes, Redis just misses these keys until the next prefetch
+    # repopulates them.
+    import threading;
+    threading.Thread(
+        target=self.l2.bulk_put_raw, args=(raw_items, ), daemon=True
+    ).start();
 }
 
 

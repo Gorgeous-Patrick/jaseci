@@ -295,6 +295,31 @@ def _mp_prefetch_target(prefetch_ids: list, pipe_send: any) {
 }
 
 
+"""Shard `items` across `n` workers using stride (round-robin).
+
+Worker k receives `items[k::n]` — every n-th element starting at k. This
+interleaves heterogeneous BFS-ordered IDs so each worker gets a
+representative mix of anchor types (Roots, Profiles, Tweets, edges)
+rather than a single contiguous slice that may be dominated by one
+type. Trade-off: breaks index page locality on the L3 side; we accept
+that to keep per-worker CPU cost (deserialize/hash) balanced under
+free-threaded CPython.
+
+Returns up to `n` non-empty sub-lists."""
+def _chunk_evenly(items: list, n: int) -> list {
+    if n <= 1 or len(items) <= 1 {
+        return [items];
+    }
+    _out: list = [];
+    for _k in range(n) {
+        _shard = items[_k::n];
+        if _shard {
+            _out.append(_shard);
+        }
+    }
+    return _out;
+}
+
 """Run `ctx.mem.prefetch(prefetch_ids)` in the strategy chosen by
 `cfg.run.async_prefetch`:
 
@@ -309,15 +334,32 @@ def _mp_prefetch_target(prefetch_ids: list, pipe_send: any) {
                 spawn but the actual L1 transfer is one pickle round-trip
                 instead of N IPC calls.
 
+`workers` shards `prefetch_ids` across N parallel workers (one shard per
+worker). Default 1 keeps the historical single-worker behavior. Sharding
+applies to "" (sync, all workers run in threads and the caller joins them
+before returning) and "thread" (each worker is its own daemon thread).
+"process" mode ignores `workers` for now — multi-process sharding requires
+extending the SharedMemory protocol.
+
 Unknown values fall back to sync to avoid silently skipping the prefetch."""
-def _dispatch_prefetch(ctx: any, prefetch_ids: list, mode: str) -> None {
+def _dispatch_prefetch(
+    ctx: any, prefetch_ids: list, mode: str, workers: int = 1
+) -> None {
     if mode == "thread" {
         import threading;
-        _t = threading.Thread(
-            target=ctx.mem.prefetch, args=(prefetch_ids, ), daemon=True,
-        );
-        _t.start();
-        ctx.mem._prefetch_thread = _t;
+        _shards = _chunk_evenly(prefetch_ids, workers);
+        _threads: list = [];
+        for _shard in _shards {
+            _t = threading.Thread(
+                target=ctx.mem.prefetch, args=(_shard, ), daemon=True,
+            );
+            _t.start();
+            _threads.append(_t);
+        }
+        # Keep the existing single-thread attribute name for back-compat;
+        # add the plural form for callers that want to fan out joins.
+        ctx.mem._prefetch_thread = _threads[0] if _threads else None;
+        ctx.mem._prefetch_threads = _threads;
         return;
     }
     if mode == "process" {
@@ -364,7 +406,25 @@ def _dispatch_prefetch(ctx: any, prefetch_ids: list, mode: str) -> None {
         ctx.mem._prefetch_thread = _p;
         return;
     }
-    ctx.mem.prefetch(prefetch_ids);
+    # Sync mode. Single-worker default reuses the caller's thread so we
+    # avoid the threading import + start overhead. With workers > 1 we
+    # spawn N threads and join them — the caller still blocks until all
+    # shards finish, but the L3 calls run in parallel.
+    if workers <= 1 {
+        ctx.mem.prefetch(prefetch_ids);
+        return;
+    }
+    import threading;
+    _shards = _chunk_evenly(prefetch_ids, workers);
+    _threads: list = [];
+    for _shard in _shards {
+        _t = threading.Thread(target=ctx.mem.prefetch, args=(_shard, ));
+        _t.start();
+        _threads.append(_t);
+    }
+    for _t in _threads {
+        _t.join();
+    }
 }
 
 

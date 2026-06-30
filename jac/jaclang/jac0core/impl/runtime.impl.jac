@@ -422,12 +422,18 @@ impl JacWalker.spawn_call(
                     if prefetch_ids {
                         ctx = JacRuntimeInterface.get_context();
                         prefetch_start = _perf_counter();
-                        _dispatch_prefetch(ctx, prefetch_ids, cfg.run.async_prefetch);
+                        _dispatch_prefetch(
+                            ctx,
+                            prefetch_ids,
+                            cfg.run.async_prefetch,
+                            cfg.run.prefetch_workers
+                        );
                         prefetch_end = _perf_counter();
                         prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
                         import sys as _sys;
                         logger.info(
                             f"[PREFETCH] mode={cfg.run.async_prefetch or 'sync'} "
+                            f"workers={cfg.run.prefetch_workers} "
                             f"ids={len(prefetch_ids)} "
                             f"dispatch_ms={prefetch_time_ms:.2f} "
                             f"gil_enabled={_sys._is_gil_enabled()}"
@@ -532,11 +538,17 @@ impl JacWalker.async_spawn_call(
                     if prefetch_ids {
                         ctx = JacRuntimeInterface.get_context();
                         prefetch_start = _perf_counter();
-                        _dispatch_prefetch(ctx, prefetch_ids, cfg.run.async_prefetch);
+                        _dispatch_prefetch(
+                            ctx,
+                            prefetch_ids,
+                            cfg.run.async_prefetch,
+                            cfg.run.prefetch_workers
+                        );
                         prefetch_end = _perf_counter();
                         import sys as _sys;
                         logger.info(
                             f"[PREFETCH] mode={cfg.run.async_prefetch or 'sync'} "
+                            f"workers={cfg.run.prefetch_workers} "
                             f"ids={len(prefetch_ids)} "
                             f"dispatch_ms={(prefetch_end - prefetch_start) * 1000:.2f} "
                             f"gil_enabled={_sys._is_gil_enabled()}"

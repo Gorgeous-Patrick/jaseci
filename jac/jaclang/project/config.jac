@@ -56,6 +56,16 @@ obj RunConfig {
         # "process" — daemon multiprocessing.Process (overlap across cores,
         #            with spawn cost ~100-500ms per call)
         async_prefetch: str = "",
+        # Degree of parallelism for the prefetch. 1 (default) = single
+        # worker, matching the historical behavior. N > 1 = split the
+        # prefetch_ids into N contiguous chunks and run N workers in
+        # parallel. Applies under both async_prefetch="" (block on all
+        # workers) and async_prefetch="thread" (fire-and-forget N
+        # threads). Useful when prefetch is I/O-bound enough that one
+        # connection can't saturate the L3 backend within the walker's
+        # CPU budget — particularly under free-threaded CPython where
+        # multiple threads make real progress in parallel.
+        prefetch_workers: int = 1,
         cross_root_resolve: bool = False,
         access_log: str = "";
 
