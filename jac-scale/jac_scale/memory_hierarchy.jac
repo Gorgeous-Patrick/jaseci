@@ -143,8 +143,11 @@ obj MongoBackend(PersistentMemory) {
     def ensure_indexes -> None;
     def sync -> set;
     def bulk_put(anchors: Iterable[Anchor]) -> None;
-    """Batch fetch raw serialized data (skip deserialization). Returns (UUID, dict) pairs."""
-    def find_raw(ids: Iterable[UUID]) -> list[tuple[UUID, dict]];
+    """Batch fetch raw serialized data (skip deserialization). Yields (UUID, dict)
+    pairs as Mongo's cursor returns them so callers can interleave per-anchor
+    work (e.g. store_raw → L1) with the cursor read instead of blocking on
+    full materialization. Caller may still `list(...)` to materialize."""
+    def find_raw(ids: Iterable[UUID]) -> Iterable[tuple[UUID, dict]];
     # Layer 1+2+3 operator surface
     def inspect_summary -> dict;
     def list_quarantined(limit: int = 50) -> list;

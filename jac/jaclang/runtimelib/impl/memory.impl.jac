@@ -1876,13 +1876,18 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not id_list {
         return;
     }
-    raw_items = list(self.l3.find_raw(id_list));
+    # Stream the cursor into L1 — each anchor becomes promote_raw-visible
+    # as it arrives from Mongo (~5ms for the first ~100-doc batch) instead
+    # of waiting for the full shard to materialize (~15-20ms). Tee into
+    # raw_items along the way so the background Redis MSET still gets a
+    # single bulk write at the end.
+    raw_items: list = [];
+    for (uid, data) in self.l3.find_raw(id_list) {
+        self.store_raw(uid, data);
+        raw_items.append((uid, data));
+    }
     if not raw_items {
         return;
-    }
-    # L1 first — opens the race window for the walker before we touch L2.
-    for (uid, data) in raw_items {
-        self.store_raw(uid, data);
     }
     # Fire-and-forget Redis write. raw_items is a fresh local list so
     # there's no aliasing concern. If the process exits before the daemon

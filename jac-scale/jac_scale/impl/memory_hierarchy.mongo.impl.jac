@@ -919,26 +919,27 @@ impl MongoBackend.bulk_put(anchors: Iterable[Anchor]) -> None {
     }
 }
 
-"""Batch fetch raw serialized data (skip deserialization). Returns (UUID, dict) pairs."""
-impl MongoBackend.find_raw(ids: Iterable[UUID]) -> list[tuple[UUID, dict]] {
+"""Batch fetch raw serialized data (skip deserialization). Yields (UUID, dict)
+pairs as the cursor returns them — does not materialize the full result set —
+so callers (e.g. TieredMemory.prefetch) can run per-anchor work on the first
+batch (~100 docs in ~5ms) while later batches are still in flight."""
+impl MongoBackend.find_raw(ids: Iterable[UUID]) -> Iterable[tuple[UUID, dict]] {
     if self.client is None {
-        return [];
+        return;
     }
     id_list = list(ids);
     if not id_list {
-        return [];
+        return;
     }
     try {
         str_ids = [str(to_uuid(uid)) for uid in id_list];
-        docs = list(self.collection.find({'_id': {'$in': str_ids}}));
-        return [
-            (UUID(doc['_id']), doc['data'])
-            for doc in docs
-            if 'data' in doc
-        ];
+        for doc in self.collection.find({'_id': {'$in': str_ids}}) {
+            if 'data' in doc {
+                yield (UUID(doc['_id']), doc['data']);
+            }
+        }
     } except Exception as e {
         logger.debug(f"MongoDB find_raw failed: {e}");
-        return [];
     }
 }
 
