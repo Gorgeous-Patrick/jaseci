@@ -720,8 +720,13 @@ impl EsastGenPass.exit_dict_val(nd: uni.DictVal) -> None {
             kv_pair.value.gen.es_ast
             or self.sync_loc(es.Literal(value=None), jac_node=kv_pair.value)
         );
+        # Python dict semantics: the key is always an evaluated expression.
+        # For non-literal keys, emit a computed property `[key]: value` so
+        # `{some_var: v}` doesn't get shorthanded to a literal-name property.
+        is_computed = not isinstance(key, es.Literal);
         prop = self.sync_loc(
-            es.Property(key=key, value=value, kind='init'), jac_node=kv_pair
+            es.Property(key=key, value=value, kind='init', computed=is_computed),
+            jac_node=kv_pair
         );
         properties.append(prop);
     }
