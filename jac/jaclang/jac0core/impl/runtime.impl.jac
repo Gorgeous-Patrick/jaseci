@@ -2026,9 +2026,23 @@ impl JacAPIServer.render_page(
         'endpointEffects': introspector._client_manifest.get('endpoint_effects', {})
     };
     safe_initial_json = json.dumps(initial_state).replace('</', '<\\/');
+    # Include <link> to bundled styles.css if Vite emitted one (i.e. the
+    # .cl.jac code did `import "./some.css"`).  Without this, CSS assets
+    # extracted by Vite are never fetched by the browser.
+    import from jaclang.project.config { find_project_root }
+    bp_dir = JacRuntimeInterface.get_context().base_path_dir;
+    base_path_dir = Path(str(bp_dir)) if bp_dir else Path.cwd();
+    project_root_result = find_project_root(base_path_dir);
+    project_root = project_root_result[0] if project_root_result else base_path_dir;
+    css_file = project_root / '.jac' / 'client' / 'dist' / 'styles.css';
+    css_link = (
+        f'<link rel="stylesheet" href="/static/styles.css?hash={bundle_hash}"/>'
+            if css_file.exists()
+            else ''
+    );
     page = f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>{html.escape(
         function_name
-    )}</title></head><body><div id="__jac_root"></div><script id="__jac_init__" type="application/json">{safe_initial_json}</script><script type="module" src="/static/client.js?hash={bundle_hash}"></script></body></html>';
+    )}</title>{css_link}</head><body><div id="root"></div><script id="__jac_init__" type="application/json">{safe_initial_json}</script><script type="module" src="/static/client.js?hash={bundle_hash}"></script></body></html>';
     return {
         'html': page,
         'bundle_hash': bundle_hash,
