@@ -97,9 +97,9 @@ impl _index_edge_into(root_anchor: any, source: any, target: any, `edge: any) ->
         _get_type_mro(target.archetype),
         target_owner
     );
-    idx.add_edge(source.id, target.id, _type_name(`edge.archetype), `edge.id);
+    idx.add_edge(source.id, target.id, _type_name(`edge.archetype));
     if `edge.is_undirected {
-        idx.add_edge(target.id, source.id, _type_name(`edge.archetype), `edge.id);
+        idx.add_edge(target.id, source.id, _type_name(`edge.archetype));
     }
     root_anchor.set_topology_index(idx);
 }
