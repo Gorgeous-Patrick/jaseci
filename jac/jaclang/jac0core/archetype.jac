@@ -188,12 +188,22 @@ class EdgeArchetype(Archetype) {
 """Visit type specification for TTG (Temporal Trace Graph) analysis.
 
 For multihop patterns like [->:Follow:->->:Post:->], edge_chain stores
-the full chain as [(edge_type, node_filter, direction), ...]."""
+the full chain as [(edge_type, node_filter, direction), ...].
+
+`is_visit` is True when the chain came from an explicit `visit` statement
+(walker entries propagate from here, so the BFS recursively expands from
+each target). False when the chain came from an inline edge-ref
+expression (e.g. `mine = [root-->[?:Profile]]` inside `to_view`) or from
+a traced method call — those are reads, not walker visits, so BFS treats
+their targets as leaves: prefetched but not enqueued for further
+expansion. Defaults to True so older / unaware callers keep the old
+(over-expanding) behaviour."""
 @dataclass
 class VisitType {
     has from_node_type: (type | str | None) = None,
         edge_type: (type | str | None) = None,
-        edge_chain: (list[tuple[str | None, str | None, int]] | None) = None;
+        edge_chain: (list[tuple[str | None, str | None, int]] | None) = None,
+        is_visit: bool = True;
 }
 
 """Walker Archetype Protocol."""

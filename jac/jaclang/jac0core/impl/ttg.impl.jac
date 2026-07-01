@@ -249,11 +249,14 @@ impl JacTTGGenerator._trace_method_calls(
                     owner_type = resolved_arch.name.value;
                     for chain in chains {
                         first_edge = chain[0][0] if len(chain) > 0 else None;
+                        # Inline method bodies — same rationale as path
+                        # #2: data reads, not walker visits → leaves.
                         result.append(
                             VisitType(
                                 from_node_type=owner_type,
                                 edge_type=first_edge,
-                                edge_chain=chain if len(chain) > 0 else None
+                                edge_chain=chain if len(chain) > 0 else None,
+                                is_visit=False
                             )
                         );
                     }
@@ -280,7 +283,8 @@ impl JacTTGGenerator._trace_method_calls(
                             VisitType(
                                 from_node_type=owner_type,
                                 edge_type=first_edge,
-                                edge_chain=chain if len(chain) > 0 else None
+                                edge_chain=chain if len(chain) > 0 else None,
+                                is_visit=False
                             )
                         );
                     }
@@ -363,7 +367,11 @@ impl JacTTGGenerator._extract_visits_from_ast(
             }
         }
         # 2. Extract standalone refs expressions in the ability body
-        #    (EdgeRefTrailer not inside a VisitStmt).
+        #    (EdgeRefTrailer not inside a VisitStmt). These are data
+        #    lookups (e.g. `mine = [root-->[?:Profile]]`), not walker
+        #    visits — BFS prefetches their targets but does NOT expand
+        #    further from them. Marked is_visit=False so the BFS treats
+        #    the resolved targets as leaves.
         visit_trailer_ids: set[int] = set();
         for vs in visit_stmts {
             for t in vs.get_all_sub_nodes(uni.EdgeRefTrailer) {
@@ -382,7 +390,8 @@ impl JacTTGGenerator._extract_visits_from_ast(
                     VisitType(
                         from_node_type=node_type_name,
                         edge_type=first_edge,
-                        edge_chain=chain if len(chain) > 0 else None
+                        edge_chain=chain if len(chain) > 0 else None,
+                        is_visit=False
                     )
                 );
             }
@@ -496,15 +505,40 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             }
             _resolve_ms += (_time.perf_counter() - _rc_start) * 1000;
             _resolve_calls += 1;
+            # Walker-visit chains propagate the BFS frontier; data-lookup
+            # chains (inline edge-refs, traced method bodies) produce
+            # leaves that get prefetched but never re-expanded. Without
+            # this distinction the BFS over-expands an order of magnitude
+            # past what the walker will actually read.
+            _is_visit_chain = (not isinstance(v, VisitType)) or v.is_visit;
+            _added = 0;
+            _enqueued = 0;
             for tgt in _results {
                 if tgt not in seen {
                     seen.add(tgt);
                     prefetch.append(tgt);
-                    queue.append(tgt);
+                    _added += 1;
+                    if _is_visit_chain {
+                        queue.append(tgt);
+                        _enqueued += 1;
+                    }
                     if len(prefetch) >= max_length {
                         break;
                     }
                 }
+            }
+            if _added > 0 {
+                _vis_flag = "n/a";
+                if isinstance(v, VisitType) {
+                    _vis_flag = str(v.is_visit);
+                }
+                _dbg.info(
+                    f"[TTG-BFS] cur_type={cur_type} "
+                    f"from={cls._resolve_type_name(v.from_node_type)} "
+                    f"is_visit={_vis_flag} "
+                    f"chain_results={len(_results)} "
+                    f"added={_added} enqueued={_enqueued}"
+                );
             }
             if len(prefetch) >= max_length {
                 break;
@@ -543,6 +577,48 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         f"[TTG-COVERAGE] prefetched_by_type={_type_counts}  "
         f"index_by_type={_idx_type_counts}  max_length={max_length}"
     );
+    # DEBUG: confirm is_visit flag is being seen
+    _is_visit_dbg: list = [];
+    for v in visits {
+        if isinstance(v, VisitType) {
+            _is_visit_dbg.append(
+                (cls._resolve_type_name(v.from_node_type), v.is_visit)
+            );
+        }
+    }
+    _getLogger(__name__).info(f"[TTG-IS-VISIT-DBG] {_is_visit_dbg}");
+    # Optional dump of the prefetch list to disk for offline inspection.
+    # Triggered by `JAC_PREFETCH_DUMP=<path>`. Writes one CSV row per id
+    # with type ("unknown" when not in the local topology_index) and the
+    # owning Root when known. Appends, so successive walker spawns in a
+    # long-lived server accumulate.
+    import os as _os;
+    _dump_path = _os.environ.get("JAC_PREFETCH_DUMP");
+    if _dump_path {
+        try {
+            import pathlib as _pathlib;
+            _p = _pathlib.Path(_dump_path);
+            _p.parent.mkdir(parents=True, exist_ok=True);
+            _new_file = not _p.exists();
+            with _p.open("a") as _fh {
+                if _new_file {
+                    _fh.write("id,type,owner\n");
+                }
+                for _pid in prefetch {
+                    _plid = topology_index.node_to_lid.get(_pid);
+                    if _plid is not None {
+                        (_nid, _tid, _owner) = topology_index.node_table[_plid];
+                        _ptype = topology_index.type_table[_tid];
+                        _fh.write(f"{_pid},{_ptype},{_owner}\n");
+                    } else {
+                        _fh.write(f"{_pid},unknown,\n");
+                    }
+                }
+            }
+        } except Exception as _e {
+            _getLogger(__name__).debug(f"[PREFETCH-DUMP] write failed: {_e}");
+        }
+    }
     cls._last_resolve_ms = _resolve_ms;
     return prefetch;
 }

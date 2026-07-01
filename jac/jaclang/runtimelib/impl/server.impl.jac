@@ -11,22 +11,7 @@ import from jaclang.runtimelib.auth_models {
     RegisterRequest
 }
 
-glob _client_error_logger = logging.getLogger("jaclang.client_errors"),
-     _jac_profiler_lock: threading.Lock = threading.Lock(),
-     # Lazy-loaded yappi module. yappi is a C extension that re-enables
-     # the GIL on free-threaded CPython, so we defer the import until a
-     # profile request actually arrives AND `[serve] profile = true` is
-     # set in jac.toml.
-     _yappi_module: any = None;
-
-def _ensure_yappi -> any {
-    global _yappi_module;
-    if _yappi_module is None {
-        import yappi;
-        _yappi_module = yappi;
-    }
-    return _yappi_module;
-}
+glob _client_error_logger = logging.getLogger("jaclang.client_errors");
 
 def _resolve_profile_dir -> (str | None) {
     import from jaclang.project.config { get_config }
@@ -35,6 +20,18 @@ def _resolve_profile_dir -> (str | None) {
         return None;
     }
     return os.environ.get("JAC_PROFILE_DIR");
+}
+
+"""Create a fresh cProfile.Profile for the current walker spawn.
+
+cProfile is stdlib so no lazy-import dance is needed, and its default
+timer is `time.perf_counter` — i.e. wall-clock (monotonic, includes I/O
+wait), matching what yappi's `wall` clock mode gave us. Each walker
+request gets its own Profile instance, so there's no shared global
+state and no profiler lock is required."""
+def _new_profile -> any {
+    import cProfile;
+    return cProfile.Profile();
 }
 
 impl UserManager.postinit -> None {
@@ -483,7 +480,7 @@ impl ExecutionManager.spawn_walker_sync(
     call_token = ctx.call_state.set(CallState());
     call_state = ctx.call_state.get();
     _profile_dir = _resolve_profile_dir();
-    _yappi = _ensure_yappi() if _profile_dir else None;
+    _profiler = _new_profile() if _profile_dir else None;
     try {
         `walker = walker_cls(**fields);
         if target_node_id {
@@ -498,11 +495,8 @@ impl ExecutionManager.spawn_walker_sync(
         def _jac_walker_execute {
             _spawn_result_box[0] = Jac.spawn(`walker, target_node);
         }
-        if _profile_dir {
-            with _jac_profiler_lock {
-                _yappi.set_clock_type("wall");
-                _yappi.start(builtins=False);
-            }
+        if _profiler is not None {
+            _profiler.enable();
         }
         _jac_walker_execute();
         result = _spawn_result_box[0];
@@ -512,10 +506,8 @@ impl ExecutionManager.spawn_walker_sync(
         if iscoroutine(result) {
             result = await result;
         }
-        if _profile_dir {
-            with _jac_profiler_lock {
-                _yappi.stop();
-            }
+        if _profiler is not None {
+            _profiler.disable();
         }
         return await self._finalize_call_response(call_state, result);
     } except Exception as e {
@@ -527,26 +519,24 @@ impl ExecutionManager.spawn_walker_sync(
         return {'error': str(e), 'traceback': traceback.format_exc()};
     } finally {
         ctx.call_state.reset(call_token);
-        if _profile_dir {
-            with _jac_profiler_lock {
-                if _yappi.is_running() {
-                    _yappi.stop();
+        if _profiler is not None {
+            try {
+                _profiler.disable();
+            } except Exception {
+                pass;
+            }
+            os.makedirs(_profile_dir, exist_ok=True);
+            _prof_path = os.path.join(_profile_dir, "jac_server.prof");
+            _profiler.dump_stats(_prof_path);
+            _txt_path = os.path.join(_profile_dir, "jac_server.txt");
+            try {
+                with open(_txt_path, "w") as _f {
+                    _ps = pstats.Stats(_prof_path, stream=_f);
+                    _ps.sort_stats("cumulative");
+                    _ps.print_stats();
                 }
-                os.makedirs(_profile_dir, exist_ok=True);
-                _prof_path = os.path.join(_profile_dir, "jac_server.prof");
-                _func_stats = _yappi.get_func_stats();
-                _func_stats.save(_prof_path, type="pstat");
-                _yappi.clear_stats();
-                _txt_path = os.path.join(_profile_dir, "jac_server.txt");
-                try {
-                    with open(_txt_path, "w") as _f {
-                        _ps = pstats.Stats(_prof_path, stream=_f);
-                        _ps.sort_stats("cumulative");
-                        _ps.print_stats();
-                    }
-                } except Exception {
-                    pass;
-                }
+            } except Exception {
+                pass;
             }
         }
         Jac.reset_request_context(req_token);
@@ -571,7 +561,7 @@ impl ExecutionManager.spawn_walker_async(
     call_token = ctx.call_state.set(CallState());
     call_state = ctx.call_state.get();
     _profile_dir = _resolve_profile_dir();
-    _yappi = _ensure_yappi() if _profile_dir else None;
+    _profiler = _new_profile() if _profile_dir else None;
     try {
         `walker = walker_cls(**fields);
         if target_node_id {
@@ -586,11 +576,8 @@ impl ExecutionManager.spawn_walker_async(
         def _jac_walker_execute {
             _spawn_result_box[0] = Jac.spawn(`walker, target_node);
         }
-        if _profile_dir {
-            with _jac_profiler_lock {
-                _yappi.set_clock_type("wall");
-                _yappi.start(builtins=False);
-            }
+        if _profiler is not None {
+            _profiler.enable();
         }
         _jac_walker_execute();
         spawn_result = _spawn_result_box[0];
@@ -599,10 +586,8 @@ impl ExecutionManager.spawn_walker_async(
         } else {
             result = spawn_result;
         }
-        if _profile_dir {
-            with _jac_profiler_lock {
-                _yappi.stop();
-            }
+        if _profiler is not None {
+            _profiler.disable();
         }
         return await self._finalize_call_response(call_state, result);
     } except Exception as e {
@@ -614,26 +599,24 @@ impl ExecutionManager.spawn_walker_async(
         return {'error': str(e), 'traceback': traceback.format_exc()};
     } finally {
         ctx.call_state.reset(call_token);
-        if _profile_dir {
-            with _jac_profiler_lock {
-                if _yappi.is_running() {
-                    _yappi.stop();
+        if _profiler is not None {
+            try {
+                _profiler.disable();
+            } except Exception {
+                pass;
+            }
+            os.makedirs(_profile_dir, exist_ok=True);
+            _prof_path = os.path.join(_profile_dir, "jac_server.prof");
+            _profiler.dump_stats(_prof_path);
+            _txt_path = os.path.join(_profile_dir, "jac_server.txt");
+            try {
+                with open(_txt_path, "w") as _f {
+                    _ps = pstats.Stats(_prof_path, stream=_f);
+                    _ps.sort_stats("cumulative");
+                    _ps.print_stats();
                 }
-                os.makedirs(_profile_dir, exist_ok=True);
-                _prof_path = os.path.join(_profile_dir, "jac_server.prof");
-                _func_stats = _yappi.get_func_stats();
-                _func_stats.save(_prof_path, type="pstat");
-                _yappi.clear_stats();
-                _txt_path = os.path.join(_profile_dir, "jac_server.txt");
-                try {
-                    with open(_txt_path, "w") as _f {
-                        _ps = pstats.Stats(_prof_path, stream=_f);
-                        _ps.sort_stats("cumulative");
-                        _ps.print_stats();
-                    }
-                } except Exception {
-                    pass;
-                }
+            } except Exception {
+                pass;
             }
         }
         Jac.reset_request_context(req_token);

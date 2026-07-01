@@ -2003,6 +2003,12 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
     if self.l3 is None {
         return;
     }
+    # Per-anchor access log for the bulk path. Every yielded anchor emits
+    # one row with its own UUID and the tier it actually served from —
+    # L1 when `__mem__`/`promote_raw` answered, L3 when the backend was
+    # invoked. Without this the hit-rate under-counted 50× because a
+    # single execute_plan call returning 10K anchors from Mongo previously
+    # showed as one L3 tick.
     # L1 shortcut: when the plan has pre-narrowed IDs and no slice,
     # serve L1 hits directly and only send misses to L3. Sliced plans
     # must go to L3 for its stable ordering — L1's set-iteration order
@@ -2021,6 +2027,7 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
                 if _needs_arch and not existing.is_populated() {
                     l3_miss_ids.add(uid);
                 } elif _l1_matches_plan(existing, plan) {
+                    _tiered_access_log(existing.id, "L1", existing);
                     yield existing;
                 }
             } else {
@@ -2042,6 +2049,7 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
                     if self.l2 {
                         self.l2.put(anchor);
                     }
+                    _tiered_access_log(anchor.id, "L3", anchor);
                     yield anchor;
                 }
             } else {
@@ -2053,6 +2061,7 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
                             if self.l2 {
                                 self.l2.put(anchor);
                             }
+                            _tiered_access_log(anchor.id, "L3", anchor);
                             yield anchor;
                         }
                     }
@@ -2068,8 +2077,13 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
             if self.l2 {
                 self.l2.put(anchor);
             }
+            _tiered_access_log(anchor.id, "L3", anchor);
             yield anchor;
         } else {
+            # Cached anchor served by promotion — logged as L1 to reflect
+            # that the L3 execute_plan RPC touched Mongo but this specific
+            # anchor did not require a fresh doc read.
+            _tiered_access_log(existing.id, "L1", existing);
             yield existing;
         }
     }
