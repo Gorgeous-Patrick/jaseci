@@ -478,6 +478,14 @@ impl JacWalker.spawn_call(
             edge_num = os.environ.get("JAC_EDGE_NUM", "");
             tweet_num = os.environ.get("JAC_TWEET_NUM", "");
             ttg_enabled = "enabled" if ttg_time_ms > 0 else "disabled";
+            # Real prefetch wall time = max across per-worker durations
+            # measured inside TieredMemory.prefetch. Under thread mode
+            # prefetch_time_ms (dispatch only) is ~1ms while wall_ms can
+            # be 200ms; the CSV needs the honest number.
+            import from jaclang.runtimelib.memory { prefetch_worker_times_snapshot }
+            _pf_worker_ms = prefetch_worker_times_snapshot();
+            _prefetch_wall_ms = max(_pf_worker_ms) if _pf_worker_ms else 0.0;
+            logger.info(f"[PREFETCH-WORKER-TIMES] {_pf_worker_ms}");
             writer.writerow(
                 [
                     node_num,
@@ -487,7 +495,7 @@ impl JacWalker.spawn_call(
                     f"{ttg_total_time_ms:.3f}",
                     f"{topo_idx_time_ms:.3f}",
                     f"{ttg_time_ms:.3f}",
-                    f"{prefetch_time_ms:.3f}",
+                    f"{_prefetch_wall_ms:.3f}",
                     f"{walker_time_ms:.3f}",
                     f"{resolve_total_ms:.3f}"
                 ]

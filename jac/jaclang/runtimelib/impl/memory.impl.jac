@@ -38,7 +38,11 @@ counter is not per-request, so this is intentionally a single-request
 observability tool, not a multi-tenant server metric."""
 glob _hit_stats: dict[str, int] = {"L1": 0, "L2": 0, "L3": 0, "MISS": 0},
      _hit_stats_lock: threading.Lock = threading.Lock(),
-     _hit_stats_snapshots: list[tuple[str, dict[str, int]]] = [];
+     _hit_stats_snapshots: list[tuple[str, dict[str, int]]] = [],
+     # Per-worker prefetch wall times (ms) — one entry appended by each
+     # TieredMemory.prefetch call on completion. Same lock keeps this
+     # cheap and consistent with the tier counters.
+     _prefetch_worker_times: list[float] = [];
 
 impl hit_stats_snapshot -> dict[str, int] {
     with _hit_stats_lock {
@@ -64,6 +68,24 @@ impl hit_stats_add_checkpoint(label: str) -> None {
 impl hit_stats_read_checkpoints -> list[tuple[str, dict[str, int]]] {
     with _hit_stats_lock {
         return list(_hit_stats_snapshots);
+    }
+}
+
+impl prefetch_worker_times_append(elapsed_ms: float) -> None {
+    with _hit_stats_lock {
+        _prefetch_worker_times.append(elapsed_ms);
+    }
+}
+
+impl prefetch_worker_times_snapshot -> list[float] {
+    with _hit_stats_lock {
+        return list(_prefetch_worker_times);
+    }
+}
+
+impl prefetch_worker_times_reset -> None {
+    with _hit_stats_lock {
+        _prefetch_worker_times.clear();
     }
 }
 
@@ -1919,6 +1941,12 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not id_list {
         return;
     }
+    # Wall-time this whole call (find_raw + store_raw only — the L2 MSET
+    # is fire-and-forget). The main thread reads the collected list at
+    # request end via prefetch_worker_times_snapshot() and reports max()
+    # as the CSV's prefetch_wall_ms.
+    import time as _time;
+    _pf_start = _time.perf_counter();
     # Checkpoint the process-global tier counters *before* this worker
     # starts populating L1. Each of the N prefetch workers takes its own
     # snapshot; the deltas between consecutive checkpoints show how many
@@ -1935,6 +1963,7 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
         raw_items.append((uid, data));
     }
     if not raw_items {
+        prefetch_worker_times_append((_time.perf_counter() - _pf_start) * 1000);
         return;
     }
     # Fire-and-forget Redis write. raw_items is a fresh local list so
@@ -1945,6 +1974,7 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     threading.Thread(
         target=self.l2.bulk_put_raw, args=(raw_items, ), daemon=True
     ).start();
+    prefetch_worker_times_append((_time.perf_counter() - _pf_start) * 1000);
 }
 
 

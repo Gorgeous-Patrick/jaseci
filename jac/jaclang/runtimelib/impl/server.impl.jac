@@ -530,13 +530,17 @@ impl ExecutionManager.spawn_walker_sync(
         import from jaclang.runtimelib.memory {
             hit_stats_add_checkpoint,
             hit_stats_read_checkpoints,
-            hit_stats_reset
+            hit_stats_reset,
+            prefetch_worker_times_reset
         }
         hit_stats_add_checkpoint("request_done");
         _hs_logging.getLogger("jaclang.server").info(
             f"[HIT-STATS-SERIES] {hit_stats_read_checkpoints()}"
         );
         hit_stats_reset();
+        # Also clear the per-worker prefetch timings — the async_spawn_call
+        # already read them via snapshot() and wrote max() to the CSV.
+        prefetch_worker_times_reset();
         if _profiler is not None {
             try {
                 _profiler.disable();

@@ -38,7 +38,10 @@ glob logger = logging.getLogger(__name__),
          'hit_stats_snapshot',
          'hit_stats_reset',
          'hit_stats_add_checkpoint',
-         'hit_stats_read_checkpoints'
+         'hit_stats_read_checkpoints',
+         'prefetch_worker_times_append',
+         'prefetch_worker_times_snapshot',
+         'prefetch_worker_times_reset'
      ];
 
 # Process-global tier-hit stats accumulator. Every _tiered_access_log
@@ -51,6 +54,14 @@ def hit_stats_reset -> None;
 def hit_stats_add_checkpoint(label: str) -> None;
 
 def hit_stats_read_checkpoints -> list[tuple[str, dict[str, int]]];
+
+# Per-worker prefetch wall times (ms). TieredMemory.prefetch appends on
+# completion; a walker-request wrapper reads/resets around the request.
+def prefetch_worker_times_append(elapsed_ms: float) -> None;
+
+def prefetch_worker_times_snapshot -> list[float];
+
+def prefetch_worker_times_reset -> None;
 
 # =============================================================================
 # Abstract Interfaces
