@@ -34,8 +34,23 @@ glob logger = logging.getLogger(__name__),
          'VolatileMemory',
          'LocalCacheMemory',
          'SqliteMemory',
-         'TieredMemory'
+         'TieredMemory',
+         'hit_stats_snapshot',
+         'hit_stats_reset',
+         'hit_stats_add_checkpoint',
+         'hit_stats_read_checkpoints'
      ];
+
+# Process-global tier-hit stats accumulator. Every _tiered_access_log
+# call bumps the L1/L2/L3/MISS counters under a lock; callers snapshot
+# via hit_stats_add_checkpoint(label). See impl for the state.
+def hit_stats_snapshot -> dict[str, int];
+
+def hit_stats_reset -> None;
+
+def hit_stats_add_checkpoint(label: str) -> None;
+
+def hit_stats_read_checkpoints -> list[tuple[str, dict[str, int]]];
 
 # =============================================================================
 # Abstract Interfaces

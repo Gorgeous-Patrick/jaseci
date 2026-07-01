@@ -509,6 +509,8 @@ impl ExecutionManager.spawn_walker_sync(
         if _profiler is not None {
             _profiler.disable();
         }
+        import from jaclang.runtimelib.memory { hit_stats_add_checkpoint }
+        hit_stats_add_checkpoint("walker_done");
         return await self._finalize_call_response(call_state, result);
     } except Exception as e {
         import traceback;
@@ -519,6 +521,22 @@ impl ExecutionManager.spawn_walker_sync(
         return {'error': str(e), 'traceback': traceback.format_exc()};
     } finally {
         ctx.call_state.reset(call_token);
+        # Final checkpoint + one INFO log with the whole series so a
+        # sweep can grep it out. Cheap: one lock acquire + one line.
+        # Local `import logging` — the outer `import logging;` inside
+        # the except block makes `logging` a local name for this whole
+        # function, so we have to re-import here to unshadow it.
+        import logging as _hs_logging;
+        import from jaclang.runtimelib.memory {
+            hit_stats_add_checkpoint,
+            hit_stats_read_checkpoints,
+            hit_stats_reset
+        }
+        hit_stats_add_checkpoint("request_done");
+        _hs_logging.getLogger("jaclang.server").info(
+            f"[HIT-STATS-SERIES] {hit_stats_read_checkpoints()}"
+        );
+        hit_stats_reset();
         if _profiler is not None {
             try {
                 _profiler.disable();

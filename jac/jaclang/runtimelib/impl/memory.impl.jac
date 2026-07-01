@@ -29,7 +29,50 @@ The file handle is lazily opened on first call and cached in a list
 """
 glob _access_log_state: list = [None];
 
+"""Process-global tier counters + labeled snapshots.
+
+Every _tiered_access_log call bumps _hit_stats under _hit_stats_lock.
+Callers (prefetch worker, walker end, request end) take snapshots via
+hit_stats_add_checkpoint(label). The lock cost is µs per access; the
+counter is not per-request, so this is intentionally a single-request
+observability tool, not a multi-tenant server metric."""
+glob _hit_stats: dict[str, int] = {"L1": 0, "L2": 0, "L3": 0, "MISS": 0},
+     _hit_stats_lock: threading.Lock = threading.Lock(),
+     _hit_stats_snapshots: list[tuple[str, dict[str, int]]] = [];
+
+impl hit_stats_snapshot -> dict[str, int] {
+    with _hit_stats_lock {
+        return dict(_hit_stats);
+    }
+}
+
+impl hit_stats_reset -> None {
+    with _hit_stats_lock {
+        for k in _hit_stats {
+            _hit_stats[k] = 0;
+        }
+        _hit_stats_snapshots.clear();
+    }
+}
+
+impl hit_stats_add_checkpoint(label: str) -> None {
+    with _hit_stats_lock {
+        _hit_stats_snapshots.append((label, dict(_hit_stats)));
+    }
+}
+
+impl hit_stats_read_checkpoints -> list[tuple[str, dict[str, int]]] {
+    with _hit_stats_lock {
+        return list(_hit_stats_snapshots);
+    }
+}
+
 def _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
+    with _hit_stats_lock {
+        if tier in _hit_stats {
+            _hit_stats[tier] += 1;
+        }
+    }
     fh = _access_log_state[0];
     if fh is None {
         try {
@@ -1876,6 +1919,11 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not id_list {
         return;
     }
+    # Checkpoint the process-global tier counters *before* this worker
+    # starts populating L1. Each of the N prefetch workers takes its own
+    # snapshot; the deltas between consecutive checkpoints show how many
+    # tier-hits the walker accumulated while only workers 1..k had landed.
+    hit_stats_add_checkpoint(f"prefetch_pre_write_shard={len(id_list)}");
     # Stream the cursor into L1 — each anchor becomes promote_raw-visible
     # as it arrives from Mongo (~5ms for the first ~100-doc batch) instead
     # of waiting for the full shard to materialize (~15-20ms). Tee into
