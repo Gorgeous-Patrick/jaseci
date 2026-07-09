@@ -68,6 +68,17 @@ class JacTTGGenerator {
         cls: type[JacTTGGenerator], body: uni.UniNode
     ) -> list[list[tuple[str | None, str | None, int]]];
 
+    """Collect sub-nodes of `node_type` from an Ability, following the link
+    to its separately-defined `impl` body (DeclImplMatchPass sets
+    `ability.body = impl_def`, but `get_all_sub_nodes` doesn't descend
+    into the ImplDef because it isn't in the ability's `kid` list).
+    Same reason type_checker_pass line 594 does `self.traverse(nd.body)`
+    for ImplDef bodies."""
+    @classmethod
+    def _ability_sub_nodes(
+        cls: type[JacTTGGenerator], ability: uni.Ability, node_type: type
+    ) -> list;
+
     """Trace FuncCall nodes in an ability body, resolve to archetype methods,
     and extract their refs expressions as VisitTypes."""
     @classmethod

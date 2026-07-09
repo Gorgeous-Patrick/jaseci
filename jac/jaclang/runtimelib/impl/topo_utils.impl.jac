@@ -139,6 +139,18 @@ impl on_edge_created(source: any, target: any, `edge: any) -> None {
     if target.root and target.root != source_root.id {
         target_root = _get_root_anchor(target);
         if target_root is not None {
+            # Cross-root topology_index mirror: whitelist the target Root
+            # for the request's write-check so the flush that persists
+            # our index update isn't dropped by the permission gate.
+            # `on_edge_created` is runtime bookkeeping, not user code —
+            # user grants cannot reach `<system>`-owned Root anchors.
+            try {
+                import from jaclang { JacRuntimeInterface as _JacRT }
+                _ctx_bypass = _JacRT.get_context();
+                _ctx_bypass._bypass_write_check.add(UUID(str(target_root.id)));
+            } except Exception {
+                ;
+            }
             _index_edge_into(target_root, source, target, `edge);
         }
     }
@@ -161,6 +173,16 @@ impl on_edge_destroyed(source: any, target: any, `edge: any) -> None {
     if target.root and target.root != source_root.id {
         target_root = _get_root_anchor(target);
         if target_root is not None {
+            # Same rationale as `on_edge_created`: bookkeeping mirror-
+            # write against a foreign Root needs the request-scoped
+            # bypass so the permission gate doesn't drop the change.
+            try {
+                import from jaclang { JacRuntimeInterface as _JacRT }
+                _ctx_bypass = _JacRT.get_context();
+                _ctx_bypass._bypass_write_check.add(UUID(str(target_root.id)));
+            } except Exception {
+                ;
+            }
             _unindex_edge_from(target_root, source, target, `edge);
         }
     }

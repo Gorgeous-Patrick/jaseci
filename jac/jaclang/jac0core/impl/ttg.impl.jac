@@ -166,6 +166,20 @@ impl JacTTGGenerator._extract_edge_step(
     return (edge_type_name, node_filter_name, direction);
 }
 
+"""Collect sub-nodes of `node_type` from an Ability, following the link
+to its separately-defined `impl` body."""
+@classmethod
+impl JacTTGGenerator._ability_sub_nodes(
+    cls: type[JacTTGGenerator], ability: uni.Ability, node_type: type
+) -> list {
+    result = ability.get_all_sub_nodes(node_type);
+    body = ability?.body;
+    if isinstance(body, uni.ImplDef) {
+        result.extend(body.get_all_sub_nodes(node_type));
+    }
+    return result;
+}
+
 """Extract edge chains from an EdgeRefTrailer AST node."""
 @classmethod
 impl JacTTGGenerator._extract_chains_from_trailer(
@@ -219,7 +233,7 @@ impl JacTTGGenerator._trace_method_calls(
 ) -> list[VisitType] {
     result: list[VisitType] = [];
     seen_methods: set[str] = set();
-    func_calls = ability.get_all_sub_nodes(uni.FuncCall);
+    func_calls = cls._ability_sub_nodes(ability, uni.FuncCall);
     for call in func_calls {
         # Resolve the function name. For attr access (e.g. here.to_profile_view()),
         # we need the method name. For simple calls, use the target name directly.
@@ -352,7 +366,10 @@ impl JacTTGGenerator._extract_visits_from_ast(
             }
         }
         # 1. Extract from VisitStmt nodes (explicit visit statements).
-        visit_stmts = ability.get_all_sub_nodes(uni.VisitStmt);
+        #    Descends into the ability's separately-defined `impl` body
+        #    too, so `impl X.foo { visit [...] }` in another file lands
+        #    here — see `_ability_sub_nodes` docstring.
+        visit_stmts = cls._ability_sub_nodes(ability, uni.VisitStmt);
         for visit_stmt in visit_stmts {
             chains = cls._extract_refs_from_body(visit_stmt);
             for chain in chains {
@@ -378,7 +395,7 @@ impl JacTTGGenerator._extract_visits_from_ast(
                 visit_trailer_ids.add(id(t));
             }
         }
-        all_trailers = ability.get_all_sub_nodes(uni.EdgeRefTrailer);
+        all_trailers = cls._ability_sub_nodes(ability, uni.EdgeRefTrailer);
         for trailer in all_trailers {
             if id(trailer) in visit_trailer_ids {
                 continue;

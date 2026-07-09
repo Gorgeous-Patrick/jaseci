@@ -1,7 +1,7 @@
 """Execution context for Jac Language."""
 
 import from contextvars { ContextVar }
-import from dataclasses { MISSING }
+import from dataclasses { MISSING, field as dc_field }
 import from queue { Queue }
 import from typing { cast }
 import from uuid { UUID }
@@ -60,6 +60,13 @@ obj ExecutionContext {
         # working unchanged.
         base_path_dir: (str | None) = None,
         full_target_path: (str | None) = None,
+        # Anchor IDs whose next persistent write should skip the
+        # `check_write_access` gate.  Used by runtime bookkeeping paths
+        # that legitimately mutate another user's Root (e.g. the
+        # topology_index mirror-write in `on_edge_created`) but whose
+        # writes would otherwise be permission-denied because Root is
+        # `<system>`-owned and user code cannot `grant` on it.
+        _bypass_write_check: set[UUID] = dc_field(default_factory=`set),
         # Per-request fork support. When `_parent` is set, postinit skips
         # creating fresh Memory/system_root and instead shares them with
         # the parent ctx. This lets the server stamp out lightweight

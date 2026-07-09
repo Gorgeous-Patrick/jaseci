@@ -28,6 +28,21 @@ caller that catches the PermissionError still sees it on ctx.diagnostics.
 impl JacAccessValidation._check_access(
     `to: Anchor, min_level: AccessLevel, operation: str
 ) -> bool {
+    # System-bookkeeping bypass: `on_edge_created` needs to mirror the
+    # topology_index update onto another user's Root, which is
+    # `<system>`-owned and unreachable via user-level `grant`.  The
+    # cross-root call marks the target Root's id on the request's
+    # ExecutionContext._bypass_write_check set; honor that here.
+    if operation != "read" {
+        try {
+            _bypass_ctx = JacRuntimeInterface.get_context();
+            if `to.id in _bypass_ctx._bypass_write_check {
+                return True;
+            }
+        } except Exception {
+            ;
+        }
+    }
     actual = JacRuntimeInterface.check_access_level(`to);
     granted = actual.value > min_level.value;
     if not granted {
