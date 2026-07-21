@@ -293,6 +293,16 @@ impl start(
 ) -> int {
     import from jaclang.jac0core.runtime { JacRuntime as Jac }
     import from pathlib { Path }
+    # Optionally disable CPython's cyclic GC for the server's lifetime.
+    # Opt-in via JAC_DISABLE_GC=1 so this only affects benchmark or
+    # latency-sensitive production runs that explicitly want GC pauses
+    # gone; normal `jac start` behaviour is unchanged.  Safe here because
+    # `jac start` typically restarts on redeploy, so cycle leaks bounded
+    # by the process lifetime.
+    if os.environ.get('JAC_DISABLE_GC') {
+        import gc;
+        gc.disable();
+    }
     if not Path(filename).exists() {
         if filename == "main.jac" {
             console.error(
