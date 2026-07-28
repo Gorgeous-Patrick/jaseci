@@ -95,6 +95,7 @@ impl ScaleTieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 """Batch get with full tiered read-through: L1 → L2 MGET → L3 $in."""
 impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     import from jaclang.runtimelib.memory { _tiered_access_log }
+    import os as _os;
     result: dict[UUID, Anchor] = {};
     l1_misses: list[UUID] = [];
     for id in ids {
@@ -114,6 +115,50 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     if not l1_misses {
         return result;
     }
+    # --- Hybrid TTG-Prefetcher wait -----------------------------------------
+    # If a TTG plan is being populated in the background, wait briefly for
+    # the plan to land bytes for the in-plan IDs we still need, then
+    # re-check `__raw__` via `promote_raw`.  IDs not in the plan fall
+    # through to the L2/L3 batch path immediately — preserves baseline
+    # behaviour when TTG is disabled or a request is outside the plan.
+    _pf_done = self?._prefetch_done;
+    _pf_ids = self?._prefetch_ids;
+    if _pf_done is not None and _pf_ids is not None {
+        _in_plan: list[UUID] = [];
+        _not_in_plan: list[UUID] = [];
+        for id in l1_misses {
+            if id in _pf_ids {
+                _in_plan.append(id);
+            } else {
+                _not_in_plan.append(id);
+            }
+        }
+        if _in_plan and not _pf_done.is_set() {
+            try {
+                _wait_ms = int(_os.environ.get('JAC_PREFETCH_WAIT_MS', '50'));
+            } except (TypeError, ValueError) {
+                _wait_ms = 50;
+            }
+            if _wait_ms > 0 {
+                _pf_done.wait(timeout=_wait_ms / 1000.0);
+            }
+        }
+        _still_missing: list[UUID] = [];
+        for id in _in_plan {
+            anchor = self.promote_raw(id);
+            if anchor is not None {
+                result[id] = anchor;
+                _tiered_access_log(id, "L1", anchor);
+            } else {
+                _still_missing.append(id);
+            }
+        }
+        l1_misses = _still_missing + _not_in_plan;
+        if not l1_misses {
+            return result;
+        }
+    }
+    # --- end hybrid wait -----------------------------------------------------
     # L2: Redis MGET for L1 misses
     l2_misses: list[UUID] = [];
     if self.l2 and hasattr(self.l2, 'batch_get') {

@@ -320,6 +320,17 @@ def _chunk_evenly(items: list, n: int) -> list {
     return _out;
 }
 
+"""Helper: join every thread in `threads`, then set `done` so waiters wake.
+Spawned as a single daemon monitor per dispatch so batch_get can wait on a
+plan-completion event without polling."""
+def _signal_done_after_all(threads: list, done: any) {
+    for t in threads {
+        t.join();
+    }
+    done.set();
+}
+
+
 """Run `ctx.mem.prefetch(prefetch_ids)` in the strategy chosen by
 `cfg.run.async_prefetch`:
 
@@ -345,8 +356,17 @@ Unknown values fall back to sync to avoid silently skipping the prefetch."""
 def _dispatch_prefetch(
     ctx: any, prefetch_ids: list, mode: str, workers: int = 1
 ) -> None {
+    # Expose plan membership + a completion event to batch_get so it can
+    # wait for the Prefetcher to land bytes for in-plan IDs before falling
+    # through to L2/L3.  Set (not list) so `id in _prefetch_ids` is O(1).
+    import threading;
+    ctx.mem._prefetch_ids = set(prefetch_ids);
+    ctx.mem._prefetch_done = threading.Event();
+    if not prefetch_ids {
+        ctx.mem._prefetch_done.set();
+        return;
+    }
     if mode == "thread" {
-        import threading;
         _shards = _chunk_evenly(prefetch_ids, workers);
         _threads: list = [];
         for _shard in _shards {
@@ -360,6 +380,19 @@ def _dispatch_prefetch(
         # add the plural form for callers that want to fan out joins.
         ctx.mem._prefetch_thread = _threads[0] if _threads else None;
         ctx.mem._prefetch_threads = _threads;
+        # One daemon monitor that joins every worker and sets the done
+        # event.  batch_get waits on this event when it needs the plan to
+        # be fully landed.
+        if _threads {
+            _mon = threading.Thread(
+                target=_signal_done_after_all,
+                args=(_threads, ctx.mem._prefetch_done),
+                daemon=True,
+            );
+            _mon.start();
+        } else {
+            ctx.mem._prefetch_done.set();
+        }
         return;
     }
     if mode == "process" {
@@ -404,6 +437,11 @@ def _dispatch_prefetch(
         );
         _p.start();
         ctx.mem._prefetch_thread = _p;
+        # Multi-process merger runs asynchronously; batch_get can't
+        # cleanly wait on it here, so mark done immediately.  If the
+        # walker races the merger, it just falls through to L2/L3 as
+        # today.
+        ctx.mem._prefetch_done.set();
         return;
     }
     # Sync mode. Single-worker default reuses the caller's thread so we
@@ -412,9 +450,9 @@ def _dispatch_prefetch(
     # shards finish, but the L3 calls run in parallel.
     if workers <= 1 {
         ctx.mem.prefetch(prefetch_ids);
+        ctx.mem._prefetch_done.set();
         return;
     }
-    import threading;
     _shards = _chunk_evenly(prefetch_ids, workers);
     _threads: list = [];
     for _shard in _shards {
@@ -425,6 +463,7 @@ def _dispatch_prefetch(
     for _t in _threads {
         _t.join();
     }
+    ctx.mem._prefetch_done.set();
 }
 
 
