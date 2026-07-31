@@ -1,5 +1,6 @@
 import json;
 import logging;
+import threading;
 import from collections.abc { Callable, Generator, Iterable }
 import from datetime { datetime, timezone }
 import from pickle { dumps, loads }
@@ -66,6 +67,7 @@ obj RedisBackend(CacheMemory) {
     def get_roots -> Generator[Root, None, None];
     def commit(anchor: (Anchor | None) = None) -> None;
     def batch_get(ids: list[UUID]) -> dict[UUID, Anchor];
+    def bulk_put_raw(items: Iterable[tuple[UUID, dict]]) -> None;
     def exists(id: UUID) -> bool;
     def put_if_exists(anchor: Anchor) -> bool;
     def invalidate(id: UUID) -> None;
@@ -107,6 +109,7 @@ obj MongoBackend(PersistentMemory) {
     def get_roots -> Generator[Root, None, None];
     def commit(anchor: (Anchor | None) = None) -> None;
     def batch_get(ids: list[UUID]) -> dict[UUID, Anchor];
+    def find_raw(ids: Iterable[UUID]) -> Iterable[tuple[UUID, dict]];
     def capabilities -> set[str];
     def execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None];
     def ensure_indexes -> None;

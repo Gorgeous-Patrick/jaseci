@@ -19,8 +19,32 @@ glob logger = logging.getLogger(__name__),
          'LocalCacheMemory',
          'SqliteMemory',
          'TieredMemory',
+         'hit_stats_snapshot',
+         'hit_stats_reset',
+         'hit_stats_add_checkpoint',
+         'hit_stats_read_checkpoints',
+         'prefetch_worker_times_append',
+         'prefetch_worker_times_snapshot',
+         'prefetch_worker_times_reset',
+         '_tiered_access_log',
          'DANGLING_REF'
      ];
+
+def hit_stats_snapshot -> dict[str, int];
+
+def hit_stats_reset -> None;
+
+def hit_stats_add_checkpoint(label: str) -> None;
+
+def hit_stats_read_checkpoints -> list[tuple[str, dict[str, int]]];
+
+def prefetch_worker_times_append(elapsed_ms: float) -> None;
+
+def prefetch_worker_times_snapshot -> list[float];
+
+def prefetch_worker_times_reset -> None;
+
+def _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None;
 
 obj Memory {
     def is_available -> bool abst;
@@ -43,6 +67,7 @@ obj Memory {
     ) -> (Anchor | None);
 
     def commit(anchor: (Anchor | None) = None) -> None abst;
+    def prefetch(ids: Iterable[UUID]) -> None;
     def abort -> None;
     def quarantine_ref(referrer: (Anchor | None), stub: Anchor) -> None;
     def is_recoverable_quarantine(id: UUID) -> bool;
@@ -96,6 +121,7 @@ obj VolatileMemory(Memory) {
 
     def get_roots -> Generator[Root, None, None];
     def commit(anchor: (Anchor | None) = None) -> None;
+    def prefetch(ids: Iterable[UUID]) -> None;
     def get_mem -> dict[UUID, Anchor];
 }
 
@@ -126,6 +152,7 @@ obj SqliteMemory(PersistentMemory) {
 
     def get_roots -> Generator[Root, None, None];
     def commit(anchor: (Anchor | None) = None) -> None;
+    def prefetch(ids: Iterable[UUID]) -> None;
     def apply(changeset: ChangeSet) -> ApplyReport;
     def _apply_one(conn: sqlite3.Connection, intent: WriteIntent) -> None;
     def _merge_write(conn: sqlite3.Connection, intent: WriteIntent) -> None;
@@ -151,8 +178,11 @@ obj TieredMemory(VolatileMemory) {
         target_path: (str | None) = None,
         l2: (CacheMemory | None) postinit,
         l3: (PersistentMemory | None) postinit,
+        __raw__: dict[UUID, object] postinit,
+        _raw_lock: threading.Lock postinit,
         changes: ChangeSet postinit,
-        use_cache: bool = False;
+        use_cache: bool = False,
+        _prefetch_thread: (object | None) = None;
 
     def get_l3_fetch_count -> int;
     def reset_l3_fetch_count -> None;
@@ -170,6 +200,9 @@ obj TieredMemory(VolatileMemory) {
     def is_recoverable_quarantine(id: UUID) -> bool;
     def _collect_into(changes: ChangeSet) -> None;
     def _post_apply(apply_report: ApplyReport) -> None;
+    def prefetch(ids: Iterable[UUID]) -> None;
+    def store_raw(uid: UUID, data: object) -> None;
+    def promote_raw(uid: UUID) -> (Anchor | None);
     def batch_get(ids: list[UUID]) -> dict[UUID, Anchor];
     def capabilities -> set[str];
     def execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None];

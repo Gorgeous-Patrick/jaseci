@@ -392,8 +392,54 @@ impl JacWalker.spawn_call(
 ) -> WalkerArchetype {
     import from jaclang.jac0core.osp_kernel { osp_spawn }
     import from jaclang.jac0core.osp_kernel_sv { desc_for, make_sv_runtime }
+    import from csv { writer as _csv_writer }
+    import from time { perf_counter as _perf_counter }
     warch = `walker.archetype;
+    _ttg_profile = _run_ttg_prefetch(warch, nd);
+    _walker_start = _perf_counter();
     osp_spawn(make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next));
+    _walker_ms = (_perf_counter() - _walker_start) * 1000;
+    _profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
+    if _profile_csv_path {
+        os.makedirs(os.path.dirname(_profile_csv_path) or ".", exist_ok=True);
+        _file_exists = os.path.exists(_profile_csv_path);
+        with open(_profile_csv_path, "a", newline="") as _f {
+            _writer = _csv_writer(_f);
+            if not _file_exists {
+                _writer.writerow(
+                    [
+                        "node_num",
+                        "edge_num",
+                        "tweet_num",
+                        "ttg_enabled",
+                        "ttg_total_ms",
+                        "topo_idx_ms",
+                        "ttg_ms",
+                        "prefetch_ms",
+                        "walker_ms",
+                        "resolve_total_ms"
+                    ]
+                );
+            }
+            import from jaclang.runtimelib.memory { prefetch_worker_times_snapshot }
+            _pf_worker_ms = prefetch_worker_times_snapshot();
+            _prefetch_wall_ms = max(_pf_worker_ms) if _pf_worker_ms else 0.0;
+            _writer.writerow(
+                [
+                    os.environ.get("JAC_NODE_NUM", ""),
+                    os.environ.get("JAC_EDGE_NUM", ""),
+                    os.environ.get("JAC_TWEET_NUM", ""),
+                    "enabled" if _ttg_profile.get("ttg_enabled") else "disabled",
+                    f"{_ttg_profile.get('ttg_total_ms', 0.0):.3f}",
+                    f"{_ttg_profile.get('topo_idx_ms', 0.0):.3f}",
+                    f"{_ttg_profile.get('ttg_ms', 0.0):.3f}",
+                    f"{_prefetch_wall_ms:.3f}",
+                    f"{_walker_ms:.3f}",
+                    f"{_ttg_profile.get('resolve_total_ms', 0.0):.3f}"
+                ]
+            );
+        }
+    }
     return warch;
 }
 
@@ -406,6 +452,7 @@ impl JacWalker.async_spawn_call(
         make_sv_runtime
     }
     warch = `walker.archetype;
+    _run_ttg_prefetch(warch, nd);
     await osp_spawn_async(
         make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next)
     );

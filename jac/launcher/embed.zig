@@ -38,21 +38,24 @@ const Io = std.Io;
 extern "c" fn setenv(name: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
 
 /// Bundled CPython minor version -- the ONE definition; payload.zig imports it
-/// and comptime-asserts its PBS_PY patch pin matches. It names the dlopened
-/// libpython and the lib-dynload path, shared by every frontend that embeds
-/// the interpreter.
+/// and comptime-asserts its PBS_PY patch pin matches.
 pub const py_ver = "3.14";
+/// CPython ABI suffix. Free-threaded builds use the `t` ABI, which names the
+/// executable, libpython, stdlib directory, and stdlib zip with the suffix.
+pub const py_abi_suffix = "t";
+pub const py_abi_ver = py_ver ++ py_abi_suffix;
 
 pub const lib_basename = switch (builtin.os.tag) {
-    .macos => "libpython" ++ py_ver ++ ".dylib",
-    else => "libpython" ++ py_ver ++ ".so",
+    .macos => "libpython" ++ py_abi_ver ++ ".dylib",
+    else => "libpython" ++ py_abi_ver ++ ".so",
 };
 
-/// `py_ver` with the dot removed -- names the stdlib zip (python314.zip).
+/// `py_abi_ver` with the dot removed -- names the stdlib zip
+/// (python314.zip / python314t.zip).
 const py_ver_compact = compact: {
-    var buf: [py_ver.len]u8 = undefined;
+    var buf: [py_abi_ver.len]u8 = undefined;
     var n: usize = 0;
-    for (py_ver) |ch| {
+    for (py_abi_ver) |ch| {
         if (ch != '.') {
             buf[n] = ch;
             n += 1;
@@ -157,10 +160,10 @@ pub const Embed = struct {
         var b_pkgs: [MAX_PATH]u8 = undefined;
         const search_paths = [_][*:0]const u8{
             std.fmt.bufPrintZ(&b_site, "{s}/site", .{self.rt}) catch return Error.PathTooLong,
-            std.fmt.bufPrintZ(&b_dyn, "{s}/python/lib/python" ++ py_ver ++ "/lib-dynload", .{self.rt}) catch return Error.PathTooLong,
+            std.fmt.bufPrintZ(&b_dyn, "{s}/python/lib/python" ++ py_abi_ver ++ "/lib-dynload", .{self.rt}) catch return Error.PathTooLong,
             std.fmt.bufPrintZ(&b_zip, "{s}/python/lib/python" ++ py_ver_compact ++ ".zip", .{self.rt}) catch return Error.PathTooLong,
-            std.fmt.bufPrintZ(&b_std, "{s}/python/lib/python" ++ py_ver, .{self.rt}) catch return Error.PathTooLong,
-            std.fmt.bufPrintZ(&b_pkgs, "{s}/python/lib/python" ++ py_ver ++ "/site-packages", .{self.rt}) catch return Error.PathTooLong,
+            std.fmt.bufPrintZ(&b_std, "{s}/python/lib/python" ++ py_abi_ver, .{self.rt}) catch return Error.PathTooLong,
+            std.fmt.bufPrintZ(&b_pkgs, "{s}/python/lib/python" ++ py_abi_ver ++ "/site-packages", .{self.rt}) catch return Error.PathTooLong,
         };
 
         const cfg = Create() orelse return Error.InitFailed;

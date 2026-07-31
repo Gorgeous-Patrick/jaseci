@@ -176,6 +176,35 @@ impl RedisBackend.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     return result;
 }
 
+impl RedisBackend.bulk_put_raw(items: Iterable[tuple[UUID, dict]]) -> None {
+    if self.redis_client is None {
+        return;
+    }
+    redis_client: any = cast(any, self.redis_client);
+    db_config = _get_db_config();
+    ttl = cast(int, db_config.get('redis_default_ttl', 0));
+    count = 0;
+    try {
+        pipe = redis_client.pipeline();
+        for (uid, data) in items {
+            key = storage_key(to_uuid(uid));
+            payload = json.dumps(data);
+            if ttl > 0 {
+                pipe.setex(key, ttl, payload);
+            } else {
+                pipe.set(key, payload);
+            }
+            count += 1;
+        }
+        if count > 0 {
+            pipe.execute();
+            self.put_count += count;
+        }
+    } except Exception as e {
+        logger.debug(f"Redis bulk_put_raw failed: {e}");
+    }
+}
+
 impl RedisBackend.exists(id: UUID) -> bool {
     if self.redis_client is None {
         return False;

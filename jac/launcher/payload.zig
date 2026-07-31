@@ -48,13 +48,14 @@ const runtime = @import("runtime.zig");
 // The bundled CPython minor version has ONE definition (embed.zig); only the
 // pbs patch release is pinned here and must match it.
 const py_ver = @import("embed.zig").py_ver;
+const py_abi_ver = @import("embed.zig").py_abi_ver;
 const PBS_TAG = "20260610";
 const PBS_PY = "3.14.6";
 comptime {
     if (!std.mem.startsWith(u8, PBS_PY, py_ver ++ "."))
         @compileError("PBS_PY must be a patch release of embed.zig's py_ver");
 }
-const PBS_FLAVOR = "pgo+lto-full";
+const PBS_FLAVOR = "freethreaded+pgo+lto-full";
 const PBS_BASE = "https://github.com/astral-sh/python-build-standalone/releases/download";
 // The window pbs compresses its archives with (verified: `zstd -lv` reports
 // 128 MiB). `fetch-pbs.sh` passed `zstd -d --long=31` only as a permissive cap;
@@ -219,8 +220,14 @@ fn typeshedSha(io: Io, gpa: Allocator, a: Allocator, commit: []const u8) !void {
 fn fetchPbs(io: Io, gpa: Allocator, a: Allocator, osarch: []const u8, dest: []const u8) !void {
     const marker = try std.fmt.allocPrint(a, "{s}/python/PYTHON.json", .{dest});
     if (fileExists(io, marker)) {
-        log("fetch-pbs: already present at {s}/python", .{dest});
-        return;
+        const py_exe = try std.fmt.allocPrint(a, "{s}/python/install/bin/python{s}", .{ dest, py_abi_ver });
+        const py_stdlib = try std.fmt.allocPrint(a, "{s}/python/install/lib/python{s}", .{ dest, py_abi_ver });
+        if (fileExists(io, py_exe) and fileExists(io, py_stdlib)) {
+            log("fetch-pbs: already present at {s}/python", .{dest});
+            return;
+        }
+        log("fetch-pbs: cached tree at {s}/python does not match CPython ABI {s}; replacing", .{ dest, py_abi_ver });
+        Dir.cwd().deleteTree(io, try std.fmt.allocPrint(a, "{s}/python", .{dest})) catch {};
     }
 
     const plat = pbsPlatform(osarch) orelse die("fetch-pbs: unsupported platform '{s}'", .{osarch});
@@ -252,7 +259,7 @@ fn fetchPbs(io: Io, gpa: Allocator, a: Allocator, osarch: []const u8, dest: []co
     defer gpa.free(window);
     var src = Io.Reader.fixed(tarzst);
     var dz = zstd.Decompress.init(&src, window, .{ .window_len = PBS_WINDOW, .verify_checksum = true });
-    // executable_bit_only (not .ignore!) so the bundled `python3.14` keeps its
+    // executable_bit_only (not .ignore!) so the bundled `python3.14t` keeps its
     // exec bit -- mkpayload spawns it for pip + precompile. With .ignore it
     // extracts 0o644 and the spawn fails EACCES (AccessDenied).
     std.tar.extract(io, ddir, &dz.reader, .{ .mode_mode = .executable_bit_only, .strip_components = 0 }) catch |err|
@@ -1269,12 +1276,14 @@ fn mkPayload(
     log("==> payload: {s}", .{out});
 }
 
-/// `<pbs>/install/bin/python3.14`, falling back to `python3`.
+/// `<pbs>/install/bin/python3.14t`, falling back to `python3.14` and `python3`.
 fn resolvePython(io: Io, a: Allocator, pbs_py_dir: []const u8) ![]const u8 {
-    const p1 = try std.fmt.allocPrint(a, "{s}/install/bin/python{s}", .{ pbs_py_dir, py_ver });
+    const p1 = try std.fmt.allocPrint(a, "{s}/install/bin/python{s}", .{ pbs_py_dir, py_abi_ver });
     if (fileExists(io, p1)) return p1;
-    const p2 = try std.fmt.allocPrint(a, "{s}/install/bin/python3", .{pbs_py_dir});
+    const p2 = try std.fmt.allocPrint(a, "{s}/install/bin/python{s}", .{ pbs_py_dir, py_ver });
     if (fileExists(io, p2)) return p2;
+    const p3 = try std.fmt.allocPrint(a, "{s}/install/bin/python3", .{pbs_py_dir});
+    if (fileExists(io, p3)) return p3;
     die("mkpayload: no python at {s}/install/bin", .{pbs_py_dir});
 }
 
@@ -1391,7 +1400,6 @@ fn precompile(io: Io, gpa: Allocator, a: Allocator, parent_env: *std.process.Env
     }
 }
 
-
 /// Stage the relocatable pbs `python3.x` launcher under `python/bin/`. Project
 /// venvs created by the fused `jac` binary use this as their base interpreter.
 /// Only the versioned binary is copied; aliases are unnecessary because
@@ -1414,7 +1422,7 @@ fn stageTree(io: Io, gpa: Allocator, a: Allocator, pbs_py_dir: []const u8, site:
     try Dir.cwd().createDirPath(io, lib_dst);
 
     // Stage the shared libpython under its bare name. pbs may ship it only as
-    // libpython3.14.so.1.0 (with a .so symlink); copyFile dereferences, so the
+    // libpython3.14t.so.1.0 (with a .so symlink); copyFile dereferences, so the
     // real library lands at the bare name the launcher dlopens.
     const pbs_lib = try std.fmt.allocPrint(a, "{s}/install/lib", .{pbs_py_dir});
     const found = try findLibpython(io, a, pbs_lib);
@@ -1436,8 +1444,8 @@ fn stageTree(io: Io, gpa: Allocator, a: Allocator, pbs_py_dir: []const u8, site:
     // Copy the stdlib as-is (keeps shipped .pyc), then prune heavy/build-only
     // bits. KEEP lib-dynload, encodings, ensurepip.
     {
-        const stdlib_dst = try std.fmt.allocPrint(a, "{s}/python{s}", .{ lib_dst, py_ver });
-        var stdlib_src = try Dir.cwd().openDir(io, try std.fmt.allocPrint(a, "{s}/python{s}", .{ pbs_lib, py_ver }), .{ .iterate = true });
+        const stdlib_dst = try std.fmt.allocPrint(a, "{s}/python{s}", .{ lib_dst, py_abi_ver });
+        var stdlib_src = try Dir.cwd().openDir(io, try std.fmt.allocPrint(a, "{s}/python{s}", .{ pbs_lib, py_abi_ver }), .{ .iterate = true });
         defer stdlib_src.close(io);
         try copyTree(io, gpa, a, stdlib_src, stdlib_dst, skipNone);
 
@@ -1503,13 +1511,13 @@ fn stageTree(io: Io, gpa: Allocator, a: Allocator, pbs_py_dir: []const u8, site:
 /// recompiles at runtime as before -- strictly no worse than today.
 fn precompilePyc(io: Io, a: Allocator, py: []const u8, stage: []const u8) void {
     log("==> precompiling stdlib + site -> hash-based .pyc (survives materialize)", .{});
-    const stdlib = std.fmt.allocPrint(a, "{s}/python/lib/python{s}", .{ stage, py_ver }) catch return;
+    const stdlib = std.fmt.allocPrint(a, "{s}/python/lib/python{s}", .{ stage, py_abi_ver }) catch return;
     const site_dir = std.fmt.allocPrint(a, "{s}/site", .{stage}) catch return;
     _ = runChild(io, &.{
-        py,       "-m",              "compileall",
-        "--invalidation-mode", "unchecked-hash",
-        "-q",     "-f",              "-j",
-        "0",      stdlib,            site_dir,
+        py,                    "-m",             "compileall",
+        "--invalidation-mode", "unchecked-hash", "-q",
+        "-f",                  "-j",             "0",
+        stdlib,                site_dir,
     }, null, true);
 }
 
@@ -1633,9 +1641,9 @@ fn stageWasmLibc(io: Io, a: Allocator, wasm_libc_dir: []const u8, stage: []const
 /// canonical pip path first, then a bounded walk of site-packages for any
 /// `certifi/cacert.pem` (so a pip layout shift still resolves). Null if absent.
 fn findCaBundle(io: Io, gpa: Allocator, a: Allocator, pbs_py_dir: []const u8) !?[]const u8 {
-    const direct = try std.fmt.allocPrint(a, "{s}/install/lib/python{s}/site-packages/pip/_vendor/certifi/cacert.pem", .{ pbs_py_dir, py_ver });
+    const direct = try std.fmt.allocPrint(a, "{s}/install/lib/python{s}/site-packages/pip/_vendor/certifi/cacert.pem", .{ pbs_py_dir, py_abi_ver });
     if (fileExists(io, direct)) return direct;
-    const sp = try std.fmt.allocPrint(a, "{s}/install/lib/python{s}/site-packages", .{ pbs_py_dir, py_ver });
+    const sp = try std.fmt.allocPrint(a, "{s}/install/lib/python{s}/site-packages", .{ pbs_py_dir, py_abi_ver });
     var dir = Dir.cwd().openDir(io, sp, .{ .iterate = true }) catch return null;
     defer dir.close(io);
     var walker = dir.walk(gpa) catch return null;
@@ -1693,11 +1701,11 @@ const FoundLib = struct { src: []const u8, bare: []const u8 };
 
 /// Find the shared libpython in `lib_dir` and the bare name to stage it under.
 fn findLibpython(io: Io, a: Allocator, lib_dir: []const u8) !FoundLib {
-    const so = "libpython" ++ py_ver ++ ".so";
-    const dy = "libpython" ++ py_ver ++ ".dylib";
+    const so = "libpython" ++ py_abi_ver ++ ".so";
+    const dy = "libpython" ++ py_abi_ver ++ ".dylib";
     if (fileExists(io, try std.fmt.allocPrint(a, "{s}/{s}", .{ lib_dir, so }))) return .{ .src = so, .bare = so };
     if (fileExists(io, try std.fmt.allocPrint(a, "{s}/{s}", .{ lib_dir, dy }))) return .{ .src = dy, .bare = dy };
-    // Versioned variant (e.g. libpython3.14.so.1.0).
+    // Versioned variant (e.g. libpython3.14t.so.1.0).
     var dir = try Dir.cwd().openDir(io, lib_dir, .{ .iterate = true });
     defer dir.close(io);
     var dit = dir.iterate();
@@ -2007,7 +2015,7 @@ test "stageFloor stages the floor allow-list + CA bundle, skips non-floor archiv
             .data = "!<arch>\n",
         });
     }
-    const certdir = try std.fmt.allocPrint(a, "{s}/install/lib/python{s}/site-packages/pip/_vendor/certifi", .{ pbs, py_ver });
+    const certdir = try std.fmt.allocPrint(a, "{s}/install/lib/python{s}/site-packages/pip/_vendor/certifi", .{ pbs, py_abi_ver });
     try Dir.cwd().createDirPath(io, certdir);
     try Dir.cwd().writeFile(io, .{
         .sub_path = try std.fmt.allocPrint(a, "{s}/cacert.pem", .{certdir}),

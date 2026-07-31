@@ -13,6 +13,7 @@ import from pathlib { Path }
 import from tests.support { JAC_ROOT }
 import jaclang;
 import from jaclang.jac0core.runtime { JacRuntime }
+import from jaclang.project.config { JacConfig, set_config }
 
 glob FIXTURES = os.path.join(JAC_ROOT, "tests", "language", "fixtures"),
      EXAMPLES = os.path.join(JAC_ROOT, "examples"),
@@ -31,6 +32,20 @@ def run_jac(filepath: str) -> str {
         sys.stdout = old_stdout;
     }
     return buf.getvalue();
+}
+
+def run_jac_with_ttg(filepath: str) -> str {
+    cfg = JacConfig();
+    cfg.run.topology_index = True;
+    cfg.run.prefetching = "ttg";
+    cfg.run.prefetch_limit = 200;
+    cfg.run.async_prefetch = "";
+    set_config(cfg);
+    try {
+        return run_jac(filepath);
+    } finally {
+        set_config(JacConfig());
+    }
 }
 
 """Import a dotted module target and return captured stdout."""
@@ -959,6 +974,22 @@ test "as cast is type erased" {
 test "as cast does not disturb with/except alias" {
     output = run_jac(os.path.join(FIXTURES, "as_cast_with_except.jac"));
     assert output == "with-ternary-ok\nwith-paren-cast-ok\nboom\n";
+}
+
+test "TTG basic graph topology" {
+    output = run_jac_with_ttg(os.path.join(FIXTURES, "ttg_basic.jac"));
+    assert "visited [1, 2]" in output , f"Walker visited incorrect nodes: {output}";
+    assert "ttg_visits 2" in output , f"TTG visit extraction did not run: {output}";
+}
+
+test "TTG large graph with multiple walkers" {
+    output = run_jac_with_ttg(os.path.join(FIXTURES, "ttg_large_graph.jac"));
+    assert "w1_visited" in output , f"HttpCrawler walker not executed: {output}";
+    assert "w2_visited" in output , f"ServiceDbCrawler walker not executed: {output}";
+    assert "w3_visited" in output , f"FullCrawler walker not executed: {output}";
+    assert "w1_ttg_visits 2" in output , f"HttpCrawler TTG extraction missing: {output}";
+    assert "w2_ttg_visits 4" in output , f"ServiceDbCrawler TTG extraction missing: {output}";
+    assert "w3_ttg_visits 7" in output , f"FullCrawler TTG extraction missing: {output}";
 }
 
 test "deep walker chain does not hit recursion limit" {

@@ -48,7 +48,9 @@ glob MICRO_JAC_FILES: list[str] = [
          "examples/littleX/tests/test_littlex.jac",
          "examples/mini_todo/bench_local.jac",
          "examples/mini_todo/main.jac",
-         "examples/mini_todo/test_local.jac"
+         "examples/mini_todo/test_local.jac",
+         "tests/language/fixtures/ttg_basic.jac",
+         "tests/language/fixtures/ttg_large_graph.jac"
      ],
      # Fixed list of Python files in the jaclang package for py2jac testing.
      JACLANG_PYTHON_FILES: list[str] = [

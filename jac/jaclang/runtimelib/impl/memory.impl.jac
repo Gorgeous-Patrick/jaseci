@@ -22,7 +22,101 @@ import from jaclang.runtimelib.query_plan { QueryPlan }
 import from jaclang.runtimelib.typecache { get_field_types }
 
 glob logger = logging.getLogger(__name__),
-     SQLITE_DB_FORMAT_VERSION: int = 1;
+     SQLITE_DB_FORMAT_VERSION: int = 1,
+     _access_log_state: list = [None],
+     _hit_stats: dict[str, int] = {"L1": 0, "L2": 0, "L3": 0, "MISS": 0},
+     _hit_stats_lock: threading.Lock = threading.Lock(),
+     _hit_stats_snapshots: list[tuple[str, dict[str, int]]] = [],
+     _prefetch_worker_times: list[float] = [];
+
+impl hit_stats_snapshot -> dict[str, int] {
+    with _hit_stats_lock {
+        return dict(_hit_stats);
+    }
+}
+
+impl hit_stats_reset -> None {
+    with _hit_stats_lock {
+        for k in _hit_stats {
+            _hit_stats[k] = 0;
+        }
+        _hit_stats_snapshots.clear();
+    }
+}
+
+impl hit_stats_add_checkpoint(label: str) -> None {
+    with _hit_stats_lock {
+        _hit_stats_snapshots.append((label, dict(_hit_stats)));
+    }
+}
+
+impl hit_stats_read_checkpoints -> list[tuple[str, dict[str, int]]] {
+    with _hit_stats_lock {
+        return list(_hit_stats_snapshots);
+    }
+}
+
+impl prefetch_worker_times_append(elapsed_ms: float) -> None {
+    with _hit_stats_lock {
+        _prefetch_worker_times.append(elapsed_ms);
+    }
+}
+
+impl prefetch_worker_times_snapshot -> list[float] {
+    with _hit_stats_lock {
+        return list(_prefetch_worker_times);
+    }
+}
+
+impl prefetch_worker_times_reset -> None {
+    with _hit_stats_lock {
+        _prefetch_worker_times.clear();
+    }
+}
+
+impl _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
+    with _hit_stats_lock {
+        if tier in _hit_stats {
+            _hit_stats[tier] += 1;
+        }
+    }
+    fh = _access_log_state[0];
+    if fh is None {
+        try {
+            import from jaclang.project.config { get_config }
+            cfg = get_config();
+            if cfg is None or not cfg.run.access_log {
+                _access_log_state[0] = False;
+                return;
+            }
+            import pathlib;
+            p = pathlib.Path(cfg.run.access_log);
+            p.parent.mkdir(parents=True, exist_ok=True);
+            fh = p.open('w');
+            fh.write("id,tier,type\n");
+            _access_log_state[0] = fh;
+        } except Exception {
+            _access_log_state[0] = False;
+            return;
+        }
+    }
+    if fh is False {
+        return;
+    }
+    type_name = "";
+    if anchor is not None {
+        try {
+            type_name = `type(anchor).__name__;
+            if anchor?.archetype and anchor.archetype is not None {
+                type_name = `type(anchor.archetype).__name__;
+            }
+        } except Exception {
+            ;
+        }
+    }
+    fh.write(f"{id},{tier},{type_name}\n");
+    fh.flush();
+}
 
 def _is_system_root_topology_anchor(anchor: Anchor) -> bool {
     if not (
@@ -75,6 +169,8 @@ impl Memory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None] {
     return;
     yield ;
 }
+
+impl Memory.prefetch(ids: Iterable[UUID]) -> None { }
 
 def _anchor_to_row(anchor: Anchor) -> tuple {
     data = Serializer.serialize(anchor, include_type=True);
@@ -553,6 +649,8 @@ impl VolatileMemory.get_mem -> dict[UUID, Anchor] {
 }
 
 impl VolatileMemory.commit(anchor: (Anchor | None) = None) -> None { }
+
+impl VolatileMemory.prefetch(ids: Iterable[UUID]) -> None { }
 
 impl LocalCacheMemory.exists(id: UUID) -> bool {
     return id in self.__mem__;
@@ -1076,6 +1174,14 @@ impl SqliteMemory._merge_write(conn: sqlite3.Connection, intent: WriteIntent) ->
 
 impl SqliteMemory.get_mem -> dict[UUID, Anchor] {
     return self.__mem__;
+}
+
+impl SqliteMemory.prefetch(ids: Iterable[UUID]) -> None {
+    for uid in ids {
+        if uid not in self.__mem__ {
+            self.get(uid);
+        }
+    }
 }
 
 impl SqliteMemory.commit(anchor: (Anchor | None) = None) -> None { }
@@ -1639,6 +1745,8 @@ impl TieredMemory.postinit -> None {
     import from jaclang.runtimelib.utils { get_db_path }
 
     self.__mem__ = {};
+    self.__raw__ = {};
+    self._raw_lock = threading.Lock();
 
     self.changes = ChangeSet();
 
@@ -1680,6 +1788,10 @@ impl TieredMemory._resolve_l3_backend(db_path: str) -> PersistentMemory {
 
 impl TieredMemory.get(id: UUID) -> (Anchor | None) {
     if (anchor := self.__mem__.get(id)) {
+        return anchor;
+    }
+
+    if (anchor := self.promote_raw(id)) {
         return anchor;
     }
 
@@ -1725,6 +1837,9 @@ impl TieredMemory.get_roots -> Generator[Root, None, None] {
 
 impl TieredMemory.delete(id: UUID) -> None {
     anchor: (Anchor | None) = self.__mem__.pop(id, None);
+    with self._raw_lock {
+        self.__raw__.pop(id, None);
+    }
     if anchor is None and self.l3 is not None {
         anchor = self.l3.get(id);
     }
@@ -1749,12 +1864,19 @@ impl TieredMemory.close -> None {
     }
 
     self.__mem__.clear();
+    self.__raw__.clear();
     self.changes.clear();
 }
 
 impl TieredMemory.`has(id: UUID) -> bool {
     if id in self.__mem__ {
         return True;
+    }
+
+    with self._raw_lock {
+        if id in self.__raw__ {
+            return True;
+        }
     }
 
     if self.l2 and self.l2.exists(id) {
@@ -1780,6 +1902,148 @@ impl TieredMemory.reset_l3_fetch_count -> None {
     if isinstance(self.l3, SqliteMemory) {
         self.l3.l3_fetch_count = 0;
     }
+}
+
+impl TieredMemory.store_raw(uid: UUID, data: object) -> None {
+    with self._raw_lock {
+        if uid not in self.__mem__ {
+            self.__raw__[uid] = data;
+        }
+    }
+}
+
+impl TieredMemory.promote_raw(uid: UUID) -> (Anchor | None) {
+    with self._raw_lock {
+        raw = self.__raw__.pop(uid, None);
+    }
+    if raw is None {
+        return None;
+    }
+    try {
+        anchor = Serializer.deserialize(cast(dict[str, object], raw));
+    } except Exception as e {
+        logger.debug(f"prefetch raw deserialize failed for {uid}: {e}");
+        return None;
+    }
+    if anchor is None {
+        return None;
+    }
+    anchor = cast(Anchor, anchor);
+    self.__mem__[uid] = anchor;
+    try {
+        snapshot_field_hashes(anchor);
+    } except Exception {
+        ;
+    }
+    return anchor;
+}
+
+impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
+    import time as _time;
+    _pf_start = _time.perf_counter();
+    if self.l3 is None {
+        return;
+    }
+    l3 = cast(PersistentMemory, self.l3);
+    l3_any: any = cast(any, l3);
+    id_list: list[UUID] = [];
+    for uid in ids {
+        if uid in self.__mem__ {
+            continue;
+        }
+        with self._raw_lock {
+            if uid in self.__raw__ {
+                continue;
+            }
+        }
+        id_list.append(uid);
+    }
+    if not id_list {
+        prefetch_worker_times_append((_time.perf_counter() - _pf_start) * 1000);
+        return;
+    }
+
+    remaining: list[UUID] = [];
+    if self.l2 and hasattr(self.l2, 'batch_get') {
+        l2_any: any = cast(any, self.l2);
+        try {
+            l2_results: dict[UUID, Anchor] = cast(
+                dict[UUID, Anchor], l2_any.batch_get(id_list)
+            );
+            for uid in id_list {
+                if uid in l2_results {
+                    self.__mem__[uid] = l2_results[uid];
+                } else {
+                    remaining.append(uid);
+                }
+            }
+        } except Exception {
+            remaining = id_list;
+        }
+    } else {
+        remaining = id_list;
+    }
+    if not remaining {
+        prefetch_worker_times_append((_time.perf_counter() - _pf_start) * 1000);
+        return;
+    }
+
+    raw_items: list[tuple[UUID, dict[str, object]]] = [];
+    if hasattr(l3, 'find_raw') {
+        try {
+            for (uid, data) in cast(
+                Iterable[tuple[UUID, dict[str, object]]],
+                l3_any.find_raw(remaining)
+            ) {
+                self.store_raw(uid, data);
+                raw_items.append((uid, data));
+            }
+        } except Exception as e {
+            logger.debug(f"prefetch find_raw failed: {e}");
+        }
+    }
+    if raw_items {
+        if self.l2 and hasattr(self.l2, 'bulk_put_raw') {
+            l2_raw_any: any = cast(any, self.l2);
+            try {
+                import threading;
+                threading.Thread(
+                    target=l2_raw_any.bulk_put_raw, args=(raw_items, ), daemon=True
+                ).start();
+            } except Exception {
+                ;
+            }
+        }
+        prefetch_worker_times_append((_time.perf_counter() - _pf_start) * 1000);
+        return;
+    }
+
+    loaded: dict[UUID, Anchor] = {};
+    if hasattr(l3, 'batch_get') {
+        try {
+            loaded = cast(dict[UUID, Anchor], l3_any.batch_get(remaining));
+        } except Exception {
+            loaded = {};
+        }
+    }
+    if not loaded {
+        for uid in remaining {
+            if (anchor := l3.get(uid)) {
+                loaded[uid] = anchor;
+            }
+        }
+    }
+    for (uid, anchor) in loaded.items() {
+        self.__mem__[uid] = anchor;
+        if self.l2 {
+            try {
+                self.l2.put(anchor);
+            } except Exception {
+                ;
+            }
+        }
+    }
+    prefetch_worker_times_append((_time.perf_counter() - _pf_start) * 1000);
 }
 
 impl TieredMemory.commit(anchor: (Anchor | None) = None) -> None {
@@ -2006,8 +2270,10 @@ impl TieredMemory.execute_plan(plan: QueryPlan) -> Generator[Anchor, None, None]
             if self.l2 {
                 self.l2.put(anchor);
             }
+            _tiered_access_log(anchor.id, "L3", anchor);
             yield anchor;
         } else {
+            _tiered_access_log(existing.id, "L1", existing);
             yield existing;
         }
     }
@@ -2019,6 +2285,10 @@ impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     for id in ids {
         if (anchor := self.__mem__.get(id)) {
             result[id] = anchor;
+            _tiered_access_log(id, "L1", anchor);
+        } elif (anchor := self.promote_raw(id)) {
+            result[id] = cast(Anchor, anchor);
+            _tiered_access_log(id, "L1", anchor);
         } else {
             missing_ids.append(id);
         }
@@ -2031,6 +2301,9 @@ impl TieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
                     self.l2.put(anchor);
                 }
                 result[anchor.id] = anchor;
+                _tiered_access_log(anchor.id, "L3", anchor);
+            } else {
+                _tiered_access_log(mid, "MISS");
             }
         }
     }

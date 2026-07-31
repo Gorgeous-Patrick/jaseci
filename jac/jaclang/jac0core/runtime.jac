@@ -22,7 +22,8 @@ import from typing {
     ParamSpec,
     Protocol,
     TypeAlias,
-    TypeVar
+    TypeVar,
+    cast
 }
 import from uuid { UUID }
 import from jaclang.jac0core.archetype {
@@ -101,7 +102,8 @@ def _scale_provider -> any {
 
 def _prefetch_edges(origin: list[NodeArchetype]) -> None {
     ctx = JacRuntimeInterface.get_context();
-    if not hasattr(ctx.mem, 'batch_get') {
+    batch_get = getattr(ctx.mem, 'batch_get', None);
+    if batch_get is None {
         return;
     }
     edge_ids: list = [];
@@ -114,30 +116,271 @@ def _prefetch_edges(origin: list[NodeArchetype]) -> None {
         }
     }
     if edge_ids {
-        ctx.mem.batch_get(edge_ids);
+        batch_get(edge_ids);
     }
     node_ids: list = [];
     for nd in origin {
         nanch = nd.__jac__;
         for anchor in nanch.edges {
             loaded = ctx.mem.get(anchor.id);
-            if loaded {
-                if loaded?.source
-                    and loaded.source is not None
-                    and not loaded.source.is_populated() {
-                    node_ids.append(loaded.source.id);
+            if isinstance(loaded, EdgeAnchor) {
+                source = cast(NodeAnchor, loaded.source);
+                target = cast(NodeAnchor, loaded.target);
+                if source is not None and not source.is_populated() {
+                    node_ids.append(source.id);
                 }
-                if loaded?.target
-                    and loaded.target is not None
-                    and not loaded.target.is_populated() {
-                    node_ids.append(loaded.target.id);
+                if target is not None and not target.is_populated() {
+                    node_ids.append(target.id);
                 }
             }
         }
     }
     if node_ids {
-        ctx.mem.batch_get(node_ids);
+        batch_get(node_ids);
     }
+}
+
+glob _mp_prefetch_state: dict[str, any] = {};
+
+def _mp_merger_loop(pipe_recv: any, target_mem: any) -> None {
+    import pickle;
+    import from multiprocessing.shared_memory { SharedMemory }
+    while True {
+        try {
+            msg = pipe_recv.recv();
+        } except EOFError {
+            return;
+        } except Exception {
+            continue;
+        }
+        try {
+            shm_name = msg[0];
+            size = msg[1];
+            shm = SharedMemory(name=shm_name);
+            try {
+                blob = bytes(shm.buf[:size]);
+                items = pickle.loads(blob);
+                for (k, v) in items.items() {
+                    target_mem.store_raw(k, v);
+                }
+            } finally {
+                shm.close();
+                shm.unlink();
+            }
+        } except Exception {
+            continue;
+        }
+    }
+}
+
+def _mp_prefetch_target(prefetch_ids: list, pipe_send: any) {
+    try {
+        import pickle;
+        import from multiprocessing.shared_memory { SharedMemory }
+        import from jaclang.runtimelib.context { ExecutionContext }
+        _ctx = ExecutionContext();
+        try {
+            _ctx.mem.prefetch(prefetch_ids);
+            payload = dict(getattr(_ctx.mem, '__raw__', {}));
+            if payload {
+                blob = pickle.dumps(payload);
+                shm = SharedMemory(create=True, size=len(blob));
+                try {
+                    shm.buf[:len(blob)] = blob;
+                    pipe_send.send((shm.name, len(blob)));
+                } finally {
+                    shm.close();
+                }
+            }
+        } finally {
+            _ctx.close();
+        }
+    } except Exception {
+        ;
+    }
+}
+
+def _chunk_evenly(items: list, n: int) -> list {
+    if n <= 1 or len(items) <= 1 {
+        return [items];
+    }
+    _out: list = [];
+    for _k in range(n) {
+        _shard = items[_k::n];
+        if _shard {
+            _out.append(_shard);
+        }
+    }
+    return _out;
+}
+
+def _signal_done_after_all(threads: list, done: any) {
+    for t in threads {
+        t.join();
+    }
+    done.set();
+}
+
+def _dispatch_prefetch(
+    ctx: any, prefetch_ids: list, mode: str, workers: int = 1
+) -> None {
+    import threading;
+    workers = workers if workers > 0 else 1;
+    ctx.mem._prefetch_ids = set(prefetch_ids);
+    ctx.mem._prefetch_done = threading.Event();
+    if not prefetch_ids {
+        ctx.mem._prefetch_done.set();
+        return;
+    }
+    if mode == "thread" {
+        _threads: list = [];
+        for _shard in _chunk_evenly(prefetch_ids, workers) {
+            _t = threading.Thread(
+                target=ctx.mem.prefetch, args=(_shard, ), daemon=True,
+            );
+            _t.start();
+            _threads.append(_t);
+        }
+        ctx.mem._prefetch_thread = _threads[0] if _threads else None;
+        ctx.mem._prefetch_threads = _threads;
+        if _threads {
+            _mon = threading.Thread(
+                target=_signal_done_after_all,
+                args=(_threads, ctx.mem._prefetch_done),
+                daemon=True,
+            );
+            _mon.start();
+        } else {
+            ctx.mem._prefetch_done.set();
+        }
+        return;
+    }
+    if mode == "process" {
+        import multiprocessing;
+        if _mp_prefetch_state.get("pipe_send") is None {
+            (_mp_pipe_recv, _mp_pipe_send) = multiprocessing.Pipe(duplex=False);
+            _mp_prefetch_state["pipe_recv"] = _mp_pipe_recv;
+            _mp_prefetch_state["pipe_send"] = _mp_pipe_send;
+            _mp_prefetch_state["target_mem"] = ctx.mem;
+            _mp_merger_thread = threading.Thread(
+                target=_mp_merger_loop,
+                args=(_mp_pipe_recv, _mp_prefetch_state["target_mem"]),
+                daemon=True,
+            );
+            _mp_merger_thread.start();
+            _mp_prefetch_state["merger_thread"] = _mp_merger_thread;
+            try {
+                multiprocessing.set_forkserver_preload(
+                    [
+                        'jaclang.jac0core.runtime',
+                        'jaclang.runtimelib.context',
+                        'multiprocessing.shared_memory',
+                        'pickle',
+                    ]
+                );
+            } except Exception {
+                ;
+            }
+        }
+        _mp_ctx = multiprocessing.get_context("forkserver");
+        _p = _mp_ctx.Process(
+            target=_mp_prefetch_target,
+            args=(prefetch_ids, _mp_prefetch_state["pipe_send"]),
+            daemon=True,
+        );
+        _p.start();
+        ctx.mem._prefetch_thread = _p;
+        ctx.mem._prefetch_done.set();
+        return;
+    }
+    if workers <= 1 {
+        ctx.mem.prefetch(prefetch_ids);
+        ctx.mem._prefetch_done.set();
+        return;
+    }
+    _threads: list = [];
+    for _shard in _chunk_evenly(prefetch_ids, workers) {
+        _t = threading.Thread(target=ctx.mem.prefetch, args=(_shard, ));
+        _t.start();
+        _threads.append(_t);
+    }
+    for _t in _threads {
+        _t.join();
+    }
+    ctx.mem._prefetch_done.set();
+}
+
+def _run_ttg_prefetch(
+    warch: WalkerArchetype, nd: (NodeAnchor | EdgeAnchor)
+) -> dict[str, any] {
+    import time as _time;
+    profile: dict[str, any] = {
+        "ttg_enabled": False,
+        "ttg_total_ms": 0.0,
+        "topo_idx_ms": 0.0,
+        "ttg_ms": 0.0,
+        "prefetch_ms": 0.0,
+        "resolve_total_ms": 0.0,
+        "prefetch_count": 0
+    };
+    _ttg_total_start = _time.perf_counter();
+    if not isinstance(nd, NodeAnchor) {
+        return profile;
+    }
+    try {
+        import from jaclang.project.config { get_config }
+        cfg = get_config();
+        if (
+            cfg is None
+            or cfg.run.prefetching != "ttg"
+            or cfg.run.prefetch_limit <= 0
+        ) {
+            return profile;
+        }
+        import from jaclang.jac0core.ttg { JacTTGGenerator }
+        import from jaclang.runtimelib.topo_utils { _get_index_anchor }
+        import from jaclang.runtimelib.topology_index { TopologyIndex }
+
+        _topo_start = _time.perf_counter();
+        index_anchor = _get_index_anchor();
+        if index_anchor is None {
+            return profile;
+        }
+        topo_idx = index_anchor.get_topology_index();
+        profile["topo_idx_ms"] = (_time.perf_counter() - _topo_start) * 1000;
+        if not isinstance(topo_idx, TopologyIndex) or len(topo_idx) == 0 {
+            return profile;
+        }
+        ctx = JacRuntimeInterface.get_context();
+        _ttg_start = _time.perf_counter();
+        prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
+            warch,
+            nd.id,
+            topo_idx,
+            mem=ctx.mem,
+            max_length=cfg.run.prefetch_limit
+        );
+        profile["ttg_ms"] = (_time.perf_counter() - _ttg_start) * 1000;
+        profile["resolve_total_ms"] = getattr(JacTTGGenerator, '_last_resolve_ms', 0.0);
+        if prefetch_ids {
+            import from jaclang.runtimelib.memory { prefetch_worker_times_reset }
+            prefetch_worker_times_reset();
+            _prefetch_start = _time.perf_counter();
+            _dispatch_prefetch(
+                ctx,
+                prefetch_ids,
+                cfg.run.async_prefetch,
+                cfg.run.prefetch_workers
+            );
+            profile["prefetch_ms"] = (_time.perf_counter() - _prefetch_start) * 1000;
+            profile["prefetch_count"] = len(prefetch_ids);
+            profile["ttg_enabled"] = True;
+        }
+    } except Exception as e {
+        logger.debug(f"TTG prefetch failed: {e}");
+    }
+    profile["ttg_total_ms"] = (_time.perf_counter() - _ttg_total_start) * 1000;
+    return profile;
 }
 
 def resolve_ref(

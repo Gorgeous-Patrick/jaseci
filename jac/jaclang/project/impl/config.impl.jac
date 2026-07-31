@@ -1096,6 +1096,11 @@ impl _parse_toml_data(
             main=run_data.get("main", True),
             cache=run_data.get("cache", True),
             topology_index=run_data.get("topology_index", True),
+            prefetching=run_data.get("prefetching", ""),
+            prefetch_limit=run_data.get("prefetch_limit", 200),
+            async_prefetch=run_data.get("async_prefetch", ""),
+            prefetch_workers=run_data.get("prefetch_workers", 1),
+            access_log=run_data.get("access_log", ""),
             diagnostics=run_data.get("diagnostics", "error")
         );
     }

@@ -124,6 +124,14 @@ obj ObjectAnchor(Anchor) {
     has archetype: ObjectArchetype;
 }
 
+@dataclass
+class VisitType {
+    has from_node_type: (type | str | None) = None,
+        edge_type: (type | str | None) = None,
+        edge_chain: (list[tuple[str | None, str | None, int]] | None) = None,
+        is_visit: bool = True;
+}
+
 obj Archetype {
     with entry {
         _jac_entry_funcs_: ClassVar[list[ObjectSpatialFunction]] = [];
@@ -162,6 +170,7 @@ class WalkerArchetype(Archetype) {
     with entry {
         __jac_async__: ClassVar[bool] = False;
         __jac_base__: ClassVar[bool] = True;
+        __jac_ttg_visits__: ClassVar[list[VisitType]] = [];
         reports: list[any] = field(default_factory=`list);
     }
 

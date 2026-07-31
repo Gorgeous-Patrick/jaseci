@@ -826,6 +826,43 @@ impl MongoBackend._put_node_atomic(
     }
 }
 
+impl MongoBackend.find_raw(ids: Iterable[UUID]) -> Iterable[tuple[UUID, dict]] {
+    result: list[tuple[UUID, dict]] = [];
+    if self.client is None {
+        return result;
+    }
+    id_list = list(ids);
+    if not id_list {
+        return result;
+    }
+    self.fetch_count += len(id_list);
+    str_ids = [str(to_uuid(id)) for id in id_list];
+    span = start_memory_span(
+        "memory.find_raw mongodb",
+        {
+            "db.system": "mongodb",
+            "mem.tier": "L3",
+            "mem.op": "find_raw",
+            "mem.count": len(id_list)
+        }
+    );
+    try {
+        for raw_doc in self.collection.find({'_id': {'$in': str_ids}}) {
+            doc = cast(dict, raw_doc);
+            if 'data' in doc {
+                result.append(
+                    (UUID(cast(str, doc['_id'])), cast(dict, doc['data']))
+                );
+            }
+        }
+    } except Exception as e {
+        logger.debug(f"MongoDB find_raw failed: {e}");
+    } finally {
+        end_memory_span(span);
+    }
+    return result;
+}
+
 impl MongoBackend.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     result: dict[UUID, Anchor] = {};
     if self.client is None or not ids {

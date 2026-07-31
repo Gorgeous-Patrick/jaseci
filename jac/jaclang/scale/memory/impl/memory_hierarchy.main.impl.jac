@@ -5,6 +5,8 @@ def _carries_topology_index(anchor: Anchor) -> bool {
 
 impl ScaleTieredMemory.postinit -> None {
     self.__mem__ = {};
+    self.__raw__ = {};
+    self._raw_lock = threading.Lock();
 
     self.changes = ChangeSet();
 
@@ -152,12 +154,17 @@ impl ScaleTieredMemory.commit(anchor: (Anchor | None) = None) -> None {
 }
 
 impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
+    import from jaclang.runtimelib.memory { _tiered_access_log }
     result: dict[UUID, Anchor] = {};
     l1_misses: list[UUID] = [];
     for id in ids {
         self._refresh_if_stale(id);
         if (anchor := self.__mem__.get(id)) {
             result[id] = anchor;
+            _tiered_access_log(id, "L1", anchor);
+        } elif (anchor := self.promote_raw(id)) {
+            result[id] = cast(Anchor, anchor);
+            _tiered_access_log(id, "L1", anchor);
         } else {
             l1_misses.append(id);
         }
@@ -166,14 +173,57 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
         return result;
     }
 
+    _pf_done: any = self?._prefetch_done;
+    _pf_ids: any = self?._prefetch_ids;
+    if _pf_done is not None and _pf_ids is not None {
+        import os as _os;
+        _in_plan: list[UUID] = [];
+        _not_in_plan: list[UUID] = [];
+        _pf_id_set = cast(set[UUID], _pf_ids);
+        for id in l1_misses {
+            if id in _pf_id_set {
+                _in_plan.append(id);
+            } else {
+                _not_in_plan.append(id);
+            }
+        }
+        _pf_done_handle: any = cast(any, _pf_done);
+        if _in_plan and not _pf_done_handle.is_set() {
+            try {
+                _wait_ms = int(_os.environ.get('JAC_PREFETCH_WAIT_MS', '50'));
+            } except (TypeError, ValueError) {
+                _wait_ms = 50;
+            }
+            if _wait_ms > 0 {
+                _pf_done_handle.wait(timeout=_wait_ms / 1000.0);
+            }
+        }
+        _still_missing: list[UUID] = [];
+        for id in _in_plan {
+            if (anchor := self.promote_raw(id)) {
+                result[id] = cast(Anchor, anchor);
+                _tiered_access_log(id, "L1", anchor);
+            } else {
+                _still_missing.append(id);
+            }
+        }
+        l1_misses = _still_missing + _not_in_plan;
+        if not l1_misses {
+            return result;
+        }
+    }
+
     l2_misses: list[UUID] = [];
     if self.l2 and hasattr(self.l2, 'batch_get') {
-        l2_results = self.l2.batch_get(l1_misses);
+        l2_results: dict[UUID, Anchor] = cast(
+            dict[UUID, Anchor], cast(any, self.l2).batch_get(l1_misses)
+        );
         for id in l1_misses {
             if id in l2_results {
-                anchor = l2_results[id];
+                anchor = cast(Anchor, l2_results[id]);
                 self.__mem__[id] = anchor;
                 result[id] = anchor;
+                _tiered_access_log(id, "L2", anchor);
             } else {
                 l2_misses.append(id);
             }
@@ -185,7 +235,9 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
     if l2_misses and self.l3 {
         l3_results: dict[UUID, Anchor] = {};
         if hasattr(self.l3, 'batch_get') {
-            l3_results = self.l3.batch_get(l2_misses);
+            l3_results = cast(
+                dict[UUID, Anchor], cast(any, self.l3).batch_get(l2_misses)
+            );
         } else {
             for mid in l2_misses {
                 if (a := self.l3.get(mid)) {
@@ -201,6 +253,12 @@ impl ScaleTieredMemory.batch_get(ids: list[UUID]) -> dict[UUID, Anchor] {
                 } except Exception { }
             }
             result[id] = anchor;
+            _tiered_access_log(id, "L3", anchor);
+        }
+        for mid in l2_misses {
+            if mid not in l3_results {
+                _tiered_access_log(mid, "MISS");
+            }
         }
     }
     return result;
@@ -234,12 +292,16 @@ impl ScaleTieredMemory.close -> None {
             deregister_l1(self._l1_id);
         }
         self.__mem__.clear();
+        self.__raw__.clear();
         self.changes.clear();
     }
 }
 
 impl ScaleTieredMemory._refresh_if_stale(id: UUID) -> None {
     if consume_stale(self._l1_id, id) {
+        with self._raw_lock {
+            self.__raw__.pop(id, None);
+        }
         existing = self.__mem__.get(id);
         if existing is not None
             and existing.persistent

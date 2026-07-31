@@ -253,12 +253,13 @@ fn isNvimArgv0(init: std.process.Init) bool {
 /// PATH -- so any of these names on PATH is a deliberately-installed competing
 /// ecosystem, the antithesis of the one-binary promise. Existence (a successful
 /// open) is the test; symlink shims (nvm/pyenv) resolve and count, as intended.
-/// python3.14 is named exactly, not `python3`: distros own `python3` as an OS
-/// dependency, but a fresh CPython 3.14 is a choice. Returns on the first hit.
+/// python3.14/python3.14t are named exactly, not `python3`: distros own
+/// `python3` as an OS dependency, but a fresh CPython 3.14 is a choice.
+/// Returns on the first hit.
 fn ninjaCompetingToolchain(init: std.process.Init) bool {
     const banned = [_][]const u8{
-        "node",       "npm", "pnpm", "yarn", "deno", // JS runtimes + package managers
-        "python3.14", "pip", "pip3", // a deliberately-installed CPython + pip
+        "node", "npm", "pnpm", "yarn", "deno", // JS runtimes + package managers
+        "python3.14", "python3.14t", "pip", "pip3", // deliberately-installed CPython + pip
     };
     const path = init.environ_map.get("PATH") orelse return false;
     var dirs = std.mem.tokenizeScalar(u8, path, ':');
