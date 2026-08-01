@@ -9,6 +9,49 @@ import from jaclang.runtimelib.auth_models {
     RegisterRequest
 }
 
+def _resolve_profile_dir -> (str | None) {
+    import from jaclang.project.config { get_config }
+    _cfg = get_config();
+    if _cfg is None or not _cfg.serve.profile {
+        return None;
+    }
+    return os.environ.get("JAC_PROFILE_DIR");
+}
+
+"""Create a fresh cProfile profiler for one walker request.
+
+cProfile is stdlib and avoids importing yappi's C extension on free-threaded
+CPython. The benchmark scripts still consume the emitted .prof files."""
+def _new_profile -> any {
+    import cProfile;
+    return cProfile.Profile();
+}
+
+def _dump_profile(_profile_dir: str | None, _profiler: any) -> None {
+    if _profiler is None or not _profile_dir {
+        return;
+    }
+    try {
+        _profiler.disable();
+    } except Exception {
+        pass;
+    }
+    os.makedirs(_profile_dir, exist_ok=True);
+    _prof_path = os.path.join(_profile_dir, "jac_server.prof");
+    _profiler.dump_stats(_prof_path);
+    _txt_path = os.path.join(_profile_dir, "jac_server.txt");
+    try {
+        import pstats;
+        with open(_txt_path, "w") as _f {
+            _ps = pstats.Stats(_prof_path, stream=_f);
+            _ps.sort_stats("cumulative");
+            _ps.print_stats();
+        }
+    } except Exception {
+        pass;
+    }
+}
+
 impl UserManager.postinit -> None {
     import sqlite3;
     import threading;
@@ -487,6 +530,8 @@ impl ExecutionManager.spawn_walker_sync(
     walker_cls: type[WalkerArchetype], fields: dict[(str, Any)], username: str
 ) -> dict[str, JsonValue] {
     import from jaclang.jac0core.constructs { NodeArchetype }
+    _profile_dir = _resolve_profile_dir();
+    _profiler = _new_profile() if _profile_dir else None;
     target_node_id = fields.pop('_jac_spawn_node', None);
     _deserialize_wire_args(fields);
 
@@ -500,27 +545,44 @@ impl ExecutionManager.spawn_walker_sync(
         } else {
             target_node = ctx.get_root();
         }
-        result = await asyncio.to_thread(Jac.spawn, `walker, target_node);
+        def _jac_walker_execute {
+            if _profiler is None {
+                return Jac.spawn(`walker, target_node);
+            }
+            _profiler.enable();
+            try {
+                return Jac.spawn(`walker, target_node);
+            } finally {
+                _profiler.disable();
+            }
+        }
+        result = await asyncio.to_thread(_jac_walker_execute);
 
         if iscoroutine(result) {
             result = await result;
         }
         return await self._finalize_call_response(call_state, result);
     }
-    return await _run_function_with_occ(
-        self,
-        fields,
-        username,
-        run_attempt,
-        deserialize_args=False,
-        include_traceback=True
-    );
+    try {
+        return await _run_function_with_occ(
+            self,
+            fields,
+            username,
+            run_attempt,
+            deserialize_args=False,
+            include_traceback=True
+        );
+    } finally {
+        _dump_profile(_profile_dir, _profiler);
+    }
 }
 
 impl ExecutionManager.spawn_walker_async(
     walker_cls: type[WalkerArchetype], fields: dict[(str, Any)], username: str
 ) -> dict[str, JsonValue] {
     import from jaclang.jac0core.constructs { NodeArchetype }
+    _profile_dir = _resolve_profile_dir();
+    _profiler = _new_profile() if _profile_dir else None;
     target_node_id = fields.pop('_jac_spawn_node', None);
     _deserialize_wire_args(fields);
 
@@ -534,22 +596,38 @@ impl ExecutionManager.spawn_walker_async(
         } else {
             target_node = ctx.get_root();
         }
+        if _profiler is not None {
+            _profiler.enable();
+        }
         spawn_result = Jac.spawn(`walker, target_node);
         if iscoroutine(spawn_result) {
-            result = await spawn_result;
+            try {
+                result = await spawn_result;
+            } finally {
+                if _profiler is not None {
+                    _profiler.disable();
+                }
+            }
         } else {
             result = spawn_result;
+            if _profiler is not None {
+                _profiler.disable();
+            }
         }
         return await self._finalize_call_response(call_state, result);
     }
-    return await _run_function_with_occ(
-        self,
-        fields,
-        username,
-        run_attempt,
-        deserialize_args=False,
-        include_traceback=True
-    );
+    try {
+        return await _run_function_with_occ(
+            self,
+            fields,
+            username,
+            run_attempt,
+            deserialize_args=False,
+            include_traceback=True
+        );
+    } finally {
+        _dump_profile(_profile_dir, _profiler);
+    }
 }
 
 impl ModuleIntrospector.postinit -> None {

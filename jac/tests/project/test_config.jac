@@ -442,6 +442,12 @@ test "serve on_conflict default and normalization" {
     assert typo.serve.on_conflict == "retry";
 }
 
+test "serve profile flag parses" {
+    config_mod._config = None;
+    cfg = JacConfig.from_toml_str("\n[serve]\nprofile = true\n");
+    assert cfg.serve.profile;
+}
+
 test "dev section parsing" {
     config_mod._config = None;
     # Absent -> defaults (test_jobs 'auto', jaclang_source empty).
