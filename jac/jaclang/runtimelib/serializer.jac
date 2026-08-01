@@ -83,7 +83,7 @@ obj Serializer {
         data: dict[str, object], anchor: object
     ) -> (object | None);
 
-    static def _compute_hash(anchor: object) -> int;
+    static def _compute_hash(anchor: object, serialized: (dict | None) = None) -> int;
     static def serialize_fields(
         anchor: object, field_names: set[str]
     ) -> dict[str, object];

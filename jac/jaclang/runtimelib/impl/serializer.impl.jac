@@ -655,7 +655,7 @@ impl Serializer._deserialize_anchor(data: dict[str, object]) -> (Anchor | None) 
             }
         }
 
-        anchor.hash = Serializer._compute_hash(anchor);
+        anchor.hash = Serializer._compute_hash(anchor, data);
         return anchor;
     } except Exception as e {
         logger.error(f"Failed to deserialize anchor: {e}");
@@ -864,10 +864,14 @@ impl Serializer.serialize_fields(
     return result;
 }
 
-impl Serializer._compute_hash(anchor: Anchor) -> int {
+impl Serializer._compute_hash(anchor: Anchor, serialized: (dict | None) = None) -> int {
     import from json { dumps }
     try {
-        data = Serializer.serialize(anchor, include_type=True);
+        # On the deserialize path the caller already holds the exact serialized
+        # form (the dict we were just handed). Reuse it instead of re-walking the
+        # whole anchor through Serializer.serialize().
+        data = serialized if serialized is not None
+            else Serializer.serialize(anchor, include_type=True);
         return hash(dumps(data, sort_keys=True));
     } except Exception {
         return 0;

@@ -247,14 +247,36 @@ impl NodeAnchor.edge_delta -> (tuple[(set[UUID], set[UUID])] | None) {
 
 impl NodeAnchor.get_topology_index -> any {
     import from jaclang.runtimelib.topology_index { TopologyIndex }
-    if self.topology_index_data {
-        return TopologyIndex.decode(self.topology_index_data);
+    data = self.topology_index_data;
+    if data {
+        # Decode-once cache. The topology index lives on the root anchor and
+        # get_topology_index() is called on every hop of a traversal
+        # (resolver.resolve_path_anchors -> refs). Decoding the whole index from
+        # bytes per hop is O(N) and dominates large walks. Memoize the decoded
+        # instance keyed by the identity of the encoded bytes: bytes are
+        # immutable, so identity equality guarantees content equality, and a
+        # re-encode (set_topology_index / deserialize) yields a fresh object that
+        # misses the cache. Stored in __dict__ (like _initial_edge_ids) so it is
+        # transient and never serialized.
+        cached = self.__dict__.get('_topo_index_cache');
+        if cached is not None and cached[0] is data {
+            return cached[1];
+        }
+        idx = TopologyIndex.decode(data);
+        self.__dict__['_topo_index_cache'] = (data, idx);
+        return idx;
     }
     return TopologyIndex();
 }
 
 impl NodeAnchor.set_topology_index(index: any) -> None {
-    self.topology_index_data = index.encode();
+    encoded = index.encode();
+    self.topology_index_data = encoded;
+    # Keep the decode cache consistent with the freshly-encoded bytes so the
+    # next get_topology_index() returns this same live instance instead of
+    # decoding a copy. Every mutating caller pairs get -> mutate -> set, so the
+    # cached instance never diverges from the persisted bytes.
+    self.__dict__['_topo_index_cache'] = (encoded, index);
 }
 
 impl EdgeAnchor.__getstate__ -> dict[(str, object)] {
