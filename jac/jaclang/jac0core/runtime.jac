@@ -466,6 +466,56 @@ def _dispatch_prefetch(
     ctx.mem._prefetch_done.set();
 }
 
+"""Run the configured prediction policy and dispatch the resulting UUIDs.
+
+The return tuple is (topology_ms, plan_ms, dispatch_ms, resolve_ms). The
+dispatcher and memory-tier behavior are intentionally shared by every policy.
+"""
+def _run_prefetch_policy(ctx: any, cfg: any, warch: any, nd: NodeAnchor) -> tuple {
+    if cfg is None or cfg?.run is None {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
+    run_cfg = cfg.run;
+    policy_name: str = str(getattr(run_cfg, "prefetching", ""));
+    limit: int = int(getattr(run_cfg, "prefetch_limit", 0) or 0);
+    if not policy_name or limit <= 0 {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
+    import time as _time;
+    import from jaclang.jac0core.prefetch_policy {
+        get_prefetch_plan,
+        normalize_prefetch_policy_name
+    }
+    policy = normalize_prefetch_policy_name(policy_name);
+    if policy in ("none", "off", "false", "0") {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
+    plan = get_prefetch_plan(
+        policy_name, warch, nd, mem=ctx.mem, max_length=limit, config=cfg
+    );
+    dispatch_ms = 0.0;
+    if plan.ids {
+        prefetch_start = _time.perf_counter();
+        mode: str = str(getattr(run_cfg, "async_prefetch", ""));
+        workers: int = int(getattr(run_cfg, "prefetch_workers", 1) or 1);
+        _dispatch_prefetch(ctx, plan.ids, mode, workers);
+        dispatch_ms = (_time.perf_counter() - prefetch_start) * 1000;
+        import sys as _sys;
+        logger.info(
+            f"[PREFETCH] mode={mode or 'sync'} "
+            f"workers={workers} "
+            f"ids={len(plan.ids)} "
+            f"dispatch_ms={dispatch_ms:.2f} "
+            f"gil_enabled={_sys._is_gil_enabled()}"
+        );
+    }
+    logger.info(
+        f"[PREFETCH-POLICY] policy={policy} ids={len(plan.ids)} "
+        f"topology_ms={plan.topology_ms:.3f} plan_ms={plan.plan_ms:.3f}"
+    );
+    return (plan.topology_ms, plan.plan_ms, dispatch_ms, plan.resolve_ms);
+}
+
 
 """Jac Node Operations."""
 class JacNode {

@@ -41,7 +41,9 @@ glob logger = logging.getLogger(__name__),
          'hit_stats_read_checkpoints',
          'prefetch_worker_times_append',
          'prefetch_worker_times_snapshot',
-         'prefetch_worker_times_reset'
+         'prefetch_worker_times_reset',
+         'prefetch_observation_begin',
+         'prefetch_observation_end'
      ];
 
 # Process-global tier-hit stats accumulator. Every _tiered_access_log
@@ -62,6 +64,10 @@ def prefetch_worker_times_append(elapsed_ms: float) -> None;
 def prefetch_worker_times_snapshot -> list[float];
 
 def prefetch_worker_times_reset -> None;
+
+def prefetch_observation_begin -> None;
+
+def prefetch_observation_end -> None;
 
 # =============================================================================
 # Abstract Interfaces

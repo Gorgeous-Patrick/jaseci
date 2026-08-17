@@ -42,7 +42,8 @@ glob _hit_stats: dict[str, int] = {"L1": 0, "L2": 0, "L3": 0, "MISS": 0},
      # Per-worker prefetch wall times (ms) — one entry appended by each
      # TieredMemory.prefetch call on completion. Same lock keeps this
      # cheap and consistent with the tier counters.
-     _prefetch_worker_times: list[float] = [];
+     _prefetch_worker_times: list[float] = [],
+     _prefetch_observation_count: int = 0;
 
 impl hit_stats_snapshot -> dict[str, int] {
     with _hit_stats_lock {
@@ -89,10 +90,36 @@ impl prefetch_worker_times_reset -> None {
     }
 }
 
+impl prefetch_observation_begin -> None {
+    global _prefetch_observation_count;
+    with _hit_stats_lock {
+        _prefetch_observation_count += 1;
+    }
+}
+
+impl prefetch_observation_end -> None {
+    global _prefetch_observation_count;
+    with _hit_stats_lock {
+        _prefetch_observation_count = max(_prefetch_observation_count - 1, 0);
+    }
+}
+
 def _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
     with _hit_stats_lock {
         if tier in _hit_stats {
             _hit_stats[tier] += 1;
+        }
+    }
+    if _prefetch_observation_count > 0 and tier != "MISS" {
+        try {
+            import from jaclang.jac0core.runtime { JacRuntimeInterface as _JacRT }
+            _ctx = _JacRT.get_context();
+            _obs = _ctx?._prefetch_observed_ids;
+            if isinstance(_obs, list) {
+                _obs.append(id);
+            }
+        } except Exception {
+            ;
         }
     }
     fh = _access_log_state[0];

@@ -50,6 +50,8 @@ obj RunConfig {
         autonative: bool = False,
         topology_index: bool = True,
         prefetching: str = "",
+        prefetch_oracle_file: str = "",
+        prefetch_markov_file: str = "",
         prefetch_limit: int = 200,
         # ""       — synchronous (block walker until prefetch finishes)
         # "thread" — daemon thread (overlap with walker; in-process)

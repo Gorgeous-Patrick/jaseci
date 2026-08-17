@@ -392,79 +392,56 @@ impl JacWalker.spawn_call(
     prefetch_time_ms = 0.0;
     ttg_total_time_ms = 0.0;
     resolve_total_ms = 0.0;
-    # TTG prefetch: predict traversal and warm the cache before walking.
+    cfg: any = None;
+    _ctx_observe = None;
+    _history_observe_enabled = False;
+    # Prefetch policy: predict traversal and warm the cache before walking.
     ttg_block_start = _perf_counter();
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
             cfg = get_config();
-            if (
-                cfg is not None
-                and cfg.run.prefetching == "ttg"
-                and cfg.run.prefetch_limit > 0
-            ) {
-                import from jaclang.jac0core.ttg { JacTTGGenerator }
-                import from jaclang.runtimelib.topo_utils { _get_root_anchor }
-                topo_idx_start = _perf_counter();
-                root_anchor = _get_root_anchor(nd);
-                if root_anchor is not None {
-                    topo_idx = root_anchor.get_topology_index();
-                    topo_idx_end = _perf_counter();
-                    topo_idx_time_ms = (topo_idx_end - topo_idx_start) * 1000;
-                    logger.info(
-                        f"[TTG-DEBUG] topology_index: nodes={len(
-                            topo_idx.node_table
-                        )}, "
-                        f"edges={len(topo_idx.adj_list)}, "
-                        f"topology_index_data={'present'
-                            if root_anchor.topology_index_data
-                            else 'None'}"
-                    );
-                    ttg_start = _perf_counter();
-                    _ctx = JacRuntimeInterface.get_context();
-                    prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
-                        warch,
-                        nd.id,
-                        topo_idx,
-                        mem=_ctx.mem,
-                        max_length=cfg.run.prefetch_limit
-                    );
-                    ttg_end = _perf_counter();
-                    ttg_time_ms = (ttg_end - ttg_start) * 1000;
-                    resolve_total_ms = getattr(
-                        JacTTGGenerator, '_last_resolve_ms', 0.0
-                    );
-                    if prefetch_ids {
-                        ctx = JacRuntimeInterface.get_context();
-                        prefetch_start = _perf_counter();
-                        _dispatch_prefetch(
-                            ctx,
-                            prefetch_ids,
-                            cfg.run.async_prefetch,
-                            cfg.run.prefetch_workers
-                        );
-                        prefetch_end = _perf_counter();
-                        prefetch_time_ms = (prefetch_end - prefetch_start) * 1000;
-                        import sys as _sys;
-                        logger.info(
-                            f"[PREFETCH] mode={cfg.run.async_prefetch or 'sync'} "
-                            f"workers={cfg.run.prefetch_workers} "
-                            f"ids={len(prefetch_ids)} "
-                            f"dispatch_ms={prefetch_time_ms:.2f} "
-                            f"gil_enabled={_sys._is_gil_enabled()}"
-                        );
-                    }
-                }
-            }
+            _ctx_prefetch = JacRuntimeInterface.get_context();
+            (topo_idx_time_ms, ttg_time_ms, prefetch_time_ms, resolve_total_ms) = _run_prefetch_policy(
+                _ctx_prefetch, cfg, warch, nd
+            );
         } except Exception as e {
-            logger.debug(f"TTG prefetch failed: {e}");
+            logger.debug(f"prefetch policy failed: {e}");
         }
     }
     ttg_block_end = _perf_counter();
     ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
+    try {
+        import from jaclang.jac0core.prefetch_policy { start_history_observation }
+        _run_cfg = cfg?.run if cfg is not None else None;
+        _policy_name = str(getattr(_run_cfg, "prefetching", "")).strip().lower();
+        if _policy_name == "history" {
+            _ctx_observe = JacRuntimeInterface.get_context();
+            _history_observe_enabled = start_history_observation(_ctx_observe);
+        }
+    } except Exception {
+        ;
+    }
     walker_start = _perf_counter();
-    osp_spawn(make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next));
-    walker_end = _perf_counter();
+    try {
+        osp_spawn(
+            make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next)
+        );
+    } finally {
+        walker_end = _perf_counter();
+        if _history_observe_enabled {
+            try {
+                import from jaclang.jac0core.prefetch_policy {
+                    finish_history_observation
+                }
+                _run_cfg = cfg?.run if cfg is not None else None;
+                _hist_limit: int = int(getattr(_run_cfg, "prefetch_limit", 200) or 200);
+                finish_history_observation(_ctx_observe, warch, _hist_limit);
+            } except Exception {
+                ;
+            }
+        }
+    }
     walker_time_ms = (walker_end - walker_start) * 1000;
     # Write per-spawn CSV row if JAC_PROFILE_CSV is set.
     profile_csv_path = os.environ.get("JAC_PROFILE_CSV");
@@ -535,57 +512,49 @@ impl JacWalker.async_spawn_call(
         make_sv_runtime
     }
     warch = `walker.archetype;
-    # TTG prefetch: predict traversal and warm the cache before walking.
+    cfg: any = None;
+    _ctx_observe = None;
+    _history_observe_enabled = False;
+    # Prefetch policy: predict traversal and warm the cache before walking.
     if isinstance(nd, NodeAnchor) {
         try {
             import from jaclang.project.config { get_config }
             cfg = get_config();
-            if (
-                cfg is not None
-                and cfg.run.prefetching == "ttg"
-                and cfg.run.prefetch_limit > 0
-            ) {
-                import from jaclang.jac0core.ttg { JacTTGGenerator }
-                import from jaclang.runtimelib.topo_utils { _get_root_anchor }
-                root_anchor = _get_root_anchor(nd);
-                if root_anchor is not None {
-                    topo_idx = root_anchor.get_topology_index();
-                    _ctx2 = JacRuntimeInterface.get_context();
-                    prefetch_ids = JacTTGGenerator.get_ttg_prefetch_list(
-                        warch,
-                        nd.id,
-                        topo_idx,
-                        mem=_ctx2.mem,
-                        max_length=cfg.run.prefetch_limit
-                    );
-                    if prefetch_ids {
-                        ctx = JacRuntimeInterface.get_context();
-                        prefetch_start = _perf_counter();
-                        _dispatch_prefetch(
-                            ctx,
-                            prefetch_ids,
-                            cfg.run.async_prefetch,
-                            cfg.run.prefetch_workers
-                        );
-                        prefetch_end = _perf_counter();
-                        import sys as _sys;
-                        logger.info(
-                            f"[PREFETCH] mode={cfg.run.async_prefetch or 'sync'} "
-                            f"workers={cfg.run.prefetch_workers} "
-                            f"ids={len(prefetch_ids)} "
-                            f"dispatch_ms={(prefetch_end - prefetch_start) * 1000:.2f} "
-                            f"gil_enabled={_sys._is_gil_enabled()}"
-                        );
-                    }
-                }
-            }
+            _ctx_prefetch = JacRuntimeInterface.get_context();
+            _run_prefetch_policy(_ctx_prefetch, cfg, warch, nd);
         } except Exception as e {
-            logger.debug(f"TTG prefetch failed: {e}");
+            logger.debug(f"prefetch policy failed: {e}");
         }
     }
-    await osp_spawn_async(
-        make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next)
-    );
+    try {
+        import from jaclang.jac0core.prefetch_policy { start_history_observation }
+        _run_cfg = cfg?.run if cfg is not None else None;
+        _policy_name = str(getattr(_run_cfg, "prefetching", "")).strip().lower();
+        if _policy_name == "history" {
+            _ctx_observe = JacRuntimeInterface.get_context();
+            _history_observe_enabled = start_history_observation(_ctx_observe);
+        }
+    } except Exception {
+        ;
+    }
+    try {
+        await osp_spawn_async(
+            make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next)
+        );
+    } finally {
+        if _history_observe_enabled {
+            try {
+                import from jaclang.jac0core.prefetch_policy {
+                    finish_history_observation
+                }
+                _run_cfg = cfg?.run if cfg is not None else None;
+                _hist_limit: int = int(getattr(_run_cfg, "prefetch_limit", 200) or 200);
+                finish_history_observation(_ctx_observe, warch, _hist_limit);
+            } except Exception {
+                ;
+            }
+        }
+    }
     return warch;
 }
 
