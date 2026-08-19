@@ -16,6 +16,7 @@ import from jaclang.jac0core.prefetch_policy_none { none_policy_plan }
 import from jaclang.jac0core.prefetch_policy_ttg { ttg_policy_plan }
 import from jaclang.jac0core.prefetch_policy_oracle { oracle_policy_plan }
 import from jaclang.jac0core.prefetch_policy_markov { markov_policy_plan }
+import from jaclang.jac0core.prefetch_policy_coaccess { coaccess_policy_plan }
 import from jaclang.jac0core.prefetch_policy_history {
     history_policy_plan,
     start_history_observation,
@@ -68,6 +69,9 @@ def get_prefetch_plan(
     }
     if policy == "markov" {
         return markov_policy_plan(request);
+    }
+    if policy == "coaccess" {
+        return coaccess_policy_plan(request);
     }
     if policy == "history" {
         return history_policy_plan(request);

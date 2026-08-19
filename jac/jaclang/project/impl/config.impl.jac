@@ -859,6 +859,7 @@ impl _parse_toml_data(
             prefetching=run_data.get("prefetching", ""),
             prefetch_oracle_file=run_data.get("prefetch_oracle_file", ""),
             prefetch_markov_file=run_data.get("prefetch_markov_file", ""),
+            prefetch_coaccess_file=run_data.get("prefetch_coaccess_file", ""),
             prefetch_limit=run_data.get("prefetch_limit", 200),
             async_prefetch=run_data.get("async_prefetch", ""),
             prefetch_workers=run_data.get("prefetch_workers", 1),

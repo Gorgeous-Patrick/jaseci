@@ -78,6 +78,35 @@ test "markov prefetch policy reads per-start model plan" {
     }
 }
 
+test "coaccess prefetch policy reads per-start model plan" {
+    start_id = UUID("00000000-0000-0000-0000-000000000200");
+    id1 = UUID("00000000-0000-0000-0000-000000000201");
+    id2 = UUID("00000000-0000-0000-0000-000000000202");
+    id3 = UUID("00000000-0000-0000-0000-000000000203");
+    with TemporaryDirectory() as raw_tmpdir_obj {
+        raw_tmpdir: str = str(raw_tmpdir_obj);
+        model_file = Path(raw_tmpdir) / "coaccess.json";
+        model_file.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "policy": "coaccess",
+                    "plans": {
+                        str(start_id): {
+                            "plan": [str(id1), str(id2), str(id1), str(id3)]
+                        }
+                    }
+                }
+            )
+        );
+        cfg = JacConfig();
+        cfg.run.prefetch_coaccess_file = str(model_file);
+        start = PrefetchPolicyDummyStart(id=start_id);
+        plan = get_prefetch_plan("coaccess", None, start, max_length=2, config=cfg);
+        assert plan.ids == [id1, id2];
+    }
+}
+
 test "history prefetch policy returns last observed set for walker type" {
     clear_history_observations();
     id1 = UUID("00000000-0000-0000-0000-000000000011");
