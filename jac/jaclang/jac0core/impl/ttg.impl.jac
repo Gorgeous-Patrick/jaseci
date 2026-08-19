@@ -1,8 +1,9 @@
 """Implementation for TTG Generator constructs."""
 
 import jaclang.jac0core.unitree as uni;
-import from jaclang.jac0core.archetype { VisitType }
+import from jaclang.jac0core.archetype { NodeAnchor, VisitType }
 import from jaclang.jac0core.constant { Tokens as Tok }
+import from jaclang.runtimelib.topology_index { TopologyIndex }
 
 """Resolve a VisitType field (type or string name) to a type name string."""
 @classmethod
@@ -437,7 +438,7 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     cls: type[JacTTGGenerator],
     warch: Any,
     start_id: UUID,
-    topology_index: Any,
+    topology_index: TopologyIndex,
     mem: Any = None,
     max_length: int = 200
 ) -> list[UUID] {
@@ -464,7 +465,9 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     seen: set[UUID] = {start_id};
     import from collections { deque }
     import from collections { defaultdict }
-    queue: deque = deque([start_id]);
+    queue: deque[tuple[TopologyIndex, UUID]] = deque([(topology_index, start_id)]);
+    prefetch_idx_by_id: dict[UUID, TopologyIndex] = {start_id: topology_index};
+    _root_idx_cache: dict[UUID, TopologyIndex] = {};
     _resolve_ms = 0.0;
     _resolve_calls = 0;
     _edge_count = 0;
@@ -492,9 +495,9 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         if len(prefetch) >= max_length {
             break;
         }
-        cur = queue.popleft();
-        cur_lid = topology_index.node_to_lid.get(cur);
-        cur_type = topology_index.type_table[topology_index.node_table[cur_lid][1]]
+        (cur_idx, cur) = queue.popleft();
+        cur_lid = cur_idx.node_to_lid.get(cur);
+        cur_type = cur_idx.type_table[cur_idx.node_table[cur_lid][1]]
             if cur_lid is not None
             else None;
         will_visit = False;
@@ -516,9 +519,9 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             }
             _rc_start = _time.perf_counter();
             if mem is not None {
-                _results = topology_index.resolve_chain_cross_root(mem, {cur}, chain);
+                _results = cur_idx.resolve_chain_cross_root(mem, {cur}, chain);
             } else {
-                _results = topology_index.resolve_chain({cur}, chain) or set();
+                _results = cur_idx.resolve_chain({cur}, chain) or set();
             }
             _resolve_ms += (_time.perf_counter() - _rc_start) * 1000;
             _resolve_calls += 1;
@@ -534,9 +537,39 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
                 if tgt not in seen {
                     seen.add(tgt);
                     prefetch.append(tgt);
+                    _target_idx = cur_idx;
+                    if mem is not None {
+                        try {
+                            _cross_root_map = cur_idx.get_cross_root_ids({tgt});
+                            for (_foreign_root_id, _foreign_node_ids) in _cross_root_map.items() {
+                                if tgt in _foreign_node_ids {
+                                    _cached_idx = _root_idx_cache.get(_foreign_root_id);
+                                    if _cached_idx is None {
+                                        _root_anchor = mem.get(_foreign_root_id);
+                                        if isinstance(_root_anchor, NodeAnchor) {
+                                            _maybe_idx = _root_anchor.get_topology_index();
+                                            if isinstance(_maybe_idx, TopologyIndex)
+                                            and len(_maybe_idx) > 0 {
+                                                _cached_idx = _maybe_idx;
+                                                _root_idx_cache[_foreign_root_id] = _maybe_idx;
+                                            }
+                                        }
+                                    }
+                                    if _cached_idx is not None
+                                    and len(_cached_idx) > 0 {
+                                        _target_idx = _cached_idx;
+                                    }
+                                    break;
+                                }
+                            }
+                        } except Exception {
+                            ;
+                        }
+                    }
+                    prefetch_idx_by_id[tgt] = _target_idx;
                     _added += 1;
                     if _is_visit_chain {
-                        queue.append(tgt);
+                        queue.append((_target_idx, tgt));
                         _enqueued += 1;
                     }
                     if len(prefetch) >= max_length {
@@ -570,9 +603,10 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     # Count prefetched nodes by type
     _type_counts: dict[str, int] = {};
     for _pid in prefetch {
-        _plid = topology_index.node_to_lid.get(_pid);
+        _pidx = prefetch_idx_by_id.get(_pid) or topology_index;
+        _plid = _pidx.node_to_lid.get(_pid);
         if _plid is not None {
-            _ptype = topology_index.type_table[topology_index.node_table[_plid][1]];
+            _ptype = _pidx.type_table[_pidx.node_table[_plid][1]];
         } else {
             _ptype = "unknown";
         }
@@ -622,10 +656,11 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
                     _fh.write("id,type,owner\n");
                 }
                 for _pid in prefetch {
-                    _plid = topology_index.node_to_lid.get(_pid);
+                    _pidx = prefetch_idx_by_id.get(_pid) or topology_index;
+                    _plid = _pidx.node_to_lid.get(_pid);
                     if _plid is not None {
-                        (_nid, _tid, _owner) = topology_index.node_table[_plid];
-                        _ptype = topology_index.type_table[_tid];
+                        (_nid, _tid, _owner) = _pidx.node_table[_plid];
+                        _ptype = _pidx.type_table[_tid];
                         _fh.write(f"{_pid},{_ptype},{_owner}\n");
                     } else {
                         _fh.write(f"{_pid},unknown,\n");

@@ -11,6 +11,7 @@ def ttg_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
     import from logging { getLogger as _getLogger }
     import from jaclang.jac0core.ttg { JacTTGGenerator }
     import from jaclang.runtimelib.topo_utils { _get_root_anchor }
+    import from jaclang.runtimelib.topology_index { TopologyIndex }
 
     result = PrefetchPlanResult(ids=[]);
     if request.start_anchor is None or request.start_id is None {
@@ -21,7 +22,7 @@ def ttg_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
     if root_anchor is None {
         return result;
     }
-    topo_idx = root_anchor.get_topology_index();
+    topo_idx = cast(TopologyIndex, root_anchor.get_topology_index());
     topo_idx_end = _time.perf_counter();
     result.topology_ms = (topo_idx_end - topo_idx_start) * 1000;
     _node_table = cast(list, topo_idx.node_table);

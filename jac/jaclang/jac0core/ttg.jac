@@ -12,8 +12,9 @@ loaded module (backed by the JIR cache).
 import from uuid { UUID }
 import from typing { Any }
 import jaclang.jac0core.unitree as uni;
-import from jaclang.jac0core.archetype { VisitType }
+import from jaclang.jac0core.archetype { NodeAnchor, VisitType }
 import from jaclang.jac0core.constant { Tokens as Tok }
+import from jaclang.runtimelib.topology_index { TopologyIndex }
 
 """TTG Generator — predicts traversal paths using TopologyIndex.
 
@@ -91,7 +92,7 @@ class JacTTGGenerator {
         cls: type[JacTTGGenerator],
         warch: Any,
         start_id: UUID,
-        topology_index: Any,
+        topology_index: TopologyIndex,
         mem: Any = None,
         max_length: int = 200
     ) -> list[UUID];
