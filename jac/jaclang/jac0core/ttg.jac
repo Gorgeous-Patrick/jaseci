@@ -10,7 +10,6 @@ loaded module (backed by the JIR cache).
 """
 
 import from uuid { UUID }
-import from typing { Any }
 import jaclang.jac0core.unitree as uni;
 import from jaclang.jac0core.archetype { NodeAnchor, VisitType }
 import from jaclang.jac0core.constant { Tokens as Tok }
@@ -27,6 +26,12 @@ class JacTTGGenerator {
         cls: type[JacTTGGenerator], ref: (type | str | None)
     ) -> (str | None);
 
+    """Read a TTG support root without recording a tier-hit row."""
+    @classmethod
+    def _get_support_root_anchor(
+        cls: type[JacTTGGenerator], mem: any, id: UUID
+    ) -> (NodeAnchor | None);
+
     """Extract visit types from a walker's AST Archetype node at runtime.
 
     Walks the AST via JacProgram.mod.hub to find the walker's Archetype,
@@ -36,7 +41,7 @@ class JacTTGGenerator {
     """
     @classmethod
     def _extract_visits_from_ast(
-        cls: type[JacTTGGenerator], warch: Any
+        cls: type[JacTTGGenerator], warch: any
     ) -> list[VisitType];
 
     """Find the AST Archetype node for a given walker archetype class."""
@@ -48,25 +53,25 @@ class JacTTGGenerator {
     """Resolve a name to an Archetype AST node via symbol table lookup."""
     @classmethod
     def _resolve_archetype(
-        cls: type[JacTTGGenerator], scope_src: uni.UniNode, name: str
+        cls: type[JacTTGGenerator], scope_src: any, name: str
     ) -> (uni.Archetype | None);
 
     """Extract edge type and optional node filter from an AST node."""
     @classmethod
     def _extract_edge_step(
-        cls: type[JacTTGGenerator], scope: uni.UniNode, item: uni.UniNode
+        cls: type[JacTTGGenerator], scope: any, item: any
     ) -> tuple[str | None, str | None, int];
 
     """Extract edge chains from an EdgeRefTrailer AST node."""
     @classmethod
     def _extract_chains_from_trailer(
-        cls: type[JacTTGGenerator], scope: uni.UniNode, trailer: uni.EdgeRefTrailer
+        cls: type[JacTTGGenerator], scope: any, trailer: any
     ) -> list[tuple[str | None, str | None, int]];
 
     """Extract all edge chains from any AST body (ability, method, etc)."""
     @classmethod
     def _extract_refs_from_body(
-        cls: type[JacTTGGenerator], body: uni.UniNode
+        cls: type[JacTTGGenerator], body: any
     ) -> list[list[tuple[str | None, str | None, int]]];
 
     """Collect sub-nodes of `node_type` from an Ability, following the link
@@ -90,10 +95,10 @@ class JacTTGGenerator {
     @classmethod
     def get_ttg_prefetch_list(
         cls: type[JacTTGGenerator],
-        warch: Any,
+        warch: any,
         start_id: UUID,
         topology_index: TopologyIndex,
-        mem: Any = None,
+        mem: any = None,
         max_length: int = 200
     ) -> list[UUID];
 }

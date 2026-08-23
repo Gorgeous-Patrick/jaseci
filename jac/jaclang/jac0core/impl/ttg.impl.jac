@@ -4,6 +4,40 @@ import jaclang.jac0core.unitree as uni;
 import from jaclang.jac0core.archetype { NodeAnchor, VisitType }
 import from jaclang.jac0core.constant { Tokens as Tok }
 import from jaclang.runtimelib.topology_index { TopologyIndex }
+import from uuid { UUID }
+
+"""Return a support root anchor without emitting a tier-hit access row.
+
+TTG needs foreign roots only to read their topology index. That lookup is
+planning work, not a walker demand access. The elapsed time remains part of
+TTG plan time, while access-log hit-rate rows stay limited to application
+reads and the dispatched prefetch results.
+"""
+@classmethod
+impl JacTTGGenerator._get_support_root_anchor(
+    cls: type[JacTTGGenerator], mem: any, id: UUID
+) -> (NodeAnchor | None) {
+    anchor = None;
+    try {
+        l1 = mem?.__mem__;
+        if isinstance(l1, dict) {
+            anchor = l1.get(id);
+        }
+    } except Exception {
+        ;
+    }
+    if anchor is None {
+        try {
+            anchor = mem.promote_raw(id);
+        } except Exception {
+            ;
+        }
+    }
+    if isinstance(anchor, NodeAnchor) {
+        return anchor;
+    }
+    return None;
+}
 
 """Resolve a VisitType field (type or string name) to a type name string."""
 @classmethod
@@ -83,8 +117,9 @@ impl JacTTGGenerator._find_walker_ast_node(
 """Resolve a name to an Archetype AST node via symbol table lookup."""
 @classmethod
 impl JacTTGGenerator._resolve_archetype(
-    cls: type[JacTTGGenerator], scope_src: uni.UniNode, name: str
+    cls: type[JacTTGGenerator], scope_src: any, name: str
 ) -> (uni.Archetype | None) {
+    import from typing { cast }
     scope = scope_src.find_parent_of_type(uni.UniScopeNode);
     if scope is None {
         return None;
@@ -93,13 +128,13 @@ impl JacTTGGenerator._resolve_archetype(
     if result is None {
         return None;
     }
-    return result.decl.find_parent_of_type(uni.Archetype);
+    return cast(uni.Archetype | None, result.decl.find_parent_of_type(uni.Archetype));
 }
 
 """Extract edge type and optional node filter from an EdgeOpRef or FilterCompr."""
 @classmethod
 impl JacTTGGenerator._extract_edge_step(
-    cls: type[JacTTGGenerator], scope: uni.UniNode, item: uni.UniNode
+    cls: type[JacTTGGenerator], scope: any, item: any
 ) -> tuple[str | None, str | None, int] {
     edge_type_name: (str | None) = None;
     node_filter_name: (str | None) = None;
@@ -184,8 +219,9 @@ impl JacTTGGenerator._ability_sub_nodes(
 """Extract edge chains from an EdgeRefTrailer AST node."""
 @classmethod
 impl JacTTGGenerator._extract_chains_from_trailer(
-    cls: type[JacTTGGenerator], scope: uni.UniNode, trailer: uni.EdgeRefTrailer
+    cls: type[JacTTGGenerator], scope: any, trailer: any
 ) -> list[tuple[str | None, str | None, int]] {
+    import from typing { cast }
     edge_chain: list[tuple[str | None, str | None, int]] = [];
     chain_items = getattr(trailer, 'chain', []);
     for item in chain_items {
@@ -194,8 +230,9 @@ impl JacTTGGenerator._extract_chains_from_trailer(
             edge_chain.append(step);
         } elif step[1] is not None {
             if len(edge_chain) > 0 {
-                prev = edge_chain[-1];
-                edge_chain[-1] = (prev[0], step[1], prev[2]);
+                prev: tuple[str | None, str | None, int] = edge_chain[-1];
+                prev_dir: int = cast(int, prev[2]);
+                edge_chain[-1] = (prev[0], step[1], prev_dir);
             }
         }
     }
@@ -213,7 +250,7 @@ impl JacTTGGenerator._extract_chains_from_trailer(
 Returns a list of edge chains — one per EdgeRefTrailer found."""
 @classmethod
 impl JacTTGGenerator._extract_refs_from_body(
-    cls: type[JacTTGGenerator], body: uni.UniNode
+    cls: type[JacTTGGenerator], body: any
 ) -> list[list[tuple[str | None, str | None, int]]] {
     result: list[list[tuple[str | None, str | None, int]]] = [];
     trailers = body.get_all_sub_nodes(uni.EdgeRefTrailer);
@@ -239,14 +276,15 @@ impl JacTTGGenerator._trace_method_calls(
         # Resolve the function name. For attr access (e.g. here.to_profile_view()),
         # we need the method name. For simple calls, use the target name directly.
         method_name: (str | None) = None;
-        if isinstance(call.target, uni.AtomTrailer) {
+        target = call.target;
+        if isinstance(target, uni.AtomTrailer) {
             # e.g. here.to_profile_view() — get the last Name in the chain
-            names = call.target.get_all_sub_nodes(uni.Name);
+            names = target.get_all_sub_nodes(uni.Name);
             if len(names) > 0 {
                 method_name = names[-1].value;
             }
-        } elif isinstance(call.target, uni.NameAtom) {
-            method_name = call.target.value;
+        } elif isinstance(target, uni.NameAtom) {
+            method_name = target.sym_name;
         }
         if method_name is None or method_name in seen_methods {
             continue;
@@ -256,9 +294,9 @@ impl JacTTGGenerator._trace_method_calls(
         resolved_arch = cls._resolve_archetype(call, method_name);
         if resolved_arch is not None {
             # Found the archetype — look for the method within it
-            for method in resolved_arch.get_all_sub_nodes(uni.Ability) {
-                if method.name_ref is not None
-                and method.name_ref.value == method_name {
+            methods = resolved_arch.get_all_sub_nodes(uni.Ability);
+            for method in methods {
+                if method.py_resolve_name() == method_name {
                     # Extract refs from this method body
                     chains = cls._extract_refs_from_body(method);
                     owner_type = resolved_arch.name.value;
@@ -286,10 +324,11 @@ impl JacTTGGenerator._trace_method_calls(
         if module is None {
             continue;
         }
-        for arch in module.get_all_sub_nodes(uni.Archetype) {
-            for method in arch.get_all_sub_nodes(uni.Ability) {
-                if method.name_ref is not None
-                and method.name_ref.value == method_name {
+        archs = module.get_all_sub_nodes(uni.Archetype);
+        for arch in archs {
+            methods = arch.get_all_sub_nodes(uni.Ability);
+            for method in methods {
+                if method.py_resolve_name() == method_name {
                     chains = cls._extract_refs_from_body(method);
                     owner_type = arch.name.value;
                     for chain in chains {
@@ -325,20 +364,20 @@ Results are returned as VisitType instances and cached on the walker class.
 """
 @classmethod
 impl JacTTGGenerator._extract_visits_from_ast(
-    cls: type[JacTTGGenerator], warch: Any
+    cls: type[JacTTGGenerator], warch: any
 ) -> list[VisitType] {
     warch_cls = `type(warch);
     # Check cache first.
     import from logging { getLogger as _cache_log }
     _cache_dbg = _cache_log(__name__);
-    cached = warch_cls?.__jac_ttg_visits__;
-    if (cached is not None and len(cached) > 0) {
+    cached_raw = warch_cls?.__jac_ttg_visits__;
+    if (isinstance(cached_raw, list) and len(cached_raw) > 0) {
         _cache_dbg.info(
             f"[TTG-EXTRACT] cache HIT for {warch_cls.__name__}, returning {len(
-                cached
+                cached_raw
             )} visits"
         );
-        return cached;
+        return cached_raw;
     }
     _cache_dbg.info(
         f"[TTG-EXTRACT] cache MISS for {warch_cls.__name__}, extracting from AST"
@@ -419,7 +458,7 @@ impl JacTTGGenerator._extract_visits_from_ast(
         result.extend(method_visits);
     }
     # Cache on the class for subsequent calls.
-    warch_cls.__jac_ttg_visits__ = result;
+    setattr(warch_cls, "__jac_ttg_visits__", result);
     return result;
 }
 
@@ -436,10 +475,10 @@ target nodes without intermediate BFS steps.
 @classmethod
 impl JacTTGGenerator.get_ttg_prefetch_list(
     cls: type[JacTTGGenerator],
-    warch: Any,
+    warch: any,
     start_id: UUID,
     topology_index: TopologyIndex,
-    mem: Any = None,
+    mem: any = None,
     max_length: int = 200
 ) -> list[UUID] {
     import time as _time;
@@ -461,29 +500,17 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         )
     );
 
-    prefetch: list[UUID] = [start_id];
+    prefetch: list[UUID] = [];
     seen: set[UUID] = {start_id};
     import from collections { deque }
     import from collections { defaultdict }
     queue: deque[tuple[TopologyIndex, UUID]] = deque([(topology_index, start_id)]);
-    prefetch_idx_by_id: dict[UUID, TopologyIndex] = {start_id: topology_index};
+    prefetch_idx_by_id: dict[UUID, TopologyIndex] = {};
     _root_idx_cache: dict[UUID, TopologyIndex] = {};
+    _support_root_ids: set[UUID] = set();
     _resolve_ms = 0.0;
     _resolve_calls = 0;
     _edge_count = 0;
-    # Pre-load foreign root anchors so cross-root resolution hits L1.
-    if mem is not None {
-        import from jaclang.runtimelib.topology_index { SELF_ROOT }
-        foreign_root_set: set[UUID] = set();
-        for (_nid, _tid, _owner) in topology_index.node_table {
-            if _owner != SELF_ROOT {
-                foreign_root_set.add(_owner);
-            }
-        }
-        if foreign_root_set {
-            mem.prefetch(`list(foreign_root_set));
-        }
-    }
     # Build adjacency index once: lid -> [(et, neighbor_lid)]
     # Avoids O(N²) full adj_list scan per node during BFS.
     _adj_index: dict = defaultdict(list);
@@ -519,7 +546,86 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             }
             _rc_start = _time.perf_counter();
             if mem is not None {
-                _results = cur_idx.resolve_chain_cross_root(mem, {cur}, chain);
+                _results: set[UUID] = set();
+                if not chain {
+                    _results = {cur};
+                } else {
+                    _frontier: list[tuple[TopologyIndex, set[UUID]]] = [
+                        (cur_idx, {cur})
+                    ];
+                    for (_hop_idx, _hop) in enumerate(chain) {
+                        _is_last_hop = _hop_idx == len(chain) - 1;
+                        _next_frontier: list[tuple[TopologyIndex, set[UUID]]] = [];
+                        _hop_results_total: set[UUID] = set();
+                        for (_idx, _ids) in _frontier {
+                            _hop_result = _idx.resolve_chain(_ids, [_hop]) or set();
+                            if not _hop_result {
+                                continue;
+                            }
+                            if _is_last_hop {
+                                _hop_results_total |= _hop_result;
+                                continue;
+                            }
+                            _cross_root_map = _idx.get_cross_root_ids(_hop_result);
+                            _foreign_ids: set[UUID] = set();
+                            for _ids_for_root in _cross_root_map.values() {
+                                _foreign_ids |= _ids_for_root;
+                            }
+                            _local_ids = _hop_result - _foreign_ids;
+                            if _local_ids {
+                                _next_frontier.append((_idx, _local_ids));
+                            }
+                            for (_foreign_root_id, _foreign_node_ids) in _cross_root_map.items() {
+                                _cached_idx = _root_idx_cache.get(_foreign_root_id);
+                                if _cached_idx is None {
+                                    if _foreign_root_id not in seen {
+                                        if len(prefetch) >= max_length {
+                                            continue;
+                                        }
+                                        seen.add(_foreign_root_id);
+                                        prefetch.append(_foreign_root_id);
+                                        prefetch_idx_by_id[_foreign_root_id] = _idx;
+                                        _support_root_ids.add(_foreign_root_id);
+                                        try {
+                                            mem.prefetch([_foreign_root_id]);
+                                        } except Exception {
+                                            ;
+                                        }
+                                    }
+                                    try {
+                                        _root_anchor = cls._get_support_root_anchor(
+                                            mem, _foreign_root_id
+                                        );
+                                        if isinstance(_root_anchor, NodeAnchor) {
+                                            _maybe_idx = _root_anchor.get_topology_index();
+                                            if isinstance(_maybe_idx, TopologyIndex)
+                                            and len(_maybe_idx) > 0 {
+                                                _cached_idx = _maybe_idx;
+                                                _root_idx_cache[_foreign_root_id] = _maybe_idx;
+                                            }
+                                        }
+                                    } except Exception {
+                                        ;
+                                    }
+                                }
+                                if _cached_idx is not None and len(_cached_idx) > 0 {
+                                    _next_frontier.append(
+                                        (_cached_idx, _foreign_node_ids)
+                                    );
+                                }
+                            }
+                        }
+                        if _is_last_hop {
+                            _results = _hop_results_total;
+                            break;
+                        }
+                        _frontier = _next_frontier;
+                        if not _frontier {
+                            _results = set();
+                            break;
+                        }
+                    }
+                }
             } else {
                 _results = cur_idx.resolve_chain({cur}, chain) or set();
             }
@@ -535,29 +641,54 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             _enqueued = 0;
             for tgt in _results {
                 if tgt not in seen {
+                    if len(prefetch) >= max_length {
+                        break;
+                    }
                     seen.add(tgt);
                     prefetch.append(tgt);
                     _target_idx = cur_idx;
-                    if mem is not None {
+                    _can_enqueue_target = _is_visit_chain;
+                    if mem is not None and _is_visit_chain {
                         try {
                             _cross_root_map = cur_idx.get_cross_root_ids({tgt});
                             for (_foreign_root_id, _foreign_node_ids) in _cross_root_map.items() {
                                 if tgt in _foreign_node_ids {
                                     _cached_idx = _root_idx_cache.get(_foreign_root_id);
                                     if _cached_idx is None {
-                                        _root_anchor = mem.get(_foreign_root_id);
-                                        if isinstance(_root_anchor, NodeAnchor) {
-                                            _maybe_idx = _root_anchor.get_topology_index();
-                                            if isinstance(_maybe_idx, TopologyIndex)
-                                            and len(_maybe_idx) > 0 {
-                                                _cached_idx = _maybe_idx;
-                                                _root_idx_cache[_foreign_root_id] = _maybe_idx;
+                                        if _foreign_root_id not in seen {
+                                            if len(prefetch) < max_length {
+                                                seen.add(_foreign_root_id);
+                                                prefetch.append(_foreign_root_id);
+                                                prefetch_idx_by_id[_foreign_root_id] = cur_idx;
+                                                _support_root_ids.add(_foreign_root_id);
+                                                try {
+                                                    mem.prefetch([_foreign_root_id]);
+                                                } except Exception {
+                                                    ;
+                                                }
+                                            } else {
+                                                _can_enqueue_target = False;
+                                            }
+                                        }
+                                        if _can_enqueue_target {
+                                            _root_anchor = cls._get_support_root_anchor(
+                                                mem, _foreign_root_id
+                                            );
+                                            if isinstance(_root_anchor, NodeAnchor) {
+                                                _maybe_idx = _root_anchor.get_topology_index();
+                                                if isinstance(_maybe_idx, TopologyIndex)
+                                                and len(_maybe_idx) > 0 {
+                                                    _cached_idx = _maybe_idx;
+                                                    _root_idx_cache[_foreign_root_id] = _maybe_idx;
+                                                }
                                             }
                                         }
                                     }
                                     if _cached_idx is not None
                                     and len(_cached_idx) > 0 {
                                         _target_idx = _cached_idx;
+                                    } else {
+                                        _can_enqueue_target = False;
                                     }
                                     break;
                                 }
@@ -568,7 +699,7 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
                     }
                     prefetch_idx_by_id[tgt] = _target_idx;
                     _added += 1;
-                    if _is_visit_chain {
+                    if _can_enqueue_target {
                         queue.append((_target_idx, tgt));
                         _enqueued += 1;
                     }
@@ -603,12 +734,16 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
     # Count prefetched nodes by type
     _type_counts: dict[str, int] = {};
     for _pid in prefetch {
-        _pidx = prefetch_idx_by_id.get(_pid) or topology_index;
-        _plid = _pidx.node_to_lid.get(_pid);
-        if _plid is not None {
-            _ptype = _pidx.type_table[_pidx.node_table[_plid][1]];
+        if _pid in _support_root_ids {
+            _ptype = "Root";
         } else {
-            _ptype = "unknown";
+            _pidx = prefetch_idx_by_id.get(_pid) or topology_index;
+            _plid = _pidx.node_to_lid.get(_pid);
+            if _plid is not None {
+                _ptype = str(_pidx.type_table[_pidx.node_table[_plid][1]]);
+            } else {
+                _ptype = "unknown";
+            }
         }
         _type_counts[_ptype] = _type_counts.get(_ptype, 0) + 1;
     }
@@ -656,14 +791,18 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
                     _fh.write("id,type,owner\n");
                 }
                 for _pid in prefetch {
-                    _pidx = prefetch_idx_by_id.get(_pid) or topology_index;
-                    _plid = _pidx.node_to_lid.get(_pid);
-                    if _plid is not None {
-                        (_nid, _tid, _owner) = _pidx.node_table[_plid];
-                        _ptype = _pidx.type_table[_tid];
-                        _fh.write(f"{_pid},{_ptype},{_owner}\n");
+                    if _pid in _support_root_ids {
+                        _fh.write(f"{_pid},Root,\n");
                     } else {
-                        _fh.write(f"{_pid},unknown,\n");
+                        _pidx = prefetch_idx_by_id.get(_pid) or topology_index;
+                        _plid = _pidx.node_to_lid.get(_pid);
+                        if _plid is not None {
+                            (_nid, _tid, _owner) = _pidx.node_table[_plid];
+                            _ptype = _pidx.type_table[_tid];
+                            _fh.write(f"{_pid},{_ptype},{_owner}\n");
+                        } else {
+                            _fh.write(f"{_pid},unknown,\n");
+                        }
                     }
                 }
             }
@@ -671,6 +810,6 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
             _getLogger(__name__).debug(f"[PREFETCH-DUMP] write failed: {_e}");
         }
     }
-    cls._last_resolve_ms = _resolve_ms;
+    setattr(cls, "_last_resolve_ms", _resolve_ms);
     return prefetch;
 }

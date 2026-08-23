@@ -8,13 +8,11 @@ the runtime parse benchmark artifacts.
 import logging;
 import os;
 import from pathlib { Path }
-import from typing { cast }
 import from uuid { UUID }
 
 import from jaclang.jac0core.prefetch_policy_types {
     PrefetchPlanRequest,
-    PrefetchPlanResult,
-    dedupe_cap_uuid_list
+    PrefetchPlanResult
 }
 
 glob logger = logging.getLogger(__name__);
@@ -46,6 +44,21 @@ def _resolve_oracle_path(request: PrefetchPlanRequest, raw_path: str) -> Path {
     return p;
 }
 
+def _is_resident_in_prefetch_cache(mem: any, id: UUID) -> bool {
+    if mem is None {
+        return False;
+    }
+    l1 = mem?.__mem__;
+    if isinstance(l1, dict) and id in l1 {
+        return True;
+    }
+    raw = mem?.__raw__;
+    if isinstance(raw, dict) and id in raw {
+        return True;
+    }
+    return False;
+}
+
 def oracle_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
     import time as _time;
     plan_start = _time.perf_counter();
@@ -62,6 +75,7 @@ def oracle_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
         raise FileNotFoundError(str(path));
     }
     ids: list[UUID] = [];
+    seen: set[UUID] = set();
     with path.open() as fh {
         for (line_no, line_obj) in enumerate(fh, start=1) {
             line: str = str(line_obj);
@@ -76,15 +90,25 @@ def oracle_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
                 continue;
             }
             try {
-                ids.append(UUID(raw));
+                id = UUID(raw);
             } except Exception as e {
                 logger.error(f"invalid oracle UUID at {path}:{line_no}: {raw}");
                 raise e;
             }
+            if id in seen {
+                continue;
+            }
+            seen.add(id);
+            if _is_resident_in_prefetch_cache(request.mem, id) {
+                continue;
+            }
+            ids.append(id);
+            if len(ids) >= request.max_length {
+                break;
+            }
         }
     }
-    capped = dedupe_cap_uuid_list(ids, request.max_length);
     return PrefetchPlanResult(
-        ids=capped, plan_ms=(_time.perf_counter() - plan_start) * 1000
+        ids=ids, plan_ms=(_time.perf_counter() - plan_start) * 1000
     );
 }

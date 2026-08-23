@@ -15,8 +15,11 @@ class FakeMemory:
     def __init__(self, anchors: dict[UUID, object]) -> None:
         self.anchors = anchors
         self.prefetched: list[UUID] = []
+        self.get_calls: list[UUID] = []
+        self.__dict__["__mem__"] = anchors
 
     def get(self, uid: UUID) -> object:
+        self.get_calls.append(uid)
         return self.anchors[uid]
 
     def prefetch(self, ids: Iterable[UUID]) -> None:
@@ -24,7 +27,9 @@ class FakeMemory:
 
 
 class TTGCrossRootTest(unittest.TestCase):
-    def test_ttg_bfs_uses_foreign_root_index_for_next_visit(self) -> None:
+    def _run_cross_root_ttg(
+        self, max_length: int
+    ) -> tuple[list[UUID], UUID, UUID, UUID, UUID, FakeMemory]:
         channel = uuid4()
         parent_msg = uuid4()
         reply_msg = uuid4()
@@ -67,11 +72,35 @@ class TTGCrossRootTest(unittest.TestCase):
         try:
             JacTTGGenerator._extract_visits_from_ast = classmethod(fake_extract)
             got = JacTTGGenerator.get_ttg_prefetch_list(
-                object(), channel, channel_idx, mem, 10
+                object(), channel, channel_idx, mem, max_length
             )
         finally:
             JacTTGGenerator._extract_visits_from_ast = orig
 
-        self.assertIn(channel, got)
+        return got, channel, parent_msg, reply_msg, message_root.id, mem
+
+    def test_ttg_bfs_uses_foreign_root_index_for_next_visit(self) -> None:
+        got, channel, parent_msg, reply_msg, message_root_id, mem = (
+            self._run_cross_root_ttg(10)
+        )
+
+        self.assertNotIn(channel, got)
         self.assertIn(parent_msg, got)
+        self.assertIn(message_root_id, got)
         self.assertIn(reply_msg, got)
+        self.assertEqual(mem.prefetched, [message_root_id])
+        self.assertEqual(mem.get_calls, [])
+        self.assertLessEqual(len(got), 10)
+
+    def test_ttg_counts_foreign_root_against_prefetch_limit(self) -> None:
+        got, channel, parent_msg, reply_msg, message_root_id, mem = (
+            self._run_cross_root_ttg(2)
+        )
+
+        self.assertNotIn(channel, got)
+        self.assertIn(parent_msg, got)
+        self.assertIn(message_root_id, got)
+        self.assertNotIn(reply_msg, got)
+        self.assertEqual(len(got), 2)
+        self.assertEqual(mem.prefetched, [message_root_id])
+        self.assertEqual(mem.get_calls, [])

@@ -1968,6 +1968,24 @@ impl TieredMemory.prefetch(ids: Iterable[UUID]) -> None {
     if not id_list {
         return;
     }
+    _pending_ids: list[UUID] = [];
+    _seen_pending: set[UUID] = set();
+    with self._raw_lock {
+        _raw_ids = set(self.__raw__.keys());
+    }
+    for id in id_list {
+        if id in _seen_pending {
+            continue;
+        }
+        if id not in self.__mem__ and id not in _raw_ids {
+            _pending_ids.append(id);
+            _seen_pending.add(id);
+        }
+    }
+    id_list = _pending_ids;
+    if not id_list {
+        return;
+    }
     # Wall-time this whole call (find_raw + store_raw only — the L2 MSET
     # is fire-and-forget). The main thread reads the collected list at
     # request end via prefetch_worker_times_snapshot() and reports max()
