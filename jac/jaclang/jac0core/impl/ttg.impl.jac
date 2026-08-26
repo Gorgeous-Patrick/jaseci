@@ -216,6 +216,38 @@ impl JacTTGGenerator._ability_sub_nodes(
     return result;
 }
 
+"""Extract a type name string from an AST type annotation expression."""
+@classmethod
+impl JacTTGGenerator._ast_type_name(
+    cls: type[JacTTGGenerator], expr: (uni.UniNode | None)
+) -> (str | None) {
+    if expr is None {
+        return None;
+    }
+    if isinstance(expr, uni.Name) {
+        return expr.value;
+    }
+    if isinstance(expr, uni.Token) {
+        return expr.value;
+    }
+    if isinstance(expr, uni.BuiltinType) {
+        return expr?.sym_name or str(getattr(expr, "value", ""));
+    }
+    if isinstance(expr, uni.AtomTrailer) {
+        attrs = expr.as_attr_list;
+        if attrs {
+            last = attrs[-1];
+            if isinstance(last, uni.Name) {
+                return last.value;
+            }
+            if isinstance(last, uni.AstSymbolNode) {
+                return last.sym_name;
+            }
+        }
+    }
+    return str(getattr(expr, "value", getattr(expr, "sym_name", "")));
+}
+
 """Extract edge chains from an EdgeRefTrailer AST node."""
 @classmethod
 impl JacTTGGenerator._extract_chains_from_trailer(
@@ -263,89 +295,157 @@ impl JacTTGGenerator._extract_refs_from_body(
     return result;
 }
 
-"""Trace FuncCall nodes in an ability body, resolve to archetype methods,
+"""Resolve a function call's target symbol."""
+@classmethod
+impl JacTTGGenerator._call_target_symbol(
+    cls: type[JacTTGGenerator], call: uni.FuncCall
+) -> (uni.Symbol | None) {
+    if isinstance(call.target, uni.Name) {
+        sym = call.target.sym;
+        if not sym and call.target.sym_tab {
+            sym = call.target.sym_tab.lookup(call.target.sym_name, deep=True);
+        }
+        return sym;
+    }
+    if isinstance(call.target, uni.AtomTrailer) {
+        attrs = call.target.as_attr_list;
+        if attrs {
+            last = attrs[-1];
+            if isinstance(last, uni.AstSymbolNode) and last.sym {
+                return last.sym;
+            }
+        }
+    }
+    return None;
+}
+
+"""Resolve a function call target to a Jac ability when possible."""
+@classmethod
+impl JacTTGGenerator._resolve_called_ability(
+    cls: type[JacTTGGenerator], call: uni.FuncCall
+) -> (uni.Ability | None) {
+    sym = cls._call_target_symbol(call);
+    if sym and sym.defn {
+        defn_node = sym.defn[0];
+        if isinstance(defn_node, uni.Ability) {
+            return defn_node;
+        }
+        if defn_node.parent and isinstance(defn_node.parent, uni.Ability) {
+            return defn_node.parent;
+        }
+    }
+
+    # Fallback for older JIRs that do not preserve call-target symbols:
+    # find a uniquely named archetype method in the enclosing module.
+    method_name: (str | None) = None;
+    target = call.target;
+    if isinstance(target, uni.AtomTrailer) {
+        names = target.get_all_sub_nodes(uni.Name);
+        if len(names) > 0 {
+            method_name = names[-1].value;
+        }
+    } elif isinstance(target, uni.NameAtom) {
+        method_name = target.sym_name;
+    }
+    if method_name is None {
+        return None;
+    }
+    module = call.find_parent_of_type(uni.Module);
+    if module is None {
+        return None;
+    }
+    for arch in module.get_all_sub_nodes(uni.Archetype) {
+        for method in arch.get_all_sub_nodes(uni.Ability) {
+            if method.py_resolve_name() == method_name {
+                return method;
+            }
+        }
+    }
+    return None;
+}
+
+"""Infer the node type for a helper with one typed node parameter."""
+@classmethod
+impl JacTTGGenerator._single_param_node_type(
+    cls: type[JacTTGGenerator], ability: uni.Ability
+) -> (str | None) {
+    if not isinstance(ability.signature, uni.FuncSignature) {
+        return None;
+    }
+    params = ability.signature.get_parameters();
+    if len(params) != 1 {
+        return None;
+    }
+    tag = params[0].type_tag;
+    if tag is None {
+        return None;
+    }
+    type_name = cls._ast_type_name(tag.tag);
+    if type_name is None {
+        return None;
+    }
+    arch = cls._resolve_archetype(tag, type_name);
+    if arch is None or arch.arch_type.name != Tok.KW_NODE {
+        return None;
+    }
+    return arch.name.value;
+}
+
+"""Trace FuncCall nodes in an ability body, resolve to Jac callees,
 and extract their refs expressions as VisitTypes."""
 @classmethod
 impl JacTTGGenerator._trace_method_calls(
-    cls: type[JacTTGGenerator], ability: uni.Ability
+    cls: type[JacTTGGenerator],
+    ability: uni.Ability,
+    current_node_type: (str | None) = None,
+    seen: (set[int] | None) = None
 ) -> list[VisitType] {
     result: list[VisitType] = [];
-    seen_methods: set[str] = set();
+    if seen is None {
+        seen = set();
+    }
     func_calls = cls._ability_sub_nodes(ability, uni.FuncCall);
-    for call in func_calls {
-        # Resolve the function name. For attr access (e.g. here.to_profile_view()),
-        # we need the method name. For simple calls, use the target name directly.
-        method_name: (str | None) = None;
-        target = call.target;
-        if isinstance(target, uni.AtomTrailer) {
-            # e.g. here.to_profile_view() — get the last Name in the chain
-            names = target.get_all_sub_nodes(uni.Name);
-            if len(names) > 0 {
-                method_name = names[-1].value;
-            }
-        } elif isinstance(target, uni.NameAtom) {
-            method_name = target.sym_name;
-        }
-        if method_name is None or method_name in seen_methods {
+    for call_any in func_calls {
+        if not isinstance(call_any, uni.FuncCall) {
             continue;
         }
-        seen_methods.add(method_name);
-        # Try to resolve via symbol table
-        resolved_arch = cls._resolve_archetype(call, method_name);
-        if resolved_arch is not None {
-            # Found the archetype — look for the method within it
-            methods = resolved_arch.get_all_sub_nodes(uni.Ability);
-            for method in methods {
-                if method.py_resolve_name() == method_name {
-                    # Extract refs from this method body
-                    chains = cls._extract_refs_from_body(method);
-                    owner_type = resolved_arch.name.value;
-                    for chain in chains {
-                        first_edge = chain[0][0] if len(chain) > 0 else None;
-                        # Inline method bodies — same rationale as path
-                        # #2: data reads, not walker visits → leaves.
-                        result.append(
-                            VisitType(
-                                from_node_type=owner_type,
-                                edge_type=first_edge,
-                                edge_chain=chain if len(chain) > 0 else None,
-                                is_visit=False
-                            )
-                        );
-                    }
-                    break;
-                }
-            }
+        call: uni.FuncCall = call_any;
+        callee = cls._resolve_called_ability(call);
+        if callee is None or id(callee) in seen {
             continue;
         }
-        # Fallback: try to find the method on any archetype in the module
-        # by searching all archetypes for a matching ability name.
-        module = ability.find_parent_of_type(uni.Module);
-        if module is None {
-            continue;
+        seen.add(id(callee));
+
+        owner_type: (str | None) = None;
+        if callee.method_owner and isinstance(callee.method_owner, uni.Archetype) {
+            owner_type = callee.method_owner.name.value;
         }
-        archs = module.get_all_sub_nodes(uni.Archetype);
-        for arch in archs {
-            methods = arch.get_all_sub_nodes(uni.Ability);
-            for method in methods {
-                if method.py_resolve_name() == method_name {
-                    chains = cls._extract_refs_from_body(method);
-                    owner_type = arch.name.value;
-                    for chain in chains {
-                        first_edge = chain[0][0] if len(chain) > 0 else None;
-                        result.append(
-                            VisitType(
-                                from_node_type=owner_type,
-                                edge_type=first_edge,
-                                edge_chain=chain if len(chain) > 0 else None,
-                                is_visit=False
-                            )
-                        );
-                    }
-                    break;
-                }
+        if owner_type is None {
+            param_owner_type = cls._single_param_node_type(callee);
+            if param_owner_type is not None {
+                owner_type = param_owner_type;
             }
         }
+        if owner_type is None and current_node_type is not None {
+            owner_type = current_node_type;
+        }
+
+        trailers = cls._ability_sub_nodes(callee, uni.EdgeRefTrailer);
+        for trailer in trailers {
+            chain = cls._extract_chains_from_trailer(callee, trailer);
+            if len(chain) > 0 {
+                first_edge = chain[0][0] if len(chain) > 0 else None;
+                result.append(
+                    VisitType(
+                        from_node_type=owner_type,
+                        edge_type=first_edge,
+                        edge_chain=chain if len(chain) > 0 else None,
+                        is_visit=False
+                    )
+                );
+            }
+        }
+        result.extend(cls._trace_method_calls(callee, owner_type, seen));
     }
     return result;
 }
@@ -453,8 +553,9 @@ impl JacTTGGenerator._extract_visits_from_ast(
                 );
             }
         }
-        # 3. Trace into method calls to extract refs from called methods.
-        method_visits = cls._trace_method_calls(ability);
+        # 3. Trace into helper calls to extract data refs from called
+        #    Jac functions/methods.
+        method_visits = cls._trace_method_calls(ability, node_type_name);
         result.extend(method_visits);
     }
     # Cache on the class for subsequent calls.
@@ -500,12 +601,12 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         )
     );
 
-    prefetch: list[UUID] = [];
+    prefetch: list[UUID] = [start_id] if max_length > 0 else [];
     seen: set[UUID] = {start_id};
     import from collections { deque }
     import from collections { defaultdict }
     queue: deque[tuple[TopologyIndex, UUID]] = deque([(topology_index, start_id)]);
-    prefetch_idx_by_id: dict[UUID, TopologyIndex] = {};
+    prefetch_idx_by_id: dict[UUID, TopologyIndex] = {start_id: topology_index};
     _root_idx_cache: dict[UUID, TopologyIndex] = {};
     _support_root_ids: set[UUID] = set();
     _resolve_ms = 0.0;

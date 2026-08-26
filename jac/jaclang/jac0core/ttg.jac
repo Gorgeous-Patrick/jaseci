@@ -85,11 +85,38 @@ class JacTTGGenerator {
         cls: type[JacTTGGenerator], ability: uni.Ability, node_type: type
     ) -> list;
 
-    """Trace FuncCall nodes in an ability body, resolve to archetype methods,
+    """Extract a type name string from an AST type annotation expression."""
+    @classmethod
+    def _ast_type_name(
+        cls: type[JacTTGGenerator], expr: (uni.UniNode | None)
+    ) -> (str | None);
+
+    """Resolve a function call target to its symbol when statically known."""
+    @classmethod
+    def _call_target_symbol(
+        cls: type[JacTTGGenerator], call: uni.FuncCall
+    ) -> (uni.Symbol | None);
+
+    """Resolve a function call target to a Jac ability when statically known."""
+    @classmethod
+    def _resolve_called_ability(
+        cls: type[JacTTGGenerator], call: uni.FuncCall
+    ) -> (uni.Ability | None);
+
+    """Infer the node type for a one-parameter helper like `f(n: Node)`."""
+    @classmethod
+    def _single_param_node_type(
+        cls: type[JacTTGGenerator], ability: uni.Ability
+    ) -> (str | None);
+
+    """Trace FuncCall nodes in an ability body, resolve to Jac callees,
     and extract their refs expressions as VisitTypes."""
     @classmethod
     def _trace_method_calls(
-        cls: type[JacTTGGenerator], ability: uni.Ability
+        cls: type[JacTTGGenerator],
+        ability: uni.Ability,
+        current_node_type: (str | None) = None,
+        seen: (set[int] | None) = None
     ) -> list[VisitType];
 
     @classmethod

@@ -79,28 +79,29 @@ class TTGCrossRootTest(unittest.TestCase):
 
         return got, channel, parent_msg, reply_msg, message_root.id, mem
 
-    def test_ttg_bfs_uses_foreign_root_index_for_next_visit(self) -> None:
+    def test_ttg_bfs_counts_start_and_uses_foreign_root_index(self) -> None:
         got, channel, parent_msg, reply_msg, message_root_id, mem = (
             self._run_cross_root_ttg(10)
         )
 
-        self.assertNotIn(channel, got)
+        self.assertIn(channel, got)
         self.assertIn(parent_msg, got)
         self.assertIn(message_root_id, got)
         self.assertIn(reply_msg, got)
+        self.assertEqual(len(got), 4)
         self.assertEqual(mem.prefetched, [message_root_id])
         self.assertEqual(mem.get_calls, [])
         self.assertLessEqual(len(got), 10)
 
-    def test_ttg_counts_foreign_root_against_prefetch_limit(self) -> None:
+    def test_ttg_counts_start_against_prefetch_limit(self) -> None:
         got, channel, parent_msg, reply_msg, message_root_id, mem = (
             self._run_cross_root_ttg(2)
         )
 
-        self.assertNotIn(channel, got)
+        self.assertIn(channel, got)
         self.assertIn(parent_msg, got)
-        self.assertIn(message_root_id, got)
+        self.assertNotIn(message_root_id, got)
         self.assertNotIn(reply_msg, got)
         self.assertEqual(len(got), 2)
-        self.assertEqual(mem.prefetched, [message_root_id])
+        self.assertEqual(mem.prefetched, [])
         self.assertEqual(mem.get_calls, [])
