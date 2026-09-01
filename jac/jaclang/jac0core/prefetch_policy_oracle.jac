@@ -1,8 +1,9 @@
 """Oracle prefetch policy.
 
 The oracle input is an explicit UUID list, one UUID per line. External
-experiment tooling can derive this file from access logs without making
-the runtime parse benchmark artifacts.
+experiment tooling derives this file from access logs. Root/topology anchors
+are represented as ordinary UUID entries so the downstream prefetcher can
+still satisfy the whole oracle plan with one raw `$in` fetch.
 """
 
 import logging;
@@ -10,6 +11,7 @@ import os;
 import from pathlib { Path }
 import from uuid { UUID }
 
+import from jaclang.jac0core.archetype { NodeAnchor, Root }
 import from jaclang.jac0core.prefetch_policy_types {
     PrefetchPlanRequest,
     PrefetchPlanResult
@@ -59,6 +61,22 @@ def _is_resident_in_prefetch_cache(mem: any, id: UUID) -> bool {
     return False;
 }
 
+def _append_oracle_id(ids: list[UUID], seen: set[UUID], mem: any, raw: any) -> None {
+    try {
+        id = raw if isinstance(raw, UUID) else UUID(str(raw));
+    } except Exception {
+        return;
+    }
+    if id in seen {
+        return;
+    }
+    seen.add(id);
+    if _is_resident_in_prefetch_cache(mem, id) {
+        return;
+    }
+    ids.append(id);
+}
+
 def oracle_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
     import time as _time;
     plan_start = _time.perf_counter();
@@ -76,6 +94,14 @@ def oracle_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
     }
     ids: list[UUID] = [];
     seen: set[UUID] = set();
+    start_anchor = request.start_anchor;
+    if isinstance(start_anchor, NodeAnchor) {
+        if start_anchor.root is not None {
+            _append_oracle_id(ids, seen, request.mem, start_anchor.root);
+        } elif isinstance(start_anchor.archetype, Root) {
+            _append_oracle_id(ids, seen, request.mem, start_anchor.id);
+        }
+    }
     with path.open() as fh {
         for (line_no, line_obj) in enumerate(fh, start=1) {
             line: str = str(line_obj);
@@ -95,20 +121,10 @@ def oracle_policy_plan(request: PrefetchPlanRequest) -> PrefetchPlanResult {
                 logger.error(f"invalid oracle UUID at {path}:{line_no}: {raw}");
                 raise e;
             }
-            if id in seen {
-                continue;
-            }
-            seen.add(id);
-            if _is_resident_in_prefetch_cache(request.mem, id) {
-                continue;
-            }
-            ids.append(id);
-            if len(ids) >= request.max_length {
-                break;
-            }
+            _append_oracle_id(ids, seen, request.mem, id);
         }
     }
     return PrefetchPlanResult(
-        ids=ids, plan_ms=(_time.perf_counter() - plan_start) * 1000
+        ids=ids, plan_ms=(_time.perf_counter() - plan_start) * 1000, single_query=True
     );
 }

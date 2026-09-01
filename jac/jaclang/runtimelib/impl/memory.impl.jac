@@ -135,7 +135,7 @@ def _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
             p = pathlib.Path(cfg.run.access_log);
             p.parent.mkdir(parents=True, exist_ok=True);
             fh = p.open('w');
-            fh.write("id,tier,type\n");
+            fh.write("id,tier,type,root\n");
             _access_log_state[0] = fh;
         } except Exception {
             _access_log_state[0] = False;
@@ -156,7 +156,20 @@ def _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
             ;
         }
     }
-    fh.write(f"{id},{tier},{type_name}\n");
+    root_id = "";
+    if anchor is not None {
+        try {
+            if anchor.root is not None {
+                root_id = str(anchor.root);
+            } elif isinstance(anchor, NodeAnchor)
+            and isinstance(anchor.archetype, Root) {
+                root_id = str(id);
+            }
+        } except Exception {
+            ;
+        }
+    }
+    fh.write(f"{id},{tier},{type_name},{root_id}\n");
     fh.flush();
 }
 
