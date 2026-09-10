@@ -1088,8 +1088,7 @@ def _ttg_render_frontier_spec_select(
                     ARRAY[{edge_ids_sql}]::uuid[] AS step_edges,
                     ({step_ord_sql}) AS step_ord,
                     {visit_sql}::boolean AS is_frontier,
-                    {spec_idx}::int AS spec_idx,
-                    frontier.frontier_seen_nodes AS frontier_seen_nodes
+                    {spec_idx}::int AS spec_idx
                 FROM frontier
                 {" ".join(hop_joins)}
                 WHERE {_ttg_sql_type_match("frontier.arch_type", f"{pfx}from")}
@@ -1293,13 +1292,14 @@ def _ttg_render_specialized_set_based_sql(
 	                        COUNT(*) OVER () AS layer_count
 	                    FROM (
 	                        WITH frontier AS MATERIALIZED (
-	                            SELECT
-	                                walk.*,
-	                                array_agg(walk.node_id) OVER ()
-	                                    AS frontier_seen_nodes
+	                            SELECT walk.*
 	                            FROM walk
 	                            WHERE walk.is_frontier
 	                              AND walk.depth < CAST(:max_depth AS int)
+	                        ),
+	                        frontier_nodes AS MATERIALIZED (
+	                            SELECT node_id
+	                            FROM frontier
 	                        ),
 	                        raw AS (
 	                            {recursive_sql}
@@ -1307,9 +1307,10 @@ def _ttg_render_specialized_set_based_sql(
 	                        raw_annotated AS (
 	                            SELECT
 	                                raw.*,
-	                                (
-	                                    raw.node_id
-	                                    = ANY(raw.frontier_seen_nodes)
+	                                EXISTS (
+	                                    SELECT 1
+	                                    FROM frontier_nodes fn
+	                                    WHERE fn.node_id = raw.node_id
 	                                ) AS already_frontier,
 	                                COUNT(*) OVER (
 	                                    PARTITION BY
