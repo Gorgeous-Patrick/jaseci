@@ -115,6 +115,7 @@ def hit_stats_read_checkpoints -> list[tuple[str, dict[str, int]]];
 def access_log_seen_ids_snapshot -> list[UUID];
 def access_log_seen_ids_reset -> None;
 def _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None;
+def _access_log_flush -> None;
 def _access_log_reset_for_tests -> None;
 def mark_scratch_base(base_path: str) -> None;
 def scratch_requested(base_path: (str | None)) -> bool;

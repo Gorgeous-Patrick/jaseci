@@ -337,6 +337,12 @@ impl JacWalker.spawn_call(
                 ;
             }
         }
+        try {
+            import from jaclang.server.session { _access_log_flush }
+            _access_log_flush();
+        } except Exception {
+            ;
+        }
     }
     if ctx_prefetch is not None {
         import from jaclang.runtime.prefetch_policy_oracle {
@@ -512,6 +518,12 @@ impl JacWalker.async_spawn_call(
             } except Exception {
                 ;
             }
+        }
+        try {
+            import from jaclang.server.session { _access_log_flush }
+            _access_log_flush();
+        } except Exception {
+            ;
         }
     }
     if ctx_prefetch is not None {

@@ -55,6 +55,14 @@ walker GTIMultiHopTraverse {
 }
 
 
+walker GTIPartialLayerTraverse {
+    can step_profile with GTIProfile entry {
+        visit [->:GTIFollow:->[?:GTIProfile]];
+        visit [->:GTIPost:->[?:GTITweet]];
+    }
+}
+
+
 walker GTIRootSourceMethodTraverse {
     can step_profile with GTIProfile entry {
         visit [->:GTIPost:->[?:GTITweet]];
@@ -130,6 +138,29 @@ def _seed_cross_root(ctx: ExecutionContext) -> tuple[UUID, UUID, UUID, UUID, UUI
         bob.ensure_id(),
         tweet.ensure_id()
     );
+}
+
+
+def _seed_partial_layer(
+    ctx: ExecutionContext
+) -> tuple[UUID, list[UUID], list[UUID]] {
+    ranch = _root(ctx);
+    alice = _owned_node(ctx, ranch, GTIProfile(name="alice"));
+    bob_ids: list[UUID] = [];
+    tweet_ids: list[UUID] = [];
+    for bob_idx in range(3) {
+        bob = _owned_node(ctx, ranch, GTIProfile(name=f"bob-{bob_idx}"));
+        bob_ids.append(bob.ensure_id());
+        _connect(ctx, alice, bob, _as_any(GTIFollow()));
+        for tweet_idx in range(5) {
+            tweet = _owned_node(
+                ctx, ranch, GTITweet(text=f"tweet-{bob_idx}-{tweet_idx}")
+            );
+            tweet_ids.append(tweet.ensure_id());
+            _connect(ctx, bob, tweet, _as_any(GTIPost()));
+        }
+    }
+    return (alice.ensure_id(), bob_ids, tweet_ids);
 }
 
 
@@ -260,6 +291,49 @@ test "filtered hop warm indexes only matching frontier adjacency" {
                 [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
                 10
             ) == [tweet_id];
+        } finally {
+            JacRuntime.exec_ctx = old;
+            ctx2.close();
+        }
+    }
+}
+
+
+test "TTG partial layer marks only complete expansion groups loaded" {
+    with TemporaryDirectory() as td {
+        old = JacRuntime.exec_ctx;
+        ctx1 = _ctx(td);
+        JacRuntime.exec_ctx = ctx1;
+        ids: tuple[UUID, list[UUID], list[UUID]];
+        try {
+            ids = _seed_partial_layer(ctx1);
+            ctx1.mem.commit();
+        } finally {
+            JacRuntime.exec_ctx = old;
+            ctx1.close();
+        }
+
+        ctx2 = _ctx(td);
+        JacRuntime.exec_ctx = ctx2;
+        try {
+            (alice_id, bob_ids, tweet_ids) = ids;
+            alice = ctx2.mem.get(alice_id);
+            assert isinstance(alice, NodeAnchor);
+            plan = JacTTGGenerator.get_ttg_prefetch_list(
+                GTIPartialLayerTraverse(), alice, ctx2.mem, max_length=10
+            );
+            prefetched_tweets = [uid for uid in tweet_ids if uid in plan];
+            assert len(prefetched_tweets) > 0 , plan;
+            idx = ctx2.mem.__topology_index__;
+            assert isinstance(idx, TopologyIndex);
+            loaded_post_hops = 0;
+            for bob_id in bob_ids {
+                if idx.has_hop(bob_id, "GTIPost", "GTITweet", 2) {
+                    loaded_post_hops += 1;
+                }
+            }
+            assert loaded_post_hops > 0 , loaded_post_hops;
+            assert loaded_post_hops < len(bob_ids) , loaded_post_hops;
         } finally {
             JacRuntime.exec_ctx = old;
             ctx2.close();
@@ -427,7 +501,9 @@ test "TTG complete-hop SQL optimization has env escape hatch" {
             {"origin_ids": [], "limit": 10, "max_depth": 10}
         );
         assert "expected_complete_status AS" in sql;
-        assert "BOOL_AND(an.id IS NOT NULL AND ae.id IS NOT NULL)" in sql;
+        assert "exp.group_complete" in sql;
+        assert "AND an.id IS NOT NULL" in sql;
+        assert "AND ae.id IS NOT NULL" in sql;
 
         os.environ["JAC_TTG_OPT_COMPLETE_HOPS"] = "0";
         fallback_sql = _ttg_render_specialized_set_based_sql(
@@ -437,6 +513,7 @@ test "TTG complete-hop SQL optimization has env escape hatch" {
         assert "expected_complete_status AS" not in fallback_sql;
         assert "AND NOT EXISTS (" in fallback_sql;
         assert "FROM expected_complete_edges exp" in fallback_sql;
+        assert "NOT exp.group_complete" in fallback_sql;
     } finally {
         if old is None {
             os.environ.pop("JAC_TTG_OPT_COMPLETE_HOPS", None);

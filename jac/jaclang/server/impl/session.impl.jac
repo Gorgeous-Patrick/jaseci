@@ -134,6 +134,20 @@ impl access_log_seen_ids_reset -> None {
 }
 
 
+impl _access_log_flush -> None {
+    with _access_log_lock {
+        state = _access_log_state[0];
+        if state is not None and state is not False {
+            try {
+                state.flush();
+            } except Exception {
+                ;
+            }
+        }
+    }
+}
+
+
 impl _access_log_reset_for_tests -> None {
     with _access_log_lock {
         state = _access_log_state[0];
@@ -214,7 +228,6 @@ impl _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
             }
         }
         fh.write(f"{id},{tier},{type_name},{root_id}\n");
-        fh.flush();
     }
 }
 

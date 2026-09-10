@@ -1148,7 +1148,11 @@ def _ttg_render_complete_hop_rows_sql -> str {
                 SELECT
                     exp.origin_id,
                     exp.spec_idx,
-                    BOOL_AND(an.id IS NOT NULL AND ae.id IS NOT NULL)
+                    BOOL_AND(
+                        exp.group_complete
+                        AND an.id IS NOT NULL
+                        AND ae.id IS NOT NULL
+                    )
                         AS all_available
                 FROM expected_complete_edges exp
                 LEFT JOIN available_node_ids an ON an.id = exp.target_id
@@ -1183,16 +1187,17 @@ def _ttg_render_complete_hop_rows_sql -> str {
                         AND exp.spec_idx = co.spec_idx
                   )
                   AND NOT EXISTS (
-                      SELECT 1
-                      FROM expected_complete_edges exp
-                      WHERE exp.origin_id = co.origin_id
-                        AND exp.spec_idx = co.spec_idx
-                        AND (
-                            NOT EXISTS (
-                                SELECT 1
-                                FROM available_node_ids an
-                                WHERE an.id = exp.target_id
-                            )
+	                      SELECT 1
+	                      FROM expected_complete_edges exp
+	                      WHERE exp.origin_id = co.origin_id
+	                        AND exp.spec_idx = co.spec_idx
+	                        AND (
+	                            NOT exp.group_complete
+	                            OR NOT EXISTS (
+	                                SELECT 1
+	                                FROM available_node_ids an
+	                                WHERE an.id = exp.target_id
+	                            )
                             OR NOT EXISTS (
                                 SELECT 1
                                 FROM available_edge_ids ae
@@ -1230,7 +1235,8 @@ def _ttg_render_specialized_set_based_sql(
 	                step_nodes,
 	                step_edges,
 	                is_frontier,
-	                step_spec_idx
+	                step_spec_idx,
+	                step_group_complete
 	            ) AS (
 	                SELECT
 	                    0::int AS depth,
@@ -1243,7 +1249,8 @@ def _ttg_render_specialized_set_based_sql(
 	                    ARRAY[seed.id]::uuid[] AS step_nodes,
 	                    ARRAY[]::uuid[] AS step_edges,
 	                    TRUE AS is_frontier,
-	                    NULL::int AS step_spec_idx
+	                    NULL::int AS step_spec_idx,
+	                    TRUE AS step_group_complete
 	                FROM unnest(CAST(:origin_ids AS uuid[]))
 	                    WITH ORDINALITY AS seed(id, ord)
 	                JOIN anchors n ON n.id = seed.id
@@ -1263,16 +1270,16 @@ def _ttg_render_specialized_set_based_sql(
 	                        ranked.is_frontier
 	                        AND ranked.layer_count < CAST(:limit AS bigint)
 	                    ) AS is_frontier,
-	                    ranked.spec_idx
+	                    ranked.spec_idx,
+	                    ranked.group_complete
 	                FROM (
 	                    SELECT
-	                        raw.*,
+	                        raw_budgeted.*,
 	                        ROW_NUMBER() OVER (
 	                            ORDER BY
-	                                raw.parent_bfs_ord,
-	                                raw.spec_idx,
-	                                raw.step_ord,
-	                                raw.node_id
+	                                raw_budgeted.group_ord,
+	                                raw_budgeted.group_row_rank,
+	                                raw_budgeted.node_id
 	                        ) AS local_rank,
 	                        COUNT(*) OVER () AS layer_count
 	                    FROM (
@@ -1281,11 +1288,76 @@ def _ttg_render_specialized_set_based_sql(
 	                            FROM walk
 	                            WHERE walk.is_frontier
 	                              AND walk.depth < CAST(:max_depth AS int)
+	                        ),
+	                        raw AS (
+	                            {recursive_sql}
+	                        ),
+	                        raw_grouped AS (
+	                            SELECT
+	                                raw.*,
+	                                DENSE_RANK() OVER (
+	                                    ORDER BY
+	                                        raw.parent_bfs_ord,
+	                                        raw.spec_idx,
+	                                        raw.parent_node_id
+	                                ) AS group_ord,
+	                                ROW_NUMBER() OVER (
+	                                    PARTITION BY
+	                                        raw.parent_bfs_ord,
+	                                        raw.spec_idx,
+	                                        raw.parent_node_id
+	                                    ORDER BY raw.step_ord, raw.node_id
+	                                ) AS group_row_rank,
+	                                COUNT(*) OVER (
+	                                    PARTITION BY
+	                                        raw.parent_bfs_ord,
+	                                        raw.spec_idx,
+	                                        raw.parent_node_id
+	                                ) AS group_count
+	                            FROM raw
+	                        ),
+	                        group_budget AS (
+	                            SELECT
+	                                groups.group_ord,
+	                                groups.group_count,
+	                                COALESCE(
+	                                    SUM(groups.group_count) OVER (
+	                                        ORDER BY groups.group_ord
+	                                        ROWS BETWEEN UNBOUNDED PRECEDING
+	                                            AND 1 PRECEDING
+	                                    ),
+	                                    0
+	                                ) AS group_prior_count,
+	                                SUM(groups.group_count) OVER (
+	                                    ORDER BY groups.group_ord
+	                                    ROWS BETWEEN UNBOUNDED PRECEDING
+	                                        AND CURRENT ROW
+	                                ) AS group_cume_count
+	                            FROM (
+	                                SELECT DISTINCT group_ord, group_count
+	                                FROM raw_grouped
+	                            ) groups
 	                        )
-	                        {recursive_sql}
-	                    ) raw
+	                        SELECT
+	                            raw_grouped.*,
+	                            group_budget.group_prior_count,
+	                            group_budget.group_cume_count,
+	                            (
+	                                group_budget.group_cume_count
+	                                <= CAST(:limit AS bigint)
+	                            ) AS group_complete
+	                        FROM raw_grouped
+	                        JOIN group_budget
+	                          ON group_budget.group_ord = raw_grouped.group_ord
+	                        WHERE group_budget.group_prior_count
+	                              < CAST(:limit AS bigint)
+	                          AND raw_grouped.group_row_rank
+	                              <= (
+	                                  CAST(:limit AS bigint)
+	                                  - group_budget.group_prior_count
+	                              )
+	                    ) raw_budgeted
 	                ) ranked
-	                WHERE ranked.layer_count <= CAST(:limit AS bigint)
 	            ),
 	            candidate_node_rows AS (
 	                SELECT
@@ -1299,6 +1371,7 @@ def _ttg_render_specialized_set_based_sql(
 	                    walk.step_edges,
 	                    walk.is_frontier,
 	                    walk.step_spec_idx AS spec_idx,
+	                    walk.step_group_complete AS group_complete,
 	                    CASE
 	                        WHEN n.kind = 'NodeAnchor' AND n.arch_type = 'Root'
 	                            THEN n.id
@@ -1540,7 +1613,8 @@ def _ttg_render_specialized_set_based_sql(
 	                    c.parent_node_id AS origin_id,
 	                    c.spec_idx,
 	                    c.target_id AS target_id,
-	                    edge_ids.id AS edge_id
+	                    edge_ids.id AS edge_id,
+	                    c.group_complete
 	                FROM candidate_node_rows c
 	                CROSS JOIN LATERAL unnest(c.step_edges) AS edge_ids(id)
 	                WHERE c.parent_node_id IS NOT NULL

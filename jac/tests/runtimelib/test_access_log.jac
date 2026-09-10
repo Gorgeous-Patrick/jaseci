@@ -18,6 +18,7 @@ import from jaclang.data.pgwire {
 import from jaclang.data.store { PgStore }
 import from jaclang.server.session {
     Session,
+    _access_log_flush,
     _access_log_reset_for_tests,
     _tiered_access_log,
     hit_stats_add_checkpoint,
@@ -126,12 +127,13 @@ test "run access_log writes old tier csv and hit stats" {
             );
             _tiered_access_log(miss_id, "MISS");
             assert Session().get(get_miss_id) is None;
+            _access_log_flush();
 
             body = log_path.read_text();
-            assert body.startswith("id,tier,type\n");
-            assert f"{hit_id},L1,AccessLogDummyArch\n" in body;
-            assert f"{miss_id},MISS,\n" in body;
-            assert f"{get_miss_id},MISS,\n" in body;
+            assert body.startswith("id,tier,type,root\n");
+            assert f"{hit_id},L1,AccessLogDummyArch,\n" in body;
+            assert f"{miss_id},MISS,,\n" in body;
+            assert f"{get_miss_id},MISS,,\n" in body;
 
             stats = hit_stats_snapshot();
             assert stats["L1"] == 1;

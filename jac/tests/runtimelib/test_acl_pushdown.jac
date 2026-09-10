@@ -23,6 +23,7 @@ import from pathlib { Path }
 import from tempfile { TemporaryDirectory }
 import from uuid { UUID }
 import from jaclang.runtime.archetype { AccessLevel, EdgeAnchor, GenericEdge, Root }
+import from jaclang.runtime.graph_walk { acl_read_ok }
 import from jaclang.runtime.runtime { JacRuntime, JacRuntimeInterface }
 import from jaclang.runtime.context { ExecutionContext }
 
@@ -118,6 +119,50 @@ test "a gated read does not materialize rows it may not return" {
             assert fetched <= 3 , (
                 f"a gated read materialized {fetched} anchors to return 3; the "
                 f"permission test belongs in the query"
+            );
+        } finally {
+            JacRuntime.exec_ctx = old;
+            ctx2.close();
+        }
+    }
+}
+
+
+test "public read acl does not fetch owner root" {
+    with TemporaryDirectory() as td {
+        old = JacRuntime.exec_ctx;
+        ctx1 = _ctx(td);
+        JacRuntime.exec_ctx = ctx1;
+        doc_id: str;
+        viewer_id: str;
+        try {
+            owner = _mk_root(ctx1.mem);
+            viewer = _mk_root(ctx1.mem);
+            d = Doc(label="public").__jac__;
+            d.persistent = True;
+            setattr(d, "root", owner.id);
+            d.own_access().all = AccessLevel.READ;
+            ctx1.mem.put(d);
+            ctx1.mem.commit();
+            doc_id = str(d.id);
+            viewer_id = str(viewer.id);
+        } finally {
+            JacRuntime.exec_ctx = old;
+            ctx1.close();
+        }
+
+        ctx2 = _ctx(td);
+        JacRuntime.exec_ctx = ctx2;
+        try {
+            ctx2.set_user_root(viewer_id);
+            d = ctx2.mem.get(UUID(doc_id));
+            assert d is not None;
+            ctx2.mem.reset_fetch_count();
+            assert acl_read_ok(d);
+            fetched = ctx2.mem.get_fetch_count();
+            assert fetched == 0 , (
+                f"public read ACL fetched {fetched} anchors; it should not load "
+                f"the owner root after access.all already grants read"
             );
         } finally {
             JacRuntime.exec_ctx = old;

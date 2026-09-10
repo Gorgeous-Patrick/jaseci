@@ -37,6 +37,10 @@ def access_gated -> bool {
 
 def acl_read_ok(anchor: Anchor) -> bool {
     import from jaclang.runtime.archetype { AccessLevel }
+    access = anchor.access;
+    if access is not None and access.all.value > AccessLevel.NO_ACCESS.value {
+        return True;
+    }
     import from jaclang.runtime.runtime { JacRuntimeInterface }
     level = JacRuntimeInterface.check_access_level(anchor);
     return level.value > AccessLevel.NO_ACCESS.value;
