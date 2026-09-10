@@ -1141,6 +1141,13 @@ def _ttg_opt_complete_hops_enabled -> bool {
 }
 
 
+def _ttg_prefetch_owner_roots_enabled -> bool {
+    import os as _os;
+    raw = _os.environ.get("JAC_TTG_PREFETCH_OWNER_ROOTS", "").strip().lower();
+    return raw in ("1", "true", "yes", "on");
+}
+
+
 def _ttg_render_complete_hop_rows_sql -> str {
     if _ttg_opt_complete_hops_enabled() {
         return """
@@ -1213,6 +1220,7 @@ def _ttg_render_specialized_set_based_sql(
     specs: list[dict],
     params: dict[str, object]
 ) -> str {
+    params["include_owner_roots"] = _ttg_prefetch_owner_roots_enabled();
     frontier_selects = [
         _ttg_render_frontier_spec_select(spec, params)
         for spec in specs
@@ -1412,6 +1420,7 @@ def _ttg_render_specialized_set_based_sql(
 	                    FALSE AS is_frontier
 	                FROM candidate_node_rows
                 WHERE owner_root IS NOT NULL
+                  AND CAST(:include_owner_roots AS boolean)
                   AND owner_root <> target_id
             ),
             frontier_flags AS (
@@ -1852,7 +1861,8 @@ def _resolve_sql_visit_bfs_layered_budgeted(
         max_chain_len = max(max_chain_len, len(chain));
     }
     base_params: dict[str, object] = {
-        "max_depth": int(max_length)
+        "max_depth": int(max_length),
+        "include_owner_roots": _ttg_prefetch_owner_roots_enabled()
     };
     spec_values: list[str] = [];
     hop_values: list[str] = [];
@@ -2116,6 +2126,7 @@ def _resolve_sql_visit_bfs_layered_budgeted(
                     FALSE AS is_frontier
                 FROM node_rows
                 WHERE owner_root IS NOT NULL
+                  AND CAST(:include_owner_roots AS boolean)
                   AND owner_root <> target_id
             ),
             filtered_additions AS (

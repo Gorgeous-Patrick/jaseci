@@ -345,6 +345,7 @@ test "TTG partial layer marks only complete expansion groups loaded" {
 test "TTG uses warmed topology to continue across owner roots" {
     with TemporaryDirectory() as td {
         old = JacRuntime.exec_ctx;
+        old_owner_roots = os.environ.get("JAC_TTG_PREFETCH_OWNER_ROOTS");
         ctx1 = _ctx(td);
         JacRuntime.exec_ctx = ctx1;
         ids: tuple[UUID, UUID, UUID, UUID, UUID];
@@ -359,6 +360,7 @@ test "TTG uses warmed topology to continue across owner roots" {
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
+            os.environ.pop("JAC_TTG_PREFETCH_OWNER_ROOTS", None);
             (alice_root_id, bob_root_id, alice_id, bob_id, tweet_id) = ids;
             alice = ctx2.mem.get(alice_id);
             assert isinstance(alice, NodeAnchor);
@@ -367,22 +369,37 @@ test "TTG uses warmed topology to continue across owner roots" {
             );
             assert bob_id in plan , plan;
             assert tweet_id in plan , plan;
-            assert alice_root_id in plan , plan;
-            assert bob_root_id in plan , plan;
+            assert alice_root_id not in plan , plan;
+            assert bob_root_id not in plan , plan;
             assert len(plan) <= 10 , plan;
-            assert plan.index(alice_id) < plan.index(alice_root_id) , plan;
-            assert plan.index(bob_id) < plan.index(bob_root_id) , plan;
+            idx = ctx2.mem.__topology_index__;
+            assert isinstance(idx, TopologyIndex);
+            assert idx.owner_root_for(alice_id) == alice_root_id;
+            assert idx.owner_root_for(bob_id) == bob_root_id;
+            assert idx.owner_root_for(tweet_id) == bob_root_id;
 
             limited = JacTTGGenerator.get_ttg_prefetch_list(
-                GTITraverse(), alice, ctx2.mem, max_length=4
+                GTITraverse(), alice, ctx2.mem, max_length=2
             );
-            assert len(limited) == 4 , limited;
+            assert len(limited) == 2 , limited;
             assert alice_id in limited , limited;
-            assert alice_root_id in limited , limited;
             assert bob_id in limited , limited;
-            assert bob_root_id in limited , limited;
+            assert alice_root_id not in limited , limited;
+            assert bob_root_id not in limited , limited;
             assert tweet_id not in limited , limited;
+
+            os.environ["JAC_TTG_PREFETCH_OWNER_ROOTS"] = "1";
+            with_roots = JacTTGGenerator.get_ttg_prefetch_list(
+                GTITraverse(), alice, ctx2.mem, max_length=10
+            );
+            assert alice_root_id in with_roots , with_roots;
+            assert bob_root_id in with_roots , with_roots;
         } finally {
+            if old_owner_roots is None {
+                os.environ.pop("JAC_TTG_PREFETCH_OWNER_ROOTS", None);
+            } else {
+                os.environ["JAC_TTG_PREFETCH_OWNER_ROOTS"] = old_owner_roots;
+            }
             JacRuntime.exec_ctx = old;
             ctx2.close();
         }
@@ -393,6 +410,7 @@ test "TTG uses warmed topology to continue across owner roots" {
 test "TTG specialized SQL lowers a multi-hop visit chain" {
     with TemporaryDirectory() as td {
         old = JacRuntime.exec_ctx;
+        old_owner_roots = os.environ.get("JAC_TTG_PREFETCH_OWNER_ROOTS");
         ctx1 = _ctx(td);
         JacRuntime.exec_ctx = ctx1;
         ids: tuple[UUID, UUID, UUID, UUID, UUID];
@@ -407,6 +425,7 @@ test "TTG specialized SQL lowers a multi-hop visit chain" {
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
+            os.environ.pop("JAC_TTG_PREFETCH_OWNER_ROOTS", None);
             (alice_root_id, bob_root_id, alice_id, bob_id, tweet_id) = ids;
             alice = ctx2.mem.get(alice_id);
             assert isinstance(alice, NodeAnchor);
@@ -414,9 +433,9 @@ test "TTG specialized SQL lowers a multi-hop visit chain" {
                 GTIMultiHopTraverse(), alice, ctx2.mem, max_length=10
             );
             assert alice_id in plan , plan;
-            assert alice_root_id in plan , plan;
             assert tweet_id in plan , plan;
-            assert bob_root_id in plan , plan;
+            assert alice_root_id not in plan , plan;
+            assert bob_root_id not in plan , plan;
             assert bob_id not in plan , plan;
             idx = ctx2.mem.__topology_index__;
             assert isinstance(idx, TopologyIndex);
@@ -425,7 +444,13 @@ test "TTG specialized SQL lowers a multi-hop visit chain" {
                 [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
                 10
             ) == [tweet_id];
+            assert idx.owner_root_for(tweet_id) == bob_root_id;
         } finally {
+            if old_owner_roots is None {
+                os.environ.pop("JAC_TTG_PREFETCH_OWNER_ROOTS", None);
+            } else {
+                os.environ["JAC_TTG_PREFETCH_OWNER_ROOTS"] = old_owner_roots;
+            }
             JacRuntime.exec_ctx = old;
             ctx2.close();
         }
@@ -504,6 +529,7 @@ test "TTG complete-hop SQL optimization has env escape hatch" {
         assert "exp.group_complete" in sql;
         assert "AND an.id IS NOT NULL" in sql;
         assert "AND ae.id IS NOT NULL" in sql;
+        assert "CAST(:include_owner_roots AS boolean)" in sql;
 
         os.environ["JAC_TTG_OPT_COMPLETE_HOPS"] = "0";
         fallback_sql = _ttg_render_specialized_set_based_sql(
