@@ -32,6 +32,7 @@ obj OspRuntime {
     has tag_of: Callable[([any], int)],
         is_a: Callable[([int, int], bool)],
         node_desc: Callable[([int], NodeDesc)],
+        entry_hook: Callable[([any, any], None)],
         on_complete: Callable[([WalkScope, bool], None)];
 }
 
@@ -151,6 +152,7 @@ def _visit_recursive(
             scope.path.append(cur);
             loc_tag: int = rt.tag_of(cur);
             ndesc = rt.node_desc(loc_tag);
+            rt.entry_hook(scope.wlk, cur);
             run_typed(rt, wdesc.`entry, scope.wlk, cur);
             if scope.disengaged {
                 return False;

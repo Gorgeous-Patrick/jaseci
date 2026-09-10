@@ -14,13 +14,37 @@ if str(SRC) not in sys.path:
 
 from jaclang.runtime.prefetch_policy_capre_runtime import (  # noqa: E402
     CapreConfig,
+    capre_method_entry,
     capre_metrics_snapshot,
     capre_record_demand_access,
     capre_reset_for_tests,
     capre_trace_snapshot,
+    finish_capre_prefetch,
     run_capre_for_test,
     start_capre_for_test,
 )
+
+
+class KeyedDict(dict):
+    def __getitem__(self, key):
+        return super().__getitem__(str(key))
+
+    def __setitem__(self, key, value) -> None:
+        super().__setitem__(str(key), value)
+
+    def __contains__(self, key) -> bool:
+        return super().__contains__(str(key))
+
+    def get(self, key, default=None):
+        return super().get(str(key), default)
+
+
+class KeyedCounter(Counter):
+    def __getitem__(self, key):
+        return super().__getitem__(str(key))
+
+    def __setitem__(self, key, value) -> None:
+        super().__setitem__(str(key), value)
 
 
 def uid(num: int) -> UUID:
@@ -43,14 +67,16 @@ class FakeRow:
 class FakeStore:
     def __init__(self, rows: dict[UUID, FakeRow]) -> None:
         self.rows_by_id = rows
+        self.rows_by_key = {str(rid): row for rid, row in rows.items()}
         self.lock = threading.Lock()
-        self.started: dict[UUID, threading.Event] = {rid: threading.Event() for rid in rows}
-        self.release: dict[UUID, threading.Event] = {}
-        self.issue_order: list[UUID] = []
-        self.complete_order: list[UUID] = []
-        self.inflight: set[UUID] = set()
-        self.concurrent_pairs: set[frozenset[UUID]] = set()
-        self.load_counts: Counter[UUID] = Counter()
+        self.started: KeyedDict = KeyedDict({str(rid): threading.Event() for rid in rows})
+        self.release: KeyedDict = KeyedDict()
+        self.issue_order: list[str] = []
+        self.complete_order: list[str] = []
+        self.inflight: set[str] = set()
+        self.concurrent_pairs: set[frozenset[str]] = set()
+        self.load_counts: KeyedCounter = KeyedCounter()
+        self.batch_sizes: list[int] = []
         self.rows_called = 0
 
     def reader_clone(self):
@@ -60,23 +86,34 @@ class FakeStore:
         pass
 
     def load_full(self, ids: list[UUID]) -> dict[UUID, FakeRow]:
-        assert len(ids) == 1, f"CAPRe test store expects single-object loads, got {ids!r}"
-        obj_id = ids[0]
+        obj_ids = list(ids)
+        obj_keys = [str(obj_id) for obj_id in obj_ids]
         with self.lock:
-            self.load_counts[obj_id] += 1
-            self.issue_order.append(obj_id)
-            self.started.setdefault(obj_id, threading.Event()).set()
-            for other in self.inflight:
-                self.concurrent_pairs.add(frozenset({obj_id, other}))
-            self.inflight.add(obj_id)
-        gate = self.release.get(obj_id)
-        if gate is not None:
-            assert gate.wait(3), f"timed out waiting to release {obj_id}"
+            self.batch_sizes.append(len(obj_ids))
+            for obj_id, obj_key in zip(obj_ids, obj_keys):
+                self.load_counts[obj_id] += 1
+                self.issue_order.append(obj_key)
+                self.started.setdefault(obj_key, threading.Event()).set()
+                for other in self.inflight:
+                    self.concurrent_pairs.add(frozenset({obj_key, other}))
+                self.inflight.add(obj_key)
+            for idx, obj_key in enumerate(obj_keys):
+                for other in obj_keys[idx + 1 :]:
+                    self.concurrent_pairs.add(frozenset({obj_key, other}))
+        for obj_id, obj_key in zip(obj_ids, obj_keys):
+            gate = self.release.get(obj_key)
+            if gate is not None:
+                assert gate.wait(3), f"timed out waiting to release {obj_id}"
         with self.lock:
-            self.inflight.discard(obj_id)
-            self.complete_order.append(obj_id)
-        row = self.rows_by_id.get(obj_id)
-        return {obj_id: row} if row is not None else {}
+            for obj_key in obj_keys:
+                self.inflight.discard(obj_key)
+                self.complete_order.append(obj_key)
+        out: dict[UUID, FakeRow] = {}
+        for obj_id, obj_key in zip(obj_ids, obj_keys):
+            row = self.rows_by_key.get(obj_key)
+            if row is not None:
+                out[obj_id] = row
+        return out
 
     def rows(self, *_args, **_kwargs):
         self.rows_called += 1
@@ -102,6 +139,11 @@ class FakeMem:
                 self.__raw_mem__[rid] = row
 
 
+class FakeCtx:
+    def __init__(self, mem: FakeMem) -> None:
+        self.mem = mem
+
+
 def edge(eid: UUID, src: UUID, dst: UUID, typ: str = "E") -> FakeRow:
     return FakeRow(eid, "EdgeAnchor", typ, src=src, dst=dst)
 
@@ -112,6 +154,18 @@ def node(nid: UUID, typ: str, adjacency: list[UUID] | None = None) -> FakeRow:
 
 def spec(chain, from_type="Root"):
     return {"from_type": from_type, "chain": chain}
+
+
+def trigger_entry(mem: FakeMem, anchor: FakeRow) -> None:
+    capre_method_entry(FakeCtx(mem), None, anchor)
+
+
+def finish(mem: FakeMem) -> None:
+    finish_capre_prefetch(mem)
+
+
+def assert_pair_seen(test: unittest.TestCase, pairs: set[frozenset[str]], left: UUID, right: UUID) -> None:
+    test.assertIn(frozenset({str(left), str(right)}), pairs)
 
 
 class CapreRuntimeTests(unittest.TestCase):
@@ -138,14 +192,15 @@ class CapreRuntimeTests(unittest.TestCase):
             [root],
             CapreConfig(max_concurrent=4, max_objects=20),
         )
+        trigger_entry(mem, store.rows_by_id[root])
         self.assertTrue(store.started[a].wait(3))
-        self.assertNotIn(e2, store.issue_order)
-        self.assertNotIn(b, store.issue_order)
+        self.assertNotIn(str(e2), store.issue_order)
+        self.assertNotIn(str(b), store.issue_order)
         store.release[a].set()
-        state.driver_thread.join(3)
-        self.assertFalse(state.driver_thread.is_alive())
-        self.assertLess(store.issue_order.index(a), store.issue_order.index(e2))
-        self.assertLess(store.issue_order.index(e2), store.issue_order.index(b))
+        finish(mem)
+        self.assertIsNone(state.executor)
+        self.assertLess(store.issue_order.index(str(a)), store.issue_order.index(str(e2)))
+        self.assertLess(store.issue_order.index(str(e2)), store.issue_order.index(str(b)))
         capre_reset_for_tests(mem)
 
     def test_independent_branches_overlap(self) -> None:
@@ -169,13 +224,42 @@ class CapreRuntimeTests(unittest.TestCase):
             [root],
             CapreConfig(max_concurrent=6, max_objects=20),
         )
+        trigger_entry(mem, store.rows_by_id[root])
         self.assertTrue(store.started[a].wait(3))
         self.assertTrue(store.started[c].wait(3))
-        self.assertIn(frozenset({a, c}), store.concurrent_pairs)
+        assert_pair_seen(self, store.concurrent_pairs, a, c)
         store.release[a].set()
         store.release[c].set()
-        state.driver_thread.join(3)
-        self.assertFalse(state.driver_thread.is_alive())
+        finish(mem)
+        self.assertIn(2, store.batch_sizes)
+        self.assertIsNone(state.executor)
+        capre_reset_for_tests(mem)
+
+    def test_entry_hook_submits_topology_resolution_to_background(self) -> None:
+        root, a, e1 = uid(40), uid(41), uid(42)
+        store = FakeStore(
+            {
+                root: node(root, "Root", [e1]),
+                e1: edge(e1, root, a, "Next"),
+                a: node(a, "A"),
+            }
+        )
+        store.release[e1] = threading.Event()
+        mem = FakeMem(store)
+        mem.__raw_mem__[root] = store.rows_by_id[root]
+        state = start_capre_for_test(
+            mem,
+            [spec([("Next", "A", 2)])],
+            [root],
+            CapreConfig(max_concurrent=2, max_objects=20),
+        )
+        trigger_entry(mem, store.rows_by_id[root])
+        self.assertTrue(store.started[e1].wait(3))
+        self.assertNotIn(str(a), store.issue_order)
+        store.release[e1].set()
+        finish(mem)
+        self.assertEqual(store.load_counts[a], 1)
+        self.assertIsNone(state.executor)
         capre_reset_for_tests(mem)
 
     def test_collection_fanout_overlaps_each_elements_dependent_tail(self) -> None:
@@ -206,13 +290,14 @@ class CapreRuntimeTests(unittest.TestCase):
             [root],
             CapreConfig(max_concurrent=8, max_objects=30),
         )
+        trigger_entry(mem, store.rows_by_id[root])
         self.assertTrue(store.started[a1].wait(3))
         self.assertTrue(store.started[a2].wait(3))
-        self.assertIn(frozenset({a1, a2}), store.concurrent_pairs)
+        assert_pair_seen(self, store.concurrent_pairs, a1, a2)
         store.release[a1].set()
         store.release[a2].set()
-        state.driver_thread.join(3)
-        self.assertFalse(state.driver_thread.is_alive())
+        finish(mem)
+        self.assertIsNone(state.executor)
         capre_reset_for_tests(mem)
 
     def test_duplicate_paths_suppress_duplicate_object_loads(self) -> None:
@@ -233,10 +318,11 @@ class CapreRuntimeTests(unittest.TestCase):
             [root],
             CapreConfig(max_concurrent=4, max_objects=20),
         )
+        trigger_entry(mem, store.rows_by_id[root])
         self.assertTrue(store.started[a].wait(3))
         store.release[a].set()
-        state.driver_thread.join(3)
-        self.assertFalse(state.driver_thread.is_alive())
+        finish(mem)
+        self.assertIsNone(state.executor)
         metrics = capre_metrics_snapshot(mem)
         self.assertEqual(store.load_counts[a], 1)
         self.assertGreaterEqual(metrics["duplicate_prefetches_suppressed"], 1)
@@ -281,12 +367,13 @@ class CapreRuntimeTests(unittest.TestCase):
             [root],
             CapreConfig(max_concurrent=4, max_objects=20),
         )
+        trigger_entry(mem, store.rows_by_id[root])
         self.assertTrue(store.started[a].wait(3))
         capre_record_demand_access(mem, a, "L3")
         self.assertEqual(capre_metrics_snapshot(mem)["late_prefetches"], 1)
         store.release[a].set()
-        state.driver_thread.join(3)
-        self.assertFalse(state.driver_thread.is_alive())
+        finish(mem)
+        self.assertIsNone(state.executor)
         self.assertEqual(capre_metrics_snapshot(mem)["useful_prefetches"], 0)
         capre_reset_for_tests(mem)
 
@@ -339,6 +426,50 @@ class CapreRuntimeTests(unittest.TestCase):
         self.assertEqual(store.rows_called, 0)
         trace = capre_trace_snapshot(mem)
         self.assertFalse(any("TTG" in row.get("note", "") for row in trace))
+        capre_reset_for_tests(mem)
+
+    def test_repeated_visit_entries_advance_one_step_each_time(self) -> None:
+        n1, n2, n3 = uid(1100), uid(1101), uid(1102)
+        e1, e2 = uid(1110), uid(1111)
+        store = FakeStore(
+            {
+                n1: node(n1, "Item", [e1]),
+                e1: edge(e1, n1, n2, "Next"),
+                n2: node(n2, "Item", [e2]),
+                e2: edge(e2, n2, n3, "Next"),
+                n3: node(n3, "Item"),
+            }
+        )
+        store.release[n2] = threading.Event()
+        store.release[n3] = threading.Event()
+        mem = FakeMem(store)
+        mem.__raw_mem__[n1] = store.rows_by_id[n1]
+        state = start_capre_for_test(
+            mem,
+            [spec([("Next", "Item", 2)], from_type="Item")],
+            [n1],
+            CapreConfig(max_concurrent=2, max_objects=20),
+        )
+        trigger_entry(mem, store.rows_by_id[n1])
+        self.assertTrue(store.started[n2].wait(3))
+        self.assertNotIn(str(n3), store.issue_order)
+        store.release[n2].set()
+        finish(mem)
+        self.assertEqual(store.load_counts[e2], 1)
+        self.assertEqual(store.load_counts[n3], 0)
+
+        state = start_capre_for_test(
+            mem,
+            [spec([("Next", "Item", 2)], from_type="Item")],
+            [n2],
+            CapreConfig(max_concurrent=2, max_objects=20),
+        )
+        trigger_entry(mem, store.rows_by_id[n2])
+        self.assertTrue(store.started[n3].wait(3))
+        store.release[n3].set()
+        finish(mem)
+        self.assertGreaterEqual(capre_metrics_snapshot(mem)["entry_triggers"], 1)
+        self.assertIsNone(state.executor)
         capre_reset_for_tests(mem)
 
 

@@ -188,11 +188,35 @@ def _sv_on_complete(scope: WalkScope, ok: bool) {
     }
 }
 
-def make_sv_runtime -> OspRuntime {
+def _sv_entry_hook(wlk: any, cur: any) -> None {
+    if not (isinstance(wlk, WalkerArchetype) and isinstance(cur, NodeAnchor)) {
+        return;
+    }
+    try {
+        import from jaclang.runtime.runtime { JacRuntimeInterface }
+        ctx = JacRuntimeInterface.get_context();
+        if not hasattr(ctx.mem, "_capre_state") {
+            return;
+        }
+        import from jaclang.runtime.prefetch_policy_capre_runtime {
+            capre_method_entry
+        }
+        capre_method_entry(ctx, wlk, cur);
+    } except Exception {
+        ;
+    }
+}
+
+def _sv_noop_entry_hook(wlk: any, cur: any) -> None {
+    ;
+}
+
+def make_sv_runtime(enable_capre_entry_hook: bool = False) -> OspRuntime {
     return OspRuntime(
         tag_of=_sv_tag_of,
         is_a=_sv_is_a,
         node_desc=_sv_node_desc,
+        entry_hook=_sv_entry_hook if enable_capre_entry_hook else _sv_noop_entry_hook,
         on_complete=_sv_on_complete
     );
 }
@@ -239,6 +263,10 @@ async def _visit_recursive_async(
             scope.path.append(cur);
             loc_tag: int = rt.tag_of(cur);
             ndesc = rt.node_desc(loc_tag);
+            result = rt.entry_hook(scope.wlk, cur);
+            if inspect.iscoroutine(result) {
+                await result;
+            }
             await _run_typed_async(rt, wdesc.`entry, scope.wlk, cur);
             if scope.disengaged {
                 return False;

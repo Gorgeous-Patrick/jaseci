@@ -114,7 +114,6 @@ class CapreState:
     done_event: threading.Event = field(default_factory=threading.Event)
     stop_event: threading.Event = field(default_factory=threading.Event)
     executor: ThreadPoolExecutor | None = None
-    driver_thread: threading.Thread | None = None
     pending_tasks: int = 0
     started_at: float = field(default_factory=time.perf_counter)
     finished_at: float | None = None
@@ -138,6 +137,8 @@ class CapreState:
     limit_dropped: int = 0
     depth_dropped: int = 0
     cache_skips: int = 0
+    entry_triggers: int = 0
+    topology_load_ms: float = 0.0
     errors: list[str] = field(default_factory=list)
     trace: list[dict[str, Any]] = field(default_factory=list)
 
@@ -209,11 +210,6 @@ class CapreState:
             while self.pending_tasks > 0:
                 self.cond.wait()
 
-    def origins_for(self, spec: CapreSpec) -> list[UUID]:
-        if spec.origin_name == "root":
-            return [self.root_id] if self.root_id is not None else []
-        return [self.start_id] if self.start_id is not None else []
-
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
             unused = self.prefetched - self.demanded - self.useful_prefetches
@@ -245,6 +241,8 @@ class CapreState:
                 "avg_inflight": avg_inflight,
                 "app_db_round_trips": self.db_round_trips,
                 "cache_skips": self.cache_skips,
+                "entry_triggers": self.entry_triggers,
+                "topology_load_ms": self.topology_load_ms,
                 "limit_dropped": self.limit_dropped,
                 "depth_dropped": self.depth_dropped,
                 "issued_objects": len(self.issued),
@@ -523,6 +521,8 @@ def run_capre_for_test(
     config: CapreConfig | None = None,
 ) -> CapreState:
     state = start_capre_for_test(mem, specs, origins, config)
+    for origin in origins:
+        _trigger_method_entry(state, None, origin)
     _finish_state(state, wait=True)
     return state
 
@@ -542,6 +542,7 @@ def _install_state(
     setattr(mem, "_capre_state", state)
     try:
         mem._prefetch_ids = set()
+        state.done_event.set()
         mem._prefetch_done = state.done_event
     except Exception:
         pass
@@ -551,48 +552,30 @@ def _install_state(
 def _start_state(state: CapreState) -> None:
     if not state.specs:
         state.finished_at = time.perf_counter()
-        state.done_event.set()
         _set_mem_prefetch_done(state)
         return
-    state.driver_thread = threading.Thread(target=_driver, args=(state,), daemon=True)
-    state.driver_thread.start()
-
-
-def _driver(state: CapreState) -> None:
-    start = time.perf_counter()
-    state.trace_event("trigger", request_type="method_entry", note="walker_spawn_entry")
-    try:
-        with ThreadPoolExecutor(max_workers=state.config.max_concurrent) as executor:
-            state.executor = executor
-            for spec in state.specs:
-                for origin in state.origins_for(spec):
-                    path_id = f"spec{spec.idx}:{origin}"
-                    state.submit(_advance_path, state, origin, spec, 0, None, path_id, spec.from_type)
-            state.wait_for_tasks()
-    except Exception as exc:
-        with state.lock:
-            state.errors.append(f"{type(exc).__name__}: {exc}")
-        logger.debug("CAPRe driver failed: %s", exc)
-    finally:
-        elapsed_ms = (time.perf_counter() - start) * 1000.0
-        with state.lock:
-            state.finished_at = time.perf_counter()
-            state.prefetch_wall_ms = elapsed_ms
-        state.done_event.set()
-        _set_mem_prefetch_done(state)
-        state.write_outputs()
+    state.executor = ThreadPoolExecutor(max_workers=state.config.max_concurrent)
+    state.trace_event("trigger", request_type="policy_install", note="walker_spawn_install")
 
 
 def _finish_state(state: CapreState, wait: bool) -> dict[str, Any]:
     start = time.perf_counter()
-    if wait and state.driver_thread is not None and state.driver_thread.is_alive():
-        timeout = state.config.shutdown_timeout_s
-        state.driver_thread.join(timeout=timeout if timeout > 0 else None)
-    if state.driver_thread is not None and state.driver_thread.is_alive():
+    if wait:
+        state.wait_for_tasks()
+    else:
         state.stop_event.set()
-        state.driver_thread.join(timeout=state.config.shutdown_timeout_s or 0.0)
+    executor = state.executor
+    if executor is not None:
+        try:
+            executor.shutdown(wait=wait, cancel_futures=not wait)
+        except TypeError:
+            executor.shutdown(wait=wait)
+        state.executor = None
     with state.lock:
+        state.finished_at = state.finished_at or time.perf_counter()
         state.drain_ms += (time.perf_counter() - start) * 1000.0
+        if state.prefetch_wall_ms <= 0.0:
+            state.prefetch_wall_ms = (state.finished_at - state.started_at) * 1000.0
     state.write_outputs()
     return state.snapshot()
 
@@ -620,6 +603,18 @@ def capre_trace_snapshot(mem: Any) -> list[dict[str, Any]]:
         return []
     with state.lock:
         return list(state.trace)
+
+
+def capre_method_entry(ctx: Any, warch: Any, current_anchor: Any) -> dict[str, Any]:
+    mem = getattr(ctx, "mem", ctx)
+    state = getattr(mem, "_capre_state", None)
+    if not isinstance(state, CapreState):
+        return {}
+    current_id = _as_uuid(getattr(current_anchor, "id", None))
+    if current_id is None or state.stop_event.is_set():
+        return state.snapshot()
+    _trigger_method_entry(state, current_anchor, current_id)
+    return state.snapshot()
 
 
 def capre_reset_for_tests(mem: Any) -> None:
@@ -663,6 +658,114 @@ def capre_record_demand_l3_request(mem: Any, ids: Any) -> None:
         state.trace_event("issue", uid, request_type="demand_l3", object_count=len(clean))
 
 
+def _trigger_method_entry(state: CapreState, current_anchor: Any, current_id: UUID) -> None:
+    row = _row_view_from_anchor(current_anchor, current_id) or _cached_row(state.mem, current_id)
+    with state.lock:
+        state.entry_triggers += 1
+    state.trace_event(
+        "trigger",
+        current_id,
+        request_type="method_entry",
+        path_id=f"entry:{current_id}",
+        kind="node",
+        note="ability_entry",
+    )
+    for spec in state.specs:
+        origin_id = state.root_id if spec.origin_name == "root" else current_id
+        if origin_id is None:
+            continue
+        origin_row = row if origin_id == current_id else _cached_row(state.mem, origin_id)
+        if origin_row is None:
+            state.submit(
+                _load_origin_and_schedule,
+                state,
+                origin_id,
+                spec,
+                current_id,
+            )
+            continue
+        state.submit(_schedule_spec_from_row, state, origin_row, origin_id, spec, current_id)
+
+
+def _load_origin_and_schedule(
+    state: CapreState,
+    origin_id: UUID,
+    spec: CapreSpec,
+    entry_id: UUID,
+) -> None:
+    row = _prefetch_node_with_topology(
+        state,
+        origin_id,
+        spec.from_type,
+        parent_id=entry_id,
+        depth=0,
+        path_id=f"entry:{entry_id}:spec{spec.idx}:origin",
+    )
+    _schedule_spec_from_row(state, row, origin_id, spec, entry_id)
+
+
+def _schedule_spec_from_row(
+    state: CapreState,
+    origin_row: Any | None,
+    origin_id: UUID,
+    spec: CapreSpec,
+    entry_id: UUID,
+) -> None:
+    if state.stop_event.is_set():
+        return
+    if origin_row is None or _row_kind(origin_row) != "NodeAnchor":
+        return
+    if spec.from_type is not None and not _type_matches(origin_row, spec.from_type):
+        return
+    if not spec.chain:
+        return
+    path_id = f"entry:{entry_id}:spec{spec.idx}:{origin_id}"
+    hop = spec.chain[0]
+    topo_start = time.perf_counter()
+    target_ids = _resolve_hop_target_ids(state, origin_row, hop, 0, path_id)
+    topo_ms = (time.perf_counter() - topo_start) * 1000.0
+    with state.lock:
+        state.topology_load_ms += topo_ms
+    next_depth = 1
+    for target_id in target_ids:
+        if state.config.max_depth > 0 and next_depth > state.config.max_depth:
+            with state.lock:
+                state.depth_dropped += 1
+            state.trace_event(
+                "depth_limit",
+                target_id,
+                parent_id=origin_id,
+                path_id=path_id,
+                depth=next_depth,
+            )
+            continue
+        _submit_target_load(state, target_id, spec, next_depth, origin_id, path_id, hop.node_type)
+
+
+def _submit_target_load(
+    state: CapreState,
+    target_id: UUID,
+    spec: CapreSpec,
+    depth: int,
+    parent_id: UUID | None,
+    path_id: str,
+    expected_type: str | None,
+) -> None:
+    if depth >= len(spec.chain):
+        state.submit(_terminal_load, state, target_id, expected_type, parent_id, depth, path_id)
+        return
+    state.submit(
+        _advance_path,
+        state,
+        target_id,
+        spec,
+        depth,
+        parent_id,
+        path_id,
+        expected_type,
+    )
+
+
 def _advance_path(
     state: CapreState,
     current_id: UUID,
@@ -674,10 +777,15 @@ def _advance_path(
 ) -> None:
     if state.stop_event.is_set():
         return
-    row = _load_id(state, current_id, parent_id=parent_id, depth=depth, kind="node", path_id=path_id)
+    row = _prefetch_node_with_topology(
+        state,
+        current_id,
+        expected_type,
+        parent_id=parent_id,
+        depth=depth,
+        path_id=path_id,
+    )
     if row is None or _row_kind(row) != "NodeAnchor":
-        return
-    if expected_type is not None and not _type_matches(row, expected_type):
         return
     if state.config.max_depth > 0 and depth >= state.config.max_depth:
         with state.lock:
@@ -690,19 +798,7 @@ def _advance_path(
     target_ids = _resolve_hop_target_ids(state, row, hop, depth, path_id)
     next_depth = depth + 1
     for target_id in target_ids:
-        if next_depth >= len(spec.chain):
-            state.submit(_terminal_load, state, target_id, hop.node_type, current_id, next_depth, path_id)
-        else:
-            state.submit(
-                _advance_path,
-                state,
-                target_id,
-                spec,
-                next_depth,
-                current_id,
-                path_id,
-                hop.node_type,
-            )
+        _submit_target_load(state, target_id, spec, next_depth, current_id, path_id, hop.node_type)
 
 
 def _terminal_load(
@@ -713,9 +809,57 @@ def _terminal_load(
     depth: int,
     path_id: str,
 ) -> None:
+    _prefetch_node_with_topology(state, target_id, expected_type, parent_id, depth, path_id)
+
+
+def _prefetch_node_with_topology(
+    state: CapreState,
+    target_id: UUID,
+    expected_type: str | None,
+    parent_id: UUID | None,
+    depth: int,
+    path_id: str,
+) -> Any | None:
     row = _load_id(state, target_id, parent_id=parent_id, depth=depth, kind="node", path_id=path_id)
-    if row is not None and expected_type is not None and not _type_matches(row, expected_type):
+    if row is None or _row_kind(row) != "NodeAnchor":
+        return row
+    if expected_type is not None and not _type_matches(row, expected_type):
         state.trace_event("type_miss", target_id, parent_id=parent_id, path_id=path_id, depth=depth)
+        return None
+    _prefetch_topology_for_node(state, row, target_id, depth, path_id)
+    return row
+
+
+def _prefetch_topology_for_node(
+    state: CapreState,
+    node_row: Any,
+    node_id: UUID,
+    depth: int,
+    path_id: str,
+) -> None:
+    if _row_kind(node_row) != "NodeAnchor":
+        return
+    raw_edge_ids = [_as_uuid(eid) for eid in list(getattr(node_row, "adjacency", None) or [])]
+    edge_ids: list[UUID] = []
+    seen_edges: set[UUID] = set()
+    for edge_id in raw_edge_ids:
+        if edge_id is None or edge_id in seen_edges:
+            continue
+        seen_edges.add(edge_id)
+        edge_ids.append(edge_id)
+    if not edge_ids:
+        return
+    start = time.perf_counter()
+    _load_ids_batch(
+        state,
+        edge_ids,
+        parent_id=node_id,
+        depth=depth,
+        kind="topology_edge",
+        path_id=path_id,
+    )
+    with state.lock:
+        state.topology_load_ms += (time.perf_counter() - start) * 1000.0
 
 
 def _resolve_hop_target_ids(
@@ -732,18 +876,22 @@ def _resolve_hop_target_ids(
     targets: list[UUID] = []
     seen_targets: set[UUID] = set()
     seen_edges: set[UUID] = set()
+    load_edge_ids: list[UUID] = []
     for edge_id in edge_ids:
         if edge_id is None or edge_id in seen_edges:
             continue
         seen_edges.add(edge_id)
-        edge_row = _load_id(
-            state,
-            edge_id,
-            parent_id=origin_id,
-            depth=depth,
-            kind="edge",
-            path_id=path_id,
-        )
+        load_edge_ids.append(edge_id)
+    edge_rows = _load_ids_batch(
+        state,
+        load_edge_ids,
+        parent_id=origin_id,
+        depth=depth,
+        kind="edge",
+        path_id=path_id,
+    )
+    for edge_id in load_edge_ids:
+        edge_row = edge_rows.get(edge_id)
         if edge_row is None or _row_kind(edge_row) != "EdgeAnchor":
             continue
         if not _type_matches(edge_row, hop.edge_type):
@@ -764,114 +912,178 @@ def _load_id(
     kind: str,
     path_id: str,
 ) -> Any | None:
-    cached = _cached_row(state.mem, uid)
-    if cached is not None:
-        with state.lock:
-            state.cache_skips += 1
-        state.trace_event("cache_skip", uid, parent_id=parent_id, path_id=path_id, depth=depth, kind=kind)
-        return cached
+    return _load_ids_batch(
+        state,
+        [uid],
+        parent_id=parent_id,
+        depth=depth,
+        kind=kind,
+        path_id=path_id,
+    ).get(uid)
 
-    event: threading.Event | None = None
-    do_load = False
+
+def _load_ids_batch(
+    state: CapreState,
+    ids: list[UUID],
+    *,
+    parent_id: UUID | None,
+    depth: int,
+    kind: str,
+    path_id: str,
+) -> dict[UUID, Any]:
+    clean: list[UUID] = []
+    seen_clean: set[UUID] = set()
+    for raw_id in ids:
+        uid = _as_uuid(raw_id)
+        if uid is None or uid in seen_clean:
+            continue
+        seen_clean.add(uid)
+        clean.append(uid)
+    if not clean:
+        return {}
+    out: dict[UUID, Any] = {}
+    to_issue: list[UUID] = []
+    issue_events: dict[UUID, threading.Event] = {}
+    to_wait: list[tuple[UUID, threading.Event]] = []
     with state.lock:
-        cached = _cached_row(state.mem, uid)
-        if cached is not None:
-            state.cache_skips += 1
-            state.trace_event("cache_skip", uid, parent_id=parent_id, path_id=path_id, depth=depth, kind=kind)
-            return cached
-        event = state.in_flight.get(uid)
-        if event is not None:
-            state.duplicate_prefetches_suppressed += 1
-            state.trace_event("duplicate_wait", uid, parent_id=parent_id, path_id=path_id, depth=depth, kind=kind)
-        else:
-            if state.config.max_objects > 0 and state.prefetch_l3_objects >= state.config.max_objects:
+        for uid in clean:
+            cached = _cached_row(state.mem, uid)
+            if cached is not None:
+                state.cache_skips += 1
+                out[uid] = cached
+                state.trace_event(
+                    "cache_skip",
+                    uid,
+                    parent_id=parent_id,
+                    path_id=path_id,
+                    depth=depth,
+                    kind=kind,
+                )
+                continue
+            event = state.in_flight.get(uid)
+            if event is not None:
+                state.duplicate_prefetches_suppressed += 1
+                to_wait.append((uid, event))
+                state.trace_event(
+                    "duplicate_wait",
+                    uid,
+                    parent_id=parent_id,
+                    path_id=path_id,
+                    depth=depth,
+                    kind=kind,
+                )
+                continue
+            if state.config.max_objects > 0 and (
+                state.prefetch_l3_objects + len(to_issue)
+            ) >= state.config.max_objects:
                 state.limit_dropped += 1
-                state.trace_event("object_limit", uid, parent_id=parent_id, path_id=path_id, depth=depth, kind=kind)
-                return None
+                state.trace_event(
+                    "object_limit",
+                    uid,
+                    parent_id=parent_id,
+                    path_id=path_id,
+                    depth=depth,
+                    kind=kind,
+                )
+                continue
             event = threading.Event()
             state.in_flight[uid] = event
             state.issued.add(uid)
+            issue_events[uid] = event
+            to_issue.append(uid)
+            _add_mem_prefetch_id(state.mem, uid)
+        if to_issue:
             state.prefetch_l3_requests += 1
-            state.prefetch_l3_objects += 1
+            state.prefetch_l3_objects += len(to_issue)
             state.db_round_trips += 1
             state._sample_inflight_locked()
-            _add_mem_prefetch_id(state.mem, uid)
-            state.trace_event("issue", uid, request_type="prefetch_l3", parent_id=parent_id, path_id=path_id, depth=depth, kind=kind)
-            do_load = True
+            for uid in to_issue:
+                state.trace_event(
+                    "issue",
+                    uid,
+                    request_type="prefetch_l3",
+                    parent_id=parent_id,
+                    path_id=path_id,
+                    depth=depth,
+                    kind=kind,
+                    object_count=len(to_issue),
+                )
 
-    if not do_load:
-        assert event is not None
-        event.wait()
-        return _cached_row(state.mem, uid)
-
-    loaded_row: Any | None = None
+    loaded_rows: dict[UUID, Any] = {}
     load_start = time.perf_counter()
-    try:
-        store = getattr(state.mem, "store", None)
-        if store is None:
-            return None
+    if to_issue:
         try:
-            read_barrier = getattr(state.mem, "read_barrier", None)
-            if callable(read_barrier):
-                read_barrier()
-        except Exception:
-            pass
-        reader = None
-        load_store = store
-        try:
-            reader_clone = getattr(store, "reader_clone", None)
-            if callable(reader_clone):
-                reader = reader_clone()
-                load_store = reader
-            loaded = load_store.load_full([uid])
-        finally:
-            if reader is not None and reader is not store:
-                close = getattr(reader, "close", None)
-                if callable(close):
+            store = getattr(state.mem, "store", None)
+            if store is None:
+                with state.lock:
+                    state.errors.append("StoreUnavailable: CAPRe load requested without a store")
+            else:
+                try:
+                    read_barrier = getattr(state.mem, "read_barrier", None)
+                    if callable(read_barrier):
+                        read_barrier()
+                except Exception:
+                    pass
+                try:
+                    reader = None
+                    load_store = store
                     try:
-                        close()
-                    except Exception:
-                        pass
-        if loaded:
-            for raw_id, row in loaded.items():
-                rid = _as_uuid(raw_id) or _as_uuid(getattr(row, "id", None))
-                if rid is None:
-                    continue
-                if rid == uid:
-                    loaded_row = row
-                store_raw = getattr(state.mem, "store_raw", None)
-                if callable(store_raw):
-                    store_raw(rid, row)
-            if loaded_row is None:
-                loaded_row = _cached_row(state.mem, uid)
+                        reader_clone = getattr(store, "reader_clone", None)
+                        if callable(reader_clone):
+                            reader = reader_clone()
+                            load_store = reader
+                        loaded = load_store.load_full(to_issue)
+                    finally:
+                        if reader is not None and reader is not store:
+                            close = getattr(reader, "close", None)
+                            if callable(close):
+                                try:
+                                    close()
+                                except Exception:
+                                    pass
+                    if loaded:
+                        store_raw = getattr(state.mem, "store_raw", None)
+                        for raw_id, row in loaded.items():
+                            rid = _as_uuid(raw_id) or _as_uuid(getattr(row, "id", None))
+                            if rid is None:
+                                continue
+                            loaded_rows[rid] = row
+                            out[rid] = row
+                            if callable(store_raw):
+                                store_raw(rid, row)
+                    with state.lock:
+                        state.prefetched.update(loaded_rows.keys())
+                except Exception as exc:
+                    with state.lock:
+                        state.errors.append(f"{type(exc).__name__}: {exc}")
+                    logger.debug("CAPRe ordinary object load failed for %s: %s", to_issue, exc)
+        finally:
+            elapsed_ms = (time.perf_counter() - load_start) * 1000.0
             with state.lock:
-                if loaded_row is not None:
-                    state.prefetched.add(uid)
-        return loaded_row
-    except Exception as exc:
-        with state.lock:
-            state.errors.append(f"{type(exc).__name__}: {exc}")
-        logger.debug("CAPRe ordinary object load failed for %s: %s", uid, exc)
-        return None
-    finally:
-        elapsed_ms = (time.perf_counter() - load_start) * 1000.0
-        with state.lock:
-            state.in_flight.pop(uid, None)
-            if loaded_row is not None:
-                state.prefetched.add(uid)
-            state._sample_inflight_locked()
-            state.trace_event(
-                "complete",
-                uid,
-                request_type="prefetch_l3",
-                parent_id=parent_id,
-                path_id=path_id,
-                depth=depth,
-                kind=kind,
-                elapsed_ms=elapsed_ms,
-            )
-            if event is not None:
-                event.set()
+                for uid in to_issue:
+                    state.in_flight.pop(uid, None)
+                    if uid in loaded_rows:
+                        state.prefetched.add(uid)
+                    state.trace_event(
+                        "complete",
+                        uid,
+                        request_type="prefetch_l3",
+                        parent_id=parent_id,
+                        path_id=path_id,
+                        depth=depth,
+                        kind=kind,
+                        elapsed_ms=elapsed_ms,
+                        object_count=len(to_issue),
+                    )
+                    if (event := issue_events.get(uid)) is not None:
+                        event.set()
+                state._sample_inflight_locked()
+
+    for uid, event in to_wait:
+        event.wait()
+        if (row := _cached_row(state.mem, uid)) is not None:
+            out[uid] = row
+    return out
 
 
 def _cached_row(mem: Any, uid: UUID) -> Any | None:
@@ -897,6 +1109,14 @@ def _row_from_l1(mem: Any, uid: UUID) -> _RowView | None:
         return None
     anchor = l1.get(uid)
     if anchor is None:
+        return None
+    return _row_view_from_anchor(anchor, uid)
+
+
+def _row_view_from_anchor(anchor: Any, uid: UUID | None = None) -> _RowView | None:
+    if uid is None:
+        uid = _as_uuid(getattr(anchor, "id", None))
+    if uid is None:
         return None
     arch = getattr(anchor, "archetype", None)
     arch_type = type(arch).__name__ if arch is not None else ""
@@ -974,4 +1194,3 @@ def _set_mem_prefetch_done(state: CapreState) -> None:
             done.set()
     except Exception:
         pass
-

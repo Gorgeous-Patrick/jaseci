@@ -5629,6 +5629,7 @@ impl EsastGenPass._build_osp_setup_js -> str {
             + "is_a: (t, b) => __ospIsA(t, b), "
             + "node_desc: (t) => (globalThis.__jacOspDesc || {})[t] "
             + "?? new __ospC.NodeDesc({type_tag: t, entry: [], exit: []}), "
+            + "entry_hook: (w, c) => {}, "
             + "on_complete: (s, ok) => { if (s.wlk && !s.nested) s.wlk.reports = s.reports; }"
             + "});"
     );

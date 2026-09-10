@@ -5,11 +5,11 @@ CAPRe/dataClay implementation.
 
 ## Trigger Point
 
-Jac currently exposes a walker-spawn hook in `JacWalker.spawn_call` and
-`JacWalker.async_spawn_call`. The baseline starts there, immediately before
-`osp_spawn`, as the closest available approximation of CAPRe's method-entry
-instrumentation. It does not wait for the whole predicted graph before the
-walker begins.
+`JacWalker.spawn_call` and `JacWalker.async_spawn_call` install one
+session-local CAPRe state for the walker run. The actual helper trigger is the
+OSP walker ability entry hook, immediately before `can ... entry` body
+execution on each visited node. This matches CAPRe's method-entry
+instrumentation more closely than a walker-spawn-only approximation.
 
 ## Prediction Input
 
@@ -24,10 +24,20 @@ the statically visible path set without runtime predicate pruning.
 
 ## Execution Strategy
 
-CAPRe advances every predicted path with ordinary `Store.load_full([uuid])`
-object loads. For a dependent chain such as `root.manager.company`, it loads the
-object/edge needed to discover `manager`, then only after that identity is known
-loads the next object/edge needed to discover `company`.
+CAPRe advances every predicted path with ordinary `Store.load_full(ids)` object
+loads over already-known ids. On each ability entry, the hook records a
+method-entry trigger and submits the predicted path work to the background
+executor; it does not run the first-hop topology resolution on the walker
+thread. The background helper then loads the ordinary edge/topology rows needed
+to discover concrete target object ids.
+
+Whenever CAPRe prefetches a node, it also prefetches that node's adjacency edge
+rows through the same ordinary object-load path. This mirrors Jac's split
+between object materialization and graph topology cache state without using TTG's
+topology snapshot. Known adjacency edge ids are loaded as a single ordinary
+batch request where possible. For a dependent chain such as
+`root.manager.company`, the next hop is not issued until the preceding object has
+been loaded and its topology/reference identity is available.
 
 Independent branches and collection fan-out targets are submitted to a bounded
 thread pool. Duplicate in-flight or completed loads are suppressed; dependent
@@ -39,11 +49,12 @@ The executor intentionally does not use recursive CTEs, server-side graph
 traversal, stored procedures, TTG topology rows, or predicate pushdown.
 
 Because Jac stores graph topology as ordinary node and edge rows, the CAPRe-style
-resolver loads edge objects one at a time to discover the next node identity.
-Those edge-object loads are counted as prefetch L3 traffic and application-DB
-round trips. Type filtering uses the arch type and ancestry available on the
-ordinary loaded rows; it does not issue a separate topology/index query to enrich
-type information.
+resolver loads edge objects with the same ordinary object-load path to discover
+the next node identity. Those edge-object loads are counted as prefetch L3
+traffic and application-DB round trips. Type filtering uses the arch type and
+ancestry available on the ordinary loaded rows; it does not issue a separate
+topology/index query, recursive CTE, or TTG traversal query to enrich type
+information.
 
 ## Cache Behavior
 
@@ -69,4 +80,6 @@ When `JAC_PROFILE_DIR` is set, CAPRe appends `capre_trace.csv` and
 
 Outstanding tasks are drained at walker completion by default so one experiment
 run cannot warm the next one. This drain occurs after walker execution; it is
-reported as `capre_drain_ms`.
+reported as `capre_drain_ms`. CAPRe keeps the demand wait event open during the
+run, so dynamic one-step-ahead prefetches do not cause the demand path to wait
+for a whole-walker prefetch plan to finish.

@@ -18,7 +18,16 @@ TESTS = SRC / "tests" / "runtimelib"
 if str(TESTS) not in sys.path:
     sys.path.insert(0, str(TESTS))
 
-from test_capre_policy_runtime import FakeMem, FakeStore, edge, node, spec, uid  # noqa: E402
+from test_capre_policy_runtime import (  # noqa: E402
+    FakeMem,
+    FakeStore,
+    edge,
+    finish,
+    node,
+    spec,
+    trigger_entry,
+    uid,
+)
 from jaclang.runtime.prefetch_policy_capre_runtime import (  # noqa: E402
     CapreConfig,
     capre_metrics_snapshot,
@@ -72,8 +81,9 @@ def measured_capre(root: UUID, rows: dict[UUID, object], specs: list[dict]) -> t
     mem = FakeMem(store)
     mem.__raw_mem__[root] = rows[root]
     start = time.perf_counter()
-    state = start_capre_for_test(mem, specs, [root], CapreConfig(max_concurrent=6, max_objects=50))
-    state.driver_thread.join(5)
+    start_capre_for_test(mem, specs, [root], CapreConfig(max_concurrent=6, max_objects=50))
+    trigger_entry(mem, rows[root])
+    finish(mem)
     elapsed = (time.perf_counter() - start) * 1000.0
     metrics = capre_metrics_snapshot(mem)
     metrics["elapsed_ms"] = elapsed

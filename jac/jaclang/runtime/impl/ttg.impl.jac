@@ -1165,7 +1165,7 @@ def _ttg_render_complete_hop_rows_sql -> str {
                  AND ecs.spec_idx = co.spec_idx
                 WHERE co.origin_id IS NOT NULL
                   AND co.spec_idx IS NOT NULL
-                  AND COALESCE(ecs.all_available, TRUE)
+                  AND ecs.all_available
             )""";
     }
     return """
@@ -1176,6 +1176,12 @@ def _ttg_render_complete_hop_rows_sql -> str {
                 FROM complete_origins co
                 WHERE co.origin_id IS NOT NULL
                   AND co.spec_idx IS NOT NULL
+                  AND EXISTS (
+                      SELECT 1
+                      FROM expected_complete_edges exp
+                      WHERE exp.origin_id = co.origin_id
+                        AND exp.spec_idx = co.spec_idx
+                  )
                   AND NOT EXISTS (
                       SELECT 1
                       FROM expected_complete_edges exp
@@ -1244,32 +1250,42 @@ def _ttg_render_specialized_set_based_sql(
 	                 AND n.kind = 'NodeAnchor'
 	                UNION ALL
 	                SELECT
-	                    raw.depth,
-	                    (ROW_NUMBER() OVER (
-	                        ORDER BY
-	                            raw.parent_bfs_ord,
-	                            raw.spec_idx,
-	                            raw.step_ord,
-	                            raw.node_id
-	                    ))::bigint AS bfs_ord,
-	                    raw.node_id,
-	                    raw.arch_type,
-	                    raw.parent_depth,
-	                    raw.parent_bfs_ord,
-	                    raw.parent_node_id,
-	                    raw.step_nodes,
-	                    raw.step_edges,
-	                    raw.is_frontier,
-	                    raw.spec_idx
+	                    ranked.depth,
+	                    ranked.local_rank::bigint AS bfs_ord,
+	                    ranked.node_id,
+	                    ranked.arch_type,
+	                    ranked.parent_depth,
+	                    ranked.parent_bfs_ord,
+	                    ranked.parent_node_id,
+	                    ranked.step_nodes,
+	                    ranked.step_edges,
+	                    (
+	                        ranked.is_frontier
+	                        AND ranked.layer_count < CAST(:limit AS bigint)
+	                    ) AS is_frontier,
+	                    ranked.spec_idx
 	                FROM (
-	                    WITH frontier AS MATERIALIZED (
-	                        SELECT *
-	                        FROM walk
-	                        WHERE walk.is_frontier
-	                          AND walk.depth < CAST(:max_depth AS int)
-	                    )
-	                    {recursive_sql}
-	                ) raw
+	                    SELECT
+	                        raw.*,
+	                        ROW_NUMBER() OVER (
+	                            ORDER BY
+	                                raw.parent_bfs_ord,
+	                                raw.spec_idx,
+	                                raw.step_ord,
+	                                raw.node_id
+	                        ) AS local_rank,
+	                        COUNT(*) OVER () AS layer_count
+	                    FROM (
+	                        WITH frontier AS MATERIALIZED (
+	                            SELECT *
+	                            FROM walk
+	                            WHERE walk.is_frontier
+	                              AND walk.depth < CAST(:max_depth AS int)
+	                        )
+	                        {recursive_sql}
+	                    ) raw
+	                ) ranked
+	                WHERE ranked.layer_count <= CAST(:limit AS bigint)
 	            ),
 	            candidate_node_rows AS (
 	                SELECT

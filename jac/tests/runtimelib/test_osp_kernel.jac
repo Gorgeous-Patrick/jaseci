@@ -59,9 +59,17 @@ def t_on_complete(scope: WalkScope, ok: bool) {
     }
 }
 
+def t_entry_hook(wlk: any, cur: any) -> None {
+    ;
+}
+
 def _runtime -> OspRuntime {
     return OspRuntime(
-        tag_of=t_tag_of, is_a=t_is_a, node_desc=t_node_desc, on_complete=t_on_complete
+        tag_of=t_tag_of,
+        is_a=t_is_a,
+        node_desc=t_node_desc,
+        entry_hook=t_entry_hook,
+        on_complete=t_on_complete
     );
 }
 

@@ -264,6 +264,7 @@ impl JacWalker.spawn_call(
     ctx_prefetch = None;
     ctx_observe = None;
     history_observe_enabled = False;
+    capre_entry_hook_enabled = False;
     capre_metrics: dict = {};
     try {
         import from jaclang.runtime.prefetch { prefetch_worker_times_reset }
@@ -275,6 +276,13 @@ impl JacWalker.spawn_call(
         import from jaclang.runtime.prefetch { run_prefetch_policy }
         cfg = get_config();
         ctx_prefetch = JacRuntimeInterface.get_context();
+        try {
+            run_cfg = cfg?.run if cfg is not None else None;
+            policy_name: str = str(getattr(run_cfg, "prefetching", "")).strip().lower();
+            capre_entry_hook_enabled = policy_name == "capre";
+        } except Exception {
+            ;
+        }
         (
             topo_idx_time_ms,
             ttg_time_ms,
@@ -297,7 +305,12 @@ impl JacWalker.spawn_call(
     }
     walker_start = _perf_counter();
     try {
-        osp_spawn(make_sv_runtime(), warch, desc_for(`type(warch)), starts);
+        osp_spawn(
+            make_sv_runtime(capre_entry_hook_enabled),
+            warch,
+            desc_for(`type(warch)),
+            starts
+        );
     } finally {
         walker_end = _perf_counter();
         if history_observe_enabled {
@@ -440,6 +453,7 @@ impl JacWalker.async_spawn_call(
     ctx_prefetch = None;
     ctx_observe = None;
     history_observe_enabled = False;
+    capre_entry_hook_enabled = False;
     try {
         import from jaclang.runtime.prefetch { prefetch_worker_times_reset }
         prefetch_worker_times_reset();
@@ -449,6 +463,13 @@ impl JacWalker.async_spawn_call(
         import from jaclang.runtime.prefetch { run_prefetch_policy }
         cfg = get_config();
         ctx_prefetch = JacRuntimeInterface.get_context();
+        try {
+            run_cfg = cfg?.run if cfg is not None else None;
+            policy_name: str = str(getattr(run_cfg, "prefetching", "")).strip().lower();
+            capre_entry_hook_enabled = policy_name == "capre";
+        } except Exception {
+            ;
+        }
         run_prefetch_policy(ctx_prefetch, cfg, warch, nd);
     }
     try {
@@ -464,7 +485,10 @@ impl JacWalker.async_spawn_call(
     }
     try {
         await osp_spawn_async(
-            make_sv_runtime(), warch, desc_for(`type(warch)), `list(`walker.next)
+            make_sv_runtime(capre_entry_hook_enabled),
+            warch,
+            desc_for(`type(warch)),
+            `list(`walker.next)
         );
     } finally {
         if history_observe_enabled {
