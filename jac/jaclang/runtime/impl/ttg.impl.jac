@@ -1088,7 +1088,8 @@ def _ttg_render_frontier_spec_select(
                     ARRAY[{edge_ids_sql}]::uuid[] AS step_edges,
                     ({step_ord_sql}) AS step_ord,
                     {visit_sql}::boolean AS is_frontier,
-                    {spec_idx}::int AS spec_idx
+                    {spec_idx}::int AS spec_idx,
+                    frontier.frontier_seen_nodes AS frontier_seen_nodes
                 FROM frontier
                 {" ".join(hop_joins)}
                 WHERE {_ttg_sql_type_match("frontier.arch_type", f"{pfx}from")}
@@ -1292,7 +1293,10 @@ def _ttg_render_specialized_set_based_sql(
 	                        COUNT(*) OVER () AS layer_count
 	                    FROM (
 	                        WITH frontier AS MATERIALIZED (
-	                            SELECT *
+	                            SELECT
+	                                walk.*,
+	                                array_agg(walk.node_id) OVER ()
+	                                    AS frontier_seen_nodes
 	                            FROM walk
 	                            WHERE walk.is_frontier
 	                              AND walk.depth < CAST(:max_depth AS int)
@@ -1300,29 +1304,73 @@ def _ttg_render_specialized_set_based_sql(
 	                        raw AS (
 	                            {recursive_sql}
 	                        ),
-	                        raw_grouped AS (
+	                        raw_annotated AS (
 	                            SELECT
 	                                raw.*,
-	                                DENSE_RANK() OVER (
-	                                    ORDER BY
-	                                        raw.parent_bfs_ord,
-	                                        raw.spec_idx,
-	                                        raw.parent_node_id
-	                                ) AS group_ord,
-	                                ROW_NUMBER() OVER (
-	                                    PARTITION BY
-	                                        raw.parent_bfs_ord,
-	                                        raw.spec_idx,
-	                                        raw.parent_node_id
-	                                    ORDER BY raw.step_ord, raw.node_id
-	                                ) AS group_row_rank,
+	                                (
+	                                    raw.node_id
+	                                    = ANY(raw.frontier_seen_nodes)
+	                                ) AS already_frontier,
 	                                COUNT(*) OVER (
 	                                    PARTITION BY
 	                                        raw.parent_bfs_ord,
 	                                        raw.spec_idx,
 	                                        raw.parent_node_id
-	                                ) AS group_count
+	                                ) AS raw_group_count
 	                            FROM raw
+	                        ),
+	                        raw_unseen AS (
+	                            SELECT *
+	                            FROM raw_annotated
+	                            WHERE NOT already_frontier
+	                        ),
+	                        raw_dedup AS (
+	                            SELECT DISTINCT ON (node_id)
+	                                raw_unseen.*
+	                            FROM raw_unseen
+	                            ORDER BY
+	                                node_id,
+	                                parent_bfs_ord,
+	                                spec_idx,
+	                                parent_node_id,
+	                                step_ord
+	                        ),
+	                        raw_dedup_grouped AS (
+	                            SELECT
+	                                raw_dedup.*,
+	                                COUNT(*) OVER (
+	                                    PARTITION BY
+	                                        raw_dedup.parent_bfs_ord,
+	                                        raw_dedup.spec_idx,
+	                                        raw_dedup.parent_node_id
+	                                ) AS dedup_group_count
+	                            FROM raw_dedup
+	                        ),
+	                        raw_grouped AS (
+	                            SELECT
+	                                raw_dedup_grouped.*,
+	                                DENSE_RANK() OVER (
+	                                    ORDER BY
+	                                        raw_dedup_grouped.parent_bfs_ord,
+	                                        raw_dedup_grouped.spec_idx,
+	                                        raw_dedup_grouped.parent_node_id
+	                                ) AS group_ord,
+	                                ROW_NUMBER() OVER (
+	                                    PARTITION BY
+	                                        raw_dedup_grouped.parent_bfs_ord,
+	                                        raw_dedup_grouped.spec_idx,
+	                                        raw_dedup_grouped.parent_node_id
+	                                    ORDER BY
+	                                        raw_dedup_grouped.step_ord,
+	                                        raw_dedup_grouped.node_id
+	                                ) AS group_row_rank,
+	                                COUNT(*) OVER (
+	                                    PARTITION BY
+	                                        raw_dedup_grouped.parent_bfs_ord,
+	                                        raw_dedup_grouped.spec_idx,
+	                                        raw_dedup_grouped.parent_node_id
+	                                ) AS group_count
+	                            FROM raw_dedup_grouped
 	                        ),
 	                        group_budget AS (
 	                            SELECT
@@ -1353,6 +1401,8 @@ def _ttg_render_specialized_set_based_sql(
 	                            (
 	                                group_budget.group_cume_count
 	                                <= CAST(:limit AS bigint)
+	                                AND raw_grouped.dedup_group_count
+	                                    = raw_grouped.raw_group_count
 	                            ) AS group_complete
 	                        FROM raw_grouped
 	                        JOIN group_budget

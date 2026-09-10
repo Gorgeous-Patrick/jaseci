@@ -164,6 +164,35 @@ def _seed_partial_layer(
 }
 
 
+def _seed_overlap_budget(
+    ctx: ExecutionContext
+) -> tuple[UUID, list[UUID], list[UUID], list[UUID]] {
+    ranch = _root(ctx);
+    alice = _owned_node(ctx, ranch, GTIProfile(name="alice"));
+    bob_ids: list[UUID] = [];
+    shared_ids: list[UUID] = [];
+    tweet_ids: list[UUID] = [];
+    for shared_idx in range(5) {
+        shared = _owned_node(ctx, ranch, GTIProfile(name=f"shared-{shared_idx}"));
+        shared_ids.append(shared.ensure_id());
+    }
+    for bob_idx in range(3) {
+        bob = _owned_node(ctx, ranch, GTIProfile(name=f"bob-{bob_idx}"));
+        bob_ids.append(bob.ensure_id());
+        _connect(ctx, alice, bob, _as_any(GTIFollow()));
+        tweet = _owned_node(ctx, ranch, GTITweet(text=f"tweet-{bob_idx}"));
+        tweet_ids.append(tweet.ensure_id());
+        _connect(ctx, bob, tweet, _as_any(GTIPost()));
+        for shared_id in shared_ids {
+            shared_anchor = ctx.mem.get(shared_id);
+            assert isinstance(shared_anchor, NodeAnchor);
+            _connect(ctx, bob, _as_any(shared_anchor), _as_any(GTIFollow()));
+        }
+    }
+    return (alice.ensure_id(), bob_ids, shared_ids, tweet_ids);
+}
+
+
 test "topology index resolves chains with type ancestry" {
     root_id = UUID("00000000-0000-0000-0000-000000000001");
     alice_id = UUID("00000000-0000-0000-0000-000000000101");
@@ -292,6 +321,55 @@ test "filtered hop warm indexes only matching frontier adjacency" {
                 10
             ) == [tweet_id];
         } finally {
+            JacRuntime.exec_ctx = old;
+            ctx2.close();
+        }
+    }
+}
+
+
+test "TTG dedups overlapping candidates before applying layer budget" {
+    with TemporaryDirectory() as td {
+        old = JacRuntime.exec_ctx;
+        old_owner_roots = os.environ.get("JAC_TTG_PREFETCH_OWNER_ROOTS");
+        ctx1 = _ctx(td);
+        JacRuntime.exec_ctx = ctx1;
+        ids: tuple[UUID, list[UUID], list[UUID], list[UUID]];
+        try {
+            ids = _seed_overlap_budget(ctx1);
+            ctx1.mem.commit();
+        } finally {
+            JacRuntime.exec_ctx = old;
+            ctx1.close();
+        }
+
+        ctx2 = _ctx(td);
+        JacRuntime.exec_ctx = ctx2;
+        try {
+            os.environ.pop("JAC_TTG_PREFETCH_OWNER_ROOTS", None);
+            (alice_id, bob_ids, shared_ids, tweet_ids) = ids;
+            alice = ctx2.mem.get(alice_id);
+            assert isinstance(alice, NodeAnchor);
+            plan = JacTTGGenerator.get_ttg_prefetch_list(
+                GTIPartialLayerTraverse(), alice, ctx2.mem, max_length=12
+            );
+            assert len(plan) == 12 , plan;
+            assert alice_id in plan , plan;
+            for bob_id in bob_ids {
+                assert bob_id in plan , plan;
+            }
+            for shared_id in shared_ids {
+                assert shared_id in plan , plan;
+            }
+            for tweet_id in tweet_ids {
+                assert tweet_id in plan , plan;
+            }
+        } finally {
+            if old_owner_roots is None {
+                os.environ.pop("JAC_TTG_PREFETCH_OWNER_ROOTS", None);
+            } else {
+                os.environ["JAC_TTG_PREFETCH_OWNER_ROOTS"] = old_owner_roots;
+            }
             JacRuntime.exec_ctx = old;
             ctx2.close();
         }
