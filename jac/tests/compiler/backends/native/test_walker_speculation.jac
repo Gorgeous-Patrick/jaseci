@@ -15,9 +15,8 @@ import from jaclang.compiler.backends.native.walker_speculation {
 
 glob FIXTURE = os.path.join(
          TESTS_DIR, "compiler/backends/native/fixtures/walker_speculation.jac"
-     );
-
-glob STATS = """
+     ),
+     STATS = """
 import from c {
     def __jac_spec_get_peak -> int;
     def __jac_spec_get_commits -> int;

@@ -587,11 +587,11 @@ obj NativeWalkerSpeculation {
             self.instrument_function(clone);
         }
         register = self.raw("__jac_spec_register", void, [i64, i64]);
-        explicit_memory = bool(self.gen.ir_in.get_all_sub_nodes(uni.OpenStmt))
+        explicit_memory = bool(self.gen.module.get_all_sub_nodes(uni.OpenStmt))
             or any(
                 n.sym_name == "Region"
                     or n.sym_name.startswith(("__mem_", "__atomic_"))
-                for n in self.gen.ir_in.get_all_sub_nodes(uni.Name)
+                for n in self.gen.module.get_all_sub_nodes(uni.Name)
             );
         for fn in originals {
             if fn.name.startswith("__jac_glob_init") {

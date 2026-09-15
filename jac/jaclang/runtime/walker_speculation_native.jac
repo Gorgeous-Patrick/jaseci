@@ -31,6 +31,7 @@ glob SPEC_TABLE: int = 0,
 
 def __jac_spec_disable -> None {
     SPEC_DISABLED = True;
+    return;
 }
 
 def __jac_spec_new(ignores: int) -> int {
@@ -50,6 +51,7 @@ def __jac_spec_abort -> None {
         __mem_store_i64(ctx + SPEC_MODE, 3);
         __jac_spec_jump(ctx + SPEC_ENV);
     }
+    return;
 }
 
 def __jac_spec_tick -> None {
@@ -63,12 +65,14 @@ def __jac_spec_tick -> None {
             __jac_spec_abort();
         }
     }
+    return;
 }
 
 def __jac_spec_guard(failed: bool) -> None {
     if failed {
         __jac_spec_abort();
     }
+    return;
 }
 
 def __jac_spec_charge(ctx: int, size: int) -> None {
@@ -80,6 +84,7 @@ def __jac_spec_charge(ctx: int, size: int) -> None {
         __jac_spec_abort();
     }
     __mem_store_i64(ctx + SPEC_BYTES, total);
+    return;
 }
 
 def __jac_spec_private(ctx: int, addr: int) -> bool {
@@ -184,6 +189,7 @@ def __jac_spec_effect(fn: int, a: int, b: int) -> None {
         __jac_spec_abort();
     }
     __jac_spec_event(ctx, fn, a, b, 0);
+    return;
 }
 
 def __jac_spec_write(addr: int, size: int, src: int) -> None {
