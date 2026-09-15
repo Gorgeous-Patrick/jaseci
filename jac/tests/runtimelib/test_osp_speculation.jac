@@ -19,41 +19,51 @@ glob trace: list[str] = [],
      dropped: list[int] = [],
      settings: dict[str, any] = {"reject": -1, "control": ""};
 
-def entry_step(w: any, n: int) {
-    trace.append("E" + str(n));
-    if n == 1 {
+def entry_step(w: any, n: any) {
+    node_id: int = n;
+    control: str = settings["control"];
+    trace.append("E" + str(node_id));
+    if node_id == 1 {
         osp_visit([2, 3]);
-    } elif n == 2 {
+    } elif node_id == 2 {
         osp_visit([4]);
     }
-    if n == 2 and settings["control"] == "skip" {
+    if node_id == 2 and control == "skip" {
         osp_skip_rest();
     }
-    if n == 2 and settings["control"] == "stop" {
+    if node_id == 2 and control == "stop" {
         osp_disengage();
     }
 }
 
-def second_step(w: any, n: int) {
-    trace.append("S" + str(n));
+def second_step(w: any, n: any) {
+    node_id: int = n;
+    trace.append("S" + str(node_id));
 }
 
-def exit_step(w: any, n: int) {
-    trace.append("X" + str(n));
-    if n == 3 and settings["control"] == "exit_visit" {
+def exit_step(w: any, n: any) {
+    node_id: int = n;
+    control: str = settings["control"];
+    trace.append("X" + str(node_id));
+    if node_id == 3 and control == "exit_visit" {
         osp_visit([5]);
     }
 }
 
 def run_tasks(tasks: list[OspTask]) {
-    batches.append([int(t.b) for t in tasks]);
+    node_ids: list[int] = [];
     for t in tasks {
+        node_id: int = t.b;
+        node_ids.append(node_id);
         t.state = 1;
     }
+    batches.append(node_ids);
 }
 
 def commit_task(task: OspTask) -> bool {
-    if task.b == settings["reject"] {
+    node_id: int = task.b;
+    rejected: int = settings["reject"];
+    if node_id == rejected {
         return False;
     }
     task.slot.fn(task.a, task.b);
@@ -63,7 +73,8 @@ def commit_task(task: OspTask) -> bool {
 def drop_task(task: OspTask) {
     assert task.state == 1;
     task.state = 0;
-    dropped.append(int(task.b));
+    node_id: int = task.b;
+    dropped.append(node_id);
 }
 
 def tag_of(n: any) -> int {
