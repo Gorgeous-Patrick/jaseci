@@ -14,6 +14,8 @@ The core argument is: the compiler can generate a small inspection function from
 
 The running examples use explicit nodes and values: A changes a score from 10 to 20; B must calculate using 20. A separate three-call example shows why A and an independent C can compute together while B waits. Query inspection happens before the ability body starts. Existing speculative validation handles accesses that have not been proven safe by inspection.
 
+The proposed scope includes multi-hop queries. A query is eligible when its inputs can be obtained safely before the body starts; hop count is not a support boundary. Inspection tracks the graph data examined at intermediate hops as well as the final access targets.
+
 The PDF has been rendered and visually inspected. The PowerPoint uses the same layout primitives, with Arial and Consolas font names for portability; use the PDF for fixed layout across computers.
 
 ## Rebuild

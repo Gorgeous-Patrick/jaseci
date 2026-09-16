@@ -33,6 +33,7 @@ The implemented baseline is opt-in native walker speculation with memory-access 
 ## Proposed mechanism
 
 1. Extract safe graph queries and conservative read/write summaries from an ability. A query result alone does not identify possible writers.
+   Include multi-hop queries: eligibility depends on safe pre-execution availability of inputs, not hop count. Intermediate query results can feed subsequent hops within the inspector. Track the searched adjacency, liveness, and predicate inputs at every hop, including empty intermediate results.
 2. For a concrete queued call, bind its known starting node, walker, and arguments. Run the separate inspection function before launching the body to find actual node identities and the graph data used by the lookup.
 3. Compare queued calls in their original serial order. Delay a later call when its possible reads or writes conflict with an earlier call. Independent calls may compute together; effects still publish in the original order.
 4. If an earlier update changes inputs used by inspection, re-inspect the affected calls and rebuild their dependencies before launch. Returning no nodes does not remove the dependency on the searched edges and filter inputs.
