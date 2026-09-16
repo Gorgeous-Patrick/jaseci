@@ -21,7 +21,11 @@ glob SPEC_TABLE: int = 0,
      SPEC_IGNORES: int = 72,
      SPEC_RETIRED: int = 80,
      SPEC_ENV: int = 96,
-     SPEC_SIZE: int = 1120,
+     SPEC_ACCESS: int = 1120,
+     SPEC_ACCESS_HEAD: int = 1128,
+     SPEC_UNKNOWN: int = 1136,
+     SPEC_TOPOLOGY: int = 1144,
+     SPEC_SIZE: int = 1152,
      SPEC_CAP: int = 65536,
      SPEC_LIMIT: int = 33554432,
      SPEC_STEP_LIMIT: int = 10000000,
@@ -47,7 +51,8 @@ def __jac_spec_new(ignores: int) -> int {
 
 def __jac_spec_abort -> None {
     ctx = __jac_spec_tls_get();
-    if ctx != 0 and __mem_load_i64(ctx + SPEC_MODE) == 1 {
+    if ctx != 0 and __mem_load_i64(ctx + SPEC_MODE) in (1, 5) {
+        __mem_store_i64(ctx + SPEC_UNKNOWN, 1);
         __mem_store_i64(ctx + SPEC_MODE, 3);
         __jac_spec_jump(ctx + SPEC_ENV);
     }
@@ -219,7 +224,7 @@ def __jac_spec_write(addr: int, size: int, src: int) -> None {
 
 def __jac_spec_malloc(size: int) -> int {
     ctx = __jac_spec_tls_get();
-    if ctx == 0 or __mem_load_i64(ctx + SPEC_MODE) != 1 {
+    if ctx == 0 or __mem_load_i64(ctx + SPEC_MODE) not in (1, 5) {
         return malloc(size);
     }
     if size < 0 or size > SPEC_LIMIT - 24 {
@@ -258,6 +263,8 @@ def __jac_spec_free(ptr: int) -> None {
     ctx = __jac_spec_tls_get();
     if ctx == 0 {
         free(ptr);
+    } elif __mem_load_i64(ctx + SPEC_MODE) == 5 {
+        return;
     } elif __mem_load_i64(ctx + SPEC_MODE) == 1 {
         __jac_spec_event(ctx, -1, ptr, 0, 0);
     } else {
@@ -459,10 +466,11 @@ def __jac_spec_drop(ctx: int) -> None {
         item = nxt;
     }
     free(__mem_load_i64(ctx + SPEC_TABLE));
+    free(__mem_load_i64(ctx + SPEC_ACCESS));
     free(ctx);
 }
 
-def __jac_spec_register(original: int, trial: int) -> None {
+def __jac_spec_register(original: int, trial: int, inspect: int) -> None {
     item = SPEC_REGISTRY;
     while item != 0 {
         if __mem_load_i64(item + 8) == original {
@@ -470,11 +478,167 @@ def __jac_spec_register(original: int, trial: int) -> None {
         }
         item = __mem_load_i64(item);
     }
-    item = malloc(24);
+    item = malloc(32);
     __mem_store_i64(item, SPEC_REGISTRY);
     __mem_store_i64(item + 8, original);
     __mem_store_i64(item + 16, trial);
+    __mem_store_i64(item + 24, inspect);
     SPEC_REGISTRY = item;
+}
+
+def __jac_spec_topology -> None {
+    ctx = __jac_spec_tls_get();
+    if ctx != 0 {
+        __mem_store_i64(ctx + SPEC_TOPOLOGY, 1);
+    }
+    return;
+}
+
+def __jac_spec_has_topology(ctx: int) -> bool {
+    return ctx != 0 and __mem_load_i64(ctx + SPEC_TOPOLOGY) != 0;
+}
+
+def __jac_spec_completed(ctx: int) -> bool {
+    return ctx != 0 and __mem_load_i64(ctx + SPEC_MODE) == 2;
+}
+
+def __jac_inspect_unknown -> None {
+    ctx = __jac_spec_tls_get();
+    if ctx != 0 {
+        __mem_store_i64(ctx + SPEC_UNKNOWN, 1);
+    }
+    return;
+}
+
+def __jac_inspect_resolve(original: int) -> int {
+    item = SPEC_REGISTRY;
+    while item != 0 {
+        if __mem_load_i64(item + 8) == original {
+            inspect = __mem_load_i64(item + 24);
+            if inspect != 0 {
+                return inspect;
+            }
+            break;
+        }
+        item = __mem_load_i64(item);
+    }
+    __jac_inspect_unknown();
+    return 0;
+}
+
+def __jac_inspect_access(owner: int, flags: int) -> int {
+    ctx = __jac_spec_tls_get();
+    if owner < 4096 {
+        __jac_spec_abort();
+    }
+    if __jac_spec_private(ctx, owner) {
+        if (flags & 4) != 0 {
+            __jac_spec_abort();
+        }
+        return 0;
+    }
+    __jac_spec_tick();
+    table = __mem_load_i64(ctx + SPEC_ACCESS);
+    if table == 0 {
+        table = calloc(SPEC_CAP, 24);
+        if table == 0 {
+            __jac_spec_abort();
+        }
+        __mem_store_i64(ctx + SPEC_ACCESS, table);
+    }
+    idx = ((owner >> 3) ^ (owner * 17)) & (SPEC_CAP - 1);
+    attempts = 0;
+    while attempts < SPEC_CAP {
+        item = table + idx * 24;
+        key = __mem_load_i64(item);
+        if key == 0 {
+            __mem_store_i64(item, owner);
+            __mem_store_i64(item + 16, __mem_load_i64(ctx + SPEC_ACCESS_HEAD));
+            __mem_store_i64(ctx + SPEC_ACCESS_HEAD, item);
+        }
+        if key == 0 or key == owner {
+            previous = __mem_load_i64(item + 8);
+            __mem_store_i64(item + 8, previous | flags);
+            return previous;
+        }
+        idx = (idx + 1) & (SPEC_CAP - 1);
+        attempts += 1;
+    }
+    __jac_spec_abort();
+    return 0;
+}
+
+def __jac_inspect_read(owner: int, addr: int, size: int, dst: int) -> None {
+    ctx = __jac_spec_tls_get();
+    if not __jac_spec_private(ctx, addr) {
+        flags = __jac_inspect_access(owner, 1);
+        if (flags & 4) != 0 {
+            __jac_spec_abort();
+        }
+    }
+    memcpy(dst, addr, size);
+    return;
+}
+
+def __jac_inspect_write(owner: int, addr: int, size: int, src: int) -> None {
+    ctx = __jac_spec_tls_get();
+    if __jac_spec_private(ctx, addr) {
+        memcpy(addr, src, size);
+    } else {
+        __jac_inspect_access(owner, 6);
+    }
+    return;
+}
+
+def __jac_inspect_copy(dst: int, src: int, size: int) -> int {
+    ctx = __jac_spec_tls_get();
+    if not __jac_spec_private(ctx, src) or not __jac_spec_private(ctx, dst) {
+        __jac_inspect_unknown();
+    }
+    buf = __jac_spec_malloc(size);
+    __jac_inspect_read(src, src, size, buf);
+    __jac_inspect_write(dst, dst, size, buf);
+    return dst;
+}
+
+def __jac_inspect_set(dst: int, value: i32, size: int) -> int {
+    if not __jac_spec_private(__jac_spec_tls_get(), dst) {
+        __jac_inspect_unknown();
+    }
+    buf = __jac_spec_malloc(size);
+    memset(buf, value, size);
+    __jac_inspect_write(dst, dst, size, buf);
+    return dst;
+}
+
+def __jac_inspect_calloc(n: int, size: int) -> int {
+    return __jac_spec_calloc(n, size);
+}
+
+def __jac_inspect_strlen(addr: int) -> int {
+    if (__jac_inspect_access(addr, 1) & 4) != 0 {
+        __jac_spec_abort();
+    }
+    return __jac_spec_strlen(addr);
+}
+
+def __jac_inspect_compare(a: int, b: int, n: int, terminated: bool) -> i32 {
+    if ((__jac_inspect_access(a, 1) | __jac_inspect_access(b, 1)) & 4) != 0 {
+        __jac_spec_abort();
+    }
+    return __jac_spec_compare(a, b, n, terminated);
+}
+
+def __jac_inspect_strcmp(a: int, b: int) -> i32 {
+    return __jac_inspect_compare(a, b, SPEC_LIMIT, True);
+}
+
+def __jac_inspect_strncmp(a: int, b: int, n: int) -> i32 {
+    return __jac_inspect_compare(a, b, n, True);
+}
+
+def __jac_inspect_memcmp(a: int, b: int, n: int) -> i32 {
+    return __jac_inspect_compare(a, b, n, False);
 }
 
 def __jac_spec_resolve(original: int) -> int {

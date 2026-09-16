@@ -261,6 +261,26 @@ impl NaIRGenPass._osp_build_slot(
             name="slot.fn"
         )
     );
+    import from jaclang.compiler.backends.native.walker_speculation {
+        walker_speculation_enabled
+    }
+    if walker_speculation_enabled(self.prog.options, str(self.llvm_module.triple))
+        and self.prog.options.walker_dependency_inspection {
+        inspect = self.llvm_module.globals.get("__jac_inspect_" + thunk.name);
+        if inspect is None {
+            inspect = ir.Function(
+                self.llvm_module,
+                thunk.function_type,
+                name="__jac_inspect_" + thunk.name
+            );
+        }
+        self.builder.store(
+            self.builder.ptrtoint(inspect, i64),
+            self.builder.gep(
+                slot, [ir.Constant(i32, 0), ir.Constant(i32, _idx["inspect"])]
+            )
+        );
+    }
     return slot;
 }
 
@@ -410,6 +430,7 @@ impl NaIRGenPass._osp_emit_callbacks -> dict[str, any] {
     }
     self.builder.ret_void();
     out["on_complete"] = _ocf;
+    out["topology_epoch"] = self.func_symtab["osp_topology_epoch"];
     self._builder = _saved;
     import from jaclang.compiler.backends.native.walker_speculation {
         NativeWalkerSpeculation,
@@ -534,6 +555,17 @@ impl NaIRGenPass._emit_osp_setup -> None {
                 self.builder.gep(
                     _rt, [ir.Constant(i32, 0), ir.Constant(i32, _ridx["task_width"])]
                 )
+            );
+            _dep = self.builder.gep(
+                _rt,
+                [ir.Constant(i32, 0), ir.Constant(i32, _ridx["dependency_inspection"])]
+            );
+            self.builder.store(
+                ir.Constant(
+                    _dep.type.pointee,
+                    int(bool(self.prog.options.walker_dependency_inspection))
+                ),
+                _dep
             );
         }
         self.builder.store(_rt, self._osp_rt_global);

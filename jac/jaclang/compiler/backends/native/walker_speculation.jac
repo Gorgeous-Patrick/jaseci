@@ -155,7 +155,19 @@ obj NativeWalkerSpeculation {
         fn = b.inttoptr(apply.args[0], ir.FunctionType(void, [i64, i64]).as_pointer());
         b.call(fn, [apply.args[1], apply.args[2]]);
         b.ret_void();
-        for name in ("active", "peak", "commits", "fallbacks") {
+        for name in (
+            "active",
+            "peak",
+            "commits",
+            "fallbacks",
+            "inspections",
+            "unknown",
+            "deferrals",
+            "attempts",
+            "validation_failures",
+            "inspection_steps",
+            "inspection_ns"
+        ) {
             counter = ir.GlobalVariable(module, i64, "__jac_spec_" + name);
             counter.linkage = "weak";
             counter.initializer = ir.Constant(i64, 0);
@@ -272,30 +284,67 @@ obj NativeWalkerSpeculation {
     }
 
     def boundary(name: str) -> bool {
+        return self.topology(name)
+            or name.startswith(
+                (
+                    "OspEngine.",
+                    "osp_spawn",
+                    "osp_conn",
+                    "osp_disconn",
+                    "osp_destroy",
+                    "osp_node_destroy",
+                    "osp_drop_node",
+                    "osp_forget",
+                    "osp_light_remove",
+                    "osp_light_detach",
+                    "osp_light_disconn",
+                    "osp_region_",
+                    "osp_register_",
+                    "__jac_glob_init",
+                    "__jac_region_",
+                    "__jac_raise",
+                    "__jac_throw",
+                    "__jac_exc_",
+                    "__rc_gc_",
+                    "__rc_debug_"
+                )
+            )
+            or name in ("scope_of", "_current_scope")
+            or name.startswith("OspGraph.")
+            and name.split(".", 1)[1]
+                in (
+                    "connect",
+                    "connect_light",
+                    "light_remove_one",
+                    "light_detach",
+                    "conn_many",
+                    "disconnect",
+                    "disconnect_between",
+                    "disconnect_between_pred",
+                    "disconnect_between_many",
+                    "light_disconnect_between",
+                    "node_destroy",
+                    "destroy",
+                    "destroy_all",
+                    "drop_node",
+                    "region_reg",
+                    "region_died"
+                );
+    }
+
+    def topology(name: str) -> bool {
         return name.startswith(
             (
-                "OspEngine.",
-                "osp_spawn",
                 "osp_conn",
                 "osp_disconn",
                 "osp_destroy",
                 "osp_node_destroy",
                 "osp_drop_node",
-                "osp_forget",
                 "osp_light_remove",
                 "osp_light_detach",
-                "osp_light_disconn",
-                "osp_region_",
-                "osp_register_",
-                "__jac_glob_init",
-                "__jac_region_",
-                "__jac_raise",
-                "__jac_throw",
-                "__rc_gc_",
-                "__rc_debug_"
+                "osp_light_disconn"
             )
         )
-            or name in ("scope_of", "_current_scope")
             or name.startswith("OspGraph.")
             and name.split(".", 1)[1]
                 in (
@@ -310,8 +359,10 @@ obj NativeWalkerSpeculation {
                     "destroy",
                     "destroy_all",
                     "drop_node",
-                    "region_reg",
-                    "region_died"
+                    "disconnect_between_pred",
+                    "disconnect_between_many",
+                    "light_disconnect_between",
+                    "_row_retire"
                 );
     }
 
@@ -347,6 +398,9 @@ obj NativeWalkerSpeculation {
             fn.blocks.clear();
             fn.append_basic_block("entry");
             b = ir.IRBuilder(fn.blocks[0]);
+            if self.topology(name) {
+                b.call(self.raw("__jac_spec_topology", void, []), []);
+            }
             b.call(abort, []);
             b.unreachable();
             return;
@@ -583,10 +637,20 @@ obj NativeWalkerSpeculation {
             }
             self.clones[fn] = clone;
         }
+        inspectors: dict[any, any] = {};
+        if self.gen.prog.options.walker_dependency_inspection {
+            import from jaclang.compiler.backends.native.walker_dependencies {
+                NativeDependencyInspection
+            }
+            inspection = NativeDependencyInspection(self, originals);
+            for original in list(self.clones) {
+                inspectors[original] = inspection.generate(original);
+            }
+        }
         for clone in list(self.clones.values()) {
             self.instrument_function(clone);
         }
-        register = self.raw("__jac_spec_register", void, [i64, i64]);
+        register = self.raw("__jac_spec_register", void, [i64, i64, i64]);
         explicit_memory = bool(self.gen.module.get_all_sub_nodes(uni.OpenStmt))
             or any(
                 n.sym_name == "Region"
@@ -604,7 +668,14 @@ obj NativeWalkerSpeculation {
                 }
                 for (original, trial) in self.clones.items() {
                     b.call(
-                        register, [b.ptrtoint(original, i64), b.ptrtoint(trial, i64)]
+                        register,
+                        [
+                            b.ptrtoint(original, i64),
+                            b.ptrtoint(trial, i64),
+                            b.ptrtoint(inspectors[original], i64)
+                                if original in inspectors
+                                else ir.Constant(i64, 0)
+                        ]
                     );
                 }
             }
@@ -655,6 +726,7 @@ obj NativeWalkerSpeculation {
         jumped = b.call(sj, [b.inttoptr(b.add(ctx, ir.Constant(i64, 96)), i8p)]);
         b.cbranch(b.icmp_signed("==", jumped, ir.Constant(i32, 0)), trial, done);
         b = ir.IRBuilder(trial);
+        b.atomic_rmw("add", module.globals["__jac_spec_attempts"], one, "monotonic");
         slot = b.load(self.field(b, task, "OspTask", "slot"));
         fn = b.load(self.field(b, slot, "Slot", "fn"));
         resolved = b.call(resolve, [b.ptrtoint(fn, i64)]);
@@ -747,6 +819,12 @@ obj NativeWalkerSpeculation {
         b.call(self.raw("pthread_attr_destroy", i32, [i8p]), [attrs]);
         self.return_none(b);
         out = {"run_tasks": run_tasks};
+        if self.gen.prog.options.walker_dependency_inspection {
+            import from jaclang.compiler.backends.native.walker_dependencies {
+                NativeDependencyInspection
+            }
+            out.update(NativeDependencyInspection(self, []).callbacks());
+        }
         for (name, result) in [("commit_task", ir.IntType(1)), ("drop_task", void)] {
             fn = ir.Function(module, fields[name].pointee, name="__jac_spec_" + name);
             fn.linkage = "private";
@@ -757,8 +835,28 @@ obj NativeWalkerSpeculation {
                 result,
                 [i64]
             );
+            completed = None;
+            if name == "commit_task" {
+                completed = b.call(
+                    self.raw("__jac_spec_completed", ir.IntType(1), [i64]),
+                    [b.load(state)]
+                );
+                topology = b.call(
+                    self.raw("__jac_spec_has_topology", ir.IntType(1), [i64]),
+                    [b.load(state)]
+                );
+                ptr = self.field(b, fn.args[0], "OspTask", "topology");
+                b.store(self.cast(b, topology, ptr.type.pointee), ptr);
+            }
             value = b.call(target, [b.load(state)]);
             if name == "commit_task" {
+                failed = b.and_(completed, b.not_(value));
+                b.atomic_rmw(
+                    "add",
+                    module.globals["__jac_spec_validation_failures"],
+                    b.zext(failed, i64),
+                    "monotonic"
+                );
                 delta = b.zext(value, i64);
                 b.atomic_rmw(
                     "add", module.globals["__jac_spec_commits"], delta, "monotonic"

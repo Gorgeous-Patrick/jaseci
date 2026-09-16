@@ -8,7 +8,7 @@ import tempfile;
 import from pathlib { Path }
 import from tests.support { JAC_ROOT, TESTS_DIR, jac_command }
 import from jaclang.compiler.driver.compile_options { CompileOptions }
-import from jaclang.project.config { NativeConfig }
+import from jaclang.project.config { JacConfig, NativeConfig }
 import from jaclang.compiler.backends.native.walker_speculation {
     walker_speculation_enabled
 }
@@ -32,6 +32,7 @@ with entry {
 test "speculation gates and cache identities describe the actual execution mode" {
     default_options = CompileOptions(aot_mode=True, memory_profile="rc");
     assert NativeConfig().walker_speculation == "off";
+    assert NativeConfig().walker_dependency_inspection;
     assert default_options.walker_speculation == "off";
     assert not walker_speculation_enabled(default_options, "x86_64-unknown-linux-gnu");
     enabled = CompileOptions(
@@ -56,6 +57,22 @@ test "speculation gates and cache identities describe the actual execution mode"
     imported = enabled.clone_for_native_import();
     assert imported.walker_speculation == "auto";
     assert imported.native_threads == enabled.native_threads;
+    assert imported.walker_dependency_inspection;
+    baseline = CompileOptions(
+        aot_mode=True,
+        memory_profile="rc",
+        walker_speculation="auto",
+        walker_dependency_inspection=False
+    );
+    assert baseline.codegen_identity() != enabled.codegen_identity();
+    assert not baseline.clone_for_native_import().walker_dependency_inspection;
+    assert not JacConfig.from_toml_str(
+        "[native]\nwalker_dependency_inspection = false\n"
+    ).native.walker_dependency_inspection;
+    try {
+        JacConfig.from_toml_str("[native]\nwalker_dependency_inspection = 'false'\n");
+        assert False;
+    } except ValueError {}
     try {
         CompileOptions(walker_speculation="invalid");
         assert False;
@@ -70,7 +87,13 @@ test "native reports aliases containers queries and fallback match serial execut
     with tempfile.TemporaryDirectory() as tmp {
         source = Path(tmp) / "walk.jac";
         outputs: list[str] = [];
-        for (mode, width) in [("off", 4), ("auto", 1), ("auto", 2), ("auto", 4)] {
+        for (mode, width, inspection) in [
+            ("off", 4, True),
+            ("auto", 1, True),
+            ("auto", 2, False),
+            ("auto", 2, True),
+            ("auto", 4, True)
+        ] {
             code = Path(FIXTURE).read_text();
             if mode == "auto" {
                 if width > 1 {
@@ -92,9 +115,11 @@ test "native reports aliases containers queries and fallback match serial execut
                     + json.dumps(mode)
                     + "\nthreads = "
                     + str(width)
+                    + "\nwalker_dependency_inspection = "
+                    + ("true" if inspection else "false")
                     + "\n"
             );
-            binary = os.path.join(tmp, mode + str(width));
+            binary = os.path.join(tmp, mode + str(width) + str(inspection));
             built = subprocess.run(
                 jac_command(
                     "build", "--native", "--memory", "rc", str(source), "-o", binary

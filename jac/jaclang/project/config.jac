@@ -54,7 +54,8 @@ obj NativeConfig {
         opt: int = 2,
         debug: bool = False,
         threads: int = 4,
-        walker_speculation: str = "off";
+        walker_speculation: str = "off",
+        walker_dependency_inspection: bool = True;
 }
 
 obj MemoryConfig {

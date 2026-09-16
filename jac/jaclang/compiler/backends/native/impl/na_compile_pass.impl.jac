@@ -1299,12 +1299,14 @@ def _compile_osp_kernel_ir(
     gc_mode: str = "cycles",
     enforce: bool = False,
     no_ir_cache: bool = False,
-    speculate: bool = False
+    speculate: bool = False,
+    inspect: bool = True
 ) -> (str | None) {
     import from jaclang.compiler.backends.common.kernel_units { osp_core_unit_path }
     variant = f"na_{gc_mode}_enf" if enforce else f"na_{gc_mode}";
     opts = _kernel_unit_opts(gc_mode, enforce, no_ir_cache);
     opts.walker_speculation = "auto" if speculate else "off";
+    opts.walker_dependency_inspection = inspect;
     return _compile_kernel_unit_ir(
         osp_core_unit_path(variant), _OSP_KERNEL_IR_CACHE, opts
     );
@@ -1434,7 +1436,8 @@ impl NativeCompilePass._link_osp_kernel(main_mod: ModuleRef) -> None {
         _gc,
         _enf and _gc == "none",
         self.prog.options.no_ir_cache,
-        walker_speculation_enabled(self.prog.options, str(main_mod.triple))
+        walker_speculation_enabled(self.prog.options, str(main_mod.triple)),
+        self.prog.options.walker_dependency_inspection
     );
     if ir_str is None {
         self.ctx.emit(
