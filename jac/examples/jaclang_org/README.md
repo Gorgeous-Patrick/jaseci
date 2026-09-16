@@ -98,6 +98,9 @@ at the next UTC hour; keep the social graph service running for posts.
 
 ## Checks
 
+JacYac API load tests, account/data provisioning, and Locust report commands are
+in [`loadtests/README.md`](loadtests/README.md).
+
 The gates to run before committing, from the workspace root:
 
 ```bash
