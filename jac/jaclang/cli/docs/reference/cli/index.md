@@ -1667,7 +1667,7 @@ records and rejects pending traversal controls, persisted graphs, mixed walker
 types, branching and cycles. CUDA failures do not fall back to CPU execution.
 
 Run `jac run jac/examples/gpu/chain_run.jac` on a Linux NVIDIA server to execute
-four real walkers. It requires this GPU-enabled Jac checkout, an LLVM shim with
+1,000 real walkers. It requires this GPU-enabled Jac checkout, an LLVM shim with
 NVPTX, and a GPU with compute capability at least 7.0. Host-only tests do not
 establish device execution correctness.
 

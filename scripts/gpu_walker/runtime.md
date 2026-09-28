@@ -25,10 +25,13 @@ From a checkout running this version of Jac on the GPU server:
 jac run jac/examples/gpu/chain_run.jac
 ```
 
-The example constructs twelve real Jac nodes and four `ChainSum` instances. It
-prints the packed layout, allocation size, GPU name and walker fields, and checks
-`[6.0, 25.0, 44.0, 63.0]`. This command performs GPU execution. It fails if CUDA is
-unavailable; it does not substitute CPU execution.
+The example constructs 3,000 real Jac nodes and 1,000 `ChainSum` instances, with
+one three-node chain per walker. It prints the batch size, allocation size, GPU
+name and first/last five results, and checks every result and updated walker
+field against `19 * i + 6`. The first five totals are
+`[6.0, 25.0, 44.0, 63.0, 82.0]`; the last is `18987.0`. Change `walker_count` in
+the example to try a different batch size. This command performs GPU execution.
+It fails if CUDA is unavailable; it does not substitute CPU execution.
 
 The host runtime is implemented in Jac using standard-library ctypes to call the
 CUDA Driver API. The server needs little-endian 64-bit Linux, an accessible
@@ -61,10 +64,11 @@ Walker arena:  heads[W]  | padding | initial[W] | padding
 ```
 
 G and W are retained capacities, while the kernel receives the actual N and M.
-The four-walker example has 304 payload bytes and initially reserves 1,536 arena
-bytes (512 graph bytes plus 1,024 walker bytes). Alignment overhead dominates
-such a small example. There is no allocation per node, edge, walker or hop on the
-device. A thread holds its current node index and scalar state privately.
+The default 1,000-walker example has 76,000 payload bytes and initially reserves
+94,208 arena bytes (65,536 graph bytes plus 28,672 walker bytes), with capacity
+for 4,096 nodes and 1,024 walkers. There is no allocation per node, edge, walker
+or hop on the device. A thread holds its current node index and scalar state
+privately.
 
 Arena growth allocates a replacement before releasing the old allocation. Peak
 memory during growth includes both; the runtime checks currently free device
