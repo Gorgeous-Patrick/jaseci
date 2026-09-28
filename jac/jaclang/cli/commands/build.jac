@@ -34,14 +34,23 @@ comptime SPEC_BUILD: CommandSpec = CommandSpec(
                      "wheel",
                      "npm",
                      "source",
-                     "client"
+                     "client",
+                     "ptx"
                  ],
                  help=(
                      "What to emit: 'jab' (single-file sealed app bundle, default), "
                      "'sealed' (unpacked image dir), 'binary' (self-contained "
                      "executable), 'wheel' (PyPI), 'npm' (tarball), 'source' "
-                     "(editable Python, JavaScript and C project), 'client' (the app's client bundle only)"
+                     "(editable Python, JavaScript and C project), 'client' (the app's client bundle only), "
+                     "'ptx' (experimental NVIDIA scalar/chain-walker kernels)"
                  )
+             ),
+             Arg.create(
+                 "gpu-entry",
+                 dest="gpu_entries",
+                 kind=ArgKind.APPEND,
+                 short="",
+                 help="With --as ptx: scalar function or chain walker to export as a batch kernel (repeatable)"
              ),
              Arg.create(
                  "native",
@@ -130,6 +139,10 @@ comptime SPEC_BUILD: CommandSpec = CommandSpec(
                  "Borrow-checked, no runtime"
              ),
              ("jac build lib.jac --native --lib", "Compile a C-ABI shared library"),
+             (
+                 "jac build ops.jac --as ptx --gpu-entry float_add",
+                 "Emit an experimental NVIDIA PTX batch kernel into dist/"
+             ),
              ("jac build main.jac --native --target wasm32", "Compile to WebAssembly"),
              ("jac build --fat", "Build a fat jab (Python deps vendored)"),
              ("jac build --as wheel", "Build a PyPI wheel"),
@@ -164,5 +177,6 @@ def build(
     lib: bool = False,
     memory: str = "",
     native_target: str = "",
-    debug: bool = False
+    debug: bool = False,
+    gpu_entries: list[list[str]] | None = None
 ) -> int;

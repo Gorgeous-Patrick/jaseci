@@ -1548,7 +1548,8 @@ jac clean --all --force
 Emit **one** artifact. Type checking runs on the critical path of every compilation, so the artifact compile is itself the gate: a program that does not type-check produces no artifact. By default `jac build` produces a `.jab` -- a single self-describing sealed app bundle. Use `--as` to select a different projection. `jac build` is now the single front door that the former `jac bundle` (wheel/npm), `jac eject` (source), and project-level `jac build --native` (native/binary) folded into.
 
 ```bash
-jac build [-h] [--all] [--as {jab,sealed,binary,wheel,npm,source,native,client}] [-o OUTPUT] [-n] [-c] [-f]
+jac build [-h] [--all] [--as {jab,sealed,binary,wheel,npm,source,client,ptx}] [-o OUTPUT] [-n] [-c] [-f]
+          [--gpu-entry FUNCTION_OR_WALKER ...]
           [-p {windows,macos,linux,all,android,ios,web}] [target]
 ```
 
@@ -1556,7 +1557,8 @@ jac build [-h] [--all] [--as {jab,sealed,binary,wheel,npm,source,native,client}]
 |--------|-------------|---------|
 | `target` | An app name from `[apps]`, or an entry `.jac` file (omit for `[project] default-app`, or the sole app) | (default app) |
 | `--all` | Build every app in the workspace into `<output>/<app>/` (each per its kind's output layout) | `False` |
-| `--as` | Artifact projection: `jab`, `sealed`, `binary`, `wheel`, `npm`, `source`, `native`, `client` | `jab` |
+| `--as` | Artifact projection: `jab`, `sealed`, `binary`, `wheel`, `npm`, `source`, `client`, `ptx` | `jab` |
+| `--gpu-entry` | With `--as ptx`: scalar function or chain walker to export as a batch kernel; repeat for multiple entries | None |
 | `-o, --output` | Output directory | `dist` |
 | `-c, --check_only` | Run the gate only; emit nothing | `False` |
 | `-f, --fat` | Vendor the Python dependency closure into the bundle (`jab` / `binary` only) so it materializes offline | `False` |
@@ -1573,6 +1575,101 @@ jac build [-h] [--all] [--as {jab,sealed,binary,wheel,npm,source,native,client}]
 | `npm` | An npm tarball | `jac bundle --target npm` |
 | `source` | Editable Python, JavaScript, and C with the required Jac runtime source | `jac eject` |
 | `client` | Only the app's client bundle (the browser bundle of a `web-app` / `web-static`, the desktop binary of a `desktop` app, the platform build of a `mobile` app) | -- |
+| `ptx` | Experimental NVIDIA PTX, device LLVM IR, and an array-argument manifest for explicitly selected scalar functions or chain walkers | -- |
+
+**Experimental PTX output.** Given an existing `.jac` file, this projection
+type-checks it through the Native frontend, verifies the selected functions and
+their direct helper closure, and emits NVIDIA PTX using LLVM. It does not need a
+CUDA toolkit or device to compile; the LLVM shim must include the NVPTX target.
+
+```bash
+jac build jac/examples/gpu/scalar.jac --as ptx \
+  --gpu-entry multiply_add --gpu-entry within_radius -o dist/gpu
+```
+
+The output is `scalar.ptx`, `scalar.gpu.ll`, and `scalar.ptx.json`. The initial
+target is `sm_70` with PTX 6.0. Each one-dimensional batch kernel takes one input
+array per function parameter, an output array, and a `uint64` element count in
+that order. One GPU thread handles one element; lanes outside the count return
+without accessing arrays. Jac `float` stays float64. Boolean arrays use one
+byte per element: zero is false, nonzero is true, and outputs are canonical 0/1.
+Input and output arrays must provide at least `count` elements; use a separate
+output allocation and a one-dimensional launch covering the entire batch.
+
+The supported subset includes floating `+`, `-`, `*`, unary signs, comparisons,
+boolean operations, local variables, branches, loops, and acyclic direct helpers
+defined in the same module. Loop termination remains the program's
+responsibility. Arithmetic has no fast-math flags, and emission rejects floating
+multiply-add contraction. Division and modulo retain Jac's exception semantics
+and are rejected until GPU exception handling exists. Integer arithmetic,
+external math/runtime calls, globals, object/container access, recursion, and
+walker operations inside scalar functions are also rejected. Module entry code is not executed; only
+explicitly selected functions are exported. Imported helpers are not linked in
+this first version.
+
+For a read-only linked-list walker, select its type name:
+
+```bash
+jac build jac/examples/gpu/chain.jac --as ptx --gpu-entry ChainSum -o dist/gpu
+```
+
+The chain backend lowers the checked Jac AST before CPU object/runtime lowering.
+It supports one local node type with one float field, one empty directed edge
+type, and one private float walker field with a finite literal default. The sole
+entry ability must update the walker field (`=`, `+=`, `-=`, or `*=`), then perform
+one tail-position typed outgoing `visit`. Expressions may read those fields and
+use float literals, unary signs, `+`, `-`, and `*`. Node abilities, helpers,
+inheritance, shared writes, reports, filtered/multi-hop visits, branches, and other
+walker behavior are rejected. Scalar and walker exports use separate builds.
+
+Each kernel thread processes one walker from an explicit batch. Graph inputs are
+shared read-only SoA arrays; state and results are private per walker. The
+`jac-ptx-chain-v1` manifest describes these ordered parameters:
+`values: float64[N]`, `next: int64[N]`, `heads: int64[M]`,
+`initial_total: float64[M]`, `results: float64[M]`, `status: uint32[M]`,
+`node_count: uint64`, `walker_count: uint64`. Initialize `initial_total` explicitly;
+the manifest records the Jac default for callers constructing fresh walkers.
+Use separate result/status allocations and a one-dimensional launch covering M
+walkers. A -1 head denotes an empty traversal; a -1 successor ends a chain.
+
+Inputs must represent the declared node/edge types with at most one outgoing
+edge per node. Graph packing and validation of object types/edge multiplicity
+are the caller's responsibility; this command only emits device code. The kernel
+checks reachable indices and limits each traversal to N nodes: status 0 means
+success, 1 means an invalid index, and 2 means a cycle. On errors the result slot
+is unchanged and must be ignored. Lanes outside M access no arrays. Arrays must
+cover their declared lengths; counts and indices must fit the documented types.
+Arbitrary node permutations are supported when `next` and `heads` are remapped.
+Changing walker order also requires reordering initial states and restoring
+logical result order. No layout optimization or host launcher is implicit.
+
+Use `--check_only` to validate without emitting files. PTX builds currently take
+a file rather than an app name, and cannot combine native or packaging flags.
+**This command emits device code; it does not allocate GPU memory, launch kernels,
+or establish GPU numerical correctness or performance.**
+
+**Launching a walker batch.** `jaclang.runtime.gpu` provides the experimental
+`GpuWalkerRuntime(WalkerType, device=0)` context manager. Its
+`run_walkers(walkers, starts)` method takes distinct actual instances of one
+compiled walker class and a corresponding list of starting nodes (`None` denotes
+an empty traversal). It compiles the restricted chain walker, packs the reachable
+private in-memory graph, launches CUDA, and writes final scalar fields back to
+the original walkers after all lanes succeed. `prepare(walkers, starts)` inspects
+the packed arrays and initial memory plan without loading a CUDA driver.
+
+The runtime shares each reachable node once. It reuses two device arenas with
+256-byte aligned SoA arrays: graph values/successors and walker
+heads/initial-state/results/status. Active payload is `16*N + 28*M` bytes; actual
+allocation includes power-of-two capacity and padding. Each batch refreshes its
+inputs; leaving the context manager releases device resources. Graphs and walkers
+must remain stable during a call. This API does not generate ordinary spawn path
+records and rejects pending traversal controls, persisted graphs, mixed walker
+types, branching and cycles. CUDA failures do not fall back to CPU execution.
+
+Run `jac run jac/examples/gpu/chain_run.jac` on a Linux NVIDIA server to execute
+four real walkers. It requires this GPU-enabled Jac checkout, an LLVM shim with
+NVPTX, and a GPU with compute capability at least 7.0. Host-only tests do not
+establish device execution correctness.
 
 **The type-check gate.** `jac build` refuses to emit an artifact if the program fails type checking, and there is no flag that skips it. Because every compilation type-checks, the artifact compile *is* the gate rather than a separate pass over the project. Use `--check_only` to run the whole-project check and emit nothing (useful in CI).
 

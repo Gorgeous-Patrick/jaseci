@@ -185,9 +185,32 @@ impl build(
     lib: bool = False,
     memory: str = "",
     native_target: str = "",
-    debug: bool = False
+    debug: bool = False,
+    gpu_entries: list[list[str]] | None = None
 ) -> int {
     import from jaclang.project.config { get_config }
+    if projection == "ptx" {
+        if native
+            or lib
+            or memory
+            or native_target
+            or debug
+            or all_apps
+            or platform
+            or fat {
+            console.error(
+                "--as ptx cannot be combined with native, app, or packaging options."
+            );
+            return 1;
+        }
+        import from jaclang.cli.commands.ptx_build { ptx_build }
+        entries = [name for group in (gpu_entries or []) for name in group];
+        return ptx_build(target, entries, output, check_only);
+    }
+    if gpu_entries {
+        console.error("--gpu-entry requires --as ptx.");
+        return 1;
+    }
     if native or lib or memory or native_target or debug {
         import from jaclang.cli.commands.native_build { native_build }
         if not native {
