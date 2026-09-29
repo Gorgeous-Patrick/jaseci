@@ -55,9 +55,11 @@ class CpuKernel:
         self.ir = str(module)
         self.engine = llvm.create_mcjit_compiler(module, self.target)
         self.engine.finalize_object()
+        self.scalar = ctypes.c_int64 if walker.dtype.value == 'int64' else ctypes.c_double
+        self.sentinel = -987654 if self.scalar is ctypes.c_int64 else -987654.25
         signature = [ctypes.POINTER(t) for t in (
-            ctypes.c_double, ctypes.c_int64, ctypes.c_int64, ctypes.c_double,
-            ctypes.c_double, ctypes.c_uint32,
+            self.scalar, ctypes.c_int64, ctypes.c_int64, self.scalar,
+            self.scalar, ctypes.c_uint32,
         )] + [ctypes.c_uint64] * 3
         self.lane = ctypes.CFUNCTYPE(None, *signature)(
             self.engine.get_function_address(f'jac_{walker.name}_lane'))
@@ -66,20 +68,20 @@ class CpuKernel:
         n, m = len(values), len(heads)
         assert len(links) == n and len(initial) == m
         inputs = [(typ * len(items))(*items) for typ, items in (
-            (ctypes.c_double, values), (ctypes.c_int64, links),
-            (ctypes.c_int64, heads), (ctypes.c_double, initial),
+            (self.scalar, values), (ctypes.c_int64, links),
+            (ctypes.c_int64, heads), (self.scalar, initial),
         )]
         before = [bytes(buf) for buf in inputs]
-        output = (ctypes.c_double * (m + 2))(*([-987654.25] * (m + 2)))
+        output = (self.scalar * (m + 2))(*([self.sentinel] * (m + 2)))
         status = (ctypes.c_uint32 * (m + 2))(*([173] * (m + 2)))
-        out_ptr = ctypes.cast(ctypes.byref(output, 8), ctypes.POINTER(ctypes.c_double))
+        out_ptr = ctypes.cast(ctypes.byref(output, 8), ctypes.POINTER(self.scalar))
         status_ptr = ctypes.cast(ctypes.byref(status, 4), ctypes.POINTER(ctypes.c_uint32))
         # Deliberately reverse execution order to expose shared mutable state.
         for lane in reversed(range(m)):
             self.lane(*inputs, out_ptr, status_ptr, n, m, lane)
         for count, index in ((0, 0), (m, m), (m, 2**32), (m, 2**64 - 1)):
             self.lane(*([None] * 6), n, count, index)
-        assert output[0] == output[-1] == -987654.25
+        assert output[0] == output[-1] == self.sentinel
         assert status[0] == status[-1] == 173
         assert before == [bytes(buf) for buf in inputs], 'Read-only inputs were modified'
         return list(output)[1:-1], list(status)[1:-1]
@@ -261,6 +263,21 @@ def _verify(repo: Path, output: Path):
         assert actual[0] == 30.0 and status == [0, 0, 0]
         counts['cpu_changed_source_results'] += len(heads)
 
+        # Guarded floating updates must retain unordered NaN comparison semantics.
+        guarded_source = source.replace('self.total += here.value;',
+            'if here.value != 0.0 { self.total += here.value; } else { self.total = -self.total; }')
+        guarded_path = tmp_path / 'guarded_chain.jac'
+        guarded_path.write_text(guarded_source + SERIAL_REFERENCE)
+        guarded = select_chain_walkers(compile_ptx_frontend(str(guarded_path)), ['ChainSum'])
+        emit_chain_ptx(guarded)
+        guarded_reference = JacRuntime.jac_import(target='guarded_chain', base_path=tmp)[0]
+        args = ([math.nan, -0.0, 2.0], [-1, -1, -1], [0, 1, 2], [1.0, 0.0, -1.0])
+        expected = list(guarded_reference.serial_sums(*args))
+        actual, status = CpuKernel(guarded[0]).run(*args)
+        same(actual, expected)
+        assert status == [0, 0, 0]
+        counts['cpu_changed_source_results'] += 3
+
         rejected = {}
         variants = {
             'node_write': source.replace('self.total += here.value;', 'here.value += 1.0;'),
@@ -268,7 +285,7 @@ def _verify(repo: Path, output: Path):
             'non_tail_visit': source.replace('self.total += here.value;\n        visit [->:Next:->];',
                 'visit [->:Next:->];\n        self.total += here.value;'),
             'division': source.replace('here.value;', 'here.value / 2.0;'),
-            'integer_field': source.replace('value: float;', 'value: int;'),
+            'mixed_field_types': source.replace('value: float;', 'value: int;'),
             'untyped_edge': source.replace('[->:Next:->]', '[-->]'),
             'incoming_edge': source.replace('[->:Next:->]', '[<--]'),
             'static_state': source.replace('has total:', 'static has total:'),

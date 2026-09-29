@@ -33,6 +33,16 @@ field against `19 * i + 6`. The first five totals are
 the example to try a different batch size. This command performs GPU execution.
 It fails if CUDA is unavailable; it does not substitute CPU execution.
 
+For signed integer nodes and an integer walker state, run
+`jac run jac/examples/gpu/even_chain_run.jac`. Its `EvenSum` ability uses
+`if here.value % 2 == 0 { self.total += here.value; }` before the same tail
+`visit`. All 1,000 GPU results are checked against serial Jac walkers.
+Node and state fields must have the same numeric type. Integer values are stored
+as signed int64 throughout; input values outside that range are rejected, as are
+floats and booleans in integer fields. Integer arithmetic overflow raises
+`OverflowError`; integer modulo by zero raises `ZeroDivisionError`. Neither
+failure publishes any walker fields, including lanes that otherwise succeeded.
+
 The host runtime is implemented in Jac using standard-library ctypes to call the
 CUDA Driver API. The server needs little-endian 64-bit Linux, an accessible
 NVIDIA driver, and compute capability 7.0 or newer. The Jac compiler's LLVM shim
@@ -48,8 +58,11 @@ object pointers. Shared nodes and shared suffixes occupy one physical slot.
 
 | Allocation | Arrays | Active payload |
 | --- | --- | --- |
-| Graph arena | `values: float64[N]`, `next: int64[N]` | 16 N bytes |
-| Walker arena | `heads: int64[M]`, `initial: float64[M]`, `results: float64[M]`, `status: uint32[M]` | 28 M bytes |
+| Graph arena | `values: scalar[N]`, `next: int64[N]` | 16 N bytes |
+| Walker arena | `heads: int64[M]`, `initial: scalar[M]`, `results: scalar[M]`, `status: uint32[M]` | 28 M bytes |
+
+`scalar` is float64 or signed int64, as specified by the compiled schema. Both
+use eight bytes, so integer walkers use the same arena sizing and alignment.
 
 Each arena is one `cuMemAlloc` allocation subdivided into SoA arrays. Every array
 starts at a 256-byte offset. Node and walker capacities grow independently to

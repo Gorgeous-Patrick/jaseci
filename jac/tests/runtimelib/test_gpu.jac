@@ -39,3 +39,22 @@ test "GPU example accepts typed Jac walker and node lists" {
         error.pretty_print() for error in program.errors_had
     );
 }
+
+test "GPU integer walkers match serial arithmetic and preserve failed batches" {
+    repo = Path(TESTS_DIR).resolve().parents[1];
+    scripts = repo / "scripts/gpu_walker";
+    old_path = sys.path.copy();
+    try {
+        sys.path.insert(0, str(scripts));
+        module = runpy.run_path(str(scripts / "test_integers.py"));
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(
+            module["IntegerWalkerTests"]
+        );
+        log = io.StringIO();
+        result = unittest.TextTestRunner(stream=log, verbosity=2).run(suite);
+        assert result.wasSuccessful() , log.getvalue();
+        assert result.testsRun == 6;
+    } finally {
+        sys.path[:] = old_path;
+    }
+}

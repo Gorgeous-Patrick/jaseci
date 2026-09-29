@@ -1,5 +1,7 @@
 import from array { array }
 
+enum GpuScalarType: str { FLOAT64 = "float64", INT64 = "int64" }
+
 obj ArenaLayout {
     has capacity: int,
         offsets: list[int],
@@ -73,19 +75,24 @@ obj ChainBuffers {
 }
 
 def chain_buffers(
-    values: list[float], links: list[int], heads: list[int], initial: list[float]
+    values: Sequence[float | int],
+    links: list[int],
+    heads: list[int],
+    initial: Sequence[float | int],
+    dtype: GpuScalarType = GpuScalarType.FLOAT64
 ) -> ChainBuffers {
     n = len(values);
     m = len(heads);
     if len(links) != n or len(initial) != m {
         raise ValueError("GPU graph and walker array lengths do not match");
     }
+    code = 'q' if dtype == GpuScalarType.INT64 else 'd';
     result = ChainBuffers(
-        array('d', values),
+        array(code, values),
         array('q', links),
         array('q', heads),
-        array('d', initial),
-        array('d', [0.0]) * m,
+        array(code, initial),
+        array(code, [0]) * m,
         array('I', [4294967295]) * m
     );
     if [a.itemsize for a in result.arrays()] != [8, 8, 8, 8, 8, 4] {

@@ -13,6 +13,7 @@ import from jaclang.runtime.archetype {
 }
 import from jaclang.runtime.gpu_memory {
     ChainBuffers,
+    GpuScalarType,
     GpuMemoryPlan,
     chain_buffers,
     memory_plan as make_memory_plan
@@ -29,7 +30,8 @@ obj WalkerSchema {
         source_sha256: str,
         entry_function: any,
         ptx: str,
-        kernel_name: str;
+        kernel_name: str,
+        dtype: GpuScalarType = GpuScalarType.FLOAT64;
 }
 
 obj PackedWalkerBatch {
@@ -43,7 +45,7 @@ obj PackedWalkerBatch {
 }
 
 obj WalkerBatchResult {
-    has values: list[float],
+    has values: list[float | int],
         status: list[int],
         memory: GpuMemoryPlan,
         gpu_executed: bool,
@@ -105,7 +107,8 @@ def walker_schema(walker_type: type) -> WalkerSchema {
         digest,
         funcs[0].func,
         artifact.ptx,
-        artifact.kernels[0]['name']
+        artifact.kernels[0]['name'],
+        spec.dtype
     );
 }
 
@@ -125,6 +128,19 @@ def float_value(value: any) -> float {
         raise TypeError("GPU float fields must contain numeric scalar values");
     }
     return float(value);
+}
+
+def scalar_value(value: any, dtype: GpuScalarType) -> float | int {
+    if dtype == GpuScalarType.FLOAT64 {
+        return float_value(value);
+    }
+    if type(value) is not int {
+        raise TypeError("GPU int fields must contain integers (not bool or float)");
+    }
+    if not -(2 ** 63) <= value < 2 ** 63 {
+        raise OverflowError("GPU int fields must fit signed int64");
+    }
+    return cast(int, value);
 }
 
 def check_finite_chains(links: list[int]) {
@@ -158,7 +174,7 @@ def pack_walkers(
     if len({id(w) for w in walkers}) != len(walkers) {
         raise ValueError("The same walker instance cannot occupy multiple GPU lanes");
     }
-    initial: list[float] = [];
+    initial: list[float | int] = [];
     typed_walkers: list[WalkerArchetype] = [];
     for w in walkers {
         if not isinstance(w, WalkerArchetype) or type(w) is not schema.walker_type {
@@ -178,7 +194,7 @@ def pack_walkers(
                 "GPU walkers cannot have an active traversal, queued work, path, or reports"
             );
         }
-        initial.append(float_value(getattr(w, schema.state_field)));
+        initial.append(scalar_value(getattr(w, schema.state_field), schema.dtype));
         typed_walkers.append(w);
     }
     nodes: list[NodeArchetype] = [];
@@ -200,12 +216,12 @@ def pack_walkers(
         return slots[key];
     }
     heads = [slot(nd) for nd in starts];
-    values: list[float] = [];
+    values: list[float | int] = [];
     links: list[int] = [];
     idx = 0;
     while idx < len(nodes) {
         nd = nodes[idx];
-        values.append(float_value(getattr(nd, schema.node_field)));
+        values.append(scalar_value(getattr(nd, schema.node_field), schema.dtype));
         query = GraphQuery(
             [nd], hops=[QHop(dir=2, `edge=schema.edge_type)], edges_only=True
         );
@@ -236,7 +252,7 @@ def pack_walkers(
     }
     check_finite_chains(links);
     return PackedWalkerBatch(
-        typed_walkers, nodes, chain_buffers(values, links, heads, initial)
+        typed_walkers, nodes, chain_buffers(values, links, heads, initial, schema.dtype)
     );
 }
 
@@ -249,6 +265,16 @@ def publish_results(
 ) -> WalkerBatchResult {
     status = cast(list[int], batch.buffers.status.tolist());
     if any(status) {
+        if 4 in status {
+            raise ZeroDivisionError(
+                "GPU integer modulo by zero; no walker fields updated"
+            );
+        }
+        if 3 in status {
+            raise OverflowError(
+                "GPU integer arithmetic overflow; no walker fields updated"
+            );
+        }
         failed = [
             (i, code)
             for (i, code) in enumerate(status)
@@ -260,14 +286,15 @@ def publish_results(
     }
     for (w, initial) in zip(batch.walkers, batch.buffers.initial) {
         check_private(w.__jac__);
-        current = float_value(getattr(w, schema.state_field));
-        if struct.pack('=d', current) != struct.pack('=d', initial) {
+        current = scalar_value(getattr(w, schema.state_field), schema.dtype);
+        code = '=q' if schema.dtype == GpuScalarType.INT64 else '=d';
+        if struct.pack(code, current) != struct.pack(code, initial) {
             raise RuntimeError(
                 "Walker state changed during the GPU call; no results published"
             );
         }
     }
-    values = cast(list[float], batch.buffers.results.tolist());
+    values = cast(list[float | int], batch.buffers.results.tolist());
     for (w, value) in zip(batch.walkers, values) {
         setattr(w, schema.state_field, value);
     }

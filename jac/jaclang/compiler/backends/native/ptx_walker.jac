@@ -3,6 +3,7 @@ import re;
 import jaclang.compiler.frontend.unitree as uni;
 import from jaclang.compiler.types.types { ClassType }
 import from jaclang.runtime.constants { EdgeDir }
+import from jaclang.runtime.gpu_memory { GpuScalarType }
 import from jaclang.compiler.backends.native.llvm { ir }
 import jaclang.compiler.backends.native.llvm.binding as llvm;
 import from jaclang.compiler.backends.native.ptx {
@@ -15,11 +16,18 @@ import from jaclang.compiler.backends.native.ptx {
 
 obj ChainExpr {
     has op: str,
-        value: float = 0.0,
+        value: float | int = 0.0,
         left: ChainExpr | None = None,
-        right: ChainExpr | None = None;
+        right: ChainExpr | None = None,
+        otherwise: ChainExpr | None = None;
 
-    def lower(b: ir.IRBuilder, state: ir.Value, node_value: ir.Value) -> ir.Value {
+    def lower(
+        b: ir.IRBuilder,
+        state: ir.Value,
+        node_value: ir.Value,
+        overflow: ir.Block,
+        zero_divisor: ir.Block
+    ) -> ir.Value {
         if self.op == "state" {
             return state;
         }
@@ -27,15 +35,71 @@ obj ChainExpr {
             return node_value;
         }
         if self.op == "constant" {
-            return ir.Constant(ir.DoubleType(), self.value);
+            return ir.Constant(state.type, self.value);
         }
         assert self.left is not None;
-        left = self.left.lower(b, state, node_value);
+        left = self.left.lower(b, state, node_value, overflow, zero_divisor);
+        integer = state.type == ir.IntType(64);
+        if self.op == "if" {
+            assert self.right is not None and self.otherwise is not None;
+            taken = b.function.append_basic_block("update.then");
+            skipped = b.function.append_basic_block("update.else");
+            merge = b.function.append_basic_block("update.end");
+            b.cbranch(left, taken, skipped);
+            b.position_at_end(taken);
+            yes = self.right.lower(b, state, node_value, overflow, zero_divisor);
+            yes_end = b.block;
+            b.branch(merge);
+            b.position_at_end(skipped);
+            no = self.otherwise.lower(b, state, node_value, overflow, zero_divisor);
+            no_end = b.block;
+            b.branch(merge);
+            b.position_at_end(merge);
+            result = b.phi(state.type);
+            result.add_incoming(yes, yes_end);
+            result.add_incoming(no, no_end);
+            return result;
+        }
         if self.op == "neg" {
-            return b.fneg(left);
+            return checked_int(b, "sub", ir.Constant(state.type, 0), left, overflow)
+                if integer
+                else b.fneg(left);
         }
         assert self.right is not None;
-        right = self.right.lower(b, state, node_value);
+        right = self.right.lower(b, state, node_value, overflow, zero_divisor);
+        if self.op in ("==", "!=", "<", "<=", ">", ">=") {
+            if integer {
+                return b.icmp_signed(self.op, left, right);
+            }
+            return b.fcmp_unordered(self.op, left, right)
+                if self.op == "!="
+                else b.fcmp_ordered(self.op, left, right);
+        }
+        if integer {
+            if self.op == "%" {
+                nonzero = b.function.append_basic_block("mod.nonzero");
+                zero = ir.Constant(state.type, 0);
+                b.cbranch(b.icmp_signed("==", right, zero), zero_divisor, nonzero);
+                b.position_at_end(nonzero);
+                special = b.and_(
+                    b.icmp_signed("==", left, ir.Constant(state.type, -(2 ** 63))),
+                    b.icmp_signed("==", right, ir.Constant(state.type, -1))
+                );
+                divisor = b.select(special, ir.Constant(state.type, 1), right);
+                remainder = b.srem(left, divisor);
+                adjust = b.and_(
+                    b.icmp_signed("!=", remainder, zero),
+                    b.xor(
+                        b.icmp_signed("<", remainder, zero),
+                        b.icmp_signed("<", right, zero)
+                    )
+                );
+                return b.select(adjust, b.add(remainder, right), remainder);
+            }
+            return checked_int(
+                b, {"+": "add", "-": "sub", "*": "mul"}[self.op], left, right, overflow
+            );
+        }
         if self.op == "+" {
             return b.fadd(left, right);
         }
@@ -49,14 +113,41 @@ obj ChainExpr {
     }
 }
 
+def checked_int(
+    b: ir.IRBuilder, operation: str, left: ir.Value, right: ir.Value, overflow: ir.Block
+) -> ir.Value {
+    name = f"llvm.s{operation}.with.overflow.i64";
+    module = b.module;
+    assert isinstance(module, ir.Module);
+    fn = module.globals.get(name);
+    if fn is None {
+        fn = ir.Function(
+            module,
+            ir.FunctionType(
+                ir.LiteralStructType([ir.IntType(64), ir.IntType(1)]),
+                [ir.IntType(64)] * 2
+            ),
+            name
+        );
+    }
+    assert isinstance(fn, ir.Function);
+    pair = b.call(fn, [left, right]);
+    result = b.extract_value(pair, 0);
+    ok = b.function.append_basic_block("int.ok");
+    b.cbranch(b.extract_value(pair, 1), overflow, ok);
+    b.position_at_end(ok);
+    return result;
+}
+
 obj ChainWalker {
     has name: str,
         node_type: str,
         edge_type: str,
         node_field: str,
         state_field: str,
-        default_total: float,
-        update: ChainExpr;
+        default_total: float | int,
+        update: ChainExpr,
+        dtype: GpuScalarType = GpuScalarType.FLOAT64;
 
     def metadata -> dict[str, any] {
         return {
@@ -68,10 +159,11 @@ obj ChainWalker {
             "node_field": self.node_field,
             "state_field": self.state_field,
             "default_initial_state": self.default_total,
+            "scalar_dtype": self.dtype.value,
             "parameters": [
                 {
                     "name": "values",
-                    "dtype": "float64",
+                    "dtype": self.dtype.value,
                     "length": "node_count",
                     "access": "read"
                 },
@@ -89,13 +181,13 @@ obj ChainWalker {
                 },
                 {
                     "name": "initial_total",
-                    "dtype": "float64",
+                    "dtype": self.dtype.value,
                     "length": "walker_count",
                     "access": "read"
                 },
                 {
                     "name": "results",
-                    "dtype": "float64",
+                    "dtype": self.dtype.value,
                     "length": "walker_count",
                     "access": "write"
                 },
@@ -109,7 +201,13 @@ obj ChainWalker {
                 {"name": "walker_count", "dtype": "uint64"}
             ],
             "null_node": -1,
-            "status_codes": {"0": "success", "1": "invalid_node_index", "2": "cycle"},
+            "status_codes": {
+                "0": "success",
+                "1": "invalid_node_index",
+                "2": "cycle",
+                "3": "integer_overflow",
+                "4": "integer_modulo_by_zero"
+            },
             "results_on_error": "unchanged; ignore results when status is nonzero",
             "graph_contract": "finite chains of the declared node/edge types; at most one outgoing edge per node",
             "concurrency": "independent walkers; shared read-only graph; disjoint output buffers",
@@ -141,17 +239,19 @@ def plain_archetype(arch: uni.Archetype) {
     }
 }
 
-def one_float_field(arch: uni.Archetype) -> uni.HasVar {
+def one_scalar_field(arch: uni.Archetype) -> uni.HasVar {
     fields = arch.get_has_vars();
     if len(fields) != 1 {
-        reject(arch, "GPU chains require exactly one float field per node/walker");
+        reject(arch, "GPU chains require exactly one numeric field per node/walker");
     }
     field = fields[0];
     typ = field.type;
-    if field.type_tag is None
-        or not isinstance(typ, ClassType)
-        or not typ.is_builtin("float") {
-        reject(field, "GPU chain fields must have checked float64 types");
+    if field.type_tag is None or not isinstance(typ, ClassType) {
+        reject(field, "GPU chain fields must have checked float64 or int64 types");
+    }
+    assert isinstance(typ, ClassType);
+    if not (typ.is_builtin("float") or typ.is_builtin("int")) {
+        reject(field, "GPU chain fields must have checked float64 or int64 types");
     }
     owner = field.parent;
     if not isinstance(owner, uni.ArchHas)
@@ -177,12 +277,38 @@ def field_ref(expr: uni.Expr, receiver: str, field: uni.HasVar) -> bool {
         and expr.right.sym is field.name.sym;
 }
 
-def chain_expr(expr: uni.Expr, state: uni.HasVar, nd: uni.HasVar) -> ChainExpr {
-    if isinstance(expr, uni.AtomUnit) and isinstance(expr.value, uni.Expr) {
-        return chain_expr(expr.value, state, nd);
+def numeric_literal(expr: uni.Expr, dtype: GpuScalarType) -> float | int | None {
+    value = expr;
+    sign = 1;
+    if isinstance(value, uni.UnaryExpr) and value.op.value in ("+", "-") {
+        sign = -1 if value.op.value == "-" else 1;
+        value = value.operand;
     }
-    if isinstance(expr, uni.Float) {
-        return ChainExpr("constant", value=expr.lit_value);
+    if dtype == GpuScalarType.INT64 and isinstance(value, uni.Int) {
+        result = sign * value.lit_value;
+        if not -(2 ** 63) <= result < 2 ** 63 {
+            reject(expr, "GPU integer literals must fit signed int64");
+        }
+        return result;
+    }
+    if dtype == GpuScalarType.FLOAT64 and isinstance(value, uni.Float) {
+        return sign * value.lit_value;
+    }
+    return None;
+}
+
+def chain_expr(
+    expr: uni.Expr, state: uni.HasVar, nd: uni.HasVar, dtype: GpuScalarType
+) -> ChainExpr {
+    if isinstance(expr, uni.CfgExpr) {
+        return chain_expr(expr.expr, state, nd, dtype);
+    }
+    if isinstance(expr, uni.AtomUnit) and isinstance(expr.value, uni.Expr) {
+        return chain_expr(expr.value, state, nd, dtype);
+    }
+    literal = numeric_literal(expr, dtype);
+    if literal is not None {
+        return ChainExpr("constant", value=literal);
     }
     if field_ref(expr, "self", state) {
         return ChainExpr("state");
@@ -191,37 +317,110 @@ def chain_expr(expr: uni.Expr, state: uni.HasVar, nd: uni.HasVar) -> ChainExpr {
         return ChainExpr("node");
     }
     if isinstance(expr, uni.UnaryExpr) and expr.op.value in ("+", "-") {
-        operand = chain_expr(expr.operand, state, nd);
+        operand = chain_expr(expr.operand, state, nd, dtype);
         return operand if expr.op.value == "+" else ChainExpr("neg", left=operand);
     }
     if isinstance(expr, uni.BinaryExpr)
         and isinstance(expr.op, uni.Token)
-        and expr.op.value in ("+", "-", "*") {
+        and (
+            expr.op.value in ("+", "-", "*")
+            or (expr.op.value == "%" and dtype == GpuScalarType.INT64)
+        ) {
         return ChainExpr(
             expr.op.value,
-            left=chain_expr(expr.left, state, nd),
-            right=chain_expr(expr.right, state, nd)
+            left=chain_expr(expr.left, state, nd, dtype),
+            right=chain_expr(expr.right, state, nd, dtype)
         );
     }
     reject(
         expr,
-        "GPU chain expressions support float literals, self/here fields, and +, -, * only"
+        "GPU chain expressions require matching numeric literals/fields and +, -, * (also % for int64)"
     );
     raise AssertionError("unreachable");
 }
 
-def literal_default(field: uni.HasVar) -> float {
-    value = field.value;
-    sign = 1.0;
-    if isinstance(value, uni.UnaryExpr) and value.op.value in ("+", "-") {
-        sign = -1.0 if value.op.value == "-" else 1.0;
-        value = value.operand;
+def literal_default(field: uni.HasVar, dtype: GpuScalarType) -> float | int {
+    value = numeric_literal(field.value, dtype)
+        if isinstance(field.value, uni.Expr)
+        else None;
+    if value is None or not math.isfinite(value) {
+        reject(
+            field, "GPU walker state requires a finite matching numeric literal default"
+        );
     }
-    if not isinstance(value, uni.Float) or not math.isfinite(value.lit_value) {
-        reject(field, "GPU walker state requires a finite float literal default");
+    assert value is not None;
+    return value;
+}
+
+def chain_condition(
+    expr: uni.Expr, state: uni.HasVar, nd: uni.HasVar, dtype: GpuScalarType
+) -> ChainExpr {
+    if isinstance(expr, uni.CfgExpr) {
+        return chain_condition(expr.expr, state, nd, dtype);
     }
-    assert isinstance(value, uni.Float);
-    return sign * value.lit_value;
+    if isinstance(expr, uni.AtomUnit) and isinstance(expr.value, uni.Expr) {
+        return chain_condition(expr.value, state, nd, dtype);
+    }
+    if isinstance(expr, uni.CompareExpr)
+        and len(expr.ops) == 1
+        and len(expr.rights) == 1
+        and expr.ops[0].value in ("==", "!=", "<", "<=", ">", ">=") {
+        return ChainExpr(
+            expr.ops[0].value,
+            left=chain_expr(expr.left, state, nd, dtype),
+            right=chain_expr(expr.rights[0], state, nd, dtype)
+        );
+    }
+    reject(expr, "GPU chain conditions require a single numeric comparison");
+    raise AssertionError("unreachable");
+}
+
+def chain_update(
+    stmt: uni.CodeBlockStmt, state: uni.HasVar, nd: uni.HasVar, dtype: GpuScalarType
+) -> ChainExpr {
+    if isinstance(stmt, uni.IfStmt) and not stmt.is_comptime {
+        if len(stmt.body) != 1 {
+            reject(stmt, "GPU chain branches require one state update or nested if");
+        }
+        otherwise = ChainExpr("state");
+        tail = stmt.else_body;
+        if isinstance(tail, uni.ElseIf) {
+            otherwise = chain_update(tail, state, nd, dtype);
+        } elif isinstance(tail, uni.ElseStmt) {
+            if len(tail.body) != 1 {
+                reject(
+                    tail, "GPU chain branches require one state update or nested if"
+                );
+            }
+            otherwise = chain_update(tail.body[0], state, nd, dtype);
+        }
+        return ChainExpr(
+            "if",
+            left=chain_condition(stmt.condition, state, nd, dtype),
+            right=chain_update(stmt.body[0], state, nd, dtype),
+            otherwise=otherwise
+        );
+    }
+    if not isinstance(stmt, uni.Assignment)
+        or len(stmt.target) != 1
+        or not field_ref(stmt.target[0], "self", state)
+        or not isinstance(stmt.value, uni.Expr) {
+        reject(
+            stmt,
+            "GPU chains only update the private walker field, optionally inside if/elif/else"
+        );
+    }
+    assert isinstance(stmt, uni.Assignment) and isinstance(stmt.value, uni.Expr);
+    expression = chain_expr(stmt.value, state, nd, dtype);
+    if stmt.aug_op is not None {
+        op = stmt.aug_op.value;
+        if op not in ("+=", "-=", "*=")
+            and not (op == "%=" and dtype == GpuScalarType.INT64) {
+            reject(stmt, "Unsupported GPU chain assignment");
+        }
+        expression = ChainExpr(op[0], left=ChainExpr("state"), right=expression);
+    }
+    return expression;
 }
 
 def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalker] {
@@ -243,7 +442,12 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         }
         assert arch is not None;
         plain_archetype(arch);
-        state = one_float_field(arch);
+        state = one_scalar_field(arch);
+        state_type = state.type;
+        assert isinstance(state_type, ClassType);
+        dtype = GpuScalarType.INT64
+            if state_type.is_builtin("int")
+            else GpuScalarType.FLOAT64;
         abilities = arch.get_methods();
         if len(abilities) != 1
             or any(not isinstance(s, (uni.ArchHas, uni.Ability)) for s in arch.body) {
@@ -276,7 +480,14 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         }
         assert nd is not None;
         plain_archetype(nd);
-        node_field = one_float_field(nd);
+        node_field = one_scalar_field(nd);
+        node_type = node_field.type;
+        assert isinstance(node_type, ClassType);
+        if node_type.is_builtin("int") != (dtype == GpuScalarType.INT64) {
+            reject(
+                node_field, "GPU node and walker fields must have the same numeric type"
+            );
+        }
         if any(not isinstance(s, uni.ArchHas) for s in nd.body) {
             reject(
                 nd,
@@ -286,31 +497,17 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         body = ability.body;
         if not isinstance(body, list)
             or len(body) != 2
-            or not isinstance(body[0], uni.Assignment)
             or not isinstance(body[1], uni.VisitStmt) {
             reject(
                 ability,
                 "GPU chain body must contain one state update followed by one tail visit"
             );
         }
-        update = body[0];
         visit_stmt = body[1];
-        assert isinstance(update, uni.Assignment)
-            and isinstance(visit_stmt, uni.VisitStmt);
-        if len(update.target) != 1
-            or not field_ref(update.target[0], "self", state)
-            or not isinstance(update.value, uni.Expr) {
-            reject(update, "GPU chains only write the private walker field");
-        }
-        assert isinstance(update.value, uni.Expr);
-        expression = chain_expr(update.value, state, node_field);
-        if update.aug_op is not None {
-            op = update.aug_op.value;
-            if op not in ("+=", "-=", "*=") {
-                reject(update, "Unsupported GPU chain assignment");
-            }
-            expression = ChainExpr(op[0], left=ChainExpr("state"), right=expression);
-        }
+        assert isinstance(visit_stmt, uni.VisitStmt);
+        update_stmt = body[0];
+        assert isinstance(update_stmt, uni.CodeBlockStmt);
+        expression = chain_update(update_stmt, state, node_field, dtype);
         query = visit_stmt.target;
         if visit_stmt.else_body is not None
             or visit_stmt.insert_loc is not None
@@ -354,8 +551,9 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
                 edge_arch.name.value,
                 node_field.name.value,
                 state.name.value,
-                literal_default(state),
-                expression
+                literal_default(state, dtype),
+                expression,
+                dtype
             )
         );
     }
@@ -378,8 +576,11 @@ def build_chain_module(
 
 def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     (i32, i64, f64) = (ir.IntType(32), ir.IntType(64), ir.DoubleType());
+    scalar = i64 if spec.dtype == GpuScalarType.INT64 else f64;
     space = 1 if device else 0;
-    signature = [t.as_pointer(addrspace=space) for t in (f64, i64, i64, f64, f64, i32)]
+    signature = [
+        t.as_pointer(addrspace=space) for t in (scalar, i64, i64, scalar, scalar, i32)
+    ]
         + [i64, i64];
     if not device {
         signature.append(i64);
@@ -419,6 +620,8 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     finish = fn.append_basic_block("finish");
     bad_index = fn.append_basic_block("invalid.node");
     cycle = fn.append_basic_block("cycle");
+    overflow = fn.append_basic_block("integer.overflow");
+    zero_divisor = fn.append_basic_block("integer.modulo.zero");
     done = fn.append_basic_block("done");
     b = ir.IRBuilder(entry_bb);
     index = thread_index(module, b) if device else fn.args[-1];
@@ -429,7 +632,7 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     b.branch(check);
     b.position_at_end(check);
     current = b.phi(i64, name="current");
-    total = b.phi(f64, name=spec.state_field);
+    total = b.phi(scalar, name=spec.state_field);
     steps = b.phi(i64, name="steps");
     current.add_incoming(head, start);
     total.add_incoming(seed, start);
@@ -445,18 +648,24 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     b.cbranch(b.icmp_unsigned("<", steps, node_count), body, cycle);
     b.position_at_end(body);
     node_value = b.load(b.gep(values, [current]), name=spec.node_field);
-    updated = spec.update.lower(b, total, node_value);
+    updated = spec.update.lower(b, total, node_value, overflow, zero_divisor);
     successor = b.load(b.gep(links, [current]), name="successor");
     next_step = b.add(steps, ir.Constant(i64, 1));
+    body_end = b.block;
     b.branch(check);
-    current.add_incoming(successor, body);
-    total.add_incoming(updated, body);
-    steps.add_incoming(next_step, body);
+    current.add_incoming(successor, body_end);
+    total.add_incoming(updated, body_end);
+    steps.add_incoming(next_step, body_end);
     b.position_at_end(finish);
     b.store(total, b.gep(output, [index]));
     b.store(ir.Constant(i32, 0), b.gep(status, [index]));
     b.branch(done);
-    for (block, code) in ((bad_index, 1), (cycle, 2)) {
+    for (block, code) in (
+        (bad_index, 1),
+        (cycle, 2),
+        (overflow, 3),
+        (zero_divisor, 4)
+    ) {
         b.position_at_end(block);
         b.store(ir.Constant(i32, code), b.gep(status, [index]));
         b.branch(done);

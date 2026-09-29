@@ -1614,21 +1614,36 @@ jac build jac/examples/gpu/chain.jac --as ptx --gpu-entry ChainSum -o dist/gpu
 ```
 
 The chain backend lowers the checked Jac AST before CPU object/runtime lowering.
-It supports one local node type with one float field, one empty directed edge
-type, and one private float walker field with a finite literal default. The sole
-entry ability must update the walker field (`=`, `+=`, `-=`, or `*=`), then perform
-one tail-position typed outgoing `visit`. Expressions may read those fields and
-use float literals, unary signs, `+`, `-`, and `*`. Node abilities, helpers,
-inheritance, shared writes, reports, filtered/multi-hop visits, branches, and other
-walker behavior are rejected. Scalar and walker exports use separate builds.
+It supports one local node type with one numeric field, one empty directed edge
+type, and one private numeric walker field with a matching finite literal default.
+The fields must both be `float` (float64) or both `int` (signed int64).
+The sole entry ability updates the walker field (`=`, `+=`, `-=`, or `*=`), then
+performs one tail-position typed outgoing `visit`. The update may be guarded by
+`if`/`elif`/`else`, with one update or nested `if` per branch; conditions accept
+one numeric comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`). A missing `else` keeps
+the previous state. Expressions read those fields and use matching numeric
+literals, unary signs, `+`, `-`, and `*`. Integer walkers also support `%` and `%=`
+with Jac's signed modulo semantics. All integer inputs and executed intermediate
+results must fit int64; arithmetic never silently wraps. Untaken branches do not
+execute their arithmetic. Node abilities, helpers, inheritance, shared writes,
+reports, branching graphs, filtered/multi-hop visits, boolean combinations,
+mixed numeric field types, and other walker behavior are rejected.
+Scalar function exports still use the float64/bool subset described above.
+Scalar and walker exports use separate builds.
+
+`jac/examples/gpu/even_chain.jac` contains `EvenSum`, whose guarded update
+`if here.value % 2 == 0 { self.total += here.value; }` sums the even node values
+while visiting the complete chain. Run `jac run jac/examples/gpu/even_chain_run.jac`
+to execute 1,000 such walkers on CUDA and compare against serial Jac.
 
 Each kernel thread processes one walker from an explicit batch. Graph inputs are
 shared read-only SoA arrays; state and results are private per walker. The
 `jac-ptx-chain-v1` manifest describes these ordered parameters:
-`values: float64[N]`, `next: int64[N]`, `heads: int64[M]`,
-`initial_total: float64[M]`, `results: float64[M]`, `status: uint32[M]`,
+`values: scalar[N]`, `next: int64[N]`, `heads: int64[M]`,
+`initial_total: scalar[M]`, `results: scalar[M]`, `status: uint32[M]`,
 `node_count: uint64`, `walker_count: uint64`. Initialize `initial_total` explicitly;
-the manifest records the Jac default for callers constructing fresh walkers.
+the manifest records the Jac default and `scalar_dtype` (`float64` or `int64`)
+for callers constructing fresh walkers. Each parameter also has its dtype.
 Use separate result/status allocations and a one-dimensional launch covering M
 walkers. A -1 head denotes an empty traversal; a -1 successor ends a chain.
 
@@ -1636,7 +1651,10 @@ Inputs must represent the declared node/edge types with at most one outgoing
 edge per node. Graph packing and validation of object types/edge multiplicity
 are the caller's responsibility; this command only emits device code. The kernel
 checks reachable indices and limits each traversal to N nodes: status 0 means
-success, 1 means an invalid index, and 2 means a cycle. On errors the result slot
+success, 1 means an invalid index, 2 means a cycle, 3 means integer arithmetic
+overflow, and 4 means integer modulo by zero. The object runtime raises
+`OverflowError` or `ZeroDivisionError` for the latter two without updating any
+walkers in the batch. On errors the result slot
 is unchanged and must be ignored. Lanes outside M access no arrays. Arrays must
 cover their declared lengths; counts and indices must fit the documented types.
 Arbitrary node permutations are supported when `next` and `heads` are remapped.

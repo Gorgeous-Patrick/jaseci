@@ -14,9 +14,11 @@ from unittest.mock import patch
 class DriverDouble(SimpleNamespace):
     """C-callable launch/copy/allocate hooks exercise actual ctypes marshalling."""
 
-    def __init__(self, lane):
+    def __init__(self, lane, scalar=c.c_double, kernel_name='jac_ChainSum_batch'):
         super().__init__()
         self.lane = lane
+        self.scalar = scalar
+        self.kernel_name = kernel_name
         self.allocations = {}
         self.allocated_sizes = []
         self.stack = [0x1234]
@@ -111,7 +113,7 @@ class DriverDouble(SimpleNamespace):
         return self.store(out, c.c_void_p, self.stack.pop())
 
     def load(self, out, image, count, options, values):
-        assert b'.entry jac_ChainSum_batch(' in c.string_at(image)
+        assert f'.entry {self.kernel_name}('.encode() in c.string_at(image)
         assert list(options) == [5, 6, 8] and values[1] == 8192
         self.modules.add(0x3456)
         return self.store(out, c.c_void_p, 0x3456)
@@ -145,7 +147,7 @@ class DriverDouble(SimpleNamespace):
         assert (gy, gz, by, bz, shared, stream, bool(extra)) == (1, 1, 1, 1, 0, None, False)
         assert all(address % 256 == 0 for address in args[:6] if address)
         ptrs = [c.cast(address, c.POINTER(typ)) for address, typ in zip(args, (
-            c.c_double, c.c_int64, c.c_int64, c.c_double, c.c_double, c.c_uint32,
+            self.scalar, c.c_int64, c.c_int64, self.scalar, self.scalar, c.c_uint32,
         ))]
         n, m = args[6:]
         for index in reversed(range(gx * bx)):
