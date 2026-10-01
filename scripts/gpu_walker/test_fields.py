@@ -24,9 +24,10 @@ class FieldKernel:
         self.engine.finalize_object()
         self.artifact = emit([spec])
         self.fields = len(spec.field_paths())
+        self.states = len(spec.state_paths())
         self.scalar = c.c_int64 if spec.dtype.value == 'int64' else c.c_double
         self.types = [self.scalar] * self.fields + [c.c_int64] * (3 if self.csr else 2)
-        self.types += [self.scalar, self.scalar, c.c_uint32]
+        self.types += [self.scalar] * (2 * self.states) + [c.c_uint32]
         if self.csr:
             self.types.append(c.c_int64)
         self.counts = 5 if self.csr else 2
@@ -36,14 +37,20 @@ class FieldKernel:
             self.engine.get_function_address(symbol))
 
     def run(self, buffers):
+        outputs, status = self.run_states(buffers)
+        assert self.states == 1
+        return outputs[0], status
+
+    def run_states(self, buffers):
         n, m = len(buffers.values), len(buffers.heads)
-        inputs = buffers.arrays()[:-2]
+        inputs = buffers.arrays()[:-self.states - 1]
         before = [bytes(v) for v in inputs]
         ptrs = [c.cast(v.buffer_info()[0], c.POINTER(t)) for v, t in zip(inputs, self.types)]
-        output = (self.scalar * (m + 2))(*([-987654] * (m + 2)))
+        outputs = [(self.scalar * (m + 2))(*([-987654] * (m + 2)))
+                   for _ in range(self.states)]
         status = (c.c_uint32 * (m + 2))(*([173] * (m + 2)))
-        ptrs += [c.cast(c.byref(output, 8), c.POINTER(self.scalar)),
-                 c.cast(c.byref(status, 4), c.POINTER(c.c_uint32))]
+        ptrs += [c.cast(c.byref(output, 8), c.POINTER(self.scalar)) for output in outputs]
+        ptrs.append(c.cast(c.byref(status, 4), c.POINTER(c.c_uint32)))
         if self.csr:
             scratch = (c.c_int64 * (m * buffers.queue_capacity + 2))()
             scratch[0] = scratch[-1] = -713
@@ -55,12 +62,12 @@ class FieldKernel:
             self.lane(*ptrs, *counts, lane)
         for lane in (m, 2**32, 2**64 - 1):
             self.lane(*([None] * len(self.types)), *counts, lane)
-        assert output[0] == output[-1] == -987654
+        assert all(output[0] == output[-1] == -987654 for output in outputs)
         assert status[0] == status[-1] == 173
         assert before == [bytes(v) for v in inputs]
         if self.csr:
             assert scratch[0] == scratch[-1] == -713
-        return list(output)[1:-1], list(status)[1:-1]
+        return [list(output)[1:-1] for output in outputs], list(status)[1:-1]
 
 
 class FieldDriver(DriverDouble):

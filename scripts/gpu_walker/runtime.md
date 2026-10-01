@@ -2,7 +2,7 @@
 
 The experimental API takes actual walker objects and their starting nodes. It
 compiles the selected walker class once, packs the reachable graph, launches a
-batch, and writes successful final scalar states back to the same walker objects.
+batch, and writes successful final numeric states back to the same walker objects.
 
 ```jac
 import from jaclang.runtime.gpu { GpuWalkerRuntime }
@@ -52,15 +52,16 @@ environment. The driver JIT-loads the emitted PTX using
 
 ## Chain memory allocation
 
-Let N be the number of distinct reachable nodes, M the number of walkers, and F
-the number of numeric node leaf fields (including flattened nested fields).
+Let N be the number of distinct reachable nodes, M the number of walkers, F
+the number of numeric node leaf fields, and S the number of walker leaf fields
+(including flattened nested fields).
 Only scalar data and dense integer indices are copied to the GPU, never host
 object pointers. Shared nodes and shared suffixes occupy one physical slot.
 
 | Allocation | Arrays | Active payload |
 | --- | --- | --- |
 | Graph arena | F columns of `scalar[N]`, `next: int64[N]` | 8 (F + 1) N bytes |
-| Walker arena | `heads: int64[M]`, `initial: scalar[M]`, `results: scalar[M]`, `status: uint32[M]` | 28 M bytes |
+| Walker arena | `heads: int64[M]`, S initial and S result columns of `scalar[M]`, `status: uint32[M]` | (12 + 16 S) M bytes |
 
 `scalar` is float64 or signed int64, as specified by the compiled schema. Both
 use eight bytes, so integer walkers use the same arena sizing and alignment.
@@ -73,15 +74,15 @@ context, JIT module and any per-thread spill storage.
 
 ```text
 Graph arena:   field_0[G] | padding | field_1[G] | ... | next[G] | padding
-Walker arena:  heads[W]  | padding | initial[W] | padding
-               results[W] | padding | status[W] | padding
+Walker arena:  heads[W] | padding | initial_0[W] | ... | initial_S-1[W]
+               results_0[W] | ... | results_S-1[W] | padding | status[W]
 ```
 
 G and W are retained capacities, while the kernel receives the actual N and M.
 The original single-field 1,000-walker example has 76,000 payload bytes and initially reserves
 94,208 arena bytes (65,536 graph bytes plus 28,672 walker bytes), with capacity
 for 4,096 nodes and 1,024 walkers. There is no allocation per node, edge, walker
-or hop on the device. A thread holds its current node index and scalar state
+or hop on the device. A thread holds its current node index and all state fields
 privately.
 
 Arena growth allocates a replacement before releasing the old allocation. Peak
@@ -136,8 +137,8 @@ position.y: [y0 y1 y2 ...]
 Nested objects have no GPU allocation or device pointer chain. Fixed local
 `obj` structures may nest further; recursive types, containers, optional fields,
 inheritance, accessors and object behavior are rejected. All numeric leaves
-must currently match the walker state's int64 or float64 type. Each walker
-still has one private scalar state and the existing restricted ability body.
+must currently match the walker state's int64 or float64 type. Walker fields
+use the same projection, with the private update rules described below.
 
 Nested attribute objects belong to a single node. Packing checks exact object
 types and rejects an object identity owned by two distinct nodes in the packed
@@ -169,6 +170,52 @@ jac build jac/examples/gpu/multi_field.jac --as ptx --gpu-entry WeightedSum --gp
 jac run jac/examples/gpu/multi_field_run.jac
 ```
 
+## Multiple walker fields (2026-10-01)
+
+Walker state also uses SoA. For `total`, `count`, and `metrics: Metrics` with
+`weighted` and `last` numeric leaves, the runtime packs four initial columns:
+
+```text
+total:            [walker0.total            walker1.total            ...]
+count:            [walker0.count            walker1.count            ...]
+metrics.weighted: [walker0.metrics.weighted walker1.metrics.weighted ...]
+metrics.last:     [walker0.metrics.last     walker1.metrics.last     ...]
+```
+
+There are four matching result columns. Adjacent lanes load adjacent initial
+values; during traversal each thread maintains its own current values, then
+stores all results on success. Sequential updates and multiple assignments
+within branches preserve Jac statement order, so a later expression sees
+earlier updates to other fields. An untaken branch leaves its fields unchanged.
+More fields can increase register use; this change makes no performance claim.
+
+`gpu.schema.state_paths()` lists state columns in declaration order.
+`batch.buffers.initial_columns()` and `result_columns()` expose their host
+arrays. After execution, `result.fields` maps every leaf path to its output
+column. `result.values` remains the first state column for compatibility.
+`result.memory.state_field_count` accounts for all flattened walker leaves.
+
+All node and walker leaves currently have the same numeric type, int64 or
+float64. Fixed nested objects are supported to multiple levels. A mutable
+walker attribute object must belong to exactly one state path in one walker:
+sharing between walkers, aliasing between paths in one walker, and sharing with
+graph nodes are rejected before launch. Packing retains nested object identities;
+copyback verifies those identities and every initial numeric value before
+writing any field. Driver errors, a failing lane, or changed host state prevent
+the whole batch from publishing. Nested objects retain their host identity;
+only numeric leaves are updated. Keep all inputs stable during a call.
+
+```bash
+jac run jac/examples/gpu/walker_fields_run.jac
+```
+
+The example uses a shared branching CSR graph and checks all four state fields
+for 1,000 walkers against serial Jac. Its v3 manifest contains a separate initial
+and result pointer for every leaf. Single-state v1/v2 kernels retain their ABI.
+Top-level numeric defaults must be finite matching literals; nested defaults
+are not inferred from constructors. The runtime always uses actual instance
+values, including constructor overrides.
+
 ## Semantics and current limits
 
 The accepted walker source is the restricted chain subset described in
@@ -180,7 +227,7 @@ also rejects branching selected edges and cycles. The experimental CSR option
 below accepts branching adjacency and bounds traversal on cyclic graphs.
 
 This API executes the selected numerical traversal. It updates the declared
-walker state field, and does not generate ordinary spawn path records or reports.
+walker state fields, and does not generate ordinary spawn path records or reports.
 Walkers with an active traversal, pending visits, ignores, disengagement, prior
 path records or reports are rejected. Repeated GPU batches can reuse completed
 walker instances and their updated scalar fields.
@@ -257,13 +304,13 @@ The CUDA session reuses four independently growing, aligned arenas:
 | --- | --- | --- |
 | Nodes | F columns of `scalar[N]`, `offsets[N + 1]: int64` | `8(F + 1)N + 8` |
 | Edges | `targets[E]: int64` | `8E` |
-| Walkers | heads, initial, results, status as above | `28M` |
+| Walkers | heads, S initial columns, S result columns, status | `(12 + 16S)M` |
 | Queues | `queue[Q * M]: int64`, Q = queue_capacity | `8QM` |
 
 The queue uses `queue[slot * M + lane]` so adjacent lanes' equal queue positions
 are adjacent in memory. It is device scratch: no host queue is uploaded or
-downloaded. Queue counters and the current scalar state are thread-private.
-Payload is `8(F + 1)N + 8 + 8E + 28M + 8QM` bytes before alignment and capacity rounding.
+downloaded. Queue counters and current state fields are thread-private.
+Payload is `8(F + 1)N + 8 + 8E + (12 + 16S)M + 8QM` bytes before alignment and capacity rounding.
 There is no allocation or host-driven kernel launch per hop. Queue storage can
 dominate small graphs, so measure its cost and tune Q for the workload.
 
@@ -281,7 +328,7 @@ trying a different representation in a separate comparison. No performance
 benefit or optimality is assumed in advance.
 
 CSR currently uses the same restricted numeric ability body as the chain
-backend: matching numeric node leaves, one private walker field, one synchronous
+backend: matching numeric node and private walker leaves, one synchronous
 entry ability, and one outgoing typed tail visit. Node writes, filtered queries,
 arbitrary visit control, reports, and heterogeneous graphs remain unsupported.
 

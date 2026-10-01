@@ -18,7 +18,8 @@ obj GpuMemoryPlan {
         queue_capacity: int = 0,
         edge_layout: ArenaLayout = ArenaLayout(0, [], 0),
         queue_layout: ArenaLayout = ArenaLayout(0, [], 0),
-        node_field_count: int = 1;
+        node_field_count: int = 1,
+        state_field_count: int = 1;
 
     def allocated_bytes -> int {
         return self.graph_layout.nbytes
@@ -29,7 +30,7 @@ obj GpuMemoryPlan {
 
     def payload_bytes -> int {
         return 8 * (self.node_field_count + 1) * self.node_count
-            + 28 * self.walker_count
+            + (12 + 16 * self.state_field_count) * self.walker_count
             + (
                 8 + 8 * self.edge_count + 8 * self.walker_count * self.queue_capacity
                     if self.graph_format == 'csr'
@@ -63,17 +64,22 @@ def memory_plan(
     walkers: int,
     graph_capacity: int = 0,
     walker_capacity: int = 0,
-    node_field_count: int = 1
+    node_field_count: int = 1,
+    state_field_count: int = 1
 ) -> GpuMemoryPlan {
     if type(node_field_count) is not int or node_field_count < 1 {
         raise ValueError("GPU node field count must be a positive integer");
+    }
+    if type(state_field_count) is not int or state_field_count < 1 {
+        raise ValueError("GPU state field count must be a positive integer");
     }
     return GpuMemoryPlan(
         nodes,
         walkers,
         arena_layout(nodes, [8] * (node_field_count + 1), graph_capacity),
-        arena_layout(walkers, [8, 8, 8, 4], walker_capacity),
-        node_field_count=node_field_count
+        arena_layout(walkers, [8] * (1 + 2 * state_field_count) + [4], walker_capacity),
+        node_field_count=node_field_count,
+        state_field_count=state_field_count
     );
 }
 
@@ -84,10 +90,20 @@ obj ChainBuffers {
         initial: array,
         results: array,
         status: array,
-        extra_values: list[array] = [];
+        extra_values: list[array] = [],
+        extra_initial: list[array] = [],
+        extra_results: list[array] = [];
 
     def columns -> list[array] {
         return [self.values, *self.extra_values];
+    }
+
+    def initial_columns -> list[array] {
+        return [self.initial, *self.extra_initial];
+    }
+
+    def result_columns -> list[array] {
+        return [self.results, *self.extra_results];
     }
 
     def arrays -> list[array] {
@@ -95,8 +111,8 @@ obj ChainBuffers {
             *self.columns(),
             self.links,
             self.heads,
-            self.initial,
-            self.results,
+            *self.initial_columns(),
+            *self.result_columns(),
             self.status
         ];
     }
@@ -108,11 +124,15 @@ def chain_buffers(
     heads: list[int],
     initial: Sequence[float | int],
     dtype: GpuScalarType = GpuScalarType.FLOAT64,
-    extra_values: Sequence[Sequence[float | int]] = ()
+    extra_values: Sequence[Sequence[float | int]] = (),
+    extra_initial: Sequence[Sequence[float | int]] = ()
 ) -> ChainBuffers {
     n = len(values);
     m = len(heads);
-    if len(links) != n or len(initial) != m or any(len(v) != n for v in extra_values) {
+    if len(links) != n
+        or len(initial) != m
+        or any(len(v) != n for v in extra_values)
+        or any(len(v) != m for v in extra_initial) {
         raise ValueError("GPU graph and walker array lengths do not match");
     }
     code = 'q' if dtype == GpuScalarType.INT64 else 'd';
@@ -123,9 +143,12 @@ def chain_buffers(
         array(code, initial),
         array(code, [0]) * m,
         array('I', [4294967295]) * m,
-        [array(code, v) for v in extra_values]
+        [array(code, v) for v in extra_values],
+        [array(code, v) for v in extra_initial],
+        [array(code, [0]) * m for v in extra_initial]
     );
-    if [a.itemsize for a in result.arrays()] != [8] * (5 + len(extra_values)) + [4] {
+    if [a.itemsize for a in result.arrays()]
+        != [8] * (5 + len(extra_values) + 2 * len(extra_initial)) + [4] {
         raise RuntimeError("Host array sizes do not match the GPU ABI");
     }
     return result;
@@ -153,7 +176,8 @@ def csr_memory_plan(
     edge_capacity: int = 0,
     walker_capacity: int = 0,
     queue_slots: int = 0,
-    node_field_count: int = 1
+    node_field_count: int = 1,
+    state_field_count: int = 1
 ) -> GpuMemoryPlan {
     check_csr_limits(queue_capacity, 1);
     if walkers < 0 or walkers * queue_capacity > (2 ** 63 - 1) // 8 {
@@ -161,6 +185,9 @@ def csr_memory_plan(
     }
     if type(node_field_count) is not int or node_field_count < 1 {
         raise ValueError("GPU node field count must be a positive integer");
+    }
+    if type(state_field_count) is not int or state_field_count < 1 {
+        raise ValueError("GPU state field count must be a positive integer");
     }
     graph_layout = arena_layout(nodes, [8] * (node_field_count + 1), graph_capacity);
 
@@ -174,13 +201,14 @@ def csr_memory_plan(
         nodes,
         walkers,
         graph_layout,
-        arena_layout(walkers, [8, 8, 8, 4], walker_capacity),
+        arena_layout(walkers, [8] * (1 + 2 * state_field_count) + [4], walker_capacity),
         'csr',
         edges,
         queue_capacity,
         arena_layout(edges, [8], edge_capacity),
         arena_layout(walkers * queue_capacity, [8], queue_slots),
-        node_field_count
+        node_field_count,
+        state_field_count
     );
 }
 
@@ -194,10 +222,20 @@ obj CsrBuffers {
         status: array,
         queue_capacity: int,
         max_visits: int,
-        extra_values: list[array] = [];
+        extra_values: list[array] = [],
+        extra_initial: list[array] = [],
+        extra_results: list[array] = [];
 
     def columns -> list[array] {
         return [self.values, *self.extra_values];
+    }
+
+    def initial_columns -> list[array] {
+        return [self.initial, *self.extra_initial];
+    }
+
+    def result_columns -> list[array] {
+        return [self.results, *self.extra_results];
     }
 
     def arrays -> list[array] {
@@ -206,8 +244,8 @@ obj CsrBuffers {
             self.offsets,
             self.targets,
             self.heads,
-            self.initial,
-            self.results,
+            *self.initial_columns(),
+            *self.result_columns(),
             self.status
         ];
     }
@@ -222,12 +260,14 @@ def csr_buffers(
     dtype: GpuScalarType = GpuScalarType.FLOAT64,
     queue_capacity: int = 1024,
     max_visits: int = 1000000,
-    extra_values: Sequence[Sequence[float | int]] = ()
+    extra_values: Sequence[Sequence[float | int]] = (),
+    extra_initial: Sequence[Sequence[float | int]] = ()
 ) -> CsrBuffers {
     check_csr_limits(queue_capacity, max_visits);
     if len(offsets) != len(values) + 1
         or len(initial) != len(heads)
-        or any(len(v) != len(values) for v in extra_values) {
+        or any(len(v) != len(values) for v in extra_values)
+        or any(len(v) != len(heads) for v in extra_initial) {
         raise ValueError("CSR graph and walker array lengths do not match");
     }
     code = 'q' if dtype == GpuScalarType.INT64 else 'd';
@@ -241,9 +281,12 @@ def csr_buffers(
         array('I', [4294967295]) * len(heads),
         queue_capacity,
         max_visits,
-        [array(code, v) for v in extra_values]
+        [array(code, v) for v in extra_values],
+        [array(code, v) for v in extra_initial],
+        [array(code, [0]) * len(heads) for v in extra_initial]
     );
-    if [a.itemsize for a in result.arrays()] != [8] * (6 + len(extra_values)) + [4] {
+    if [a.itemsize for a in result.arrays()]
+        != [8] * (6 + len(extra_values) + 2 * len(extra_initial)) + [4] {
         raise RuntimeError("Host array sizes do not match the CSR GPU ABI");
     }
     return result;

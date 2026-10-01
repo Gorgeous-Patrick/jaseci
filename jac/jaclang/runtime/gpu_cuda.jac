@@ -152,7 +152,8 @@ obj CudaSession {
         max_grid: int = 0,
         owner_thread: int = 0,
         closed: bool = False,
-        node_field_count: int = 1;
+        node_field_count: int = 1,
+        state_field_count: int = 1;
 
     def postinit {
         self.owner_thread = get_ident();
@@ -161,6 +162,9 @@ obj CudaSession {
         }
         if type(self.node_field_count) is not int or self.node_field_count < 1 {
             raise ValueError("GPU node field count must be a positive integer");
+        }
+        if type(self.state_field_count) is not int or self.state_field_count < 1 {
+            raise ValueError("GPU state field count must be a positive integer");
         }
         if self.device < 0 or not 1 <= self.block_size <= 1024 {
             raise ValueError("Invalid CUDA device or block size");
@@ -272,7 +276,8 @@ obj CudaSession {
                 self.edge_arena.capacity,
                 self.walker_arena.capacity,
                 self.queue_arena.capacity,
-                node_field_count=self.node_field_count
+                node_field_count=self.node_field_count,
+                state_field_count=self.state_field_count
             );
             plan.graph_layout.nbytes = max(
                 plan.graph_layout.nbytes, self.graph_arena.nbytes
@@ -284,7 +289,8 @@ obj CudaSession {
             len(buffers.heads),
             self.graph_arena.capacity,
             self.walker_arena.capacity,
-            node_field_count=self.node_field_count
+            node_field_count=self.node_field_count,
+            state_field_count=self.state_field_count
         );
     }
 
@@ -297,6 +303,25 @@ obj CudaSession {
         columns = buffers.columns();
         if len(columns) != self.node_field_count {
             raise ValueError("GPU node field count does not match the compiled kernel");
+        }
+        initials = buffers.initial_columns();
+        results = buffers.result_columns();
+        if len(initials) != self.state_field_count
+            or len(results) != self.state_field_count {
+            raise ValueError(
+                "GPU state field count does not match the compiled kernel"
+            );
+        }
+        if len(buffers.status) != m
+            or any(
+                len(column) != m
+                    or column.itemsize != 8
+                    or column.typecode != buffers.values.typecode
+                for column in [*initials, *results]
+            ) {
+            raise ValueError(
+                "GPU state columns must have matching lengths and scalar types"
+            );
         }
         if any(
             len(column) != n
@@ -385,7 +410,11 @@ obj CudaSession {
                 None
             );
             d.call('cuCtxSynchronize');
-            self.transfer('cuMemcpyDtoH_v2', addresses[-2], buffers.results);
+            for (address, column) in zip(
+                addresses[-self.state_field_count - 1:-1], results
+            ) {
+                self.transfer('cuMemcpyDtoH_v2', address, column);
+            }
             self.transfer('cuMemcpyDtoH_v2', addresses[-1], buffers.status);
         } except CudaError {
             failed = True;

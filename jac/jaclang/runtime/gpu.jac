@@ -38,17 +38,24 @@ obj WalkerSchema {
         dtype: GpuScalarType = GpuScalarType.FLOAT64,
         graph_format: str = 'chain',
         node_fields: list[str] = [],
-        node_objects: dict[str, type] = {};
+        node_objects: dict[str, type] = {},
+        state_fields: list[str] = [],
+        state_objects: dict[str, type] = {};
 
     def field_paths -> list[str] {
         return self.node_fields or [self.node_field];
+    }
+
+    def state_paths -> list[str] {
+        return self.state_fields or [self.state_field];
     }
 }
 
 obj PackedWalkerBatch {
     has walkers: list[WalkerArchetype],
         nodes: list[NodeArchetype],
-        buffers: ChainBuffers | CsrBuffers;
+        buffers: ChainBuffers | CsrBuffers,
+        state_objects: list[dict[str, object]] = [];
 
     def memory_plan -> GpuMemoryPlan {
         if isinstance(self.buffers, CsrBuffers) {
@@ -57,13 +64,15 @@ obj PackedWalkerBatch {
                 len(self.buffers.targets),
                 len(self.walkers),
                 self.buffers.queue_capacity,
-                node_field_count=len(self.buffers.columns())
+                node_field_count=len(self.buffers.columns()),
+                state_field_count=len(self.buffers.initial_columns())
             );
         }
         return make_memory_plan(
             len(self.nodes),
             len(self.walkers),
-            node_field_count=len(self.buffers.columns())
+            node_field_count=len(self.buffers.columns()),
+            state_field_count=len(self.buffers.initial_columns())
         );
     }
 }
@@ -74,7 +83,8 @@ obj WalkerBatchResult {
         memory: GpuMemoryPlan,
         gpu_executed: bool,
         gpu_name: str = '',
-        cuda_driver_version: int = 0;
+        cuda_driver_version: int = 0,
+        fields: dict[str, list[float | int]] = {};
 }
 
 def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchema {
@@ -143,7 +153,9 @@ def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchem
         spec.dtype,
         graph_format,
         spec.field_paths(),
-        {path: getattr(module, name) for (path, name) in spec.node_objects.items()}
+        {path: getattr(module, name) for (path, name) in spec.node_objects.items()},
+        spec.state_paths(),
+        {path: getattr(module, name) for (path, name) in spec.state_objects.items()}
     );
 }
 
@@ -176,6 +188,26 @@ def scalar_value(value: any, dtype: GpuScalarType) -> float | int {
         raise OverflowError("GPU int fields must fit signed int64");
     }
     return cast(int, value);
+}
+
+def field_parent(objects: dict[str, object], path: str) -> tuple[object, str] {
+    parts = path.rsplit(".", 1);
+    return (objects[parts[0]] if len(parts) == 2 else objects[""], parts[-1]);
+}
+
+def data_objects(instance: object, types: dict[str, type]) -> dict[str, object] {
+    objects = {"": instance};
+    for (path, expected_type) in types.items() {
+        (parent, name) = field_parent(objects, path);
+        value = getattr(parent, name);
+        if type(value) is not expected_type {
+            raise TypeError(
+                f"GPU object {path} must have exactly type {expected_type.__name__}"
+            );
+        }
+        objects[path] = value;
+    }
+    return objects;
 }
 
 def check_finite_chains(links: list[int]) {
@@ -216,7 +248,9 @@ def pack_walkers(
     if len({id(w) for w in walkers}) != len(walkers) {
         raise ValueError("The same walker instance cannot occupy multiple GPU lanes");
     }
-    initial: list[float | int] = [];
+    initial: list[list[float | int]] = [[] for path in schema.state_paths()];
+    state_objects: list[dict[str, object]] = [];
+    state_owners: set[int] = set();
     typed_walkers: list[WalkerArchetype] = [];
     for w in walkers {
         if not isinstance(w, WalkerArchetype) or type(w) is not schema.walker_type {
@@ -236,7 +270,21 @@ def pack_walkers(
                 "GPU walkers cannot have an active traversal, queued work, path, or reports"
             );
         }
-        initial.append(scalar_value(getattr(w, schema.state_field), schema.dtype));
+        objects = data_objects(w, schema.state_objects);
+        for path in schema.state_objects {
+            key = id(objects[path]);
+            if key in state_owners {
+                raise ValueError(
+                    f"GPU walker object {path} must belong to exactly one state path and walker"
+                );
+            }
+            state_owners.add(key);
+        }
+        for (path, column) in zip(schema.state_paths(), initial) {
+            (parent, name) = field_parent(objects, path);
+            column.append(scalar_value(getattr(parent, name), schema.dtype));
+        }
+        state_objects.append(objects);
         typed_walkers.append(w);
     }
     nodes: list[NodeArchetype] = [];
@@ -268,29 +316,24 @@ def pack_walkers(
     idx = 0;
     while idx < len(nodes) {
         nd = nodes[idx];
-        objects: dict[str, object] = {"": nd};
-        for (path, expected_type) in schema.node_objects.items() {
-            parts = path.rsplit(".", 1);
-            parent = objects[parts[0]] if len(parts) == 2 else nd;
-            value = getattr(parent, parts[-1]);
-            if type(value) is not expected_type {
-                raise TypeError(
-                    f"GPU node object {path} must have exactly type {expected_type.__name__}"
+        objects = data_objects(nd, schema.node_objects);
+        for path in schema.node_objects {
+            key = id(objects[path]);
+            if key in state_owners {
+                raise ValueError(
+                    f"GPU nested object {path} is shared by a node and walker"
                 );
             }
-            key = id(value);
             if key in object_owners and object_owners[key] != idx {
                 raise ValueError(
                     f"GPU nested object {path} is shared by different nodes"
                 );
             }
             object_owners[key] = idx;
-            objects[path] = value;
         }
         for (path, column) in zip(paths, columns) {
-            parts = path.rsplit(".", 1);
-            parent = objects[parts[0]] if len(parts) == 2 else nd;
-            column.append(scalar_value(getattr(parent, parts[-1]), schema.dtype));
+            (parent, name) = field_parent(objects, path);
+            column.append(scalar_value(getattr(parent, name), schema.dtype));
         }
         query = GraphQuery(
             [nd], hops=[QHop(dir=2, `edge=schema.edge_type)], edges_only=True
@@ -342,12 +385,14 @@ def pack_walkers(
                 offsets,
                 targets,
                 heads,
-                initial,
+                initial[0],
                 schema.dtype,
                 queue_capacity,
                 max_visits,
-                extra_values=columns[1:]
-            )
+                extra_values=columns[1:],
+                extra_initial=initial[1:]
+            ),
+            state_objects
         );
     }
     check_finite_chains(links);
@@ -355,8 +400,15 @@ def pack_walkers(
         typed_walkers,
         nodes,
         chain_buffers(
-            columns[0], links, heads, initial, schema.dtype, extra_values=columns[1:]
-        )
+            columns[0],
+            links,
+            heads,
+            initial[0],
+            schema.dtype,
+            extra_values=columns[1:],
+            extra_initial=initial[1:]
+        ),
+        state_objects
     );
 }
 
@@ -400,22 +452,55 @@ def publish_results(
             f"GPU walker batch failed; no walker fields updated. Lane/status: {failed[:8]}"
         );
     }
-    for (w, initial) in zip(batch.walkers, batch.buffers.initial) {
+    paths = schema.state_paths();
+    initials = batch.buffers.initial_columns();
+    outputs = batch.buffers.result_columns();
+    if len(initials) != len(paths)
+        or len(outputs) != len(paths)
+        or len(status) != len(batch.walkers)
+        or len(batch.state_objects) != len(batch.walkers)
+        or any(len(column) != len(batch.walkers) for column in [*initials, *outputs]) {
+        raise ValueError("GPU walker result columns do not match the packed batch");
+    }
+    writes: list[tuple[object, str, float | int]] = [];
+    code = '=q' if schema.dtype == GpuScalarType.INT64 else '=d';
+    for (lane, w) in enumerate(batch.walkers) {
         check_private(w.__jac__);
-        current = scalar_value(getattr(w, schema.state_field), schema.dtype);
-        code = '=q' if schema.dtype == GpuScalarType.INT64 else '=d';
-        if struct.pack(code, current) != struct.pack(code, initial) {
+        objects = data_objects(w, schema.state_objects);
+        if any(
+            objects[path] is not original
+            for (path, original) in batch.state_objects[lane].items()
+        ) {
             raise RuntimeError(
-                "Walker state changed during the GPU call; no results published"
+                "Walker nested object changed during the GPU call; no results published"
             );
         }
+        for (path, initial, output) in zip(paths, initials, outputs) {
+            (parent, name) = field_parent(objects, path);
+            current = scalar_value(getattr(parent, name), schema.dtype);
+            if struct.pack(code, current) != struct.pack(code, initial[lane]) {
+                raise RuntimeError(
+                    "Walker state changed during the GPU call; no results published"
+                );
+            }
+            writes.append((parent, name, output[lane]));
+        }
     }
-    values = cast(list[float | int], batch.buffers.results.tolist());
-    for (w, value) in zip(batch.walkers, values) {
-        setattr(w, schema.state_field, value);
+    fields = {
+        path: cast(list[float | int], column.tolist())
+        for (path, column) in zip(paths, outputs)
+    };
+    for (parent, name, value) in writes {
+        setattr(parent, name, value);
     }
     return WalkerBatchResult(
-        values, status, plan, bool(batch.walkers), gpu_name, driver_version
+        fields[paths[0]],
+        status,
+        plan,
+        bool(batch.walkers),
+        gpu_name,
+        driver_version,
+        fields
     );
 }
 
@@ -472,7 +557,13 @@ obj GpuWalkerRuntime {
             plan = batch.memory_plan()
                 if self.session is None
                 else self.session.plan_for(batch.buffers);
-            return WalkerBatchResult([], [], plan, False);
+            return WalkerBatchResult(
+                [],
+                [],
+                plan,
+                False,
+                fields={path: [] for path in self.schema.state_paths()}
+            );
         }
         if self.session is None {
             self.session = CudaSession(
@@ -481,7 +572,8 @@ obj GpuWalkerRuntime {
                 self.device,
                 self.block_size,
                 graph_format=self.schema.graph_format,
-                node_field_count=len(self.schema.field_paths())
+                node_field_count=len(self.schema.field_paths()),
+                state_field_count=len(self.schema.state_paths())
             );
         }
         plan = self.session.execute(batch.buffers);

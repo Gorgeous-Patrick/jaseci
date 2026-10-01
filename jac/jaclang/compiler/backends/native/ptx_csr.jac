@@ -6,7 +6,7 @@ import from jaclang.compiler.backends.native.ptx {
     ptx_target,
     thread_index
 }
-import from jaclang.compiler.backends.native.ptx_walker { ChainWalker }
+import from jaclang.compiler.backends.native.ptx_walker { ChainWalker, lower_updates }
 import from jaclang.runtime.gpu_memory { GpuScalarType }
 
 def csr_metadata(spec: ChainWalker) -> dict[str, any] {
@@ -19,9 +19,14 @@ def csr_metadata(spec: ChainWalker) -> dict[str, any] {
             for (name, dtype, length, access) in (
                 ('offsets', 'int64', 'node_count + 1', 'read'),
                 ('targets', 'int64', 'edge_count', 'read'),
-                ('heads', 'int64', 'walker_count', 'read'),
-                ('initial_total', spec.dtype.value, 'walker_count', 'read'),
-                ('results', spec.dtype.value, 'walker_count', 'write'),
+                ('heads', 'int64', 'walker_count', 'read')
+            )
+        ]
+        + spec.state_parameters()
+        + spec.state_parameters(True)
+        + [
+            {"name": name, "dtype": dtype, "length": length, "access": access}
+            for (name, dtype, length, access) in (
                 ('status', 'uint32', 'walker_count', 'write'),
                 ('queue', 'int64', 'queue_capacity * walker_count', 'scratch')
             )
@@ -70,9 +75,13 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
     scalar = i64 if spec.dtype == GpuScalarType.INT64 else ir.DoubleType();
     space = 1 if device else 0;
     field_count = len(spec.field_paths());
+    state_count = len(spec.state_paths());
     signature = [
         t.as_pointer(addrspace=space)
-        for t in [scalar] * field_count + [i64, i64, i64, scalar, scalar, i32, i64]
+        for t in [scalar] * field_count
+            + [i64] * 3
+            + [scalar] * (2 * state_count)
+            + [i32, i64]
     ]
         + [i64] * (5 if device else 6);
     suffix = 'batch' if device else 'lane';
@@ -85,41 +94,17 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
         fn.calling_convention = 'ptx_kernel';
     }
     for (arg, name) in zip(
-        fn.args,
-        [p['name'] for p in spec.field_parameters()]
-            + [
-                'offsets',
-                'targets',
-                'heads',
-                'initial_total',
-                'results',
-                'status',
-                'queue',
-                'node_count',
-                'edge_count',
-                'walker_count',
-                'queue_capacity',
-                'max_visits',
-                'index'
-            ]
+        fn.args, [p['name'] for p in csr_metadata(spec)['parameters']] + ['index']
     ) {
         arg.name = name;
     }
     values = fn.args[:field_count];
-    (
-        offsets,
-        targets,
-        heads,
-        initial,
-        output,
-        status,
-        queue,
-        node_count,
-        edge_count,
-        count,
-        capacity,
-        max_visits
-    ) = fn.args[field_count:field_count + 12];
+    (offsets, targets, heads) = fn.args[field_count:field_count + 3];
+    initial = fn.args[field_count + 3:field_count + 3 + state_count];
+    output = fn.args[field_count + 3 + state_count:field_count + 3 + 2 * state_count];
+    (status, queue, node_count, edge_count, count, capacity, max_visits) = fn.args[field_count
+        + 3
+        + 2 * state_count:field_count + 10 + 2 * state_count];
     entry_bb = fn.append_basic_block('entry');
     start = fn.append_basic_block('start');
     init = fn.append_basic_block('queue.init');
@@ -147,7 +132,7 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
     b.cbranch(b.icmp_unsigned('<', index, count), start, done);
     b.position_at_end(start);
     head = b.load(b.gep(heads, [index]));
-    seed = b.load(b.gep(initial, [index]));
+    seeds = [b.load(b.gep(column, [index])) for column in initial];
     b.cbranch(b.icmp_signed('==', head, ir.Constant(i64, -1)), finish, init);
     b.position_at_end(init);
     b.cbranch(b.icmp_unsigned('>', capacity, zero), ready, queue_full);
@@ -160,15 +145,17 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
     write_pos = b.phi(i64, name='write.pos');
     pending = b.phi(i64, name='pending');
     steps = b.phi(i64, name='steps');
-    total = b.phi(scalar, name=spec.state_field);
+    state = [b.phi(scalar, name=path) for path in spec.state_paths()];
     for (phi, value) in (
         (read_pos, zero),
         (write_pos, first_tail),
         (pending, one),
-        (steps, zero),
-        (total, seed)
+        (steps, zero)
     ) {
         phi.add_incoming(value, ready);
+    }
+    for (phi, seed) in zip(state, seeds) {
+        phi.add_incoming(seed, ready);
     }
     b.cbranch(b.icmp_unsigned('==', pending, zero), finish, pop);
     b.position_at_end(pop);
@@ -187,7 +174,7 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
         b.load(b.gep(column, [current]), name=path)
         for (column, path) in zip(values, spec.field_paths())
     ];
-    updated = spec.update.lower(b, total, node_value, overflow, zero_divisor);
+    updated = lower_updates(spec.updates, b, state, node_value, overflow, zero_divisor);
     begin = b.load(b.gep(offsets, [current]));
     end = b.load(b.gep(offsets, [b.add(current, one)]));
     row_valid = b.and_(
@@ -232,16 +219,22 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
         (read_pos, next_read),
         (write_pos, tail),
         (pending, next_pending),
-        (steps, next_step),
-        (total, updated)
+        (steps, next_step)
     ) {
         phi.add_incoming(value, advance);
     }
+    for (phi, value) in zip(state, updated) {
+        phi.add_incoming(value, advance);
+    }
     b.position_at_end(finish);
-    final = b.phi(scalar);
-    final.add_incoming(seed, start);
-    final.add_incoming(total, check);
-    b.store(final, b.gep(output, [index]));
+    finals = [b.phi(scalar) for path in spec.state_paths()];
+    for (final, seed, value) in zip(finals, seeds, state) {
+        final.add_incoming(seed, start);
+        final.add_incoming(value, check);
+    }
+    for (final, column) in zip(finals, output) {
+        b.store(final, b.gep(column, [index]));
+    }
     b.store(ir.Constant(i32, 0), b.gep(status, [index]));
     b.branch(done);
     for (block, code) in (
@@ -272,6 +265,10 @@ def emit_csr_ptx(walkers: list[ChainWalker]) -> PtxArtifact {
     if any(len(spec.field_paths()) > 1 for spec in walkers) {
         artifact.format = 'jac-ptx-csr-v2';
         artifact.argument_order = "node field pointers, offsets, targets, heads, initial_total, results, status, queue, node_count, edge_count, walker_count, queue_capacity, max_visits; exact order in each kernel's parameters";
+    }
+    if any(len(spec.state_paths()) > 1 for spec in walkers) {
+        artifact.format = 'jac-ptx-csr-v3';
+        artifact.argument_order = "node fields, offsets, targets, heads, initial state columns, result state columns, status, queue, node_count, edge_count, walker_count, queue_capacity, max_visits; exact order in each kernel's parameters";
     }
     return artifact;
 }

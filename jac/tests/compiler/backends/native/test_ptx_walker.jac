@@ -129,6 +129,37 @@ test "CLI exports multi-field chain and CSR schemas in kernel argument order" {
     }
 }
 
+test "CLI exports all walker state inputs and outputs in v3 manifests" {
+    import from jaclang.cli.commands.build { build }
+    with tempfile.TemporaryDirectory() as tmp {
+        source = REPO / "jac/examples/gpu/walker_fields.jac";
+        for graph_format in ("chain", "csr") {
+            out = Path(tmp) / graph_format;
+            assert build(
+                str(source),
+                projection="ptx",
+                output=str(out),
+                gpu_entries=[["Statistics"]],
+                gpu_graph_format=graph_format
+            )
+                == 0;
+            metadata = json.loads((out / "walker_fields.ptx.json").read_text());
+            assert metadata["format"] == f"jac-ptx-{graph_format}-v3";
+            kernel = metadata["kernels"][0];
+            paths = ["total", "count", "metrics.weighted", "metrics.last"];
+            assert kernel["state_fields"] == paths;
+            assert kernel["state_objects"] == {"metrics": "Metrics"};
+            state_params = [
+                p
+                for p in kernel["parameters"]
+                if p.get("length") == "walker_count" and "field_path" in p
+            ];
+            assert [p["field_path"] for p in state_params] == paths * 2;
+            assert [p["access"] for p in state_params] == ["read"] * 4 + ["write"] * 4;
+        }
+    }
+}
+
 test "CLI exports CSR walkers with queue limits and rejects scalar CSR builds" {
     import from jaclang.cli.commands.build { build }
     with tempfile.TemporaryDirectory() as tmp {

@@ -32,16 +32,18 @@ CSR is one experimental representation and may be revised after measurement.
 ## Supported program
 
 One node type with one or more numeric leaf fields, one empty edge type, one
-walker with one private numeric field and one synchronous entry ability. Node
-fields can contain plain local `obj` values with fixed, nonrecursive numeric
+walker with one or more private numeric fields and one synchronous entry ability.
+Node and walker fields can contain plain local `obj` values with fixed, nonrecursive numeric
 fields. Each leaf becomes a separate SoA column, including nested paths such as
 `here.position.x`. Nested objects must not be shared by different packed nodes.
-All node leaves and the walker state must have the same type: `float` (float64)
+Mutable walker objects must belong to one walker and one state path, and cannot
+also belong to a node. All node and walker leaves must have the same type: `float` (float64)
 or `int` (signed int64). Lists, optional objects and mixed numeric types are not
 part of this first multi-field implementation.
-The body contains one state update followed by one typed outgoing tail `visit`.
-An update may be guarded by `if`/`elif`/`else`, with one update or nested `if`
-per branch. A missing `else` leaves the state unchanged. Conditions support one
+The body contains sequential state updates followed by one typed outgoing tail `visit`.
+Updates may be guarded by `if`/`elif`/`else`, with multiple updates or nested `if`
+per branch. Each statement reads the state produced by earlier statements;
+an unassigned field keeps its value. Conditions support one
 numeric comparison: `==`, `!=`, `<`, `<=`, `>`, or `>=`.
 
 Assignments support `=`, `+=`, `-=`, and `*=`; expressions support `self`/`here`
@@ -75,6 +77,22 @@ aligned columns, runs 1,000 walkers on a branching graph, and compares their
 results with ordinary Jac. Multi-column exports use `jac-ptx-chain-v2` or
 `jac-ptx-csr-v2`; each kernel's `parameters` gives the exact pointer order and
 `field_path` mapping. Existing single-column exports retain their v1 ABI.
+
+For multiple walker fields and owned nested state:
+
+```bash
+jac build jac/examples/gpu/walker_fields.jac --as ptx --gpu-entry Statistics --gpu-graph-format csr -o dist/gpu-states
+jac run jac/examples/gpu/walker_fields_run.jac
+```
+
+This example updates `total`, `count`, `metrics.weighted`, and `metrics.last`,
+and checks every field against serial Jac for 1,000 walkers. Multiple walker
+columns use v3 manifests: node columns and topology pointers, then all initial
+state columns, all result columns, and the existing status/scratch/count
+parameters. `parameters` specifies the full argument order. Scalar walker v1/v2
+ABIs remain compatible. Top-level numeric walker fields require literal
+defaults; nested state is packed from actual instances, and its manifest
+`default_initial_states` entries are null.
 
 Inheritance, node abilities, helpers, shared writes, reports,
 filtered/multi-hop queries, general loops, boolean combinations, mixed numeric

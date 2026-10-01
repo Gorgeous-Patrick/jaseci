@@ -220,12 +220,15 @@ class IntegerWalkerTests(unittest.TestCase):
                     runtime.prepare([walker], [node])
 
     def test_unsupported_updates_remain_compile_errors(self):
+        # Sequential updates are now supported, including on a single state column.
+        spec, _ = self.variant('if here.value == 0 { self.total += 1; self.total *= 2; }')
+        self.assertEqual(self.runner(spec)([0, 1], [-1, -1], [0, 1], [3, 3]),
+                         ([8, 3], [0, 0]))
         for body in (
                 'self.total = here.value / 2;',
                 'self.total = here.value + 2.0;',
                 'self.total = here.value + 9223372036854775808;',
                 'if here.value == 0 { here.value = 2; }',
-                'if here.value == 0 { self.total += 1; self.total += 2; }',
                 'if here.value == 0 { report here.value; }',
                 'if here.value == 0 { visit [->:IntNext:->]; }',
                 'if here.value == 0 { self.total += 1; } else { here.value = 2; }'):
