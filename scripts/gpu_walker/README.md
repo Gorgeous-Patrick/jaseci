@@ -31,9 +31,14 @@ CSR is one experimental representation and may be revised after measurement.
 
 ## Supported program
 
-One node type with one numeric field, one empty edge type, one walker with one
-private numeric field and one synchronous entry ability. The node and walker
-fields must both be `float` (float64) or both `int` (signed int64).
+One node type with one or more numeric leaf fields, one empty edge type, one
+walker with one private numeric field and one synchronous entry ability. Node
+fields can contain plain local `obj` values with fixed, nonrecursive numeric
+fields. Each leaf becomes a separate SoA column, including nested paths such as
+`here.position.x`. Nested objects must not be shared by different packed nodes.
+All node leaves and the walker state must have the same type: `float` (float64)
+or `int` (signed int64). Lists, optional objects and mixed numeric types are not
+part of this first multi-field implementation.
 The body contains one state update followed by one typed outgoing tail `visit`.
 An update may be guarded by `if`/`elif`/`else`, with one update or nested `if`
 per branch. A missing `else` leaves the state unchanged. Conditions support one
@@ -57,6 +62,19 @@ jac run jac/examples/gpu/even_chain_run.jac
 The second command runs 1,000 actual walkers on CUDA and checks every result
 against ordinary serial Jac. Integers remain integers throughout packing,
 device execution and publication, including values above 2^53.
+
+For multiple node fields, including an owned nested `Position` object:
+
+```bash
+jac build jac/examples/gpu/multi_field.jac --as ptx --gpu-entry WeightedSum --gpu-graph-format csr -o dist/gpu-fields
+jac run jac/examples/gpu/multi_field_run.jac
+```
+
+The example packs `value`, `weight`, `position.x`, and `position.y` into four
+aligned columns, runs 1,000 walkers on a branching graph, and compares their
+results with ordinary Jac. Multi-column exports use `jac-ptx-chain-v2` or
+`jac-ptx-csr-v2`; each kernel's `parameters` gives the exact pointer order and
+`field_path` mapping. Existing single-column exports retain their v1 ABI.
 
 Inheritance, node abilities, helpers, shared writes, reports,
 filtered/multi-hop queries, general loops, boolean combinations, mixed numeric

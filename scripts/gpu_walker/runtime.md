@@ -52,13 +52,14 @@ environment. The driver JIT-loads the emitted PTX using
 
 ## Chain memory allocation
 
-Let N be the number of distinct reachable nodes and M the number of walkers.
+Let N be the number of distinct reachable nodes, M the number of walkers, and F
+the number of numeric node leaf fields (including flattened nested fields).
 Only scalar data and dense integer indices are copied to the GPU, never host
 object pointers. Shared nodes and shared suffixes occupy one physical slot.
 
 | Allocation | Arrays | Active payload |
 | --- | --- | --- |
-| Graph arena | `values: scalar[N]`, `next: int64[N]` | 16 N bytes |
+| Graph arena | F columns of `scalar[N]`, `next: int64[N]` | 8 (F + 1) N bytes |
 | Walker arena | `heads: int64[M]`, `initial: scalar[M]`, `results: scalar[M]`, `status: uint32[M]` | 28 M bytes |
 
 `scalar` is float64 or signed int64, as specified by the compiled schema. Both
@@ -71,13 +72,13 @@ reports both active payload and allocated arena sizes. It excludes the driver's
 context, JIT module and any per-thread spill storage.
 
 ```text
-Graph arena:   values[G] | padding | next[G] | padding
+Graph arena:   field_0[G] | padding | field_1[G] | ... | next[G] | padding
 Walker arena:  heads[W]  | padding | initial[W] | padding
                results[W] | padding | status[W] | padding
 ```
 
 G and W are retained capacities, while the kernel receives the actual N and M.
-The default 1,000-walker example has 76,000 payload bytes and initially reserves
+The original single-field 1,000-walker example has 76,000 payload bytes and initially reserves
 94,208 arena bytes (65,536 graph bytes plus 28,672 walker bytes), with capacity
 for 4,096 nodes and 1,024 walkers. There is no allocation per node, edge, walker
 or hop on the device. A thread holds its current node index and scalar state
@@ -117,6 +118,56 @@ loading a CUDA driver or allocating VRAM. Its `memory_plan()` describes an
 initial allocation. `result.memory` describes the allocation used by an actual
 call, including capacity retained from prior batches. `run_walkers` always packs
 fresh inputs, even if `prepare` was called separately.
+
+## Multiple node fields and nested data (2026-10-01)
+
+Node attributes use SoA: each numeric leaf has its own contiguous, 256-byte
+aligned column. A node with `value`, `weight`, and `position: Position`, where
+`Position` has `x` and `y`, produces columns in declaration order:
+
+```text
+value:      [v0 v1 v2 ...]
+weight:     [w0 w1 w2 ...]
+position.x: [x0 x1 x2 ...]
+position.y: [y0 y1 y2 ...]
+```
+
+`here.position.x` lowers to a direct column lookup using the current node ID.
+Nested objects have no GPU allocation or device pointer chain. Fixed local
+`obj` structures may nest further; recursive types, containers, optional fields,
+inheritance, accessors and object behavior are rejected. All numeric leaves
+must currently match the walker state's int64 or float64 type. Each walker
+still has one private scalar state and the existing restricted ability body.
+
+Nested attribute objects belong to a single node. Packing checks exact object
+types and rejects an object identity owned by two distinct nodes in the packed
+reachable graph, including sharing below different parent objects. Multiple
+walkers can share the same node. Graph convergence remains supported by CSR.
+The host graph and all nested data must remain stable during a batch. Between
+calls, every field is repacked, so changes to nested values are uploaded too.
+
+The packer currently uploads all declared numeric leaf columns, including
+unused fields. `gpu.schema.field_paths()` lists column names;
+`gpu.prepare(walkers, starts).buffers.columns()` exposes the host arrays in
+the same order. All columns share the same node permutation. Reordering must
+also remap adjacency and starting IDs without changing logical query order.
+
+Multi-field kernels use v2 manifests with a `field_path` for each leading
+column pointer. Column pointers are followed by the existing topology, walker,
+scratch and count parameters. The CUDA session validates the compiled field
+count and column sizes before launch. Single-field v1 argument lists remain
+compatible. `GpuMemoryPlan.node_field_count` includes flattened leaves and
+accounts for their payload, padding and retained capacity.
+
+SoA is the first implementation choice for multi-field experiments. Adjacent
+threads reading the same column can benefit when node IDs are nearby; this does
+not guarantee coalescing for scattered traversal. AoS or grouped layouts may
+be compared later. This change provides no measured speedup claim.
+
+```bash
+jac build jac/examples/gpu/multi_field.jac --as ptx --gpu-entry WeightedSum --gpu-graph-format csr -o dist/gpu-fields
+jac run jac/examples/gpu/multi_field_run.jac
+```
 
 ## Semantics and current limits
 
@@ -204,7 +255,7 @@ The CUDA session reuses four independently growing, aligned arenas:
 
 | Arena | Arrays / element types | Active bytes |
 | --- | --- | --- |
-| Nodes | `values[N]: scalar`, `offsets[N + 1]: int64` | `16N + 8` |
+| Nodes | F columns of `scalar[N]`, `offsets[N + 1]: int64` | `8(F + 1)N + 8` |
 | Edges | `targets[E]: int64` | `8E` |
 | Walkers | heads, initial, results, status as above | `28M` |
 | Queues | `queue[Q * M]: int64`, Q = queue_capacity | `8QM` |
@@ -212,7 +263,7 @@ The CUDA session reuses four independently growing, aligned arenas:
 The queue uses `queue[slot * M + lane]` so adjacent lanes' equal queue positions
 are adjacent in memory. It is device scratch: no host queue is uploaded or
 downloaded. Queue counters and the current scalar state are thread-private.
-Payload is `16N + 8 + 8E + 28M + 8QM` bytes before alignment and capacity rounding.
+Payload is `8(F + 1)N + 8 + 8E + 28M + 8QM` bytes before alignment and capacity rounding.
 There is no allocation or host-driven kernel launch per hop. Queue storage can
 dominate small graphs, so measure its cost and tune Q for the workload.
 
@@ -230,7 +281,7 @@ trying a different representation in a separate comparison. No performance
 benefit or optimality is assumed in advance.
 
 CSR currently uses the same restricted numeric ability body as the chain
-backend: one matching numeric field on the node and walker, one synchronous
+backend: matching numeric node leaves, one private walker field, one synchronous
 entry ability, and one outgoing typed tail visit. Node writes, filtered queries,
 arbitrary visit control, reports, and heterogeneous graphs remain unsupported.
 

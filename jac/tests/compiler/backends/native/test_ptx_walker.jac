@@ -103,6 +103,32 @@ test "walker check only and rejected builds do not write artifacts" {
     }
 }
 
+test "CLI exports multi-field chain and CSR schemas in kernel argument order" {
+    import from jaclang.cli.commands.build { build }
+    with tempfile.TemporaryDirectory() as tmp {
+        source = REPO / "jac/examples/gpu/multi_field.jac";
+        for graph_format in ("chain", "csr") {
+            out = Path(tmp) / graph_format;
+            assert build(
+                str(source),
+                projection="ptx",
+                output=str(out),
+                gpu_entries=[["WeightedSum"]],
+                gpu_graph_format=graph_format
+            )
+                == 0;
+            metadata = json.loads((out / "multi_field.ptx.json").read_text());
+            assert metadata["format"] == f"jac-ptx-{graph_format}-v2";
+            kernel = metadata["kernels"][0];
+            assert kernel["node_fields"]
+                == ["value", "weight", "position.x", "position.y"];
+            assert kernel["node_objects"] == {"position": "Position"};
+            assert [p["name"] for p in kernel["parameters"][:4]]
+                == ["values", "values_1", "values_2", "values_3"];
+        }
+    }
+}
+
 test "CLI exports CSR walkers with queue limits and rejects scalar CSR builds" {
     import from jaclang.cli.commands.build { build }
     with tempfile.TemporaryDirectory() as tmp {

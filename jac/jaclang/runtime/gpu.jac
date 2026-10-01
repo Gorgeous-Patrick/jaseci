@@ -36,7 +36,13 @@ obj WalkerSchema {
         ptx: str,
         kernel_name: str,
         dtype: GpuScalarType = GpuScalarType.FLOAT64,
-        graph_format: str = 'chain';
+        graph_format: str = 'chain',
+        node_fields: list[str] = [],
+        node_objects: dict[str, type] = {};
+
+    def field_paths -> list[str] {
+        return self.node_fields or [self.node_field];
+    }
 }
 
 obj PackedWalkerBatch {
@@ -50,10 +56,15 @@ obj PackedWalkerBatch {
                 len(self.nodes),
                 len(self.buffers.targets),
                 len(self.walkers),
-                self.buffers.queue_capacity
+                self.buffers.queue_capacity,
+                node_field_count=len(self.buffers.columns())
             );
         }
-        return make_memory_plan(len(self.nodes), len(self.walkers));
+        return make_memory_plan(
+            len(self.nodes),
+            len(self.walkers),
+            node_field_count=len(self.buffers.columns())
+        );
     }
 }
 
@@ -130,7 +141,9 @@ def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchem
         artifact.ptx,
         artifact.kernels[0]['name'],
         spec.dtype,
-        graph_format
+        graph_format,
+        spec.field_paths(),
+        {path: getattr(module, name) for (path, name) in spec.node_objects.items()}
     );
 }
 
@@ -245,7 +258,9 @@ def pack_walkers(
         return slots[key];
     }
     heads = [slot(nd) for nd in starts];
-    values: list[float | int] = [];
+    paths = schema.field_paths();
+    columns: list[list[float | int]] = [[] for path in paths];
+    object_owners: dict[int, int] = {};
     links: list[int] = [];
     offsets = [0];
     targets: list[int] = [];
@@ -253,7 +268,30 @@ def pack_walkers(
     idx = 0;
     while idx < len(nodes) {
         nd = nodes[idx];
-        values.append(scalar_value(getattr(nd, schema.node_field), schema.dtype));
+        objects: dict[str, object] = {"": nd};
+        for (path, expected_type) in schema.node_objects.items() {
+            parts = path.rsplit(".", 1);
+            parent = objects[parts[0]] if len(parts) == 2 else nd;
+            value = getattr(parent, parts[-1]);
+            if type(value) is not expected_type {
+                raise TypeError(
+                    f"GPU node object {path} must have exactly type {expected_type.__name__}"
+                );
+            }
+            key = id(value);
+            if key in object_owners and object_owners[key] != idx {
+                raise ValueError(
+                    f"GPU nested object {path} is shared by different nodes"
+                );
+            }
+            object_owners[key] = idx;
+            objects[path] = value;
+        }
+        for (path, column) in zip(paths, columns) {
+            parts = path.rsplit(".", 1);
+            parent = objects[parts[0]] if len(parts) == 2 else nd;
+            column.append(scalar_value(getattr(parent, parts[-1]), schema.dtype));
+        }
         query = GraphQuery(
             [nd], hops=[QHop(dir=2, `edge=schema.edge_type)], edges_only=True
         );
@@ -300,20 +338,25 @@ def pack_walkers(
             typed_walkers,
             nodes,
             csr_buffers(
-                values,
+                columns[0],
                 offsets,
                 targets,
                 heads,
                 initial,
                 schema.dtype,
                 queue_capacity,
-                max_visits
+                max_visits,
+                extra_values=columns[1:]
             )
         );
     }
     check_finite_chains(links);
     return PackedWalkerBatch(
-        typed_walkers, nodes, chain_buffers(values, links, heads, initial, schema.dtype)
+        typed_walkers,
+        nodes,
+        chain_buffers(
+            columns[0], links, heads, initial, schema.dtype, extra_values=columns[1:]
+        )
     );
 }
 
@@ -437,7 +480,8 @@ obj GpuWalkerRuntime {
                 self.schema.kernel_name,
                 self.device,
                 self.block_size,
-                graph_format=self.schema.graph_format
+                graph_format=self.schema.graph_format,
+                node_field_count=len(self.schema.field_paths())
             );
         }
         plan = self.session.execute(batch.buffers);

@@ -151,12 +151,16 @@ obj CudaSession {
         driver_version: int = 0,
         max_grid: int = 0,
         owner_thread: int = 0,
-        closed: bool = False;
+        closed: bool = False,
+        node_field_count: int = 1;
 
     def postinit {
         self.owner_thread = get_ident();
         if self.graph_format not in ('chain', 'csr') {
             raise ValueError("GPU graph_format must be 'chain' or 'csr'");
+        }
+        if type(self.node_field_count) is not int or self.node_field_count < 1 {
+            raise ValueError("GPU node field count must be a positive integer");
         }
         if self.device < 0 or not 1 <= self.block_size <= 1024 {
             raise ValueError("Invalid CUDA device or block size");
@@ -267,7 +271,8 @@ obj CudaSession {
                 self.graph_arena.capacity,
                 self.edge_arena.capacity,
                 self.walker_arena.capacity,
-                self.queue_arena.capacity
+                self.queue_arena.capacity,
+                node_field_count=self.node_field_count
             );
             plan.graph_layout.nbytes = max(
                 plan.graph_layout.nbytes, self.graph_arena.nbytes
@@ -278,7 +283,8 @@ obj CudaSession {
             len(buffers.values),
             len(buffers.heads),
             self.graph_arena.capacity,
-            self.walker_arena.capacity
+            self.walker_arena.capacity,
+            node_field_count=self.node_field_count
         );
     }
 
@@ -288,6 +294,19 @@ obj CudaSession {
         d = self.driver;
         n = len(buffers.values);
         m = len(buffers.heads);
+        columns = buffers.columns();
+        if len(columns) != self.node_field_count {
+            raise ValueError("GPU node field count does not match the compiled kernel");
+        }
+        if any(
+            len(column) != n
+                or column.itemsize != 8
+                or column.typecode != buffers.values.typecode for column in columns
+        ) {
+            raise ValueError(
+                "GPU node columns must have matching lengths and scalar types"
+            );
+        }
         plan = self.plan_for(buffers);
         is_csr = isinstance(buffers, CsrBuffers);
         if is_csr != (self.graph_format == 'csr') {

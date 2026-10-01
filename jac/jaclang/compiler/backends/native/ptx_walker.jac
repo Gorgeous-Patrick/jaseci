@@ -19,12 +19,13 @@ obj ChainExpr {
         value: float | int = 0.0,
         left: ChainExpr | None = None,
         right: ChainExpr | None = None,
-        otherwise: ChainExpr | None = None;
+        otherwise: ChainExpr | None = None,
+        node_index: int = 0;
 
     def lower(
         b: ir.IRBuilder,
         state: ir.Value,
-        node_value: ir.Value,
+        node_value: list[ir.Value],
         overflow: ir.Block,
         zero_divisor: ir.Block
     ) -> ir.Value {
@@ -32,7 +33,7 @@ obj ChainExpr {
             return state;
         }
         if self.op == "node" {
-            return node_value;
+            return node_value[self.node_index];
         }
         if self.op == "constant" {
             return ir.Constant(state.type, self.value);
@@ -147,7 +148,25 @@ obj ChainWalker {
         state_field: str,
         default_total: float | int,
         update: ChainExpr,
-        dtype: GpuScalarType = GpuScalarType.FLOAT64;
+        dtype: GpuScalarType = GpuScalarType.FLOAT64,
+        node_fields: list[str] = [],
+        node_objects: dict[str, str] = {};
+
+    def field_paths -> list[str] {
+        return self.node_fields or [self.node_field];
+    }
+
+    def field_parameters -> list[dict[str, any]] {
+        return [
+            {
+                "name": "values" if i == 0 else f"values_{i}",
+                "dtype": self.dtype.value,
+                "length": "node_count",
+                "access": "read",
+                "field_path": path
+            } for (i, path) in enumerate(self.field_paths())
+        ];
+    }
 
     def metadata -> dict[str, any] {
         return {
@@ -157,49 +176,46 @@ obj ChainWalker {
             "node_type": self.node_type,
             "edge_type": self.edge_type,
             "node_field": self.node_field,
+            "node_fields": self.field_paths(),
+            "node_objects": self.node_objects,
             "state_field": self.state_field,
             "default_initial_state": self.default_total,
             "scalar_dtype": self.dtype.value,
-            "parameters": [
-                {
-                    "name": "values",
-                    "dtype": self.dtype.value,
-                    "length": "node_count",
-                    "access": "read"
-                },
-                {
-                    "name": "next",
-                    "dtype": "int64",
-                    "length": "node_count",
-                    "access": "read"
-                },
-                {
-                    "name": "heads",
-                    "dtype": "int64",
-                    "length": "walker_count",
-                    "access": "read"
-                },
-                {
-                    "name": "initial_total",
-                    "dtype": self.dtype.value,
-                    "length": "walker_count",
-                    "access": "read"
-                },
-                {
-                    "name": "results",
-                    "dtype": self.dtype.value,
-                    "length": "walker_count",
-                    "access": "write"
-                },
-                {
-                    "name": "status",
-                    "dtype": "uint32",
-                    "length": "walker_count",
-                    "access": "write"
-                },
-                {"name": "node_count", "dtype": "uint64"},
-                {"name": "walker_count", "dtype": "uint64"}
-            ],
+            "parameters": self.field_parameters()
+                + [
+                    {
+                        "name": "next",
+                        "dtype": "int64",
+                        "length": "node_count",
+                        "access": "read"
+                    },
+                    {
+                        "name": "heads",
+                        "dtype": "int64",
+                        "length": "walker_count",
+                        "access": "read"
+                    },
+                    {
+                        "name": "initial_total",
+                        "dtype": self.dtype.value,
+                        "length": "walker_count",
+                        "access": "read"
+                    },
+                    {
+                        "name": "results",
+                        "dtype": self.dtype.value,
+                        "length": "walker_count",
+                        "access": "write"
+                    },
+                    {
+                        "name": "status",
+                        "dtype": "uint32",
+                        "length": "walker_count",
+                        "access": "write"
+                    },
+                    {"name": "node_count", "dtype": "uint64"},
+                    {"name": "walker_count", "dtype": "uint64"}
+                ],
             "null_node": -1,
             "status_codes": {
                 "0": "success",
@@ -239,10 +255,21 @@ def plain_archetype(arch: uni.Archetype) {
     }
 }
 
+def ordinary_field(field: uni.HasVar) {
+    owner = field.parent;
+    if not isinstance(owner, uni.ArchHas)
+        or owner.is_static
+        or owner.is_frozen
+        or field.defer
+        or field.accessors {
+        reject(field, "GPU fields require ordinary instance fields without accessors");
+    }
+}
+
 def one_scalar_field(arch: uni.Archetype) -> uni.HasVar {
     fields = arch.get_has_vars();
     if len(fields) != 1 {
-        reject(arch, "GPU chains require exactly one numeric field per node/walker");
+        reject(arch, "GPU walkers require exactly one private numeric state field");
     }
     field = fields[0];
     typ = field.type;
@@ -253,15 +280,89 @@ def one_scalar_field(arch: uni.Archetype) -> uni.HasVar {
     if not (typ.is_builtin("float") or typ.is_builtin("int")) {
         reject(field, "GPU chain fields must have checked float64 or int64 types");
     }
-    owner = field.parent;
-    if not isinstance(owner, uni.ArchHas)
-        or owner.is_static
-        or owner.is_frozen
-        or field.defer
-        or field.accessors {
-        reject(field, "GPU chains require ordinary instance fields without accessors");
-    }
+    ordinary_field(field);
     return field;
+}
+
+obj NodeProjection {
+    has fields: list[list[uni.HasVar]] = [],
+        objects: dict[str, str] = {};
+}
+
+def project_node_fields(
+    nd: uni.Archetype, archs: dict[str, uni.Archetype], dtype: GpuScalarType
+) -> NodeProjection {
+    result = NodeProjection();
+    def expand(arch: uni.Archetype, path: list[uni.HasVar], ancestors: set[str]) {
+        if arch.name.value in ancestors {
+            reject(arch, "Recursive GPU node field types cannot be flattened");
+        }
+        plain_archetype(arch);
+        if any(not isinstance(s, uni.ArchHas) for s in arch.body) {
+            reject(
+                arch,
+                "GPU node data and nested objects cannot have abilities or behavior"
+            );
+        }
+        fields = arch.get_has_vars();
+        if not fields {
+            reject(arch, "GPU node data requires at least one numeric leaf field");
+        }
+        for field in fields {
+            ordinary_field(field);
+            typ = field.type;
+            if field.type_tag is None or not isinstance(typ, ClassType) {
+                reject(
+                    field,
+                    "GPU node fields require fixed checked numeric or object types"
+                );
+            }
+            assert isinstance(typ, ClassType);
+            nested_path = [*path, field];
+            if typ.is_builtin("int") or typ.is_builtin("float") {
+                if typ.is_builtin("int") != (dtype == GpuScalarType.INT64) {
+                    reject(
+                        field,
+                        "GPU node leaves and walker state must have the same numeric type"
+                    );
+                }
+                result.fields.append(nested_path);
+            } else {
+                nested = archs.get(typ.shared.class_name);
+                if nested is None
+                    or nested.arch_type.value != "obj"
+                    or typ.get_class_symbol() is not nested.name.sym {
+                    reject(
+                        field,
+                        "GPU nested fields require plain local objects with fixed numeric leaves"
+                    );
+                }
+                assert nested is not None;
+                result.objects[".".join(f.name.value for f in nested_path)] = nested.name.value;
+                expand(nested, nested_path, ancestors | {arch.name.value});
+            }
+        }
+    }
+    expand(nd, [], set());
+    return result;
+}
+
+def node_field_ref(expr: uni.Expr, path: list[uni.HasVar]) -> bool {
+    current = expr;
+    for field in reversed(path) {
+        if not isinstance(current, uni.AtomTrailer)
+            or not current.is_attr
+            or current.is_null_ok
+            or current.is_genai
+            or not isinstance(current.right, uni.Name)
+            or current.right.sym is None
+            or current.right.sym is not field.name.sym {
+            return False;
+        }
+        assert isinstance(current, uni.AtomTrailer);
+        current = current.target;
+    }
+    return isinstance(current, uni.SpecialVarRef) and current.value == "here";
 }
 
 def field_ref(expr: uni.Expr, receiver: str, field: uni.HasVar) -> bool {
@@ -298,7 +399,7 @@ def numeric_literal(expr: uni.Expr, dtype: GpuScalarType) -> float | int | None 
 }
 
 def chain_expr(
-    expr: uni.Expr, state: uni.HasVar, nd: uni.HasVar, dtype: GpuScalarType
+    expr: uni.Expr, state: uni.HasVar, nd: list[list[uni.HasVar]], dtype: GpuScalarType
 ) -> ChainExpr {
     if isinstance(expr, uni.CfgExpr) {
         return chain_expr(expr.expr, state, nd, dtype);
@@ -313,8 +414,10 @@ def chain_expr(
     if field_ref(expr, "self", state) {
         return ChainExpr("state");
     }
-    if field_ref(expr, "here", nd) {
-        return ChainExpr("node");
+    for (i, path) in enumerate(nd) {
+        if node_field_ref(expr, path) {
+            return ChainExpr("node", node_index=i);
+        }
     }
     if isinstance(expr, uni.UnaryExpr) and expr.op.value in ("+", "-") {
         operand = chain_expr(expr.operand, state, nd, dtype);
@@ -353,7 +456,7 @@ def literal_default(field: uni.HasVar, dtype: GpuScalarType) -> float | int {
 }
 
 def chain_condition(
-    expr: uni.Expr, state: uni.HasVar, nd: uni.HasVar, dtype: GpuScalarType
+    expr: uni.Expr, state: uni.HasVar, nd: list[list[uni.HasVar]], dtype: GpuScalarType
 ) -> ChainExpr {
     if isinstance(expr, uni.CfgExpr) {
         return chain_condition(expr.expr, state, nd, dtype);
@@ -376,7 +479,10 @@ def chain_condition(
 }
 
 def chain_update(
-    stmt: uni.CodeBlockStmt, state: uni.HasVar, nd: uni.HasVar, dtype: GpuScalarType
+    stmt: uni.CodeBlockStmt,
+    state: uni.HasVar,
+    nd: list[list[uni.HasVar]],
+    dtype: GpuScalarType
 ) -> ChainExpr {
     if isinstance(stmt, uni.IfStmt) and not stmt.is_comptime {
         if len(stmt.body) != 1 {
@@ -480,20 +586,8 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         }
         assert nd is not None;
         plain_archetype(nd);
-        node_field = one_scalar_field(nd);
-        node_type = node_field.type;
-        assert isinstance(node_type, ClassType);
-        if node_type.is_builtin("int") != (dtype == GpuScalarType.INT64) {
-            reject(
-                node_field, "GPU node and walker fields must have the same numeric type"
-            );
-        }
-        if any(not isinstance(s, uni.ArchHas) for s in nd.body) {
-            reject(
-                nd,
-                "Node abilities and other node behavior are not supported by GPU chains"
-            );
-        }
+        projection = project_node_fields(nd, archs, dtype);
+        paths = [".".join(f.name.value for f in path) for path in projection.fields];
         body = ability.body;
         if not isinstance(body, list)
             or len(body) != 2
@@ -507,7 +601,7 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         assert isinstance(visit_stmt, uni.VisitStmt);
         update_stmt = body[0];
         assert isinstance(update_stmt, uni.CodeBlockStmt);
-        expression = chain_update(update_stmt, state, node_field, dtype);
+        expression = chain_update(update_stmt, state, projection.fields, dtype);
         query = visit_stmt.target;
         if visit_stmt.else_body is not None
             or visit_stmt.insert_loc is not None
@@ -549,11 +643,13 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
                 name,
                 nd.name.value,
                 edge_arch.name.value,
-                node_field.name.value,
+                paths[0],
                 state.name.value,
                 literal_default(state, dtype),
                 expression,
-                dtype
+                dtype,
+                paths,
+                projection.objects
             )
         );
     }
@@ -578,8 +674,10 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     (i32, i64, f64) = (ir.IntType(32), ir.IntType(64), ir.DoubleType());
     scalar = i64 if spec.dtype == GpuScalarType.INT64 else f64;
     space = 1 if device else 0;
+    field_count = len(spec.field_paths());
     signature = [
-        t.as_pointer(addrspace=space) for t in (scalar, i64, i64, scalar, scalar, i32)
+        t.as_pointer(addrspace=space)
+        for t in [scalar] * field_count + [i64, i64, scalar, scalar, i32]
     ]
         + [i64, i64];
     if not device {
@@ -596,21 +694,23 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     }
     for (arg, name) in zip(
         fn.args,
-        (
-            "values",
-            "next",
-            "heads",
-            "initial_total",
-            "results",
-            "status",
-            "node_count",
-            "walker_count",
-            "index"
-        )
+        [p["name"] for p in spec.field_parameters()]
+            + [
+                "next",
+                "heads",
+                "initial_total",
+                "results",
+                "status",
+                "node_count",
+                "walker_count",
+                "index"
+            ]
     ) {
         arg.name = name;
     }
-    (values, links, heads, initial, output, status, node_count, count) = fn.args[:8];
+    values = fn.args[:field_count];
+    (links, heads, initial, output, status, node_count, count) = fn.args[field_count:field_count
+        + 7];
     entry_bb = fn.append_basic_block("entry");
     start = fn.append_basic_block("start");
     check = fn.append_basic_block("chain.check");
@@ -647,7 +747,10 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     b.position_at_end(limit);
     b.cbranch(b.icmp_unsigned("<", steps, node_count), body, cycle);
     b.position_at_end(body);
-    node_value = b.load(b.gep(values, [current]), name=spec.node_field);
+    node_value = [
+        b.load(b.gep(column, [current]), name=path)
+        for (column, path) in zip(values, spec.field_paths())
+    ];
     updated = spec.update.lower(b, total, node_value, overflow, zero_divisor);
     successor = b.load(b.gep(links, [current]), name="successor");
     next_step = b.add(steps, ir.Constant(i64, 1));
@@ -683,5 +786,9 @@ def emit_chain_ptx(walkers: list[ChainWalker]) -> PtxArtifact {
     );
     artifact.format = "jac-ptx-chain-v1";
     artifact.argument_order = "values, next, heads, initial_total, results, status, node_count, walker_count";
+    if any(len(spec.field_paths()) > 1 for spec in walkers) {
+        artifact.format = "jac-ptx-chain-v2";
+        artifact.argument_order = "node field pointers, next, heads, initial_total, results, status, node_count, walker_count; exact order in each kernel's parameters";
+    }
     return artifact;
 }
