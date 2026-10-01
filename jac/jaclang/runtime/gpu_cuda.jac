@@ -3,7 +3,14 @@ import sys;
 import from array { array }
 import from threading { get_ident }
 import from logging { getLogger }
-import from jaclang.runtime.gpu_memory { ChainBuffers, GpuMemoryPlan, memory_plan }
+import from jaclang.runtime.gpu_memory {
+    ChainBuffers,
+    CsrBuffers,
+    GpuMemoryPlan,
+    memory_plan,
+    csr_memory_plan,
+    check_csr_limits
+}
 
 glob logger = getLogger(__name__);
 
@@ -130,12 +137,15 @@ obj CudaSession {
         kernel_name: str,
         device: int = 0,
         block_size: int = 128,
+        graph_format: str = 'chain',
         driver: CudaDriver | None = None,
         context: any = None,
         module: any = None,
         function: any = None,
         graph_arena: DeviceArena = DeviceArena(),
         walker_arena: DeviceArena = DeviceArena(),
+        edge_arena: DeviceArena = DeviceArena(),
+        queue_arena: DeviceArena = DeviceArena(),
         plan: GpuMemoryPlan = memory_plan(0, 0),
         gpu_name: str = '',
         driver_version: int = 0,
@@ -145,6 +155,9 @@ obj CudaSession {
 
     def postinit {
         self.owner_thread = get_ident();
+        if self.graph_format not in ('chain', 'csr') {
+            raise ValueError("GPU graph_format must be 'chain' or 'csr'");
+        }
         if self.device < 0 or not 1 <= self.block_size <= 1024 {
             raise ValueError("Invalid CUDA device or block size");
         }
@@ -243,16 +256,45 @@ obj CudaSession {
         }
     }
 
-    def execute(buffers: ChainBuffers) -> GpuMemoryPlan {
+    def plan_for(buffers: ChainBuffers | CsrBuffers) -> GpuMemoryPlan {
+        if isinstance(buffers, CsrBuffers) {
+            check_csr_limits(buffers.queue_capacity, buffers.max_visits);
+            plan = csr_memory_plan(
+                len(buffers.values),
+                len(buffers.targets),
+                len(buffers.heads),
+                buffers.queue_capacity,
+                self.graph_arena.capacity,
+                self.edge_arena.capacity,
+                self.walker_arena.capacity,
+                self.queue_arena.capacity
+            );
+            plan.graph_layout.nbytes = max(
+                plan.graph_layout.nbytes, self.graph_arena.nbytes
+            );
+            return plan;
+        }
+        return memory_plan(
+            len(buffers.values),
+            len(buffers.heads),
+            self.graph_arena.capacity,
+            self.walker_arena.capacity
+        );
+    }
+
+    def execute(buffers: ChainBuffers | CsrBuffers) -> GpuMemoryPlan {
         self.check_thread();
         assert self.driver is not None;
         d = self.driver;
         n = len(buffers.values);
         m = len(buffers.heads);
+        plan = self.plan_for(buffers);
+        is_csr = isinstance(buffers, CsrBuffers);
+        if is_csr != (self.graph_format == 'csr') {
+            raise ValueError("GPU buffers do not match the kernel graph format");
+        }
         if not m {
-            return memory_plan(
-                n, m, self.graph_arena.capacity, self.walker_arena.capacity
-            );
+            return plan;
         }
         grid = (m + self.block_size - 1) // self.block_size;
         if grid > self.max_grid {
@@ -261,28 +303,51 @@ obj CudaSession {
         d.call('cuCtxPushCurrent_v2', self.context);
         failed = False;
         try {
-            plan = memory_plan(
-                n, m, self.graph_arena.capacity, self.walker_arena.capacity
-            );
             self.graph_arena.reserve(
                 d, plan.graph_layout.nbytes, plan.graph_layout.capacity
             );
             self.walker_arena.reserve(
                 d, plan.walker_layout.nbytes, plan.walker_layout.capacity
             );
+            if is_csr {
+                self.edge_arena.reserve(
+                    d, plan.edge_layout.nbytes, plan.edge_layout.capacity
+                );
+                self.queue_arena.reserve(
+                    d, plan.queue_layout.nbytes, plan.queue_layout.capacity
+                );
+            }
             self.plan = plan;
             addresses = [
                 self.graph_arena.address + offset
                 for offset in plan.graph_layout.offsets
-            ]
-                + [
-                    self.walker_arena.address + offset
-                    for offset in plan.walker_layout.offsets
-                ];
+            ];
+            if is_csr {
+                addresses.append(self.edge_arena.address);
+            }
+            addresses += [
+                self.walker_arena.address + offset
+                for offset in plan.walker_layout.offsets
+            ];
             for (address, buf) in zip(addresses, buffers.arrays()) {
                 self.transfer('cuMemcpyHtoD_v2', address, buf);
             }
-            arguments = [c.c_uint64(value) for value in [*addresses, n, m]];
+            if isinstance(buffers, CsrBuffers) {
+                arguments = [
+                    c.c_uint64(value)
+                    for value in [
+                        *addresses,
+                        self.queue_arena.address,
+                        n,
+                        len(buffers.targets),
+                        m,
+                        buffers.queue_capacity,
+                        buffers.max_visits
+                    ]
+                ];
+            } else {
+                arguments = [c.c_uint64(value) for value in [*addresses, n, m]];
+            }
             params = (c.c_void_p * len(arguments))(
                 *(c.addressof(arg) for arg in arguments)
             );
@@ -301,8 +366,8 @@ obj CudaSession {
                 None
             );
             d.call('cuCtxSynchronize');
-            self.transfer('cuMemcpyDtoH_v2', addresses[4], buffers.results);
-            self.transfer('cuMemcpyDtoH_v2', addresses[5], buffers.status);
+            self.transfer('cuMemcpyDtoH_v2', addresses[-2], buffers.results);
+            self.transfer('cuMemcpyDtoH_v2', addresses[-1], buffers.status);
         } except CudaError {
             failed = True;
             raise;
@@ -327,6 +392,8 @@ obj CudaSession {
         try {
             d.call('cuCtxPushCurrent_v2', self.context);
             pushed = True;
+            self.queue_arena.close(d);
+            self.edge_arena.close(d);
             self.walker_arena.close(d);
             self.graph_arena.close(d);
             d.cleanup('cuModuleUnload', self.module);

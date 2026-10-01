@@ -310,7 +310,12 @@ def compile_ptx_source(source: str) -> ir.Module {
     return module.gen.llvm_ir;
 }
 
-def compile_ptx_entries(source: str, names: list[str]) -> PtxArtifact {
+def compile_ptx_entries(
+    source: str, names: list[str], graph_format: str = 'chain'
+) -> PtxArtifact {
+    if graph_format not in ('chain', 'csr') {
+        raise PtxUnsupported("GPU graph format must be 'chain' or 'csr'");
+    }
     if not names or len(set(names)) != len(names) {
         raise PtxUnsupported("Select at least one --gpu-entry, without duplicates");
     }
@@ -328,7 +333,15 @@ def compile_ptx_entries(source: str, names: list[str]) -> PtxArtifact {
             select_chain_walkers,
             emit_chain_ptx
         }
-        return emit_chain_ptx(select_chain_walkers(module, names));
+        selected = select_chain_walkers(module, names);
+        if graph_format == 'csr' {
+            import from jaclang.compiler.backends.native.ptx_csr { emit_csr_ptx }
+            return emit_csr_ptx(selected);
+        }
+        return emit_chain_ptx(selected);
+    }
+    if graph_format == 'csr' {
+        raise PtxUnsupported("CSR graph format requires walker entries");
     }
     return emit_ptx(select_ptx_functions(compile_ptx_source(source), names));
 }

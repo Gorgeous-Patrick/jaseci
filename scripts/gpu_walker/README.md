@@ -1,4 +1,4 @@
-# Jac chain walkers to PTX
+# Jac numeric walkers to PTX
 
 From the repository root, using this checkout's Jac compiler:
 
@@ -14,6 +14,20 @@ ability body; it does not substitute a handwritten sum kernel or generate C++.
 To execute **actual Jac walker lists** on a GPU, use the new
 [runtime launcher and memory allocation API](runtime.md). The example command is
 `jac run jac/examples/gpu/chain_run.jac` on the NVIDIA server.
+
+For the experimental CSR general-graph path:
+
+```bash
+jac build jac/examples/gpu/csr_graph.jac --as ptx --gpu-entry GraphSum \
+  --gpu-graph-format csr -o dist/gpu-csr
+jac run jac/examples/gpu/csr_graph_run.jac
+```
+
+This selects `jaclang.compiler.backends.native.ptx_csr`, reusing the same checked
+numeric body lowering. The `jac-ptx-csr-v1` manifest describes CSR arrays, a
+per-walker FIFO queue, and queue/visit bounds. See the
+[CSR experiment and memory contract](runtime.md#general-graph-storage-experiment-2026-09-30).
+CSR is one experimental representation and may be revised after measurement.
 
 ## Supported program
 
@@ -44,17 +58,19 @@ The second command runs 1,000 actual walkers on CUDA and checks every result
 against ordinary serial Jac. Integers remain integers throughout packing,
 device execution and publication, including values above 2^53.
 
-Inheritance, node abilities, helpers, shared writes, reports, branching graphs,
+Inheritance, node abilities, helpers, shared writes, reports,
 filtered/multi-hop queries, general loops, boolean combinations, mixed numeric
 field types, and other effects are rejected with source locations. Standalone
 scalar function exports still support only the separate float64/bool subset.
+Branching graphs require the explicit CSR option; the default chain path keeps
+its zero-or-one-successor restriction.
 
 The entry point processes M independent instances of the selected walker type.
 One thread performs a complete traversal. The graph is read-only and shared;
 walkers may share nodes or suffixes, and retain independent starting states.
 Serial Jac spawn sequences are not automatically parallelized.
 
-## Packed device interface
+## Packed chain device interface
 
 The manifest records the actual node, edge, and field names. All parameters are
 positional; arrays are contiguous and aligned for their element types:

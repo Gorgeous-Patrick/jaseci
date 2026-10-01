@@ -42,7 +42,7 @@ comptime SPEC_BUILD: CommandSpec = CommandSpec(
                      "'sealed' (unpacked image dir), 'binary' (self-contained "
                      "executable), 'wheel' (PyPI), 'npm' (tarball), 'source' "
                      "(editable Python, JavaScript and C project), 'client' (the app's client bundle only), "
-                     "'ptx' (experimental NVIDIA scalar/chain-walker kernels)"
+                     "'ptx' (experimental NVIDIA scalar/walker kernels)"
                  )
              ),
              Arg.create(
@@ -50,7 +50,15 @@ comptime SPEC_BUILD: CommandSpec = CommandSpec(
                  dest="gpu_entries",
                  kind=ArgKind.APPEND,
                  short="",
-                 help="With --as ptx: scalar function or chain walker to export as a batch kernel (repeatable)"
+                 help="With --as ptx: scalar function or numeric walker to export as a batch kernel (repeatable)"
+             ),
+             Arg.create(
+                 "gpu-graph-format",
+                 dest="gpu_graph_format",
+                 `default="chain",
+                 choices=["chain", "csr"],
+                 short="",
+                 help="With --as ptx and walker entries: experimental graph storage format"
              ),
              Arg.create(
                  "native",
@@ -178,5 +186,6 @@ def build(
     memory: str = "",
     native_target: str = "",
     debug: bool = False,
-    gpu_entries: list[list[str]] | None = None
+    gpu_entries: list[list[str]] | None = None,
+    gpu_graph_format: str = 'chain'
 ) -> int;

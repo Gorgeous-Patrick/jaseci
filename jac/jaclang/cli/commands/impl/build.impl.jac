@@ -186,7 +186,8 @@ impl build(
     memory: str = "",
     native_target: str = "",
     debug: bool = False,
-    gpu_entries: list[list[str]] | None = None
+    gpu_entries: list[list[str]] | None = None,
+    gpu_graph_format: str = 'chain'
 ) -> int {
     import from jaclang.project.config { get_config }
     if projection == "ptx" {
@@ -205,10 +206,10 @@ impl build(
         }
         import from jaclang.cli.commands.ptx_build { ptx_build }
         entries = [name for group in (gpu_entries or []) for name in group];
-        return ptx_build(target, entries, output, check_only);
+        return ptx_build(target, entries, output, check_only, gpu_graph_format);
     }
-    if gpu_entries {
-        console.error("--gpu-entry requires --as ptx.");
+    if gpu_entries or gpu_graph_format != 'chain' {
+        console.error("--gpu-entry and --gpu-graph-format require --as ptx.");
         return 1;
     }
     if native or lib or memory or native_target or debug {

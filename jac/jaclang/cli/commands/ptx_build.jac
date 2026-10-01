@@ -4,7 +4,11 @@ import from pathlib { Path }
 import from jaclang.cli.console { console }
 
 def ptx_build(
-    filename: str, entries: list[str], output: str, check_only: bool = False
+    filename: str,
+    entries: list[str],
+    output: str,
+    check_only: bool = False,
+    graph_format: str = 'chain'
 ) -> int {
     source = Path(filename);
     if source.suffix != ".jac" or not source.is_file() {
@@ -20,7 +24,7 @@ def ptx_build(
 
     import from jaclang.compiler.backends.native.ptx { compile_ptx_entries }
     try {
-        artifact = compile_ptx_entries(str(source), entries);
+        artifact = compile_ptx_entries(str(source), entries, graph_format);
         if check_only {
             console.print(
                 f"PTX checks passed for {len(entries)} kernel(s); no files emitted."

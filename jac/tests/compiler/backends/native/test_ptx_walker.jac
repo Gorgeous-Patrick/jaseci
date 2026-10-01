@@ -102,3 +102,71 @@ test "walker check only and rejected builds do not write artifacts" {
         assert not out.exists();
     }
 }
+
+test "CLI exports CSR walkers with queue limits and rejects scalar CSR builds" {
+    import from jaclang.cli.commands.build { build }
+    with tempfile.TemporaryDirectory() as tmp {
+        out = Path(tmp) / "out";
+        source = REPO / "jac/examples/gpu/csr_graph.jac";
+        proc = subprocess.run(
+            jac_command(
+                "build",
+                str(source),
+                "--as",
+                "ptx",
+                "--gpu-entry",
+                "GraphSum",
+                "--gpu-graph-format",
+                "csr",
+                "-o",
+                str(out)
+            ),
+            capture_output=True,
+            text=True,
+            timeout=180
+        );
+        assert proc.returncode == 0 , proc.stdout + proc.stderr;
+        metadata = json.loads((out / "csr_graph.ptx.json").read_text());
+        assert metadata["format"] == "jac-ptx-csr-v1";
+        assert metadata["kernels"][0]["kind"] == "csr_walker";
+        assert [p["name"] for p in metadata["kernels"][0]["parameters"]]
+            == [
+                "values",
+                "offsets",
+                "targets",
+                "heads",
+                "initial_total",
+                "results",
+                "status",
+                "queue",
+                "node_count",
+                "edge_count",
+                "walker_count",
+                "queue_capacity",
+                "max_visits"
+            ];
+        assert ".entry jac_GraphSum_csr_batch(" in (out / "csr_graph.ptx").read_text();
+        assert metadata["gpu_executed"] is False;
+        missing = Path(tmp) / 'check-only';
+        assert build(
+            str(source),
+            projection='ptx',
+            output=str(missing),
+            check_only=True,
+            gpu_entries=[['GraphSum']],
+            gpu_graph_format='csr'
+        )
+            == 0;
+        assert not missing.exists();
+        assert build(
+            str(REPO / 'jac/examples/gpu/scalar.jac'),
+            projection='ptx',
+            output=str(missing),
+            gpu_entries=[['multiply_add']],
+            gpu_graph_format='csr'
+        )
+            == 1;
+        assert not missing.exists();
+        assert build(str(source), gpu_graph_format='csr') == 1;
+    }
+}

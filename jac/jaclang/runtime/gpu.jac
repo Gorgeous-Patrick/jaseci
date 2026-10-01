@@ -13,9 +13,13 @@ import from jaclang.runtime.archetype {
 }
 import from jaclang.runtime.gpu_memory {
     ChainBuffers,
+    CsrBuffers,
     GpuScalarType,
     GpuMemoryPlan,
     chain_buffers,
+    csr_buffers,
+    csr_memory_plan,
+    check_csr_limits,
     memory_plan as make_memory_plan
 }
 import from jaclang.runtime.gpu_cuda { CudaSession }
@@ -31,15 +35,24 @@ obj WalkerSchema {
         entry_function: any,
         ptx: str,
         kernel_name: str,
-        dtype: GpuScalarType = GpuScalarType.FLOAT64;
+        dtype: GpuScalarType = GpuScalarType.FLOAT64,
+        graph_format: str = 'chain';
 }
 
 obj PackedWalkerBatch {
     has walkers: list[WalkerArchetype],
         nodes: list[NodeArchetype],
-        buffers: ChainBuffers;
+        buffers: ChainBuffers | CsrBuffers;
 
     def memory_plan -> GpuMemoryPlan {
+        if isinstance(self.buffers, CsrBuffers) {
+            return csr_memory_plan(
+                len(self.nodes),
+                len(self.buffers.targets),
+                len(self.walkers),
+                self.buffers.queue_capacity
+            );
+        }
         return make_memory_plan(len(self.nodes), len(self.walkers));
     }
 }
@@ -53,11 +66,14 @@ obj WalkerBatchResult {
         cuda_driver_version: int = 0;
 }
 
-def walker_schema(walker_type: type) -> WalkerSchema {
+def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchema {
     import from jaclang.compiler.backends.native.ptx { compile_ptx_frontend }
     import from jaclang.compiler.backends.native.ptx_walker {
         select_chain_walkers,
         emit_chain_ptx
+    }
+    if graph_format not in ('chain', 'csr') {
+        raise ValueError("GPU graph_format must be 'chain' or 'csr'");
     }
     if not isinstance(walker_type, type)
         or not issubclass(walker_type, WalkerArchetype) {
@@ -93,7 +109,12 @@ def walker_schema(walker_type: type) -> WalkerSchema {
             "Loaded walker ability does not belong to its Jac source file"
         );
     }
-    artifact = emit_chain_ptx([spec]);
+    if graph_format == 'csr' {
+        import from jaclang.compiler.backends.native.ptx_csr { emit_csr_ptx }
+        artifact = emit_csr_ptx([spec]);
+    } else {
+        artifact = emit_chain_ptx([spec]);
+    }
     if hashlib.sha256(source.read_bytes()).hexdigest() != digest {
         raise RuntimeError("Walker source changed during GPU compilation");
     }
@@ -108,7 +129,8 @@ def walker_schema(walker_type: type) -> WalkerSchema {
         funcs[0].func,
         artifact.ptx,
         artifact.kernels[0]['name'],
-        spec.dtype
+        spec.dtype,
+        graph_format
     );
 }
 
@@ -163,11 +185,18 @@ def check_finite_chains(links: list[int]) {
 }
 
 def pack_walkers(
-    schema: WalkerSchema, walkers: Sequence[object], starts: Sequence[object]
+    schema: WalkerSchema,
+    walkers: Sequence[object],
+    starts: Sequence[object],
+    queue_capacity: int = 1024,
+    max_visits: int = 1000000
 ) -> PackedWalkerBatch {
     import from jaclang.runtime.graph_query { GraphQuery, QHop }
     import from jaclang.runtime.graph_walk { walk }
     import from jaclang.runtime.osp_kernel { scope_of }
+    if schema.graph_format == 'csr' {
+        check_csr_limits(queue_capacity, max_visits);
+    }
     if len(walkers) != len(starts) {
         raise ValueError("Each walker must have exactly one starting node (or None)");
     }
@@ -218,6 +247,9 @@ def pack_walkers(
     heads = [slot(nd) for nd in starts];
     values: list[float | int] = [];
     links: list[int] = [];
+    offsets = [0];
+    targets: list[int] = [];
+    seen: set[int] = set();
     idx = 0;
     while idx < len(nodes) {
         nd = nodes[idx];
@@ -226,29 +258,58 @@ def pack_walkers(
             [nd], hops=[QHop(dir=2, `edge=schema.edge_type)], edges_only=True
         );
         pairs = walk([nd.__jac__], query, 1, False);
-        if len(pairs) > 1 {
+        if schema.graph_format == 'chain' and len(pairs) > 1 {
             raise ValueError(
                 "GPU chain nodes may have at most one outgoing selected edge"
             );
         }
-        successor: NodeArchetype | None = None;
-        if pairs {
-            (other, connection) = pairs[0];
+        successor = -1;
+        seen.clear();
+        for (other, connection) in pairs {
             assert connection is not None;
             check_private(connection);
             if type(connection.archetype) is not schema.edge_type
                 or connection.is_undirected {
                 raise ValueError(
-                    "GPU chains require the exact declared, directed edge type"
+                    "GPU walkers require the exact declared, directed edge type"
                 );
             }
             if not isinstance(other, NodeAnchor) {
-                raise TypeError("GPU chains must visit nodes");
+                raise TypeError("GPU walkers must visit nodes");
             }
-            successor = other.archetype;
+            target = slot(other.archetype);
+
+            if schema.graph_format == 'csr' {
+                if target not in seen {
+                    targets.append(target);
+                    seen.add(target);
+                }
+            } else {
+                successor = target;
+            }
         }
-        links.append(slot(successor));
+        if schema.graph_format == 'csr' {
+            offsets.append(len(targets));
+        } else {
+            links.append(successor);
+        }
         idx += 1;
+    }
+    if schema.graph_format == 'csr' {
+        return PackedWalkerBatch(
+            typed_walkers,
+            nodes,
+            csr_buffers(
+                values,
+                offsets,
+                targets,
+                heads,
+                initial,
+                schema.dtype,
+                queue_capacity,
+                max_visits
+            )
+        );
     }
     check_finite_chains(links);
     return PackedWalkerBatch(
@@ -274,6 +335,18 @@ def publish_results(
             raise OverflowError(
                 "GPU integer arithmetic overflow; no walker fields updated"
             );
+        }
+        if isinstance(batch.buffers, CsrBuffers) {
+            if 6 in status {
+                raise RuntimeError(
+                    "GPU CSR queue capacity exceeded; increase queue_capacity. No walker fields updated"
+                );
+            }
+            if 2 in status {
+                raise RuntimeError(
+                    "GPU CSR visit limit exceeded (possibly a cycle); no walker fields updated"
+                );
+            }
         }
         failed = [
             (i, code)
@@ -307,6 +380,9 @@ obj GpuWalkerRuntime {
     has walker_type: type,
         device: int = 0,
         block_size: int = 128,
+        graph_format: str = 'chain',
+        queue_capacity: int = 1024,
+        max_visits: int = 1000000,
         schema: WalkerSchema postinit,
         session: CudaSession | None = None,
         owner_thread: int = 0,
@@ -314,7 +390,10 @@ obj GpuWalkerRuntime {
 
     def postinit {
         self.owner_thread = get_ident();
-        self.schema = walker_schema(self.walker_type);
+        if self.graph_format == 'csr' {
+            check_csr_limits(self.queue_capacity, self.max_visits);
+        }
+        self.schema = walker_schema(self.walker_type, self.graph_format);
     }
 
     def check_open {
@@ -337,7 +416,9 @@ obj GpuWalkerRuntime {
         walkers: Sequence[object], starts: Sequence[object]
     ) -> PackedWalkerBatch {
         self.check_open();
-        return pack_walkers(self.schema, walkers, starts);
+        return pack_walkers(
+            self.schema, walkers, starts, self.queue_capacity, self.max_visits
+        );
     }
 
     def run_walkers(
@@ -347,17 +428,16 @@ obj GpuWalkerRuntime {
         if not walkers {
             plan = batch.memory_plan()
                 if self.session is None
-                else make_memory_plan(
-                    0,
-                    0,
-                    self.session.graph_arena.capacity,
-                    self.session.walker_arena.capacity
-                );
+                else self.session.plan_for(batch.buffers);
             return WalkerBatchResult([], [], plan, False);
         }
         if self.session is None {
             self.session = CudaSession(
-                self.schema.ptx, self.schema.kernel_name, self.device, self.block_size
+                self.schema.ptx,
+                self.schema.kernel_name,
+                self.device,
+                self.block_size,
+                graph_format=self.schema.graph_format
             );
         }
         plan = self.session.execute(batch.buffers);
@@ -391,15 +471,35 @@ obj GpuWalkerRuntime {
 }
 
 def run_walkers(
-    walkers: Sequence[object], starts: Sequence[object], device: int = 0
+    walkers: Sequence[object],
+    starts: Sequence[object],
+    device: int = 0,
+    graph_format: str = 'chain',
+    queue_capacity: int = 1024,
+    max_visits: int = 1000000
 ) -> WalkerBatchResult {
+    if graph_format not in ('chain', 'csr') {
+        raise ValueError("GPU graph_format must be 'chain' or 'csr'");
+    }
+    if graph_format == 'csr' {
+        check_csr_limits(queue_capacity, max_visits);
+    }
     if not walkers {
         if starts {
             raise ValueError("Each walker must have exactly one starting node");
         }
-        return WalkerBatchResult([], [], make_memory_plan(0, 0), False);
+        plan = csr_memory_plan(0, 0, 0, queue_capacity)
+            if graph_format == 'csr'
+            else make_memory_plan(0, 0);
+        return WalkerBatchResult([], [], plan, False);
     }
-    with GpuWalkerRuntime(type(walkers[0]), device=device) as runtime {
+    with GpuWalkerRuntime(
+        type(walkers[0]),
+        device=device,
+        graph_format=graph_format,
+        queue_capacity=queue_capacity,
+        max_visits=max_visits
+    ) as runtime {
         return runtime.run_walkers(walkers, starts);
     }
 }
