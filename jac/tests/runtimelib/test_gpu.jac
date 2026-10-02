@@ -207,3 +207,37 @@ test "GPU boolean fields and tagged reports preserve serial semantics" {
         sys.path[:] = old_path;
     }
 }
+
+test "GPU matmul preserves rectangular products and coalesced chain layout" {
+    repo = Path(TESTS_DIR).resolve().parents[1];
+    scripts = repo / "scripts/gpu_walker";
+    old_path = sys.path.copy();
+    try {
+        sys.path.insert(0, str(scripts));
+        module = runpy.run_path(str(scripts / "test_matmul.py"));
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(module["MatmulTests"]);
+        log = io.StringIO();
+        result = unittest.TextTestRunner(stream=log, verbosity=2).run(suite);
+        assert result.wasSuccessful() , log.getvalue();
+        assert result.testsRun == 4;
+    } finally {
+        sys.path[:] = old_path;
+    }
+}
+
+test "GPU subtree queries preserve private state over a shared tree" {
+    repo = Path(TESTS_DIR).resolve().parents[1];
+    scripts = repo / "scripts/gpu_walker";
+    old_path = sys.path.copy();
+    try {
+        sys.path.insert(0, str(scripts));
+        module = runpy.run_path(str(scripts / "test_subtree.py"));
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(module["SubtreeTests"]);
+        log = io.StringIO();
+        result = unittest.TextTestRunner(stream=log, verbosity=2).run(suite);
+        assert result.wasSuccessful() , log.getvalue();
+        assert result.testsRun == 4;
+    } finally {
+        sys.path[:] = old_path;
+    }
+}

@@ -191,3 +191,43 @@ assignments and reports preserve Python `bool` identity. Streams containing
 booleans use interleaved payload and tag columns in the v5 ABI; numeric-only
 streams retain their existing representation. See `booleans_run.jac` and
 `test_booleans.py` for serial comparisons and CUDA coverage.
+
+## Matrix multiplication baseline
+
+```bash
+jac run jac/examples/gpu/matmul_run.jac
+jac build jac/examples/gpu/matmul.jac --as ptx --gpu-entry DotProduct -o dist/gpu-matmul
+```
+
+`matmul_api.gpu_matmul(a, b)` returns `MatmulResult`, with the matrix in `.values`
+and device execution information in `.execution`. Inputs are nonempty rectangular
+matrices with matching inner dimensions. The example checks a 2x3 by 3x2 product
+and a 32x16 by 16x33 product against serial Jac using float64 arithmetic.
+
+Each output element has one `DotProduct` walker and a chain of K `ProductTerm`
+nodes. The existing Jac compiler lowers the multiply and accumulation to PTX.
+The graph packer discovers all starting nodes before successors, producing
+`left[k * M * N + lane]` and `right[k * M * N + lane]` SoA columns; adjacent
+walkers read adjacent slots at each dot-product step.
+
+This is a graph-based correctness and layout baseline. It duplicates input
+values into M*N*K nodes, requires `24*M*N*K + 28*M*N` device payload bytes,
+and also builds graph objects on the host. It does not use shared-memory tiling
+or tensor cores, and is intended for small matrices. A scalable dense matmul
+needs direct matrix-array indexing and a separate kernel interface.
+
+Run `PYTHONPATH=jac JAC_GPU_TEST_CUDA=1 python3 scripts/gpu_walker/test_matmul.py -v`
+for shape, layout, input preservation, and real CUDA checks.
+
+## Batched subtree queries
+
+```bash
+jac run jac/examples/gpu/subtree_query_run.jac
+jac run jac/examples/gpu/subtree_query_run.jac --nodes 1023 --queries 2048
+```
+
+Each CSR walker queries a shared subtree using its own amount threshold and
+returns a matching count, integer sum, boolean alert flag, and total visit count.
+The runner checks every result against serial Jac and distinguishes CPU graph
+construction, source compilation, and the complete GPU batch call. See the
+[graph, semantics, and execution instructions](../../jac/examples/gpu/subtree_query.md).
