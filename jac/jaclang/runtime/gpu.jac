@@ -20,6 +20,9 @@ import from jaclang.runtime.gpu_memory {
     csr_buffers,
     csr_memory_plan,
     check_csr_limits,
+    check_report_capacity,
+    report_buffers,
+    with_report_plan,
     memory_plan as make_memory_plan
 }
 import from jaclang.runtime.gpu_cuda { CudaSession }
@@ -40,7 +43,8 @@ obj WalkerSchema {
         node_fields: list[str] = [],
         node_objects: dict[str, type] = {},
         state_fields: list[str] = [],
-        state_objects: dict[str, type] = {};
+        state_objects: dict[str, type] = {},
+        emits_reports: bool = False;
 
     def field_paths -> list[str] {
         return self.node_fields or [self.node_field];
@@ -59,21 +63,21 @@ obj PackedWalkerBatch {
 
     def memory_plan -> GpuMemoryPlan {
         if isinstance(self.buffers, CsrBuffers) {
-            return csr_memory_plan(
+            return with_report_plan(csr_memory_plan(
                 len(self.nodes),
                 len(self.buffers.targets),
                 len(self.walkers),
                 self.buffers.queue_capacity,
                 node_field_count=len(self.buffers.columns()),
                 state_field_count=len(self.buffers.initial_columns())
-            );
+            ), self.buffers.reports);
         }
-        return make_memory_plan(
+        return with_report_plan(make_memory_plan(
             len(self.nodes),
             len(self.walkers),
             node_field_count=len(self.buffers.columns()),
             state_field_count=len(self.buffers.initial_columns())
-        );
+        ), self.buffers.reports);
     }
 }
 
@@ -84,7 +88,8 @@ obj WalkerBatchResult {
         gpu_executed: bool,
         gpu_name: str = '',
         cuda_driver_version: int = 0,
-        fields: dict[str, list[float | int]] = {};
+        fields: dict[str, list[float | int]] = {},
+        reports: list[list[float | int]] = [];
 }
 
 def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchema {
@@ -155,7 +160,8 @@ def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchem
         spec.field_paths(),
         {path: getattr(module, name) for (path, name) in spec.node_objects.items()},
         spec.state_paths(),
-        {path: getattr(module, name) for (path, name) in spec.state_objects.items()}
+        {path: getattr(module, name) for (path, name) in spec.state_objects.items()},
+        bool(spec.report_parameters())
     );
 }
 
@@ -234,7 +240,8 @@ def pack_walkers(
     walkers: Sequence[object],
     starts: Sequence[object],
     queue_capacity: int = 1024,
-    max_visits: int = 1000000
+    max_visits: int = 1000000,
+    report_capacity: int = 1024
 ) -> PackedWalkerBatch {
     import from jaclang.runtime.graph_query { GraphQuery, QHop }
     import from jaclang.runtime.graph_walk { walk }
@@ -264,10 +271,9 @@ def pack_walkers(
             or anch.next
             or anch.ignores
             or anch.disengaged
-            or anch.path
-            or w.reports {
+            or anch.path {
             raise ValueError(
-                "GPU walkers cannot have an active traversal, queued work, path, or reports"
+                "GPU walkers cannot have an active traversal, queued work, or path"
             );
         }
         objects = data_objects(w, schema.state_objects);
@@ -376,40 +382,22 @@ def pack_walkers(
         }
         idx += 1;
     }
+    reports = report_buffers(len(walkers), report_capacity, schema.dtype) if schema.emits_reports else None;
     if schema.graph_format == 'csr' {
-        return PackedWalkerBatch(
-            typed_walkers,
-            nodes,
-            csr_buffers(
-                columns[0],
-                offsets,
-                targets,
-                heads,
-                initial[0],
-                schema.dtype,
-                queue_capacity,
-                max_visits,
-                extra_values=columns[1:],
-                extra_initial=initial[1:]
-            ),
-            state_objects
+        buffers = csr_buffers(
+            columns[0], offsets, targets, heads, initial[0], schema.dtype,
+            queue_capacity, max_visits, extra_values=columns[1:], extra_initial=initial[1:]
         );
+        buffers.reports = reports;
+        return PackedWalkerBatch(typed_walkers, nodes, buffers, state_objects);
     }
     check_finite_chains(links);
-    return PackedWalkerBatch(
-        typed_walkers,
-        nodes,
-        chain_buffers(
-            columns[0],
-            links,
-            heads,
-            initial[0],
-            schema.dtype,
-            extra_values=columns[1:],
-            extra_initial=initial[1:]
-        ),
-        state_objects
+    buffers_chain = chain_buffers(
+        columns[0], links, heads, initial[0], schema.dtype,
+        extra_values=columns[1:], extra_initial=initial[1:]
     );
+    buffers_chain.reports = reports;
+    return PackedWalkerBatch(typed_walkers, nodes, buffers_chain, state_objects);
 }
 
 def publish_results(
@@ -421,6 +409,9 @@ def publish_results(
 ) -> WalkerBatchResult {
     status = cast(list[int], batch.buffers.status.tolist());
     if any(status) {
+        if 7 in status {
+            raise RuntimeError("GPU report capacity exceeded; increase report_capacity. No walker state or reports published");
+        }
         if 4 in status {
             raise ZeroDivisionError(
                 "GPU integer modulo by zero; no walker fields updated"
@@ -490,8 +481,28 @@ def publish_results(
         path: cast(list[float | int], column.tolist())
         for (path, column) in zip(paths, outputs)
     };
+    reports: list[list[float | int]] = [[] for w in batch.walkers];
+    report_data = batch.buffers.reports;
+    if schema.emits_reports != (report_data is not None) {
+        raise ValueError("GPU report buffers do not match the compiled walker");
+    }
+    if report_data is not None {
+        count = len(batch.walkers);
+        if len(report_data.counts) != count or len(report_data.values) != count * report_data.capacity {
+            raise ValueError("GPU report buffers do not match the packed batch");
+        }
+        for (lane, length) in enumerate(report_data.counts) {
+            if length > report_data.capacity {
+                raise RuntimeError("Invalid GPU report count; no results published");
+            }
+            reports[lane] = [report_data.values[slot * count + lane] for slot in range(length)];
+        }
+    }
     for (parent, name, value) in writes {
         setattr(parent, name, value);
+    }
+    for (w, emitted) in zip(batch.walkers, reports) {
+        w.reports = emitted;
     }
     return WalkerBatchResult(
         fields[paths[0]],
@@ -500,7 +511,8 @@ def publish_results(
         bool(batch.walkers),
         gpu_name,
         driver_version,
-        fields
+        fields,
+        reports
     );
 }
 
@@ -511,12 +523,14 @@ obj GpuWalkerRuntime {
         graph_format: str = 'chain',
         queue_capacity: int = 1024,
         max_visits: int = 1000000,
+        report_capacity: int = 1024,
         schema: WalkerSchema postinit,
         session: CudaSession | None = None,
         owner_thread: int = 0,
         closed: bool = False;
 
     def postinit {
+        check_report_capacity(self.report_capacity);
         self.owner_thread = get_ident();
         if self.graph_format == 'csr' {
             check_csr_limits(self.queue_capacity, self.max_visits);
@@ -545,7 +559,7 @@ obj GpuWalkerRuntime {
     ) -> PackedWalkerBatch {
         self.check_open();
         return pack_walkers(
-            self.schema, walkers, starts, self.queue_capacity, self.max_visits
+            self.schema, walkers, starts, self.queue_capacity, self.max_visits, self.report_capacity
         );
     }
 
@@ -573,7 +587,8 @@ obj GpuWalkerRuntime {
                 self.block_size,
                 graph_format=self.schema.graph_format,
                 node_field_count=len(self.schema.field_paths()),
-                state_field_count=len(self.schema.state_paths())
+                state_field_count=len(self.schema.state_paths()),
+                emits_reports=self.schema.emits_reports
             );
         }
         plan = self.session.execute(batch.buffers);
@@ -612,8 +627,10 @@ def run_walkers(
     device: int = 0,
     graph_format: str = 'chain',
     queue_capacity: int = 1024,
-    max_visits: int = 1000000
+    max_visits: int = 1000000,
+    report_capacity: int = 1024
 ) -> WalkerBatchResult {
+    check_report_capacity(report_capacity);
     if graph_format not in ('chain', 'csr') {
         raise ValueError("GPU graph_format must be 'chain' or 'csr'");
     }
@@ -634,7 +651,8 @@ def run_walkers(
         device=device,
         graph_format=graph_format,
         queue_capacity=queue_capacity,
-        max_visits=max_visits
+        max_visits=max_visits,
+        report_capacity=report_capacity
     ) as runtime {
         return runtime.run_walkers(walkers, starts);
     }

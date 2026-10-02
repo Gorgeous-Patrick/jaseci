@@ -98,16 +98,23 @@ obj StateUpdate {
     has expression: ChainExpr,
         target: int | None = None,
         taken: list[StateUpdate] = [],
-        skipped: list[StateUpdate] = [];
+        skipped: list[StateUpdate] = [],
+        is_report: bool = False;
 
     def lower(
         b: ir.IRBuilder,
         state: list[ir.Value],
         node_value: list[ir.Value],
         overflow: ir.Block,
-        zero_divisor: ir.Block
+        zero_divisor: ir.Block,
+        reports: ReportOutput | None = None
     ) -> list[ir.Value] {
         value = self.expression.lower(b, state, node_value, overflow, zero_divisor);
+        if self.is_report {
+            assert reports is not None;
+            reports.emit(b, value);
+            return state;
+        }
         if self.target is not None {
             result = state.copy();
             result[self.target] = value;
@@ -118,11 +125,11 @@ obj StateUpdate {
         merge = b.function.append_basic_block("update.end");
         b.cbranch(value, yes_block, no_block);
         b.position_at_end(yes_block);
-        yes = lower_updates(self.taken, b, state, node_value, overflow, zero_divisor);
+        yes = lower_updates(self.taken, b, state, node_value, overflow, zero_divisor, reports);
         yes_end = b.block;
         b.branch(merge);
         b.position_at_end(no_block);
-        no = lower_updates(self.skipped, b, state, node_value, overflow, zero_divisor);
+        no = lower_updates(self.skipped, b, state, node_value, overflow, zero_divisor, reports);
         no_end = b.block;
         b.branch(merge);
         b.position_at_end(merge);
@@ -143,13 +150,38 @@ def lower_updates(
     state: list[ir.Value],
     node_value: list[ir.Value],
     overflow: ir.Block,
-    zero_divisor: ir.Block
+    zero_divisor: ir.Block,
+    reports: ReportOutput | None = None
 ) -> list[ir.Value] {
     result = state;
     for update in updates {
-        result = update.lower(b, result, node_value, overflow, zero_divisor);
+        result = update.lower(b, result, node_value, overflow, zero_divisor, reports);
     }
     return result;
+}
+
+obj ReportOutput {
+    has counts: ir.Value,
+        values: ir.Value,
+        capacity: ir.Value,
+        lane: ir.Value,
+        walkers: ir.Value,
+        full: ir.Block;
+
+    def emit(b: ir.IRBuilder, value: ir.Value) {
+        address = b.gep(self.counts, [self.lane]);
+        count = b.load(address);
+        room = b.function.append_basic_block("report.room");
+        b.cbranch(b.icmp_unsigned("<", count, self.capacity), room, self.full);
+        b.position_at_end(room);
+        slot = b.add(b.mul(count, self.walkers), self.lane);
+        b.store(value, b.gep(self.values, [slot]));
+        b.store(b.add(count, ir.Constant(ir.IntType(64), 1)), address);
+    }
+}
+
+def has_reports(updates: list[StateUpdate]) -> bool {
+    return any(u.is_report or has_reports(u.taken) or has_reports(u.skipped) for u in updates);
 }
 
 def checked_int(
@@ -192,6 +224,17 @@ obj ChainWalker {
         state_fields: list[str] = [],
         state_objects: dict[str, str] = {},
         default_states: list[float | int | None] = [];
+
+    def report_parameters -> list[dict[str, any]] {
+        if not has_reports(self.updates) {
+            return [];
+        }
+        return [
+            {"name": "report_counts", "dtype": "uint64", "length": "walker_count", "access": "write"},
+            {"name": "report_values", "dtype": self.dtype.value, "length": "report_capacity * walker_count", "access": "write"},
+            {"name": "report_capacity", "dtype": "uint64"}
+        ];
+    }
 
     def field_paths -> list[str] {
         return self.node_fields or [self.node_field];
@@ -271,14 +314,16 @@ obj ChainWalker {
                     },
                     {"name": "node_count", "dtype": "uint64"},
                     {"name": "walker_count", "dtype": "uint64"}
-                ],
+                ] + self.report_parameters(),
+            "reports": {"dtype": self.dtype.value, "layout": "report_values[slot * walker_count + lane]"} if has_reports(self.updates) else None,
             "null_node": -1,
             "status_codes": {
                 "0": "success",
                 "1": "invalid_node_index",
                 "2": "cycle",
                 "3": "integer_overflow",
-                "4": "integer_modulo_by_zero"
+                "4": "integer_modulo_by_zero",
+                "7": "report_capacity_exceeded"
             },
             "results_on_error": "unchanged; ignore results when status is nonzero",
             "graph_contract": "finite chains of the declared node/edge types; at most one outgoing edge per node",
@@ -526,6 +571,9 @@ def chain_update(
     nd: list[list[uni.HasVar]],
     dtype: GpuScalarType
 ) -> StateUpdate {
+    if isinstance(stmt, uni.ReportStmt) {
+        return StateUpdate(chain_expr(stmt.expr, state, nd, dtype), is_report=True);
+    }
     if isinstance(stmt, uni.IfStmt) and not stmt.is_comptime {
         otherwise: list[StateUpdate] = [];
         tail = stmt.else_body;
@@ -544,7 +592,7 @@ def chain_update(
         or len(stmt.target) != 1
         or not isinstance(stmt.value, uni.Expr) {
         reject(
-            stmt, "GPU bodies require private walker field assignments or if/elif/else"
+            stmt, "GPU bodies require private walker field assignments, numeric reports or if/elif/else"
         );
     }
     assert isinstance(stmt, uni.Assignment) and isinstance(stmt.value, uni.Expr);
@@ -733,6 +781,9 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
             + [i32]
     ]
         + [i64, i64];
+    if has_reports(spec.updates) {
+        signature += [i64.as_pointer(addrspace=space), scalar.as_pointer(addrspace=space), i64];
+    }
     if not device {
         signature.append(i64);
     }
@@ -773,6 +824,13 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     index = thread_index(module, b) if device else fn.args[-1];
     b.cbranch(b.icmp_unsigned("<", index, count), start, done);
     b.position_at_end(start);
+    reports: ReportOutput | None = None;
+    report_full = fn.append_basic_block("report.capacity.exceeded");
+    if has_reports(spec.updates) {
+        args = fn.args[field_count + 5 + 2 * state_count:field_count + 8 + 2 * state_count];
+        reports = ReportOutput(args[0], args[1], args[2], index, count, report_full);
+        b.store(ir.Constant(i64, 0), b.gep(args[0], [index]));
+    }
     head = b.load(b.gep(heads, [index]));
     seeds = [b.load(b.gep(column, [index])) for column in initial];
     b.branch(check);
@@ -799,7 +857,7 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
         b.load(b.gep(column, [current]), name=path)
         for (column, path) in zip(values, spec.field_paths())
     ];
-    updated = lower_updates(spec.updates, b, state, node_value, overflow, zero_divisor);
+    updated = lower_updates(spec.updates, b, state, node_value, overflow, zero_divisor, reports);
     successor = b.load(b.gep(links, [current]), name="successor");
     next_step = b.add(steps, ir.Constant(i64, 1));
     body_end = b.block;
@@ -819,7 +877,8 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
         (bad_index, 1),
         (cycle, 2),
         (overflow, 3),
-        (zero_divisor, 4)
+        (zero_divisor, 4),
+        (report_full, 7)
     ) {
         b.position_at_end(block);
         b.store(ir.Constant(i32, code), b.gep(status, [index]));
@@ -845,6 +904,10 @@ def emit_chain_ptx(walkers: list[ChainWalker]) -> PtxArtifact {
     if any(len(spec.state_paths()) > 1 for spec in walkers) {
         artifact.format = "jac-ptx-chain-v3";
         artifact.argument_order = "node fields, next, heads, initial state columns, result state columns, status, node_count, walker_count; exact order in each kernel's parameters";
+    }
+    if any(has_reports(spec.updates) for spec in walkers) {
+        artifact.format = "jac-ptx-chain-v4";
+        artifact.argument_order = "exact order in each kernel's parameters; reports append counts, values, capacity";
     }
     return artifact;
 }

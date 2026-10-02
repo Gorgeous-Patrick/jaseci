@@ -40,9 +40,9 @@ Mutable walker objects must belong to one walker and one state path, and cannot
 also belong to a node. All node and walker leaves must have the same type: `float` (float64)
 or `int` (signed int64). Lists, optional objects and mixed numeric types are not
 part of this first multi-field implementation.
-The body contains sequential state updates followed by one typed outgoing tail `visit`.
-Updates may be guarded by `if`/`elif`/`else`, with multiple updates or nested `if`
-per branch. Each statement reads the state produced by earlier statements;
+The body contains sequential state updates and numeric reports followed by one
+typed outgoing tail `visit`. Statements may be guarded by `if`/`elif`/`else`,
+with multiple statements or nested `if` per branch. Each statement reads the state produced by earlier statements;
 an unassigned field keeps its value. Conditions support one
 numeric comparison: `==`, `!=`, `<`, `<=`, `>`, or `>=`.
 
@@ -94,7 +94,7 @@ ABIs remain compatible. Top-level numeric walker fields require literal
 defaults; nested state is packed from actual instances, and its manifest
 `default_initial_states` entries are null.
 
-Inheritance, node abilities, helpers, shared writes, reports,
+Inheritance, node abilities, helpers, shared writes, object reports,
 filtered/multi-hop queries, general loops, boolean combinations, mixed numeric
 field types, and other effects are rejected with source locations. Standalone
 scalar function exports still support only the separate float64/bool subset.
@@ -182,3 +182,6 @@ The suite compares against ordinary Jac, checks negative modulo and int64 limits
 tests skipped branches and arithmetic failures, and verifies exact publication
 and whole-batch rollback. Without the environment variable it uses CPU lowering
 and a CUDA driver double, so a GPU is not required by the regular test runner.
+
+Numeric reports are supported in both graph formats. See [report storage and
+publication](runtime.md#numeric-reports) and `jac/examples/gpu/reports_run.jac`.

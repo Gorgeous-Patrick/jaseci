@@ -6,7 +6,7 @@ import from jaclang.compiler.backends.native.ptx {
     ptx_target,
     thread_index
 }
-import from jaclang.compiler.backends.native.ptx_walker { ChainWalker, lower_updates }
+import from jaclang.compiler.backends.native.ptx_walker { ChainWalker, lower_updates, has_reports, ReportOutput }
 import from jaclang.runtime.gpu_memory { GpuScalarType }
 
 def csr_metadata(spec: ChainWalker) -> dict[str, any] {
@@ -40,7 +40,7 @@ def csr_metadata(spec: ChainWalker) -> dict[str, any] {
                 'queue_capacity',
                 'max_visits'
             )
-        ];
+        ] + spec.report_parameters();
     result['status_codes'] = {
         '0': 'success',
         '1': 'invalid_node_index',
@@ -48,7 +48,8 @@ def csr_metadata(spec: ChainWalker) -> dict[str, any] {
         '3': 'integer_overflow',
         '4': 'integer_modulo_by_zero',
         '5': 'invalid_csr_offsets',
-        '6': 'queue_capacity_exceeded'
+        '6': 'queue_capacity_exceeded',
+        '7': 'report_capacity_exceeded'
     };
     result['graph_contract'] = 'read-only typed CSR adjacency; unique targets per row in Jac node-query order';
     result['traversal'] = 'FIFO visits; repeated arrivals execute again; bounded queue and visit count';
@@ -84,6 +85,11 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
             + [i32, i64]
     ]
         + [i64] * (5 if device else 6);
+    if has_reports(spec.updates) {
+        if not device { signature.pop(); }
+        signature += [i64.as_pointer(addrspace=space), scalar.as_pointer(addrspace=space), i64];
+        if not device { signature.append(i64); }
+    }
     suffix = 'batch' if device else 'lane';
     fn = ir.Function(
         module,
@@ -131,6 +137,14 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
     index = thread_index(module, b) if device else fn.args[-1];
     b.cbranch(b.icmp_unsigned('<', index, count), start, done);
     b.position_at_end(start);
+    reports: ReportOutput | None = None;
+    report_full = fn.append_basic_block("report.capacity.exceeded");
+    if has_reports(spec.updates) {
+        base = field_count + 10 + 2 * state_count;
+        args = fn.args[base:base + 3];
+        reports = ReportOutput(args[0], args[1], args[2], index, count, report_full);
+        b.store(zero, b.gep(args[0], [index]));
+    }
     head = b.load(b.gep(heads, [index]));
     seeds = [b.load(b.gep(column, [index])) for column in initial];
     b.cbranch(b.icmp_signed('==', head, ir.Constant(i64, -1)), finish, init);
@@ -174,7 +188,7 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
         b.load(b.gep(column, [current]), name=path)
         for (column, path) in zip(values, spec.field_paths())
     ];
-    updated = lower_updates(spec.updates, b, state, node_value, overflow, zero_divisor);
+    updated = lower_updates(spec.updates, b, state, node_value, overflow, zero_divisor, reports);
     begin = b.load(b.gep(offsets, [current]));
     end = b.load(b.gep(offsets, [b.add(current, one)]));
     row_valid = b.and_(
@@ -243,7 +257,8 @@ def lower_csr(module: ir.Module, spec: ChainWalker, device: bool) {
         (overflow, 3),
         (zero_divisor, 4),
         (bad_row, 5),
-        (queue_full, 6)
+        (queue_full, 6),
+        (report_full, 7)
     ) {
         b.position_at_end(block);
         b.store(ir.Constant(i32, code), b.gep(status, [index]));
@@ -269,6 +284,10 @@ def emit_csr_ptx(walkers: list[ChainWalker]) -> PtxArtifact {
     if any(len(spec.state_paths()) > 1 for spec in walkers) {
         artifact.format = 'jac-ptx-csr-v3';
         artifact.argument_order = "node fields, offsets, targets, heads, initial state columns, result state columns, status, queue, node_count, edge_count, walker_count, queue_capacity, max_visits; exact order in each kernel's parameters";
+    }
+    if any(has_reports(spec.updates) for spec in walkers) {
+        artifact.format = "jac-ptx-csr-v4";
+        artifact.argument_order = "exact order in each kernel's parameters; reports append counts, values, capacity";
     }
     return artifact;
 }

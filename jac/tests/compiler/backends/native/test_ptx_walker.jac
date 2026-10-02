@@ -227,3 +227,30 @@ test "CLI exports CSR walkers with queue limits and rejects scalar CSR builds" {
         assert build(str(source), gpu_graph_format='csr') == 1;
     }
 }
+
+test "CLI exports numeric report buffers in v4 chain and CSR manifests" {
+    source = REPO / "jac/examples/gpu/reports.jac";
+    for graph_format in ("chain", "csr") {
+        with tempfile.TemporaryDirectory() as tmp {
+            proc = subprocess.run(
+                jac_command(
+                    "build", str(source), "--as", "ptx", "--gpu-entry", "Collector",
+                    "--gpu-graph-format", graph_format, "-o", tmp
+                ),
+                capture_output=True,
+                text=True,
+                timeout=180
+            );
+            assert proc.returncode == 0 , proc.stdout + proc.stderr;
+            metadata = json.loads((Path(tmp) / "reports.ptx.json").read_text());
+            assert metadata["format"] == f"jac-ptx-{graph_format}-v4";
+            kernel = metadata["kernels"][0];
+            assert [p["name"] for p in kernel["parameters"][-3:]]
+                == ["report_counts", "report_values", "report_capacity"];
+            assert kernel["parameters"][-2]["dtype"] == "int64";
+            assert kernel["status_codes"]["7"] == "report_capacity_exceeded";
+            assert kernel["reports"]["layout"]
+                == "report_values[slot * walker_count + lane]";
+        }
+    }
+}

@@ -229,7 +229,7 @@ class IntegerWalkerTests(unittest.TestCase):
                 'self.total = here.value + 2.0;',
                 'self.total = here.value + 9223372036854775808;',
                 'if here.value == 0 { here.value = 2; }',
-                'if here.value == 0 { report here.value; }',
+                'if here.value == 0 { report here; }',
                 'if here.value == 0 { visit [->:IntNext:->]; }',
                 'if here.value == 0 { self.total += 1; } else { here.value = 2; }'):
             with self.subTest(body=body), self.assertRaises(self.unsupported):

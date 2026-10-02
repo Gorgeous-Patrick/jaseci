@@ -19,18 +19,22 @@ obj GpuMemoryPlan {
         edge_layout: ArenaLayout = ArenaLayout(0, [], 0),
         queue_layout: ArenaLayout = ArenaLayout(0, [], 0),
         node_field_count: int = 1,
-        state_field_count: int = 1;
+        state_field_count: int = 1,
+        report_capacity: int = 0,
+        report_layout: ArenaLayout = ArenaLayout(0, [], 0);
 
     def allocated_bytes -> int {
         return self.graph_layout.nbytes
             + self.walker_layout.nbytes
             + self.edge_layout.nbytes
-            + self.queue_layout.nbytes;
+            + self.queue_layout.nbytes
+            + self.report_layout.nbytes;
     }
 
     def payload_bytes -> int {
         return 8 * (self.node_field_count + 1) * self.node_count
             + (12 + 16 * self.state_field_count) * self.walker_count
+            + (8 * (1 + self.report_capacity) * self.walker_count if self.report_capacity else 0)
             + (
                 8 + 8 * self.edge_count + 8 * self.walker_count * self.queue_capacity
                     if self.graph_format == 'csr'
@@ -83,6 +87,36 @@ def memory_plan(
     );
 }
 
+def check_report_capacity(capacity: int, walkers: int = 0) {
+    if type(capacity) is not int or not 0 < capacity <= (2 ** 63 - 1) // 8 {
+        raise ValueError("GPU report_capacity must be a positive addressable integer");
+    }
+    if walkers < 0 or walkers * (capacity + 1) > (2 ** 63 - 1) // 8 {
+        raise ValueError("GPU report storage exceeds the addressable byte range");
+    }
+}
+
+obj ReportBuffers {
+    has counts: array,
+        values: array,
+        capacity: int;
+}
+
+def report_buffers(walkers: int, capacity: int, dtype: GpuScalarType) -> ReportBuffers {
+    check_report_capacity(capacity, walkers);
+    code = 'q' if dtype == GpuScalarType.INT64 else 'd';
+    return ReportBuffers(array('Q', [0]) * walkers, array(code, [0]) * (walkers * capacity), capacity);
+}
+
+def with_report_plan(plan: GpuMemoryPlan, reports: ReportBuffers | None, previous_capacity: int = 0) -> GpuMemoryPlan {
+    if reports is not None {
+        check_report_capacity(reports.capacity, plan.walker_count);
+        plan.report_capacity = reports.capacity;
+        plan.report_layout = arena_layout(plan.walker_count, [8, 8 * reports.capacity], previous_capacity);
+    }
+    return plan;
+}
+
 obj ChainBuffers {
     has values: array,
         links: array,
@@ -92,7 +126,8 @@ obj ChainBuffers {
         status: array,
         extra_values: list[array] = [],
         extra_initial: list[array] = [],
-        extra_results: list[array] = [];
+        extra_results: list[array] = [],
+        reports: ReportBuffers | None = None;
 
     def columns -> list[array] {
         return [self.values, *self.extra_values];
@@ -224,7 +259,8 @@ obj CsrBuffers {
         max_visits: int,
         extra_values: list[array] = [],
         extra_initial: list[array] = [],
-        extra_results: list[array] = [];
+        extra_results: list[array] = [],
+        reports: ReportBuffers | None = None;
 
     def columns -> list[array] {
         return [self.values, *self.extra_values];

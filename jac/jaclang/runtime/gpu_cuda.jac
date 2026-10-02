@@ -9,7 +9,9 @@ import from jaclang.runtime.gpu_memory {
     GpuMemoryPlan,
     memory_plan,
     csr_memory_plan,
-    check_csr_limits
+    check_csr_limits,
+    check_report_capacity,
+    with_report_plan
 }
 
 glob logger = getLogger(__name__);
@@ -146,6 +148,7 @@ obj CudaSession {
         walker_arena: DeviceArena = DeviceArena(),
         edge_arena: DeviceArena = DeviceArena(),
         queue_arena: DeviceArena = DeviceArena(),
+        report_arena: DeviceArena = DeviceArena(),
         plan: GpuMemoryPlan = memory_plan(0, 0),
         gpu_name: str = '',
         driver_version: int = 0,
@@ -153,7 +156,8 @@ obj CudaSession {
         owner_thread: int = 0,
         closed: bool = False,
         node_field_count: int = 1,
-        state_field_count: int = 1;
+        state_field_count: int = 1,
+        emits_reports: bool = False;
 
     def postinit {
         self.owner_thread = get_ident();
@@ -282,16 +286,20 @@ obj CudaSession {
             plan.graph_layout.nbytes = max(
                 plan.graph_layout.nbytes, self.graph_arena.nbytes
             );
+            plan = with_report_plan(plan, buffers.reports, self.report_arena.capacity);
+            plan.report_layout.nbytes = max(plan.report_layout.nbytes, self.report_arena.nbytes);
             return plan;
         }
-        return memory_plan(
+        plan = with_report_plan(memory_plan(
             len(buffers.values),
             len(buffers.heads),
             self.graph_arena.capacity,
             self.walker_arena.capacity,
             node_field_count=self.node_field_count,
             state_field_count=self.state_field_count
-        );
+        ), buffers.reports, self.report_arena.capacity);
+        plan.report_layout.nbytes = max(plan.report_layout.nbytes, self.report_arena.nbytes);
+        return plan;
     }
 
     def execute(buffers: ChainBuffers | CsrBuffers) -> GpuMemoryPlan {
@@ -331,6 +339,18 @@ obj CudaSession {
             raise ValueError(
                 "GPU node columns must have matching lengths and scalar types"
             );
+        }
+        report_data = buffers.reports;
+        if self.emits_reports != (report_data is not None) {
+            raise ValueError("GPU report buffers do not match the compiled kernel");
+        }
+        if report_data is not None {
+            check_report_capacity(report_data.capacity, m);
+            if len(report_data.counts) != m or report_data.counts.typecode != 'Q'
+                or len(report_data.values) != m * report_data.capacity
+                or report_data.values.typecode != buffers.values.typecode {
+                raise ValueError("GPU report buffers have invalid lengths or scalar types");
+            }
         }
         plan = self.plan_for(buffers);
         is_csr = isinstance(buffers, CsrBuffers);
@@ -392,6 +412,12 @@ obj CudaSession {
             } else {
                 arguments = [c.c_uint64(value) for value in [*addresses, n, m]];
             }
+            report_addresses: list[int] = [];
+            if report_data is not None {
+                self.report_arena.reserve(d, plan.report_layout.nbytes, plan.report_layout.capacity);
+                report_addresses = [self.report_arena.address + offset for offset in plan.report_layout.offsets];
+                arguments += [c.c_uint64(value) for value in [*report_addresses, report_data.capacity]];
+            }
             params = (c.c_void_p * len(arguments))(
                 *(c.addressof(arg) for arg in arguments)
             );
@@ -416,6 +442,12 @@ obj CudaSession {
                 self.transfer('cuMemcpyDtoH_v2', address, column);
             }
             self.transfer('cuMemcpyDtoH_v2', addresses[-1], buffers.status);
+            if report_data is not None {
+                self.transfer('cuMemcpyDtoH_v2', report_addresses[0], report_data.counts);
+                if not any(buffers.status) {
+                    self.transfer('cuMemcpyDtoH_v2', report_addresses[1], report_data.values);
+                }
+            }
         } except CudaError {
             failed = True;
             raise;
@@ -441,6 +473,7 @@ obj CudaSession {
             d.call('cuCtxPushCurrent_v2', self.context);
             pushed = True;
             self.queue_arena.close(d);
+            self.report_arena.close(d);
             self.edge_arena.close(d);
             self.walker_arena.close(d);
             self.graph_arena.close(d);

@@ -281,7 +281,7 @@ def _verify(repo: Path, output: Path):
         rejected = {}
         variants = {
             'node_write': source.replace('self.total += here.value;', 'here.value += 1.0;'),
-            'report': source.replace('visit [->:Next:->];', 'report self.total; visit [->:Next:->];'),
+            'report': source.replace('visit [->:Next:->];', 'report here; visit [->:Next:->];'),
             'non_tail_visit': source.replace('self.total += here.value;\n        visit [->:Next:->];',
                 'visit [->:Next:->];\n        self.total += here.value;'),
             'division': source.replace('here.value;', 'here.value / 2.0;'),

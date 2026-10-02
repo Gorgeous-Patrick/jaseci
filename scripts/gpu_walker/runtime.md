@@ -227,9 +227,10 @@ also rejects branching selected edges and cycles. The experimental CSR option
 below accepts branching adjacency and bounds traversal on cyclic graphs.
 
 This API executes the selected numerical traversal. It updates the declared
-walker state fields, and does not generate ordinary spawn path records or reports.
-Walkers with an active traversal, pending visits, ignores, disengagement, prior
-path records or reports are rejected. Repeated GPU batches can reuse completed
+walker state fields, and does not generate ordinary spawn path records. Numeric
+reports are supported as described below.
+Walkers with an active traversal, pending visits, ignores, disengagement, or prior
+path records are rejected. Repeated GPU batches can reuse completed
 walker instances and their updated scalar fields.
 
 Copyback occurs only after synchronization and after every lane reports success.
@@ -330,7 +331,7 @@ benefit or optimality is assumed in advance.
 CSR currently uses the same restricted numeric ability body as the chain
 backend: matching numeric node and private walker leaves, one synchronous
 entry ability, and one outgoing typed tail visit. Node writes, filtered queries,
-arbitrary visit control, reports, and heterogeneous graphs remain unsupported.
+arbitrary visit control, object reports, and heterogeneous graphs remain unsupported.
 
 ## Verification boundary
 
@@ -356,3 +357,43 @@ deduplication, random DAGs and physical permutations, 0/1/31/32/33/257/1000 walk
 batches, high degree, empty rows, ring wrap, cycles, bounds and arithmetic
 failures, batch rollback, allocation reuse and cleanup. Without the environment
 variable, the suite does not execute PTX on a GPU.
+
+## Numeric reports
+
+Both graph formats support `report` of numeric expressions matching the
+walker's scalar type (`int64` or `float64`). Reports can appear between
+assignments and inside supported conditionals. Each report captures its value
+at that statement; repeated arrivals emit again in traversal order.
+
+```jac
+with GpuWalkerRuntime(
+    Collector, graph_format="csr", report_capacity=1024
+) as gpu {
+    result = gpu.run_walkers(walkers, starts);
+    print(walkers[0].reports);
+    print(result.reports);
+}
+```
+
+`report_capacity` is a positive per-walker bound, independent of the visit
+queue and visit limit. A separate aligned arena holds `report_counts[M]` and
+`report_values[report_capacity * M]`. The physical index is
+`slot * M + lane`: the first reports of adjacent walkers are adjacent.
+Payload storage requires `8 * M * (report_capacity + 1)` bytes. No report arena
+is allocated for walkers without report statements. Device execution resets
+each active lane's count; unused value slots have no meaning.
+
+Report-enabled kernels use v4 manifests, appending the counts pointer, values
+pointer, and report capacity after the existing arguments. Non-report kernels
+retain their previous ABI. Status 7 indicates report capacity overflow. An
+arithmetic, traversal, CUDA, or report-capacity failure publishes neither state
+nor reports for any walker. Successful completion replaces each walker's
+reports, including clearing them after an empty traversal. Existing report lists
+are accepted when preparing a new batch. `result.reports` contains one list per
+walker in input order. This batch API does not enqueue reports into a server
+request or implement nested-spawn report propagation.
+
+Object, string, container, and mixed-type reports remain unsupported. Run the
+GPU example with `jac run jac/examples/gpu/reports_run.jac`. Host regression
+coverage lives in `scripts/gpu_walker/test_reports.py`; set
+`JAC_GPU_TEST_CUDA=1` to enable its additional real-device check.
