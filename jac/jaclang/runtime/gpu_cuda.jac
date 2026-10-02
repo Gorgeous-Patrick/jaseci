@@ -4,6 +4,7 @@ import from array { array }
 import from threading { get_ident }
 import from logging { getLogger }
 import from jaclang.runtime.gpu_memory {
+    GpuScalarType,
     ChainBuffers,
     CsrBuffers,
     GpuMemoryPlan,
@@ -157,10 +158,17 @@ obj CudaSession {
         closed: bool = False,
         node_field_count: int = 1,
         state_field_count: int = 1,
-        emits_reports: bool = False;
+        emits_reports: bool = False,
+        node_dtypes: list[GpuScalarType] = [],
+        state_dtypes: list[GpuScalarType] = [],
+        tagged_reports: bool = False;
 
     def postinit {
         self.owner_thread = get_ident();
+        if (self.node_dtypes and len(self.node_dtypes) != self.node_field_count)
+            or (self.state_dtypes and len(self.state_dtypes) != self.state_field_count) {
+            raise ValueError("GPU declared column types do not match field counts");
+        }
         if self.graph_format not in ('chain', 'csr') {
             raise ValueError("GPU graph_format must be 'chain' or 'csr'");
         }
@@ -320,25 +328,31 @@ obj CudaSession {
                 "GPU state field count does not match the compiled kernel"
             );
         }
-        if len(buffers.status) != m
-            or any(
-                len(column) != m
-                    or column.itemsize != 8
-                    or column.typecode != buffers.values.typecode
-                for column in [*initials, *results]
-            ) {
-            raise ValueError(
-                "GPU state columns must have matching lengths and scalar types"
-            );
+        if len(buffers.status) != m {
+            raise ValueError("GPU status length does not match the walker count");
         }
-        if any(
-            len(column) != n
-                or column.itemsize != 8
-                or column.typecode != buffers.values.typecode for column in columns
-        ) {
-            raise ValueError(
-                "GPU node columns must have matching lengths and scalar types"
-            );
+        for (i, column) in enumerate([*initials, *results]) {
+            code = ('d' if self.state_dtypes[i % self.state_field_count] == GpuScalarType.FLOAT64 else 'q')
+                if self.state_dtypes else buffers.values.typecode;
+            if len(column) != m or column.itemsize != 8 or column.typecode != code {
+                raise ValueError("GPU state columns must have matching lengths and scalar types");
+            }
+            if i < self.state_field_count and self.state_dtypes
+                and self.state_dtypes[i] == GpuScalarType.BOOL
+                and any(value not in (0, 1) for value in column) {
+                raise ValueError("GPU boolean state must use canonical 0/1 storage");
+            }
+        }
+        for (i, column) in enumerate(columns) {
+            code = ('d' if self.node_dtypes[i] == GpuScalarType.FLOAT64 else 'q')
+                if self.node_dtypes else buffers.values.typecode;
+            if len(column) != n or column.itemsize != 8 or column.typecode != code {
+                raise ValueError("GPU node columns must have matching lengths and scalar types");
+            }
+            if self.node_dtypes and self.node_dtypes[i] == GpuScalarType.BOOL
+                and any(value not in (0, 1) for value in column) {
+                raise ValueError("GPU boolean node fields must use canonical 0/1 storage");
+            }
         }
         report_data = buffers.reports;
         if self.emits_reports != (report_data is not None) {
@@ -346,11 +360,23 @@ obj CudaSession {
         }
         if report_data is not None {
             check_report_capacity(report_data.capacity, m);
+            report_code = buffers.values.typecode;
+            if self.node_dtypes or self.state_dtypes {
+                report_code = 'd' if GpuScalarType.FLOAT64 in [*self.node_dtypes, *self.state_dtypes] else 'q';
+            }
+            if self.tagged_reports { report_code = 'Q'; }
             if len(report_data.counts) != m or report_data.counts.typecode != 'Q'
                 or len(report_data.values) != m * report_data.capacity
-                or report_data.values.typecode != buffers.values.typecode {
+                or report_data.values.typecode != report_code {
                 raise ValueError("GPU report buffers have invalid lengths or scalar types");
             }
+        }
+        if self.tagged_reports != (report_data is not None and report_data.tags is not None) {
+            raise ValueError("GPU report tags do not match the compiled kernel");
+        }
+        if report_data is not None and report_data.tags is not None
+            and (len(report_data.tags) != m * report_data.capacity or report_data.tags.typecode != 'Q') {
+            raise ValueError("Invalid GPU report tag buffer");
         }
         plan = self.plan_for(buffers);
         is_csr = isinstance(buffers, CsrBuffers);
@@ -416,7 +442,8 @@ obj CudaSession {
             if report_data is not None {
                 self.report_arena.reserve(d, plan.report_layout.nbytes, plan.report_layout.capacity);
                 report_addresses = [self.report_arena.address + offset for offset in plan.report_layout.offsets];
-                arguments += [c.c_uint64(value) for value in [*report_addresses, report_data.capacity]];
+                arguments += [c.c_uint64(value) for value in [*report_addresses[:2], report_data.capacity]];
+                if report_data.tags is not None { arguments.append(c.c_uint64(report_addresses[2])); }
             }
             params = (c.c_void_p * len(arguments))(
                 *(c.addressof(arg) for arg in arguments)
@@ -446,6 +473,9 @@ obj CudaSession {
                 self.transfer('cuMemcpyDtoH_v2', report_addresses[0], report_data.counts);
                 if not any(buffers.status) {
                     self.transfer('cuMemcpyDtoH_v2', report_addresses[1], report_data.values);
+                    if report_data.tags is not None {
+                        self.transfer('cuMemcpyDtoH_v2', report_addresses[2], report_data.tags);
+                    }
                 }
             }
         } except CudaError {

@@ -16,11 +16,12 @@ import from jaclang.compiler.backends.native.ptx {
 
 obj ChainExpr {
     has op: str,
-        value: float | int = 0.0,
+        value: float | int | bool = 0.0,
         left: ChainExpr | None = None,
         right: ChainExpr | None = None,
         node_index: int = 0,
-        state_index: int = 0;
+        state_index: int = 0,
+        dtype: GpuScalarType | None = None;
 
     def lower(
         b: ir.IRBuilder,
@@ -36,19 +37,42 @@ obj ChainExpr {
             return node_value[self.node_index];
         }
         if self.op == "constant" {
-            return ir.Constant(state[0].type, self.value);
+            return ir.Constant(value_type(self.dtype) if self.dtype is not None else state[0].type, self.value);
         }
         assert self.left is not None;
         left = self.left.lower(b, state, node_value, overflow, zero_divisor);
-        integer = state[0].type == ir.IntType(64);
+        if self.op == "not" {
+            return b.not_(left);
+        }
+        if self.op in ("and", "or") {
+            rhs = b.function.append_basic_block("bool.right");
+            merge = b.function.append_basic_block("bool.end");
+            first = b.block;
+            if self.op == "and" { b.cbranch(left, rhs, merge); }
+            else { b.cbranch(left, merge, rhs); }
+            b.position_at_end(rhs);
+            assert self.right is not None;
+            right = self.right.lower(b, state, node_value, overflow, zero_divisor);
+            last = b.block;
+            b.branch(merge);
+            b.position_at_end(merge);
+            result = b.phi(ir.IntType(1));
+            result.add_incoming(left, first);
+            result.add_incoming(right, last);
+            return result;
+        }
+        integer = left.type == ir.IntType(64);
         if self.op == "neg" {
-            return checked_int(b, "sub", ir.Constant(state[0].type, 0), left, overflow)
+            return checked_int(b, "sub", ir.Constant(left.type, 0), left, overflow)
                 if integer
                 else b.fneg(left);
         }
         assert self.right is not None;
         right = self.right.lower(b, state, node_value, overflow, zero_divisor);
         if self.op in ("==", "!=", "<", "<=", ">", ">=") {
+            if left.type == ir.IntType(1) {
+                return b.icmp_unsigned(self.op, left, right);
+            }
             if integer {
                 return b.icmp_signed(self.op, left, right);
             }
@@ -59,14 +83,14 @@ obj ChainExpr {
         if integer {
             if self.op == "%" {
                 nonzero = b.function.append_basic_block("mod.nonzero");
-                zero = ir.Constant(state[0].type, 0);
+                zero = ir.Constant(left.type, 0);
                 b.cbranch(b.icmp_signed("==", right, zero), zero_divisor, nonzero);
                 b.position_at_end(nonzero);
                 special = b.and_(
-                    b.icmp_signed("==", left, ir.Constant(state[0].type, -(2 ** 63))),
-                    b.icmp_signed("==", right, ir.Constant(state[0].type, -1))
+                    b.icmp_signed("==", left, ir.Constant(left.type, -(2 ** 63))),
+                    b.icmp_signed("==", right, ir.Constant(left.type, -1))
                 );
-                divisor = b.select(special, ir.Constant(state[0].type, 1), right);
+                divisor = b.select(special, ir.Constant(left.type, 1), right);
                 remainder = b.srem(left, divisor);
                 adjust = b.and_(
                     b.icmp_signed("!=", remainder, zero),
@@ -166,7 +190,8 @@ obj ReportOutput {
         capacity: ir.Value,
         lane: ir.Value,
         walkers: ir.Value,
-        full: ir.Block;
+        full: ir.Block,
+        tags: ir.Value | None = None;
 
     def emit(b: ir.IRBuilder, value: ir.Value) {
         address = b.gep(self.counts, [self.lane]);
@@ -175,6 +200,17 @@ obj ReportOutput {
         b.cbranch(b.icmp_unsigned("<", count, self.capacity), room, self.full);
         b.position_at_end(room);
         slot = b.add(b.mul(count, self.walkers), self.lane);
+        if self.tags is not None {
+            tag = 2;
+            if value.type == ir.IntType(1) {
+                tag = 1;
+                value = b.zext(value, ir.IntType(64));
+            } elif value.type == ir.DoubleType() {
+                tag = 3;
+                value = b.bitcast(value, ir.IntType(64));
+            }
+            b.store(ir.Constant(ir.IntType(64), tag), b.gep(self.tags, [slot]));
+        }
         b.store(value, b.gep(self.values, [slot]));
         b.store(b.add(count, ir.Constant(ir.IntType(64), 1)), address);
     }
@@ -182,6 +218,46 @@ obj ReportOutput {
 
 def has_reports(updates: list[StateUpdate]) -> bool {
     return any(u.is_report or has_reports(u.taken) or has_reports(u.skipped) for u in updates);
+}
+
+def report_types(updates: list[StateUpdate]) -> list[GpuScalarType] {
+    result: list[GpuScalarType] = [];
+    for update in updates {
+        if update.is_report {
+            assert update.expression.dtype is not None;
+            result.append(update.expression.dtype);
+        }
+        result.extend(report_types(update.taken));
+        result.extend(report_types(update.skipped));
+    }
+    return result;
+}
+
+def value_type(dtype: GpuScalarType) -> ir.Type {
+    if dtype == GpuScalarType.BOOL { return ir.IntType(1); }
+    return ir.IntType(64) if dtype == GpuScalarType.INT64 else ir.DoubleType();
+}
+
+def storage_type(dtype: GpuScalarType) -> ir.Type {
+    return ir.DoubleType() if dtype == GpuScalarType.FLOAT64 else ir.IntType(64);
+}
+
+def load_field(b: ir.IRBuilder, column: ir.Value, index: ir.Value, dtype: GpuScalarType) -> ir.Value {
+    value = b.load(b.gep(column, [index]));
+    return b.icmp_unsigned("!=", value, ir.Constant(ir.IntType(64), 0))
+        if dtype == GpuScalarType.BOOL else value;
+}
+
+def store_field(b: ir.IRBuilder, value: ir.Value, column: ir.Value, index: ir.Value) {
+    if value.type == ir.IntType(1) { value = b.zext(value, ir.IntType(64)); }
+    b.store(value, b.gep(column, [index]));
+}
+
+def field_dtype(path: list[uni.HasVar]) -> GpuScalarType {
+    typ = path[-1].type;
+    assert isinstance(typ, ClassType);
+    if typ.is_builtin("bool") { return GpuScalarType.BOOL; }
+    return GpuScalarType.INT64 if typ.is_builtin("int") else GpuScalarType.FLOAT64;
 }
 
 def checked_int(
@@ -216,24 +292,47 @@ obj ChainWalker {
         edge_type: str,
         node_field: str,
         state_field: str,
-        default_total: float | int | None,
+        default_total: float | int | bool | None,
         updates: list[StateUpdate],
         dtype: GpuScalarType = GpuScalarType.FLOAT64,
         node_fields: list[str] = [],
         node_objects: dict[str, str] = {},
         state_fields: list[str] = [],
         state_objects: dict[str, str] = {},
-        default_states: list[float | int | None] = [];
+        default_states: list[float | int | bool | None] = [],
+        node_dtypes: list[GpuScalarType] = [],
+        state_dtypes: list[GpuScalarType] = [];
+
+    def node_types -> list[GpuScalarType] {
+        return self.node_dtypes or [self.dtype for path in self.field_paths()];
+    }
+
+    def state_types -> list[GpuScalarType] {
+        return self.state_dtypes or [self.dtype for path in self.state_paths()];
+    }
+
+    def tagged_reports -> bool {
+        return any(typ != self.dtype or typ == GpuScalarType.BOOL for typ in report_types(self.updates));
+    }
+
+    def typed -> bool {
+        return GpuScalarType.BOOL in [*self.node_types(), *self.state_types()]
+            or self.tagged_reports();
+    }
 
     def report_parameters -> list[dict[str, any]] {
         if not has_reports(self.updates) {
             return [];
         }
-        return [
+        result = [
             {"name": "report_counts", "dtype": "uint64", "length": "walker_count", "access": "write"},
-            {"name": "report_values", "dtype": self.dtype.value, "length": "report_capacity * walker_count", "access": "write"},
+            {"name": "report_values", "dtype": "uint64" if self.tagged_reports() else self.dtype.value, "length": "report_capacity * walker_count", "access": "write"},
             {"name": "report_capacity", "dtype": "uint64"}
         ];
+        if self.tagged_reports() {
+            result.append({"name": "report_tags", "dtype": "uint64", "length": "report_capacity * walker_count", "access": "write"});
+        }
+        return result;
     }
 
     def field_paths -> list[str] {
@@ -251,7 +350,7 @@ obj ChainWalker {
                 "name": ("results" if output else "initial_total")
                     if i == 0
                     else f"{prefix}_{i}",
-                "dtype": self.dtype.value,
+                "dtype": self.state_types()[i].value,
                 "length": "walker_count",
                 "access": "write" if output else "read",
                 "field_path": path
@@ -263,7 +362,7 @@ obj ChainWalker {
         return [
             {
                 "name": "values" if i == 0 else f"values_{i}",
-                "dtype": self.dtype.value,
+                "dtype": self.node_types()[i].value,
                 "length": "node_count",
                 "access": "read",
                 "field_path": path
@@ -287,6 +386,8 @@ obj ChainWalker {
             "default_initial_states": self.default_states or [self.default_total],
             "default_initial_state": self.default_total,
             "scalar_dtype": self.dtype.value,
+            "node_dtypes": [t.value for t in self.node_types()],
+            "state_dtypes": [t.value for t in self.state_types()],
             "parameters": self.field_parameters()
                 + [
                     {
@@ -315,7 +416,7 @@ obj ChainWalker {
                     {"name": "node_count", "dtype": "uint64"},
                     {"name": "walker_count", "dtype": "uint64"}
                 ] + self.report_parameters(),
-            "reports": {"dtype": self.dtype.value, "layout": "report_values[slot * walker_count + lane]"} if has_reports(self.updates) else None,
+            "reports": {"dtype": "tagged" if self.tagged_reports() else self.dtype.value, "tags": {"1": "bool", "2": "int64", "3": "float64"} if self.tagged_reports() else {}, "layout": "report_values[slot * walker_count + lane]"} if has_reports(self.updates) else None,
             "null_node": -1,
             "status_codes": {
                 "0": "success",
@@ -393,7 +494,7 @@ def project_fields(
         }
         fields = arch.get_has_vars();
         if not fields {
-            reject(arch, "GPU data requires at least one numeric leaf field");
+            reject(arch, "GPU data requires at least one numeric or boolean leaf field");
         }
         for field in fields {
             ordinary_field(field);
@@ -401,18 +502,18 @@ def project_fields(
             if field.type_tag is None or not isinstance(typ, ClassType) {
                 reject(
                     field,
-                    "GPU node fields require fixed checked numeric or object types"
+                    "GPU node fields require fixed checked numeric, boolean or object types"
                 );
             }
             assert isinstance(typ, ClassType);
             nested_path = [*path, field];
-            if typ.is_builtin("int") or typ.is_builtin("float") {
-                if result.dtype is None {
+            if typ.is_builtin("int") or typ.is_builtin("float") or typ.is_builtin("bool") {
+                if not typ.is_builtin("bool") and result.dtype in (None, GpuScalarType.BOOL) {
                     result.dtype = GpuScalarType.INT64
                         if typ.is_builtin("int")
                         else GpuScalarType.FLOAT64;
                 }
-                if typ.is_builtin("int") != (result.dtype == GpuScalarType.INT64) {
+                if not typ.is_builtin("bool") and typ.is_builtin("int") != (result.dtype == GpuScalarType.INT64) {
                     reject(
                         field,
                         "GPU node leaves and walker state must have the same numeric type"
@@ -426,7 +527,7 @@ def project_fields(
                     or typ.get_class_symbol() is not nested.name.sym {
                     reject(
                         field,
-                        "GPU nested fields require plain local objects with fixed numeric leaves"
+                        "GPU nested fields require plain local objects with fixed numeric or boolean leaves"
                     );
                 }
                 assert nested is not None;
@@ -436,6 +537,7 @@ def project_fields(
         }
     }
     expand(nd, [], set());
+    if result.dtype is None { result.dtype = GpuScalarType.BOOL; }
     return result;
 }
 
@@ -457,7 +559,8 @@ def field_path_ref(expr: uni.Expr, path: list[uni.HasVar], receiver: str) -> boo
     return isinstance(current, uni.SpecialVarRef) and current.value == receiver;
 }
 
-def numeric_literal(expr: uni.Expr, dtype: GpuScalarType) -> float | int | None {
+def numeric_literal(expr: uni.Expr, dtype: GpuScalarType) -> float | int | bool | None {
+    if dtype == GpuScalarType.BOOL and isinstance(expr, uni.Bool) { return expr.lit_value; }
     value = expr;
     sign = 1;
     if isinstance(value, uni.UnaryExpr) and value.op.value in ("+", "-") {
@@ -489,44 +592,69 @@ def chain_expr(
     if isinstance(expr, uni.AtomUnit) and isinstance(expr.value, uni.Expr) {
         return chain_expr(expr.value, state, nd, dtype);
     }
-    literal = numeric_literal(expr, dtype);
+    if isinstance(expr, uni.Bool) {
+        return ChainExpr("constant", value=expr.lit_value, dtype=GpuScalarType.BOOL);
+    }
+    literal_node = expr.operand if isinstance(expr, uni.UnaryExpr) and expr.op.value in ("+", "-") else expr;
+    literal_type = GpuScalarType.INT64 if isinstance(literal_node, uni.Int) else GpuScalarType.FLOAT64 if isinstance(literal_node, uni.Float) else dtype;
+    literal = numeric_literal(expr, literal_type);
     if literal is not None {
-        return ChainExpr("constant", value=literal);
+        return ChainExpr("constant", value=literal, dtype=literal_type);
     }
     for (i, path) in enumerate(state) {
         if field_path_ref(expr, path, "self") {
-            return ChainExpr("state", state_index=i);
+            return ChainExpr("state", state_index=i, dtype=field_dtype(path));
         }
     }
     for (i, path) in enumerate(nd) {
         if field_path_ref(expr, path, "here") {
-            return ChainExpr("node", node_index=i);
+            return ChainExpr("node", node_index=i, dtype=field_dtype(path));
         }
     }
-    if isinstance(expr, uni.UnaryExpr) and expr.op.value in ("+", "-") {
+    if isinstance(expr, uni.BoolExpr) {
+        items = [chain_expr(v, state, nd, dtype) for v in expr.values];
+        if any(v.dtype != GpuScalarType.BOOL for v in items) {
+            reject(expr, "GPU logical operators require boolean operands");
+        }
+        result = items[0];
+        for item in items[1:] {
+            result = ChainExpr(expr.op.value, left=result, right=item, dtype=GpuScalarType.BOOL);
+        }
+        return result;
+    }
+    if isinstance(expr, uni.UnaryExpr) and expr.op.value in ("+", "-", "not") {
         operand = chain_expr(expr.operand, state, nd, dtype);
-        return operand if expr.op.value == "+" else ChainExpr("neg", left=operand);
+        if expr.op.value == "not" {
+            if operand.dtype != GpuScalarType.BOOL { reject(expr, "GPU not requires a boolean operand"); }
+            return ChainExpr("not", left=operand, dtype=GpuScalarType.BOOL);
+        }
+        if operand.dtype == GpuScalarType.BOOL { reject(expr, "GPU arithmetic requires numeric operands"); }
+        return operand if expr.op.value == "+" else ChainExpr("neg", left=operand, dtype=operand.dtype);
     }
-    if isinstance(expr, uni.BinaryExpr)
-        and isinstance(expr.op, uni.Token)
-        and (
-            expr.op.value in ("+", "-", "*")
-            or (expr.op.value == "%" and dtype == GpuScalarType.INT64)
-        ) {
-        return ChainExpr(
-            expr.op.value,
-            left=chain_expr(expr.left, state, nd, dtype),
-            right=chain_expr(expr.right, state, nd, dtype)
-        );
+    if isinstance(expr, uni.CompareExpr) and len(expr.ops) == 1 and len(expr.rights) == 1 {
+        left = chain_expr(expr.left, state, nd, dtype);
+        right = chain_expr(expr.rights[0], state, nd, dtype);
+        if left.dtype != right.dtype { reject(expr, "GPU comparisons require matching operand types"); }
+        if expr.ops[0].value not in ("==", "!=", "<", "<=", ">", ">=") {
+            reject(expr, "Unsupported GPU comparison");
+        }
+        return ChainExpr(expr.ops[0].value, left=left, right=right, dtype=GpuScalarType.BOOL);
     }
-    reject(
-        expr,
-        "GPU chain expressions require matching numeric literals/fields and +, -, * (also % for int64)"
-    );
+    if isinstance(expr, uni.BinaryExpr) and isinstance(expr.op, uni.Token)
+        and expr.op.value in ("+", "-", "*", "%") {
+        left = chain_expr(expr.left, state, nd, dtype);
+        right = chain_expr(expr.right, state, nd, dtype);
+        if left.dtype != right.dtype or left.dtype == GpuScalarType.BOOL
+            or (expr.op.value == "%" and left.dtype != GpuScalarType.INT64) {
+            reject(expr, "GPU arithmetic requires matching numeric operand types");
+        }
+        return ChainExpr(expr.op.value, left=left, right=right, dtype=left.dtype);
+    }
+    reject(expr, "Unsupported GPU expression; expected typed fields, literals, arithmetic or boolean operators");
     raise AssertionError("unreachable");
 }
 
-def literal_default(field: uni.HasVar, dtype: GpuScalarType) -> float | int {
+def literal_default(field: uni.HasVar, dtype: GpuScalarType) -> float | int | bool {
     value = numeric_literal(field.value, dtype)
         if isinstance(field.value, uni.Expr)
         else None;
@@ -545,24 +673,9 @@ def chain_condition(
     nd: list[list[uni.HasVar]],
     dtype: GpuScalarType
 ) -> ChainExpr {
-    if isinstance(expr, uni.CfgExpr) {
-        return chain_condition(expr.expr, state, nd, dtype);
-    }
-    if isinstance(expr, uni.AtomUnit) and isinstance(expr.value, uni.Expr) {
-        return chain_condition(expr.value, state, nd, dtype);
-    }
-    if isinstance(expr, uni.CompareExpr)
-        and len(expr.ops) == 1
-        and len(expr.rights) == 1
-        and expr.ops[0].value in ("==", "!=", "<", "<=", ">", ">=") {
-        return ChainExpr(
-            expr.ops[0].value,
-            left=chain_expr(expr.left, state, nd, dtype),
-            right=chain_expr(expr.rights[0], state, nd, dtype)
-        );
-    }
-    reject(expr, "GPU chain conditions require a single numeric comparison");
-    raise AssertionError("unreachable");
+    result = chain_expr(expr, state, nd, dtype);
+    if result.dtype != GpuScalarType.BOOL { reject(expr, "GPU conditions require a boolean expression"); }
+    return result;
 }
 
 def chain_update(
@@ -608,14 +721,17 @@ def chain_update(
         reject(stmt, "GPU bodies can only assign numeric private walker fields");
     }
     expression = chain_expr(stmt.value, state, nd, dtype);
+    target_type = field_dtype(state[target]);
+    if expression.dtype != target_type { reject(stmt, "GPU assignment requires the field's declared type"); }
     if stmt.aug_op is not None {
+        if target_type == GpuScalarType.BOOL { reject(stmt, "GPU boolean fields do not support arithmetic assignments"); }
         op = stmt.aug_op.value;
         if op not in ("+=", "-=", "*=")
             and not (op == "%=" and dtype == GpuScalarType.INT64) {
             reject(stmt, "Unsupported GPU chain assignment");
         }
         expression = ChainExpr(
-            op[0], left=ChainExpr("state", state_index=target), right=expression
+            op[0], left=ChainExpr("state", state_index=target, dtype=target_type), right=expression, dtype=target_type
         );
     }
     return StateUpdate(expression, target=target);
@@ -645,7 +761,7 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         assert dtype is not None;
         state_paths = [".".join(f.name.value for f in path) for path in states.fields];
         defaults = [
-            literal_default(path[0], dtype) if len(path) == 1 else None
+            literal_default(path[0], field_dtype(path)) if len(path) == 1 else None
             for path in states.fields
         ];
         abilities = arch.get_methods();
@@ -681,6 +797,8 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         assert nd is not None;
         plain_archetype(nd);
         projection = project_fields(nd, archs, dtype);
+        if dtype == GpuScalarType.BOOL { dtype = projection.dtype; }
+        assert dtype is not None;
         paths = [".".join(f.name.value for f in path) for path in projection.fields];
         body = ability.body;
         if not isinstance(body, list)
@@ -746,7 +864,9 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
                 projection.objects,
                 state_paths,
                 states.objects,
-                defaults
+                defaults,
+                [field_dtype(path) for path in projection.fields],
+                [field_dtype(path) for path in states.fields]
             )
         );
     }
@@ -769,20 +889,21 @@ def build_chain_module(
 
 def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     (i32, i64, f64) = (ir.IntType(32), ir.IntType(64), ir.DoubleType());
-    scalar = i64 if spec.dtype == GpuScalarType.INT64 else f64;
+    scalar = storage_type(spec.dtype);
     space = 1 if device else 0;
     field_count = len(spec.field_paths());
     state_count = len(spec.state_paths());
     signature = [
         t.as_pointer(addrspace=space)
-        for t in [scalar] * field_count
+        for t in [storage_type(t) for t in spec.node_types()]
             + [i64, i64]
-            + [scalar] * (2 * state_count)
+            + [storage_type(t) for t in spec.state_types()] * 2
             + [i32]
     ]
         + [i64, i64];
     if has_reports(spec.updates) {
-        signature += [i64.as_pointer(addrspace=space), scalar.as_pointer(addrspace=space), i64];
+        signature += [i64.as_pointer(addrspace=space), (i64 if spec.tagged_reports() else scalar).as_pointer(addrspace=space), i64];
+        if spec.tagged_reports() { signature.append(i64.as_pointer(addrspace=space)); }
     }
     if not device {
         signature.append(i64);
@@ -828,15 +949,16 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     report_full = fn.append_basic_block("report.capacity.exceeded");
     if has_reports(spec.updates) {
         args = fn.args[field_count + 5 + 2 * state_count:field_count + 8 + 2 * state_count];
-        reports = ReportOutput(args[0], args[1], args[2], index, count, report_full);
+        reports = ReportOutput(args[0], args[1], args[2], index, count, report_full,
+            fn.args[field_count + 8 + 2 * state_count] if spec.tagged_reports() else None);
         b.store(ir.Constant(i64, 0), b.gep(args[0], [index]));
     }
     head = b.load(b.gep(heads, [index]));
-    seeds = [b.load(b.gep(column, [index])) for column in initial];
+    seeds = [load_field(b, column, index, typ) for (column, typ) in zip(initial, spec.state_types())];
     b.branch(check);
     b.position_at_end(check);
     current = b.phi(i64, name="current");
-    state = [b.phi(scalar, name=path) for path in spec.state_paths()];
+    state = [b.phi(value_type(typ), name=path) for (path, typ) in zip(spec.state_paths(), spec.state_types())];
     steps = b.phi(i64, name="steps");
     current.add_incoming(head, start);
     for (phi, seed) in zip(state, seeds) {
@@ -854,8 +976,8 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     b.cbranch(b.icmp_unsigned("<", steps, node_count), body, cycle);
     b.position_at_end(body);
     node_value = [
-        b.load(b.gep(column, [current]), name=path)
-        for (column, path) in zip(values, spec.field_paths())
+        load_field(b, column, current, typ)
+        for (column, typ) in zip(values, spec.node_types())
     ];
     updated = lower_updates(spec.updates, b, state, node_value, overflow, zero_divisor, reports);
     successor = b.load(b.gep(links, [current]), name="successor");
@@ -869,7 +991,7 @@ def lower_chain(module: ir.Module, spec: ChainWalker, device: bool) {
     steps.add_incoming(next_step, body_end);
     b.position_at_end(finish);
     for (value, column) in zip(state, output) {
-        b.store(value, b.gep(column, [index]));
+        store_field(b, value, column, index);
     }
     b.store(ir.Constant(i32, 0), b.gep(status, [index]));
     b.branch(done);
@@ -908,6 +1030,10 @@ def emit_chain_ptx(walkers: list[ChainWalker]) -> PtxArtifact {
     if any(has_reports(spec.updates) for spec in walkers) {
         artifact.format = "jac-ptx-chain-v4";
         artifact.argument_order = "exact order in each kernel's parameters; reports append counts, values, capacity";
+    }
+    if any(spec.typed() for spec in walkers) {
+        artifact.format = "jac-ptx-chain-v5";
+        artifact.argument_order = "exact typed argument order in each kernel's parameters";
     }
     return artifact;
 }

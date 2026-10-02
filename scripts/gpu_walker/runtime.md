@@ -2,7 +2,7 @@
 
 The experimental API takes actual walker objects and their starting nodes. It
 compiles the selected walker class once, packs the reachable graph, launches a
-batch, and writes successful final numeric states back to the same walker objects.
+batch, and writes successful final scalar states back to the same walker objects.
 
 ```jac
 import from jaclang.runtime.gpu { GpuWalkerRuntime }
@@ -37,7 +37,7 @@ For signed integer nodes and an integer walker state, run
 `jac run jac/examples/gpu/even_chain_run.jac`. Its `EvenSum` ability uses
 `if here.value % 2 == 0 { self.total += here.value; }` before the same tail
 `visit`. All 1,000 GPU results are checked against serial Jac walkers.
-Node and state fields must have the same numeric type. Integer values are stored
+Numeric node and state fields must have the same numeric type; boolean fields may coexist. Integer values are stored
 as signed int64 throughout; input values outside that range are rejected, as are
 floats and booleans in integer fields. Integer arithmetic overflow raises
 `OverflowError`; integer modulo by zero raises `ZeroDivisionError`. Neither
@@ -195,8 +195,7 @@ arrays. After execution, `result.fields` maps every leaf path to its output
 column. `result.values` remains the first state column for compatibility.
 `result.memory.state_field_count` accounts for all flattened walker leaves.
 
-All node and walker leaves currently have the same numeric type, int64 or
-float64. Fixed nested objects are supported to multiple levels. A mutable
+Numeric node and walker leaves share int64 or float64; boolean leaves may coexist. Fixed nested objects are supported to multiple levels. A mutable
 walker attribute object must belong to exactly one state path in one walker:
 sharing between walkers, aliasing between paths in one walker, and sharing with
 graph nodes are rejected before launch. Packing retains nested object identities;
@@ -328,8 +327,8 @@ only as an experimental choice; evidence of an adjacency bottleneck can justify
 trying a different representation in a separate comparison. No performance
 benefit or optimality is assumed in advance.
 
-CSR currently uses the same restricted numeric ability body as the chain
-backend: matching numeric node and private walker leaves, one synchronous
+CSR uses the same restricted scalar ability body as the chain
+backend: boolean leaves alongside matching numeric node and private walker leaves, one synchronous
 entry ability, and one outgoing typed tail visit. Node writes, filtered queries,
 arbitrary visit control, object reports, and heterogeneous graphs remain unsupported.
 
@@ -393,7 +392,29 @@ are accepted when preparing a new batch. `result.reports` contains one list per
 walker in input order. This batch API does not enqueue reports into a server
 request or implement nested-spawn report propagation.
 
-Object, string, container, and mixed-type reports remain unsupported. Run the
+Object, string, and container reports remain unsupported. Boolean and numeric reports may share a stream. Run the
 GPU example with `jac run jac/examples/gpu/reports_run.jac`. Host regression
 coverage lives in `scripts/gpu_walker/test_reports.py`; set
 `JAC_GPU_TEST_CUDA=1` to enable its additional real-device check.
+
+## Boolean fields and reports
+
+Node and private walker leaves accept `bool`, including nested object fields.
+Host inputs must be actual booleans. Each boolean leaf occupies an aligned SoA
+column of canonical 64-bit 0/1 values; device expressions use predicates.
+Assignments, equality comparisons, `not`, and short-circuit `and`/`or` preserve
+boolean semantics. Boolean fields can accompany one numeric field type.
+
+Kernels using boolean fields or tagged reports emit v5 manifests with per-field
+dtypes. A report stream containing booleans uses uint64 payloads plus uint64
+tags: 1 means bool, 2 means signed int64, and 3 means float64 bits. Both arrays
+use `slot * walker_count + lane`, so adjacent walkers' first reports remain
+adjacent. The tag pointer follows the report capacity argument. Payload storage
+requires `8 * M * (1 + 2 * report_capacity)` bytes. Host decoding preserves
+`True` versus `1` and exact integer precision. Invalid tags or noncanonical
+boolean outputs prevent publication of the whole batch. Homogeneous numeric
+streams retain the earlier report ABI.
+
+Run `jac run jac/examples/gpu/booleans_run.jac` for a 1000-walker CSR comparison
+against serial Jac. Set `JAC_GPU_TEST_CUDA=1` when running
+`scripts/gpu_walker/test_booleans.py` to exercise real CUDA.

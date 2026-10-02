@@ -31,20 +31,20 @@ CSR is one experimental representation and may be revised after measurement.
 
 ## Supported program
 
-One node type with one or more numeric leaf fields, one empty edge type, one
-walker with one or more private numeric fields and one synchronous entry ability.
-Node and walker fields can contain plain local `obj` values with fixed, nonrecursive numeric
+One node type with one or more numeric or boolean leaf fields, one empty edge type, one
+walker with one or more private numeric or boolean fields and one synchronous entry ability.
+Node and walker fields can contain plain local `obj` values with fixed, nonrecursive numeric or boolean
 fields. Each leaf becomes a separate SoA column, including nested paths such as
 `here.position.x`. Nested objects must not be shared by different packed nodes.
 Mutable walker objects must belong to one walker and one state path, and cannot
-also belong to a node. All node and walker leaves must have the same type: `float` (float64)
-or `int` (signed int64). Lists, optional objects and mixed numeric types are not
+also belong to a node. Boolean leaves may accompany either `float` (float64)
+or `int` (signed int64) leaves. Numeric leaves must share one type. Lists, optional objects and mixed numeric types are not
 part of this first multi-field implementation.
-The body contains sequential state updates and numeric reports followed by one
+The body contains sequential state updates and scalar reports followed by one
 typed outgoing tail `visit`. Statements may be guarded by `if`/`elif`/`else`,
 with multiple statements or nested `if` per branch. Each statement reads the state produced by earlier statements;
-an unassigned field keeps its value. Conditions support one
-numeric comparison: `==`, `!=`, `<`, `<=`, `>`, or `>=`.
+an unassigned field keeps its value. Conditions support boolean fields, literals, short-circuit `and`/`or`, `not`, and
+comparisons: `==`, `!=`, `<`, `<=`, `>`, or `>=`.
 
 Assignments support `=`, `+=`, `-=`, and `*=`; expressions support `self`/`here`
 field reads, matching numeric literals, unary signs, `+`, `-`, and `*`.
@@ -95,7 +95,7 @@ defaults; nested state is packed from actual instances, and its manifest
 `default_initial_states` entries are null.
 
 Inheritance, node abilities, helpers, shared writes, object reports,
-filtered/multi-hop queries, general loops, boolean combinations, mixed numeric
+filtered/multi-hop queries, general loops, mixed numeric
 field types, and other effects are rejected with source locations. Standalone
 scalar function exports still support only the separate float64/bool subset.
 Branching graphs require the explicit CSR option; the default chain path keeps
@@ -185,3 +185,9 @@ and a CUDA driver double, so a GPU is not required by the regular test runner.
 
 Numeric reports are supported in both graph formats. See [report storage and
 publication](runtime.md#numeric-reports) and `jac/examples/gpu/reports_run.jac`.
+
+Boolean node and walker leaves use canonical 64-bit 0/1 SoA columns. Boolean
+assignments and reports preserve Python `bool` identity. Streams containing
+booleans use interleaved payload and tag columns in the v5 ABI; numeric-only
+streams retain their existing representation. See `booleans_run.jac` and
+`test_booleans.py` for serial comparisons and CUDA coverage.

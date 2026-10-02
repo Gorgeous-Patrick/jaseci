@@ -254,3 +254,24 @@ test "CLI exports numeric report buffers in v4 chain and CSR manifests" {
         }
     }
 }
+
+test "CLI exports boolean fields and tagged reports in v5 manifests" {
+    for graph_format in ("chain", "csr") {
+        with tempfile.TemporaryDirectory() as tmp {
+            proc = subprocess.run(
+                jac_command(
+                    "build", str(REPO / "jac/examples/gpu/booleans.jac"),
+                    "--as", "ptx", "--gpu-entry", "Collector",
+                    "--gpu-graph-format", graph_format, "-o", tmp
+                ), capture_output=True, text=True, timeout=180
+            );
+            assert proc.returncode == 0 , proc.stdout + proc.stderr;
+            metadata = json.loads((Path(tmp) / "booleans.ptx.json").read_text());
+            assert metadata["format"] == f"jac-ptx-{graph_format}-v5";
+            parameters = metadata["kernels"][0]["parameters"];
+            assert any(p["dtype"] == "bool64" for p in parameters);
+            assert [p["name"] for p in parameters[-4:]]
+                == ["report_counts", "report_values", "report_capacity", "report_tags"];
+        }
+    }
+}

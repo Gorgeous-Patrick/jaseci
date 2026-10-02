@@ -44,7 +44,18 @@ obj WalkerSchema {
         node_objects: dict[str, type] = {},
         state_fields: list[str] = [],
         state_objects: dict[str, type] = {},
-        emits_reports: bool = False;
+        emits_reports: bool = False,
+        node_dtypes: list[GpuScalarType] = [],
+        state_dtypes: list[GpuScalarType] = [],
+        tagged_reports: bool = False;
+
+    def node_types -> list[GpuScalarType] {
+        return self.node_dtypes or [self.dtype for path in self.field_paths()];
+    }
+
+    def state_types -> list[GpuScalarType] {
+        return self.state_dtypes or [self.dtype for path in self.state_paths()];
+    }
 
     def field_paths -> list[str] {
         return self.node_fields or [self.node_field];
@@ -82,14 +93,14 @@ obj PackedWalkerBatch {
 }
 
 obj WalkerBatchResult {
-    has values: list[float | int],
+    has values: list[float | int | bool],
         status: list[int],
         memory: GpuMemoryPlan,
         gpu_executed: bool,
         gpu_name: str = '',
         cuda_driver_version: int = 0,
-        fields: dict[str, list[float | int]] = {},
-        reports: list[list[float | int]] = [];
+        fields: dict[str, list[float | int | bool]] = {},
+        reports: list[list[float | int | bool]] = [];
 }
 
 def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchema {
@@ -161,7 +172,10 @@ def walker_schema(walker_type: type, graph_format: str = 'chain') -> WalkerSchem
         {path: getattr(module, name) for (path, name) in spec.node_objects.items()},
         spec.state_paths(),
         {path: getattr(module, name) for (path, name) in spec.state_objects.items()},
-        bool(spec.report_parameters())
+        bool(spec.report_parameters()),
+        spec.node_types(),
+        spec.state_types(),
+        bool(artifact.kernels[0]["reports"] and artifact.kernels[0]["reports"]["dtype"] == "tagged")
     );
 }
 
@@ -183,7 +197,11 @@ def float_value(value: any) -> float {
     return float(value);
 }
 
-def scalar_value(value: any, dtype: GpuScalarType) -> float | int {
+def scalar_value(value: any, dtype: GpuScalarType) -> float | int | bool {
+    if dtype == GpuScalarType.BOOL {
+        if type(value) is not bool { raise TypeError("GPU bool fields must contain bool values"); }
+        return int(value);
+    }
     if dtype == GpuScalarType.FLOAT64 {
         return float_value(value);
     }
@@ -255,7 +273,7 @@ def pack_walkers(
     if len({id(w) for w in walkers}) != len(walkers) {
         raise ValueError("The same walker instance cannot occupy multiple GPU lanes");
     }
-    initial: list[list[float | int]] = [[] for path in schema.state_paths()];
+    initial: list[list[float | int | bool]] = [[] for path in schema.state_paths()];
     state_objects: list[dict[str, object]] = [];
     state_owners: set[int] = set();
     typed_walkers: list[WalkerArchetype] = [];
@@ -286,9 +304,9 @@ def pack_walkers(
             }
             state_owners.add(key);
         }
-        for (path, column) in zip(schema.state_paths(), initial) {
+        for (path, column, typ) in zip(schema.state_paths(), initial, schema.state_types()) {
             (parent, name) = field_parent(objects, path);
-            column.append(scalar_value(getattr(parent, name), schema.dtype));
+            column.append(scalar_value(getattr(parent, name), typ));
         }
         state_objects.append(objects);
         typed_walkers.append(w);
@@ -313,7 +331,7 @@ def pack_walkers(
     }
     heads = [slot(nd) for nd in starts];
     paths = schema.field_paths();
-    columns: list[list[float | int]] = [[] for path in paths];
+    columns: list[list[float | int | bool]] = [[] for path in paths];
     object_owners: dict[int, int] = {};
     links: list[int] = [];
     offsets = [0];
@@ -337,9 +355,9 @@ def pack_walkers(
             }
             object_owners[key] = idx;
         }
-        for (path, column) in zip(paths, columns) {
+        for (path, column, typ) in zip(paths, columns, schema.node_types()) {
             (parent, name) = field_parent(objects, path);
-            column.append(scalar_value(getattr(parent, name), schema.dtype));
+            column.append(scalar_value(getattr(parent, name), typ));
         }
         query = GraphQuery(
             [nd], hops=[QHop(dir=2, `edge=schema.edge_type)], edges_only=True
@@ -382,11 +400,12 @@ def pack_walkers(
         }
         idx += 1;
     }
-    reports = report_buffers(len(walkers), report_capacity, schema.dtype) if schema.emits_reports else None;
+    reports = report_buffers(len(walkers), report_capacity, schema.dtype, schema.tagged_reports) if schema.emits_reports else None;
     if schema.graph_format == 'csr' {
         buffers = csr_buffers(
             columns[0], offsets, targets, heads, initial[0], schema.dtype,
-            queue_capacity, max_visits, extra_values=columns[1:], extra_initial=initial[1:]
+            queue_capacity, max_visits, extra_values=columns[1:], extra_initial=initial[1:],
+            node_dtypes=schema.node_types(), state_dtypes=schema.state_types()
         );
         buffers.reports = reports;
         return PackedWalkerBatch(typed_walkers, nodes, buffers, state_objects);
@@ -394,10 +413,24 @@ def pack_walkers(
     check_finite_chains(links);
     buffers_chain = chain_buffers(
         columns[0], links, heads, initial[0], schema.dtype,
-        extra_values=columns[1:], extra_initial=initial[1:]
+        extra_values=columns[1:], extra_initial=initial[1:],
+        node_dtypes=schema.node_types(), state_dtypes=schema.state_types()
     );
     buffers_chain.reports = reports;
     return PackedWalkerBatch(typed_walkers, nodes, buffers_chain, state_objects);
+}
+
+def decode_report(data: any, index: int) -> float | int | bool {
+    value = data.values[index];
+    if data.tags is None { return value; }
+    tag = data.tags[index];
+    if tag == 1 {
+        if value not in (0, 1) { raise RuntimeError("Invalid GPU boolean report; no results published"); }
+        return bool(value);
+    }
+    if tag == 2 { return value - 2 ** 64 if value >= 2 ** 63 else value; }
+    if tag == 3 { return struct.unpack('=d', struct.pack('=Q', value))[0]; }
+    raise RuntimeError("Invalid GPU report tag; no results published");
 }
 
 def publish_results(
@@ -453,8 +486,7 @@ def publish_results(
         or any(len(column) != len(batch.walkers) for column in [*initials, *outputs]) {
         raise ValueError("GPU walker result columns do not match the packed batch");
     }
-    writes: list[tuple[object, str, float | int]] = [];
-    code = '=q' if schema.dtype == GpuScalarType.INT64 else '=d';
+    writes: list[tuple[object, str, float | int | bool]] = [];
     for (lane, w) in enumerate(batch.walkers) {
         check_private(w.__jac__);
         objects = data_objects(w, schema.state_objects);
@@ -466,22 +498,26 @@ def publish_results(
                 "Walker nested object changed during the GPU call; no results published"
             );
         }
-        for (path, initial, output) in zip(paths, initials, outputs) {
+        for (path, initial, output, typ) in zip(paths, initials, outputs, schema.state_types()) {
             (parent, name) = field_parent(objects, path);
-            current = scalar_value(getattr(parent, name), schema.dtype);
+            current = scalar_value(getattr(parent, name), typ);
+            code = '=d' if typ == GpuScalarType.FLOAT64 else '=q';
             if struct.pack(code, current) != struct.pack(code, initial[lane]) {
                 raise RuntimeError(
                     "Walker state changed during the GPU call; no results published"
                 );
             }
-            writes.append((parent, name, output[lane]));
+            if typ == GpuScalarType.BOOL and output[lane] not in (0, 1) {
+                raise RuntimeError("Invalid GPU boolean state; no results published");
+            }
+            writes.append((parent, name, bool(output[lane]) if typ == GpuScalarType.BOOL else output[lane]));
         }
     }
     fields = {
-        path: cast(list[float | int], column.tolist())
-        for (path, column) in zip(paths, outputs)
+        path: [bool(v) if typ == GpuScalarType.BOOL else v for v in column]
+        for (path, column, typ) in zip(paths, outputs, schema.state_types())
     };
-    reports: list[list[float | int]] = [[] for w in batch.walkers];
+    reports: list[list[float | int | bool]] = [[] for w in batch.walkers];
     report_data = batch.buffers.reports;
     if schema.emits_reports != (report_data is not None) {
         raise ValueError("GPU report buffers do not match the compiled walker");
@@ -491,11 +527,18 @@ def publish_results(
         if len(report_data.counts) != count or len(report_data.values) != count * report_data.capacity {
             raise ValueError("GPU report buffers do not match the packed batch");
         }
+        if schema.tagged_reports != (report_data.tags is not None)
+            or (report_data.tags is not None and len(report_data.tags) != len(report_data.values)) {
+            raise ValueError("GPU report tags do not match the packed batch");
+        }
         for (lane, length) in enumerate(report_data.counts) {
             if length > report_data.capacity {
                 raise RuntimeError("Invalid GPU report count; no results published");
             }
-            reports[lane] = [report_data.values[slot * count + lane] for slot in range(length)];
+            reports[lane] = [
+                decode_report(report_data, slot * count + lane)
+                for slot in range(length)
+            ];
         }
     }
     for (parent, name, value) in writes {
@@ -588,7 +631,10 @@ obj GpuWalkerRuntime {
                 graph_format=self.schema.graph_format,
                 node_field_count=len(self.schema.field_paths()),
                 state_field_count=len(self.schema.state_paths()),
-                emits_reports=self.schema.emits_reports
+                emits_reports=self.schema.emits_reports,
+                node_dtypes=self.schema.node_types(),
+                state_dtypes=self.schema.state_types(),
+                tagged_reports=self.schema.tagged_reports
             );
         }
         plan = self.session.execute(batch.buffers);

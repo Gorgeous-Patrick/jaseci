@@ -27,7 +27,7 @@ class ReportKernel:
         self.artifact = emit([spec])
         self.parameters = self.artifact.kernels[0]['parameters']
         types = {'int64': c.c_int64, 'float64': c.c_double,
-                 'uint64': c.c_uint64, 'uint32': c.c_uint32}
+                 'uint64': c.c_uint64, 'uint32': c.c_uint32, 'bool64': c.c_int64}
         self.types = [c.POINTER(types[p['dtype']]) if 'length' in p else types[p['dtype']]
                       for p in self.parameters]
         self.scalar = types[spec.dtype.value]

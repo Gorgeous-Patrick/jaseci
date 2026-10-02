@@ -1,6 +1,6 @@
 import from array { array }
 
-enum GpuScalarType: str { FLOAT64 = "float64", INT64 = "int64" }
+enum GpuScalarType: str { FLOAT64 = "float64", INT64 = "int64", BOOL = "bool64" }
 
 obj ArenaLayout {
     has capacity: int,
@@ -21,7 +21,8 @@ obj GpuMemoryPlan {
         node_field_count: int = 1,
         state_field_count: int = 1,
         report_capacity: int = 0,
-        report_layout: ArenaLayout = ArenaLayout(0, [], 0);
+        report_layout: ArenaLayout = ArenaLayout(0, [], 0),
+        tagged_reports: bool = False;
 
     def allocated_bytes -> int {
         return self.graph_layout.nbytes
@@ -34,7 +35,7 @@ obj GpuMemoryPlan {
     def payload_bytes -> int {
         return 8 * (self.node_field_count + 1) * self.node_count
             + (12 + 16 * self.state_field_count) * self.walker_count
-            + (8 * (1 + self.report_capacity) * self.walker_count if self.report_capacity else 0)
+            + (8 * (1 + self.report_capacity * (2 if self.tagged_reports else 1)) * self.walker_count if self.report_capacity else 0)
             + (
                 8 + 8 * self.edge_count + 8 * self.walker_count * self.queue_capacity
                     if self.graph_format == 'csr'
@@ -99,22 +100,40 @@ def check_report_capacity(capacity: int, walkers: int = 0) {
 obj ReportBuffers {
     has counts: array,
         values: array,
-        capacity: int;
+        capacity: int,
+        tags: array | None = None;
 }
 
-def report_buffers(walkers: int, capacity: int, dtype: GpuScalarType) -> ReportBuffers {
+def report_buffers(walkers: int, capacity: int, dtype: GpuScalarType, tagged: bool = False) -> ReportBuffers {
     check_report_capacity(capacity, walkers);
-    code = 'q' if dtype == GpuScalarType.INT64 else 'd';
-    return ReportBuffers(array('Q', [0]) * walkers, array(code, [0]) * (walkers * capacity), capacity);
+    code = 'q' if dtype != GpuScalarType.FLOAT64 else 'd';
+    return ReportBuffers(
+        array('Q', [0]) * walkers,
+        array('Q' if tagged else code, [0]) * (walkers * capacity),
+        capacity,
+        array('Q', [0]) * (walkers * capacity) if tagged else None
+    );
 }
 
 def with_report_plan(plan: GpuMemoryPlan, reports: ReportBuffers | None, previous_capacity: int = 0) -> GpuMemoryPlan {
     if reports is not None {
         check_report_capacity(reports.capacity, plan.walker_count);
         plan.report_capacity = reports.capacity;
-        plan.report_layout = arena_layout(plan.walker_count, [8, 8 * reports.capacity], previous_capacity);
+        plan.tagged_reports = reports.tags is not None;
+        sizes = [8, 8 * reports.capacity];
+        if plan.tagged_reports { sizes.append(8 * reports.capacity); }
+        plan.report_layout = arena_layout(plan.walker_count, sizes, previous_capacity);
     }
     return plan;
+}
+
+def typed_columns(groups: Sequence[Sequence[float | int]], types: list[GpuScalarType], dtype: GpuScalarType) -> list[array] {
+    if types and len(types) != len(groups) {
+        raise ValueError("GPU column types do not match the field counts");
+    }
+    declared = types or [dtype for group in groups];
+    return [array('d' if typ == GpuScalarType.FLOAT64 else 'q', group)
+        for (typ, group) in zip(declared, groups)];
 }
 
 obj ChainBuffers {
@@ -160,7 +179,9 @@ def chain_buffers(
     initial: Sequence[float | int],
     dtype: GpuScalarType = GpuScalarType.FLOAT64,
     extra_values: Sequence[Sequence[float | int]] = (),
-    extra_initial: Sequence[Sequence[float | int]] = ()
+    extra_initial: Sequence[Sequence[float | int]] = (),
+    node_dtypes: list[GpuScalarType] = [],
+    state_dtypes: list[GpuScalarType] = []
 ) -> ChainBuffers {
     n = len(values);
     m = len(heads);
@@ -170,17 +191,19 @@ def chain_buffers(
         or any(len(v) != m for v in extra_initial) {
         raise ValueError("GPU graph and walker array lengths do not match");
     }
-    code = 'q' if dtype == GpuScalarType.INT64 else 'd';
+    values_typed = typed_columns([values, *extra_values], node_dtypes, dtype);
+    initials_typed = typed_columns([initial, *extra_initial], state_dtypes, dtype);
+    outputs_typed = [array(v.typecode, [0]) * len(heads) for v in initials_typed];
     result = ChainBuffers(
-        array(code, values),
+        values_typed[0],
         array('q', links),
         array('q', heads),
-        array(code, initial),
-        array(code, [0]) * m,
+        initials_typed[0],
+        outputs_typed[0],
         array('I', [4294967295]) * m,
-        [array(code, v) for v in extra_values],
-        [array(code, v) for v in extra_initial],
-        [array(code, [0]) * m for v in extra_initial]
+        values_typed[1:],
+        initials_typed[1:],
+        outputs_typed[1:]
     );
     if [a.itemsize for a in result.arrays()]
         != [8] * (5 + len(extra_values) + 2 * len(extra_initial)) + [4] {
@@ -297,7 +320,9 @@ def csr_buffers(
     queue_capacity: int = 1024,
     max_visits: int = 1000000,
     extra_values: Sequence[Sequence[float | int]] = (),
-    extra_initial: Sequence[Sequence[float | int]] = ()
+    extra_initial: Sequence[Sequence[float | int]] = (),
+    node_dtypes: list[GpuScalarType] = [],
+    state_dtypes: list[GpuScalarType] = []
 ) -> CsrBuffers {
     check_csr_limits(queue_capacity, max_visits);
     if len(offsets) != len(values) + 1
@@ -306,20 +331,22 @@ def csr_buffers(
         or any(len(v) != len(heads) for v in extra_initial) {
         raise ValueError("CSR graph and walker array lengths do not match");
     }
-    code = 'q' if dtype == GpuScalarType.INT64 else 'd';
+    values_typed = typed_columns([values, *extra_values], node_dtypes, dtype);
+    initials_typed = typed_columns([initial, *extra_initial], state_dtypes, dtype);
+    outputs_typed = [array(v.typecode, [0]) * len(heads) for v in initials_typed];
     result = CsrBuffers(
-        array(code, values),
+        values_typed[0],
         array('q', offsets),
         array('q', targets),
         array('q', heads),
-        array(code, initial),
-        array(code, [0]) * len(heads),
+        initials_typed[0],
+        outputs_typed[0],
         array('I', [4294967295]) * len(heads),
         queue_capacity,
         max_visits,
-        [array(code, v) for v in extra_values],
-        [array(code, v) for v in extra_initial],
-        [array(code, [0]) * len(heads) for v in extra_initial]
+        values_typed[1:],
+        initials_typed[1:],
+        outputs_typed[1:]
     );
     if [a.itemsize for a in result.arrays()]
         != [8] * (6 + len(extra_values) + 2 * len(extra_initial)) + [4] {
