@@ -1,0 +1,522 @@
+{
+  "cpu_executed": true,
+  "gpu_executed": false,
+  "python_version": "3.12.11 (main, Aug 13 2025, 15:23:38) [GCC 11.4.0]",
+  "backend": "Jac Python CPU",
+  "random_seed": 20261002,
+  "library_versions": {
+    "numpy": "2.3.2",
+    "scipy": "1.16.1"
+  },
+  "source_sha256": {
+    "catalog.jac": "800edae262ff4d59b4f8427156ac9181e24174c7a7ba00e00f3b397c6d6ae18d",
+    "common.jac": "a90348e8e5d41fca1272257deeeeaa128b78ec6628226d5643df896c65f9da02",
+    "dense.jac": "218287844ff5a3f401b31e7ee84c7a12838996d9961df1c5ba23069bc52582c3",
+    "graphs.jac": "addf1956bc1bae695227330ea9286ba9ac169aec8d8477cc20e10a5139aaed74",
+    "libraries.jac": "67cb48d1a77032ab5dbd023b6b94acef2330dc17122e62e1a13a25e10ccbe52a",
+    "recursive.jac": "a65cb262a2a62cb603eab0a9bd54fefa397cab956984a952af470beac3374c8a",
+    "sparse.jac": "5a60d23d245d6096fbeb40231da6941a63d0e2008f5123b0bc1f0a9f1b09de3e",
+    "validate.jac": "32d9ec7ec7333835dfd6a51fef8eb5af3076753f28a80d04b624e9ec4ccc9c3d"
+  },
+  "configuration_checks": 90,
+  "implementation_count": 40,
+  "case_count": 19,
+  "exact_case_count": 13,
+  "float_rel_tol": 1e-10,
+  "float_abs_tol": 1e-10,
+  "cases": [
+    {
+      "name": "known",
+      "shape": [
+        2,
+        3,
+        2
+      ],
+      "exact": true
+    },
+    {
+      "name": "negative_singleton",
+      "shape": [
+        1,
+        1,
+        1
+      ],
+      "exact": true
+    },
+    {
+      "name": "zeros",
+      "shape": [
+        2,
+        3,
+        4
+      ],
+      "exact": true
+    },
+    {
+      "name": "identity",
+      "shape": [
+        2,
+        2,
+        2
+      ],
+      "exact": true
+    },
+    {
+      "name": "signed_zero",
+      "shape": [
+        1,
+        2,
+        1
+      ],
+      "exact": true
+    },
+    {
+      "name": "cancellation",
+      "shape": [
+        1,
+        3,
+        1
+      ],
+      "exact": true
+    },
+    {
+      "name": "integer_1_9_7",
+      "shape": [
+        1,
+        9,
+        7
+      ],
+      "exact": true
+    },
+    {
+      "name": "integer_7_1_6",
+      "shape": [
+        7,
+        1,
+        6
+      ],
+      "exact": true
+    },
+    {
+      "name": "integer_3_5_4",
+      "shape": [
+        3,
+        5,
+        4
+      ],
+      "exact": true
+    },
+    {
+      "name": "integer_5_3_7",
+      "shape": [
+        5,
+        3,
+        7
+      ],
+      "exact": true
+    },
+    {
+      "name": "integer_8_8_8",
+      "shape": [
+        8,
+        8,
+        8
+      ],
+      "exact": true
+    },
+    {
+      "name": "integer_9_7_5",
+      "shape": [
+        9,
+        7,
+        5
+      ],
+      "exact": true
+    },
+    {
+      "name": "float_2_3_4",
+      "shape": [
+        2,
+        3,
+        4
+      ],
+      "exact": false
+    },
+    {
+      "name": "float_3_7_5",
+      "shape": [
+        3,
+        7,
+        5
+      ],
+      "exact": false
+    },
+    {
+      "name": "float_5_5_5",
+      "shape": [
+        5,
+        5,
+        5
+      ],
+      "exact": false
+    },
+    {
+      "name": "float_8_8_8",
+      "shape": [
+        8,
+        8,
+        8
+      ],
+      "exact": false
+    },
+    {
+      "name": "float_9_7_5",
+      "shape": [
+        9,
+        7,
+        5
+      ],
+      "exact": false
+    },
+    {
+      "name": "sparse_float",
+      "shape": [
+        5,
+        7,
+        6
+      ],
+      "exact": false
+    },
+    {
+      "name": "diagonal",
+      "shape": [
+        3,
+        3,
+        2
+      ],
+      "exact": true
+    }
+  ],
+  "implementations": [
+    {
+      "name": "loop_ijk",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.2684270148165524
+    },
+    {
+      "name": "loop_ikj",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.2673668204806745
+    },
+    {
+      "name": "loop_jik",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.26567705208435655
+    },
+    {
+      "name": "loop_jki",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.29523711418733
+    },
+    {
+      "name": "loop_kij",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.28185686096549034
+    },
+    {
+      "name": "loop_kji",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.2692120033316314
+    },
+    {
+      "name": "transposed_dot",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.31094695441424847
+    },
+    {
+      "name": "comprehension",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 8.881784197001252e-16,
+      "elapsed_ms": 0.4440581542439759
+    },
+    {
+      "name": "flat_buffers",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.64726488199085
+    },
+    {
+      "name": "blocked",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.5713250720873475
+    },
+    {
+      "name": "packed_tiles",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.6050798110663891
+    },
+    {
+      "name": "register_2x2",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.2417301293462515
+    },
+    {
+      "name": "split_k",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.6629989366047084
+    },
+    {
+      "name": "pairwise",
+      "family": "reduction",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.6069529335945845
+    },
+    {
+      "name": "compensated",
+      "family": "reduction",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 8.881784197001252e-16,
+      "elapsed_ms": 0.35306415520608425
+    },
+    {
+      "name": "accurate_sum",
+      "family": "reduction",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 8.881784197001252e-16,
+      "elapsed_ms": 0.44553709449246526
+    },
+    {
+      "name": "winograd_pairs",
+      "family": "dense",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 2.220446049250313e-15,
+      "elapsed_ms": 0.46985509106889367
+    },
+    {
+      "name": "threaded_rows",
+      "family": "parallel",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 8.881784197001252e-16,
+      "elapsed_ms": 5.413830804172903
+    },
+    {
+      "name": "overloaded_operator",
+      "family": "operator",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.31405716435983777
+    },
+    {
+      "name": "recursive_blocks",
+      "family": "recursive",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.8364998502656817
+    },
+    {
+      "name": "strassen",
+      "family": "recursive",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 3.774758283725532e-15,
+      "elapsed_ms": 12.366699986159801
+    },
+    {
+      "name": "strassen_winograd",
+      "family": "recursive",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.3433698597964394e-14,
+      "elapsed_ms": 11.009418230969459
+    },
+    {
+      "name": "csr_dense",
+      "family": "sparse",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.30838901875540614
+    },
+    {
+      "name": "csr_csc_merge",
+      "family": "sparse",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.8761910139583051
+    },
+    {
+      "name": "coo_scatter",
+      "family": "sparse",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.4347881185822189
+    },
+    {
+      "name": "product_chains",
+      "family": "OSP",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 713.9178238576278
+    },
+    {
+      "name": "dual_cursors",
+      "family": "OSP",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 95.062819076702
+    },
+    {
+      "name": "row_nodes",
+      "family": "OSP",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 8.881784197001252e-16,
+      "elapsed_ms": 7.072471838910133
+    },
+    {
+      "name": "output_cell_tasks",
+      "family": "OSP",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 32.957196061033756
+    },
+    {
+      "name": "output_tile_tasks",
+      "family": "OSP",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 4.882668145000935
+    },
+    {
+      "name": "bipartite_join",
+      "family": "OSP",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 36.17839404614642
+    },
+    {
+      "name": "edge_payloads",
+      "family": "OSP",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 89.01102998061106
+    },
+    {
+      "name": "numpy_operator",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 57.032751908991486
+    },
+    {
+      "name": "numpy_matmul",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.3173960139974952
+    },
+    {
+      "name": "numpy_dot",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.2892690245062113
+    },
+    {
+      "name": "numpy_einsum",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 1.4268108643591404
+    },
+    {
+      "name": "numpy_tensordot",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.48729090485721827
+    },
+    {
+      "name": "numpy_broadcast",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 0.5464417627081275
+    },
+    {
+      "name": "scipy_blas",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 149.98633723007515
+    },
+    {
+      "name": "scipy_sparse",
+      "family": "library",
+      "cases_passed": 19,
+      "invalid_shapes_rejected": 6,
+      "max_absolute_error": 1.7763568394002505e-15,
+      "elapsed_ms": 5.077720037661493
+    }
+  ]
+}
