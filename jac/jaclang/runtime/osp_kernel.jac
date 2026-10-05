@@ -45,6 +45,7 @@ obj WalkScope {
         front: list[int],
         ignores: list[int],
         reports: list[any],
+        named_channels: dict[str, any] | None = None,
         disengaged: bool = False,
         next_head: int = 0,
         nested: bool = False,

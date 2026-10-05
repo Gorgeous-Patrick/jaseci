@@ -33,6 +33,7 @@ import from jaclang.compiler.frontend.unitree {
     ConnectOp,
     ContextAwareNode,
     CtrlStmt,
+    CursorDecl,
     DeleteStmt,
     DictCompr,
     DictVal,
@@ -465,6 +466,8 @@ obj Parser {
     def parse_edge_op_ref_inline -> EdgeOpRef | None;
     def parse_atomic_pipe -> Expr;
     def parse_atomic_pipe_back -> Expr;
+    has cursor_context: list[str] = [];
+    def validate_cursors(arch: Archetype) -> None;
     def parse_spawn -> Expr;
     def parse_unpack -> Expr;
     def parse_ref -> Expr;

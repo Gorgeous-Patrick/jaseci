@@ -248,6 +248,10 @@ impl JacWalker.`visit(
     insert_loc: int = -1
 ) -> bool {
     import from jaclang.runtime.osp_kernel { osp_visit, scope_of }
+    active = scope_of(`walker);
+    if active is not None and active.named_channels is not None {
+        raise TypeError("Named cursor walkers require visit[cursor]");
+    }
     if isinstance(expr, GraphQuery) {
         expr.from_visit = True;
         expr = JacRuntimeInterface.refs(expr);
@@ -318,7 +322,7 @@ impl JacWalker.async_spawn_call(
 }
 
 impl JacWalker.`spawn(
-    op1: (Archetype | list[Archetype]), op2: (Archetype | list[Archetype])
+    op1: (Archetype | list[Archetype] | dict[str, any]), op2: (Archetype | list[Archetype] | dict[str, any])
 ) -> (WalkerArchetype | Coroutine) {
     def collect_targets(
         `walker: WalkerAnchor, items: list[Archetype]
@@ -359,6 +363,11 @@ impl JacWalker.`spawn(
     } else {
         raise TypeError('Invalid walker object');
     }
+    if getattr(type(warch), '_jac_cursor_names_', ()) {
+        import from jaclang.runtime.cursor_walk { spawn_cursors }
+        return spawn_cursors(warch, targ);
+    }
+    if isinstance(targ, dict) { raise TypeError('Named start bindings require a named cursor walker'); }
     `walker: WalkerAnchor = warch.__jac__;
     loc: (NodeAnchor | EdgeAnchor) = assign(`walker, targ);
     for start in `walker.next {
@@ -2060,4 +2069,9 @@ impl JacRuntime.after_fork_in_child -> None {
     }
     _shared_root_resolver[1] = None;
     JacRuntime.pool = ThreadPoolExecutor();
+}
+
+impl JacWalker.cursor_visit(wlk: any, name: str, expr: any, insert_loc: int = -1) -> bool {
+    import from jaclang.runtime.cursor_walk { visit_cursor }
+    return visit_cursor(wlk, name, expr, insert_loc);
 }

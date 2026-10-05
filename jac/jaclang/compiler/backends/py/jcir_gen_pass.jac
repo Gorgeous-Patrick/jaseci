@@ -25,6 +25,7 @@ import from jaclang.compiler.frontend.unitree {
     ConnectOp,
     ContextAwareNode,
     CtrlStmt,
+    CursorDecl,
     DeleteStmt,
     DictCompr,
     DictVal,
@@ -557,6 +558,7 @@ walker JcirGenPass(BaseAstGenPass[CgItem]) {
     can exit_func_signature with FuncSignature exit;
     can exit_event_signature with EventSignature exit;
     can exit_param_var with ParamVar exit;
+    can exit_cursor_decl with CursorDecl exit;
     can exit_arch_has with ArchHas exit;
     can exit_has_var with HasVar exit;
     can exit_typed_ctx_block with TypedCtxBlock exit;

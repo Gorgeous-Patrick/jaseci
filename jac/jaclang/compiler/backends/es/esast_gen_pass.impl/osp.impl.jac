@@ -5,6 +5,9 @@ impl EsastGenPass._osp_model -> OspModel {
 }
 
 impl EsastGenPass._osp_ability_info(nd: uni.Ability) -> (dict[str, any] | None) {
+    if isinstance(nd.signature, uni.EventSignature) and nd.signature.cursor_names {
+        raise NotImplementedError("Named cursor walkers require the Python CPU backend");
+    }
     if not isinstance(nd.signature, uni.EventSignature) {
         return None;
     }

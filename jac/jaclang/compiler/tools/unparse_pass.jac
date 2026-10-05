@@ -48,6 +48,7 @@ walker UnparsePass(TreeWalker) {
     can exit_enum with uni.Enum exit;
     can exit_ability with uni.Ability exit;
     can exit_func_signature with uni.FuncSignature exit;
+    can exit_cursor_decl with uni.CursorDecl exit;
     can exit_event_signature with uni.EventSignature exit;
     can exit_param_var with uni.ParamVar exit;
     can exit_arch_has with uni.ArchHas exit;

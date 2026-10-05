@@ -43,6 +43,10 @@ impl NaIRGenPass._native_archetypes(module: uni.Module) -> list[uni.Archetype] {
 
 impl NaIRGenPass._forward_declare_archetype_names(module: uni.Module) -> None {
     for arch in self._native_archetypes(module) {
+        if isinstance(arch.body, list) and any(isinstance(m, uni.CursorDecl) for m in arch.body) {
+            self.ctx.emit(E5092, node_override=arch, kind="named cursor walker", name="Python CPU backend required");
+            continue;
+        }
         aname = arch.name.value if arch.name else None;
         if aname is not None and aname not in self.struct_types {
             struct_type = self.llvm_module.context.get_identified_type(aname);

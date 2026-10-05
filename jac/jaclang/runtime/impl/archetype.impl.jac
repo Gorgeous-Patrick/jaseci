@@ -358,7 +358,7 @@ impl Root.__repr__ -> str {
 
 @cached_property
 impl ObjectSpatialFunction.trigger -> (
-    type | UnionType | tuple[((type | UnionType), ...)] | None
+    type | UnionType | tuple[((type | UnionType), ...)] | dict[str, any] | None
 ) {
     if self.trigger_override is not _NO_TRIGGER {
         ty = self.trigger_override();

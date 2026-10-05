@@ -450,6 +450,14 @@ impl UnparsePass.exit_func_signature with uni.FuncSignature exit {
 }
 
 impl UnparsePass.exit_event_signature with uni.EventSignature exit {
+    if here.cursor_names {
+        assert isinstance(here.arch_tag_info, uni.TupleVal);
+        here.gen.jac = "with (" + ", ".join(
+            name + ": " + ty.gen.jac + " entry"
+            for (name, ty) in zip(here.cursor_names, here.arch_tag_info.values)
+        ) + ")";
+        return;
+    }
     parts: list[str] = ["with"];
     if here.arch_tag_info {
         parts.append(here.arch_tag_info.gen.jac);
@@ -711,9 +719,9 @@ impl UnparsePass.exit_return_stmt with uni.ReturnStmt exit {
 }
 
 impl UnparsePass.exit_visit_stmt with uni.VisitStmt exit {
-    parts: list[str] = ["visit"];
+    parts: list[str] = ["visit" + ("[" + here.cursor_name + "]" if here.cursor_name is not None else "")];
     if here.insert_loc {
-        parts.append(here.insert_loc.gen.jac);
+        parts.append(":" + here.insert_loc.gen.jac + ":" if here.cursor_name is not None else here.insert_loc.gen.jac);
     }
     parts.append(here.target.gen.jac);
     if here.else_body {
@@ -935,6 +943,10 @@ impl UnparsePass.exit_dict_compr with uni.DictCompr exit {
 }
 
 impl UnparsePass.exit_atom_trailer with uni.AtomTrailer exit {
+    if here.cursor_name is not None {
+        here.gen.jac = "here[" + here.cursor_name + "]";
+        return;
+    }
     result = here.target.gen.jac;
     if here.is_null_ok {
         result = result + "?";
@@ -1212,4 +1224,8 @@ impl UnparsePass.exit_match_arch with uni.MatchArch exit {
         parts.extend([k.gen.jac for k in here.kw_patterns]);
     }
     here.gen.jac = here.name.gen.jac + "(" + ", ".join(parts) + ")";
+}
+
+impl UnparsePass.exit_cursor_decl with uni.CursorDecl exit {
+    here.gen.jac = "cursor " + ", ".join(here.names) + ";";
 }

@@ -339,6 +339,7 @@ class JacGraph {
 }
 
 class JacWalker {
+    static def cursor_visit(wlk: any, name: str, expr: any, insert_loc: int = -1) -> bool;
     static def `visit(
         `walker: WalkerArchetype,
         expr:
@@ -362,7 +363,7 @@ class JacWalker {
     ) -> WalkerArchetype;
 
     static def `spawn(
-        op1: (Archetype | list[Archetype]), op2: (Archetype | list[Archetype])
+        op1: (Archetype | list[Archetype] | dict[str, any]), op2: (Archetype | list[Archetype] | dict[str, any])
     ) -> (WalkerArchetype | Coroutine);
 
     static def `disengage(`walker: WalkerArchetype) -> bool;

@@ -55,6 +55,7 @@ impl Parser.check_peek_any(*kinds: TokenKind) -> bool {
 }
 
 impl Parser.postinit{
+    self.cursor_context = [];
     self.source = Source(self.source_code, self.file_path);
     self._tokens_len = len(self.tokens);
 }
@@ -1307,7 +1308,16 @@ impl Parser.parse_atomic_chain -> Expr {
                 is_null_ok_index = True;
                 null_ok_idx_uni = self.make_uni_token(self.previous());
             }
-            index_slice = self.parse_index_slice();
+            cursor_name: str | None = None;
+            if self.cursor_context and isinstance(expr, SpecialVarRef) and expr.name == Tok.KW_HERE {
+                lb = self.consume_uni(TokenKind.LSQUARE);
+                selector = self.expect_name("here cursor");
+                cursor_name = selector.value;
+                rb = self.consume_uni(TokenKind.RSQUARE);
+                key = self.make_string_from_value(cursor_name);
+                part = Slice(start=key, stop=None, step=None, kid=[key]);
+                index_slice = IndexSlice(slices=[part], is_range=False, kid=[lb, part, rb]);
+            } else { index_slice = self.parse_index_slice(); }
             kid: list[UniNode] = [expr];
             if is_null_ok_index and null_ok_idx_uni is not None {
                 kid.append(null_ok_idx_uni);
@@ -1320,6 +1330,7 @@ impl Parser.parse_atomic_chain -> Expr {
                 is_null_ok=is_null_ok_index,
                 kid=kid
             );
+            expr.cursor_name = cursor_name;
         } else {
             break;
         }
@@ -5240,6 +5251,8 @@ impl Parser.parse_import_items(
 }
 
 impl Parser.parse_archetype -> Archetype {
+    saved_cursors = self.cursor_context;
+    self.cursor_context = [];
     decorators: list[Expr] = [];
     decor_unis: list[Token] = [];
     while self.check(TokenKind.DECOR_OP) {
@@ -5406,6 +5419,8 @@ impl Parser.parse_archetype -> Archetype {
     if is_async {
         arch.is_async = True;
     }
+    self.validate_cursors(arch);
+    self.cursor_context = saved_cursors;
     return arch;
 }
 
@@ -5413,6 +5428,21 @@ impl Parser.parse_archetype_member -> UniNode | None {
     self._skip_semicolons();
     if self.check(TokenKind.RBRACE) or self.at_end() {
         return None;
+    }
+
+    if self.current().value == "cursor" and self.peek().kind == TokenKind.NAME {
+        kid: list[UniNode] = [self.make_uni_token(self.advance())];
+        names: list[str] = [];
+        while True {
+            token = self.expect_name("cursor");
+            names.append(token.value);
+            kid.append(self.make_uni_token(token));
+            if not self.match_tok(TokenKind.COMMA) { break; }
+            kid.append(self.make_uni_token(self.previous()));
+        }
+        kid.append(self.consume_uni(TokenKind.SEMI));
+        self.cursor_context.extend(names);
+        return CursorDecl(names=names, kid=kid);
     }
 
     doc: String | None = None;
@@ -5851,20 +5881,44 @@ impl Parser.parse_ability -> Ability {
     signature: FuncSignature | EventSignature | None;
     if is_can and self.check(TokenKind.KW_WITH) {
         with_uni = self.make_uni_token(self.expect(TokenKind.KW_WITH));
-        event_type = self.parse_expression()
-            if not self.check_any(TokenKind.KW_ENTRY, TokenKind.KW_EXIT)
-            else None;
-        event_tok = self.expect_any(TokenKind.KW_ENTRY, TokenKind.KW_EXIT);
-        event_uni_tok = self.make_uni_token(event_tok);
-
+        cursor_names: list[str] = [];
         sig_kid: list[UniNode] = [with_uni];
-        if event_type {
+        event_type: Expr | None = None;
+        event_uni_tok: Token;
+        if self.check(TokenKind.LPAREN) and self.peek(2).kind == TokenKind.COLON {
+            sig_kid.append(self.consume_uni(TokenKind.LPAREN));
+            types: list[Expr] = [];
+            type_kid: list[UniNode] = [];
+            while True {
+                selector = self.expect_name("cursor trigger");
+                cursor_names.append(selector.value);
+                sig_kid.append(self.make_uni_token(selector));
+                sig_kid.append(self.consume_uni(TokenKind.COLON));
+                trigger = self.parse_expression();
+                types.append(trigger);
+                type_kid.append(trigger);
+                event_uni_tok = self.consume_uni(TokenKind.KW_ENTRY)
+                    if self.check(TokenKind.KW_ENTRY) else self.consume_uni(TokenKind.KW_EXIT);
+                sig_kid.append(event_uni_tok);
+                if event_uni_tok.value != "entry" {
+                    self.emit_diag("Named cursors support joint entry events only", "E0034");
+                }
+                if not self.match_tok(TokenKind.COMMA) { break; }
+                sig_kid.append(self.make_uni_token(self.previous()));
+            }
+            event_type = TupleVal(values=types, kid=type_kid);
             sig_kid.append(event_type);
+            sig_kid.append(self.consume_uni(TokenKind.RPAREN));
+        } else {
+            event_type = self.parse_expression()
+                if not self.check_any(TokenKind.KW_ENTRY, TokenKind.KW_EXIT) else None;
+            event_uni_tok = self.consume_uni(TokenKind.KW_ENTRY)
+                if self.check(TokenKind.KW_ENTRY) else self.consume_uni(TokenKind.KW_EXIT);
+            if event_type { sig_kid.append(event_type); }
+            sig_kid.append(event_uni_tok);
         }
-        sig_kid.append(event_uni_tok);
-        signature = EventSignature(
-            event=event_uni_tok, arch_tag_info=event_type, kid=sig_kid
-        );
+        signature = EventSignature(event=event_uni_tok, arch_tag_info=event_type, kid=sig_kid);
+        signature.cursor_names = cursor_names;
     } elif is_can {
         self.emit_diag(
             "Expected 'with' after 'can' ability name (use 'def' for function-style declarations)",
@@ -7081,6 +7135,15 @@ impl Parser.parse_type_params -> tuple[(list[TypeParam], list[Token])] {
 
 impl Parser.parse_visit_stmt -> VisitStmt {
     visit_uni = self.consume_uni(TokenKind.KW_VISIT);
+    cursor_name: str | None = None;
+    cursor_kid: list[UniNode] = [];
+    if self.cursor_context and self.check(TokenKind.LSQUARE) {
+        cursor_kid.append(self.consume_uni(TokenKind.LSQUARE));
+        selector = self.expect_name("visit cursor");
+        cursor_name = selector.value;
+        cursor_kid.append(self.make_uni_token(selector));
+        cursor_kid.append(self.consume_uni(TokenKind.RSQUARE));
+    }
 
     insert_loc = None;
     colon1_uni = None;
@@ -7098,7 +7161,7 @@ impl Parser.parse_visit_stmt -> VisitStmt {
     } elif self.match_tok(TokenKind.SEMI) {
         has_semi = True;
     }
-    kid: list[UniNode] = [visit_uni];
+    kid: list[UniNode] = [visit_uni, *cursor_kid];
     if insert_loc is not None and colon1_uni is not None and colon2_uni is not None {
         kid.append(colon1_uni);
         kid.append(insert_loc);
@@ -7110,9 +7173,9 @@ impl Parser.parse_visit_stmt -> VisitStmt {
     } elif has_semi {
         kid.append(self.make_semi());
     }
-    return VisitStmt(
-        insert_loc=insert_loc, target=target, else_body=else_body, kid=kid
-    );
+    result = VisitStmt(insert_loc=insert_loc, target=target, else_body=else_body, kid=kid);
+    result.cursor_name = cursor_name;
+    return result;
 }
 
 impl Parser.parse_report_stmt -> ReportStmt {
@@ -7125,4 +7188,69 @@ impl Parser.parse_report_stmt -> ReportStmt {
 
 impl Parser._lookahead_advance -> None {
     self.advance();
+}
+
+
+impl Parser.validate_cursors(arch: Archetype) -> None {
+    body = arch.body;
+    if not isinstance(body, list) { return; }
+    names: list[str] = [];
+    seen_ability = False;
+    for member in body {
+        if isinstance(member, Ability) { seen_ability = True; }
+        if isinstance(member, CursorDecl) {
+            if arch.arch_kind != "walker" or seen_ability {
+                self.emit_diag("Declare cursors in a walker before its abilities", "E0034");
+            }
+            names.extend(member.names);
+        }
+    }
+    for member in body {
+        if isinstance(member, Ability) and isinstance(member.signature, EventSignature) {
+            sig = member.signature;
+            if sig.cursor_names and not names {
+                self.emit_diag("Joint cursor triggers require a cursor declaration", "E0034");
+            }
+            if names and (len(sig.cursor_names) != len(names) or set(sig.cursor_names) != set(names)) {
+                self.emit_diag("Joint entry must name every declared cursor exactly once; ordinary events cannot be mixed", "E0034");
+            }
+            if names and (member.is_async or member.is_static or member.is_abstract or not isinstance(member.body, list)) {
+                self.emit_diag("Joint cursor abilities require a local synchronous instance body", "E0034");
+            }
+        }
+    }
+    if not names { return; }
+    if len(names) != len(set(names)) or arch.base_classes or arch.is_async
+        or len([m for m in body if isinstance(m, CursorDecl)]) != 1 {
+        self.emit_diag("Cursor names must be unique; named cursor walkers cannot inherit or be async", "E0034");
+    }
+    for nd in arch.flatten() {
+        if nd.find_parent_of_type(Archetype) is not arch { continue; }
+        if (isinstance(nd, AtomTrailer) and nd.cursor_name is not None) or isinstance(nd, VisitStmt) {
+            owner = nd.find_parent_of_type(Ability);
+            if owner is None or not isinstance(owner.signature, EventSignature) or not owner.signature.cursor_names {
+                self.emit_diag("Cursor here/visit require a joint entry ability body", "E0034");
+            }
+        }
+        if isinstance(nd, AtomTrailer) and nd.cursor_name is not None {
+            if nd.cursor_name not in names { self.emit_diag("Unknown here cursor: " + nd.cursor_name, "E0034"); }
+            if isinstance(nd.parent, Assignment) and nd in nd.parent.target {
+                self.emit_diag("Cursor positions are read-only", "E0034");
+            }
+        } elif isinstance(nd, SpecialVarRef) and nd.name == Tok.KW_HERE {
+            if not isinstance(nd.parent, AtomTrailer) or nd.parent.cursor_name is None {
+                self.emit_diag("Named cursor abilities require here[cursor]", "E0034");
+            }
+        } elif isinstance(nd, VisitStmt) {
+            if nd.cursor_name not in names { self.emit_diag("Named cursor visits require a declared visit[cursor]", "E0034"); }
+        } elif isinstance(nd, EdgeOpRef) {
+            trailer = nd.find_parent_of_type(EdgeRefTrailer);
+            cursor_visit_stmt = nd.find_parent_of_type(VisitStmt);
+            if trailer is not None and isinstance(trailer.chain[0], EdgeOpRef) and cursor_visit_stmt is None {
+                self.emit_diag("Implicit edge origins in named cursor walkers require visit[cursor]", "E0034");
+            }
+        } elif type(nd).__name__ in ("IgnoreStmt", "SkipStmt") {
+            self.emit_diag("skip/ignore have no named cursor contract", "E0034");
+        }
+    }
 }

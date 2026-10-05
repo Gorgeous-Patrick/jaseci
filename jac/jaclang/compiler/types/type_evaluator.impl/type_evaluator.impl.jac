@@ -638,6 +638,17 @@ impl TypeEvaluator._get_type_of_expression_core(
             return UnknownType();
 
         case AtomTrailer():
+            if expr.cursor_name is not None {
+                method = self._get_enclosing_method(expr);
+                if method is not None and isinstance(method.signature, EventSignature) {
+                    sig = method.signature;
+                    if isinstance(sig.arch_tag_info, TupleVal) and expr.cursor_name in sig.cursor_names {
+                        return self._convert_to_instance(self.get_type_of_expression(
+                            sig.arch_tag_info.values[sig.cursor_names.index(expr.cursor_name)]
+                        ));
+                    }
+                }
+            }
             base_type = self.get_type_of_expression(expr.target);
 
             if isinstance(expr.target, Name) and expr.target.sym {

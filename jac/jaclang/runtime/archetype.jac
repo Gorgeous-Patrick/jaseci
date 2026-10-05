@@ -294,7 +294,7 @@ obj ObjectSpatialFunction {
         trigger_override: any = _NO_TRIGGER;
 
     @cached_property
-    def trigger -> (type | UnionType | tuple[((type | UnionType), ...)] | None);
+    def trigger -> (type | UnionType | tuple[((type | UnionType), ...)] | dict[str, any] | None);
 }
 
 obj JsxElement {

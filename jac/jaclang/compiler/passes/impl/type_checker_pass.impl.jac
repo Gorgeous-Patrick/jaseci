@@ -1049,7 +1049,7 @@ impl TypeCheckPass._check_event_trigger_archetype(nd: Ability) -> None {
         }
         if isinstance(t, ClassType) {
             if walker_owner {
-                return t.is_node_type() or t.is_edge_type();
+                return t.is_node_type() or (t.is_edge_type() and not sig.cursor_names);
             }
             return t.is_walker_type();
         }

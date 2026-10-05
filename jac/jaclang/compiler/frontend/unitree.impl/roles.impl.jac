@@ -2080,6 +2080,7 @@ impl FuncSignature.init(
 impl EventSignature.init(
     *, event: Token, arch_tag_info: (Expr | None), kid: Sequence[UniNode] = []
 ) -> None {
+    self.cursor_names = [];
     self._link(kid, {EventRole: event, ArchTagInfoRole: arch_tag_info});
     self.postinit();
 }
@@ -2385,6 +2386,7 @@ impl VisitStmt.init(
     target: Expr,
     kid: Sequence[UniNode] = []
 ) -> None {
+    self.cursor_name = None;
     self._link(
         kid, {ElseBodyRole: else_body, InsertLocRole: insert_loc, TargetRole: target}
     );
@@ -2625,6 +2627,7 @@ impl AtomTrailer.init(
     is_genai: bool = False,
     kid: Sequence[UniNode] = []
 ) -> None {
+    self.cursor_name = None;
     self.is_attr = is_attr;
     self.is_null_ok = is_null_ok;
     self.is_genai = is_genai;
@@ -2933,5 +2936,11 @@ impl MatchArch.init(
         kid,
         {NameRole: name, ArgPatternsRole: arg_patterns, KwPatternsRole: kw_patterns}
     );
+    self.postinit();
+}
+
+impl CursorDecl.init(*, names: list[str], kid: Sequence[UniNode] = []) -> None {
+    self.names = names;
+    self._link(kid, {});
     self.postinit();
 }

@@ -1130,6 +1130,7 @@ node FuncSignature(UniNode) {
 }
 
 node EventSignature(WalkerStmtOnlyNode) {
+    has cursor_names: list[str] = [];
     has event: Token { getter; }
     has arch_tag_info: (Expr | None) { getter; }
 
@@ -1508,6 +1509,7 @@ node ReturnStmt(CodeBlockStmt) {
 }
 
 node VisitStmt(WalkerStmtOnlyNode, AstElseBodyNode, CodeBlockStmt) {
+    has cursor_name: str | None = None;
     has insert_loc: (Expr | None) { getter; }
     has target: Expr { getter; }
 
@@ -1844,6 +1846,7 @@ node DictCompr(AtomExpr, UniScopeNode, UniCFGNode) {
 }
 
 node AtomTrailer(Expr) {
+    has cursor_name: str | None = None;
     has is_attr: bool,
         is_null_ok: bool,
         is_genai: bool = False;
@@ -2790,3 +2793,9 @@ def is_client_destined(nd: UniNode) -> bool;
 def type_only_import_of(nd: NameAtom) -> (ModuleItem | None);
 
 def in_type_position(nd: UniNode, include_subscripts: bool = True) -> bool;
+
+
+node CursorDecl(ArchBlockStmt) {
+    has names: list[str] = [];
+    def init(*, names: list[str], kid: Sequence[UniNode] = []) -> None;
+}

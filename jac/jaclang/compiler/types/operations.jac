@@ -619,10 +619,11 @@ def get_type_of_binary_operation(
             }
             return False;
         }
-        def is_archetype_target(t: TypeBase) -> bool {
+        def is_archetype_target(t: TypeBase, allow_empty: bool = False) -> bool {
             if t.is_any_type() or isinstance(t, UnknownType) {
                 return True;
             }
+            if allow_empty and evaluator.is_none_type(t) { return True; }
             if isinstance(t, ClassType) {
                 if t.is_node_type() or t.is_edge_type() {
                     return True;
@@ -631,19 +632,24 @@ def get_type_of_binary_operation(
                     or _is_runtime_archetype_instance(t, "EdgeArchetype") {
                     return True;
                 }
+                if t.is_builtin("dict") {
+                    return not t.private.type_args or all(
+                        is_archetype_target(a, True) for a in t.private.type_args[1:]
+                    );
+                }
                 if (
                     t.is_builtin()
                     and t.shared.class_name in ("list", "tuple", "set", "frozenset")
                 ) {
                     if t.private.type_args and len(t.private.type_args) > 0 {
-                        return all(is_archetype_target(a) for a in t.private.type_args);
+                        return all(is_archetype_target(a, allow_empty) for a in t.private.type_args);
                     }
 
                     return True;
                 }
             }
             if isinstance(t, UnionType) {
-                return all(is_archetype_target(m) for m in t.types);
+                return all(is_archetype_target(m, allow_empty) for m in t.types);
             }
             return False;
         }

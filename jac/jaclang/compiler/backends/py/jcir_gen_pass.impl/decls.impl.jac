@@ -259,7 +259,13 @@ impl JcirGenPass.exit_ability with Ability exit {
             )
         );
         trigger_arg: CgNode = self.const_of(None);
-        if event_sig.arch_tag_info {
+        if event_sig.cursor_names {
+            assert isinstance(event_sig.arch_tag_info, TupleVal);
+            trigger_arg = self.nod('Dict', ['keys', 'values'], [
+                [self.const_of(n) for n in event_sig.cursor_names],
+                [self.val(t) for t in event_sig.arch_tag_info.values]
+            ]);
+        } elif event_sig.arch_tag_info {
             tinfo = self.val(event_sig.arch_tag_info);
             if (
                 tinfo.cls == 'Tuple' and isinstance(event_sig.arch_tag_info, TupleVal)
@@ -526,7 +532,7 @@ impl JcirGenPass.exit_func_signature with FuncSignature exit {
 impl JcirGenPass.exit_event_signature with EventSignature exit {
     arch_kw = Con.HERE.value if here.from_walker else Con.VISITOR.value;
     annotation: (CgNode | None) = None;
-    if here.arch_tag_info {
+    if here.arch_tag_info and not here.cursor_names {
         tag_recipe = self.val(here.arch_tag_info);
         if (tag_recipe.cls == 'Tuple' and isinstance(here.arch_tag_info, TupleVal)) {
             telts = tag_recipe.get('elts');
@@ -839,4 +845,12 @@ impl JcirGenPass.gen_llm_body(nd: Ability) -> list[CgNode] {
     }
     statements.append(self.nod('Return', ['value'], [llm_call]));
     return statements;
+}
+
+
+impl JcirGenPass.exit_cursor_decl with CursorDecl exit {
+    self.set_out(here, [self.nod('Assign', ['targets', 'value'], [
+        [self.nod('Name', ['id', 'ctx'], ['_jac_cursor_names_', self.nod('Store', [], [])])],
+        self.nod('Tuple', ['elts', 'ctx'], [[self.const_of(n) for n in here.names], self.nod('Load', [], [])])
+    ])]);
 }

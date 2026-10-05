@@ -18,7 +18,8 @@ impl JcirGenPass.exit_report_stmt with ReportStmt exit {
 impl JcirGenPass.exit_visit_stmt with VisitStmt exit {
     loc = self.name_load('self' if here.from_walker else Con.VISITOR.value);
     visit_call = self.call_node(
-        self.jaclib_obj('visit'), [loc, self.val(here.target)], []
+        self.jaclib_obj('cursor_visit' if here.cursor_name is not None else 'visit'),
+        [loc, self.const_of(here.cursor_name), self.val(here.target)] if here.cursor_name is not None else [loc, self.val(here.target)], []
     );
     if (here.insert_loc is not None) {
         visit_call.get('keywords').append(
@@ -698,6 +699,13 @@ impl JcirGenPass.exit_edge_ref_trailer with EdgeRefTrailer exit {
 }
 
 impl JcirGenPass.exit_edge_op_ref with EdgeOpRef exit {
+    cursor_visit_stmt = here.find_parent_of_type(VisitStmt);
+    if cursor_visit_stmt is not None and cursor_visit_stmt.cursor_name is not None {
+        self.set_out(here, [self.nod('Subscript', ['value', 'slice', 'ctx'], [
+            self.name_load(Con.HERE.value), self.const_of(cursor_visit_stmt.cursor_name), self.nod('Load', [], [])
+        ])]);
+        return;
+    }
     self.set_out(
         here, [self.name_load(Con.HERE.value if here.from_walker else 'self')]
     );

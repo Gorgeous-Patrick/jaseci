@@ -400,6 +400,9 @@ impl EsastGenPass.exit_type_param with uni.TypeParam exit {
 }
 
 impl EsastGenPass.exit_archetype with uni.Archetype exit {
+    if isinstance(here.body, list) and any(isinstance(m, uni.CursorDecl) for m in here.body) {
+        raise NotImplementedError("Named cursor walkers require the Python CPU backend");
+    }
     if here.code_context == CodeContext.CLIENT {
         self.client_manifest.has_client = True;
         is_pub = here.access and (here.access.tag.name == Tok.KW_PUB);
