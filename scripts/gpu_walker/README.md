@@ -231,3 +231,52 @@ returns a matching count, integer sum, boolean alert flag, and total visit count
 The runner checks every result against serial Jac and distinguishes CPU graph
 construction, source compilation, and the complete GPU batch call. See the
 [graph, semantics, and execution instructions](../../jac/examples/gpu/subtree_query.md).
+
+## Device loops
+
+`jac/examples/gpu/loops.jac` demonstrates dynamic `for i in range(here.value)`,
+nested ranges, and `while` with a private scalar local. Both chain and CSR
+kernels lower these to LLVM header/body/exit blocks with PHI values and a real
+backedge. Runtime node values determine iteration counts; there is no compiler
+constant unrolling. Each node ability invocation starts fresh local slots;
+walker fields persist across nodes. Locals do not add kernel parameters.
+
+Supported bounds are `range(stop)`, `range(start, stop)` and
+`range(start, stop, step)`. Bounds are int64 expressions evaluated once on loop
+entry; step must be a nonzero int64 literal (positive or negative). Internal
+range advancement can terminate beyond int64 without an arithmetic error;
+user arithmetic still reports int64 overflow. Range targets are fresh,
+read-only locals visible only in their loop body. Initialize other int64,
+float64 or boolean locals at ability top level before branches/loops; their
+type must remain fixed. A `while` condition is a supported boolean expression
+re-evaluated every iteration, including short-circuit expressions. Nested
+loops, conditionals, walker field/local updates and scalar reports are allowed.
+
+Explicitly rejected: loop `else`, `break`, `continue`, inner `visit`, other
+iterables, unpacking targets, dynamic/zero range steps, writes to range targets,
+new local declarations inside branches or loops, C-style iteration, and
+async/comptime loops. The single typed tail
+`visit` retains the existing traversal contract. Loops must terminate; graph
+cycle/CSR visit bounds do not bound inner ability iterations. Device buffers,
+matmul arrays and cooperative thread blocks remain outside this subset.
+
+```bash
+PYTHONPATH=jac python scripts/gpu_walker/test_loops.py -v
+PYTHONPATH=jac python scripts/gpu_walker/test_reports.py -v
+jac build jac/examples/gpu/loops.jac --as ptx --gpu-entry LoopSum -o /tmp/jac-loops
+jac build jac/examples/gpu/loops.jac --as ptx --gpu-entry LoopSum --gpu-graph-format csr -o /tmp/jac-loops-csr
+jac run jac/examples/gpu/loops.jac # serial Jac reference: 22
+JAC_GPU_TEST_CUDA=1 PYTHONPATH=jac python scripts/gpu_walker/test_loops.py -v
+```
+
+Default tests compile NVPTX and execute the shared LLVM lowering using CPU JIT;
+report/CSR runtime tests use a mock CUDA driver backed by that JIT. These are
+not actual GPU execution. The opt-in CUDA command executes emitted PTX on a
+working NVIDIA driver/device and compares against serial Jac and host JIT.
+
+`jac run jac/examples/gpu/loops_run.jac` runs 64 actual walkers on CUDA with
+per-node dynamic counts and nested loops, checking every result against serial
+Jac. This command requires a working NVIDIA driver and device.
+
+[2026-10-03 validation record](validation/loops_20261003.md) distinguishes
+host JIT/mock checks from successful real RTX 3090 execution.

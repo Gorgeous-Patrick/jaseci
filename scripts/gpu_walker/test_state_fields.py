@@ -303,7 +303,7 @@ class WalkerFieldTests(unittest.TestCase):
             'container': self.source.replace('last: int = 0;', 'last: int = 0, items: list[int] = [];'),
             'replace_object': self.source.replace('self.count += 1;', 'self.metrics = Metrics();'),
             'node_write': self.source.replace('self.count += 1;', 'here.value += 1;'),
-            'local': self.source.replace('self.count += 1;', 'x = self.count;'),
+            'branch_local': self.source.replace('self.count += 1;', 'if True { x = self.count; }'),
         }
         for name, text in variants.items():
             self.assertNotEqual(text, self.source)

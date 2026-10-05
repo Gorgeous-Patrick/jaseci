@@ -275,3 +275,29 @@ test "CLI exports boolean fields and tagged reports in v5 manifests" {
         }
     }
 }
+
+test "dynamic walker loops emit real backedges for chain and CSR without changing ABI" {
+    import from jaclang.compiler.backends.native.ptx { compile_ptx_frontend }
+    import from jaclang.compiler.backends.native.ptx_walker { select_chain_walkers, emit_chain_ptx, build_chain_module }
+    import from jaclang.compiler.backends.native.ptx_csr { emit_csr_ptx, build_csr_module }
+    import from jaclang.compiler.backends.native.llvm { binding as llvm }
+    llvm.initialize_all_targets();
+    llvm.initialize_all_asmprinters();
+    source = REPO / "jac/examples/gpu/loops.jac";
+    specs = select_chain_walkers(compile_ptx_frontend(str(source)), ["LoopSum"]);
+    host = llvm.Target.from_default_triple().create_target_machine(opt=2);
+    for build_module in [build_chain_module, build_csr_module] {
+        module = build_module(specs, host, device=False);
+        module.verify();
+        text = str(module);
+        assert "loop.check" in text;
+        assert "loop.state" in text;
+        assert text.count("br label %loop.check") >= 2;
+    }
+    for emit in [emit_chain_ptx, emit_csr_ptx] {
+        artifact = emit(specs);
+        assert "LoopSum" in artifact.ptx;
+        assert len([p for p in artifact.kernels[0]["parameters"] if p.get("field_path") == "total"]) == 2;
+        assert all("remaining" not in p["name"] for p in artifact.kernels[0]["parameters"]);
+    }
+}

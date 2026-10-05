@@ -30,7 +30,7 @@ obj ChainExpr {
         overflow: ir.Block,
         zero_divisor: ir.Block
     ) -> ir.Value {
-        if self.op == "state" {
+        if self.op in ("state", "range_state") {
             return state[self.state_index];
         }
         if self.op == "node" {
@@ -69,6 +69,14 @@ obj ChainExpr {
         }
         assert self.right is not None;
         right = self.right.lower(b, state, node_value, overflow, zero_divisor);
+        if self.op == "range_next" {
+            # Python range may terminate beyond int64. The private induction slot
+            # saturates to stop rather than reporting overflow after the last item.
+            step = self.right.value;
+            threshold = (2 ** 63 - 1) - step if step > 0 else -(2 ** 63) - step;
+            beyond = b.icmp_signed(">" if step > 0 else "<", left, ir.Constant(left.type, threshold));
+            return b.select(beyond, state[self.node_index], b.add(left, right));
+        }
         if self.op in ("==", "!=", "<", "<=", ">", ">=") {
             if left.type == ir.IntType(1) {
                 return b.icmp_unsigned(self.op, left, right);
@@ -123,7 +131,8 @@ obj StateUpdate {
         target: int | None = None,
         taken: list[StateUpdate] = [],
         skipped: list[StateUpdate] = [],
-        is_report: bool = False;
+        is_report: bool = False,
+        is_loop: bool = False;
 
     def lower(
         b: ir.IRBuilder,
@@ -133,6 +142,25 @@ obj StateUpdate {
         zero_divisor: ir.Block,
         reports: ReportOutput | None = None
     ) -> list[ir.Value] {
+        if self.is_loop {
+            before = b.block;
+            check = b.function.append_basic_block("loop.check");
+            body = b.function.append_basic_block("loop.body");
+            end = b.function.append_basic_block("loop.end");
+            b.branch(check);
+            b.position_at_end(check);
+            carried = [b.phi(v.type, name="loop.state") for v in state];
+            for (phi, value) in zip(carried, state) { phi.add_incoming(value, before); }
+            condition = self.expression.lower(b, carried, node_value, overflow, zero_divisor);
+            b.cbranch(condition, body, end);
+            b.position_at_end(body);
+            updated = lower_updates(self.taken, b, carried, node_value, overflow, zero_divisor, reports);
+            back = b.block;
+            b.branch(check);
+            for (phi, value) in zip(carried, updated) { phi.add_incoming(value, back); }
+            b.position_at_end(end);
+            return carried;
+        }
         value = self.expression.lower(b, state, node_value, overflow, zero_divisor);
         if self.is_report {
             assert reports is not None;
@@ -141,7 +169,8 @@ obj StateUpdate {
         }
         if self.target is not None {
             result = state.copy();
-            result[self.target] = value;
+            if self.target == len(result) { result.append(value); }
+            else { result[self.target] = value; }
             return result;
         }
         yes_block = b.function.append_basic_block("update.then");
@@ -584,13 +613,17 @@ def chain_expr(
     expr: uni.Expr,
     state: list[list[uni.HasVar]],
     nd: list[list[uni.HasVar]],
-    dtype: GpuScalarType
+    dtype: GpuScalarType,
+    locals: dict[str, ChainExpr]
 ) -> ChainExpr {
+    if isinstance(expr, uni.Name) and expr.value in locals {
+        return locals[expr.value];
+    }
     if isinstance(expr, uni.CfgExpr) {
-        return chain_expr(expr.expr, state, nd, dtype);
+        return chain_expr(expr.expr, state, nd, dtype, locals);
     }
     if isinstance(expr, uni.AtomUnit) and isinstance(expr.value, uni.Expr) {
-        return chain_expr(expr.value, state, nd, dtype);
+        return chain_expr(expr.value, state, nd, dtype, locals);
     }
     if isinstance(expr, uni.Bool) {
         return ChainExpr("constant", value=expr.lit_value, dtype=GpuScalarType.BOOL);
@@ -612,7 +645,7 @@ def chain_expr(
         }
     }
     if isinstance(expr, uni.BoolExpr) {
-        items = [chain_expr(v, state, nd, dtype) for v in expr.values];
+        items = [chain_expr(v, state, nd, dtype, locals) for v in expr.values];
         if any(v.dtype != GpuScalarType.BOOL for v in items) {
             reject(expr, "GPU logical operators require boolean operands");
         }
@@ -623,7 +656,7 @@ def chain_expr(
         return result;
     }
     if isinstance(expr, uni.UnaryExpr) and expr.op.value in ("+", "-", "not") {
-        operand = chain_expr(expr.operand, state, nd, dtype);
+        operand = chain_expr(expr.operand, state, nd, dtype, locals);
         if expr.op.value == "not" {
             if operand.dtype != GpuScalarType.BOOL { reject(expr, "GPU not requires a boolean operand"); }
             return ChainExpr("not", left=operand, dtype=GpuScalarType.BOOL);
@@ -632,8 +665,8 @@ def chain_expr(
         return operand if expr.op.value == "+" else ChainExpr("neg", left=operand, dtype=operand.dtype);
     }
     if isinstance(expr, uni.CompareExpr) and len(expr.ops) == 1 and len(expr.rights) == 1 {
-        left = chain_expr(expr.left, state, nd, dtype);
-        right = chain_expr(expr.rights[0], state, nd, dtype);
+        left = chain_expr(expr.left, state, nd, dtype, locals);
+        right = chain_expr(expr.rights[0], state, nd, dtype, locals);
         if left.dtype != right.dtype { reject(expr, "GPU comparisons require matching operand types"); }
         if expr.ops[0].value not in ("==", "!=", "<", "<=", ">", ">=") {
             reject(expr, "Unsupported GPU comparison");
@@ -642,8 +675,8 @@ def chain_expr(
     }
     if isinstance(expr, uni.BinaryExpr) and isinstance(expr.op, uni.Token)
         and expr.op.value in ("+", "-", "*", "%") {
-        left = chain_expr(expr.left, state, nd, dtype);
-        right = chain_expr(expr.right, state, nd, dtype);
+        left = chain_expr(expr.left, state, nd, dtype, locals);
+        right = chain_expr(expr.right, state, nd, dtype, locals);
         if left.dtype != right.dtype or left.dtype == GpuScalarType.BOOL
             or (expr.op.value == "%" and left.dtype != GpuScalarType.INT64) {
             reject(expr, "GPU arithmetic requires matching numeric operand types");
@@ -671,9 +704,10 @@ def chain_condition(
     expr: uni.Expr,
     state: list[list[uni.HasVar]],
     nd: list[list[uni.HasVar]],
-    dtype: GpuScalarType
+    dtype: GpuScalarType,
+    locals: dict[str, ChainExpr]
 ) -> ChainExpr {
-    result = chain_expr(expr, state, nd, dtype);
+    result = chain_expr(expr, state, nd, dtype, locals);
     if result.dtype != GpuScalarType.BOOL { reject(expr, "GPU conditions require a boolean expression"); }
     return result;
 }
@@ -682,22 +716,79 @@ def chain_update(
     stmt: uni.UniNode,
     state: list[list[uni.HasVar]],
     nd: list[list[uni.HasVar]],
-    dtype: GpuScalarType
+    dtype: GpuScalarType,
+    locals: dict[str, ChainExpr],
+    allow_new: bool = True
 ) -> StateUpdate {
+    if isinstance(stmt, (uni.WhileStmt, uni.InForStmt)) {
+        if stmt.else_body is not None { reject(stmt, "GPU loop-else is unsupported"); }
+        if isinstance(stmt, uni.WhileStmt) {
+            condition = chain_condition(stmt.condition, state, nd, dtype, locals);
+            return StateUpdate(condition,
+                taken=[chain_update(s, state, nd, dtype, locals, False) for s in stmt.body], is_loop=True);
+        }
+        assert isinstance(stmt, uni.InForStmt);
+        call = stmt.collection;
+        if stmt.is_async or stmt.is_comptime or not isinstance(stmt.target, uni.Name)
+            or not isinstance(call, uni.FuncCall) or not isinstance(call.target, uni.Name)
+            or call.target.value != "range" or "range" in locals or call.params is None
+            or not 1 <= len(call.params) <= 3 {
+            reject(stmt, "GPU for requires a scalar target and builtin range with 1-3 positional arguments");
+        }
+        assert isinstance(call, uni.FuncCall) and call.params is not None;
+        if not isinstance(call.target.type, ClassType) or not call.target.type.is_builtin("range") {
+            reject(stmt, "GPU for requires the builtin range, not a shadowed callable");
+        }
+        args: list[ChainExpr] = [];
+        for arg in call.params {
+            if not isinstance(arg, uni.Expr) { reject(stmt, "GPU range requires positional arguments"); }
+            value = chain_expr(arg, state, nd, dtype, locals);
+            if value.dtype != GpuScalarType.INT64 { reject(stmt, "GPU range bounds require int64"); }
+            args.append(value);
+        }
+        step = 1;
+        if len(call.params) == 3 {
+            literal = numeric_literal(call.params[2], GpuScalarType.INT64);
+            if not isinstance(literal, int) or literal == 0 {
+                reject(stmt, "GPU range step requires a nonzero integer literal");
+            }
+            step = literal;
+        }
+        assert isinstance(stmt.target, uni.Name);
+        name = stmt.target.value;
+        if name in locals { reject(stmt, "GPU range target must be a fresh local name"); }
+        index = len(state) + len(locals);
+        counter = ChainExpr("range_state", state_index=index, dtype=GpuScalarType.INT64);
+        locals[name] = counter;
+        stop = ChainExpr("state", state_index=index + 1, dtype=GpuScalarType.INT64);
+        locals[f"$range{index}"] = stop;
+        start = args[0] if len(args) > 1 else ChainExpr("constant", value=0, dtype=GpuScalarType.INT64);
+        bound = args[1] if len(args) > 1 else args[0];
+        body = [chain_update(s, state, nd, dtype, locals, False) for s in stmt.body];
+        del locals[name];
+        locals[f"$counter{index}"] = counter;
+        body.append(StateUpdate(ChainExpr("range_next", left=counter,
+            right=ChainExpr("constant", value=step, dtype=GpuScalarType.INT64),
+            dtype=GpuScalarType.INT64, node_index=index + 1), target=index));
+        loop = StateUpdate(ChainExpr("<" if step > 0 else ">", left=counter, right=stop,
+            dtype=GpuScalarType.BOOL), taken=body, is_loop=True);
+        return StateUpdate(ChainExpr("constant", value=True, dtype=GpuScalarType.BOOL),
+            taken=[StateUpdate(start, target=index), StateUpdate(bound, target=index + 1), loop]);
+    }
     if isinstance(stmt, uni.ReportStmt) {
-        return StateUpdate(chain_expr(stmt.expr, state, nd, dtype), is_report=True);
+        return StateUpdate(chain_expr(stmt.expr, state, nd, dtype, locals), is_report=True);
     }
     if isinstance(stmt, uni.IfStmt) and not stmt.is_comptime {
         otherwise: list[StateUpdate] = [];
         tail = stmt.else_body;
         if isinstance(tail, uni.ElseIf) {
-            otherwise = [chain_update(tail, state, nd, dtype)];
+            otherwise = [chain_update(tail, state, nd, dtype, locals, False)];
         } elif isinstance(tail, uni.ElseStmt) {
-            otherwise = [chain_update(s, state, nd, dtype) for s in tail.body];
+            otherwise = [chain_update(s, state, nd, dtype, locals, False) for s in tail.body];
         }
         return StateUpdate(
-            chain_condition(stmt.condition, state, nd, dtype),
-            taken=[chain_update(s, state, nd, dtype) for s in stmt.body],
+            chain_condition(stmt.condition, state, nd, dtype, locals),
+            taken=[chain_update(s, state, nd, dtype, locals, False) for s in stmt.body],
             skipped=otherwise
         );
     }
@@ -705,7 +796,7 @@ def chain_update(
         or len(stmt.target) != 1
         or not isinstance(stmt.value, uni.Expr) {
         reject(
-            stmt, "GPU bodies require private walker field assignments, numeric reports or if/elif/else"
+            stmt, "GPU bodies support scalar assignments, reports, if/elif/else, while and for/range; visit, break and continue inside loops are unsupported"
         );
     }
     assert isinstance(stmt, uni.Assignment) and isinstance(stmt.value, uni.Expr);
@@ -717,17 +808,29 @@ def chain_update(
         ),
         -1
     );
+    expression = chain_expr(stmt.value, state, nd, dtype, locals);
     if target < 0 {
-        reject(stmt, "GPU bodies can only assign numeric private walker fields");
-    }
-    expression = chain_expr(stmt.value, state, nd, dtype);
-    target_type = field_dtype(state[target]);
+        if not isinstance(stmt.target[0], uni.Name) { reject(stmt, "GPU assignment requires a private field or scalar local"); }
+        name = stmt.target[0].value;
+        symbol = stmt.target[0].sym;
+        if symbol is None or not isinstance(symbol.parent_tab, (uni.Ability, uni.InForStmt)) {
+            reject(stmt, "GPU scalar locals must belong to the entry ability, not module state");
+        }
+        if name not in locals {
+            if not allow_new { reject(stmt, "GPU locals must be initialized at ability top level before branches or loops"); }
+            if stmt.aug_op is not None { reject(stmt, "GPU local must be initialized before use"); }
+            locals[name] = ChainExpr("state", state_index=len(state) + len(locals), dtype=expression.dtype);
+        }
+        if locals[name].op == "range_state" { reject(stmt, "GPU range induction variables are read-only"); }
+        target = locals[name].state_index;
+        target_type = locals[name].dtype;
+    } else { target_type = field_dtype(state[target]); }
     if expression.dtype != target_type { reject(stmt, "GPU assignment requires the field's declared type"); }
     if stmt.aug_op is not None {
         if target_type == GpuScalarType.BOOL { reject(stmt, "GPU boolean fields do not support arithmetic assignments"); }
         op = stmt.aug_op.value;
         if op not in ("+=", "-=", "*=")
-            and not (op == "%=" and dtype == GpuScalarType.INT64) {
+            and not (op == "%=" and target_type == GpuScalarType.INT64) {
             reject(stmt, "Unsupported GPU chain assignment");
         }
         expression = ChainExpr(
@@ -810,10 +913,14 @@ def select_chain_walkers(module: uni.Module, names: list[str]) -> list[ChainWalk
         }
         visit_stmt = body[-1];
         assert isinstance(visit_stmt, uni.VisitStmt);
+        locals: dict[str, ChainExpr] = {};
         updates = [
-            chain_update(stmt, states.fields, projection.fields, dtype)
+            chain_update(stmt, states.fields, projection.fields, dtype, locals)
             for stmt in body[:-1]
         ];
+        # Seed private SSA slots on each node entry, without changing the public ABI.
+        updates = [StateUpdate(ChainExpr("constant", value=0, dtype=value.dtype),
+            target=value.state_index) for value in sorted(locals.values(), key=lambda (v: ChainExpr) { v.state_index; })] + updates;
         query = visit_stmt.target;
         if visit_stmt.else_body is not None
             or visit_stmt.insert_loc is not None

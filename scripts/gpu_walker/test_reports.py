@@ -152,6 +152,51 @@ class ReportTests(unittest.TestCase):
                     self.assertEqual(result.reports, [v[2] for v in expected])
                     self.assertEqual(kernel.artifact.format, f'jac-ptx-{fmt}-v4')
 
+    def test_float_boolean_locals_and_short_circuit_loop_condition(self):
+        spec, module = self.variant(floating=True, body='''remaining = here.value;
+            active = True;
+            while active and remaining > 0.0 {
+                for i in range(2) { self.total += remaining; }
+                remaining -= 1.0;
+                active = remaining != 1.0;
+                report self.total;
+            }''')
+        for fmt in ('chain', 'csr'):
+            runtime, _, _ = self.runtime(spec, module, fmt,
+                actual=os.environ.get('JAC_GPU_TEST_CUDA') == '1')
+            node = module.Cell(value=4.0)
+            reference = module.Collector(total=0.5)
+            with redirect_stdout(io.StringIO()):
+                self.jac.spawn(reference, node)
+            walker = module.Collector(total=0.5)
+            runtime.run_walkers([walker], [node])
+            self.assertEqual((walker.total, walker.reports), (reference.total, reference.reports))
+
+    def test_device_loops_preserve_reports_locals_and_csr_arrivals(self):
+        spec, module = self.variant(body='''remaining = here.value;
+            for i in range(here.value) { self.total += i; report self.total; }
+            while remaining > 0 { self.last += remaining; remaining -= 1; }
+            report self.last;''')
+        for fmt, rows in [('chain', [[1], []]), ('csr', [[1, 1], []])]:
+            with self.subTest(graph_format=fmt):
+                nodes = self.graph(module, [3, 2], rows)
+                runtime, _, _ = self.runtime(spec, module, fmt, capacity=32,
+                    actual=os.environ.get('JAC_GPU_TEST_CUDA') == '1')
+                expected = module.Collector(total=5)
+                with redirect_stdout(io.StringIO()):
+                    self.jac.spawn(expected, nodes[0])
+                actual = module.Collector(total=5)
+                result = runtime.run_walkers([actual], [nodes[0]])
+                self.assertEqual((actual.total, actual.last, actual.reports),
+                                 (expected.total, expected.last, expected.reports))
+                self.assertEqual(result.reports, [expected.reports])
+                # Failure inside the loop cannot publish partial walker state/reports.
+                runtime.report_capacity = 1
+                before = (actual.total, actual.last, list(actual.reports))
+                with self.assertRaisesRegex(RuntimeError, 'report capacity'):
+                    runtime.run_walkers([actual], [nodes[0]])
+                self.assertEqual((actual.total, actual.last, actual.reports), before)
+
     def test_report_slots_interleave_and_repeated_calls_replace_reports(self):
         spec, module = self.variant(body='report self.total; self.total += here.value; report self.total;')
         runtime, _, double = self.runtime(spec, module, 'chain', capacity=2)
