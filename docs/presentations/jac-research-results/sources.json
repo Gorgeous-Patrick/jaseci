@@ -1,5 +1,9 @@
 {
   "sources": [
+    "jac/examples/transformer_runtime/results/summary.json",
+    "jac/examples/transformer_runtime/results/cond_summary.json",
+    "jac/examples/transformer_runtime/results/cond_demo_fx.py",
+    "jac/jaclang/lib/tensor_graph/README.md",
     "jac/examples/transformer_graph/results/benchmark_cpu.json",
     "jac/examples/transformer_graph/results/benchmark_cuda.json",
     "jac/examples/transformer_dataflow/results/validation_cpu.json",
@@ -11,6 +15,6 @@
     "docs/design/gpu-cursor-concatenation-results.md",
     "docs/design/gpu-large-matmul-3000-results.md"
   ],
-  "page_count": 24,
+  "page_count": 29,
   "pdf": "jac-transformer-and-gpu-results.pdf"
 }

@@ -2,7 +2,8 @@
 
 [English PDF slides](jac-transformer-and-gpu-results.pdf) contain two sections:
 Transformer on Jac and Jac on GPU. They cover the preserved module model,
-new primitive dataflow model, cursor-concatenated packing, and complete
+new primitive dataflow model, reusable runtime library, FX/Inductor lowering,
+lazy Cond dependency extraction and correctness tests, cursor-concatenated packing, and complete
 3000 × 3000 × 3000 scalar-node MatMul experiment.
 
 Regenerate from the repository root with Python and Matplotlib:

@@ -27,8 +27,14 @@ NEW = read('jac/examples/transformer_dataflow/results/validation_cuda_0.json')
 PLAN = read('jac/examples/transformer_dataflow/analysis.json')
 FULL = read('scripts/gpu_walker/large_matmul/validation/full-run.json')
 PROFILE = read('scripts/gpu_walker/large_matmul/validation/profile.json')
+RUNTIME = read('jac/examples/transformer_runtime/results/summary.json')
+COND = read('jac/examples/transformer_runtime/results/cond_summary.json')
 EVENT = read('scripts/gpu_walker/large_matmul/validation/ordinary.json')
 SOURCES = [
+ 'jac/examples/transformer_runtime/results/summary.json',
+ 'jac/examples/transformer_runtime/results/cond_summary.json',
+ 'jac/examples/transformer_runtime/results/cond_demo_fx.py',
+ 'jac/jaclang/lib/tensor_graph/README.md',
  'jac/examples/transformer_graph/results/benchmark_cpu.json',
  'jac/examples/transformer_graph/results/benchmark_cuda.json',
  'jac/examples/transformer_dataflow/results/validation_cpu.json',
@@ -197,9 +203,37 @@ def build():
         d.box(8.2,1.15,7,2.8,'Negative checks','Missing encoder-memory input.\n11 additional invalid graph cases.\nChanged shape / attributes invalidate plan.',TEAL)
         d.finish()
 
-        d.slide('What is established; what remains open','Part I','transformer_dataflow/README.md; preservation.json')
+        d.slide('Earlier dataflow example: scope and limitations','Part I','transformer_dataflow/README.md; preservation.json')
         d.box(.8,1.7,6.8,5,'Established','Real primitive graph and parameter nodes.\nMetadata, topology and last-use analysis.\nCPU/CUDA execution and graph-edit tests.\nOriginal 80 files hash-preserved.',BLUE)
         d.box(8.2,1.7,7,5,'Not established','No new-model performance comparison.\nNo FX/export advantage demonstrated.\nNo fusion, symbolic shapes or training.\nLogical liveness bytes are not allocator memory; aliases are not analyzed.',ORANGE)
+        d.finish()
+
+        d.slide('Reusable runtime library: a third sibling example','Part I','jaclang/lib/tensor_graph/; transformer_runtime/model.jac')
+        d.text('The model builds architecture from standard primitive node types and real tensor edges.\nParameter nodes own weights. One public Compute walker executes the graph.\nReadiness, dependency validation, metadata and lifetime management live in the library.',size=22,width=94)
+        d.box(.8,1.2,6.8,2.8,'Preserved examples','transformer_graph: 80 unchanged files.\ntransformer_dataflow: 74 unchanged files.',BLUE)
+        d.box(8.2,1.2,7,2.8,'New implementation','transformer_runtime uses the library.\nExact type identity defines supported operation semantics.',TEAL)
+        d.finish()
+
+        d.slide('Implemented path: Jac graph to FX to Inductor','Part I','tensor_graph/backend.py; transformer_runtime/graph_fx.py')
+        d.text('1. Read actual Jac nodes, port-labelled edges and the dependency plan.\n2. Construct an FX GraphModule directly; bind node-owned parameters.\n3. Execute FX eagerly, or apply torch.compile with backend="inductor".\n4. Guard graph and input metadata; refresh same-metadata parameter values.',size=22,width=95)
+        d.text('The current Inductor entry is torch.compile(fullgraph=True, dynamic=False).\nIt still uses the PyTorch compilation frontend on the constructed GraphModule.\nThis is library/runtime lowering; no Jac compiler recognition pass is implemented.',y=2.55,size=19,width=110,color=ORANGE)
+        d.finish()
+
+        d.slide('Runtime Transformer: CPU and CUDA correctness','Part I','transformer_runtime/results/summary.json','Eight cases; small / medium, float32 / float64, CPU / CUDA')
+        rows=[[c['device'],c['config_dtype'],f"{c['fx_reference_error']:.2e}",f"{c['inductor_reference_error']:.2e}"] for c in RUNTIME['cases']]
+        d.table(['Device','Configuration','FX vs reference','Inductor vs reference'],rows,widths=[.15,.31,.27,.27],h=4.7,size=16)
+        d.text('All cases pass. Compiled forward uses fullgraph=True; tested forwards have no graph break.\nRepeated calls, parameter refresh and graph-edit checks are recorded. No new timing comparison.',y=1.65,size=17,width=115)
+        d.finish()
+
+        d.slide('Cond: extract shared work and two lazy branches','Part I','tensor_graph/conditional.py; results/cond_demo_fx.py')
+        d.text('Three graph ports: condition, true_result, false_result.\nC = condition dependency slice; T / F = true / false result slices.\nBefore selection: compute C and shared T intersection F dependencies.\nInside each branch: compute its exclusive dependency region.\nBoundary values and weights become explicit operands.',size=22,width=94)
+        d.text('FX contains torch.ops.higher_order.cond(predicate, true_graph, false_graph, operands).\nBranches are extracted FX modules. Only the selected exclusive region executes.',y=2.0,size=18,width=110,color=TEAL)
+        d.finish()
+
+        d.slide('Cond validation and current restrictions','Part I','transformer_runtime/results/cond_summary.json; cond_summary.md')
+        rows=[[dev,r['dtype'],str(r['max_abs_error']['walker']),str(r['max_abs_error']['fx']),str(r['max_abs_error']['inductor']),str(r['invalid_checks'])] for dev,r in COND['results'].items()]
+        d.table(['Device','Dtype','Walker error','FX error','Inductor error','Invalid checks'],rows,h=2.1,size=17,widths=[.14,.15,.18,.15,.2,.18])
+        d.text('Positive / negative predicates, shared fanout, identical branch roots and weight refresh pass.\nSelected-only walker traces and unselected out-of-range Gather validate lazy execution.\nSupported: one non-nested Cond in a pure acyclic graph; scalar bool predicate.\nNested / multiple Cond, raw cycles, incompatible outputs and escaping branch values are rejected.\nCompute walker reads predicate on host; compiled path keeps structured Cond. No speed claim.',y=4.2,size=18,width=112)
         d.finish()
 
         d.slide('II. Jac on GPU','Part II','docs/design/gpu-named-cursors.md','One integer per graph node; joint cursor arrival and predictable traversal structure')
@@ -276,11 +310,11 @@ def build():
         d.finish()
 
         d.slide('Conclusions supported by the current evidence','Both research tracks','Transformer and GPU reports linked below')
-        d.text('Transformer: executable module and primitive graphs work on CPU/CUDA.\nDataflow metadata, graph edits and last-use analysis are validated.\nA speed or compiler-cost advantage over FX/export has not been demonstrated.\n\nJac GPU: complete A-then-B packing works, including a full 3000-cubed result.\nOrdered layouts beat random strongly at that scale. New BFS does not beat Current reliably.\nHardware counter permission is the remaining gap for a causal memory explanation.',size=22,width=94)
+        d.text('Transformer: executable module and primitive graphs work on CPU/CUDA.\nDataflow analysis, reusable runtime, FX/Inductor execution and lazy Cond are validated.\nA speed or compiler-cost advantage over FX/export has not been demonstrated.\n\nJac GPU: complete A-then-B packing works, including a full 3000-cubed result.\nOrdered layouts beat random strongly at that scale. New BFS does not beat Current reliably.\nHardware counter permission is the remaining gap for a causal memory explanation.',size=22,width=94)
         d.finish()
 
         d.slide('Evidence and reproduction','Both research tracks','All sources are local repository files; raw GPU binary artifacts are retained on the measurement host')
-        d.text('Transformer\n  jac/examples/transformer_graph/README.md\n  jac/examples/transformer_dataflow/README.md\n  Both results/ directories; new analysis.json and execution.json\n\nJac GPU\n  docs/design/gpu-cursor-concatenation-results.md\n  docs/design/gpu-large-matmul-3000-results.md\n  scripts/gpu_walker/large_matmul/validation/\n\nPDF generator and source manifest accompany this deck.',size=19,width=99)
+        d.text('Transformer\n  jac/examples/transformer_graph/README.md\n  jac/examples/transformer_dataflow/README.md\n  jac/examples/transformer_runtime/README.md\n  jac/jaclang/lib/tensor_graph/README.md\n  Example results/ directories, graph exports and validation summaries\n\nJac GPU\n  docs/design/gpu-cursor-concatenation-results.md\n  docs/design/gpu-large-matmul-3000-results.md\n  scripts/gpu_walker/large_matmul/validation/\n\nPDF generator and source manifest accompany this deck.',size=17,width=99)
         d.finish()
     (OUT/'sources.json').write_text(json.dumps({'sources':SOURCES,'page_count':d.page,'pdf':path.name},indent=2)+'\n')
     print(f'{path} ({d.page} pages)')
