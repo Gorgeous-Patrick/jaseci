@@ -1,0 +1,2547 @@
+{
+  "timestamp_utc": "2026-10-06T05:41:53.624732+00:00",
+  "command": [
+    "scripts/gpu_walker/compare_named_layouts.py",
+    "--chain-cases",
+    "128x8",
+    "1024x64",
+    "--dot-cases",
+    "128x8",
+    "1024x32",
+    "--matmul-cases",
+    "16x32x24",
+    "32x64x48",
+    "64x128x64",
+    "--warmup",
+    "6",
+    "--repeats",
+    "16",
+    "--profile",
+    "--output",
+    "/tmp/jac-layout-exclusive"
+  ],
+  "commit": "2c130ccbe08aed1725de9693668aaf3d4386977e",
+  "source_hashes": {
+    "scripts/gpu_walker/compare_named_layouts.py": "35fadc51dcfae13f52b2f8b9dd791b65a192091b99e41aab142b19d4501bd721",
+    "scripts/gpu_walker/layout_benchmark.py": "fb718e5ab30a2db2bbc815286734b693466c40fe52d3e01151039e51cf3bb9a5",
+    "scripts/gpu_walker/compare_layouts.py": "09e30d1e0a136ea3d85ca472c2c2f4fb34944cdef7427b63fb0096bc27ad81d5",
+    "jac/jaclang/runtime/gpu_cursors.py": "a93c1ac039c768b6adb5cc09b81db6391f5b4c5b3b926adc686938c4af884700",
+    "jac/jaclang/runtime/gpu.jac": "db601ee2ced7507b3faac98ce499e191dbb05fd1409fb898f42b21effe75b6da",
+    "jac/jaclang/runtime/gpu_cuda.jac": "d5b825dfad7a8900d3f6f92451b56ec4d470e1e6b6ad7a3ba0ff1e23a0268229",
+    "jac/jaclang/compiler/backends/native/ptx_walker.jac": "ce05e47948be86eb17153a0d0bfc34350a5759e1f21f14a97a00d524504b3f6f",
+    "jac/jaclang/compiler/backends/native/ptx_csr.jac": "2433ff1a7e8456fe2aaf3a658d0096ad9c9baca53d47ca46e8a174bae101feab"
+  },
+  "dirty_worktree": true,
+  "python": "3.13.7 (main, Sep 18 2025, 01:22:03) [GCC 11.4.0]",
+  "seeds": [
+    928,
+    929,
+    930
+  ],
+  "warmup": 6,
+  "repeats": 16,
+  "block_size": 128,
+  "device": 0,
+  "queue_capacity": 2,
+  "max_nodes": 150000,
+  "max_walkers": 32768,
+  "max_payload_mib": 256,
+  "setup_compile_ms": 951.2507210001786,
+  "telemetry_before": "name, driver_version, pstate, clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]\nNVIDIA GeForce RTX 3090, 595.71.05, P8, 210 MHz, 405 MHz, 42, 23.10 W",
+  "sources": {
+    "Chain": {
+      "kernel": "jac_ChainSum_batch",
+      "source_sha256": "a25ba61026f289640f294553012dead1a42a72fe37ba4d89986199f752538727",
+      "ptx_sha256": "80ac8fa2344992bea4e589f95b0338c2fc3bc393ab120ca4c44a32002356cc27",
+      "dtype": "float64"
+    },
+    "Dot": {
+      "kernel": "jac_Dot_cursors_batch",
+      "source_sha256": "f5744760426b0f9a3da3db6fadd7dc884824999288eef99f950ecdd9f4939856",
+      "ptx_sha256": "1dcb05c5f3cc1dfc7aa4a6ec3d79e4bc096f9b0842977b50183694db3131fdca",
+      "dtype": "int64"
+    }
+  },
+  "cases": [
+    {
+      "id": "chain-128x8",
+      "kind": "chain",
+      "shape": [
+        128,
+        8
+      ],
+      "source_key": "Chain",
+      "graph_build_ms": 25.392604000444408,
+      "oracle_ms": 0.023241000235429965,
+      "cpu_reference_ms": 0.657589000184089,
+      "walkers": 128,
+      "nodes": 1024,
+      "dtype": "float64",
+      "expected": {
+        "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/expected.bin",
+        "type": "d",
+        "count": 128,
+        "sha256": "e3109f781e8de2be6131b7a1a51cdd2119224ed8b6a480fc07a9f90a4d0c5d85"
+      },
+      "layouts": [
+        {
+          "label": "Current",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Current-0.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "493ce3560796778d50bf00ceba48c37867f1faf22c712ab92832022da5f8f3d0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Current-1.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "4b2a12e92fc8925a656dbe65eedb57cbde26cf96d520464def29105aa65d2333"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Current-2.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "3e4f0a2fd9498da7c1440a355a22b6292161a5216c63aa0bc59b5a4742fd1e36"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Current-3.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "e1cb1fdc5484dfa82fda36f87c82e2424626ad2ef7d0d4f7f564042a16c2934d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Current-4.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Current-5.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "9f56cda75fefeab90f6fa5d5ddc9601544b121732c5ecccab32e631060453a5d"
+            }
+          ],
+          "timings": {
+            "pack_ms": 8.358851999219041,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null
+          },
+          "payload_bytes": 19968,
+          "queue_capacity": null,
+          "max_visits": null
+        },
+        {
+          "label": "Random-928",
+          "seed": 928,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-928-0.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "fe0a4acba2eb757f51b1921ca267c826312542a8c5aaba378d13f0bb70b126df"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-928-1.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "5f8c593b437a5790e6dfc2929e06ad51bd4ee18a336b9dba0fbc54accf5f4946"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-928-2.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "f3c1232600024d4639825610605bbff673b76f81506d6468d510aeeee2a3e1eb"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-928-3.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "e1cb1fdc5484dfa82fda36f87c82e2424626ad2ef7d0d4f7f564042a16c2934d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-928-4.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-928-5.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "9f56cda75fefeab90f6fa5d5ddc9601544b121732c5ecccab32e631060453a5d"
+            }
+          ],
+          "timings": {
+            "pack_ms": 8.999711998512794,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null,
+            "permutation_ms": 0.6408599992937525
+          },
+          "payload_bytes": 19968,
+          "queue_capacity": null,
+          "max_visits": null
+        },
+        {
+          "label": "Random-929",
+          "seed": 929,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-929-0.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "d2c465b39098f6921865f327089eaa8dc5b2df8949c729d8d0df6ec080a5ad2f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-929-1.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "b19f3fef6ce28235422b73e32a2d06c790a095d3c81575cbab86f50e82b3ef7c"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-929-2.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "82115468391878b3e17c423ffa547f7ac78cb3551228064ac7f43cd039e17429"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-929-3.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "e1cb1fdc5484dfa82fda36f87c82e2424626ad2ef7d0d4f7f564042a16c2934d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-929-4.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-929-5.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "9f56cda75fefeab90f6fa5d5ddc9601544b121732c5ecccab32e631060453a5d"
+            }
+          ],
+          "timings": {
+            "pack_ms": 8.998177999274048,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null,
+            "permutation_ms": 0.6393260000550072
+          },
+          "payload_bytes": 19968,
+          "queue_capacity": null,
+          "max_visits": null
+        },
+        {
+          "label": "Random-930",
+          "seed": 930,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-930-0.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "df2d233c3d4092963a5f4ace245eabd73aac9ea34cd8bcc414193e465b86926e"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-930-1.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "804ff979ff9b9e57a052c7cd1fa5910f9e2484ffe96358f925fe2858183b7b75"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-930-2.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5cecfcb31ded3ea132f19db573e0b2fbcf731ae0040e44c5d63c1a7947a51af2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-930-3.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "e1cb1fdc5484dfa82fda36f87c82e2424626ad2ef7d0d4f7f564042a16c2934d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-930-4.bin",
+              "type": "d",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-128x8/Random-930-5.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "9f56cda75fefeab90f6fa5d5ddc9601544b121732c5ecccab32e631060453a5d"
+            }
+          ],
+          "timings": {
+            "pack_ms": 8.993722999548481,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null,
+            "permutation_ms": 0.63487100032944
+          },
+          "payload_bytes": 19968,
+          "queue_capacity": null,
+          "max_visits": null
+        }
+      ],
+      "kernel": "jac_ChainSum_batch",
+      "graph_format": "chain"
+    },
+    {
+      "id": "chain-1024x64",
+      "kind": "chain",
+      "shape": [
+        1024,
+        64
+      ],
+      "source_key": "Chain",
+      "graph_build_ms": 266.8306810001013,
+      "oracle_ms": 0.19980100023531122,
+      "cpu_reference_ms": 3.203367999958573,
+      "walkers": 1024,
+      "nodes": 65536,
+      "dtype": "float64",
+      "expected": {
+        "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/expected.bin",
+        "type": "d",
+        "count": 1024,
+        "sha256": "9bb8806436783d9f9150d580c0e7a70ebe57bbab81f7558602918cc2bd545017"
+      },
+      "layouts": [
+        {
+          "label": "Current",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Current-0.bin",
+              "type": "d",
+              "count": 65536,
+              "sha256": "37e07a15b4b9c032bbddd6b3917312ab3a080c120df5d44d4564c77b7a259f2c"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Current-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "fae4a02169f2a2493bb849ae701096e938dd16bd65d20cdc5dfb476e9afe31ff"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Current-2.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "2f88e9ce00d238e7e011a7b140b413dcad818f1da41a721f914f1af604d0e217"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Current-3.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Current-4.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Current-5.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+            }
+          ],
+          "timings": {
+            "pack_ms": 561.0723820000203,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null
+          },
+          "payload_bytes": 1077248,
+          "queue_capacity": null,
+          "max_visits": null
+        },
+        {
+          "label": "Random-928",
+          "seed": 928,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-928-0.bin",
+              "type": "d",
+              "count": 65536,
+              "sha256": "944d3969d21b30b5beba1b7d5acef6297c8b4bdc30ca98e0d3616737e81db42c"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-928-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "9470b00edebdb49c9e3534e405e4fced2c8c4eed3ccc780fbfd9fdc86736b3e5"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-928-2.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "4486005e67c9a9a194f9aeaa6eafe978b1cd322cc8dcb24dd38a43923d80d372"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-928-3.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-928-4.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-928-5.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+            }
+          ],
+          "timings": {
+            "pack_ms": 610.8442160002596,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null,
+            "permutation_ms": 49.77183400023932
+          },
+          "payload_bytes": 1077248,
+          "queue_capacity": null,
+          "max_visits": null
+        },
+        {
+          "label": "Random-929",
+          "seed": 929,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-929-0.bin",
+              "type": "d",
+              "count": 65536,
+              "sha256": "723ca74a0816da139ce12921726249a5854901080100408bec55f760c9dbab45"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-929-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "a638d5242f208d6f31fc310eb83d4711fd287e05088b806add4a6e7d22f2ad39"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-929-2.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "417886410b96feae8c2cf92473d7674bc93bd9fb26fa323ec952a92edcd32968"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-929-3.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-929-4.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-929-5.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+            }
+          ],
+          "timings": {
+            "pack_ms": 612.1704619999946,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null,
+            "permutation_ms": 51.09807999997429
+          },
+          "payload_bytes": 1077248,
+          "queue_capacity": null,
+          "max_visits": null
+        },
+        {
+          "label": "Random-930",
+          "seed": 930,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-930-0.bin",
+              "type": "d",
+              "count": 65536,
+              "sha256": "9d1471b5a9c826f75ae1915096b0ba48e30bb6978dbc6a69a3a510a934320c7a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-930-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "e787ba99cc5e2aa1404da8ccc6d5481e65860b86399fd5586614f06e47f93455"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-930-2.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "8f7cbee0698d138c5ec98b163d9df40eec700c98d5c719a454722185641d56ee"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-930-3.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-930-4.bin",
+              "type": "d",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/chain-1024x64/Random-930-5.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+            }
+          ],
+          "timings": {
+            "pack_ms": 611.9921110002906,
+            "predict_ms": 0.0,
+            "remap_soa_ms": null,
+            "permutation_ms": 50.91972900027031
+          },
+          "payload_bytes": 1077248,
+          "queue_capacity": null,
+          "max_visits": null
+        }
+      ],
+      "kernel": "jac_ChainSum_batch",
+      "graph_format": "chain"
+    },
+    {
+      "id": "dot-128x8",
+      "kind": "dot",
+      "shape": [
+        128,
+        8
+      ],
+      "source_key": "Dot",
+      "graph_build_ms": 5.274484999972628,
+      "oracle_ms": 0.17096599913202226,
+      "cpu_reference_ms": 1.0833169999386882,
+      "walkers": 128,
+      "nodes": 2048,
+      "dtype": "int64",
+      "expected": {
+        "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/expected.bin",
+        "type": "q",
+        "count": 128,
+        "sha256": "1ffb59d4182d533e50e35815ed9381e2b31ef09b5a1b9b414642abfc6faee949"
+      },
+      "layouts": [
+        {
+          "label": "Current",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-0.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "faad3bf0a0cb52f3527d815319b503047b12a489c5a83f012b7d965522838dde"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-1.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-2.bin",
+              "type": "q",
+              "count": 4098,
+              "sha256": "cf625f32c3839d4cd33f0cb947f154b79fbac035d8f5eb0efb1b1baa0c680d60"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-3.bin",
+              "type": "q",
+              "count": 1792,
+              "sha256": "deb84ea7e7cb31dc04d1b60ddf5f5dadf22f10fa0bee6be255f46504d15338b4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-4.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "68da9e1f33b373bb9f815610a5a65e6ec7d7ea7ec7b1a31a3e9341805a2823e8"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-5.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "924ae03b6111734d8ab1d2d4c88ec6a7da5ba6612c50b2f0e3c27d0511980e0f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-6.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-7.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-8.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Current-9.bin",
+              "type": "q",
+              "count": 512,
+              "sha256": "e746897b5f865a1dee71e4b4e67f10ceaaa9861c7475cec27c16458c31e9777a"
+            }
+          ],
+          "timings": {
+            "pack_ms": 24.861868999323633,
+            "collect_ms": 20.304162999309483,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 4.523159999735071
+          },
+          "payload_bytes": 90640,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Predicted",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-0.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "faad3bf0a0cb52f3527d815319b503047b12a489c5a83f012b7d965522838dde"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-1.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-2.bin",
+              "type": "q",
+              "count": 4098,
+              "sha256": "cf625f32c3839d4cd33f0cb947f154b79fbac035d8f5eb0efb1b1baa0c680d60"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-3.bin",
+              "type": "q",
+              "count": 1792,
+              "sha256": "deb84ea7e7cb31dc04d1b60ddf5f5dadf22f10fa0bee6be255f46504d15338b4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-4.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "68da9e1f33b373bb9f815610a5a65e6ec7d7ea7ec7b1a31a3e9341805a2823e8"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-5.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "924ae03b6111734d8ab1d2d4c88ec6a7da5ba6612c50b2f0e3c27d0511980e0f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-6.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-7.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-8.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Predicted-9.bin",
+              "type": "q",
+              "count": 512,
+              "sha256": "e746897b5f865a1dee71e4b4e67f10ceaaa9861c7475cec27c16458c31e9777a"
+            }
+          ],
+          "timings": {
+            "pack_ms": 24.3575160002365,
+            "collect_ms": 19.316042000355083,
+            "predict_ms": 0.7242800002131844,
+            "remap_soa_ms": 4.3157379996046075
+          },
+          "payload_bytes": 90640,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-928",
+          "seed": 928,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-0.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "33c744d9f83819ca985e4b33c8d2b7884f6a8d33c6bff8b1a4f696b8c1acc3f3"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-1.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-2.bin",
+              "type": "q",
+              "count": 4098,
+              "sha256": "8ac5a39921a1acadbdedd0cc6715514e0f390b04247ee6d4c24f324259d3b2b0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-3.bin",
+              "type": "q",
+              "count": 1792,
+              "sha256": "5c9d341f37027cfc68cc2a2d0a52b46be810d82530e9b745d67a95d1c6f3cebc"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-4.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "59f4b5c845765763e45c399221c1dde459f32c1c3a85ed17541b4205a3de11f5"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-5.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "924ae03b6111734d8ab1d2d4c88ec6a7da5ba6612c50b2f0e3c27d0511980e0f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-6.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-7.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-8.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "9f56cda75fefeab90f6fa5d5ddc9601544b121732c5ecccab32e631060453a5d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-928-9.bin",
+              "type": "q",
+              "count": 512,
+              "sha256": "1e6e1e2589c9716c2e1e2e8ec39f322a557a28ca582067b8c5bc4ccdd38658a0"
+            }
+          ],
+          "timings": {
+            "pack_ms": 29.344618998948135,
+            "collect_ms": 20.304162999309483,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 4.523159999735071,
+            "permutation_ms": 4.482749999624502
+          },
+          "payload_bytes": 90640,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-929",
+          "seed": 929,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-0.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "dc20652ee3c8fd9e77eaeaf7ca8b65034f53ec334223af5b691802555b8a989d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-1.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-2.bin",
+              "type": "q",
+              "count": 4098,
+              "sha256": "1320cc42dd1fdfacf3400649e90915342b94ef8d413320f836acc1d172b8fe4f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-3.bin",
+              "type": "q",
+              "count": 1792,
+              "sha256": "8166658470128b32fc3b2b30273d9d778fdfeb0a8bb25c3e567bb710881dbb0d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-4.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "613ca04558c84e33c2b229553b103aa7e0b9f242163faf25344a0a70b0870882"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-5.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "924ae03b6111734d8ab1d2d4c88ec6a7da5ba6612c50b2f0e3c27d0511980e0f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-6.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-7.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-8.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "9f56cda75fefeab90f6fa5d5ddc9601544b121732c5ecccab32e631060453a5d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-929-9.bin",
+              "type": "q",
+              "count": 512,
+              "sha256": "325bf9ab6779279b5eed790a3c0c2371efeb12534591aca75baa8eee4448458a"
+            }
+          ],
+          "timings": {
+            "pack_ms": 29.298147998815693,
+            "collect_ms": 20.304162999309483,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 4.523159999735071,
+            "permutation_ms": 4.43627899949206
+          },
+          "payload_bytes": 90640,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-930",
+          "seed": 930,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-0.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "f7a2e28edf2a77a0fc0c98d78f349d5268e8bee94d3b2e105cbb581b0f1b1a2f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-1.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-2.bin",
+              "type": "q",
+              "count": 4098,
+              "sha256": "9607a72c3c631492bcee3960bf64d9ae453b203660938a463e3e15000dd0aa20"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-3.bin",
+              "type": "q",
+              "count": 1792,
+              "sha256": "15d731450691007f0b78b8c26afbed03d121e9d7c9167e4a3b933aa549b6ca1a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-4.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "c24385c5c40a34555b290291b1f782329e944c040583ce034cf675d4c2967d3f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-5.bin",
+              "type": "q",
+              "count": 256,
+              "sha256": "924ae03b6111734d8ab1d2d4c88ec6a7da5ba6612c50b2f0e3c27d0511980e0f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-6.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-7.bin",
+              "type": "q",
+              "count": 128,
+              "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-8.bin",
+              "type": "I",
+              "count": 128,
+              "sha256": "9f56cda75fefeab90f6fa5d5ddc9601544b121732c5ecccab32e631060453a5d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-128x8/Random-930-9.bin",
+              "type": "q",
+              "count": 512,
+              "sha256": "b61aa8cff2180a8180bd80b29913d296c05683dcc3018dd9d7f8a24278fd89f7"
+            }
+          ],
+          "timings": {
+            "pack_ms": 29.282727999998315,
+            "collect_ms": 20.304162999309483,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 4.523159999735071,
+            "permutation_ms": 4.420859000674682
+          },
+          "payload_bytes": 90640,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        }
+      ],
+      "kernel": "jac_Dot_cursors_batch",
+      "graph_format": "csr"
+    },
+    {
+      "id": "dot-1024x32",
+      "kind": "dot",
+      "shape": [
+        1024,
+        32
+      ],
+      "source_key": "Dot",
+      "graph_build_ms": 319.2130310007997,
+      "oracle_ms": 4.755055000714492,
+      "cpu_reference_ms": 3.7554820000877953,
+      "walkers": 1024,
+      "nodes": 65536,
+      "dtype": "int64",
+      "expected": {
+        "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/expected.bin",
+        "type": "q",
+        "count": 1024,
+        "sha256": "3f969d658bfd6bef9df9b6e745af217762102eb732e0ee7594532777435fc24c"
+      },
+      "layouts": [
+        {
+          "label": "Current",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-0.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "b7d3101cd9228ec67ecf3b9cb176195d79fb288775f9413e1eee2df88b73b563"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "b1476de1907209012e63fa502715fd97db26e595352faa808d8c10433a1472a4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-2.bin",
+              "type": "q",
+              "count": 131074,
+              "sha256": "a07e62dd9948a751393a86ed6bbbbf22e788d85b354e048b4a911256c92a645f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-3.bin",
+              "type": "q",
+              "count": 63488,
+              "sha256": "e35cda2fa448deebc8bd65b7e77f3b07bf1181965271a706d6b7db4c48d56e9b"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-4.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "9759831a2cb750956f7a5da8ef18e3866c3de6c6b938d65bff8dc6101168a3d4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-5.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-6.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-7.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-8.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Current-9.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "cbb01610a8b7578c0eb6360df051dc71df3aaf99b88ba962a063cc568194b157"
+            }
+          ],
+          "timings": {
+            "pack_ms": 876.2104380002711,
+            "collect_ms": 731.8253729999924,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 143.3453350000491
+          },
+          "payload_bytes": 2691088,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Predicted",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-0.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "b7d3101cd9228ec67ecf3b9cb176195d79fb288775f9413e1eee2df88b73b563"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "b1476de1907209012e63fa502715fd97db26e595352faa808d8c10433a1472a4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-2.bin",
+              "type": "q",
+              "count": 131074,
+              "sha256": "a07e62dd9948a751393a86ed6bbbbf22e788d85b354e048b4a911256c92a645f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-3.bin",
+              "type": "q",
+              "count": 63488,
+              "sha256": "e35cda2fa448deebc8bd65b7e77f3b07bf1181965271a706d6b7db4c48d56e9b"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-4.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "9759831a2cb750956f7a5da8ef18e3866c3de6c6b938d65bff8dc6101168a3d4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-5.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-6.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-7.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-8.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Predicted-9.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "cbb01610a8b7578c0eb6360df051dc71df3aaf99b88ba962a063cc568194b157"
+            }
+          ],
+          "timings": {
+            "pack_ms": 822.11087900032,
+            "collect_ms": 647.7441850001924,
+            "predict_ms": 23.593693999828247,
+            "remap_soa_ms": 150.7725430001301
+          },
+          "payload_bytes": 2691088,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-928",
+          "seed": 928,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-0.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "78c0ececa7d1f9673fed6c7183ee08f8368b3faedc66e0001edf988083afbe6d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "b1476de1907209012e63fa502715fd97db26e595352faa808d8c10433a1472a4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-2.bin",
+              "type": "q",
+              "count": 131074,
+              "sha256": "3fbfb5d175fc668c9a90ba21ec27bcd9bcd649c624ec2ec0f0c67a595f9336ce"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-3.bin",
+              "type": "q",
+              "count": 63488,
+              "sha256": "8eeb2512b2108e8e1ca157239d67478251313cd92c3950541ee904c008f1632c"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-4.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "47b74aac359eefebc15f30a1ccf97f675117632c71a4db6310d3b00571d3c943"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-5.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-6.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-7.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-8.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-928-9.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "47aa447654e3f6e17dd1e2d436014deaf565727615ddc2cdabb4edeb3daf9f34"
+            }
+          ],
+          "timings": {
+            "pack_ms": 1036.3687609997214,
+            "collect_ms": 731.8253729999924,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 143.3453350000491,
+            "permutation_ms": 160.15832299945032
+          },
+          "payload_bytes": 2691088,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-929",
+          "seed": 929,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-0.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "0cddddbbff41de36be86ab8cb957e85125686bf1746c6ac4188c648f43c41403"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "b1476de1907209012e63fa502715fd97db26e595352faa808d8c10433a1472a4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-2.bin",
+              "type": "q",
+              "count": 131074,
+              "sha256": "67901fecdfc83cf4b5f9e35fef0c6b3d4c06732bb0330ea0e08fd0724b7f2717"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-3.bin",
+              "type": "q",
+              "count": 63488,
+              "sha256": "e1aa2d78c809ae0e9ce95ca5d96ba130536783818255e2cbc354e3208cad0823"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-4.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "bc20fd9a9ae7887b256cea0b35a32798d085bdff488940c9d5535f81a201b766"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-5.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-6.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-7.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-8.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-929-9.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "ded42a015bc07124013e5e7784383f5aa105cc083385c38f5831c8b49aa49a10"
+            }
+          ],
+          "timings": {
+            "pack_ms": 1038.3749370002988,
+            "collect_ms": 731.8253729999924,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 143.3453350000491,
+            "permutation_ms": 162.16449900002772
+          },
+          "payload_bytes": 2691088,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-930",
+          "seed": 930,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-0.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "6e892e031e164470a0e02c31693019d1df0fe0f1c3b9e103861eaab97b32ceb2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-1.bin",
+              "type": "q",
+              "count": 65536,
+              "sha256": "b1476de1907209012e63fa502715fd97db26e595352faa808d8c10433a1472a4"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-2.bin",
+              "type": "q",
+              "count": 131074,
+              "sha256": "84c50cff88e2e046c4c69d1cf41167e3f8b07623265f5d84bb3fc6367a46e748"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-3.bin",
+              "type": "q",
+              "count": 63488,
+              "sha256": "64cc3b1b746c30e4611919bc56e7bbe99170f3f8e57ef635cfa71ecc040fdf04"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-4.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "f4ffae62259ee0339cb9542f0ec8d66bbd1425dd7386deb7de2f72fc795b8e4b"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-5.bin",
+              "type": "q",
+              "count": 2048,
+              "sha256": "3ff6c238a98ca6a7da11b2e65354523857170384301c95ae445e24514d8fc904"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-6.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-7.bin",
+              "type": "q",
+              "count": 1024,
+              "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-8.bin",
+              "type": "I",
+              "count": 1024,
+              "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/dot-1024x32/Random-930-9.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "59400cb4b8a2b5a08602cdcdcd0da15eb58234ae81b7d036749f05ff86c06faa"
+            }
+          ],
+          "timings": {
+            "pack_ms": 1041.6727710007763,
+            "collect_ms": 731.8253729999924,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 143.3453350000491,
+            "permutation_ms": 165.46233300050517
+          },
+          "payload_bytes": 2691088,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        }
+      ],
+      "kernel": "jac_Dot_cursors_batch",
+      "graph_format": "csr"
+    },
+    {
+      "id": "matmul-16x32x24",
+      "kind": "matmul",
+      "shape": [
+        16,
+        32,
+        24
+      ],
+      "source_key": "Dot",
+      "graph_build_ms": 7.894692999798281,
+      "oracle_ms": 0.6822089999332093,
+      "cpu_reference_ms": 3.6671870002464857,
+      "walkers": 384,
+      "nodes": 1280,
+      "dtype": "int64",
+      "expected": {
+        "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/expected.bin",
+        "type": "q",
+        "count": 384,
+        "sha256": "6a05381984f796e5730c244828c3472fa5104eb145f00341c34ea87380691eef"
+      },
+      "layouts": [
+        {
+          "label": "Current",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-0.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "1df20abd04ec77ef3e0110a7d1dd6abb8470c46e5f00a91f44ccdf83e4e945ec"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-1.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "e0791dd1c7c2002e3d69e8efea94932720c536f9fc966072958b4887f8e3b35a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-2.bin",
+              "type": "q",
+              "count": 2562,
+              "sha256": "24c24ae84cd84bfb34a9c8d4ebd8f407bbdc1b245446251ecc44bc6448ffa9ee"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-3.bin",
+              "type": "q",
+              "count": 1240,
+              "sha256": "8dcdc73fbfae27e4ec4817487011b9402474becdc03d2e63a0fa35ec053f8a34"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-4.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "d585a864c018d3b774ebfe0d55d2305c43cd1a4c31fd041c17be563c8de13d60"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-5.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "d70cc5381c977667c56621d4a15dfbeb2c4840c72528d652faa56310dc3090ad"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-6.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-7.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-8.bin",
+              "type": "I",
+              "count": 384,
+              "sha256": "80422bc3d307b4a25bdafcc84ac7fb01cb55a09810e8b0f37bb12e0edb5c48ca"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Current-9.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "525a214604ceaebb4f97055c64a6ba673ca639a47c4aef48ff8256bfa993de1b"
+            }
+          ],
+          "timings": {
+            "pack_ms": 18.450763000146253,
+            "collect_ms": 15.638455999578582,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 2.793497999846295
+          },
+          "payload_bytes": 83152,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Predicted",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-0.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "a2910d181b58f76a469b405abfab3ded1124471cb6d1d43ee5a2979c79984837"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-1.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "e0791dd1c7c2002e3d69e8efea94932720c536f9fc966072958b4887f8e3b35a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-2.bin",
+              "type": "q",
+              "count": 2562,
+              "sha256": "e80338584d222344d138fbcd5a2afd135d8476bde505e7dcce9b8a1b14e2fd5d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-3.bin",
+              "type": "q",
+              "count": 1240,
+              "sha256": "4bc12af94ab204527469755aa5cad1cc85d4e5f957b69fbdd8c2af78a77fd230"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-4.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "2f2b74bd0a280cee7d210e979921d81fdde8c68bba52575b9e89ccd547f5aee6"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-5.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "d70cc5381c977667c56621d4a15dfbeb2c4840c72528d652faa56310dc3090ad"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-6.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-7.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-8.bin",
+              "type": "I",
+              "count": 384,
+              "sha256": "80422bc3d307b4a25bdafcc84ac7fb01cb55a09810e8b0f37bb12e0edb5c48ca"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Predicted-9.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "ed27fe076cedf8428561a6e1f8edfd7c71f0cf054530ca5c5da22849a27cdafa"
+            }
+          ],
+          "timings": {
+            "pack_ms": 16.706253000847937,
+            "collect_ms": 13.434135000352398,
+            "predict_ms": 0.484038000649889,
+            "remap_soa_ms": 2.787925999655272
+          },
+          "payload_bytes": 83152,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-928",
+          "seed": 928,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-0.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "5fcc95ce31c9de03f904c8406e58f21398af3f305c13fc6900adb82c108735c9"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-1.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "e0791dd1c7c2002e3d69e8efea94932720c536f9fc966072958b4887f8e3b35a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-2.bin",
+              "type": "q",
+              "count": 2562,
+              "sha256": "cbc53246094d89a48bff5ebbac3dedec8adc725dd25339d5048513f82e57f188"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-3.bin",
+              "type": "q",
+              "count": 1240,
+              "sha256": "510e03c73424a1a2979bf19dfcf78c3205f173cf2fad29915f05ecf622906e1e"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-4.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "5ae20db6489696a99b2d8952c2560e580dc942d29945feeb0e5ea4b2df0d8b09"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-5.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "d70cc5381c977667c56621d4a15dfbeb2c4840c72528d652faa56310dc3090ad"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-6.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-7.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-8.bin",
+              "type": "I",
+              "count": 384,
+              "sha256": "e6d1b616fc8f6230c07d0e573527b701e7f377803916cc22f51faa21917d9160"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-928-9.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "d779701f3f2c87031229b772fd1529d2e212543b905bf0a2c65edb6a4af8d9c0"
+            }
+          ],
+          "timings": {
+            "pack_ms": 21.312406999641098,
+            "collect_ms": 15.638455999578582,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 2.793497999846295,
+            "permutation_ms": 2.861643999494845
+          },
+          "payload_bytes": 83152,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-929",
+          "seed": 929,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-0.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "062f4f1aaf9939156d0e1d0f39cb26b30e368fd8207d5bc2bba82ffee7790638"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-1.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "e0791dd1c7c2002e3d69e8efea94932720c536f9fc966072958b4887f8e3b35a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-2.bin",
+              "type": "q",
+              "count": 2562,
+              "sha256": "c1f005b1e018b236a30b5e170c819d82da0f183a3fc9219583720cb53cac7461"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-3.bin",
+              "type": "q",
+              "count": 1240,
+              "sha256": "5d6edf65af40dcc271ea7fa36b2992f06a9920a47221466b8398d15ed4c4a009"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-4.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "aacc2476f18eca4efaa493c42a777df9ebb3006deadbeb7233b24228d9e2d732"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-5.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "d70cc5381c977667c56621d4a15dfbeb2c4840c72528d652faa56310dc3090ad"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-6.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-7.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-8.bin",
+              "type": "I",
+              "count": 384,
+              "sha256": "e6d1b616fc8f6230c07d0e573527b701e7f377803916cc22f51faa21917d9160"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-929-9.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "fe18a0a2eaf82f484394d1d402c61fe01fb1cbf5260f49988f663eb4ab36e3b8"
+            }
+          ],
+          "timings": {
+            "pack_ms": 21.295933999681438,
+            "collect_ms": 15.638455999578582,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 2.793497999846295,
+            "permutation_ms": 2.845170999535185
+          },
+          "payload_bytes": 83152,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-930",
+          "seed": 930,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-0.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "64fd7e11cddae0e87b7d497fe1f9c96fd91d55d7768d25b213ffbcdc0593686f"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-1.bin",
+              "type": "q",
+              "count": 1280,
+              "sha256": "e0791dd1c7c2002e3d69e8efea94932720c536f9fc966072958b4887f8e3b35a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-2.bin",
+              "type": "q",
+              "count": 2562,
+              "sha256": "3d07928f1609522e8aaef77dbed9f3dae69f7acb64d3147fe8bb1af3fe5a82fc"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-3.bin",
+              "type": "q",
+              "count": 1240,
+              "sha256": "46414377274596ca9603e4688b7004c9bed3144c173d6505ee4291cb3699844a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-4.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "d7bfc487857f5a3b4b29a915b586dd0b6f0273110a4055e1128ee2fb554a6b5b"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-5.bin",
+              "type": "q",
+              "count": 768,
+              "sha256": "d70cc5381c977667c56621d4a15dfbeb2c4840c72528d652faa56310dc3090ad"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-6.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-7.bin",
+              "type": "q",
+              "count": 384,
+              "sha256": "e80232b4d18d0bb7e794be263ba937626f383f9917d4b8a737ba893a8f752293"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-8.bin",
+              "type": "I",
+              "count": 384,
+              "sha256": "e6d1b616fc8f6230c07d0e573527b701e7f377803916cc22f51faa21917d9160"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-16x32x24/Random-930-9.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "81b6edf104311bbd899774feb7c990c3bb0ed14d4b02ed63bd1fe07271fc3a93"
+            }
+          ],
+          "timings": {
+            "pack_ms": 21.263233999889053,
+            "collect_ms": 15.638455999578582,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 2.793497999846295,
+            "permutation_ms": 2.8124709997428
+          },
+          "payload_bytes": 83152,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        }
+      ],
+      "kernel": "jac_Dot_cursors_batch",
+      "graph_format": "csr"
+    },
+    {
+      "id": "matmul-32x64x48",
+      "kind": "matmul",
+      "shape": [
+        32,
+        64,
+        48
+      ],
+      "source_key": "Dot",
+      "graph_build_ms": 32.27366300052381,
+      "oracle_ms": 5.025800000112213,
+      "cpu_reference_ms": 7.033877999674587,
+      "walkers": 1536,
+      "nodes": 5120,
+      "dtype": "int64",
+      "expected": {
+        "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/expected.bin",
+        "type": "q",
+        "count": 1536,
+        "sha256": "fcbed57eca8b47e392da7c3617560852d28dcc1b4c0a9305184ad861f96d193d"
+      },
+      "layouts": [
+        {
+          "label": "Current",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-0.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "65fc132bf38ab9e5f1740adc68aa8de68577bb46a7bdc7baecf40b001b98505d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-1.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "b7db499f415b11696ddec864bd4cf5a1878ec62d041a7008cb13fffd6dd795cb"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-2.bin",
+              "type": "q",
+              "count": 10242,
+              "sha256": "9f91a74367f04ca230c1e7edfc7a57b58762bd8b57d60921cb910dfbbfb466aa"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-3.bin",
+              "type": "q",
+              "count": 5040,
+              "sha256": "a1b8879c733ba900ff268e5687334b4669d881c37484d995013f29d55f878440"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-4.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "8a8e218a37872f7a3b2ed260586479aa36ce0a13ef01bea6850e839f15d31555"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-5.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "917e4da8f850635ab48ff08553144a383450d5ec2bc6d568c0bc75d15f8d2f76"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-6.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-7.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-8.bin",
+              "type": "I",
+              "count": 1536,
+              "sha256": "fd9243e1ba57263ed469c3bdbd7ade6ec5254e7ed924a9f5737fa44749933cc0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Current-9.bin",
+              "type": "q",
+              "count": 6144,
+              "sha256": "9a3d7ddd554940b7338660d2c2adb08d7eea9856c59744ca31fa0618a99ce585"
+            }
+          ],
+          "timings": {
+            "pack_ms": 68.97689699962939,
+            "collect_ms": 57.52714699974604,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 11.372361999747227
+          },
+          "payload_bytes": 333200,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Predicted",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-0.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "7aa90ecd08e83406439c2051218d1756689b0a10d252bb77e255bc2577b24c8e"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-1.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "b7db499f415b11696ddec864bd4cf5a1878ec62d041a7008cb13fffd6dd795cb"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-2.bin",
+              "type": "q",
+              "count": 10242,
+              "sha256": "5b5d9e4568eacf2be4fa0fade5bc7953cb7b05028d4f97948a4d9a1f6e855aa8"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-3.bin",
+              "type": "q",
+              "count": 5040,
+              "sha256": "663174680fa06e65b3c8c1949208d34f6b32b92a4e1179183800326e84e1daff"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-4.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "3cad798d542bfbe49b5332e3be4731e1e37501471a98b30fd5639240b07ba6cd"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-5.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "917e4da8f850635ab48ff08553144a383450d5ec2bc6d568c0bc75d15f8d2f76"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-6.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-7.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-8.bin",
+              "type": "I",
+              "count": 1536,
+              "sha256": "fd9243e1ba57263ed469c3bdbd7ade6ec5254e7ed924a9f5737fa44749933cc0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Predicted-9.bin",
+              "type": "q",
+              "count": 6144,
+              "sha256": "95b807191c4e5394d56b02b83222ff937fb67fcf2990aa4f4b1a1ba76ef8d7bb"
+            }
+          ],
+          "timings": {
+            "pack_ms": 68.04389500030084,
+            "collect_ms": 54.912440000407514,
+            "predict_ms": 1.824006999413541,
+            "remap_soa_ms": 11.306885000522016
+          },
+          "payload_bytes": 333200,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-928",
+          "seed": 928,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-0.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "312818ccb79344a794c65be6cb33be100563c164b3f08dbf1e25d61412557069"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-1.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "b7db499f415b11696ddec864bd4cf5a1878ec62d041a7008cb13fffd6dd795cb"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-2.bin",
+              "type": "q",
+              "count": 10242,
+              "sha256": "46364aa6fabf23c203d89c253e7721de04d3af28cb1e3d976c97032fd0b93379"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-3.bin",
+              "type": "q",
+              "count": 5040,
+              "sha256": "4899a26db5f56487cfd959f500c19d20cfbe22a950a271d5b8ce0897db5ff546"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-4.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "5a0e417f20fd4594875fa3d09759846c5e05063e77d64d228f502f53ef8608cf"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-5.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "917e4da8f850635ab48ff08553144a383450d5ec2bc6d568c0bc75d15f8d2f76"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-6.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-7.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-8.bin",
+              "type": "I",
+              "count": 1536,
+              "sha256": "884929e08ec0c709c085488ca1b0c61bb9749b0f38bd253c97c073657116f5be"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-928-9.bin",
+              "type": "q",
+              "count": 6144,
+              "sha256": "262deba840ea51d6f04059492dde43ab2b734327401760a3d66c1e646f225d8f"
+            }
+          ],
+          "timings": {
+            "pack_ms": 80.68252499924711,
+            "collect_ms": 57.52714699974604,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 11.372361999747227,
+            "permutation_ms": 11.705627999617718
+          },
+          "payload_bytes": 333200,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-929",
+          "seed": 929,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-0.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "80620e881742aa02392f56d5513622c7fbdcf443c9872f84dac1eb01bda23f6c"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-1.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "b7db499f415b11696ddec864bd4cf5a1878ec62d041a7008cb13fffd6dd795cb"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-2.bin",
+              "type": "q",
+              "count": 10242,
+              "sha256": "8a3fa86ee4f3cef17d5dc50ce606d0ca94ecfa11205174e493f4344dea29e6ca"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-3.bin",
+              "type": "q",
+              "count": 5040,
+              "sha256": "ea1b967e383168f9c40ef3a0ec19c2f38599f5b329da53f3056017b1476077b6"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-4.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "5a3d8cbd6800b7dfdd016e129901687818718057f1fb14bd00048e8becc571d3"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-5.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "917e4da8f850635ab48ff08553144a383450d5ec2bc6d568c0bc75d15f8d2f76"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-6.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-7.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-8.bin",
+              "type": "I",
+              "count": 1536,
+              "sha256": "884929e08ec0c709c085488ca1b0c61bb9749b0f38bd253c97c073657116f5be"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-929-9.bin",
+              "type": "q",
+              "count": 6144,
+              "sha256": "d5ed09f1ccfc14a2a684a8fedbf2b37b1c29af3899aa4051eb9c35ca2a52179f"
+            }
+          ],
+          "timings": {
+            "pack_ms": 80.32809599990287,
+            "collect_ms": 57.52714699974604,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 11.372361999747227,
+            "permutation_ms": 11.351199000273482
+          },
+          "payload_bytes": 333200,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-930",
+          "seed": 930,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-0.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "268285e1040d11e172a581980fece59e98315a2415aaa2cf8cd213a19134e1d6"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-1.bin",
+              "type": "q",
+              "count": 5120,
+              "sha256": "b7db499f415b11696ddec864bd4cf5a1878ec62d041a7008cb13fffd6dd795cb"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-2.bin",
+              "type": "q",
+              "count": 10242,
+              "sha256": "5a4e489afc8cea3e9bc159702fc902c0a7aa21411531b08d4ea8ba4bca5a9de7"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-3.bin",
+              "type": "q",
+              "count": 5040,
+              "sha256": "318c3bdbcffb5730c27147720ad0d5ee800da69c29e1a71619b2f97a3eeb6165"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-4.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "070c0774b25d817cfcaba9b1e08852065650e031f4d48a5d22d4a8d3be17912d"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-5.bin",
+              "type": "q",
+              "count": 3072,
+              "sha256": "917e4da8f850635ab48ff08553144a383450d5ec2bc6d568c0bc75d15f8d2f76"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-6.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-7.bin",
+              "type": "q",
+              "count": 1536,
+              "sha256": "f3cc103136423a57975750907ebc1d367e2985ac6338976d4d5a439f50323f4a"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-8.bin",
+              "type": "I",
+              "count": 1536,
+              "sha256": "884929e08ec0c709c085488ca1b0c61bb9749b0f38bd253c97c073657116f5be"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-32x64x48/Random-930-9.bin",
+              "type": "q",
+              "count": 6144,
+              "sha256": "4862bf30c161db0098cba5c947c2e83320555c1ce2f5b5ad5398be355041c467"
+            }
+          ],
+          "timings": {
+            "pack_ms": 80.44788999995944,
+            "collect_ms": 57.52714699974604,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 11.372361999747227,
+            "permutation_ms": 11.470993000330054
+          },
+          "payload_bytes": 333200,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        }
+      ],
+      "kernel": "jac_Dot_cursors_batch",
+      "graph_format": "csr"
+    },
+    {
+      "id": "matmul-64x128x64",
+      "kind": "matmul",
+      "shape": [
+        64,
+        128,
+        64
+      ],
+      "source_key": "Dot",
+      "graph_build_ms": 104.097905999879,
+      "oracle_ms": 24.74815400000807,
+      "cpu_reference_ms": 14.136754999526602,
+      "walkers": 4096,
+      "nodes": 16384,
+      "dtype": "int64",
+      "expected": {
+        "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/expected.bin",
+        "type": "q",
+        "count": 4096,
+        "sha256": "b038c4fde672b5b6f7b1eb7db415b2a841fa12026177d7029deb41ece86f35a9"
+      },
+      "layouts": [
+        {
+          "label": "Current",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-0.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "49c68d8029017e1f0fd7358acd170ddb1e0b57f0dfb836251332e003af206de3"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-1.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "065a8097a91d770019bc0bc61a41aab31f29f1e430bc7d44eee0c3c38b018f40"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-2.bin",
+              "type": "q",
+              "count": 32770,
+              "sha256": "fd30c623676620e26eaa31cc9855bc531b96524aa5239bf5efbcdda870579b76"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-3.bin",
+              "type": "q",
+              "count": 16256,
+              "sha256": "2241b7d296aeb453de6bc18241ba0eb8e593e5b9e049f247abda016b2cf417aa"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-4.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "d5f0a597546150845e94e342608eadc02a06e408d7f8f873793beb06eecaf527"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-5.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "648e196c2563cffdaa2931758a989986cade3a78b4669f7ed4b2a319da5d29d2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-6.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-7.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-8.bin",
+              "type": "I",
+              "count": 4096,
+              "sha256": "4fe7b59af6de3b665b67788cc2f99892ab827efae3a467342b3bb4e3bc8e5bfe"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Current-9.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "1c809b797e61d4940129b5ebe60b7c8d0acd128e9e2ccc9f1edbb51f88a7f806"
+            }
+          ],
+          "timings": {
+            "pack_ms": 259.2998700001772,
+            "collect_ms": 220.9966769996754,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 38.007920000382
+          },
+          "payload_bytes": 998416,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Predicted",
+          "seed": null,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-0.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "328e12923bb9ef12ef7dd132201416b6acbbab7887bf8d7b6ca693b51981bd79"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-1.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "065a8097a91d770019bc0bc61a41aab31f29f1e430bc7d44eee0c3c38b018f40"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-2.bin",
+              "type": "q",
+              "count": 32770,
+              "sha256": "5535abef6c6b205990cbb16ad100df3293c730031ceb5351c84f0f6d0896c821"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-3.bin",
+              "type": "q",
+              "count": 16256,
+              "sha256": "0a5c3c39be0f2c69ed8958ae1848f537a3236a95f7338d674c07f81bee9a2c32"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-4.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "17980afb50ffc3bfeb6e0864408fd53acc296108e2f402fe041d2dbb0cf50027"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-5.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "648e196c2563cffdaa2931758a989986cade3a78b4669f7ed4b2a319da5d29d2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-6.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-7.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-8.bin",
+              "type": "I",
+              "count": 4096,
+              "sha256": "4fe7b59af6de3b665b67788cc2f99892ab827efae3a467342b3bb4e3bc8e5bfe"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Predicted-9.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "882af379842edbc66e73f6a5b1572786d0b1c60f2d437bb4d7fe6bc134c6d4bf"
+            }
+          ],
+          "timings": {
+            "pack_ms": 217.71752500080765,
+            "collect_ms": 174.45918700013863,
+            "predict_ms": 6.024364999575482,
+            "remap_soa_ms": 37.232894000226224
+          },
+          "payload_bytes": 998416,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-928",
+          "seed": 928,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-0.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "ae6e358cc83e40070fb0af231adad2121dbe0c84eb80235df30cbd87b68f4af2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-1.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "065a8097a91d770019bc0bc61a41aab31f29f1e430bc7d44eee0c3c38b018f40"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-2.bin",
+              "type": "q",
+              "count": 32770,
+              "sha256": "d44154cebaf3ab91180db500959535e5d3f3719aaa248d3713f8925e5f3ab3ec"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-3.bin",
+              "type": "q",
+              "count": 16256,
+              "sha256": "e4caf26ce7c8353e20ae13c3844dba707b7501bf87e810355cbcadf04f5d7cd8"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-4.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "2a71b9125c977f8f05a07714d6762dd2b5c966dde9c7b9fbf140df647f748aaa"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-5.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "648e196c2563cffdaa2931758a989986cade3a78b4669f7ed4b2a319da5d29d2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-6.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-7.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-8.bin",
+              "type": "I",
+              "count": 4096,
+              "sha256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-928-9.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "81b1c5b1c5c023db8f8f2e18e1313b69c581a54c3ee1a1479e87b9790db0d8e8"
+            }
+          ],
+          "timings": {
+            "pack_ms": 296.5884349996486,
+            "collect_ms": 220.9966769996754,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 38.007920000382,
+            "permutation_ms": 37.28856499947142
+          },
+          "payload_bytes": 998416,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-929",
+          "seed": 929,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-0.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "694c48ee7c353fefca6e14fdb267882d62cb69a3558327e5478f782bac7ba601"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-1.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "065a8097a91d770019bc0bc61a41aab31f29f1e430bc7d44eee0c3c38b018f40"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-2.bin",
+              "type": "q",
+              "count": 32770,
+              "sha256": "ce82256561680f1bb799c4c62ff8c23a7d0cab715938eb71eb0513a37a70abf8"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-3.bin",
+              "type": "q",
+              "count": 16256,
+              "sha256": "e746e0e30e2b39eb24972365e347e014a81f3d4ddc23ac027c8fa8645b6e1bda"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-4.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "196185f5bbd607024f1f136cbb5c121a563cfaebac15ef423bc185b54250dda0"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-5.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "648e196c2563cffdaa2931758a989986cade3a78b4669f7ed4b2a319da5d29d2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-6.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-7.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-8.bin",
+              "type": "I",
+              "count": 4096,
+              "sha256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-929-9.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "d647bdff1269bcad5bd06f222458eeedd03106ece3680dc1f09553a6261a63d8"
+            }
+          ],
+          "timings": {
+            "pack_ms": 296.8326780001007,
+            "collect_ms": 220.9966769996754,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 38.007920000382,
+            "permutation_ms": 37.532807999923534
+          },
+          "payload_bytes": 998416,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        },
+        {
+          "label": "Random-930",
+          "seed": 930,
+          "files": [
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-0.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "89892c2beef19af8da9443f0df273d320dec54b801ab3da6c6132d47f0548779"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-1.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "065a8097a91d770019bc0bc61a41aab31f29f1e430bc7d44eee0c3c38b018f40"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-2.bin",
+              "type": "q",
+              "count": 32770,
+              "sha256": "468cc31798b1fc81a7700a3b10fc21dee07c9677d52f0710f15f85771f43b8c5"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-3.bin",
+              "type": "q",
+              "count": 16256,
+              "sha256": "2411c9704f4e79bc5a357ce26da9c7f47e95c8b17269788067a99cf23688ea19"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-4.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "cee582ea91607a1e9e8d7750fdf02ad61d929f18aff08c889b2be5fbd15dc922"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-5.bin",
+              "type": "q",
+              "count": 8192,
+              "sha256": "648e196c2563cffdaa2931758a989986cade3a78b4669f7ed4b2a319da5d29d2"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-6.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-7.bin",
+              "type": "q",
+              "count": 4096,
+              "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-8.bin",
+              "type": "I",
+              "count": 4096,
+              "sha256": "0fbba07a833d4dcfc7024eaf313661a0ba8f80a05c6d29b8801c612e10e60dee"
+            },
+            {
+              "path": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006/matmul-64x128x64/Random-930-9.bin",
+              "type": "q",
+              "count": 16384,
+              "sha256": "e4ed4c96dd25129a6a6c935ad0e54623d246ff573134f3bebe61feecda3de987"
+            }
+          ],
+          "timings": {
+            "pack_ms": 296.616434000498,
+            "collect_ms": 220.9966769996754,
+            "predict_ms": 0.0,
+            "remap_soa_ms": 38.007920000382,
+            "permutation_ms": 37.316564000320795
+          },
+          "payload_bytes": 998416,
+          "queue_capacity": 2,
+          "max_visits": 1000000
+        }
+      ],
+      "kernel": "jac_Dot_cursors_batch",
+      "graph_format": "csr"
+    }
+  ],
+  "timing_contract": "event intervals include host enqueue gaps; profiler is exact kernel interval; graph cost is composed from separately measured build",
+  "telemetry_after": "name, driver_version, pstate, clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]\nNVIDIA GeForce RTX 3090, 595.71.05, P2, 1740 MHz, 9501 MHz, 52, 112.50 W",
+  "artifact_relocation": {
+    "original_directory": "/tmp/jac-layout-exclusive",
+    "retained_directory": "/home/baichuan/jaseci/dist/gpu-layout-exclusive-20261006"
+  }
+}

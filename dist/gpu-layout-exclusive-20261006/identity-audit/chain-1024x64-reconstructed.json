@@ -1,0 +1,236 @@
+{
+  "id": "chain-1024x64",
+  "kind": "chain",
+  "shape": [
+    1024,
+    64
+  ],
+  "source_key": "Chain",
+  "graph_build_ms": 254.46059800015064,
+  "oracle_ms": 0.20130299981246935,
+  "cpu_reference_ms": 3.20490299964149,
+  "walkers": 1024,
+  "nodes": 65536,
+  "dtype": "float64",
+  "expected": {
+    "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/expected.bin",
+    "type": "d",
+    "count": 1024,
+    "sha256": "9bb8806436783d9f9150d580c0e7a70ebe57bbab81f7558602918cc2bd545017"
+  },
+  "layouts": [
+    {
+      "label": "Current",
+      "seed": null,
+      "files": [
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Current-0.bin",
+          "type": "d",
+          "count": 65536,
+          "sha256": "37e07a15b4b9c032bbddd6b3917312ab3a080c120df5d44d4564c77b7a259f2c"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Current-1.bin",
+          "type": "q",
+          "count": 65536,
+          "sha256": "fae4a02169f2a2493bb849ae701096e938dd16bd65d20cdc5dfb476e9afe31ff"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Current-2.bin",
+          "type": "q",
+          "count": 1024,
+          "sha256": "2f88e9ce00d238e7e011a7b140b413dcad818f1da41a721f914f1af604d0e217"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Current-3.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Current-4.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Current-5.bin",
+          "type": "I",
+          "count": 1024,
+          "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+        }
+      ],
+      "timings": {
+        "pack_ms": 608.2107389993325,
+        "predict_ms": 0.0,
+        "remap_soa_ms": null
+      },
+      "identity_order": null,
+      "identity_order_sha256": null,
+      "payload_bytes": 1077248,
+      "queue_capacity": null,
+      "max_visits": null
+    },
+    {
+      "label": "Random-928",
+      "seed": 928,
+      "files": [
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-928-0.bin",
+          "type": "d",
+          "count": 65536,
+          "sha256": "944d3969d21b30b5beba1b7d5acef6297c8b4bdc30ca98e0d3616737e81db42c"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-928-1.bin",
+          "type": "q",
+          "count": 65536,
+          "sha256": "9470b00edebdb49c9e3534e405e4fced2c8c4eed3ccc780fbfd9fdc86736b3e5"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-928-2.bin",
+          "type": "q",
+          "count": 1024,
+          "sha256": "4486005e67c9a9a194f9aeaa6eafe978b1cd322cc8dcb24dd38a43923d80d372"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-928-3.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-928-4.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-928-5.bin",
+          "type": "I",
+          "count": 1024,
+          "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+        }
+      ],
+      "timings": {
+        "pack_ms": 655.6297219985936,
+        "predict_ms": 0.0,
+        "remap_soa_ms": null,
+        "permutation_ms": 47.41898299926106
+      },
+      "identity_order": null,
+      "identity_order_sha256": null,
+      "payload_bytes": 1077248,
+      "queue_capacity": null,
+      "max_visits": null
+    },
+    {
+      "label": "Random-929",
+      "seed": 929,
+      "files": [
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-929-0.bin",
+          "type": "d",
+          "count": 65536,
+          "sha256": "723ca74a0816da139ce12921726249a5854901080100408bec55f760c9dbab45"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-929-1.bin",
+          "type": "q",
+          "count": 65536,
+          "sha256": "a638d5242f208d6f31fc310eb83d4711fd287e05088b806add4a6e7d22f2ad39"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-929-2.bin",
+          "type": "q",
+          "count": 1024,
+          "sha256": "417886410b96feae8c2cf92473d7674bc93bd9fb26fa323ec952a92edcd32968"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-929-3.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-929-4.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-929-5.bin",
+          "type": "I",
+          "count": 1024,
+          "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+        }
+      ],
+      "timings": {
+        "pack_ms": 656.9090099992536,
+        "predict_ms": 0.0,
+        "remap_soa_ms": null,
+        "permutation_ms": 48.69827099992108
+      },
+      "identity_order": null,
+      "identity_order_sha256": null,
+      "payload_bytes": 1077248,
+      "queue_capacity": null,
+      "max_visits": null
+    },
+    {
+      "label": "Random-930",
+      "seed": 930,
+      "files": [
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-930-0.bin",
+          "type": "d",
+          "count": 65536,
+          "sha256": "9d1471b5a9c826f75ae1915096b0ba48e30bb6978dbc6a69a3a510a934320c7a"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-930-1.bin",
+          "type": "q",
+          "count": 65536,
+          "sha256": "e787ba99cc5e2aa1404da8ccc6d5481e65860b86399fd5586614f06e47f93455"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-930-2.bin",
+          "type": "q",
+          "count": 1024,
+          "sha256": "8f7cbee0698d138c5ec98b163d9df40eec700c98d5c719a454722185641d56ee"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-930-3.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "f06de47be992dcd3cdab30d428b36f5c4e10abf0411b98ccb764cfbe07b4d1e0"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-930-4.bin",
+          "type": "d",
+          "count": 1024,
+          "sha256": "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        },
+        {
+          "path": "dist/gpu-layout-exclusive-20261006/identity-audit/chain-1024x64/Random-930-5.bin",
+          "type": "I",
+          "count": 1024,
+          "sha256": "f47a8ec3e9aff2318d896942282ad4fe37d6391c82914f54a5da8a37de1300c6"
+        }
+      ],
+      "timings": {
+        "pack_ms": 656.6108549995988,
+        "predict_ms": 0.0,
+        "remap_soa_ms": null,
+        "permutation_ms": 48.40011600026628
+      },
+      "identity_order": null,
+      "identity_order_sha256": null,
+      "payload_bytes": 1077248,
+      "queue_capacity": null,
+      "max_visits": null
+    }
+  ],
+  "kernel": "jac_ChainSum_batch",
+  "graph_format": "chain"
+}

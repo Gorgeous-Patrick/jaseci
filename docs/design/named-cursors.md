@@ -69,8 +69,9 @@ destroyed nodes are rejected; destroyed nodes remaining in queues are skipped.
 `skip` retains its ordinary ability-return behavior: already queued visits are
 retained and later matching abilities in the same round still execute.
 
-GPU, native CPU and JavaScript lowering and physical layout optimization are
-outside this implementation. Named cursors must be compiled for Python CPU.
+Python CPU supports the semantics above. The selected GPU lowering and layout
+prediction subset is documented in [GPU named cursors](gpu-named-cursors.md).
+Native CPU and JavaScript lowering remain unsupported.
 
 ## Examples and verification
 

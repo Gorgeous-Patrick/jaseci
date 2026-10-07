@@ -418,3 +418,14 @@ streams retain the earlier report ABI.
 Run `jac run jac/examples/gpu/booleans_run.jac` for a 1000-walker CSR comparison
 against serial Jac. Set `JAC_GPU_TEST_CUDA=1` when running
 `scripts/gpu_walker/test_booleans.py` to exercise real CUDA.
+
+## Named-cursor ABI
+
+Walkers with a `cursor` declaration select `jac-ptx-cursors-v1` and a separate
+multichannel lowering, preserving all legacy single-channel entry points.
+The [named-cursor GPU contract](../../docs/design/gpu-named-cursors.md) specifies
+supported triggers, visits, FIFO events, resource limits and layout prediction.
+`GpuWalkerRuntime.prepare` accepts a batch of exact-key cursor binding maps.
+`gpu_cursors.pack_cursors` exposes current, predicted and randomized layouts and
+a prediction expansion budget. Buffer validation precedes CUDA allocation and
+launch; failed statuses prevent publication of all walker fields and reports.

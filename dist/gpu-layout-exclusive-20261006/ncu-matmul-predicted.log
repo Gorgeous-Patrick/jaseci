@@ -1,0 +1,5 @@
+==PROF== Connected to process 432042 (/home/baichuan/.pyenv/versions/3.13.7/bin/python3.13)
+==ERROR== ERR_NVGPUCTRPERM - The user does not have permission to access NVIDIA GPU Performance Counters on the target device 0. For instructions on enabling permissions and to get more information see https://developer.nvidia.com/ERR_NVGPUCTRPERM
+[[58, 64], [139, 154]]
+{"case": "matmul-64x128x64", "layout": "Predicted", "correctness": "PASS", "profiling_only": true, "metrics": {"execute_wall_us": 426.553, "D2H_us": 31.849000000000004, "kernel_event_us": 393.21601390838623, "H2D_us": null}}
+==PROF== Disconnected from process 432042

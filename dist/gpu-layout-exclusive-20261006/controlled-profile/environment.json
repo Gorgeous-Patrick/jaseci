@@ -1,0 +1,8 @@
+{
+  "before": "name, driver_version, pstate, clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]\nNVIDIA GeForce RTX 3090, 595.71.05, P8, 210 MHz, 405 MHz, 41, 30.61 W",
+  "after": "name, driver_version, pstate, clocks.current.sm [MHz], clocks.current.memory [MHz], temperature.gpu, power.draw [W]\nNVIDIA GeForce RTX 3090, 595.71.05, P2, 1740 MHz, 9501 MHz, 50, 123.95 W",
+  "input": "/tmp/jac-layout-exclusive",
+  "warmup": 16,
+  "repeats": 64,
+  "warning": "One-shot host pack costs are replayed metadata, not measured in this run"
+}

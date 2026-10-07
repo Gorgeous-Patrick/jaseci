@@ -1,0 +1,6 @@
+# Preserve the original checksummed experiment files, including CSV CRLF.
+* -text -whitespace
+*.bin binary
+*.sqlite binary
+*.nsys-rep binary
+*.prof binary

@@ -1,0 +1,12 @@
+....[[58, 64], [139, 154]]
+8
+True
+23
+True
+.....note: /tmp/jac-multi-gpu-uqxchtv7/seven.jac preferred native but did not lower; compiled in the server codespace (error[E5092]: Native lowering failed for named cursor walker 'Python CPU backend required')
+note: /tmp/jac-multi-gpu-uqxchtv7/guard_order.jac preferred native but did not lower; compiled in the server codespace (error[E5092]: Native lowering failed for named cursor walker 'Python CPU backend required')
+...
+----------------------------------------------------------------------
+Ran 12 tests in 13.972s
+
+OK

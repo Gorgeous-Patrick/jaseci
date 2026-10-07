@@ -1,0 +1,13 @@
+note: /home/baichuan/jaseci/jac/examples/gpu/named_cursors.jac preferred native but did not lower; compiled in the server codespace (error[E5092]: Native lowering failed for named cursor walker 'Python CPU backend required')
+....[[58, 64], [139, 154]]
+8
+True
+23
+True
+.....note: /tmp/jac-multi-gpu-xiwdimg0/seven.jac preferred native but did not lower; compiled in the server codespace (error[E5092]: Native lowering failed for named cursor walker 'Python CPU backend required')
+note: /tmp/jac-multi-gpu-xiwdimg0/guard_order.jac preferred native but did not lower; compiled in the server codespace (error[E5092]: Native lowering failed for named cursor walker 'Python CPU backend required')
+...
+----------------------------------------------------------------------
+Ran 12 tests in 9.800s
+
+OK

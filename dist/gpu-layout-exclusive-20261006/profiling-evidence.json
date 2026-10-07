@@ -1,0 +1,36 @@
+{
+  "timestamp_utc": "2026-10-06T05:53:10.539940+00:00",
+  "versions": {
+    "nsys": "NVIDIA Nsight Systems version 2025.1.3.140-251335620677v0",
+    "ncu": "NVIDIA (R) Nsight Compute Command Line Profiler\nCopyright (c) 2018-2025 NVIDIA Corporation\nVersion 2025.2.1.0 (build 35987062) (public-release)"
+  },
+  "counter_status": "ERR_NVGPUCTRPERM; noninteractive privileged attempt failed: sudo password required",
+  "gpu_exclusive": true,
+  "gpu_released": true,
+  "benchmark_command": [
+    "scripts/gpu_walker/compare_named_layouts.py",
+    "--chain-cases",
+    "128x8",
+    "1024x64",
+    "--dot-cases",
+    "128x8",
+    "1024x32",
+    "--matmul-cases",
+    "16x32x24",
+    "32x64x48",
+    "64x128x64",
+    "--warmup",
+    "6",
+    "--repeats",
+    "16",
+    "--profile",
+    "--output",
+    "/tmp/jac-layout-exclusive"
+  ],
+  "counter_command": "ncu --section SpeedOfLight --section MemoryWorkloadAnalysis --section Occupancy --section LaunchStats --launch-skip 5 --launch-count 1 --export ncu-matmul-predicted --force-overwrite python scripts/gpu_walker/profile_named_layout.py --input /tmp/jac-layout-exclusive --case matmul-64x128x64 --layout Predicted",
+  "controlled_command": "python scripts/gpu_walker/replay_layout_timings.py --input /tmp/jac-layout-exclusive --output controlled-normal --cases dot-1024x32 matmul-64x128x64 --warmup 16 --repeats 64",
+  "nsys_command": "nsys profile --trace=cuda --sample=none --cpuctxsw=none --output=controlled-trace python scripts/gpu_walker/replay_layout_timings.py --input /tmp/jac-layout-exclusive --output controlled-profile --cases dot-1024x32 matmul-64x128x64",
+  "cpu_profile_command": "python scripts/gpu_walker/profile_layout_cpu.py --output dist/gpu-layout-exclusive-20261006/cpu-profile --shape 64x128x64",
+  "identity_audit_command": "python scripts/gpu_walker/audit_layout_orders.py --input dist/gpu-layout-exclusive-20261006 --output dist/gpu-layout-exclusive-20261006/identity-audit",
+  "gpu_counter_permission_final": "Unavailable; main agent instructed not to wait or change configuration. Both failure logs retained."
+}

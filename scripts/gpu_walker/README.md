@@ -280,3 +280,82 @@ Jac. This command requires a working NVIDIA driver and device.
 
 [2026-10-03 validation record](validation/loops_20261003.md) distinguishes
 host JIT/mock checks from successful real RTX 3090 execution.
+
+## Named multi-cursor walkers
+
+[GPU named cursors](../../docs/design/gpu-named-cursors.md) documents the joint
+arrival semantics, first GPU subset, typed multi-channel ABI and conservative
+per-cursor batch BFS layout heuristic. The example is
+`jac/examples/gpu/named_cursors.jac`; tests compare actual Jac CPU walkers with
+LLVM host JIT and optional real CUDA execution:
+
+```bash
+PYTHONPATH=jac python scripts/gpu_walker/test_named_cursors.py -v
+JAC_GPU_TEST_CUDA=1 PYTHONPATH=jac python scripts/gpu_walker/test_named_cursors.py -v
+PYTHONPATH=jac python scripts/gpu_walker/compare_named_layouts.py --cuda --size 16 --repeats 3
+```
+
+The comparison records graph build, pack, allocation, H2D, synchronized kernel and
+D2H costs. `--cuda` requires an actual accessible device; omitting it records host
+JIT evidence and leaves device costs null. No CPU execution fallback substitutes
+for CUDA. Shared input identities remain shared across channels and lanes.
+
+### Reproducible named-cursor layout measurements
+
+`compare_named_layouts.py` compares current discovery order, batch per-cursor
+BFS prediction, and three fixed random physical permutations. Legacy chain
+cases compare the existing packer against random permutations. Randomization
+preserves physical identity deduplication, ordered CSR rows, repeated arrivals,
+heads, lane assignment and all projected columns. Every launch is checked
+against an integer/float CPU oracle and the current layout; selected lanes also
+run the Jac CPU walker.
+
+```sh
+python scripts/gpu_walker/compare_named_layouts.py \
+  --chain-cases 128x8 1024x64 --dot-cases 128x8 1024x32 \
+  --matmul-cases 16x32x24 32x64x48 64x128x64 \
+  --seeds 928 929 930 --warmup 6 --repeats 16 --profile \
+  --output /tmp/jac-layout-exclusive
+```
+
+Use the repository Python environment, `PYTHONPATH=jac`, and the LLVM shim
+configuration documented above. The script requires actual CUDA; mock execution
+is never used for timing. Acquire an exclusive GPU interval before running it.
+CSV/JSON include distributions and paired seed/pair ratios, separated resident
+and one-shot modes. Graph construction and CPU oracle timing are separate.
+Pack-through-D2H and graph-through-D2H are composed costs; the latter adds the
+separately measured graph build and does not time application output publication.
+Resident runs retain input buffers and exclude output poisoning/validation from
+the kernel timer. CUDA event intervals may include host enqueue gaps; the
+separate nsys replay supplies exact CUPTI kernel intervals. Profiler replay
+reuses recorded packed inputs and does not measure CPU packing again.
+
+Hardware counter capture uses a separate checksum-verified single-layout replay:
+
+```sh
+/opt/nvidia/nsight-compute/2025.2.1/ncu \
+  --section SpeedOfLight --section MemoryWorkloadAnalysis --section Occupancy \
+  --section LaunchStats --launch-skip 5 --launch-count 1 \
+  --export /tmp/layout-counter --force-overwrite \
+  python scripts/gpu_walker/profile_named_layout.py \
+  --input /tmp/jac-layout-exclusive --case matmul-64x128x64 --layout Predicted
+```
+
+The default replay has one initialization kernel, four warmups, then the captured
+kernel. Repeat for Current and Random-928/929/930. Counter profiling is separate
+from ordinary timing; save the command, version, report and CSV export. Do not
+interpret profiler replay timing as an unbiased performance benchmark. Counter
+permission failures are evidence gaps: report measured times without attributing
+cache, bandwidth, coalescing or occupancy bottlenecks.
+
+The [recorded isolated experiment and evidence limits](../../docs/design/gpu-cursor-layout-results.md)
+reports successful real-CUDA correctness, actual Current/Predicted array and
+identity-order comparisons, paired seed distributions, Nsight timing and CPU
+profiling. Hardware counter permission was unavailable; no cache/occupancy or
+transaction explanation is claimed. Raw reports are retained under
+[`dist/gpu-layout-exclusive-20261006/`](../../dist/gpu-layout-exclusive-20261006/README.md). The original run used `/tmp/jac-layout-exclusive/`; its complete archive is included in this repository.
+`audit_layout_orders.py` rebuilds CPU graphs and checks every packed array against
+the recorded SHA256 before recording deterministic discovery identity orders.
+`profile_layout_cpu.py` produces CPU-only `.prof` files; `replay_layout_timings.py`
+checks longer resident replay distributions; `analyze_layout_trace.py` extracts
+correlated CUDA launch APIs and actual device copy events.

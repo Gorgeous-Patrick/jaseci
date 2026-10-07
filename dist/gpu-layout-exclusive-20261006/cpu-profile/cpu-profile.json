@@ -1,0 +1,1476 @@
+{
+  "shape": [
+    64,
+    128,
+    64
+  ],
+  "evidence": "CPU cProfile; no CUDA",
+  "profiles": {
+    "Current": {
+      "total_seconds": 1.943068349,
+      "top_cumulative": [
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/profile_layout_cpu.py",
+          "line": 45,
+          "function": "<lambda>",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.001025538,
+          "cumulative_seconds": 1.990708125
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/compare_named_layouts.py",
+          "line": 135,
+          "function": "pack",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.006024566,
+          "cumulative_seconds": 1.9896825870000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 415,
+          "function": "pack_cursors",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.6489169690000001,
+          "cumulative_seconds": 1.9836562480000002
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 203,
+          "function": "walk",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.18443293800000002,
+          "cumulative_seconds": 0.645119976
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 155,
+          "function": "_walk_light",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.21797955400000002,
+          "cumulative_seconds": 0.405024614
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 461,
+          "function": "slot",
+          "primitive_calls": 73344,
+          "calls": 73344,
+          "self_seconds": 0.125326131,
+          "cumulative_seconds": 0.230290507
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'append' of 'list' objects>",
+          "primitive_calls": 527622,
+          "calls": 527622,
+          "self_seconds": 0.080807747,
+          "cumulative_seconds": 0.080807747
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 684,
+          "function": "light_edge_view",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.057388986,
+          "cumulative_seconds": 0.073383508
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 188,
+          "function": "check_private",
+          "primitive_calls": 134400,
+          "calls": 134400,
+          "self_seconds": 0.053337067,
+          "cumulative_seconds": 0.06829689700000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.len>",
+          "primitive_calls": 466983,
+          "calls": 479271,
+          "self_seconds": 0.055757764,
+          "cumulative_seconds": 0.06515157
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_query.jac",
+          "line": 178,
+          "function": "__init__",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.051866147,
+          "cumulative_seconds": 0.063189876
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 89,
+          "function": "hop_matches_node",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.033661979,
+          "cumulative_seconds": 0.050434112
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'extend' of 'list' objects>",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.036645949000000004,
+          "cumulative_seconds": 0.04989242
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.isinstance>",
+          "primitive_calls": 417027,
+          "calls": 417027,
+          "self_seconds": 0.046903421,
+          "cumulative_seconds": 0.046903421
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 223,
+          "function": "field_parent",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.025494308,
+          "cumulative_seconds": 0.0431225
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 206,
+          "function": "scalar_value",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.030946192,
+          "cumulative_seconds": 0.035585876
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 216,
+          "function": "is_populated",
+          "primitive_calls": 147072,
+          "calls": 147072,
+          "self_seconds": 0.034474636,
+          "cumulative_seconds": 0.034474636
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 228,
+          "function": "data_objects",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.024179484,
+          "cumulative_seconds": 0.033964139000000004
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'items' of 'dict' objects>",
+          "primitive_calls": 158976,
+          "calls": 158976,
+          "self_seconds": 0.026947045000000003,
+          "cumulative_seconds": 0.026947045000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.id>",
+          "primitive_calls": 183168,
+          "calls": 183168,
+          "self_seconds": 0.026162604000000002,
+          "cumulative_seconds": 0.026162604000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.getattr>",
+          "primitive_calls": 208134,
+          "calls": 208134,
+          "self_seconds": 0.025468791,
+          "cumulative_seconds": 0.025468791
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 329,
+          "function": "anchor_key",
+          "primitive_calls": 73344,
+          "calls": 73344,
+          "self_seconds": 0.014884564000000001,
+          "cumulative_seconds": 0.024373829000000003
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+          "line": 618,
+          "function": "scope_of",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.003208203,
+          "cumulative_seconds": 0.019503047000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'add' of 'set' objects>",
+          "primitive_calls": 97536,
+          "calls": 97536,
+          "self_seconds": 0.019185585,
+          "cumulative_seconds": 0.019185585
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+          "line": 181,
+          "function": "scope_of",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.0026606240000000003,
+          "cumulative_seconds": 0.016294844
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 176,
+          "function": "persistent",
+          "primitive_calls": 134400,
+          "calls": 134400,
+          "self_seconds": 0.01495983,
+          "cumulative_seconds": 0.01495983
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 556,
+          "function": "<genexpr>",
+          "primitive_calls": 147072,
+          "calls": 147072,
+          "self_seconds": 0.013246471000000001,
+          "cumulative_seconds": 0.013246471000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.min>",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.012082441000000001,
+          "cumulative_seconds": 0.012082441000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'rsplit' of 'str' objects>",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.011774132000000001,
+          "cumulative_seconds": 0.011774132000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.issubclass>",
+          "primitive_calls": 97536,
+          "calls": 97536,
+          "self_seconds": 0.010635526000000001,
+          "cumulative_seconds": 0.010635526000000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel_sv.jac",
+          "line": 41,
+          "function": "__len__",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.0044410510000000005,
+          "cumulative_seconds": 0.010460275000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method __new__ of type object at 0x7fbee352dfa0>",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.01010222,
+          "cumulative_seconds": 0.01010222
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_query.jac",
+          "line": 143,
+          "function": "only_keys",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.006143264000000001,
+          "cumulative_seconds": 0.006143264000000001
+        },
+        {
+          "file": "<string>",
+          "line": 2,
+          "function": "__init__",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.005892302,
+          "cumulative_seconds": 0.005892302
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel_sv.jac",
+          "line": 18,
+          "function": "_list",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.0031905260000000004,
+          "cumulative_seconds": 0.0049527550000000005
+        },
+        {
+          "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/typing.py",
+          "line": 2371,
+          "function": "cast",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.004639684000000001,
+          "cumulative_seconds": 0.004639684000000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 61,
+          "function": "field_paths",
+          "primitive_calls": 49155,
+          "calls": 49155,
+          "self_seconds": 0.003866028,
+          "cumulative_seconds": 0.003866028
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 53,
+          "function": "node_types",
+          "primitive_calls": 49155,
+          "calls": 49155,
+          "self_seconds": 0.003524825,
+          "cumulative_seconds": 0.003524825
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'get' of '_contextvars.ContextVar' objects>",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.0017622290000000001,
+          "cumulative_seconds": 0.0017622290000000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_memory.jac",
+          "line": 130,
+          "function": "typed_columns",
+          "primitive_calls": 6,
+          "calls": 6,
+          "self_seconds": 0.001074394,
+          "cumulative_seconds": 0.001075638
+        }
+      ],
+      "note": "Nested cumulative times must not be added; profiler overhead is present"
+    },
+    "Predicted": {
+      "total_seconds": 2.118124928,
+      "top_cumulative": [
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/profile_layout_cpu.py",
+          "line": 45,
+          "function": "<lambda>",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.00113126,
+          "cumulative_seconds": 2.166314282
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/compare_named_layouts.py",
+          "line": 135,
+          "function": "pack",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.006695566,
+          "cumulative_seconds": 2.1651830220000003
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 415,
+          "function": "pack_cursors",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.6673135880000001,
+          "cumulative_seconds": 2.158485439
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 203,
+          "function": "walk",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.189787696,
+          "cumulative_seconds": 0.672876326
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 155,
+          "function": "_walk_light",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.17918893400000002,
+          "cumulative_seconds": 0.425509858
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 461,
+          "function": "slot",
+          "primitive_calls": 73344,
+          "calls": 73344,
+          "self_seconds": 0.130098916,
+          "cumulative_seconds": 0.238565298
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 393,
+          "function": "predict_layout",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.025235932000000003,
+          "cumulative_seconds": 0.114830992
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 89,
+          "function": "hop_matches_node",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.08691800200000001,
+          "cumulative_seconds": 0.104184102
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'append' of 'list' objects>",
+          "primitive_calls": 625938,
+          "calls": 625938,
+          "self_seconds": 0.096096157,
+          "cumulative_seconds": 0.096096157
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 684,
+          "function": "light_edge_view",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.059370266000000005,
+          "cumulative_seconds": 0.076008318
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.len>",
+          "primitive_calls": 516141,
+          "calls": 528429,
+          "self_seconds": 0.061492955,
+          "cumulative_seconds": 0.07062199400000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 188,
+          "function": "check_private",
+          "primitive_calls": 134400,
+          "calls": 134400,
+          "self_seconds": 0.054265513,
+          "cumulative_seconds": 0.06935477100000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 370,
+          "function": "discovery_order",
+          "primitive_calls": 6,
+          "calls": 6,
+          "self_seconds": 0.041078608,
+          "cumulative_seconds": 0.069102706
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_query.jac",
+          "line": 178,
+          "function": "__init__",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.05328962600000001,
+          "cumulative_seconds": 0.06527777600000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'extend' of 'list' objects>",
+          "primitive_calls": 98307,
+          "calls": 98307,
+          "self_seconds": 0.036284655,
+          "cumulative_seconds": 0.050513517
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.isinstance>",
+          "primitive_calls": 417027,
+          "calls": 417027,
+          "self_seconds": 0.049624942000000005,
+          "cumulative_seconds": 0.049624942000000005
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 223,
+          "function": "field_parent",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.02538351,
+          "cumulative_seconds": 0.043559236
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 206,
+          "function": "scalar_value",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.031054528,
+          "cumulative_seconds": 0.035772809
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 216,
+          "function": "is_populated",
+          "primitive_calls": 147072,
+          "calls": 147072,
+          "self_seconds": 0.035709676,
+          "cumulative_seconds": 0.035709676
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'add' of 'set' objects>",
+          "primitive_calls": 195840,
+          "calls": 195840,
+          "self_seconds": 0.034373991,
+          "cumulative_seconds": 0.034373991
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 228,
+          "function": "data_objects",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.024316544000000002,
+          "cumulative_seconds": 0.034340436
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'items' of 'dict' objects>",
+          "primitive_calls": 158976,
+          "calls": 158976,
+          "self_seconds": 0.028141535000000002,
+          "cumulative_seconds": 0.028141535000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.id>",
+          "primitive_calls": 183168,
+          "calls": 183168,
+          "self_seconds": 0.027753457000000002,
+          "cumulative_seconds": 0.027753457000000002
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.getattr>",
+          "primitive_calls": 208134,
+          "calls": 208134,
+          "self_seconds": 0.026239615,
+          "cumulative_seconds": 0.026239615
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 329,
+          "function": "anchor_key",
+          "primitive_calls": 73344,
+          "calls": 73344,
+          "self_seconds": 0.015580154,
+          "cumulative_seconds": 0.025618589
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+          "line": 618,
+          "function": "scope_of",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.003261391,
+          "cumulative_seconds": 0.019304679
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+          "line": 181,
+          "function": "scope_of",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.002620596,
+          "cumulative_seconds": 0.016043288
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 176,
+          "function": "persistent",
+          "primitive_calls": 134400,
+          "calls": 134400,
+          "self_seconds": 0.015089258000000001,
+          "cumulative_seconds": 0.015089258000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.min>",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.012543786000000001,
+          "cumulative_seconds": 0.012543786000000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 556,
+          "function": "<genexpr>",
+          "primitive_calls": 147072,
+          "calls": 147072,
+          "self_seconds": 0.01238059,
+          "cumulative_seconds": 0.01238059
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'rsplit' of 'str' objects>",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.011990679,
+          "cumulative_seconds": 0.011990679
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.issubclass>",
+          "primitive_calls": 97536,
+          "calls": 97536,
+          "self_seconds": 0.010870591,
+          "cumulative_seconds": 0.010870591
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method __new__ of type object at 0x7fbee352dfa0>",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.010451638000000001,
+          "cumulative_seconds": 0.010451638000000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel_sv.jac",
+          "line": 41,
+          "function": "__len__",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.004256168,
+          "cumulative_seconds": 0.010207793000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'popleft' of 'collections.deque' objects>",
+          "primitive_calls": 49152,
+          "calls": 49152,
+          "self_seconds": 0.006819032,
+          "cumulative_seconds": 0.006819032
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'append' of 'collections.deque' objects>",
+          "primitive_calls": 49152,
+          "calls": 49152,
+          "self_seconds": 0.006810652,
+          "cumulative_seconds": 0.006810652
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_query.jac",
+          "line": 143,
+          "function": "only_keys",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.006401878000000001,
+          "cumulative_seconds": 0.006401878000000001
+        },
+        {
+          "file": "<string>",
+          "line": 2,
+          "function": "__init__",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.006186414,
+          "cumulative_seconds": 0.006186414
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel_sv.jac",
+          "line": 18,
+          "function": "_list",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.0031251660000000004,
+          "cumulative_seconds": 0.004872871
+        },
+        {
+          "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/typing.py",
+          "line": 2371,
+          "function": "cast",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.004718281,
+          "cumulative_seconds": 0.004718281
+        }
+      ],
+      "note": "Nested cumulative times must not be added; profiler overhead is present"
+    },
+    "Random": {
+      "total_seconds": 2.212115705000002,
+      "top_cumulative": [
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/profile_layout_cpu.py",
+          "line": 45,
+          "function": "<lambda>",
+          "primitive_calls": 1,
+          "calls": 1,
+          "self_seconds": 0.001419735,
+          "cumulative_seconds": 2.2587076990000003
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/compare_named_layouts.py",
+          "line": 135,
+          "function": "pack",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.007474355,
+          "cumulative_seconds": 2.257287964
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 415,
+          "function": "pack_cursors",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.645231297,
+          "cumulative_seconds": 1.974452872
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 203,
+          "function": "walk",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.181107978,
+          "cumulative_seconds": 0.643542685
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 155,
+          "function": "_walk_light",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.22351852600000002,
+          "cumulative_seconds": 0.40747714700000004
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/layout_benchmark.py",
+          "line": 26,
+          "function": "permute_cursors",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.126072653,
+          "cumulative_seconds": 0.23302319100000002
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 461,
+          "function": "slot",
+          "primitive_calls": 73344,
+          "calls": 73344,
+          "self_seconds": 0.12446920800000001,
+          "cumulative_seconds": 0.228471536
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'extend' of 'list' objects>",
+          "primitive_calls": 196608,
+          "calls": 196608,
+          "self_seconds": 0.073326183,
+          "cumulative_seconds": 0.103548082
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'append' of 'list' objects>",
+          "primitive_calls": 625932,
+          "calls": 625932,
+          "self_seconds": 0.09440599000000001,
+          "cumulative_seconds": 0.09440599000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.len>",
+          "primitive_calls": 565311,
+          "calls": 577599,
+          "self_seconds": 0.06551021500000001,
+          "cumulative_seconds": 0.074853495
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 684,
+          "function": "light_edge_view",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.05610485900000001,
+          "cumulative_seconds": 0.071932755
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 188,
+          "function": "check_private",
+          "primitive_calls": 134400,
+          "calls": 134400,
+          "self_seconds": 0.052282971000000004,
+          "cumulative_seconds": 0.06726509700000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_query.jac",
+          "line": 178,
+          "function": "__init__",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.05066135,
+          "cumulative_seconds": 0.061981678000000005
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+          "line": 89,
+          "function": "hop_matches_node",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.032977863,
+          "cumulative_seconds": 0.049284831
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.isinstance>",
+          "primitive_calls": 417033,
+          "calls": 417033,
+          "self_seconds": 0.047095311,
+          "cumulative_seconds": 0.047095311
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 223,
+          "function": "field_parent",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.025481078,
+          "cumulative_seconds": 0.043608734
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/layout_benchmark.py",
+          "line": 16,
+          "function": "permutation",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.000480634,
+          "cumulative_seconds": 0.042332365000000004
+        },
+        {
+          "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/random.py",
+          "line": 354,
+          "function": "shuffle",
+          "primitive_calls": 3,
+          "calls": 3,
+          "self_seconds": 0.011633444000000001,
+          "cumulative_seconds": 0.041813173
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 206,
+          "function": "scalar_value",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.030931498,
+          "cumulative_seconds": 0.035697373000000004
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+          "line": 228,
+          "function": "data_objects",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.024199211,
+          "cumulative_seconds": 0.034128928
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 216,
+          "function": "is_populated",
+          "primitive_calls": 147072,
+          "calls": 147072,
+          "self_seconds": 0.033440305000000003,
+          "cumulative_seconds": 0.033440305000000003
+        },
+        {
+          "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/random.py",
+          "line": 245,
+          "function": "_randbelow_with_getrandbits",
+          "primitive_calls": 49149,
+          "calls": 49149,
+          "self_seconds": 0.018709514,
+          "cumulative_seconds": 0.030179081000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'items' of 'dict' objects>",
+          "primitive_calls": 158976,
+          "calls": 158976,
+          "self_seconds": 0.026691943000000003,
+          "cumulative_seconds": 0.026691943000000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.id>",
+          "primitive_calls": 183168,
+          "calls": 183168,
+          "self_seconds": 0.02574341,
+          "cumulative_seconds": 0.02574341
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.getattr>",
+          "primitive_calls": 208149,
+          "calls": 208149,
+          "self_seconds": 0.025628499000000003,
+          "cumulative_seconds": 0.025628499000000003
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 329,
+          "function": "anchor_key",
+          "primitive_calls": 73344,
+          "calls": 73344,
+          "self_seconds": 0.014679314,
+          "cumulative_seconds": 0.023893727
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+          "line": 618,
+          "function": "scope_of",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.0032826200000000004,
+          "cumulative_seconds": 0.019659167
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'add' of 'set' objects>",
+          "primitive_calls": 97536,
+          "calls": 97536,
+          "self_seconds": 0.019196319,
+          "cumulative_seconds": 0.019196319
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/layout_benchmark.py",
+          "line": 38,
+          "function": "<genexpr>",
+          "primitive_calls": 147072,
+          "calls": 147072,
+          "self_seconds": 0.016519080000000002,
+          "cumulative_seconds": 0.016519080000000002
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+          "line": 181,
+          "function": "scope_of",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.002700952,
+          "cumulative_seconds": 0.016376547
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/layout_benchmark.py",
+          "line": 22,
+          "function": "remap_indices",
+          "primitive_calls": 6,
+          "calls": 6,
+          "self_seconds": 0.009054715000000001,
+          "cumulative_seconds": 0.015270428
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+          "line": 176,
+          "function": "persistent",
+          "primitive_calls": 134400,
+          "calls": 134400,
+          "self_seconds": 0.014982126,
+          "cumulative_seconds": 0.014982126
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+          "line": 556,
+          "function": "<genexpr>",
+          "primitive_calls": 147072,
+          "calls": 147072,
+          "self_seconds": 0.013702819000000001,
+          "cumulative_seconds": 0.013702819000000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'rsplit' of 'str' objects>",
+          "primitive_calls": 61440,
+          "calls": 61440,
+          "self_seconds": 0.012189899,
+          "cumulative_seconds": 0.012189899
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.min>",
+          "primitive_calls": 98304,
+          "calls": 98304,
+          "self_seconds": 0.012122918,
+          "cumulative_seconds": 0.012122918
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.issubclass>",
+          "primitive_calls": 97536,
+          "calls": 97536,
+          "self_seconds": 0.010572053000000001,
+          "cumulative_seconds": 0.010572053000000001
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel_sv.jac",
+          "line": 41,
+          "function": "__len__",
+          "primitive_calls": 12288,
+          "calls": 12288,
+          "self_seconds": 0.004393571000000001,
+          "cumulative_seconds": 0.010446276
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method __new__ of type object at 0x7fbee352dfa0>",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.009880157,
+          "cumulative_seconds": 0.009880157
+        },
+        {
+          "file": "/home/baichuan/jaseci/scripts/gpu_walker/layout_benchmark.py",
+          "line": 23,
+          "function": "<genexpr>",
+          "primitive_calls": 73734,
+          "calls": 73734,
+          "self_seconds": 0.006215713,
+          "cumulative_seconds": 0.006215713
+        },
+        {
+          "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_query.jac",
+          "line": 143,
+          "function": "only_keys",
+          "primitive_calls": 48768,
+          "calls": 48768,
+          "self_seconds": 0.0061850180000000005,
+          "cumulative_seconds": 0.0061850180000000005
+        }
+      ],
+      "note": "Nested cumulative times must not be added; profiler overhead is present"
+    }
+  },
+  "preparation": {
+    "total_seconds": 2.0960361560000007,
+    "top_cumulative": [
+      {
+        "file": "/home/baichuan/jaseci/scripts/gpu_walker/profile_layout_cpu.py",
+        "line": 40,
+        "function": "<lambda>",
+        "primitive_calls": 1,
+        "calls": 1,
+        "self_seconds": 0.000755522,
+        "cumulative_seconds": 2.146334529
+      },
+      {
+        "file": "/home/baichuan/jaseci/scripts/gpu_walker/compare_named_layouts.py",
+        "line": 90,
+        "function": "prepare_case",
+        "primitive_calls": 1,
+        "calls": 1,
+        "self_seconds": 0.005625957,
+        "cumulative_seconds": 2.1455790070000003
+      },
+      {
+        "file": "/home/baichuan/jaseci/scripts/gpu_walker/compare_named_layouts.py",
+        "line": 135,
+        "function": "pack",
+        "primitive_calls": 2,
+        "calls": 2,
+        "self_seconds": 0.003357688,
+        "cumulative_seconds": 1.3520129120000002
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+        "line": 415,
+        "function": "pack_cursors",
+        "primitive_calls": 2,
+        "calls": 2,
+        "self_seconds": 0.438641141,
+        "cumulative_seconds": 1.3486538620000001
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+        "line": 203,
+        "function": "walk",
+        "primitive_calls": 66304,
+        "calls": 66304,
+        "self_seconds": 0.12487234700000001,
+        "cumulative_seconds": 0.40827624100000004
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/examples/gpu/named_cursors.jac",
+        "line": 65,
+        "function": "build_matmul",
+        "primitive_calls": 1,
+        "calls": 1,
+        "self_seconds": 0.044925775,
+        "cumulative_seconds": 0.354313727
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+        "line": 596,
+        "function": "connect",
+        "primitive_calls": 16256,
+        "calls": 16256,
+        "self_seconds": 0.055273563000000005,
+        "cumulative_seconds": 0.294878391
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+        "line": 155,
+        "function": "_walk_light",
+        "primitive_calls": 66304,
+        "calls": 66304,
+        "self_seconds": 0.11596353200000001,
+        "cumulative_seconds": 0.24517460900000002
+      },
+      {
+        "file": "/home/baichuan/jaseci/scripts/gpu_walker/layout_benchmark.py",
+        "line": 26,
+        "function": "permute_cursors",
+        "primitive_calls": 3,
+        "calls": 3,
+        "self_seconds": 0.125703493,
+        "cumulative_seconds": 0.23332417500000002
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+        "line": 461,
+        "function": "slot",
+        "primitive_calls": 48896,
+        "calls": 48896,
+        "self_seconds": 0.08313614500000001,
+        "cumulative_seconds": 0.15376609500000002
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+        "line": 684,
+        "function": "builder",
+        "primitive_calls": 16256,
+        "calls": 16256,
+        "self_seconds": 0.015697028000000002,
+        "cumulative_seconds": 0.110912729
+      },
+      {
+        "file": "~",
+        "line": 0,
+        "function": "<built-in method builtins.sum>",
+        "primitive_calls": 4101,
+        "calls": 4101,
+        "self_seconds": 0.050364923000000006,
+        "cumulative_seconds": 0.09714431100000001
+      },
+      {
+        "file": "~",
+        "line": 0,
+        "function": "<method 'extend' of 'list' objects>",
+        "primitive_calls": 165039,
+        "calls": 165039,
+        "self_seconds": 0.06183494900000001,
+        "cumulative_seconds": 0.087192671
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+        "line": 684,
+        "function": "light_edge_view",
+        "primitive_calls": 48768,
+        "calls": 48768,
+        "self_seconds": 0.06339278100000001,
+        "cumulative_seconds": 0.079629608
+      },
+      {
+        "file": "~",
+        "line": 0,
+        "function": "<method 'append' of 'list' objects>",
+        "primitive_calls": 513458,
+        "calls": 513458,
+        "self_seconds": 0.07778291400000001,
+        "cumulative_seconds": 0.07778291400000001
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+        "line": 508,
+        "function": "check_connect_access",
+        "primitive_calls": 32512,
+        "calls": 32512,
+        "self_seconds": 0.011419402,
+        "cumulative_seconds": 0.066895933
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+        "line": 529,
+        "function": "light_connect",
+        "primitive_calls": 16256,
+        "calls": 16256,
+        "self_seconds": 0.059562146,
+        "cumulative_seconds": 0.065011992
+      },
+      {
+        "file": "~",
+        "line": 0,
+        "function": "<built-in method builtins.len>",
+        "primitive_calls": 431831,
+        "calls": 442327,
+        "self_seconds": 0.051749380000000005,
+        "cumulative_seconds": 0.060079020000000004
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+        "line": 400,
+        "function": "_check_access",
+        "primitive_calls": 32512,
+        "calls": 32512,
+        "self_seconds": 0.022369759000000003,
+        "cumulative_seconds": 0.055476531
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+        "line": 820,
+        "function": "spawn",
+        "primitive_calls": 3,
+        "calls": 3,
+        "self_seconds": 2.6185e-05,
+        "cumulative_seconds": 0.046985899000000005
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/cursor_walk.jac",
+        "line": 29,
+        "function": "spawn_cursors",
+        "primitive_calls": 3,
+        "calls": 3,
+        "self_seconds": 0.003090446,
+        "cumulative_seconds": 0.046956291000000004
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+        "line": 188,
+        "function": "check_private",
+        "primitive_calls": 89600,
+        "calls": 89600,
+        "self_seconds": 0.036822341,
+        "cumulative_seconds": 0.046864085
+      },
+      {
+        "file": "/home/baichuan/jaseci/scripts/gpu_walker/compare_named_layouts.py",
+        "line": 131,
+        "function": "<genexpr>",
+        "primitive_calls": 528384,
+        "calls": 528384,
+        "self_seconds": 0.046756564,
+        "cumulative_seconds": 0.046756564
+      },
+      {
+        "file": "~",
+        "line": 0,
+        "function": "<built-in method builtins.isinstance>",
+        "primitive_calls": 404341,
+        "calls": 404341,
+        "self_seconds": 0.046492481,
+        "cumulative_seconds": 0.046492481
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_query.jac",
+        "line": 178,
+        "function": "__init__",
+        "primitive_calls": 66304,
+        "calls": 66304,
+        "self_seconds": 0.03525827,
+        "cumulative_seconds": 0.042877569000000004
+      },
+      {
+        "file": "/home/baichuan/jaseci/scripts/gpu_walker/layout_benchmark.py",
+        "line": 16,
+        "function": "permutation",
+        "primitive_calls": 3,
+        "calls": 3,
+        "self_seconds": 0.000450445,
+        "cumulative_seconds": 0.042126658000000004
+      },
+      {
+        "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/random.py",
+        "line": 354,
+        "function": "shuffle",
+        "primitive_calls": 3,
+        "calls": 3,
+        "self_seconds": 0.011660631000000001,
+        "cumulative_seconds": 0.041643128
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/examples/gpu/named_cursors.jac",
+        "line": 9,
+        "function": "multiply",
+        "primitive_calls": 384,
+        "calls": 384,
+        "self_seconds": 0.002731208,
+        "cumulative_seconds": 0.037645557
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+        "line": 393,
+        "function": "predict_layout",
+        "primitive_calls": 1,
+        "calls": 1,
+        "self_seconds": 0.008283547,
+        "cumulative_seconds": 0.03596255
+      },
+      {
+        "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/functools.py",
+        "line": 1010,
+        "function": "__get__",
+        "primitive_calls": 20484,
+        "calls": 20484,
+        "self_seconds": 0.013519711,
+        "cumulative_seconds": 0.035428390000000004
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+        "line": 89,
+        "function": "hop_matches_node",
+        "primitive_calls": 33274,
+        "calls": 33274,
+        "self_seconds": 0.020957140000000003,
+        "cumulative_seconds": 0.03348986
+      },
+      {
+        "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/random.py",
+        "line": 245,
+        "function": "_randbelow_with_getrandbits",
+        "primitive_calls": 49149,
+        "calls": 49149,
+        "self_seconds": 0.018614442000000002,
+        "cumulative_seconds": 0.029981843
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+        "line": 223,
+        "function": "field_parent",
+        "primitive_calls": 40960,
+        "calls": 40960,
+        "self_seconds": 0.017133957000000002,
+        "cumulative_seconds": 0.029089390000000003
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+        "line": 216,
+        "function": "is_populated",
+        "primitive_calls": 99578,
+        "calls": 99578,
+        "self_seconds": 0.024787700000000003,
+        "cumulative_seconds": 0.024787700000000003
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+        "line": 206,
+        "function": "scalar_value",
+        "primitive_calls": 40960,
+        "calls": 40960,
+        "self_seconds": 0.020951234000000003,
+        "cumulative_seconds": 0.024100316
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu.jac",
+        "line": 228,
+        "function": "data_objects",
+        "primitive_calls": 40960,
+        "calls": 40960,
+        "self_seconds": 0.016390798,
+        "cumulative_seconds": 0.023118825000000003
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+        "line": 679,
+        "function": "build_edge",
+        "primitive_calls": 16256,
+        "calls": 16256,
+        "self_seconds": 0.011316448000000002,
+        "cumulative_seconds": 0.021252927
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/gpu_cursors.py",
+        "line": 370,
+        "function": "discovery_order",
+        "primitive_calls": 2,
+        "calls": 2,
+        "self_seconds": 0.012135292,
+        "cumulative_seconds": 0.021082345000000002
+      },
+      {
+        "file": "/home/baichuan/.pyenv/versions/3.13.7/lib/python3.13/enum.py",
+        "line": 199,
+        "function": "__get__",
+        "primitive_calls": 65028,
+        "calls": 65028,
+        "self_seconds": 0.015176319,
+        "cumulative_seconds": 0.020156576000000002
+      },
+      {
+        "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+        "line": 618,
+        "function": "scope_of",
+        "primitive_calls": 10493,
+        "calls": 10493,
+        "self_seconds": 0.002882289,
+        "cumulative_seconds": 0.019954082
+      }
+    ],
+    "note": "Nested cumulative times must not be added; profiler overhead is present"
+  },
+  "case": "matmul-64x128x64",
+  "source_sha256": "7210069e3fbaa7531a638459b428cd6056ecc8cea8a266f6efa75b1be1e008c6"
+}

@@ -1,0 +1,222 @@
+WARNING: Device-side CUDA Event completion trace is currently enabled.
+         This may increase runtime overhead and the likelihood of false
+         dependencies across CUDA Streams. If you wish to avoid this, please
+         disable the feature with --cuda-event-trace=false.
+[[58, 64], [139, 154]]
+[
+  {
+    "case": "dot-1024x32",
+    "mode": "resident",
+    "units": "us",
+    "distributions": {
+      "kernel_event_us": {
+        "Current": {
+          "samples": 192,
+          "median": 96.89600020647049,
+          "p10": 95.61599791049957,
+          "p90": 97.72799909114838
+        },
+        "Predicted": {
+          "samples": 192,
+          "median": 96.75199910998344,
+          "p10": 67.55200028419495,
+          "p90": 97.82399982213974
+        },
+        "Random": {
+          "samples": 192,
+          "median": 118.70400235056877,
+          "p10": 92.03200042247772,
+          "p90": 120.28799951076508
+        }
+      },
+      "D2H_us": {
+        "Current": {
+          "samples": 192,
+          "median": 26.347,
+          "p10": 25.711,
+          "p90": 27.819000000000003
+        },
+        "Predicted": {
+          "samples": 192,
+          "median": 26.373,
+          "p10": 25.704,
+          "p90": 27.894
+        },
+        "Random": {
+          "samples": 192,
+          "median": 26.3925,
+          "p10": 25.701,
+          "p90": 29.304000000000002
+        }
+      },
+      "execute_wall_us": {
+        "Current": {
+          "samples": 192,
+          "median": 129.3485,
+          "p10": 127.557,
+          "p90": 131.408
+        },
+        "Predicted": {
+          "samples": 192,
+          "median": 129.1685,
+          "p10": 100.781,
+          "p90": 131.52
+        },
+        "Random": {
+          "samples": 192,
+          "median": 151.199,
+          "p10": 125.944,
+          "p90": 155.656
+        }
+      }
+    },
+    "paired_ratios": {
+      "Random_over_Current_kernel_event_us": {
+        "samples": 192,
+        "median": 1.2258178499082137,
+        "p10": 0.9460086626266166,
+        "p90": 1.3954634458581903
+      },
+      "Random_over_Predicted_kernel_event_us": {
+        "samples": 192,
+        "median": 1.2257483001490979,
+        "p10": 0.9482360603305412,
+        "p90": 1.7451445270571044
+      },
+      "Random_over_Current_D2H_us": {
+        "samples": 192,
+        "median": 1.0015135231866887,
+        "p10": 0.9621561820470759,
+        "p90": 1.0630664795782927
+      },
+      "Random_over_Predicted_D2H_us": {
+        "samples": 192,
+        "median": 1.0007444479716014,
+        "p10": 0.9614330386441725,
+        "p90": 1.0531273699756516
+      },
+      "Random_over_Current_execute_wall_us": {
+        "samples": 192,
+        "median": 1.168171064433717,
+        "p10": 0.9576544473605221,
+        "p90": 1.3940649655804036
+      },
+      "Random_over_Predicted_execute_wall_us": {
+        "samples": 192,
+        "median": 1.1693892871955587,
+        "p10": 0.9602484951381385,
+        "p90": 1.5105214933532116
+      }
+    }
+  },
+  {
+    "case": "matmul-64x128x64",
+    "mode": "resident",
+    "units": "us",
+    "distributions": {
+      "kernel_event_us": {
+        "Current": {
+          "samples": 192,
+          "median": 253.88801097869873,
+          "p10": 197.40800559520721,
+          "p90": 290.52799940109253
+        },
+        "Predicted": {
+          "samples": 192,
+          "median": 253.90399992465973,
+          "p10": 200.25600492954254,
+          "p90": 277.3439884185791
+        },
+        "Random": {
+          "samples": 192,
+          "median": 252.0959973335266,
+          "p10": 213.34399282932281,
+          "p90": 273.79199862480164
+        }
+      },
+      "D2H_us": {
+        "Current": {
+          "samples": 192,
+          "median": 32.716499999999996,
+          "p10": 31.895,
+          "p90": 33.791
+        },
+        "Predicted": {
+          "samples": 192,
+          "median": 32.8125,
+          "p10": 31.972,
+          "p90": 33.741
+        },
+        "Random": {
+          "samples": 192,
+          "median": 32.602,
+          "p10": 31.840000000000003,
+          "p90": 33.597
+        }
+      },
+      "execute_wall_us": {
+        "Current": {
+          "samples": 192,
+          "median": 286.2075,
+          "p10": 229.631,
+          "p90": 322.466
+        },
+        "Predicted": {
+          "samples": 192,
+          "median": 285.6435,
+          "p10": 232.202,
+          "p90": 309.679
+        },
+        "Random": {
+          "samples": 192,
+          "median": 284.014,
+          "p10": 245.437,
+          "p90": 305.84
+        }
+      }
+    },
+    "paired_ratios": {
+      "Random_over_Current_kernel_event_us": {
+        "samples": 192,
+        "median": 0.9949276485097539,
+        "p10": 0.8148391032764147,
+        "p90": 1.2821216017817494
+      },
+      "Random_over_Predicted_kernel_event_us": {
+        "samples": 192,
+        "median": 0.9939008774438354,
+        "p10": 0.8208420655605558,
+        "p90": 1.2656251009260735
+      },
+      "Random_over_Current_D2H_us": {
+        "samples": 192,
+        "median": 0.9968098401281837,
+        "p10": 0.9531437125748503,
+        "p90": 1.036330834551619
+      },
+      "Random_over_Predicted_D2H_us": {
+        "samples": 192,
+        "median": 0.9950899639401541,
+        "p10": 0.9539856662278775,
+        "p90": 1.0464953122010334
+      },
+      "Random_over_Current_execute_wall_us": {
+        "samples": 192,
+        "median": 0.9953245998802329,
+        "p10": 0.8326319582717466,
+        "p90": 1.2416711014157478
+      },
+      "Random_over_Predicted_execute_wall_us": {
+        "samples": 192,
+        "median": 0.9944262114548215,
+        "p10": 0.8390001787359246,
+        "p90": 1.2291800141803986
+      }
+    }
+  }
+]
+Collecting data...
+Generating '/tmp/nsys-report-1b6d.qdstrm'
+[1/1] [0%                          ] controlled-trace.nsys-rep[1/1] [0%                          ] controlled-trace.nsys-rep[1/1] [0%                          ] controlled-trace.nsys-rep[1/1] [==21%                       ] controlled-trace.nsys-rep[1/1] [========40%                 ] controlled-trace.nsys-rep[1/1] [=============59%            ] controlled-trace.nsys-rep[1/1] [==================75%       ] controlled-trace.nsys-rep[1/1] [========================100%] controlled-trace.nsys-rep[1/1] [========================100%] controlled-trace.nsys-rep
+Generated:
+	/tmp/jac-layout-exclusive/controlled-trace.nsys-rep

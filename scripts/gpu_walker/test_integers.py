@@ -54,7 +54,9 @@ class IntegerWalkerTests(unittest.TestCase):
 
     def variant(self, body):
         folder = Path(self.tmp.name)
-        name = f'int_variant_{len(list(folder.glob("*.jac")))}'
+        # Jac imports are cached by module name across inherited test classes.
+        prefix = folder.name.replace("-", "_")
+        name = f'int_variant_{prefix}_{len(list(folder.glob("*.jac")))}'
         source = ('node IntCell { has value: int; }\nedge IntNext {}\n'
                   'walker EvenSum { has total: int = 0;\ncan step with IntCell entry {\n'
                   + body + '\nvisit [->:IntNext:->];\n}}\n')
