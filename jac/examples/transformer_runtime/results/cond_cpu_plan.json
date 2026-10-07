@@ -1,0 +1,521 @@
+{
+  "order": [
+    "signal",
+    "x",
+    "weight",
+    "zero",
+    "condition_dependency",
+    "common",
+    "condition_value",
+    "common_fanout",
+    "predicate",
+    "true",
+    "false",
+    "choose",
+    "output"
+  ],
+  "specs": {
+    "signal": {
+      "shape": [],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "x": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "weight": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "zero": {
+      "shape": [],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "condition_dependency": {
+      "shape": [],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "common": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "condition_value": {
+      "shape": [],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "common_fanout": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "predicate": {
+      "shape": [],
+      "dtype": "bool",
+      "device": "cpu"
+    },
+    "true": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "false": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "choose": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "output": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    }
+  },
+  "edges": [
+    [
+      "signal",
+      "condition_dependency",
+      "x"
+    ],
+    [
+      "signal",
+      "condition_value",
+      "b"
+    ],
+    [
+      "x",
+      "common",
+      "a"
+    ],
+    [
+      "weight",
+      "common",
+      "b"
+    ],
+    [
+      "zero",
+      "predicate",
+      "b"
+    ],
+    [
+      "zero",
+      "output",
+      "b"
+    ],
+    [
+      "condition_dependency",
+      "condition_value",
+      "a"
+    ],
+    [
+      "predicate",
+      "choose",
+      "condition"
+    ],
+    [
+      "condition_value",
+      "predicate",
+      "a"
+    ],
+    [
+      "condition_value",
+      "true",
+      "b"
+    ],
+    [
+      "condition_value",
+      "false",
+      "b"
+    ],
+    [
+      "common",
+      "common_fanout",
+      "x"
+    ],
+    [
+      "common",
+      "true",
+      "a"
+    ],
+    [
+      "common_fanout",
+      "false",
+      "a"
+    ],
+    [
+      "true",
+      "choose",
+      "true_result"
+    ],
+    [
+      "false",
+      "choose",
+      "false_result"
+    ],
+    [
+      "choose",
+      "output",
+      "a"
+    ]
+  ],
+  "liveness": {
+    "intervals": {
+      "signal": {
+        "definition": 0,
+        "last_use": 6,
+        "consumer_ports": 2,
+        "logical_bytes": 8,
+        "persistent": false
+      },
+      "x": {
+        "definition": 1,
+        "last_use": 5,
+        "consumer_ports": 1,
+        "logical_bytes": 32,
+        "persistent": false
+      },
+      "weight": {
+        "definition": 2,
+        "last_use": 5,
+        "consumer_ports": 1,
+        "logical_bytes": 32,
+        "persistent": true
+      },
+      "zero": {
+        "definition": 3,
+        "last_use": 12,
+        "consumer_ports": 2,
+        "logical_bytes": 8,
+        "persistent": true
+      },
+      "condition_dependency": {
+        "definition": 4,
+        "last_use": 6,
+        "consumer_ports": 1,
+        "logical_bytes": 8,
+        "persistent": false
+      },
+      "common": {
+        "definition": 5,
+        "last_use": 9,
+        "consumer_ports": 2,
+        "logical_bytes": 32,
+        "persistent": false
+      },
+      "condition_value": {
+        "definition": 6,
+        "last_use": 10,
+        "consumer_ports": 3,
+        "logical_bytes": 8,
+        "persistent": false
+      },
+      "common_fanout": {
+        "definition": 7,
+        "last_use": 10,
+        "consumer_ports": 1,
+        "logical_bytes": 32,
+        "persistent": false
+      },
+      "predicate": {
+        "definition": 8,
+        "last_use": 11,
+        "consumer_ports": 1,
+        "logical_bytes": 1,
+        "persistent": false
+      },
+      "true": {
+        "definition": 9,
+        "last_use": 11,
+        "consumer_ports": 1,
+        "logical_bytes": 32,
+        "persistent": false
+      },
+      "false": {
+        "definition": 10,
+        "last_use": 11,
+        "consumer_ports": 1,
+        "logical_bytes": 32,
+        "persistent": false
+      },
+      "choose": {
+        "definition": 11,
+        "last_use": 12,
+        "consumer_ports": 1,
+        "logical_bytes": 32,
+        "persistent": false
+      },
+      "output": {
+        "definition": 12,
+        "last_use": 13,
+        "consumer_ports": 0,
+        "logical_bytes": 32,
+        "persistent": false
+      }
+    },
+    "steps": [
+      {
+        "node": "signal",
+        "release": [],
+        "live_after": [
+          "signal"
+        ],
+        "logical_bytes_after": 8
+      },
+      {
+        "node": "x",
+        "release": [],
+        "live_after": [
+          "signal",
+          "x"
+        ],
+        "logical_bytes_after": 40
+      },
+      {
+        "node": "weight",
+        "release": [],
+        "live_after": [
+          "signal",
+          "x"
+        ],
+        "logical_bytes_after": 40
+      },
+      {
+        "node": "zero",
+        "release": [],
+        "live_after": [
+          "signal",
+          "x"
+        ],
+        "logical_bytes_after": 40
+      },
+      {
+        "node": "condition_dependency",
+        "release": [],
+        "live_after": [
+          "condition_dependency",
+          "signal",
+          "x"
+        ],
+        "logical_bytes_after": 48
+      },
+      {
+        "node": "common",
+        "release": [
+          "x"
+        ],
+        "live_after": [
+          "common",
+          "condition_dependency",
+          "signal"
+        ],
+        "logical_bytes_after": 48
+      },
+      {
+        "node": "condition_value",
+        "release": [
+          "condition_dependency",
+          "signal"
+        ],
+        "live_after": [
+          "common",
+          "condition_value"
+        ],
+        "logical_bytes_after": 40
+      },
+      {
+        "node": "common_fanout",
+        "release": [],
+        "live_after": [
+          "common",
+          "common_fanout",
+          "condition_value"
+        ],
+        "logical_bytes_after": 72
+      },
+      {
+        "node": "predicate",
+        "release": [],
+        "live_after": [
+          "common",
+          "common_fanout",
+          "condition_value",
+          "predicate"
+        ],
+        "logical_bytes_after": 73
+      },
+      {
+        "node": "true",
+        "release": [
+          "common"
+        ],
+        "live_after": [
+          "common_fanout",
+          "condition_value",
+          "predicate",
+          "true"
+        ],
+        "logical_bytes_after": 73
+      },
+      {
+        "node": "false",
+        "release": [
+          "common_fanout",
+          "condition_value"
+        ],
+        "live_after": [
+          "false",
+          "predicate",
+          "true"
+        ],
+        "logical_bytes_after": 65
+      },
+      {
+        "node": "choose",
+        "release": [
+          "false",
+          "predicate",
+          "true"
+        ],
+        "live_after": [
+          "choose"
+        ],
+        "logical_bytes_after": 32
+      },
+      {
+        "node": "output",
+        "release": [
+          "choose"
+        ],
+        "live_after": [
+          "output"
+        ],
+        "logical_bytes_after": 32
+      }
+    ],
+    "peak_logical_bytes": 105,
+    "peak_logical_values": 5,
+    "note": "Logical tensor values, not allocator memory: aliases counted separately; parameters/constants persistent; diagnostic captures excluded."
+  },
+  "conditional": {
+    "node": "choose",
+    "condition_root": "predicate",
+    "true_root": "true",
+    "false_root": "false",
+    "condition_slice": [
+      "signal",
+      "zero",
+      "condition_dependency",
+      "condition_value",
+      "predicate"
+    ],
+    "shared_slice": [
+      "signal",
+      "x",
+      "weight",
+      "condition_dependency",
+      "common",
+      "condition_value"
+    ],
+    "pre": [
+      "signal",
+      "x",
+      "weight",
+      "zero",
+      "condition_dependency",
+      "common",
+      "condition_value",
+      "predicate"
+    ],
+    "true_region": [
+      "true"
+    ],
+    "false_region": [
+      "common_fanout",
+      "false"
+    ],
+    "post": [
+      "output"
+    ],
+    "operands": [
+      "common",
+      "condition_value"
+    ],
+    "contract": "Condition closure and shared pure dependency closure run before selection; only selected exclusive region executes. Boundary leaves are precomputed operands.",
+    "liveness_note": "Static DAG liveness models all branches in metadata order, not selected-path scheduling or a memory upper bound; runtime releases use selected-path consumer counts."
+  },
+  "node_types": {
+    "signal": "Input",
+    "x": "Input",
+    "weight": "Parameter",
+    "zero": "Constant",
+    "condition_dependency": "Square",
+    "predicate": "Greater",
+    "condition_value": "Add",
+    "common": "MatMul",
+    "common_fanout": "Square",
+    "true": "Add",
+    "false": "Subtract",
+    "choose": "Cond",
+    "output": "Add"
+  },
+  "attributes": {
+    "signal": {},
+    "x": {},
+    "weight": {
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "zero": {
+      "shape": [],
+      "dtype": "float64",
+      "device": "cpu"
+    },
+    "condition_dependency": {},
+    "predicate": {},
+    "condition_value": {},
+    "common": {},
+    "common_fanout": {},
+    "true": {},
+    "false": {},
+    "choose": {},
+    "output": {}
+  }
+}

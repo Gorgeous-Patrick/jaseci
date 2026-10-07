@@ -432,7 +432,7 @@
     "matmul": "metadata inference at enc_attn.q.matmul: a and b must have same reduction dim, but got [2, 8] X [7, 8].",
     "broadcast": "metadata inference at enc_norm1.scaled: Shape mismatch: objects cannot be broadcast to a single shape",
     "dtype": "metadata inference at projection.matmul: MatMul requires matching floating dtype and rank >= 2",
-    "device": "metadata inference at enc_attn.q.matmul: device mismatch: {'meta', 'cpu'}",
+    "device": "metadata inference at enc_attn.q.matmul: device mismatch: {'cpu', 'meta'}",
     "axis": "metadata inference at enc_norm1.mean: axis 9 outside rank 2",
     "reshape": "metadata inference at enc_attn.q.reshape: shape '[-1, 3, 3]' is invalid for input of size 16",
     "cycle": "cycle or unreachable nodes: ['enc_norm1.residual', 'enc_norm1.mean', 'enc_norm1.center', 'enc_norm1.square', 'enc_norm1.variance', 'enc_norm1.stable', 'enc_norm1.rsqrt', 'enc_norm1.normalized', 'enc_norm1.scaled', 'enc_norm1', 'enc_ffn.up.matmul', 'enc_ffn.up', 'enc_ffn.relu', 'enc_ffn.output.matmul', 'enc_ffn.output', 'enc_norm2.residual', 'enc_norm2.mean', 'enc_norm2.center', 'enc_norm2.square',",

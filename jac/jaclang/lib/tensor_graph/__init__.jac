@@ -2,5 +2,5 @@
 import from .runtime {
     TensorGraph, Compute, Operation, Input, Parameter, Constant, TensorEdge,
     Gather, MatMul, Add, Multiply, Subtract, Square, Rsqrt, ReduceMean,
-    Reshape, Transpose, MaskedFill, Softmax, ReLU, Contiguous, Arange, Full, Triu
+    Reshape, Transpose, MaskedFill, Softmax, ReLU, Contiguous, Arange, Full, Triu, Greater, Cond
 }

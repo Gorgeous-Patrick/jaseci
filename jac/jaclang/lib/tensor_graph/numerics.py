@@ -146,3 +146,17 @@ def lifetime_report(order, specs, consumers, persistent, output) -> dict[str, An
     return dict(intervals=intervals, steps=steps, peak_logical_bytes=peak_bytes,
                 peak_logical_values=peak_values,
                 note='Logical tensor values, not allocator memory: aliases counted separately; parameters/constants persistent; diagnostic captures excluded.')
+
+
+def comparison(a, b) -> dict[str, Any]:
+    spec = binary(a, b)
+    return dict(spec, dtype='bool')
+
+
+def conditional(condition, true_result, false_result) -> dict[str, Any]:
+    if condition['dtype'] != 'bool' or condition['shape'] != []:
+        raise ValueError('Cond condition must be scalar bool')
+    if true_result != false_result:
+        raise ValueError('Cond branch outputs must have identical shape/dtype/device')
+    same_device(condition, true_result)
+    return dict(true_result)

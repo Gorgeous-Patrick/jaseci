@@ -2,7 +2,7 @@
 import torch;
 import math;
 import json;
-import from jaclang.lib.tensor_graph { numerics, backend }
+import from jaclang.lib.tensor_graph { numerics, backend, conditional }
 
 edge TensorEdge { has port: str; }
 edge Seed {}
@@ -121,6 +121,20 @@ node Triu(Unary) {
     override def evaluate -> any { return self.inbox["x"].triu(self.diagonal); }
 }
 
+node Greater(Binary) {
+    override def infer -> dict[str, any] { return numerics.comparison(self.specs["a"], self.specs["b"]); }
+    override def evaluate -> any { return torch.gt(self.inbox["a"], self.inbox["b"]); }
+}
+node Cond(Operation) {
+    override def ports -> list[str] { return ["condition", "true_result", "false_result"]; }
+    override def infer -> dict[str, any] {
+        return numerics.conditional(self.specs["condition"], self.specs["true_result"], self.specs["false_result"]);
+    }
+    override def evaluate -> any {
+        return self.inbox["true_result"].contiguous().clone() if "true_result" in self.inbox else self.inbox["false_result"].contiguous().clone();
+    }
+}
+
 node TensorGraph {
     has ops: dict[str, Operation] = {}, analysis: any = None, plan: any = None,
         device: str = "cpu", precision: str = "float64", output_name: str = "";
@@ -199,6 +213,12 @@ node TensorGraph {
                      "order": run.order, "specs": run.outputs, "links": run.links,
                      "consumers": consumers, "sources": run.sources,
                      "liveness": numerics.lifetime_report(run.order, run.outputs, consumers, persistent, self.output_name)};
+        try { self.plan["conditional"] = conditional.analyze(self); }
+        except Exception {
+            self.plan = None;
+            self.analysis = None;
+            raise;
+        }
         return self.plan;
     }
     def check(values: dict[str, any], capture: list[str] = []) -> None {
@@ -212,7 +232,7 @@ node TensorGraph {
     def run(values: dict[str, any], capture: list[str] = []) -> any {
         self.check(values, capture);
         run = self spawn Compute(values=values, capture=capture);
-        assert run.trace == self.plan["order"], "execution topology differs from analysis";
+        if self.plan["conditional"] is None { assert run.trace == self.plan["order"], "execution topology differs from analysis"; }
         return run;
     }
     def compile(values: dict[str, any], engine: str = "fx", capture: list[str] = []) -> any {
@@ -236,7 +256,7 @@ node TensorGraph {
     def export_analysis(filename: str) -> None {
         assert self.plan is not None;
         analysis_report = {"order": self.plan["order"], "specs": self.plan["specs"], "edges": self.plan["links"],
-                           "liveness": self.plan["liveness"],
+                           "liveness": self.plan["liveness"], "conditional": self.plan["conditional"],
                            "node_types": {n: type(op).__name__ for (n, op) in self.ops.items()},
                            "attributes": {n: op.attributes() for (n, op) in self.ops.items()}};
         with open(filename, "w") as f { json.dump(analysis_report, f, indent=2); }
@@ -248,7 +268,7 @@ walker Compute {
         order: list[str] = [], outputs: dict[str, any] = {}, links: list[any] = [], sources: dict[str, any] = {},
         capture: list[str] = [], captured: dict[str, any] = {}, trace: list[str] = [], deliveries: list[any] = [],
         remaining: dict[str, int] = {}, active: list[str] = [], lifetime_trace: list[any] = [],
-        output: any = None, handle_identity: list[any] = [];
+        output: any = None, handle_identity: list[any] = [], conditional_state: any = None;
 
     can start with TensorGraph entry {
         self.model = here;
@@ -278,6 +298,12 @@ walker Compute {
                 if isinstance(n, Input) { n.value = self.values[n.name]; }
             }
         }
+        if not self.metadata_only and here.plan["conditional"] is not None {
+            self.conditional_state = conditional.Execution(here, self.capture);
+            next_name = self.conditional_state.next_node();
+            if next_name is not None { visit here.ops[next_name]; }
+            return;
+        }
         roots = [->:Seed:->];
         assert sorted([n.name for n in roots]) == sorted([n.name for n in here.ops.values() if not n.ports()]), "invalid roots";
         for n in roots { n.queued = True; visit n; }
@@ -296,6 +322,20 @@ walker Compute {
                 dst.specs[e.port] = here.spec;
                 if dst.ready(dst.specs) and not dst.queued { dst.queued = True; visit dst; }
             }
+        } elif self.conditional_state is not None {
+            here.inbox = self.conditional_state.inputs(here.name);
+            with torch.inference_mode() { here.output = here.evaluate(); }
+            if isinstance(here, Input) { here.value = None; }
+            assert numerics.metadata(here.output) == self.model.plan["specs"][here.name], f"runtime metadata mismatch: {here.name}";
+            here.done = True;
+            self.trace.append(here.name);
+            if here.name in self.capture { self.captured[here.name] = here.output; }
+            if here.name == self.model.output_name { self.output = here.output; }
+            self.lifetime_trace.append(self.conditional_state.finish(here.name, here.output));
+            self.handle_identity = self.conditional_state.handle_identity;
+            here.inbox = {};
+            next_name = self.conditional_state.next_node();
+            if next_name is not None { visit self.model.ops[next_name]; }
         } else {
             assert here.ready(here.inbox) and not here.done;
             with torch.inference_mode() { here.output = here.evaluate(); }

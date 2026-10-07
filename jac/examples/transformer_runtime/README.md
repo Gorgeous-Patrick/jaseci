@@ -65,6 +65,8 @@ Canonical concrete types are:
 | Arange | ref | int64 range of `ref.shape[axis]`, on `ref.device` |
 | Full | ref | shape selected by `axes`, declared `dtype` and `fill` |
 | Triu | x | upper triangle at `diagonal` |
+| Greater | a, b | floating comparison, bool result |
+| Cond | condition, true_result, false_result | lazy scalar-bool branch selection; contiguous cloned result |
 
 Each exact Jac type declares its input ports, attributes, metadata checks and
 PyTorch operation in its own methods. `Operation`, `Unary` and `Binary` are shared
@@ -76,8 +78,9 @@ operation semantics and schema version for inspection and potential future
 compiler recognition. Instance overrides of primitive methods are unsupported.
 
 There is exactly one public walker, `Compute`. It runs a metadata pass when
-`metadata_only=True` and a numeric pass otherwise. Both follow actual edges and
-visit a consumer only after all input ports are ready. Numeric evaluation uses
+`metadata_only=True` and a numeric pass otherwise. Both derive dependencies from actual edges. Ordinary operations execute after
+all ports are ready; Cond uses the lazy region schedule described below, and
+only metadata analysis requires both branch result specs. Numeric evaluation uses
 polymorphic primitive methods, not the FX registry or a Transformer dispatcher.
 The normal API spawns it through `prepare` and `run`; a direct `tg spawn
 Compute(values=feeds)` uses the same library checks and execution path.
@@ -216,3 +219,71 @@ KV cache, in-place/alias analysis or portable executable serialization. The FX
 callable is tied to the live owning graph and metadata signature. Concurrent use
 of the same mutable graph is unsupported; use distinct instances. Captures retain
 intermediates and are intended for correctness, not a production throughput claim.
+
+## Lazy conditional extension
+
+The full Transformer builder/reference/validation are unchanged. A separate
+[`cond_demo.jac`](cond_demo.jac) builds a small actual Jac conditional graph using
+library `Greater` and `Cond` nodes. Both branches share a MatMul; positive and
+negative scalar inputs select Add or Subtract, using the same public Compute
+walker and graph-derived FX callable. Three Cond edge ports are `condition`,
+`true_result`, `false_result`: branch ports refer to lazy result nodes.
+
+```bash
+XDG_CACHE_HOME=/tmp/jac-dataflow-cache /tmp/jac-dataflow-venv/bin/python -m jaclang run --backend python jac/examples/transformer_runtime/cond_demo.jac
+XDG_CACHE_HOME=/tmp/jac-dataflow-cache /tmp/jac-dataflow-venv/bin/python -m jaclang run --backend python jac/examples/transformer_runtime/cond_validate.jac --device cpu --inductor
+# Run only when the GPU correctness window is available:
+XDG_CACHE_HOME=/tmp/jac-dataflow-cache /tmp/jac-dataflow-venv/bin/python -m jaclang run --backend python jac/examples/transformer_runtime/cond_validate.jac --device cuda:0 --inductor
+```
+
+The runtime analyzes transitive C/T/F slices, precomputes condition dependencies
+and shared pure dependency closure, and subtracts **all** precomputed nodes from
+both extracted exclusive regions. Input/Parameter/Constant leaves are boundaries.
+Shared work intentionally runs before predicate selection, exactly once. Condition
+dependencies may also feed branch arithmetic. Only the selected exclusive region
+executes. This version rejects multiple/nested Cond and escaping exclusive values;
+both branches must have valid metadata and matching output shape/dtype/device.
+Outputs are contiguous clones to meet higher-order output alias/layout constraints.
+
+The real FX export contains `torch.ops.higher_order.cond`, outer shared work,
+and both extracted branch GraphModules. Boundary tensors/weights become explicit
+placeholder operands; branches own no hidden parameter buffers or Python tensor
+closures. These are runtime FX/Inductor lowering, not Jac compiler integration.
+The Jac walker performs one scalar predicate read (and one CUDA synchronization)
+per Cond; no timing or performance claim is made. Selected-path handle release
+is separate from the all-branches static DAG liveness diagnostic. Exclusive
+intermediate captures are rejected. See the
+[library contract](../../jaclang/lib/tensor_graph/README.md#lazy-cond-experimental).
+
+Correctness tests additionally cover repeated positive/negative inputs, shared
+fanout, identical branch roots, explicit exclusive weight operands and refreshing
+node-owned weights, stale graph guards, invalid dependencies, and a metadata-valid
+out-of-bounds Gather skipped in the unselected branch. Raw results and real graph,
+FX and analysis exports are saved under `results/cond_*`.
+
+Completed Cond correctness evidence (PyTorch 2.8.0+cu128, one CPU thread, TF32
+disabled; CUDA on the available RTX 3090):
+
+| device | dtype | repeated predicates | walker / FX / Inductor max abs error | rejection/guard checks |
+|---|---|---|---:|---:|
+| CPU | float64 | true, false, true, false | 0 / 0 / 0 | 14 |
+| CUDA | float64 | true, false, true, false | 0 / 0 / 0 | 14 |
+
+These errors are measured against independent direct Torch expectations for the
+four reported cases, not timing measurements. Additional assertions cover the
+other scenarios described above. CPU verifies that *selecting* the unsafe Gather
+raises an index error, followed by a successful valid inference; CUDA deliberately
+skips that invalid selected path to avoid poisoning the device context. The
+unchanged full Transformer validation was rerun with `--inductor` on CPU and CUDA:
+all four shape/dtype cases per device, 137 intermediate comparisons per case,
+19 dependency rejection cases, and the existing graph-edit/weight/mask/memory/
+repeat/lifetime checks passed. Prior example hashes still match all 80 and 74
+files. GPU correctness work is complete and the device is released.
+
+Compact evidence: [`results/cond_summary.md`](results/cond_summary.md) and
+[`results/cond_summary.json`](results/cond_summary.json). Actual exports include
+[`results/cond_cpu_fx.py`](results/cond_cpu_fx.py),
+[`results/cond_weighted_cpu_fx.py`](results/cond_weighted_cpu_fx.py) (exclusive
+weights as explicit operands), [`results/cond_cpu.dot`](results/cond_cpu.dot), and
+[`results/cond_cpu_plan.json`](results/cond_cpu_plan.json). Rebuild the compact
+Cond evidence with `python3 jac/examples/transformer_runtime/cond_summarize.py`.

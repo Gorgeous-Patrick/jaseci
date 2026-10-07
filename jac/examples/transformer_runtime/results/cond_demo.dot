@@ -1,0 +1,23 @@
+digraph TensorGraph {
+rankdir=LR;
+"signal" [label="signal\nInput\n[]"];
+"x" [label="x\nInput\n[2, 2]"];
+"weight" [label="weight\nParameter\n[2, 2]"];
+"zero" [label="zero\nConstant\n[]"];
+"predicate" [label="predicate\nGreater\n[]"];
+"common" [label="common\nMatMul\n[2, 2]"];
+"true" [label="true\nAdd\n[2, 2]"];
+"false" [label="false\nSubtract\n[2, 2]"];
+"choose" [label="choose\nCond\n[2, 2]"];
+"signal" -> "predicate" [label="a"];
+"signal" -> "true" [label="b"];
+"signal" -> "false" [label="b"];
+"x" -> "common" [label="a"];
+"weight" -> "common" [label="b"];
+"zero" -> "predicate" [label="b"];
+"predicate" -> "choose" [label="condition"];
+"common" -> "true" [label="a"];
+"common" -> "false" [label="a"];
+"true" -> "choose" [label="true_result"];
+"false" -> "choose" [label="false_result"];
+}

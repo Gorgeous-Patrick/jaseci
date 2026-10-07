@@ -1,0 +1,216 @@
+{
+  "device": "cuda:0",
+  "dtype": "float64",
+  "engines": [
+    "walker",
+    "fx",
+    "inductor"
+  ],
+  "cases": [
+    {
+      "predicate": true,
+      "trace": [
+        "signal",
+        "x",
+        "weight",
+        "zero",
+        "condition_dependency",
+        "common",
+        "condition_value",
+        "predicate",
+        "true",
+        "choose",
+        "output"
+      ],
+      "output": [
+        [
+          1.4500000000000002,
+          1.75
+        ],
+        [
+          2.25,
+          2.95
+        ]
+      ],
+      "max_abs_error": 0.0,
+      "unselected_absent": true,
+      "engine_max_abs_errors": {
+        "fx": 0.0,
+        "inductor": 0.0
+      }
+    },
+    {
+      "predicate": false,
+      "trace": [
+        "signal",
+        "x",
+        "weight",
+        "zero",
+        "condition_dependency",
+        "common",
+        "condition_value",
+        "predicate",
+        "common_fanout",
+        "false",
+        "choose",
+        "output"
+      ],
+      "output": [
+        [
+          0.7400000000000001,
+          1.25
+        ],
+        [
+          2.5,
+          5.090000000000001
+        ]
+      ],
+      "max_abs_error": 0.0,
+      "unselected_absent": true,
+      "engine_max_abs_errors": {
+        "fx": 0.0,
+        "inductor": 0.0
+      }
+    },
+    {
+      "predicate": true,
+      "trace": [
+        "signal",
+        "x",
+        "weight",
+        "zero",
+        "condition_dependency",
+        "common",
+        "condition_value",
+        "predicate",
+        "true",
+        "choose",
+        "output"
+      ],
+      "output": [
+        [
+          1.4500000000000002,
+          1.75
+        ],
+        [
+          2.25,
+          2.95
+        ]
+      ],
+      "max_abs_error": 0.0,
+      "unselected_absent": true,
+      "engine_max_abs_errors": {
+        "fx": 0.0,
+        "inductor": 0.0
+      }
+    },
+    {
+      "predicate": false,
+      "trace": [
+        "signal",
+        "x",
+        "weight",
+        "zero",
+        "condition_dependency",
+        "common",
+        "condition_value",
+        "predicate",
+        "common_fanout",
+        "false",
+        "choose",
+        "output"
+      ],
+      "output": [
+        [
+          0.6775000000000001,
+          1.1875
+        ],
+        [
+          2.4375,
+          5.027500000000001
+        ]
+      ],
+      "max_abs_error": 0.0,
+      "unselected_absent": true,
+      "engine_max_abs_errors": {
+        "fx": 0.0,
+        "inductor": 0.0
+      }
+    }
+  ],
+  "shared_fanout": "passed",
+  "same_root": "passed",
+  "unsafe_unselected_gather": "passed",
+  "invalid": {
+    "stale_walker": "graph/attributes changed: call prepare again",
+    "stale_fx": "Graph changed: lower/compile again",
+    "stale_inductor": "Graph changed: lower/compile again",
+    "exact_identity": "Unsupported exact primitive type: <class 'cond_validation.main.<locals>.ImpostorCond'>",
+    "bool_vector": "metadata inference at choose: Cond condition must be scalar bool",
+    "missing_port": "missing input: choose",
+    "cycle": "cycle or unreachable nodes: ['condition_dependency', 'predicate', 'condition_value', 'true', 'false', 'choose', 'output']",
+    "predicate": "metadata inference at choose: Cond condition must be scalar bool",
+    "outputs": "metadata inference at choose: Cond branch outputs must have identical shape/dtype/device",
+    "nested": "Only one Cond supported; nesting/multiple Cond unsupported",
+    "escape": "Exclusive branch value escapes Cond region: true",
+    "missing_output": "missing selected output",
+    "capture": "Capturing exclusive branch nodes is unsupported",
+    "invalid_unselected_shape": "metadata inference at bad_shape: shape '[3]' is invalid for input of size 4"
+  },
+  "branch_layout_normalization": "passed",
+  "condition_only_branch_dependency": "passed",
+  "explicit_weight_operands": "passed",
+  "weight_refresh": "passed",
+  "selected_unsafe_error": "not executed on CUDA to avoid poisoning device context",
+  "slices": {
+    "node": "choose",
+    "condition_root": "predicate",
+    "true_root": "true",
+    "false_root": "false",
+    "condition_slice": [
+      "signal",
+      "zero",
+      "condition_dependency",
+      "condition_value",
+      "predicate"
+    ],
+    "shared_slice": [
+      "signal",
+      "x",
+      "weight",
+      "condition_dependency",
+      "common",
+      "condition_value"
+    ],
+    "pre": [
+      "signal",
+      "x",
+      "weight",
+      "zero",
+      "condition_dependency",
+      "common",
+      "condition_value",
+      "predicate"
+    ],
+    "true_region": [
+      "true"
+    ],
+    "false_region": [
+      "common_fanout",
+      "false"
+    ],
+    "post": [
+      "output"
+    ],
+    "operands": [
+      "common",
+      "condition_value"
+    ],
+    "contract": "Condition closure and shared pure dependency closure run before selection; only selected exclusive region executes. Boundary leaves are precomputed operands.",
+    "liveness_note": "Static DAG liveness models all branches in metadata order, not selected-path scheduling or a memory upper bound; runtime releases use selected-path consumer counts."
+  },
+  "preservation": {
+    "transformer_graph": 80,
+    "transformer_dataflow": 74
+  }
+}

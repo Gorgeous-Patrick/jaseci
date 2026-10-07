@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "results": {
+    "cpu": {
+      "dtype": "float64",
+      "repeated_predicates": [
+        true,
+        false,
+        true,
+        false
+      ],
+      "max_abs_error": {
+        "walker": 0.0,
+        "fx": 0.0,
+        "inductor": 0.0
+      },
+      "invalid_checks": 14,
+      "status": "passed",
+      "preservation": {
+        "transformer_graph": 80,
+        "transformer_dataflow": 74
+      }
+    },
+    "cuda_0": {
+      "dtype": "float64",
+      "repeated_predicates": [
+        true,
+        false,
+        true,
+        false
+      ],
+      "max_abs_error": {
+        "walker": 0.0,
+        "fx": 0.0,
+        "inductor": 0.0
+      },
+      "invalid_checks": 14,
+      "status": "passed",
+      "preservation": {
+        "transformer_graph": 80,
+        "transformer_dataflow": 74
+      }
+    }
+  },
+  "note": "Correctness measurements only; no performance measurements. Raw traces, actual graph/FX exports and slice plans accompany these results."
+}
