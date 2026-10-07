@@ -28,6 +28,9 @@ lib/
 # ...but the jac-shadcn registry ships one: its component templates
 # import `...lib.utils`, so the module that placeholder names is source.
 !jaclang/cli/shadcn/registry/lib/
+# Reusable tensor graph library source (not a build lib directory).
+!jaclang/lib/
+!jaclang/lib/tensor_graph/
 lib64/
 parts/
 sdist/

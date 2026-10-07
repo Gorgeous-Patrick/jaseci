@@ -1,0 +1,81 @@
+{
+  "status": "passed",
+  "preserved_files": {
+    "transformer_graph": 80,
+    "transformer_dataflow": 74
+  },
+  "cases": [
+    {
+      "device": "cpu",
+      "config_dtype": "small_float64",
+      "reference_error": 0.0,
+      "fx_reference_error": 0.0,
+      "inductor_reference_error": 2.6645352591003757e-15,
+      "cpu_device_error": 0.0,
+      "rewired_inductor": "passed"
+    },
+    {
+      "device": "cpu",
+      "config_dtype": "small_float32",
+      "reference_error": 2.86102294921875e-06,
+      "fx_reference_error": 2.86102294921875e-06,
+      "inductor_reference_error": 1.6689300537109375e-06,
+      "cpu_device_error": 0.0,
+      "rewired_inductor": "not_requested"
+    },
+    {
+      "device": "cpu",
+      "config_dtype": "medium_float64",
+      "reference_error": 0.0,
+      "fx_reference_error": 0.0,
+      "inductor_reference_error": 1.5987211554602254e-14,
+      "cpu_device_error": 0.0,
+      "rewired_inductor": "not_requested"
+    },
+    {
+      "device": "cpu",
+      "config_dtype": "medium_float32",
+      "reference_error": 6.67572021484375e-06,
+      "fx_reference_error": 6.67572021484375e-06,
+      "inductor_reference_error": 5.7220458984375e-06,
+      "cpu_device_error": 0.0,
+      "rewired_inductor": "not_requested"
+    },
+    {
+      "device": "cuda_0",
+      "config_dtype": "small_float64",
+      "reference_error": 0.0,
+      "fx_reference_error": 0.0,
+      "inductor_reference_error": 4.440892098500626e-15,
+      "cpu_device_error": 4.440892098500626e-15,
+      "rewired_inductor": "passed"
+    },
+    {
+      "device": "cuda_0",
+      "config_dtype": "small_float32",
+      "reference_error": 1.1920928955078125e-06,
+      "fx_reference_error": 1.1920928955078125e-06,
+      "inductor_reference_error": 1.9073486328125e-06,
+      "cpu_device_error": 1.9073486328125e-06,
+      "rewired_inductor": "not_requested"
+    },
+    {
+      "device": "cuda_0",
+      "config_dtype": "medium_float64",
+      "reference_error": 1.2434497875801753e-14,
+      "fx_reference_error": 1.2434497875801753e-14,
+      "inductor_reference_error": 1.199040866595169e-14,
+      "cpu_device_error": 1.4210854715202004e-14,
+      "rewired_inductor": "not_requested"
+    },
+    {
+      "device": "cuda_0",
+      "config_dtype": "medium_float32",
+      "reference_error": 8.58306884765625e-06,
+      "fx_reference_error": 8.58306884765625e-06,
+      "inductor_reference_error": 6.079673767089844e-06,
+      "cpu_device_error": 7.62939453125e-06,
+      "rewired_inductor": "not_requested"
+    }
+  ]
+}
