@@ -1,0 +1,27 @@
+{
+  "shape": [
+    3000,
+    3000,
+    3000
+  ],
+  "cursor_discovered": [
+    9000000,
+    9000000
+  ],
+  "complete_A_then_complete_B": true,
+  "identity_count": 18000000,
+  "current_predicted_identity_equal": false,
+  "current_predicted_array_equal": [
+    false,
+    true,
+    false,
+    false
+  ],
+  "cursor_candidate_hashes": [
+    "7fa10fc47d43691edcd88f1b5bf046102f5ac7ff33f91137e0e2fbcb15357993",
+    "b5981bb40765f32865221b251c4e857946aeae0eac9b4b1c4814ada1c6f74d3d"
+  ],
+  "concatenation_hash": "6f0291591238c28e0671cca567bfd39db70f89795ea07760325d91bbee7c72fa",
+  "predicted_hash": "6f0291591238c28e0671cca567bfd39db70f89795ea07760325d91bbee7c72fa",
+  "raw_identity_orders": "/tmp/jac-large-matmul-3000-20261007"
+}

@@ -1,0 +1,16 @@
+{
+  "sources": [
+    "jac/examples/transformer_graph/results/benchmark_cpu.json",
+    "jac/examples/transformer_graph/results/benchmark_cuda.json",
+    "jac/examples/transformer_dataflow/results/validation_cpu.json",
+    "jac/examples/transformer_dataflow/results/validation_cuda_0.json",
+    "jac/examples/transformer_dataflow/analysis.json",
+    "scripts/gpu_walker/large_matmul/validation/full-run.json",
+    "scripts/gpu_walker/large_matmul/validation/ordinary.json",
+    "scripts/gpu_walker/large_matmul/validation/profile.json",
+    "docs/design/gpu-cursor-concatenation-results.md",
+    "docs/design/gpu-large-matmul-3000-results.md"
+  ],
+  "page_count": 24,
+  "pdf": "jac-transformer-and-gpu-results.pdf"
+}

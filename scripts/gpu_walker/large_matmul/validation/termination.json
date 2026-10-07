@@ -1,0 +1,7 @@
+{
+  "pid": 1792753,
+  "signal": "SIGTERM",
+  "epoch_s": 1791353811.3552806,
+  "reason": "all outputs verified; full report and binary files saved; CPU perf stack shows Python finalization GC; terminate only this finished experiment to stop CPU interference",
+  "process_wall_caveat": "includes partially completed finalization; not natural-exit end-to-end cost"
+}

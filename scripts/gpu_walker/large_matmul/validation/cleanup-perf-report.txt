@@ -1,0 +1,130 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 495  of event 'cpu-clock:u'
+# Event count (approx.): 4999999950
+#
+# Overhead  Command  Shared Object         Symbol               IPC   [IPC Coverage]
+# ........  .......  ....................  ...................  ....................
+#
+    95.35%  python   libpython3.12.so.1.0  [.] gc_collect_main  -      -
+            |
+            |--91.72%--move_unreachable (inlined)
+            |          deduce_unreachable (inlined)
+            |          gc_collect_main
+            |          gc_collect_with_callback (inlined)
+            |          PyGC_Collect
+            |          Py_FinalizeEx
+            |          Py_FinalizeEx
+            |          Py_RunMain
+            |          pymain_main (inlined)
+            |          Py_BytesMain
+            |          __libc_start_call_main
+            |          __libc_start_main_impl (inlined)
+            |          _start
+            |
+            |--1.62%--subtract_refs (inlined)
+            |          deduce_unreachable (inlined)
+            |          gc_collect_main
+            |          gc_collect_with_callback (inlined)
+            |          PyGC_Collect
+            |          Py_FinalizeEx
+            |          Py_FinalizeEx
+            |          Py_RunMain
+            |          pymain_main (inlined)
+            |          Py_BytesMain
+            |          __libc_start_call_main
+            |          __libc_start_main_impl (inlined)
+            |          _start
+            |
+             --1.62%--_PyGCHead_PREV (inlined)
+                       move_unreachable (inlined)
+                       deduce_unreachable (inlined)
+                       gc_collect_main
+                       gc_collect_with_callback (inlined)
+                       PyGC_Collect
+                       Py_FinalizeEx
+                       Py_FinalizeEx
+                       Py_RunMain
+                       pymain_main (inlined)
+                       Py_BytesMain
+                       __libc_start_call_main
+                       __libc_start_main_impl (inlined)
+                       _start
+
+     2.22%  python   libpython3.12.so.1.0  [.] visit_decref     -      -
+            |
+             --1.82%--_PyObject_IS_GC (inlined)
+                       visit_decref
+                       |
+                       |--1.01%--dict_traverse
+                       |          subtract_refs (inlined)
+                       |          deduce_unreachable (inlined)
+                       |          gc_collect_main
+                       |          gc_collect_with_callback (inlined)
+                       |          PyGC_Collect
+                       |          Py_FinalizeEx
+                       |          Py_FinalizeEx
+                       |          Py_RunMain
+                       |          pymain_main (inlined)
+                       |          Py_BytesMain
+                       |          __libc_start_call_main
+                       |          __libc_start_main_impl (inlined)
+                       |          _start
+                       |
+                        --0.81%--list_traverse
+                                  subtract_refs (inlined)
+                                  deduce_unreachable (inlined)
+                                  gc_collect_main
+                                  gc_collect_with_callback (inlined)
+                                  PyGC_Collect
+                                  Py_FinalizeEx
+                                  Py_FinalizeEx
+                                  Py_RunMain
+                                  pymain_main (inlined)
+                                  Py_BytesMain
+                                  __libc_start_call_main
+                                  __libc_start_main_impl (inlined)
+                                  _start
+
+     1.82%  python   libpython3.12.so.1.0  [.] dict_traverse    -      -
+            |
+            ---dict_traverse
+               subtract_refs (inlined)
+               deduce_unreachable (inlined)
+               gc_collect_main
+               gc_collect_with_callback (inlined)
+               PyGC_Collect
+               Py_FinalizeEx
+               Py_FinalizeEx
+               Py_RunMain
+               pymain_main (inlined)
+               Py_BytesMain
+               __libc_start_call_main
+               __libc_start_main_impl (inlined)
+               _start
+
+     0.61%  python   libpython3.12.so.1.0  [.] list_traverse    -      -
+            |
+            ---list_traverse
+               subtract_refs (inlined)
+               deduce_unreachable (inlined)
+               gc_collect_main
+               gc_collect_with_callback (inlined)
+               PyGC_Collect
+               Py_FinalizeEx
+               Py_FinalizeEx
+               Py_RunMain
+               pymain_main (inlined)
+               Py_BytesMain
+               __libc_start_call_main
+               __libc_start_main_impl (inlined)
+               _start
+
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

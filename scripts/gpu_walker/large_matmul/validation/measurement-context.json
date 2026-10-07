@@ -1,0 +1,5 @@
+{
+  "pack_wall_caveat": "15 named cursor CPU/JIT tests and one bounded test ran concurrently during full graph packing. Pack wall is resource evidence for this run, not an exclusive CPU performance baseline. No graph rebuild is planned for timing.",
+  "GPU_exclusive_authorization": "Transformer w7:p6 completed CUDA and exited; user granted exclusive GPU period.",
+  "ordinary_sampling_policy": "No concurrent self-launched CPU regression/analysis or other GPU jobs during paired resident sampling. Driver host enqueue and correctness checking are intrinsic to replay and occur as described in samples."
+}

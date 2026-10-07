@@ -1,0 +1,12 @@
+{
+  "process_pid": 1792753,
+  "start_ticks": 5084942,
+  "ticks_per_second": 100,
+  "boot_epoch_s": 1791301167,
+  "process_start_epoch_s": 1791352016.42,
+  "measurement": "external process lifetime bracket; polling 0.25s; includes all five layouts, graph setup, artifacts and cleanup; kernel boot clock epoch conversion is approximate within 1s",
+  "exit_detected_epoch_s": 1791353812.1041853,
+  "last_alive_epoch_s": 1791353811.8540783,
+  "wall_lower_s": 1795.4340782165527,
+  "wall_upper_s": 1795.6841852664948
+}

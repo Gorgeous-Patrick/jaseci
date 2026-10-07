@@ -1,0 +1,4852 @@
+{
+  "trace": [
+    "source",
+    "target",
+    "embedding_scale",
+    "position_table",
+    "enc_embed.table",
+    "dec_embed.table",
+    "enc_attn.q.weight",
+    "enc_attn.q.bias",
+    "enc_attn.k.weight",
+    "enc_attn.k.bias",
+    "enc_attn.v.weight",
+    "enc_attn.v.bias",
+    "enc_attn.scale",
+    "enc_attn.output.weight",
+    "enc_attn.output.bias",
+    "enc_norm1.epsilon",
+    "enc_norm1.gamma",
+    "enc_norm1.beta",
+    "enc_ffn.up.weight",
+    "enc_ffn.up.bias",
+    "enc_ffn.output.weight",
+    "enc_ffn.output.bias",
+    "enc_norm2.epsilon",
+    "enc_norm2.gamma",
+    "enc_norm2.beta",
+    "dec_attn.q.weight",
+    "dec_attn.q.bias",
+    "dec_attn.k.weight",
+    "dec_attn.k.bias",
+    "dec_attn.v.weight",
+    "dec_attn.v.bias",
+    "dec_attn.scale",
+    "dec_attn.output.weight",
+    "dec_attn.output.bias",
+    "dec_norm1.epsilon",
+    "dec_norm1.gamma",
+    "dec_norm1.beta",
+    "cross_attn.q.weight",
+    "cross_attn.q.bias",
+    "cross_attn.k.weight",
+    "cross_attn.k.bias",
+    "cross_attn.v.weight",
+    "cross_attn.v.bias",
+    "cross_attn.scale",
+    "cross_attn.output.weight",
+    "cross_attn.output.bias",
+    "dec_norm2.epsilon",
+    "dec_norm2.gamma",
+    "dec_norm2.beta",
+    "dec_ffn.up.weight",
+    "dec_ffn.up.bias",
+    "dec_ffn.output.weight",
+    "dec_ffn.output.bias",
+    "dec_norm3.epsilon",
+    "dec_norm3.gamma",
+    "dec_norm3.beta",
+    "projection.weight",
+    "projection.bias",
+    "enc_pos.indices",
+    "dec_pos.indices",
+    "dec_attn.mask.full",
+    "enc_embed.gather",
+    "dec_embed.gather",
+    "enc_pos.positions",
+    "dec_pos.positions",
+    "dec_attn.mask",
+    "enc_embed",
+    "dec_embed",
+    "enc_pos",
+    "dec_pos",
+    "enc_attn.q.matmul",
+    "enc_attn.k.matmul",
+    "enc_attn.v.matmul",
+    "dec_attn.q.matmul",
+    "dec_attn.k.matmul",
+    "dec_attn.v.matmul",
+    "enc_attn.q",
+    "enc_attn.k",
+    "enc_attn.v",
+    "dec_attn.q",
+    "dec_attn.k",
+    "dec_attn.v",
+    "enc_attn.q.reshape",
+    "enc_attn.k.reshape",
+    "enc_attn.v.reshape",
+    "dec_attn.q.reshape",
+    "dec_attn.k.reshape",
+    "dec_attn.v.reshape",
+    "enc_attn.q.heads",
+    "enc_attn.k.heads",
+    "enc_attn.v.heads",
+    "dec_attn.q.heads",
+    "dec_attn.k.heads",
+    "dec_attn.v.heads",
+    "enc_attn.k.transpose",
+    "dec_attn.k.transpose",
+    "enc_attn.score.matmul",
+    "dec_attn.score.matmul",
+    "enc_attn.score",
+    "dec_attn.score",
+    "enc_attn.probabilities",
+    "dec_attn.masked",
+    "enc_attn.context",
+    "dec_attn.probabilities",
+    "enc_attn.context.transpose",
+    "dec_attn.context",
+    "enc_attn.context.contiguous",
+    "dec_attn.context.transpose",
+    "enc_attn.joined",
+    "dec_attn.context.contiguous",
+    "enc_attn.output.matmul",
+    "dec_attn.joined",
+    "enc_attn.output",
+    "dec_attn.output.matmul",
+    "enc_norm1.residual",
+    "dec_attn.output",
+    "enc_norm1.mean",
+    "dec_norm1.residual",
+    "enc_norm1.center",
+    "dec_norm1.mean",
+    "enc_norm1.square",
+    "dec_norm1.center",
+    "enc_norm1.variance",
+    "dec_norm1.square",
+    "enc_norm1.stable",
+    "dec_norm1.variance",
+    "enc_norm1.rsqrt",
+    "dec_norm1.stable",
+    "enc_norm1.normalized",
+    "dec_norm1.rsqrt",
+    "enc_norm1.scaled",
+    "dec_norm1.normalized",
+    "enc_norm1",
+    "dec_norm1.scaled",
+    "enc_ffn.up.matmul",
+    "dec_norm1",
+    "enc_ffn.up",
+    "cross_attn.q.matmul",
+    "enc_ffn.relu",
+    "cross_attn.q",
+    "enc_ffn.output.matmul",
+    "cross_attn.q.reshape",
+    "enc_ffn.output",
+    "cross_attn.q.heads",
+    "enc_norm2.residual",
+    "enc_norm2.mean",
+    "enc_norm2.center",
+    "enc_norm2.square",
+    "enc_norm2.variance",
+    "enc_norm2.stable",
+    "enc_norm2.rsqrt",
+    "enc_norm2.normalized",
+    "enc_norm2.scaled",
+    "enc_norm2",
+    "cross_attn.k.matmul",
+    "cross_attn.v.matmul",
+    "cross_attn.k",
+    "cross_attn.v",
+    "cross_attn.k.reshape",
+    "cross_attn.v.reshape",
+    "cross_attn.k.heads",
+    "cross_attn.v.heads",
+    "cross_attn.k.transpose",
+    "cross_attn.score.matmul",
+    "cross_attn.score",
+    "cross_attn.probabilities",
+    "cross_attn.context",
+    "cross_attn.context.transpose",
+    "cross_attn.context.contiguous",
+    "cross_attn.joined",
+    "cross_attn.output.matmul",
+    "cross_attn.output",
+    "dec_norm2.residual",
+    "dec_norm2.mean",
+    "dec_norm2.center",
+    "dec_norm2.square",
+    "dec_norm2.variance",
+    "dec_norm2.stable",
+    "dec_norm2.rsqrt",
+    "dec_norm2.normalized",
+    "dec_norm2.scaled",
+    "dec_norm2",
+    "dec_ffn.up.matmul",
+    "dec_ffn.up",
+    "dec_ffn.relu",
+    "dec_ffn.output.matmul",
+    "dec_ffn.output",
+    "dec_norm3.residual",
+    "dec_norm3.mean",
+    "dec_norm3.center",
+    "dec_norm3.square",
+    "dec_norm3.variance",
+    "dec_norm3.stable",
+    "dec_norm3.rsqrt",
+    "dec_norm3.normalized",
+    "dec_norm3.scaled",
+    "dec_norm3",
+    "projection.matmul",
+    "projection",
+    "probabilities"
+  ],
+  "deliveries": [
+    [
+      "source",
+      "enc_embed.gather",
+      "indices"
+    ],
+    [
+      "source",
+      "enc_pos.indices",
+      "ref"
+    ],
+    [
+      "target",
+      "dec_embed.gather",
+      "indices"
+    ],
+    [
+      "target",
+      "dec_pos.indices",
+      "ref"
+    ],
+    [
+      "target",
+      "dec_attn.mask.full",
+      "ref"
+    ],
+    [
+      "embedding_scale",
+      "enc_embed",
+      "b"
+    ],
+    [
+      "embedding_scale",
+      "dec_embed",
+      "b"
+    ],
+    [
+      "position_table",
+      "enc_pos.positions",
+      "table"
+    ],
+    [
+      "position_table",
+      "dec_pos.positions",
+      "table"
+    ],
+    [
+      "enc_embed.table",
+      "enc_embed.gather",
+      "table"
+    ],
+    [
+      "dec_embed.table",
+      "dec_embed.gather",
+      "table"
+    ],
+    [
+      "enc_attn.q.weight",
+      "enc_attn.q.matmul",
+      "b"
+    ],
+    [
+      "enc_attn.q.bias",
+      "enc_attn.q",
+      "b"
+    ],
+    [
+      "enc_attn.k.weight",
+      "enc_attn.k.matmul",
+      "b"
+    ],
+    [
+      "enc_attn.k.bias",
+      "enc_attn.k",
+      "b"
+    ],
+    [
+      "enc_attn.v.weight",
+      "enc_attn.v.matmul",
+      "b"
+    ],
+    [
+      "enc_attn.v.bias",
+      "enc_attn.v",
+      "b"
+    ],
+    [
+      "enc_attn.scale",
+      "enc_attn.score",
+      "b"
+    ],
+    [
+      "enc_attn.output.weight",
+      "enc_attn.output.matmul",
+      "b"
+    ],
+    [
+      "enc_attn.output.bias",
+      "enc_attn.output",
+      "b"
+    ],
+    [
+      "enc_norm1.epsilon",
+      "enc_norm1.stable",
+      "b"
+    ],
+    [
+      "enc_norm1.gamma",
+      "enc_norm1.scaled",
+      "b"
+    ],
+    [
+      "enc_norm1.beta",
+      "enc_norm1",
+      "b"
+    ],
+    [
+      "enc_ffn.up.weight",
+      "enc_ffn.up.matmul",
+      "b"
+    ],
+    [
+      "enc_ffn.up.bias",
+      "enc_ffn.up",
+      "b"
+    ],
+    [
+      "enc_ffn.output.weight",
+      "enc_ffn.output.matmul",
+      "b"
+    ],
+    [
+      "enc_ffn.output.bias",
+      "enc_ffn.output",
+      "b"
+    ],
+    [
+      "enc_norm2.epsilon",
+      "enc_norm2.stable",
+      "b"
+    ],
+    [
+      "enc_norm2.gamma",
+      "enc_norm2.scaled",
+      "b"
+    ],
+    [
+      "enc_norm2.beta",
+      "enc_norm2",
+      "b"
+    ],
+    [
+      "dec_attn.q.weight",
+      "dec_attn.q.matmul",
+      "b"
+    ],
+    [
+      "dec_attn.q.bias",
+      "dec_attn.q",
+      "b"
+    ],
+    [
+      "dec_attn.k.weight",
+      "dec_attn.k.matmul",
+      "b"
+    ],
+    [
+      "dec_attn.k.bias",
+      "dec_attn.k",
+      "b"
+    ],
+    [
+      "dec_attn.v.weight",
+      "dec_attn.v.matmul",
+      "b"
+    ],
+    [
+      "dec_attn.v.bias",
+      "dec_attn.v",
+      "b"
+    ],
+    [
+      "dec_attn.scale",
+      "dec_attn.score",
+      "b"
+    ],
+    [
+      "dec_attn.output.weight",
+      "dec_attn.output.matmul",
+      "b"
+    ],
+    [
+      "dec_attn.output.bias",
+      "dec_attn.output",
+      "b"
+    ],
+    [
+      "dec_norm1.epsilon",
+      "dec_norm1.stable",
+      "b"
+    ],
+    [
+      "dec_norm1.gamma",
+      "dec_norm1.scaled",
+      "b"
+    ],
+    [
+      "dec_norm1.beta",
+      "dec_norm1",
+      "b"
+    ],
+    [
+      "cross_attn.q.weight",
+      "cross_attn.q.matmul",
+      "b"
+    ],
+    [
+      "cross_attn.q.bias",
+      "cross_attn.q",
+      "b"
+    ],
+    [
+      "cross_attn.k.weight",
+      "cross_attn.k.matmul",
+      "b"
+    ],
+    [
+      "cross_attn.k.bias",
+      "cross_attn.k",
+      "b"
+    ],
+    [
+      "cross_attn.v.weight",
+      "cross_attn.v.matmul",
+      "b"
+    ],
+    [
+      "cross_attn.v.bias",
+      "cross_attn.v",
+      "b"
+    ],
+    [
+      "cross_attn.scale",
+      "cross_attn.score",
+      "b"
+    ],
+    [
+      "cross_attn.output.weight",
+      "cross_attn.output.matmul",
+      "b"
+    ],
+    [
+      "cross_attn.output.bias",
+      "cross_attn.output",
+      "b"
+    ],
+    [
+      "dec_norm2.epsilon",
+      "dec_norm2.stable",
+      "b"
+    ],
+    [
+      "dec_norm2.gamma",
+      "dec_norm2.scaled",
+      "b"
+    ],
+    [
+      "dec_norm2.beta",
+      "dec_norm2",
+      "b"
+    ],
+    [
+      "dec_ffn.up.weight",
+      "dec_ffn.up.matmul",
+      "b"
+    ],
+    [
+      "dec_ffn.up.bias",
+      "dec_ffn.up",
+      "b"
+    ],
+    [
+      "dec_ffn.output.weight",
+      "dec_ffn.output.matmul",
+      "b"
+    ],
+    [
+      "dec_ffn.output.bias",
+      "dec_ffn.output",
+      "b"
+    ],
+    [
+      "dec_norm3.epsilon",
+      "dec_norm3.stable",
+      "b"
+    ],
+    [
+      "dec_norm3.gamma",
+      "dec_norm3.scaled",
+      "b"
+    ],
+    [
+      "dec_norm3.beta",
+      "dec_norm3",
+      "b"
+    ],
+    [
+      "projection.weight",
+      "projection.matmul",
+      "b"
+    ],
+    [
+      "projection.bias",
+      "projection",
+      "b"
+    ],
+    [
+      "enc_pos.indices",
+      "enc_pos.positions",
+      "indices"
+    ],
+    [
+      "dec_pos.indices",
+      "dec_pos.positions",
+      "indices"
+    ],
+    [
+      "dec_attn.mask.full",
+      "dec_attn.mask",
+      "x"
+    ],
+    [
+      "enc_embed.gather",
+      "enc_embed",
+      "a"
+    ],
+    [
+      "dec_embed.gather",
+      "dec_embed",
+      "a"
+    ],
+    [
+      "enc_pos.positions",
+      "enc_pos",
+      "b"
+    ],
+    [
+      "dec_pos.positions",
+      "dec_pos",
+      "b"
+    ],
+    [
+      "dec_attn.mask",
+      "dec_attn.masked",
+      "mask"
+    ],
+    [
+      "enc_embed",
+      "enc_pos",
+      "a"
+    ],
+    [
+      "dec_embed",
+      "dec_pos",
+      "a"
+    ],
+    [
+      "enc_pos",
+      "enc_attn.q.matmul",
+      "a"
+    ],
+    [
+      "enc_pos",
+      "enc_attn.k.matmul",
+      "a"
+    ],
+    [
+      "enc_pos",
+      "enc_attn.v.matmul",
+      "a"
+    ],
+    [
+      "enc_pos",
+      "enc_norm1.residual",
+      "b"
+    ],
+    [
+      "dec_pos",
+      "dec_attn.q.matmul",
+      "a"
+    ],
+    [
+      "dec_pos",
+      "dec_attn.k.matmul",
+      "a"
+    ],
+    [
+      "dec_pos",
+      "dec_attn.v.matmul",
+      "a"
+    ],
+    [
+      "dec_pos",
+      "dec_norm1.residual",
+      "b"
+    ],
+    [
+      "enc_attn.q.matmul",
+      "enc_attn.q",
+      "a"
+    ],
+    [
+      "enc_attn.k.matmul",
+      "enc_attn.k",
+      "a"
+    ],
+    [
+      "enc_attn.v.matmul",
+      "enc_attn.v",
+      "a"
+    ],
+    [
+      "dec_attn.q.matmul",
+      "dec_attn.q",
+      "a"
+    ],
+    [
+      "dec_attn.k.matmul",
+      "dec_attn.k",
+      "a"
+    ],
+    [
+      "dec_attn.v.matmul",
+      "dec_attn.v",
+      "a"
+    ],
+    [
+      "enc_attn.q",
+      "enc_attn.q.reshape",
+      "x"
+    ],
+    [
+      "enc_attn.k",
+      "enc_attn.k.reshape",
+      "x"
+    ],
+    [
+      "enc_attn.v",
+      "enc_attn.v.reshape",
+      "x"
+    ],
+    [
+      "dec_attn.q",
+      "dec_attn.q.reshape",
+      "x"
+    ],
+    [
+      "dec_attn.k",
+      "dec_attn.k.reshape",
+      "x"
+    ],
+    [
+      "dec_attn.v",
+      "dec_attn.v.reshape",
+      "x"
+    ],
+    [
+      "enc_attn.q.reshape",
+      "enc_attn.q.heads",
+      "x"
+    ],
+    [
+      "enc_attn.k.reshape",
+      "enc_attn.k.heads",
+      "x"
+    ],
+    [
+      "enc_attn.v.reshape",
+      "enc_attn.v.heads",
+      "x"
+    ],
+    [
+      "dec_attn.q.reshape",
+      "dec_attn.q.heads",
+      "x"
+    ],
+    [
+      "dec_attn.k.reshape",
+      "dec_attn.k.heads",
+      "x"
+    ],
+    [
+      "dec_attn.v.reshape",
+      "dec_attn.v.heads",
+      "x"
+    ],
+    [
+      "enc_attn.q.heads",
+      "enc_attn.score.matmul",
+      "a"
+    ],
+    [
+      "enc_attn.k.heads",
+      "enc_attn.k.transpose",
+      "x"
+    ],
+    [
+      "enc_attn.v.heads",
+      "enc_attn.context",
+      "b"
+    ],
+    [
+      "dec_attn.q.heads",
+      "dec_attn.score.matmul",
+      "a"
+    ],
+    [
+      "dec_attn.k.heads",
+      "dec_attn.k.transpose",
+      "x"
+    ],
+    [
+      "dec_attn.v.heads",
+      "dec_attn.context",
+      "b"
+    ],
+    [
+      "enc_attn.k.transpose",
+      "enc_attn.score.matmul",
+      "b"
+    ],
+    [
+      "dec_attn.k.transpose",
+      "dec_attn.score.matmul",
+      "b"
+    ],
+    [
+      "enc_attn.score.matmul",
+      "enc_attn.score",
+      "a"
+    ],
+    [
+      "dec_attn.score.matmul",
+      "dec_attn.score",
+      "a"
+    ],
+    [
+      "enc_attn.score",
+      "enc_attn.probabilities",
+      "x"
+    ],
+    [
+      "dec_attn.score",
+      "dec_attn.masked",
+      "x"
+    ],
+    [
+      "enc_attn.probabilities",
+      "enc_attn.context",
+      "a"
+    ],
+    [
+      "dec_attn.masked",
+      "dec_attn.probabilities",
+      "x"
+    ],
+    [
+      "enc_attn.context",
+      "enc_attn.context.transpose",
+      "x"
+    ],
+    [
+      "dec_attn.probabilities",
+      "dec_attn.context",
+      "a"
+    ],
+    [
+      "enc_attn.context.transpose",
+      "enc_attn.context.contiguous",
+      "x"
+    ],
+    [
+      "dec_attn.context",
+      "dec_attn.context.transpose",
+      "x"
+    ],
+    [
+      "enc_attn.context.contiguous",
+      "enc_attn.joined",
+      "x"
+    ],
+    [
+      "dec_attn.context.transpose",
+      "dec_attn.context.contiguous",
+      "x"
+    ],
+    [
+      "enc_attn.joined",
+      "enc_attn.output.matmul",
+      "a"
+    ],
+    [
+      "dec_attn.context.contiguous",
+      "dec_attn.joined",
+      "x"
+    ],
+    [
+      "enc_attn.output.matmul",
+      "enc_attn.output",
+      "a"
+    ],
+    [
+      "dec_attn.joined",
+      "dec_attn.output.matmul",
+      "a"
+    ],
+    [
+      "enc_attn.output",
+      "enc_norm1.residual",
+      "a"
+    ],
+    [
+      "dec_attn.output.matmul",
+      "dec_attn.output",
+      "a"
+    ],
+    [
+      "enc_norm1.residual",
+      "enc_norm1.mean",
+      "x"
+    ],
+    [
+      "enc_norm1.residual",
+      "enc_norm1.center",
+      "a"
+    ],
+    [
+      "dec_attn.output",
+      "dec_norm1.residual",
+      "a"
+    ],
+    [
+      "enc_norm1.mean",
+      "enc_norm1.center",
+      "b"
+    ],
+    [
+      "dec_norm1.residual",
+      "dec_norm1.mean",
+      "x"
+    ],
+    [
+      "dec_norm1.residual",
+      "dec_norm1.center",
+      "a"
+    ],
+    [
+      "enc_norm1.center",
+      "enc_norm1.square",
+      "x"
+    ],
+    [
+      "enc_norm1.center",
+      "enc_norm1.normalized",
+      "a"
+    ],
+    [
+      "dec_norm1.mean",
+      "dec_norm1.center",
+      "b"
+    ],
+    [
+      "enc_norm1.square",
+      "enc_norm1.variance",
+      "x"
+    ],
+    [
+      "dec_norm1.center",
+      "dec_norm1.square",
+      "x"
+    ],
+    [
+      "dec_norm1.center",
+      "dec_norm1.normalized",
+      "a"
+    ],
+    [
+      "enc_norm1.variance",
+      "enc_norm1.stable",
+      "a"
+    ],
+    [
+      "dec_norm1.square",
+      "dec_norm1.variance",
+      "x"
+    ],
+    [
+      "enc_norm1.stable",
+      "enc_norm1.rsqrt",
+      "x"
+    ],
+    [
+      "dec_norm1.variance",
+      "dec_norm1.stable",
+      "a"
+    ],
+    [
+      "enc_norm1.rsqrt",
+      "enc_norm1.normalized",
+      "b"
+    ],
+    [
+      "dec_norm1.stable",
+      "dec_norm1.rsqrt",
+      "x"
+    ],
+    [
+      "enc_norm1.normalized",
+      "enc_norm1.scaled",
+      "a"
+    ],
+    [
+      "dec_norm1.rsqrt",
+      "dec_norm1.normalized",
+      "b"
+    ],
+    [
+      "enc_norm1.scaled",
+      "enc_norm1",
+      "a"
+    ],
+    [
+      "dec_norm1.normalized",
+      "dec_norm1.scaled",
+      "a"
+    ],
+    [
+      "enc_norm1",
+      "enc_ffn.up.matmul",
+      "a"
+    ],
+    [
+      "enc_norm1",
+      "enc_norm2.residual",
+      "b"
+    ],
+    [
+      "dec_norm1.scaled",
+      "dec_norm1",
+      "a"
+    ],
+    [
+      "enc_ffn.up.matmul",
+      "enc_ffn.up",
+      "a"
+    ],
+    [
+      "dec_norm1",
+      "cross_attn.q.matmul",
+      "a"
+    ],
+    [
+      "dec_norm1",
+      "dec_norm2.residual",
+      "b"
+    ],
+    [
+      "enc_ffn.up",
+      "enc_ffn.relu",
+      "x"
+    ],
+    [
+      "cross_attn.q.matmul",
+      "cross_attn.q",
+      "a"
+    ],
+    [
+      "enc_ffn.relu",
+      "enc_ffn.output.matmul",
+      "a"
+    ],
+    [
+      "cross_attn.q",
+      "cross_attn.q.reshape",
+      "x"
+    ],
+    [
+      "enc_ffn.output.matmul",
+      "enc_ffn.output",
+      "a"
+    ],
+    [
+      "cross_attn.q.reshape",
+      "cross_attn.q.heads",
+      "x"
+    ],
+    [
+      "enc_ffn.output",
+      "enc_norm2.residual",
+      "a"
+    ],
+    [
+      "cross_attn.q.heads",
+      "cross_attn.score.matmul",
+      "a"
+    ],
+    [
+      "enc_norm2.residual",
+      "enc_norm2.mean",
+      "x"
+    ],
+    [
+      "enc_norm2.residual",
+      "enc_norm2.center",
+      "a"
+    ],
+    [
+      "enc_norm2.mean",
+      "enc_norm2.center",
+      "b"
+    ],
+    [
+      "enc_norm2.center",
+      "enc_norm2.square",
+      "x"
+    ],
+    [
+      "enc_norm2.center",
+      "enc_norm2.normalized",
+      "a"
+    ],
+    [
+      "enc_norm2.square",
+      "enc_norm2.variance",
+      "x"
+    ],
+    [
+      "enc_norm2.variance",
+      "enc_norm2.stable",
+      "a"
+    ],
+    [
+      "enc_norm2.stable",
+      "enc_norm2.rsqrt",
+      "x"
+    ],
+    [
+      "enc_norm2.rsqrt",
+      "enc_norm2.normalized",
+      "b"
+    ],
+    [
+      "enc_norm2.normalized",
+      "enc_norm2.scaled",
+      "a"
+    ],
+    [
+      "enc_norm2.scaled",
+      "enc_norm2",
+      "a"
+    ],
+    [
+      "enc_norm2",
+      "cross_attn.k.matmul",
+      "a"
+    ],
+    [
+      "enc_norm2",
+      "cross_attn.v.matmul",
+      "a"
+    ],
+    [
+      "cross_attn.k.matmul",
+      "cross_attn.k",
+      "a"
+    ],
+    [
+      "cross_attn.v.matmul",
+      "cross_attn.v",
+      "a"
+    ],
+    [
+      "cross_attn.k",
+      "cross_attn.k.reshape",
+      "x"
+    ],
+    [
+      "cross_attn.v",
+      "cross_attn.v.reshape",
+      "x"
+    ],
+    [
+      "cross_attn.k.reshape",
+      "cross_attn.k.heads",
+      "x"
+    ],
+    [
+      "cross_attn.v.reshape",
+      "cross_attn.v.heads",
+      "x"
+    ],
+    [
+      "cross_attn.k.heads",
+      "cross_attn.k.transpose",
+      "x"
+    ],
+    [
+      "cross_attn.v.heads",
+      "cross_attn.context",
+      "b"
+    ],
+    [
+      "cross_attn.k.transpose",
+      "cross_attn.score.matmul",
+      "b"
+    ],
+    [
+      "cross_attn.score.matmul",
+      "cross_attn.score",
+      "a"
+    ],
+    [
+      "cross_attn.score",
+      "cross_attn.probabilities",
+      "x"
+    ],
+    [
+      "cross_attn.probabilities",
+      "cross_attn.context",
+      "a"
+    ],
+    [
+      "cross_attn.context",
+      "cross_attn.context.transpose",
+      "x"
+    ],
+    [
+      "cross_attn.context.transpose",
+      "cross_attn.context.contiguous",
+      "x"
+    ],
+    [
+      "cross_attn.context.contiguous",
+      "cross_attn.joined",
+      "x"
+    ],
+    [
+      "cross_attn.joined",
+      "cross_attn.output.matmul",
+      "a"
+    ],
+    [
+      "cross_attn.output.matmul",
+      "cross_attn.output",
+      "a"
+    ],
+    [
+      "cross_attn.output",
+      "dec_norm2.residual",
+      "a"
+    ],
+    [
+      "dec_norm2.residual",
+      "dec_norm2.mean",
+      "x"
+    ],
+    [
+      "dec_norm2.residual",
+      "dec_norm2.center",
+      "a"
+    ],
+    [
+      "dec_norm2.mean",
+      "dec_norm2.center",
+      "b"
+    ],
+    [
+      "dec_norm2.center",
+      "dec_norm2.square",
+      "x"
+    ],
+    [
+      "dec_norm2.center",
+      "dec_norm2.normalized",
+      "a"
+    ],
+    [
+      "dec_norm2.square",
+      "dec_norm2.variance",
+      "x"
+    ],
+    [
+      "dec_norm2.variance",
+      "dec_norm2.stable",
+      "a"
+    ],
+    [
+      "dec_norm2.stable",
+      "dec_norm2.rsqrt",
+      "x"
+    ],
+    [
+      "dec_norm2.rsqrt",
+      "dec_norm2.normalized",
+      "b"
+    ],
+    [
+      "dec_norm2.normalized",
+      "dec_norm2.scaled",
+      "a"
+    ],
+    [
+      "dec_norm2.scaled",
+      "dec_norm2",
+      "a"
+    ],
+    [
+      "dec_norm2",
+      "dec_ffn.up.matmul",
+      "a"
+    ],
+    [
+      "dec_norm2",
+      "dec_norm3.residual",
+      "b"
+    ],
+    [
+      "dec_ffn.up.matmul",
+      "dec_ffn.up",
+      "a"
+    ],
+    [
+      "dec_ffn.up",
+      "dec_ffn.relu",
+      "x"
+    ],
+    [
+      "dec_ffn.relu",
+      "dec_ffn.output.matmul",
+      "a"
+    ],
+    [
+      "dec_ffn.output.matmul",
+      "dec_ffn.output",
+      "a"
+    ],
+    [
+      "dec_ffn.output",
+      "dec_norm3.residual",
+      "a"
+    ],
+    [
+      "dec_norm3.residual",
+      "dec_norm3.mean",
+      "x"
+    ],
+    [
+      "dec_norm3.residual",
+      "dec_norm3.center",
+      "a"
+    ],
+    [
+      "dec_norm3.mean",
+      "dec_norm3.center",
+      "b"
+    ],
+    [
+      "dec_norm3.center",
+      "dec_norm3.square",
+      "x"
+    ],
+    [
+      "dec_norm3.center",
+      "dec_norm3.normalized",
+      "a"
+    ],
+    [
+      "dec_norm3.square",
+      "dec_norm3.variance",
+      "x"
+    ],
+    [
+      "dec_norm3.variance",
+      "dec_norm3.stable",
+      "a"
+    ],
+    [
+      "dec_norm3.stable",
+      "dec_norm3.rsqrt",
+      "x"
+    ],
+    [
+      "dec_norm3.rsqrt",
+      "dec_norm3.normalized",
+      "b"
+    ],
+    [
+      "dec_norm3.normalized",
+      "dec_norm3.scaled",
+      "a"
+    ],
+    [
+      "dec_norm3.scaled",
+      "dec_norm3",
+      "a"
+    ],
+    [
+      "dec_norm3",
+      "projection.matmul",
+      "a"
+    ],
+    [
+      "projection.matmul",
+      "projection",
+      "a"
+    ],
+    [
+      "projection",
+      "probabilities",
+      "x"
+    ]
+  ],
+  "handle_identity": [
+    {
+      "producer": "source",
+      "consumer": "enc_embed.gather",
+      "port": "indices",
+      "same_object": true
+    },
+    {
+      "producer": "source",
+      "consumer": "enc_pos.indices",
+      "port": "ref",
+      "same_object": true
+    },
+    {
+      "producer": "target",
+      "consumer": "dec_embed.gather",
+      "port": "indices",
+      "same_object": true
+    },
+    {
+      "producer": "target",
+      "consumer": "dec_pos.indices",
+      "port": "ref",
+      "same_object": true
+    },
+    {
+      "producer": "target",
+      "consumer": "dec_attn.mask.full",
+      "port": "ref",
+      "same_object": true
+    },
+    {
+      "producer": "embedding_scale",
+      "consumer": "enc_embed",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "embedding_scale",
+      "consumer": "dec_embed",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "position_table",
+      "consumer": "enc_pos.positions",
+      "port": "table",
+      "same_object": true
+    },
+    {
+      "producer": "position_table",
+      "consumer": "dec_pos.positions",
+      "port": "table",
+      "same_object": true
+    },
+    {
+      "producer": "enc_embed.table",
+      "consumer": "enc_embed.gather",
+      "port": "table",
+      "same_object": true
+    },
+    {
+      "producer": "dec_embed.table",
+      "consumer": "dec_embed.gather",
+      "port": "table",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.q.weight",
+      "consumer": "enc_attn.q.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.q.bias",
+      "consumer": "enc_attn.q",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.k.weight",
+      "consumer": "enc_attn.k.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.k.bias",
+      "consumer": "enc_attn.k",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.v.weight",
+      "consumer": "enc_attn.v.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.v.bias",
+      "consumer": "enc_attn.v",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.scale",
+      "consumer": "enc_attn.score",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.output.weight",
+      "consumer": "enc_attn.output.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.output.bias",
+      "consumer": "enc_attn.output",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.epsilon",
+      "consumer": "enc_norm1.stable",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.gamma",
+      "consumer": "enc_norm1.scaled",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.beta",
+      "consumer": "enc_norm1",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.up.weight",
+      "consumer": "enc_ffn.up.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.up.bias",
+      "consumer": "enc_ffn.up",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.output.weight",
+      "consumer": "enc_ffn.output.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.output.bias",
+      "consumer": "enc_ffn.output",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.epsilon",
+      "consumer": "enc_norm2.stable",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.gamma",
+      "consumer": "enc_norm2.scaled",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.beta",
+      "consumer": "enc_norm2",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.q.weight",
+      "consumer": "dec_attn.q.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.q.bias",
+      "consumer": "dec_attn.q",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.k.weight",
+      "consumer": "dec_attn.k.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.k.bias",
+      "consumer": "dec_attn.k",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.v.weight",
+      "consumer": "dec_attn.v.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.v.bias",
+      "consumer": "dec_attn.v",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.scale",
+      "consumer": "dec_attn.score",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.output.weight",
+      "consumer": "dec_attn.output.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.output.bias",
+      "consumer": "dec_attn.output",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.epsilon",
+      "consumer": "dec_norm1.stable",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.gamma",
+      "consumer": "dec_norm1.scaled",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.beta",
+      "consumer": "dec_norm1",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.q.weight",
+      "consumer": "cross_attn.q.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.q.bias",
+      "consumer": "cross_attn.q",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.k.weight",
+      "consumer": "cross_attn.k.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.k.bias",
+      "consumer": "cross_attn.k",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.v.weight",
+      "consumer": "cross_attn.v.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.v.bias",
+      "consumer": "cross_attn.v",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.scale",
+      "consumer": "cross_attn.score",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.output.weight",
+      "consumer": "cross_attn.output.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.output.bias",
+      "consumer": "cross_attn.output",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.epsilon",
+      "consumer": "dec_norm2.stable",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.gamma",
+      "consumer": "dec_norm2.scaled",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.beta",
+      "consumer": "dec_norm2",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.up.weight",
+      "consumer": "dec_ffn.up.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.up.bias",
+      "consumer": "dec_ffn.up",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.output.weight",
+      "consumer": "dec_ffn.output.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.output.bias",
+      "consumer": "dec_ffn.output",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.epsilon",
+      "consumer": "dec_norm3.stable",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.gamma",
+      "consumer": "dec_norm3.scaled",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.beta",
+      "consumer": "dec_norm3",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "projection.weight",
+      "consumer": "projection.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "projection.bias",
+      "consumer": "projection",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_pos.indices",
+      "consumer": "enc_pos.positions",
+      "port": "indices",
+      "same_object": true
+    },
+    {
+      "producer": "dec_pos.indices",
+      "consumer": "dec_pos.positions",
+      "port": "indices",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.mask.full",
+      "consumer": "dec_attn.mask",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_embed.gather",
+      "consumer": "enc_embed",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_embed.gather",
+      "consumer": "dec_embed",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_pos.positions",
+      "consumer": "enc_pos",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_pos.positions",
+      "consumer": "dec_pos",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.mask",
+      "consumer": "dec_attn.masked",
+      "port": "mask",
+      "same_object": true
+    },
+    {
+      "producer": "enc_embed",
+      "consumer": "enc_pos",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_embed",
+      "consumer": "dec_pos",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_pos",
+      "consumer": "enc_attn.q.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_pos",
+      "consumer": "enc_attn.k.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_pos",
+      "consumer": "enc_attn.v.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_pos",
+      "consumer": "enc_norm1.residual",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_pos",
+      "consumer": "dec_attn.q.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_pos",
+      "consumer": "dec_attn.k.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_pos",
+      "consumer": "dec_attn.v.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_pos",
+      "consumer": "dec_norm1.residual",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.q.matmul",
+      "consumer": "enc_attn.q",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.k.matmul",
+      "consumer": "enc_attn.k",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.v.matmul",
+      "consumer": "enc_attn.v",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.q.matmul",
+      "consumer": "dec_attn.q",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.k.matmul",
+      "consumer": "dec_attn.k",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.v.matmul",
+      "consumer": "dec_attn.v",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.q",
+      "consumer": "enc_attn.q.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.k",
+      "consumer": "enc_attn.k.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.v",
+      "consumer": "enc_attn.v.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.q",
+      "consumer": "dec_attn.q.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.k",
+      "consumer": "dec_attn.k.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.v",
+      "consumer": "dec_attn.v.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.q.reshape",
+      "consumer": "enc_attn.q.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.k.reshape",
+      "consumer": "enc_attn.k.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.v.reshape",
+      "consumer": "enc_attn.v.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.q.reshape",
+      "consumer": "dec_attn.q.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.k.reshape",
+      "consumer": "dec_attn.k.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.v.reshape",
+      "consumer": "dec_attn.v.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.q.heads",
+      "consumer": "enc_attn.score.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.k.heads",
+      "consumer": "enc_attn.k.transpose",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.v.heads",
+      "consumer": "enc_attn.context",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.q.heads",
+      "consumer": "dec_attn.score.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.k.heads",
+      "consumer": "dec_attn.k.transpose",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.v.heads",
+      "consumer": "dec_attn.context",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.k.transpose",
+      "consumer": "enc_attn.score.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.k.transpose",
+      "consumer": "dec_attn.score.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.score.matmul",
+      "consumer": "enc_attn.score",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.score.matmul",
+      "consumer": "dec_attn.score",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.score",
+      "consumer": "enc_attn.probabilities",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.score",
+      "consumer": "dec_attn.masked",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.probabilities",
+      "consumer": "enc_attn.context",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.masked",
+      "consumer": "dec_attn.probabilities",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.context",
+      "consumer": "enc_attn.context.transpose",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.probabilities",
+      "consumer": "dec_attn.context",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.context.transpose",
+      "consumer": "enc_attn.context.contiguous",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.context",
+      "consumer": "dec_attn.context.transpose",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.context.contiguous",
+      "consumer": "enc_attn.joined",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.context.transpose",
+      "consumer": "dec_attn.context.contiguous",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.joined",
+      "consumer": "enc_attn.output.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.context.contiguous",
+      "consumer": "dec_attn.joined",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.output.matmul",
+      "consumer": "enc_attn.output",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.joined",
+      "consumer": "dec_attn.output.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_attn.output",
+      "consumer": "enc_norm1.residual",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.output.matmul",
+      "consumer": "dec_attn.output",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.residual",
+      "consumer": "enc_norm1.mean",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.residual",
+      "consumer": "enc_norm1.center",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_attn.output",
+      "consumer": "dec_norm1.residual",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.mean",
+      "consumer": "enc_norm1.center",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.residual",
+      "consumer": "dec_norm1.mean",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.residual",
+      "consumer": "dec_norm1.center",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.center",
+      "consumer": "enc_norm1.square",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.center",
+      "consumer": "enc_norm1.normalized",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.mean",
+      "consumer": "dec_norm1.center",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.square",
+      "consumer": "enc_norm1.variance",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.center",
+      "consumer": "dec_norm1.square",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.center",
+      "consumer": "dec_norm1.normalized",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.variance",
+      "consumer": "enc_norm1.stable",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.square",
+      "consumer": "dec_norm1.variance",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.stable",
+      "consumer": "enc_norm1.rsqrt",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.variance",
+      "consumer": "dec_norm1.stable",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.rsqrt",
+      "consumer": "enc_norm1.normalized",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.stable",
+      "consumer": "dec_norm1.rsqrt",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.normalized",
+      "consumer": "enc_norm1.scaled",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.rsqrt",
+      "consumer": "dec_norm1.normalized",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1.scaled",
+      "consumer": "enc_norm1",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.normalized",
+      "consumer": "dec_norm1.scaled",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1",
+      "consumer": "enc_ffn.up.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm1",
+      "consumer": "enc_norm2.residual",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1.scaled",
+      "consumer": "dec_norm1",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.up.matmul",
+      "consumer": "enc_ffn.up",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1",
+      "consumer": "cross_attn.q.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm1",
+      "consumer": "dec_norm2.residual",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.up",
+      "consumer": "enc_ffn.relu",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.q.matmul",
+      "consumer": "cross_attn.q",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.relu",
+      "consumer": "enc_ffn.output.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.q",
+      "consumer": "cross_attn.q.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.output.matmul",
+      "consumer": "enc_ffn.output",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.q.reshape",
+      "consumer": "cross_attn.q.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_ffn.output",
+      "consumer": "enc_norm2.residual",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.q.heads",
+      "consumer": "cross_attn.score.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.residual",
+      "consumer": "enc_norm2.mean",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.residual",
+      "consumer": "enc_norm2.center",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.mean",
+      "consumer": "enc_norm2.center",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.center",
+      "consumer": "enc_norm2.square",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.center",
+      "consumer": "enc_norm2.normalized",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.square",
+      "consumer": "enc_norm2.variance",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.variance",
+      "consumer": "enc_norm2.stable",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.stable",
+      "consumer": "enc_norm2.rsqrt",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.rsqrt",
+      "consumer": "enc_norm2.normalized",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.normalized",
+      "consumer": "enc_norm2.scaled",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2.scaled",
+      "consumer": "enc_norm2",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2",
+      "consumer": "cross_attn.k.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "enc_norm2",
+      "consumer": "cross_attn.v.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.k.matmul",
+      "consumer": "cross_attn.k",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.v.matmul",
+      "consumer": "cross_attn.v",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.k",
+      "consumer": "cross_attn.k.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.v",
+      "consumer": "cross_attn.v.reshape",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.k.reshape",
+      "consumer": "cross_attn.k.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.v.reshape",
+      "consumer": "cross_attn.v.heads",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.k.heads",
+      "consumer": "cross_attn.k.transpose",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.v.heads",
+      "consumer": "cross_attn.context",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.k.transpose",
+      "consumer": "cross_attn.score.matmul",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.score.matmul",
+      "consumer": "cross_attn.score",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.score",
+      "consumer": "cross_attn.probabilities",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.probabilities",
+      "consumer": "cross_attn.context",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.context",
+      "consumer": "cross_attn.context.transpose",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.context.transpose",
+      "consumer": "cross_attn.context.contiguous",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.context.contiguous",
+      "consumer": "cross_attn.joined",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.joined",
+      "consumer": "cross_attn.output.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.output.matmul",
+      "consumer": "cross_attn.output",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "cross_attn.output",
+      "consumer": "dec_norm2.residual",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.residual",
+      "consumer": "dec_norm2.mean",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.residual",
+      "consumer": "dec_norm2.center",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.mean",
+      "consumer": "dec_norm2.center",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.center",
+      "consumer": "dec_norm2.square",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.center",
+      "consumer": "dec_norm2.normalized",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.square",
+      "consumer": "dec_norm2.variance",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.variance",
+      "consumer": "dec_norm2.stable",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.stable",
+      "consumer": "dec_norm2.rsqrt",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.rsqrt",
+      "consumer": "dec_norm2.normalized",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.normalized",
+      "consumer": "dec_norm2.scaled",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2.scaled",
+      "consumer": "dec_norm2",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2",
+      "consumer": "dec_ffn.up.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm2",
+      "consumer": "dec_norm3.residual",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.up.matmul",
+      "consumer": "dec_ffn.up",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.up",
+      "consumer": "dec_ffn.relu",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.relu",
+      "consumer": "dec_ffn.output.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.output.matmul",
+      "consumer": "dec_ffn.output",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_ffn.output",
+      "consumer": "dec_norm3.residual",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.residual",
+      "consumer": "dec_norm3.mean",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.residual",
+      "consumer": "dec_norm3.center",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.mean",
+      "consumer": "dec_norm3.center",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.center",
+      "consumer": "dec_norm3.square",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.center",
+      "consumer": "dec_norm3.normalized",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.square",
+      "consumer": "dec_norm3.variance",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.variance",
+      "consumer": "dec_norm3.stable",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.stable",
+      "consumer": "dec_norm3.rsqrt",
+      "port": "x",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.rsqrt",
+      "consumer": "dec_norm3.normalized",
+      "port": "b",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.normalized",
+      "consumer": "dec_norm3.scaled",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3.scaled",
+      "consumer": "dec_norm3",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "dec_norm3",
+      "consumer": "projection.matmul",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "projection.matmul",
+      "consumer": "projection",
+      "port": "a",
+      "same_object": true
+    },
+    {
+      "producer": "projection",
+      "consumer": "probabilities",
+      "port": "x",
+      "same_object": true
+    }
+  ],
+  "lifetime_trace": [
+    {
+      "node": "source",
+      "release": [],
+      "live_after": [
+        "source"
+      ]
+    },
+    {
+      "node": "target",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "embedding_scale",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "position_table",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_embed.table",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_embed.table",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.q.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.q.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.k.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.k.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.v.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.v.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.scale",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.output.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_attn.output.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_norm1.epsilon",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_norm1.gamma",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_norm1.beta",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_ffn.up.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_ffn.up.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_ffn.output.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_ffn.output.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_norm2.epsilon",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_norm2.gamma",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_norm2.beta",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.q.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.q.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.k.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.k.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.v.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.v.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.scale",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.output.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.output.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm1.epsilon",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm1.gamma",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm1.beta",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.q.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.q.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.k.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.k.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.v.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.v.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.scale",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.output.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "cross_attn.output.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm2.epsilon",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm2.gamma",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm2.beta",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_ffn.up.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_ffn.up.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_ffn.output.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_ffn.output.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm3.epsilon",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm3.gamma",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_norm3.beta",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "projection.weight",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "projection.bias",
+      "release": [],
+      "live_after": [
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_pos.indices",
+      "release": [],
+      "live_after": [
+        "enc_pos.indices",
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_pos.indices",
+      "release": [],
+      "live_after": [
+        "dec_pos.indices",
+        "enc_pos.indices",
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_attn.mask.full",
+      "release": [],
+      "live_after": [
+        "dec_attn.mask.full",
+        "dec_pos.indices",
+        "enc_pos.indices",
+        "source",
+        "target"
+      ]
+    },
+    {
+      "node": "enc_embed.gather",
+      "release": [
+        "source"
+      ],
+      "live_after": [
+        "dec_attn.mask.full",
+        "dec_pos.indices",
+        "enc_embed.gather",
+        "enc_pos.indices",
+        "target"
+      ]
+    },
+    {
+      "node": "dec_embed.gather",
+      "release": [
+        "target"
+      ],
+      "live_after": [
+        "dec_attn.mask.full",
+        "dec_embed.gather",
+        "dec_pos.indices",
+        "enc_embed.gather",
+        "enc_pos.indices"
+      ]
+    },
+    {
+      "node": "enc_pos.positions",
+      "release": [
+        "enc_pos.indices"
+      ],
+      "live_after": [
+        "dec_attn.mask.full",
+        "dec_embed.gather",
+        "dec_pos.indices",
+        "enc_embed.gather",
+        "enc_pos.positions"
+      ]
+    },
+    {
+      "node": "dec_pos.positions",
+      "release": [
+        "dec_pos.indices"
+      ],
+      "live_after": [
+        "dec_attn.mask.full",
+        "dec_embed.gather",
+        "dec_pos.positions",
+        "enc_embed.gather",
+        "enc_pos.positions"
+      ]
+    },
+    {
+      "node": "dec_attn.mask",
+      "release": [
+        "dec_attn.mask.full"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_embed.gather",
+        "dec_pos.positions",
+        "enc_embed.gather",
+        "enc_pos.positions"
+      ]
+    },
+    {
+      "node": "enc_embed",
+      "release": [
+        "enc_embed.gather"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_embed.gather",
+        "dec_pos.positions",
+        "enc_embed",
+        "enc_pos.positions"
+      ]
+    },
+    {
+      "node": "dec_embed",
+      "release": [
+        "dec_embed.gather"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_embed",
+        "dec_pos.positions",
+        "enc_embed",
+        "enc_pos.positions"
+      ]
+    },
+    {
+      "node": "enc_pos",
+      "release": [
+        "enc_embed",
+        "enc_pos.positions"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_embed",
+        "dec_pos.positions",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_pos",
+      "release": [
+        "dec_embed",
+        "dec_pos.positions"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_pos",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.q.matmul",
+      "release": [],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_pos",
+        "enc_attn.q.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.k.matmul",
+      "release": [],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_pos",
+        "enc_attn.k.matmul",
+        "enc_attn.q.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.v.matmul",
+      "release": [],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_pos",
+        "enc_attn.k.matmul",
+        "enc_attn.q.matmul",
+        "enc_attn.v.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.q.matmul",
+      "release": [],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_attn.q.matmul",
+        "dec_pos",
+        "enc_attn.k.matmul",
+        "enc_attn.q.matmul",
+        "enc_attn.v.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.k.matmul",
+      "release": [],
+      "live_after": [
+        "dec_attn.k.matmul",
+        "dec_attn.mask",
+        "dec_attn.q.matmul",
+        "dec_pos",
+        "enc_attn.k.matmul",
+        "enc_attn.q.matmul",
+        "enc_attn.v.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.v.matmul",
+      "release": [],
+      "live_after": [
+        "dec_attn.k.matmul",
+        "dec_attn.mask",
+        "dec_attn.q.matmul",
+        "dec_attn.v.matmul",
+        "dec_pos",
+        "enc_attn.k.matmul",
+        "enc_attn.q.matmul",
+        "enc_attn.v.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.q",
+      "release": [
+        "enc_attn.q.matmul"
+      ],
+      "live_after": [
+        "dec_attn.k.matmul",
+        "dec_attn.mask",
+        "dec_attn.q.matmul",
+        "dec_attn.v.matmul",
+        "dec_pos",
+        "enc_attn.k.matmul",
+        "enc_attn.q",
+        "enc_attn.v.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.k",
+      "release": [
+        "enc_attn.k.matmul"
+      ],
+      "live_after": [
+        "dec_attn.k.matmul",
+        "dec_attn.mask",
+        "dec_attn.q.matmul",
+        "dec_attn.v.matmul",
+        "dec_pos",
+        "enc_attn.k",
+        "enc_attn.q",
+        "enc_attn.v.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.v",
+      "release": [
+        "enc_attn.v.matmul"
+      ],
+      "live_after": [
+        "dec_attn.k.matmul",
+        "dec_attn.mask",
+        "dec_attn.q.matmul",
+        "dec_attn.v.matmul",
+        "dec_pos",
+        "enc_attn.k",
+        "enc_attn.q",
+        "enc_attn.v",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.q",
+      "release": [
+        "dec_attn.q.matmul"
+      ],
+      "live_after": [
+        "dec_attn.k.matmul",
+        "dec_attn.mask",
+        "dec_attn.q",
+        "dec_attn.v.matmul",
+        "dec_pos",
+        "enc_attn.k",
+        "enc_attn.q",
+        "enc_attn.v",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.k",
+      "release": [
+        "dec_attn.k.matmul"
+      ],
+      "live_after": [
+        "dec_attn.k",
+        "dec_attn.mask",
+        "dec_attn.q",
+        "dec_attn.v.matmul",
+        "dec_pos",
+        "enc_attn.k",
+        "enc_attn.q",
+        "enc_attn.v",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.v",
+      "release": [
+        "dec_attn.v.matmul"
+      ],
+      "live_after": [
+        "dec_attn.k",
+        "dec_attn.mask",
+        "dec_attn.q",
+        "dec_attn.v",
+        "dec_pos",
+        "enc_attn.k",
+        "enc_attn.q",
+        "enc_attn.v",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.q.reshape",
+      "release": [
+        "enc_attn.q"
+      ],
+      "live_after": [
+        "dec_attn.k",
+        "dec_attn.mask",
+        "dec_attn.q",
+        "dec_attn.v",
+        "dec_pos",
+        "enc_attn.k",
+        "enc_attn.q.reshape",
+        "enc_attn.v",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.k.reshape",
+      "release": [
+        "enc_attn.k"
+      ],
+      "live_after": [
+        "dec_attn.k",
+        "dec_attn.mask",
+        "dec_attn.q",
+        "dec_attn.v",
+        "dec_pos",
+        "enc_attn.k.reshape",
+        "enc_attn.q.reshape",
+        "enc_attn.v",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.v.reshape",
+      "release": [
+        "enc_attn.v"
+      ],
+      "live_after": [
+        "dec_attn.k",
+        "dec_attn.mask",
+        "dec_attn.q",
+        "dec_attn.v",
+        "dec_pos",
+        "enc_attn.k.reshape",
+        "enc_attn.q.reshape",
+        "enc_attn.v.reshape",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.q.reshape",
+      "release": [
+        "dec_attn.q"
+      ],
+      "live_after": [
+        "dec_attn.k",
+        "dec_attn.mask",
+        "dec_attn.q.reshape",
+        "dec_attn.v",
+        "dec_pos",
+        "enc_attn.k.reshape",
+        "enc_attn.q.reshape",
+        "enc_attn.v.reshape",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.k.reshape",
+      "release": [
+        "dec_attn.k"
+      ],
+      "live_after": [
+        "dec_attn.k.reshape",
+        "dec_attn.mask",
+        "dec_attn.q.reshape",
+        "dec_attn.v",
+        "dec_pos",
+        "enc_attn.k.reshape",
+        "enc_attn.q.reshape",
+        "enc_attn.v.reshape",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.v.reshape",
+      "release": [
+        "dec_attn.v"
+      ],
+      "live_after": [
+        "dec_attn.k.reshape",
+        "dec_attn.mask",
+        "dec_attn.q.reshape",
+        "dec_attn.v.reshape",
+        "dec_pos",
+        "enc_attn.k.reshape",
+        "enc_attn.q.reshape",
+        "enc_attn.v.reshape",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.q.heads",
+      "release": [
+        "enc_attn.q.reshape"
+      ],
+      "live_after": [
+        "dec_attn.k.reshape",
+        "dec_attn.mask",
+        "dec_attn.q.reshape",
+        "dec_attn.v.reshape",
+        "dec_pos",
+        "enc_attn.k.reshape",
+        "enc_attn.q.heads",
+        "enc_attn.v.reshape",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.k.heads",
+      "release": [
+        "enc_attn.k.reshape"
+      ],
+      "live_after": [
+        "dec_attn.k.reshape",
+        "dec_attn.mask",
+        "dec_attn.q.reshape",
+        "dec_attn.v.reshape",
+        "dec_pos",
+        "enc_attn.k.heads",
+        "enc_attn.q.heads",
+        "enc_attn.v.reshape",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.v.heads",
+      "release": [
+        "enc_attn.v.reshape"
+      ],
+      "live_after": [
+        "dec_attn.k.reshape",
+        "dec_attn.mask",
+        "dec_attn.q.reshape",
+        "dec_attn.v.reshape",
+        "dec_pos",
+        "enc_attn.k.heads",
+        "enc_attn.q.heads",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.q.heads",
+      "release": [
+        "dec_attn.q.reshape"
+      ],
+      "live_after": [
+        "dec_attn.k.reshape",
+        "dec_attn.mask",
+        "dec_attn.q.heads",
+        "dec_attn.v.reshape",
+        "dec_pos",
+        "enc_attn.k.heads",
+        "enc_attn.q.heads",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.k.heads",
+      "release": [
+        "dec_attn.k.reshape"
+      ],
+      "live_after": [
+        "dec_attn.k.heads",
+        "dec_attn.mask",
+        "dec_attn.q.heads",
+        "dec_attn.v.reshape",
+        "dec_pos",
+        "enc_attn.k.heads",
+        "enc_attn.q.heads",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.v.heads",
+      "release": [
+        "dec_attn.v.reshape"
+      ],
+      "live_after": [
+        "dec_attn.k.heads",
+        "dec_attn.mask",
+        "dec_attn.q.heads",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.k.heads",
+        "enc_attn.q.heads",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.k.transpose",
+      "release": [
+        "enc_attn.k.heads"
+      ],
+      "live_after": [
+        "dec_attn.k.heads",
+        "dec_attn.mask",
+        "dec_attn.q.heads",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.k.transpose",
+        "enc_attn.q.heads",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.k.transpose",
+      "release": [
+        "dec_attn.k.heads"
+      ],
+      "live_after": [
+        "dec_attn.k.transpose",
+        "dec_attn.mask",
+        "dec_attn.q.heads",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.k.transpose",
+        "enc_attn.q.heads",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.score.matmul",
+      "release": [
+        "enc_attn.k.transpose",
+        "enc_attn.q.heads"
+      ],
+      "live_after": [
+        "dec_attn.k.transpose",
+        "dec_attn.mask",
+        "dec_attn.q.heads",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.score.matmul",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.score.matmul",
+      "release": [
+        "dec_attn.k.transpose",
+        "dec_attn.q.heads"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_attn.score.matmul",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.score.matmul",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.score",
+      "release": [
+        "enc_attn.score.matmul"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_attn.score.matmul",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.score",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.score",
+      "release": [
+        "dec_attn.score.matmul"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_attn.score",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.score",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.probabilities",
+      "release": [
+        "enc_attn.score"
+      ],
+      "live_after": [
+        "dec_attn.mask",
+        "dec_attn.score",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.probabilities",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.masked",
+      "release": [
+        "dec_attn.mask",
+        "dec_attn.score"
+      ],
+      "live_after": [
+        "dec_attn.masked",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.probabilities",
+        "enc_attn.v.heads",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.context",
+      "release": [
+        "enc_attn.probabilities",
+        "enc_attn.v.heads"
+      ],
+      "live_after": [
+        "dec_attn.masked",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.context",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.probabilities",
+      "release": [
+        "dec_attn.masked"
+      ],
+      "live_after": [
+        "dec_attn.probabilities",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.context",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.context.transpose",
+      "release": [
+        "enc_attn.context"
+      ],
+      "live_after": [
+        "dec_attn.probabilities",
+        "dec_attn.v.heads",
+        "dec_pos",
+        "enc_attn.context.transpose",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.context",
+      "release": [
+        "dec_attn.probabilities",
+        "dec_attn.v.heads"
+      ],
+      "live_after": [
+        "dec_attn.context",
+        "dec_pos",
+        "enc_attn.context.transpose",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.context.contiguous",
+      "release": [
+        "enc_attn.context.transpose"
+      ],
+      "live_after": [
+        "dec_attn.context",
+        "dec_pos",
+        "enc_attn.context.contiguous",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.context.transpose",
+      "release": [
+        "dec_attn.context"
+      ],
+      "live_after": [
+        "dec_attn.context.transpose",
+        "dec_pos",
+        "enc_attn.context.contiguous",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.joined",
+      "release": [
+        "enc_attn.context.contiguous"
+      ],
+      "live_after": [
+        "dec_attn.context.transpose",
+        "dec_pos",
+        "enc_attn.joined",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.context.contiguous",
+      "release": [
+        "dec_attn.context.transpose"
+      ],
+      "live_after": [
+        "dec_attn.context.contiguous",
+        "dec_pos",
+        "enc_attn.joined",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.output.matmul",
+      "release": [
+        "enc_attn.joined"
+      ],
+      "live_after": [
+        "dec_attn.context.contiguous",
+        "dec_pos",
+        "enc_attn.output.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.joined",
+      "release": [
+        "dec_attn.context.contiguous"
+      ],
+      "live_after": [
+        "dec_attn.joined",
+        "dec_pos",
+        "enc_attn.output.matmul",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_attn.output",
+      "release": [
+        "enc_attn.output.matmul"
+      ],
+      "live_after": [
+        "dec_attn.joined",
+        "dec_pos",
+        "enc_attn.output",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "dec_attn.output.matmul",
+      "release": [
+        "dec_attn.joined"
+      ],
+      "live_after": [
+        "dec_attn.output.matmul",
+        "dec_pos",
+        "enc_attn.output",
+        "enc_pos"
+      ]
+    },
+    {
+      "node": "enc_norm1.residual",
+      "release": [
+        "enc_attn.output",
+        "enc_pos"
+      ],
+      "live_after": [
+        "dec_attn.output.matmul",
+        "dec_pos",
+        "enc_norm1.residual"
+      ]
+    },
+    {
+      "node": "dec_attn.output",
+      "release": [
+        "dec_attn.output.matmul"
+      ],
+      "live_after": [
+        "dec_attn.output",
+        "dec_pos",
+        "enc_norm1.residual"
+      ]
+    },
+    {
+      "node": "enc_norm1.mean",
+      "release": [],
+      "live_after": [
+        "dec_attn.output",
+        "dec_pos",
+        "enc_norm1.mean",
+        "enc_norm1.residual"
+      ]
+    },
+    {
+      "node": "dec_norm1.residual",
+      "release": [
+        "dec_attn.output",
+        "dec_pos"
+      ],
+      "live_after": [
+        "dec_norm1.residual",
+        "enc_norm1.mean",
+        "enc_norm1.residual"
+      ]
+    },
+    {
+      "node": "enc_norm1.center",
+      "release": [
+        "enc_norm1.mean",
+        "enc_norm1.residual"
+      ],
+      "live_after": [
+        "dec_norm1.residual",
+        "enc_norm1.center"
+      ]
+    },
+    {
+      "node": "dec_norm1.mean",
+      "release": [],
+      "live_after": [
+        "dec_norm1.mean",
+        "dec_norm1.residual",
+        "enc_norm1.center"
+      ]
+    },
+    {
+      "node": "enc_norm1.square",
+      "release": [],
+      "live_after": [
+        "dec_norm1.mean",
+        "dec_norm1.residual",
+        "enc_norm1.center",
+        "enc_norm1.square"
+      ]
+    },
+    {
+      "node": "dec_norm1.center",
+      "release": [
+        "dec_norm1.mean",
+        "dec_norm1.residual"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "enc_norm1.center",
+        "enc_norm1.square"
+      ]
+    },
+    {
+      "node": "enc_norm1.variance",
+      "release": [
+        "enc_norm1.square"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "enc_norm1.center",
+        "enc_norm1.variance"
+      ]
+    },
+    {
+      "node": "dec_norm1.square",
+      "release": [],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.square",
+        "enc_norm1.center",
+        "enc_norm1.variance"
+      ]
+    },
+    {
+      "node": "enc_norm1.stable",
+      "release": [
+        "enc_norm1.variance"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.square",
+        "enc_norm1.center",
+        "enc_norm1.stable"
+      ]
+    },
+    {
+      "node": "dec_norm1.variance",
+      "release": [
+        "dec_norm1.square"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.variance",
+        "enc_norm1.center",
+        "enc_norm1.stable"
+      ]
+    },
+    {
+      "node": "enc_norm1.rsqrt",
+      "release": [
+        "enc_norm1.stable"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.variance",
+        "enc_norm1.center",
+        "enc_norm1.rsqrt"
+      ]
+    },
+    {
+      "node": "dec_norm1.stable",
+      "release": [
+        "dec_norm1.variance"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.stable",
+        "enc_norm1.center",
+        "enc_norm1.rsqrt"
+      ]
+    },
+    {
+      "node": "enc_norm1.normalized",
+      "release": [
+        "enc_norm1.center",
+        "enc_norm1.rsqrt"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.stable",
+        "enc_norm1.normalized"
+      ]
+    },
+    {
+      "node": "dec_norm1.rsqrt",
+      "release": [
+        "dec_norm1.stable"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.rsqrt",
+        "enc_norm1.normalized"
+      ]
+    },
+    {
+      "node": "enc_norm1.scaled",
+      "release": [
+        "enc_norm1.normalized"
+      ],
+      "live_after": [
+        "dec_norm1.center",
+        "dec_norm1.rsqrt",
+        "enc_norm1.scaled"
+      ]
+    },
+    {
+      "node": "dec_norm1.normalized",
+      "release": [
+        "dec_norm1.center",
+        "dec_norm1.rsqrt"
+      ],
+      "live_after": [
+        "dec_norm1.normalized",
+        "enc_norm1.scaled"
+      ]
+    },
+    {
+      "node": "enc_norm1",
+      "release": [
+        "enc_norm1.scaled"
+      ],
+      "live_after": [
+        "dec_norm1.normalized",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "dec_norm1.scaled",
+      "release": [
+        "dec_norm1.normalized"
+      ],
+      "live_after": [
+        "dec_norm1.scaled",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "enc_ffn.up.matmul",
+      "release": [],
+      "live_after": [
+        "dec_norm1.scaled",
+        "enc_ffn.up.matmul",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "dec_norm1",
+      "release": [
+        "dec_norm1.scaled"
+      ],
+      "live_after": [
+        "dec_norm1",
+        "enc_ffn.up.matmul",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "enc_ffn.up",
+      "release": [
+        "enc_ffn.up.matmul"
+      ],
+      "live_after": [
+        "dec_norm1",
+        "enc_ffn.up",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.q.matmul",
+      "release": [],
+      "live_after": [
+        "cross_attn.q.matmul",
+        "dec_norm1",
+        "enc_ffn.up",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "enc_ffn.relu",
+      "release": [
+        "enc_ffn.up"
+      ],
+      "live_after": [
+        "cross_attn.q.matmul",
+        "dec_norm1",
+        "enc_ffn.relu",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.q",
+      "release": [
+        "cross_attn.q.matmul"
+      ],
+      "live_after": [
+        "cross_attn.q",
+        "dec_norm1",
+        "enc_ffn.relu",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "enc_ffn.output.matmul",
+      "release": [
+        "enc_ffn.relu"
+      ],
+      "live_after": [
+        "cross_attn.q",
+        "dec_norm1",
+        "enc_ffn.output.matmul",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.q.reshape",
+      "release": [
+        "cross_attn.q"
+      ],
+      "live_after": [
+        "cross_attn.q.reshape",
+        "dec_norm1",
+        "enc_ffn.output.matmul",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "enc_ffn.output",
+      "release": [
+        "enc_ffn.output.matmul"
+      ],
+      "live_after": [
+        "cross_attn.q.reshape",
+        "dec_norm1",
+        "enc_ffn.output",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.q.heads",
+      "release": [
+        "cross_attn.q.reshape"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_ffn.output",
+        "enc_norm1"
+      ]
+    },
+    {
+      "node": "enc_norm2.residual",
+      "release": [
+        "enc_ffn.output",
+        "enc_norm1"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.residual"
+      ]
+    },
+    {
+      "node": "enc_norm2.mean",
+      "release": [],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.mean",
+        "enc_norm2.residual"
+      ]
+    },
+    {
+      "node": "enc_norm2.center",
+      "release": [
+        "enc_norm2.mean",
+        "enc_norm2.residual"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.center"
+      ]
+    },
+    {
+      "node": "enc_norm2.square",
+      "release": [],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.center",
+        "enc_norm2.square"
+      ]
+    },
+    {
+      "node": "enc_norm2.variance",
+      "release": [
+        "enc_norm2.square"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.center",
+        "enc_norm2.variance"
+      ]
+    },
+    {
+      "node": "enc_norm2.stable",
+      "release": [
+        "enc_norm2.variance"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.center",
+        "enc_norm2.stable"
+      ]
+    },
+    {
+      "node": "enc_norm2.rsqrt",
+      "release": [
+        "enc_norm2.stable"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.center",
+        "enc_norm2.rsqrt"
+      ]
+    },
+    {
+      "node": "enc_norm2.normalized",
+      "release": [
+        "enc_norm2.center",
+        "enc_norm2.rsqrt"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.normalized"
+      ]
+    },
+    {
+      "node": "enc_norm2.scaled",
+      "release": [
+        "enc_norm2.normalized"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2.scaled"
+      ]
+    },
+    {
+      "node": "enc_norm2",
+      "release": [
+        "enc_norm2.scaled"
+      ],
+      "live_after": [
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2"
+      ]
+    },
+    {
+      "node": "cross_attn.k.matmul",
+      "release": [],
+      "live_after": [
+        "cross_attn.k.matmul",
+        "cross_attn.q.heads",
+        "dec_norm1",
+        "enc_norm2"
+      ]
+    },
+    {
+      "node": "cross_attn.v.matmul",
+      "release": [
+        "enc_norm2"
+      ],
+      "live_after": [
+        "cross_attn.k.matmul",
+        "cross_attn.q.heads",
+        "cross_attn.v.matmul",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.k",
+      "release": [
+        "cross_attn.k.matmul"
+      ],
+      "live_after": [
+        "cross_attn.k",
+        "cross_attn.q.heads",
+        "cross_attn.v.matmul",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.v",
+      "release": [
+        "cross_attn.v.matmul"
+      ],
+      "live_after": [
+        "cross_attn.k",
+        "cross_attn.q.heads",
+        "cross_attn.v",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.k.reshape",
+      "release": [
+        "cross_attn.k"
+      ],
+      "live_after": [
+        "cross_attn.k.reshape",
+        "cross_attn.q.heads",
+        "cross_attn.v",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.v.reshape",
+      "release": [
+        "cross_attn.v"
+      ],
+      "live_after": [
+        "cross_attn.k.reshape",
+        "cross_attn.q.heads",
+        "cross_attn.v.reshape",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.k.heads",
+      "release": [
+        "cross_attn.k.reshape"
+      ],
+      "live_after": [
+        "cross_attn.k.heads",
+        "cross_attn.q.heads",
+        "cross_attn.v.reshape",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.v.heads",
+      "release": [
+        "cross_attn.v.reshape"
+      ],
+      "live_after": [
+        "cross_attn.k.heads",
+        "cross_attn.q.heads",
+        "cross_attn.v.heads",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.k.transpose",
+      "release": [
+        "cross_attn.k.heads"
+      ],
+      "live_after": [
+        "cross_attn.k.transpose",
+        "cross_attn.q.heads",
+        "cross_attn.v.heads",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.score.matmul",
+      "release": [
+        "cross_attn.k.transpose",
+        "cross_attn.q.heads"
+      ],
+      "live_after": [
+        "cross_attn.score.matmul",
+        "cross_attn.v.heads",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.score",
+      "release": [
+        "cross_attn.score.matmul"
+      ],
+      "live_after": [
+        "cross_attn.score",
+        "cross_attn.v.heads",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.probabilities",
+      "release": [
+        "cross_attn.score"
+      ],
+      "live_after": [
+        "cross_attn.probabilities",
+        "cross_attn.v.heads",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.context",
+      "release": [
+        "cross_attn.probabilities",
+        "cross_attn.v.heads"
+      ],
+      "live_after": [
+        "cross_attn.context",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.context.transpose",
+      "release": [
+        "cross_attn.context"
+      ],
+      "live_after": [
+        "cross_attn.context.transpose",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.context.contiguous",
+      "release": [
+        "cross_attn.context.transpose"
+      ],
+      "live_after": [
+        "cross_attn.context.contiguous",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.joined",
+      "release": [
+        "cross_attn.context.contiguous"
+      ],
+      "live_after": [
+        "cross_attn.joined",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.output.matmul",
+      "release": [
+        "cross_attn.joined"
+      ],
+      "live_after": [
+        "cross_attn.output.matmul",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "cross_attn.output",
+      "release": [
+        "cross_attn.output.matmul"
+      ],
+      "live_after": [
+        "cross_attn.output",
+        "dec_norm1"
+      ]
+    },
+    {
+      "node": "dec_norm2.residual",
+      "release": [
+        "cross_attn.output",
+        "dec_norm1"
+      ],
+      "live_after": [
+        "dec_norm2.residual"
+      ]
+    },
+    {
+      "node": "dec_norm2.mean",
+      "release": [],
+      "live_after": [
+        "dec_norm2.mean",
+        "dec_norm2.residual"
+      ]
+    },
+    {
+      "node": "dec_norm2.center",
+      "release": [
+        "dec_norm2.mean",
+        "dec_norm2.residual"
+      ],
+      "live_after": [
+        "dec_norm2.center"
+      ]
+    },
+    {
+      "node": "dec_norm2.square",
+      "release": [],
+      "live_after": [
+        "dec_norm2.center",
+        "dec_norm2.square"
+      ]
+    },
+    {
+      "node": "dec_norm2.variance",
+      "release": [
+        "dec_norm2.square"
+      ],
+      "live_after": [
+        "dec_norm2.center",
+        "dec_norm2.variance"
+      ]
+    },
+    {
+      "node": "dec_norm2.stable",
+      "release": [
+        "dec_norm2.variance"
+      ],
+      "live_after": [
+        "dec_norm2.center",
+        "dec_norm2.stable"
+      ]
+    },
+    {
+      "node": "dec_norm2.rsqrt",
+      "release": [
+        "dec_norm2.stable"
+      ],
+      "live_after": [
+        "dec_norm2.center",
+        "dec_norm2.rsqrt"
+      ]
+    },
+    {
+      "node": "dec_norm2.normalized",
+      "release": [
+        "dec_norm2.center",
+        "dec_norm2.rsqrt"
+      ],
+      "live_after": [
+        "dec_norm2.normalized"
+      ]
+    },
+    {
+      "node": "dec_norm2.scaled",
+      "release": [
+        "dec_norm2.normalized"
+      ],
+      "live_after": [
+        "dec_norm2.scaled"
+      ]
+    },
+    {
+      "node": "dec_norm2",
+      "release": [
+        "dec_norm2.scaled"
+      ],
+      "live_after": [
+        "dec_norm2"
+      ]
+    },
+    {
+      "node": "dec_ffn.up.matmul",
+      "release": [],
+      "live_after": [
+        "dec_ffn.up.matmul",
+        "dec_norm2"
+      ]
+    },
+    {
+      "node": "dec_ffn.up",
+      "release": [
+        "dec_ffn.up.matmul"
+      ],
+      "live_after": [
+        "dec_ffn.up",
+        "dec_norm2"
+      ]
+    },
+    {
+      "node": "dec_ffn.relu",
+      "release": [
+        "dec_ffn.up"
+      ],
+      "live_after": [
+        "dec_ffn.relu",
+        "dec_norm2"
+      ]
+    },
+    {
+      "node": "dec_ffn.output.matmul",
+      "release": [
+        "dec_ffn.relu"
+      ],
+      "live_after": [
+        "dec_ffn.output.matmul",
+        "dec_norm2"
+      ]
+    },
+    {
+      "node": "dec_ffn.output",
+      "release": [
+        "dec_ffn.output.matmul"
+      ],
+      "live_after": [
+        "dec_ffn.output",
+        "dec_norm2"
+      ]
+    },
+    {
+      "node": "dec_norm3.residual",
+      "release": [
+        "dec_ffn.output",
+        "dec_norm2"
+      ],
+      "live_after": [
+        "dec_norm3.residual"
+      ]
+    },
+    {
+      "node": "dec_norm3.mean",
+      "release": [],
+      "live_after": [
+        "dec_norm3.mean",
+        "dec_norm3.residual"
+      ]
+    },
+    {
+      "node": "dec_norm3.center",
+      "release": [
+        "dec_norm3.mean",
+        "dec_norm3.residual"
+      ],
+      "live_after": [
+        "dec_norm3.center"
+      ]
+    },
+    {
+      "node": "dec_norm3.square",
+      "release": [],
+      "live_after": [
+        "dec_norm3.center",
+        "dec_norm3.square"
+      ]
+    },
+    {
+      "node": "dec_norm3.variance",
+      "release": [
+        "dec_norm3.square"
+      ],
+      "live_after": [
+        "dec_norm3.center",
+        "dec_norm3.variance"
+      ]
+    },
+    {
+      "node": "dec_norm3.stable",
+      "release": [
+        "dec_norm3.variance"
+      ],
+      "live_after": [
+        "dec_norm3.center",
+        "dec_norm3.stable"
+      ]
+    },
+    {
+      "node": "dec_norm3.rsqrt",
+      "release": [
+        "dec_norm3.stable"
+      ],
+      "live_after": [
+        "dec_norm3.center",
+        "dec_norm3.rsqrt"
+      ]
+    },
+    {
+      "node": "dec_norm3.normalized",
+      "release": [
+        "dec_norm3.center",
+        "dec_norm3.rsqrt"
+      ],
+      "live_after": [
+        "dec_norm3.normalized"
+      ]
+    },
+    {
+      "node": "dec_norm3.scaled",
+      "release": [
+        "dec_norm3.normalized"
+      ],
+      "live_after": [
+        "dec_norm3.scaled"
+      ]
+    },
+    {
+      "node": "dec_norm3",
+      "release": [
+        "dec_norm3.scaled"
+      ],
+      "live_after": [
+        "dec_norm3"
+      ]
+    },
+    {
+      "node": "projection.matmul",
+      "release": [
+        "dec_norm3"
+      ],
+      "live_after": [
+        "projection.matmul"
+      ]
+    },
+    {
+      "node": "projection",
+      "release": [
+        "projection.matmul"
+      ],
+      "live_after": [
+        "projection"
+      ]
+    },
+    {
+      "node": "probabilities",
+      "release": [
+        "projection"
+      ],
+      "live_after": [
+        "probabilities"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "platform": "Linux-6.8.0-65-generic-x86_64-with-glibc2.35",
+  "python": "3.12.11 (main, Aug 13 2025, 15:23:38) [GCC 11.4.0]",
+  "byteorder": "little",
+  "GPU": "NVIDIA GeForce RTX 3090",
+  "GPU_total_MiB": 24576,
+  "GPU_free_before_MiB": 24085,
+  "driver": "580.65.06",
+  "Nsight_Systems": "2025.3.2.367-253236224375v0",
+  "Nsight_Compute": "2025.3.0.0 build 36273991",
+  "host_RAM_GiB": 78,
+  "host_available_before_GiB": 72,
+  "swap_GiB": 2,
+  "cgroup_memory_max": "max",
+  "LLVM_shim": "/tmp/jac-cursor-llvm/llvmlite/binding/libllvmlite.so"
+}

@@ -1,0 +1,34 @@
+digraph DataflowView {
+rankdir=LR;
+"enc_norm1.epsilon" [label="enc_norm1.epsilon\nConstant\n[] / float64"];
+"enc_norm1.gamma" [label="enc_norm1.gamma\nParameter\n[8] / float64"];
+"enc_norm1.beta" [label="enc_norm1.beta\nParameter\n[8] / float64"];
+"enc_pos" [label="enc_pos\nAdd\n[4, 8] / float64"];
+"enc_attn.output" [label="enc_attn.output\nAdd\n[4, 8] / float64"];
+"enc_norm1.residual" [label="enc_norm1.residual\nAdd\n[4, 8] / float64"];
+"enc_norm1.mean" [label="enc_norm1.mean\nReduceMean\n[4, 1] / float64"];
+"enc_norm1.center" [label="enc_norm1.center\nSubtract\n[4, 8] / float64"];
+"enc_norm1.square" [label="enc_norm1.square\nSquare\n[4, 8] / float64"];
+"enc_norm1.variance" [label="enc_norm1.variance\nReduceMean\n[4, 1] / float64"];
+"enc_norm1.stable" [label="enc_norm1.stable\nAdd\n[4, 1] / float64"];
+"enc_norm1.rsqrt" [label="enc_norm1.rsqrt\nRsqrt\n[4, 1] / float64"];
+"enc_norm1.normalized" [label="enc_norm1.normalized\nMultiply\n[4, 8] / float64"];
+"enc_norm1.scaled" [label="enc_norm1.scaled\nMultiply\n[4, 8] / float64"];
+"enc_norm1" [label="enc_norm1\nAdd\n[4, 8] / float64"];
+"enc_pos" -> "enc_norm1.residual" [label="b"];
+"enc_attn.output" -> "enc_norm1.residual" [label="a"];
+"enc_norm1.residual" -> "enc_norm1.mean" [label="x"];
+"enc_norm1.residual" -> "enc_norm1.center" [label="a"];
+"enc_norm1.mean" -> "enc_norm1.center" [label="b"];
+"enc_norm1.center" -> "enc_norm1.square" [label="x"];
+"enc_norm1.center" -> "enc_norm1.normalized" [label="a"];
+"enc_norm1.square" -> "enc_norm1.variance" [label="x"];
+"enc_norm1.variance" -> "enc_norm1.stable" [label="a"];
+"enc_norm1.epsilon" -> "enc_norm1.stable" [label="b"];
+"enc_norm1.stable" -> "enc_norm1.rsqrt" [label="x"];
+"enc_norm1.rsqrt" -> "enc_norm1.normalized" [label="b"];
+"enc_norm1.normalized" -> "enc_norm1.scaled" [label="a"];
+"enc_norm1.gamma" -> "enc_norm1.scaled" [label="b"];
+"enc_norm1.beta" -> "enc_norm1" [label="b"];
+"enc_norm1.scaled" -> "enc_norm1" [label="a"];
+}

@@ -1,0 +1,22 @@
+# Environment used for Jac commands
+export XDG_CACHE_HOME=/tmp/jac-cursor-concat-cache
+export JAC_CACHE_HOME=/tmp/jac-cursor-concat-cache/jac
+export JAC_PG_DIST=/home/baichuan/.cache/jac/pg/dist/linux-amd64-18.6.0
+export JAC_LLVM_SHIM=/tmp/jac-cursor-llvm/llvmlite/binding/libllvmlite.so
+export PYTHONPATH=jac
+# Complete full graph and all outputs, five layouts/seed instances
+# Pack wall includes concurrent CPU tests as documented in measurement-context.json
+env/bin/python scripts/gpu_walker/large_matmul/run.py --shape 3000x3000x3000 --max-input-nodes 18000000 --rss-budget-gib 48 --batch 32768 --cuda --output /tmp/jac-large-matmul-3000-20261007 --seeds 928 929 930
+
+# CPU exit-finalization sampling (before ordinary resident timing)
+perf record -e cpu-clock:u -F 99 --call-graph dwarf,4096 -p 1792753 -o /tmp/jac-large-matmul-3000-20261007/cleanup.perf.data -- sleep 5
+perf report --stdio --no-children --sort comm,dso,symbol -i /tmp/jac-large-matmul-3000-20261007/cleanup.perf.data
+# Ordinary paired event samples
+env/bin/python scripts/gpu_walker/large_matmul/replay.py --inputs /tmp/jac-large-matmul-3000-20261007 --output /tmp/jac-large-matmul-3000-20261007/ordinary --seeds 928 929 930 --warmup 4 --repeats 16
+# Separate nsys controlled replay
+nsys profile --trace=cuda,osrt --sample=none --cpuctxsw=none --force-overwrite=true --output=/tmp/jac-large-matmul-3000-20261007/nsys-trace env/bin/python scripts/gpu_walker/large_matmul/replay.py --inputs /tmp/jac-large-matmul-3000-20261007 --output /tmp/jac-large-matmul-3000-20261007/profile --seeds 928 929 930 --warmup 4 --repeats 16
+nsys export --type sqlite --force-overwrite=true --output /tmp/jac-large-matmul-3000-20261007/nsys-trace.sqlite /tmp/jac-large-matmul-3000-20261007/nsys-trace.nsys-rep
+# Counter attempt: exit 1, ERR_NVGPUCTRPERM; no permission changes or password request
+/opt/nvidia/nsight-compute/2025.3.0/ncu --set full --launch-count 1 --force-overwrite -o /tmp/jac-large-matmul-3000-20261007/ncu-predicted env/bin/python scripts/gpu_walker/large_matmul/replay.py --inputs /tmp/jac-large-matmul-3000-20261007 --output /tmp/jac-large-matmul-3000-20261007/ncu-check --layout predicted --seeds 928 --warmup 0 --repeats 1
+# CPU-only full graph audit
+env/bin/python scripts/gpu_walker/large_matmul/audit.py /tmp/jac-large-matmul-3000-20261007
