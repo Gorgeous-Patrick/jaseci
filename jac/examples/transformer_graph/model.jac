@@ -3,6 +3,7 @@ import math_cpu;
 import math;
 import random;
 import copy;
+import tensor_ops;
 
 glob D: int = 8, HEADS: int = 2, FF: int = 16, VOCAB: int = 13, SEED: int = 1729;
 
@@ -14,7 +15,7 @@ node Module {
     # Common scheduling state only. Concrete nodes declare their parameters.
     has name: str, required: list[str] = ["x"], inbox: dict[str, any] = {},
         output: any = None, diagnostics: dict[str, any] = {},
-        done: bool = False, queued: bool = False;
+        done: bool = False, queued: bool = False, tensor_api: any = None;
 
     def ready -> bool {
         return all([role in self.inbox for role in self.required]);
@@ -30,7 +31,7 @@ node Input(Module) {
 }
 
 node Embedding(Module) {
-    has table: list[list[float]] = [], dimension: int = D, vocabulary: int = VOCAB;
+    has table: any = [], dimension: int = D, vocabulary: int = VOCAB;
 
     override def initialize(rng: any) -> None {
         self.table = math_cpu.random_matrix(self.vocabulary, self.dimension, rng);
@@ -38,6 +39,10 @@ node Embedding(Module) {
     override def parameters -> dict[str, any] { return {"table": self.table}; }
     override def evaluate -> None {
         tokens = self.inbox["x"];
+        if self.tensor_api is not None {
+            self.output = self.tensor_api.index_select(self.table, 0, tokens) * math.sqrt(self.dimension);
+            return;
+        }
         if not tokens or any([type(t) is not int or not 0 <= t < self.vocabulary for t in tokens]) {
             raise ValueError("Token sequences must be nonempty integer IDs in vocabulary");
         }
@@ -46,13 +51,28 @@ node Embedding(Module) {
 }
 
 node PositionalEncoding(Module) {
-    has dimension: int = D;
+    has dimension: int = D, position_cache: dict[int, any] = {};
 
     override def evaluate -> None {
         x = self.inbox["x"];
-        result: list[list[float]] = [];
+        if self.tensor_api is not None {
+            t = self.tensor_api;
+            length = x.shape[0];
+            if length not in self.position_cache {
+                positions = t.arange(length, device=x.device, dtype=x.dtype).unsqueeze(1);
+                channels = t.arange(self.dimension, device=x.device, dtype=x.dtype);
+                frequencies = t.pow(10000.0, -2.0 * t.floor(channels / 2.0) / self.dimension);
+                angles = positions * frequencies;
+                even = t.eq(t.remainder(channels.to(t.int64), 2), 0).unsqueeze(0);
+                waves = t.where(even, t.sin(angles), t.cos(angles));
+                self.position_cache[length] = waves;
+            }
+            self.output = x + self.position_cache[length];
+            return;
+        }
+        result: any = [];
         for (pos, row) in enumerate(x) {
-            encoded: list[float] = [];
+            encoded: any = [];
             for i in range(self.dimension) {
                 angle = pos / 10000 ** (2 * (i // 2) / self.dimension);
                 wave = math.sin(angle) if i % 2 == 0 else math.cos(angle);
@@ -66,11 +86,28 @@ node PositionalEncoding(Module) {
 
 node AttentionOps(Module) {
     # Shared nonparametric head arithmetic; never instantiated in the graph.
-    has dimension: int = D, heads: int = HEADS;
+    has dimension: int = D, heads: int = HEADS, mask_cache: dict[int, any] = {};
 
-    def head_context(q: list[list[float]], k: list[list[float]], v: list[list[float]],
-                     causal: bool) -> list[list[float]] {
+    def head_context(q: any, k: any, v: any, causal: bool) -> any {
         width = self.dimension // self.heads;
+        if self.tensor_api is not None {
+            t = self.tensor_api;
+            q_heads = q.reshape(q.shape[0], self.heads, width).transpose(0, 1);
+            k_heads = k.reshape(k.shape[0], self.heads, width).transpose(0, 1);
+            v_heads = v.reshape(v.shape[0], self.heads, width).transpose(0, 1);
+            scores = t.matmul(q_heads, k_heads.transpose(-2, -1)) / math.sqrt(width);
+            if causal {
+                length = q.shape[0];
+                if length not in self.mask_cache {
+                    self.mask_cache[length] = t.ones((length, length), dtype=t.bool, device=q.device).triu(1);
+                }
+                scores = scores.masked_fill(self.mask_cache[length], -math.inf);
+            }
+            probabilities = t.softmax(scores, dim=-1);
+            context = t.matmul(probabilities, v_heads);
+            self.diagnostics["attention"] = probabilities;
+            return context.transpose(0, 1).contiguous().reshape(q.shape[0], self.dimension);
+        }
         joined = math_cpu.zeros(len(q), self.dimension);
         maps: list[any] = [];
         for head in range(self.heads) {
@@ -100,10 +137,10 @@ node AttentionOps(Module) {
 }
 
 node SelfAttention(AttentionOps) {
-    has w_q: list[list[float]] = [], b_q: list[float] = [],
-        w_k: list[list[float]] = [], b_k: list[float] = [],
-        w_v: list[list[float]] = [], b_v: list[float] = [],
-        w_o: list[list[float]] = [], b_o: list[float] = [];
+    has w_q: any = [], b_q: any = [],
+        w_k: any = [], b_k: any = [],
+        w_v: any = [], b_v: any = [],
+        w_o: any = [], b_o: any = [];
     override def initialize(rng: any) -> None {
         assert self.dimension % self.heads == 0;
         self.w_q = math_cpu.random_matrix(self.dimension, self.dimension, rng);
@@ -123,6 +160,15 @@ node SelfAttention(AttentionOps) {
     override def evaluate -> None {
         x = self.inbox["x"];
         memory = self.inbox["x"];
+        if self.tensor_api is not None {
+            t = self.tensor_api;
+            q = t.matmul(x, self.w_q) + self.b_q;
+            k = t.matmul(memory, self.w_k) + self.b_k;
+            v = t.matmul(memory, self.w_v) + self.b_v;
+            joined = self.head_context(q, k, v, False);
+            self.output = t.matmul(joined, self.w_o) + self.b_o;
+            return;
+        }
         q = math_cpu.affine(x, self.w_q, self.b_q);
         k = math_cpu.affine(memory, self.w_k, self.b_k);
         v = math_cpu.affine(memory, self.w_v, self.b_v);
@@ -132,10 +178,10 @@ node SelfAttention(AttentionOps) {
 }
 
 node CausalSelfAttention(AttentionOps) {
-    has w_q: list[list[float]] = [], b_q: list[float] = [],
-        w_k: list[list[float]] = [], b_k: list[float] = [],
-        w_v: list[list[float]] = [], b_v: list[float] = [],
-        w_o: list[list[float]] = [], b_o: list[float] = [];
+    has w_q: any = [], b_q: any = [],
+        w_k: any = [], b_k: any = [],
+        w_v: any = [], b_v: any = [],
+        w_o: any = [], b_o: any = [];
     override def initialize(rng: any) -> None {
         assert self.dimension % self.heads == 0;
         self.w_q = math_cpu.random_matrix(self.dimension, self.dimension, rng);
@@ -155,6 +201,15 @@ node CausalSelfAttention(AttentionOps) {
     override def evaluate -> None {
         x = self.inbox["x"];
         memory = self.inbox["x"];
+        if self.tensor_api is not None {
+            t = self.tensor_api;
+            q = t.matmul(x, self.w_q) + self.b_q;
+            k = t.matmul(memory, self.w_k) + self.b_k;
+            v = t.matmul(memory, self.w_v) + self.b_v;
+            joined = self.head_context(q, k, v, True);
+            self.output = t.matmul(joined, self.w_o) + self.b_o;
+            return;
+        }
         q = math_cpu.affine(x, self.w_q, self.b_q);
         k = math_cpu.affine(memory, self.w_k, self.b_k);
         v = math_cpu.affine(memory, self.w_v, self.b_v);
@@ -164,10 +219,10 @@ node CausalSelfAttention(AttentionOps) {
 }
 
 node CrossAttention(AttentionOps) {
-    has w_q: list[list[float]] = [], b_q: list[float] = [],
-        w_k: list[list[float]] = [], b_k: list[float] = [],
-        w_v: list[list[float]] = [], b_v: list[float] = [],
-        w_o: list[list[float]] = [], b_o: list[float] = [];
+    has w_q: any = [], b_q: any = [],
+        w_k: any = [], b_k: any = [],
+        w_v: any = [], b_v: any = [],
+        w_o: any = [], b_o: any = [];
     override def initialize(rng: any) -> None {
         assert self.dimension % self.heads == 0;
         self.w_q = math_cpu.random_matrix(self.dimension, self.dimension, rng);
@@ -187,6 +242,15 @@ node CrossAttention(AttentionOps) {
     override def evaluate -> None {
         x = self.inbox["x"];
         memory = self.inbox["memory"];
+        if self.tensor_api is not None {
+            t = self.tensor_api;
+            q = t.matmul(x, self.w_q) + self.b_q;
+            k = t.matmul(memory, self.w_k) + self.b_k;
+            v = t.matmul(memory, self.w_v) + self.b_v;
+            joined = self.head_context(q, k, v, False);
+            self.output = t.matmul(joined, self.w_o) + self.b_o;
+            return;
+        }
         q = math_cpu.affine(x, self.w_q, self.b_q);
         k = math_cpu.affine(memory, self.w_k, self.b_k);
         v = math_cpu.affine(memory, self.w_v, self.b_v);
@@ -196,8 +260,8 @@ node CrossAttention(AttentionOps) {
 }
 
 node FeedForward(Module) {
-    has w_up: list[list[float]] = [], b_up: list[float] = [],
-        w_down: list[list[float]] = [], b_down: list[float] = [],
+    has w_up: any = [], b_up: any = [],
+        w_down: any = [], b_down: any = [],
         dimension: int = D, hidden: int = FF;
 
     override def initialize(rng: any) -> None {
@@ -211,6 +275,13 @@ node FeedForward(Module) {
                 "w_down": self.w_down, "b_down": self.b_down};
     }
     override def evaluate -> None {
+        if self.tensor_api is not None {
+            t = self.tensor_api;
+            hidden = t.matmul(self.inbox["x"], self.w_up) + self.b_up;
+            activated = t.relu(hidden);
+            self.output = t.matmul(activated, self.w_down) + self.b_down;
+            return;
+        }
         hidden = math_cpu.affine(self.inbox["x"], self.w_up, self.b_up);
         activated = math_cpu.relu(hidden);
         self.output = math_cpu.affine(activated, self.w_down, self.b_down);
@@ -218,7 +289,7 @@ node FeedForward(Module) {
 }
 
 node AddNorm(Module) {
-    has gamma: list[float] = [], beta: list[float] = [], dimension: int = D,
+    has gamma: any = [], beta: any = [], dimension: int = D,
         epsilon: float = 1e-5;
 
     override def initialize(rng: any) -> None {
@@ -227,8 +298,17 @@ node AddNorm(Module) {
     }
     override def parameters -> dict[str, any] { return {"gamma": self.gamma, "beta": self.beta}; }
     override def evaluate -> None {
+        if self.tensor_api is not None {
+            t = self.tensor_api;
+            summed_tensor = self.inbox["main"] + self.inbox["skip"];
+            mean_tensor = summed_tensor.mean(dim=-1, keepdim=True);
+            centered = summed_tensor - mean_tensor;
+            variance_tensor = centered.square().mean(dim=-1, keepdim=True);
+            self.output = centered * t.rsqrt(variance_tensor + self.epsilon) * self.gamma + self.beta;
+            return;
+        }
         summed = math_cpu.add(self.inbox["main"], self.inbox["skip"]);
-        result: list[list[float]] = [];
+        result: any = [];
         for row in summed {
             mean = sum(row) / self.dimension;
             variance = sum([(v - mean) ** 2 for v in row]) / self.dimension;
@@ -241,7 +321,7 @@ node AddNorm(Module) {
 }
 
 node Linear(Module) {
-    has weight: list[list[float]] = [], bias: list[float] = [],
+    has weight: any = [], bias: any = [],
         input_dimension: int = D, output_dimension: int = VOCAB;
 
     override def initialize(rng: any) -> None {
@@ -250,16 +330,40 @@ node Linear(Module) {
     }
     override def parameters -> dict[str, any] { return {"weight": self.weight, "bias": self.bias}; }
     override def evaluate -> None {
+        if self.tensor_api is not None {
+            self.output = self.tensor_api.matmul(self.inbox["x"], self.weight) + self.bias;
+            return;
+        }
         self.output = math_cpu.affine(self.inbox["x"], self.weight, self.bias);
     }
 }
 
 node Softmax(Module) {
-    override def evaluate -> None { self.output = [math_cpu.softmax(row) for row in self.inbox["x"]]; }
+    override def evaluate -> None {
+        if self.tensor_api is not None { self.output = self.tensor_api.softmax(self.inbox["x"], dim=-1); }
+        else { self.output = [math_cpu.softmax(row) for row in self.inbox["x"]]; }
+    }
 }
 
 node Model {
-    has modules: dict[str, Module] = {};
+    has modules: dict[str, Module] = {}, device: str = "", precision: str = "float64",
+        vocabulary: int = VOCAB, record_trace: bool = True, profile_nodes: bool = False;
+
+    def to(device: str, dtype: str = "float64") -> Model {
+        assert dtype in ["float64", "float32"];
+        t = tensor_ops.torch_api();
+        self.device = tensor_ops.device_name(device);
+        self.precision = dtype;
+        for n in self.modules.values() {
+            for (field_name, value) in n.parameters().items() {
+                setattr(n, field_name, tensor_ops.parameter(value, self.device, dtype));
+            }
+            n.tensor_api = t;
+            if isinstance(n, PositionalEncoding) { n.position_cache = {}; }
+            if isinstance(n, AttentionOps) { n.mask_cache = {}; }
+        }
+        return self;
+    }
 
     def add(module: Module, rng: any) -> None {
         assert module.name not in self.modules;
@@ -272,11 +376,35 @@ node Model {
     def wire(source: str, target: str, role: str, path: str) -> None {
         self.modules[source] +>: Flow(role=role, path=path) :+> self.modules[target];
     }
-    def forward(source: list[int], shifted_target: list[int]) -> any {
-        run = self spawn Infer(source=source, target=shifted_target);
-        assert len(run.trace) == len(self.modules), "Unsatisfied dependency or disconnected module";
+    def forward(source: any, shifted_target: any) -> any {
+        if self.device {
+            source = tensor_ops.tokens(source, self.device, self.vocabulary);
+            shifted_target = tensor_ops.tokens(shifted_target, self.device, self.vocabulary);
+        }
+        run = self spawn Infer(source=source, target=shifted_target, record_trace=self.record_trace,
+                              profile_nodes=self.profile_nodes);
+        assert run.executed == len(self.modules), "Unsatisfied dependency or disconnected module";
         assert self.modules["probabilities"].done;
         return run;
+    }
+    def schedule_replay(source: any, target: any) -> any {
+        # Measurement only: replay previously computed handles through the same scheduler.
+        outputs = {name: n.output for (name, n) in self.modules.items()};
+        run = self spawn Infer(source=source, target=target, record_trace=False, replay_outputs=outputs);
+        assert run.executed == len(self.modules);
+        return run;
+    }
+    def rewire_encoder_skip(alternate: bool) -> None {
+        pos = self.modules["enc_pos"];
+        attn = self.modules["enc_attn"];
+        del [edge pos->:Flow:role == "skip":->];
+        del [edge attn->:Flow:role == "skip":->];
+        origin = "enc_attn" if alternate else "enc_pos";
+        self.wire(origin, "enc_norm1", "skip", "residual");
+    }
+    def remove_encoder_memory -> None {
+        memory = self.modules["enc_norm2"];
+        del [edge memory->:Flow:->];
     }
     def export_dot(filename: str) -> None {
         lines = ["digraph Transformer {", "  rankdir=LR;"];
@@ -299,8 +427,9 @@ node Model {
 }
 
 walker Infer {
-    has source: list[int], target: list[int], trace: list[str] = [], deliveries: list[any] = [],
-        probabilities: any = None;
+    has source: any, target: any, trace: list[str] = [], deliveries: list[any] = [],
+        probabilities: any = None, executed: int = 0, record_trace: bool = True,
+        profile_nodes: bool = False, replay_outputs: dict[str, any] = {};
 
     can start with Model entry {
         for n in here.modules.values() {
@@ -320,9 +449,13 @@ walker Infer {
     }
     can execute with Module entry {
         assert here.ready() and not here.done;
-        here.evaluate();
+        if self.replay_outputs { here.output = self.replay_outputs[here.name]; }
+        elif self.profile_nodes and here.tensor_api is not None {
+            with here.tensor_api.profiler.record_function("Jac.node/" + here.name) { here.evaluate(); }
+        } else { here.evaluate(); }
         here.done = True;
-        self.trace.append(here.name);
+        self.executed += 1;
+        if self.record_trace { self.trace.append(here.name); }
         if isinstance(here, Softmax) { self.probabilities = here.output; }
         for e in [edge ->:Flow:->] {
             destination = e.__jac__.target.archetype;
@@ -330,7 +463,7 @@ walker Infer {
             assert e.role in destination.required, "Unexpected input role";
             assert e.role not in destination.inbox, "Duplicate input role";
             destination.inbox[e.role] = here.output;
-            self.deliveries.append((here.name, destination.name, e.role));
+            if self.record_trace { self.deliveries.append((here.name, destination.name, e.role)); }
             if destination.ready() and not destination.queued {
                 destination.queued = True;
                 visit destination;
@@ -339,20 +472,21 @@ walker Infer {
     }
 }
 
-def build -> Model {
-    m = Model();
+def build(dimension: int = D, heads: int = HEADS, hidden: int = FF, vocabulary: int = VOCAB) -> Model {
+    assert dimension > 0 and heads >= 2 and dimension % heads == 0;
+    m = Model(vocabulary=vocabulary);
     rng = random.Random(SEED);
     modules: list[Module] = [
         Input(name="source", required=["tokens"]), Input(name="target", required=["tokens"]),
-        Embedding(name="enc_embed"), PositionalEncoding(name="enc_pos"),
-        SelfAttention(name="enc_attn"), AddNorm(name="enc_norm1", required=["main", "skip"]),
-        FeedForward(name="enc_ffn"), AddNorm(name="enc_norm2", required=["main", "skip"]),
-        Embedding(name="dec_embed"), PositionalEncoding(name="dec_pos"),
-        CausalSelfAttention(name="dec_attn"), AddNorm(name="dec_norm1", required=["main", "skip"]),
-        CrossAttention(name="cross_attn", required=["x", "memory"]),
-        AddNorm(name="dec_norm2", required=["main", "skip"]), FeedForward(name="dec_ffn"),
-        AddNorm(name="dec_norm3", required=["main", "skip"]),
-        Linear(name="projection"), Softmax(name="probabilities")
+        Embedding(name="enc_embed", dimension=dimension, vocabulary=vocabulary), PositionalEncoding(name="enc_pos", dimension=dimension),
+        SelfAttention(name="enc_attn", dimension=dimension, heads=heads), AddNorm(name="enc_norm1", required=["main", "skip"], dimension=dimension),
+        FeedForward(name="enc_ffn", dimension=dimension, hidden=hidden), AddNorm(name="enc_norm2", required=["main", "skip"], dimension=dimension),
+        Embedding(name="dec_embed", dimension=dimension, vocabulary=vocabulary), PositionalEncoding(name="dec_pos", dimension=dimension),
+        CausalSelfAttention(name="dec_attn", dimension=dimension, heads=heads), AddNorm(name="dec_norm1", required=["main", "skip"], dimension=dimension),
+        CrossAttention(name="cross_attn", required=["x", "memory"], dimension=dimension, heads=heads),
+        AddNorm(name="dec_norm2", required=["main", "skip"], dimension=dimension), FeedForward(name="dec_ffn", dimension=dimension, hidden=hidden),
+        AddNorm(name="dec_norm3", required=["main", "skip"], dimension=dimension),
+        Linear(name="projection", input_dimension=dimension, output_dimension=vocabulary), Softmax(name="probabilities")
     ];
     for module in modules { m.add(module, rng); }
     m +>: Flow(role="entry", path="seed") :+> m.modules["source"];
@@ -379,12 +513,12 @@ def build -> Model {
     return m;
 }
 
-def greedy(m: Model, source: list[int], bos: int = 1, eos: int = 2, steps: int = 5) -> list[int] {
+def greedy(m: Model, source: any, bos: int = 1, eos: int = 2, steps: int = 5) -> list[int] {
     tokens = [bos];
     for i in range(steps) {
         run = m.forward(source, tokens);
         row = run.probabilities[-1];
-        token = math_cpu.argmax(row);
+        token = tensor_ops.argmax(row) if m.device else math_cpu.argmax(row);
         tokens.append(token);
         if token == eos { break; }
     }

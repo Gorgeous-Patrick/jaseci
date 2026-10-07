@@ -1,0 +1,3359 @@
+
+  {
+    "schemaVersion": 1,
+    "deviceProperties": [
+    {
+      "id": 0, "name": "NVIDIA GeForce RTX 3090", "totalGlobalMem": 25296044032,
+      "computeMajor": 8, "computeMinor": 6,
+      "maxThreadsPerBlock": 1024, "maxThreadsPerMultiprocessor": 1536,
+      "regsPerBlock": 65536, "warpSize": 32,
+      "sharedMemPerBlock": 49152, "numSms": 82
+    , "regsPerMultiprocessor": 65536, "sharedMemPerBlockOptin": 101376, "sharedMemPerMultiprocessor": 102400
+    }
+    ],
+      "cupti_version": 26,
+      "cuda_runtime_version": 12080,
+      "cuda_driver_version": 13020,
+      "record_shapes": 1,
+      "trace_id": "95BCEFD8926E4937B94685FB5808EF99",
+  "displayTimeUnit": "ms",
+  "baseTimeNanoseconds": 1790857026000000000,
+  "traceEvents": [
+  {
+    "ph": "X", "cat": "user_annotation", "name": "request/small_cpu_float64_rewired_torch_compile", "pid": 465037, "tid": 465037,
+    "ts": 409133756547.561, "dur": 434.836,
+    "args": {
+      "External id": 6657,"Record function id": 0, "Ev Idx": 0
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "TorchDynamo Cache Lookup", "pid": 465037, "tid": 465037,
+    "ts": 409133756575.493, "dur": 11.703,
+    "args": {
+      "External id": 6658,"Record function id": 0, "Ev Idx": 1
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "Torch-Compiled Region: 0/1", "pid": 465037, "tid": 465037,
+    "ts": 409133756589.292, "dur": 360.559,
+    "args": {
+      "External id": 6659,"Record function id": 0, "Ev Idx": 2
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "Pregraph bytecode", "pid": 465037, "tid": 465037,
+    "ts": 409133756599.754, "dur": 4.740,
+    "args": {
+      "External id": 6660,"Record function id": 0, "Ev Idx": 3
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "AOTDispatcher Runtime Wrapper Prologue", "pid": 465037, "tid": 465037,
+    "ts": 409133756623.974, "dur": 4.686,
+    "args": {
+      "External id": 6661,"Record function id": 0, "Ev Idx": 4
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756675.578, "dur": 14.353,
+    "args": {
+      "External id": 6662,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 5
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756678.204, "dur": 2.616,
+    "args": {
+      "External id": 6663,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 6
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756679.518, "dur": 0.923,
+    "args": {
+      "External id": 6664,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 7
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756681.961, "dur": 3.553,
+    "args": {
+      "External id": 6665,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 8
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756686.474, "dur": 0.153,
+    "args": {
+      "External id": 6666,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 9
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756687.191, "dur": 0.033,
+    "args": {
+      "External id": 6667,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 10
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756687.587, "dur": 0.025,
+    "args": {
+      "External id": 6668,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 11
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756695.245, "dur": 7.058,
+    "args": {
+      "External id": 6669,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 12
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756696.312, "dur": 1.541,
+    "args": {
+      "External id": 6670,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 13
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756697.182, "dur": 0.462,
+    "args": {
+      "External id": 6671,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 14
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756698.472, "dur": 1.476,
+    "args": {
+      "External id": 6672,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 15
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756700.597, "dur": 0.087,
+    "args": {
+      "External id": 6673,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 16
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756701.065, "dur": 0.026,
+    "args": {
+      "External id": 6674,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 17
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756701.431, "dur": 0.033,
+    "args": {
+      "External id": 6675,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 18
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756709.367, "dur": 2.916,
+    "args": {
+      "External id": 6676,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [9, 3, 1]], "Input Dims": [[2, 3, 4], [2, 4, 3], [2, 3, 3]], "Ev Idx": 19
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756710.520, "dur": 0.049,
+    "args": {
+      "External id": 6677,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 3]], "Ev Idx": 20
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756711.102, "dur": 0.031,
+    "args": {
+      "External id": 6678,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 21
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756719.715, "dur": 7.753,
+    "args": {
+      "External id": 6679,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 22
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756720.811, "dur": 1.642,
+    "args": {
+      "External id": 6680,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 23
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756721.693, "dur": 0.520,
+    "args": {
+      "External id": 6681,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 24
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756723.163, "dur": 1.619,
+    "args": {
+      "External id": 6682,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 25
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756725.469, "dur": 0.081,
+    "args": {
+      "External id": 6683,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 26
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756725.993, "dur": 0.025,
+    "args": {
+      "External id": 6684,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 27
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756726.409, "dur": 0.026,
+    "args": {
+      "External id": 6685,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 28
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756732.780, "dur": 2.024,
+    "args": {
+      "External id": 6686,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[9, 3, 1], [4, 8, 1], [12, 4, 1]], "Input Dims": [[2, 3, 3], [2, 3, 4], [2, 3, 4]], "Ev Idx": 29
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756733.552, "dur": 0.055,
+    "args": {
+      "External id": 6687,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 30
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756734.069, "dur": 0.040,
+    "args": {
+      "External id": 6688,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[9, 3, 1]], "Input Dims": [[2, 3, 3]], "Ev Idx": 31
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756741.035, "dur": 6.981,
+    "args": {
+      "External id": 6689,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 32
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756742.055, "dur": 1.480,
+    "args": {
+      "External id": 6690,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 33
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756742.925, "dur": 0.407,
+    "args": {
+      "External id": 6691,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 34
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756744.210, "dur": 1.417,
+    "args": {
+      "External id": 6692,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 35
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756746.249, "dur": 0.074,
+    "args": {
+      "External id": 6693,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 36
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756746.735, "dur": 0.024,
+    "args": {
+      "External id": 6694,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 37
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756747.150, "dur": 0.024,
+    "args": {
+      "External id": 6695,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 38
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756755.453, "dur": 6.970,
+    "args": {
+      "External id": 6696,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 39
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756756.491, "dur": 1.471,
+    "args": {
+      "External id": 6697,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 40
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756757.303, "dur": 0.438,
+    "args": {
+      "External id": 6698,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 41
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756758.623, "dur": 1.318,
+    "args": {
+      "External id": 6699,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 42
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756760.588, "dur": 0.086,
+    "args": {
+      "External id": 6700,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 43
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756761.108, "dur": 0.028,
+    "args": {
+      "External id": 6701,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 44
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756761.521, "dur": 0.024,
+    "args": {
+      "External id": 6702,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 45
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756767.530, "dur": 6.849,
+    "args": {
+      "External id": 6703,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 46
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756768.502, "dur": 1.485,
+    "args": {
+      "External id": 6704,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 47
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756769.259, "dur": 0.497,
+    "args": {
+      "External id": 6705,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 48
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756770.658, "dur": 1.261,
+    "args": {
+      "External id": 6706,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 49
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756772.579, "dur": 0.079,
+    "args": {
+      "External id": 6707,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 50
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756773.049, "dur": 0.029,
+    "args": {
+      "External id": 6708,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 51
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756773.484, "dur": 0.024,
+    "args": {
+      "External id": 6709,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 52
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756778.306, "dur": 6.364,
+    "args": {
+      "External id": 6710,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 53
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756779.197, "dur": 1.392,
+    "args": {
+      "External id": 6711,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 54
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756779.917, "dur": 0.447,
+    "args": {
+      "External id": 6712,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 55
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756781.204, "dur": 1.167,
+    "args": {
+      "External id": 6713,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 56
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756782.994, "dur": 0.078,
+    "args": {
+      "External id": 6714,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 57
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756783.499, "dur": 0.026,
+    "args": {
+      "External id": 6715,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 58
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756783.896, "dur": 0.024,
+    "args": {
+      "External id": 6716,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 59
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756790.269, "dur": 2.031,
+    "args": {
+      "External id": 6717,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [16, 4, 1]], "Input Dims": [[2, 4, 4], [2, 4, 4], [2, 4, 4]], "Ev Idx": 60
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756791.012, "dur": 0.057,
+    "args": {
+      "External id": 6718,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 4]], "Ev Idx": 61
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756791.486, "dur": 0.036,
+    "args": {
+      "External id": 6719,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 62
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756799.399, "dur": 7.014,
+    "args": {
+      "External id": 6720,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 63
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756800.387, "dur": 1.434,
+    "args": {
+      "External id": 6721,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 64
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756801.137, "dur": 0.460,
+    "args": {
+      "External id": 6722,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 65
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756802.469, "dur": 1.365,
+    "args": {
+      "External id": 6723,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 66
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756804.506, "dur": 0.067,
+    "args": {
+      "External id": 6724,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 67
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756805.018, "dur": 0.024,
+    "args": {
+      "External id": 6725,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 68
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756805.476, "dur": 0.023,
+    "args": {
+      "External id": 6726,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 69
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756810.099, "dur": 1.814,
+    "args": {
+      "External id": 6727,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[16, 4, 1], [4, 8, 1], [16, 4, 1]], "Input Dims": [[2, 4, 4], [2, 4, 4], [2, 4, 4]], "Ev Idx": 70
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756810.805, "dur": 0.051,
+    "args": {
+      "External id": 6728,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 71
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756811.268, "dur": 0.027,
+    "args": {
+      "External id": 6729,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 4, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 72
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756817.934, "dur": 6.986,
+    "args": {
+      "External id": 6730,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 73
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756818.944, "dur": 1.577,
+    "args": {
+      "External id": 6731,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 74
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756819.823, "dur": 0.468,
+    "args": {
+      "External id": 6732,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 75
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756821.186, "dur": 1.359,
+    "args": {
+      "External id": 6733,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 76
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756823.150, "dur": 0.075,
+    "args": {
+      "External id": 6734,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 77
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756823.645, "dur": 0.024,
+    "args": {
+      "External id": 6735,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 78
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756824.054, "dur": 0.024,
+    "args": {
+      "External id": 6736,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 79
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756832.350, "dur": 6.998,
+    "args": {
+      "External id": 6737,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [16, 1], [], [], [16, 1]], "Input Dims": [[16], [4, 8], [8, 16], [], [], [4, 16]], "Ev Idx": 80
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756833.419, "dur": 1.518,
+    "args": {
+      "External id": 6738,"Record function id": 0, "Concrete Inputs": ["", "[4, 16]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[16], [], []], "Ev Idx": 81
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756834.226, "dur": 0.482,
+    "args": {
+      "External id": 6739,"Record function id": 0, "Concrete Inputs": ["", "[4, 16]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[16], [], [], []], "Ev Idx": 82
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756835.583, "dur": 1.325,
+    "args": {
+      "External id": 6740,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[16, 1], [0, 1], []], "Input Dims": [[4, 16], [4, 16], []], "Ev Idx": 83
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756837.528, "dur": 0.088,
+    "args": {
+      "External id": 6741,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[4, 16]], "Ev Idx": 84
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756838.015, "dur": 0.025,
+    "args": {
+      "External id": 6742,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[8, 16]], "Ev Idx": 85
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756838.412, "dur": 0.023,
+    "args": {
+      "External id": 6743,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 86
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756843.502, "dur": 6.497,
+    "args": {
+      "External id": 6744,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [16, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 16], [16, 8], [], [], [4, 8]], "Ev Idx": 87
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756844.415, "dur": 1.487,
+    "args": {
+      "External id": 6745,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 88
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756845.225, "dur": 0.473,
+    "args": {
+      "External id": 6746,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 89
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756846.545, "dur": 1.170,
+    "args": {
+      "External id": 6747,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 90
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756848.300, "dur": 0.069,
+    "args": {
+      "External id": 6748,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 91
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756848.765, "dur": 0.024,
+    "args": {
+      "External id": 6749,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[16, 8]], "Ev Idx": 92
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756849.163, "dur": 0.027,
+    "args": {
+      "External id": 6750,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[4, 16]], "Ev Idx": 93
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756856.190, "dur": 6.501,
+    "args": {
+      "External id": 6751,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 94
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756857.104, "dur": 1.408,
+    "args": {
+      "External id": 6752,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 95
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756857.869, "dur": 0.410,
+    "args": {
+      "External id": 6753,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 96
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756859.120, "dur": 1.235,
+    "args": {
+      "External id": 6754,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 97
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756860.945, "dur": 0.080,
+    "args": {
+      "External id": 6755,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 98
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756861.420, "dur": 0.030,
+    "args": {
+      "External id": 6756,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 99
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756861.832, "dur": 0.025,
+    "args": {
+      "External id": 6757,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 100
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756868.287, "dur": 1.932,
+    "args": {
+      "External id": 6758,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [12, 4, 1]], "Input Dims": [[2, 3, 4], [2, 4, 4], [2, 3, 4]], "Ev Idx": 101
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756869.000, "dur": 0.053,
+    "args": {
+      "External id": 6759,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 4]], "Ev Idx": 102
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756869.469, "dur": 0.030,
+    "args": {
+      "External id": 6760,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 103
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756875.726, "dur": 7.215,
+    "args": {
+      "External id": 6761,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 104
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756876.801, "dur": 1.668,
+    "args": {
+      "External id": 6762,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 105
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756877.699, "dur": 0.545,
+    "args": {
+      "External id": 6763,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 106
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756879.133, "dur": 1.371,
+    "args": {
+      "External id": 6764,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 107
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756881.100, "dur": 0.064,
+    "args": {
+      "External id": 6765,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 108
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756881.579, "dur": 0.024,
+    "args": {
+      "External id": 6766,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 109
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756881.982, "dur": 0.024,
+    "args": {
+      "External id": 6767,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 110
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756886.555, "dur": 1.832,
+    "args": {
+      "External id": 6768,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[12, 4, 1], [4, 8, 1], [12, 4, 1]], "Input Dims": [[2, 3, 4], [2, 4, 4], [2, 3, 4]], "Ev Idx": 111
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756887.259, "dur": 0.051,
+    "args": {
+      "External id": 6769,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 112
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756887.713, "dur": 0.030,
+    "args": {
+      "External id": 6770,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[12, 4, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 113
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756894.823, "dur": 6.924,
+    "args": {
+      "External id": 6771,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 114
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756895.835, "dur": 1.503,
+    "args": {
+      "External id": 6772,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 115
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756896.586, "dur": 0.512,
+    "args": {
+      "External id": 6773,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 116
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756897.979, "dur": 1.336,
+    "args": {
+      "External id": 6774,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 117
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756899.926, "dur": 0.070,
+    "args": {
+      "External id": 6775,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 118
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756900.407, "dur": 0.023,
+    "args": {
+      "External id": 6776,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 119
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756900.822, "dur": 0.024,
+    "args": {
+      "External id": 6777,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 120
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756907.746, "dur": 6.731,
+    "args": {
+      "External id": 6778,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [16, 1], [], [], [16, 1]], "Input Dims": [[16], [3, 8], [8, 16], [], [], [3, 16]], "Ev Idx": 121
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756908.752, "dur": 1.535,
+    "args": {
+      "External id": 6779,"Record function id": 0, "Concrete Inputs": ["", "[3, 16]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[16], [], []], "Ev Idx": 122
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756909.581, "dur": 0.434,
+    "args": {
+      "External id": 6780,"Record function id": 0, "Concrete Inputs": ["", "[3, 16]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[16], [], [], []], "Ev Idx": 123
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756910.913, "dur": 1.237,
+    "args": {
+      "External id": 6781,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[16, 1], [0, 1], []], "Input Dims": [[3, 16], [3, 16], []], "Ev Idx": 124
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756912.737, "dur": 0.079,
+    "args": {
+      "External id": 6782,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[3, 16]], "Ev Idx": 125
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756913.199, "dur": 0.034,
+    "args": {
+      "External id": 6783,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[8, 16]], "Ev Idx": 126
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756913.599, "dur": 0.023,
+    "args": {
+      "External id": 6784,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 127
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756918.425, "dur": 6.770,
+    "args": {
+      "External id": 6785,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [16, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 16], [16, 8], [], [], [3, 8]], "Ev Idx": 128
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756919.342, "dur": 1.695,
+    "args": {
+      "External id": 6786,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 129
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756920.244, "dur": 0.588,
+    "args": {
+      "External id": 6787,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 130
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756921.655, "dur": 1.145,
+    "args": {
+      "External id": 6788,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 131
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756923.424, "dur": 0.073,
+    "args": {
+      "External id": 6789,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 132
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756923.899, "dur": 0.028,
+    "args": {
+      "External id": 6790,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[16, 8]], "Ev Idx": 133
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756924.327, "dur": 0.023,
+    "args": {
+      "External id": 6791,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[3, 16]], "Ev Idx": 134
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133756930.523, "dur": 6.734,
+    "args": {
+      "External id": 6792,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [13, 1], [], [], [13, 1]], "Input Dims": [[13], [3, 8], [8, 13], [], [], [3, 13]], "Ev Idx": 135
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133756931.460, "dur": 1.411,
+    "args": {
+      "External id": 6793,"Record function id": 0, "Concrete Inputs": ["", "[3, 13]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[13], [], []], "Ev Idx": 136
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133756932.214, "dur": 0.444,
+    "args": {
+      "External id": 6794,"Record function id": 0, "Concrete Inputs": ["", "[3, 13]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[13], [], [], []], "Ev Idx": 137
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133756933.489, "dur": 1.319,
+    "args": {
+      "External id": 6795,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[13, 1], [0, 1], []], "Input Dims": [[3, 13], [3, 13], []], "Ev Idx": 138
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756935.385, "dur": 0.094,
+    "args": {
+      "External id": 6796,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[13, 1]], "Input Dims": [[3, 13]], "Ev Idx": 139
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756935.874, "dur": 0.036,
+    "args": {
+      "External id": 6797,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[13, 1]], "Input Dims": [[8, 13]], "Ev Idx": 140
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133756936.263, "dur": 0.034,
+    "args": {
+      "External id": 6798,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 141
+    }
+  },
+  {
+    "ph": "X", "cat": "user_annotation", "name": "request/small_cpu_float64_rewired_torch_compile", "pid": 465037, "tid": 465037,
+    "ts": 409133756993.924, "dur": 379.996,
+    "args": {
+      "External id": 6799,"Record function id": 0, "Ev Idx": 142
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "TorchDynamo Cache Lookup", "pid": 465037, "tid": 465037,
+    "ts": 409133757012.676, "dur": 10.372,
+    "args": {
+      "External id": 6800,"Record function id": 0, "Ev Idx": 143
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "Torch-Compiled Region: 0/1", "pid": 465037, "tid": 465037,
+    "ts": 409133757024.274, "dur": 324.354,
+    "args": {
+      "External id": 6801,"Record function id": 0, "Ev Idx": 144
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "Pregraph bytecode", "pid": 465037, "tid": 465037,
+    "ts": 409133757030.341, "dur": 3.733,
+    "args": {
+      "External id": 6802,"Record function id": 0, "Ev Idx": 145
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "AOTDispatcher Runtime Wrapper Prologue", "pid": 465037, "tid": 465037,
+    "ts": 409133757045.993, "dur": 3.627,
+    "args": {
+      "External id": 6803,"Record function id": 0, "Ev Idx": 146
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757083.918, "dur": 12.350,
+    "args": {
+      "External id": 6804,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 147
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757086.015, "dur": 2.240,
+    "args": {
+      "External id": 6805,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 148
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757087.146, "dur": 0.786,
+    "args": {
+      "External id": 6806,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 149
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757089.229, "dur": 3.004,
+    "args": {
+      "External id": 6807,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 150
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757093.043, "dur": 0.140,
+    "args": {
+      "External id": 6808,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 151
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757093.654, "dur": 0.041,
+    "args": {
+      "External id": 6809,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 152
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757094.150, "dur": 0.030,
+    "args": {
+      "External id": 6810,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 153
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757101.038, "dur": 7.146,
+    "args": {
+      "External id": 6811,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 154
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757102.108, "dur": 1.649,
+    "args": {
+      "External id": 6812,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 155
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757103.083, "dur": 0.458,
+    "args": {
+      "External id": 6813,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 156
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757104.406, "dur": 1.389,
+    "args": {
+      "External id": 6814,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 157
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757106.446, "dur": 0.080,
+    "args": {
+      "External id": 6815,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 158
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757106.930, "dur": 0.026,
+    "args": {
+      "External id": 6816,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 159
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757107.324, "dur": 0.024,
+    "args": {
+      "External id": 6817,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 160
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757114.859, "dur": 2.749,
+    "args": {
+      "External id": 6818,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [9, 3, 1]], "Input Dims": [[2, 3, 4], [2, 4, 3], [2, 3, 3]], "Ev Idx": 161
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757115.936, "dur": 0.059,
+    "args": {
+      "External id": 6819,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 3]], "Ev Idx": 162
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757116.500, "dur": 0.025,
+    "args": {
+      "External id": 6820,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 163
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757124.516, "dur": 7.517,
+    "args": {
+      "External id": 6821,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 164
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757125.622, "dur": 1.665,
+    "args": {
+      "External id": 6822,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 165
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757126.606, "dur": 0.464,
+    "args": {
+      "External id": 6823,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 166
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757127.955, "dur": 1.506,
+    "args": {
+      "External id": 6824,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 167
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757130.062, "dur": 0.082,
+    "args": {
+      "External id": 6825,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 168
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757130.562, "dur": 0.024,
+    "args": {
+      "External id": 6826,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 169
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757131.016, "dur": 0.023,
+    "args": {
+      "External id": 6827,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 170
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757137.058, "dur": 1.900,
+    "args": {
+      "External id": 6828,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[9, 3, 1], [4, 8, 1], [12, 4, 1]], "Input Dims": [[2, 3, 3], [2, 3, 4], [2, 3, 4]], "Ev Idx": 171
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757137.772, "dur": 0.044,
+    "args": {
+      "External id": 6829,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 172
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757138.267, "dur": 0.036,
+    "args": {
+      "External id": 6830,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[9, 3, 1]], "Input Dims": [[2, 3, 3]], "Ev Idx": 173
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757144.958, "dur": 7.966,
+    "args": {
+      "External id": 6831,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 174
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757146.035, "dur": 1.560,
+    "args": {
+      "External id": 6832,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 175
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757146.894, "dur": 0.485,
+    "args": {
+      "External id": 6833,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 176
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757149.083, "dur": 1.376,
+    "args": {
+      "External id": 6834,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 177
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757151.085, "dur": 0.066,
+    "args": {
+      "External id": 6835,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 178
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757151.627, "dur": 0.028,
+    "args": {
+      "External id": 6836,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 179
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757152.050, "dur": 0.024,
+    "args": {
+      "External id": 6837,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 180
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757160.454, "dur": 7.044,
+    "args": {
+      "External id": 6838,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 181
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757161.474, "dur": 1.608,
+    "args": {
+      "External id": 6839,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 182
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757162.344, "dur": 0.488,
+    "args": {
+      "External id": 6840,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 183
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757163.765, "dur": 1.248,
+    "args": {
+      "External id": 6841,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 184
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757165.641, "dur": 0.092,
+    "args": {
+      "External id": 6842,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 185
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757166.147, "dur": 0.025,
+    "args": {
+      "External id": 6843,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 186
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757166.600, "dur": 0.027,
+    "args": {
+      "External id": 6844,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 187
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757172.745, "dur": 6.619,
+    "args": {
+      "External id": 6845,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 188
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757173.687, "dur": 1.428,
+    "args": {
+      "External id": 6846,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 189
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757174.438, "dur": 0.464,
+    "args": {
+      "External id": 6847,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 190
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757175.739, "dur": 1.242,
+    "args": {
+      "External id": 6848,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 191
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757177.570, "dur": 0.083,
+    "args": {
+      "External id": 6849,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 192
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757178.054, "dur": 0.024,
+    "args": {
+      "External id": 6850,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 193
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757178.453, "dur": 0.024,
+    "args": {
+      "External id": 6851,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 194
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757183.082, "dur": 6.446,
+    "args": {
+      "External id": 6852,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 195
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757184.020, "dur": 1.324,
+    "args": {
+      "External id": 6853,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 196
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757184.742, "dur": 0.398,
+    "args": {
+      "External id": 6854,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 197
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757185.975, "dur": 1.175,
+    "args": {
+      "External id": 6855,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 198
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757187.740, "dur": 0.075,
+    "args": {
+      "External id": 6856,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 199
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757188.255, "dur": 0.026,
+    "args": {
+      "External id": 6857,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 200
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757188.677, "dur": 0.024,
+    "args": {
+      "External id": 6858,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 201
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757194.690, "dur": 1.945,
+    "args": {
+      "External id": 6859,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [16, 4, 1]], "Input Dims": [[2, 4, 4], [2, 4, 4], [2, 4, 4]], "Ev Idx": 202
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757195.380, "dur": 0.042,
+    "args": {
+      "External id": 6860,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 4]], "Ev Idx": 203
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757195.874, "dur": 0.032,
+    "args": {
+      "External id": 6861,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 204
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757203.376, "dur": 6.933,
+    "args": {
+      "External id": 6862,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 205
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757204.345, "dur": 1.540,
+    "args": {
+      "External id": 6863,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 206
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757205.186, "dur": 0.466,
+    "args": {
+      "External id": 6864,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 207
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757206.559, "dur": 1.331,
+    "args": {
+      "External id": 6865,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 208
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757208.482, "dur": 0.079,
+    "args": {
+      "External id": 6866,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 209
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757208.982, "dur": 0.026,
+    "args": {
+      "External id": 6867,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 210
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757209.371, "dur": 0.026,
+    "args": {
+      "External id": 6868,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 211
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757213.845, "dur": 1.876,
+    "args": {
+      "External id": 6869,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[16, 4, 1], [4, 8, 1], [16, 4, 1]], "Input Dims": [[2, 4, 4], [2, 4, 4], [2, 4, 4]], "Ev Idx": 212
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757214.488, "dur": 0.045,
+    "args": {
+      "External id": 6870,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 213
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757215.072, "dur": 0.032,
+    "args": {
+      "External id": 6871,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 4, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 214
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757221.443, "dur": 6.668,
+    "args": {
+      "External id": 6872,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 215
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757222.482, "dur": 1.432,
+    "args": {
+      "External id": 6873,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 216
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757223.277, "dur": 0.421,
+    "args": {
+      "External id": 6874,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 217
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757224.558, "dur": 1.267,
+    "args": {
+      "External id": 6875,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 218
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757226.414, "dur": 0.082,
+    "args": {
+      "External id": 6876,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 219
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757226.876, "dur": 0.038,
+    "args": {
+      "External id": 6877,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 220
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757227.270, "dur": 0.025,
+    "args": {
+      "External id": 6878,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 221
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757235.159, "dur": 6.853,
+    "args": {
+      "External id": 6879,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [16, 1], [], [], [16, 1]], "Input Dims": [[16], [4, 8], [8, 16], [], [], [4, 16]], "Ev Idx": 222
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757236.171, "dur": 1.450,
+    "args": {
+      "External id": 6880,"Record function id": 0, "Concrete Inputs": ["", "[4, 16]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[16], [], []], "Ev Idx": 223
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757236.938, "dur": 0.456,
+    "args": {
+      "External id": 6881,"Record function id": 0, "Concrete Inputs": ["", "[4, 16]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[16], [], [], []], "Ev Idx": 224
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757238.279, "dur": 1.283,
+    "args": {
+      "External id": 6882,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[16, 1], [0, 1], []], "Input Dims": [[4, 16], [4, 16], []], "Ev Idx": 225
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757240.162, "dur": 0.075,
+    "args": {
+      "External id": 6883,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[4, 16]], "Ev Idx": 226
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757240.694, "dur": 0.027,
+    "args": {
+      "External id": 6884,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[8, 16]], "Ev Idx": 227
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757241.085, "dur": 0.025,
+    "args": {
+      "External id": 6885,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 228
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757246.016, "dur": 6.493,
+    "args": {
+      "External id": 6886,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [16, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 16], [16, 8], [], [], [4, 8]], "Ev Idx": 229
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757246.976, "dur": 1.381,
+    "args": {
+      "External id": 6887,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 230
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757247.743, "dur": 0.421,
+    "args": {
+      "External id": 6888,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 231
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757249.004, "dur": 1.184,
+    "args": {
+      "External id": 6889,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 232
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757250.787, "dur": 0.070,
+    "args": {
+      "External id": 6890,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 233
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757251.262, "dur": 0.025,
+    "args": {
+      "External id": 6891,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[16, 8]], "Ev Idx": 234
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757251.662, "dur": 0.030,
+    "args": {
+      "External id": 6892,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[4, 16]], "Ev Idx": 235
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757258.213, "dur": 6.553,
+    "args": {
+      "External id": 6893,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 236
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757259.173, "dur": 1.407,
+    "args": {
+      "External id": 6894,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 237
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757259.913, "dur": 0.426,
+    "args": {
+      "External id": 6895,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 238
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757261.223, "dur": 1.225,
+    "args": {
+      "External id": 6896,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 239
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757263.063, "dur": 0.077,
+    "args": {
+      "External id": 6897,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 240
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757263.544, "dur": 0.031,
+    "args": {
+      "External id": 6898,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 241
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757263.946, "dur": 0.025,
+    "args": {
+      "External id": 6899,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 242
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757269.959, "dur": 1.892,
+    "args": {
+      "External id": 6900,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [12, 4, 1]], "Input Dims": [[2, 3, 4], [2, 4, 4], [2, 3, 4]], "Ev Idx": 243
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757270.660, "dur": 0.049,
+    "args": {
+      "External id": 6901,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 4]], "Ev Idx": 244
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757271.144, "dur": 0.033,
+    "args": {
+      "External id": 6902,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 245
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757277.210, "dur": 6.895,
+    "args": {
+      "External id": 6903,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 246
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757278.202, "dur": 1.442,
+    "args": {
+      "External id": 6904,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 247
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757278.966, "dur": 0.452,
+    "args": {
+      "External id": 6905,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 248
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757280.337, "dur": 1.301,
+    "args": {
+      "External id": 6906,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 249
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757282.223, "dur": 0.073,
+    "args": {
+      "External id": 6907,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 250
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757282.717, "dur": 0.026,
+    "args": {
+      "External id": 6908,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 251
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757283.135, "dur": 0.024,
+    "args": {
+      "External id": 6909,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 252
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757287.612, "dur": 1.767,
+    "args": {
+      "External id": 6910,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[12, 4, 1], [4, 8, 1], [12, 4, 1]], "Input Dims": [[2, 3, 4], [2, 4, 4], [2, 3, 4]], "Ev Idx": 253
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757288.284, "dur": 0.048,
+    "args": {
+      "External id": 6911,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 254
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757288.751, "dur": 0.036,
+    "args": {
+      "External id": 6912,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[12, 4, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 255
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757295.757, "dur": 6.796,
+    "args": {
+      "External id": 6913,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 256
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757296.739, "dur": 1.488,
+    "args": {
+      "External id": 6914,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 257
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757297.559, "dur": 0.441,
+    "args": {
+      "External id": 6915,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 258
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757298.900, "dur": 1.311,
+    "args": {
+      "External id": 6916,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 259
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757300.780, "dur": 0.070,
+    "args": {
+      "External id": 6917,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 260
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757301.246, "dur": 0.025,
+    "args": {
+      "External id": 6918,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 261
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757301.645, "dur": 0.025,
+    "args": {
+      "External id": 6919,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 262
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757308.503, "dur": 6.626,
+    "args": {
+      "External id": 6920,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [16, 1], [], [], [16, 1]], "Input Dims": [[16], [3, 8], [8, 16], [], [], [3, 16]], "Ev Idx": 263
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757309.469, "dur": 1.436,
+    "args": {
+      "External id": 6921,"Record function id": 0, "Concrete Inputs": ["", "[3, 16]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[16], [], []], "Ev Idx": 264
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757310.251, "dur": 0.434,
+    "args": {
+      "External id": 6922,"Record function id": 0, "Concrete Inputs": ["", "[3, 16]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[16], [], [], []], "Ev Idx": 265
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757311.534, "dur": 1.229,
+    "args": {
+      "External id": 6923,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[16, 1], [0, 1], []], "Input Dims": [[3, 16], [3, 16], []], "Ev Idx": 266
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757313.337, "dur": 0.076,
+    "args": {
+      "External id": 6924,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[3, 16]], "Ev Idx": 267
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757313.818, "dur": 0.025,
+    "args": {
+      "External id": 6925,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[8, 16]], "Ev Idx": 268
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757314.220, "dur": 0.027,
+    "args": {
+      "External id": 6926,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 269
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757319.066, "dur": 6.385,
+    "args": {
+      "External id": 6927,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [16, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 16], [16, 8], [], [], [3, 8]], "Ev Idx": 270
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757319.964, "dur": 1.419,
+    "args": {
+      "External id": 6928,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 271
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757320.719, "dur": 0.449,
+    "args": {
+      "External id": 6929,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 272
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757322.006, "dur": 1.145,
+    "args": {
+      "External id": 6930,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 273
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757323.729, "dur": 0.078,
+    "args": {
+      "External id": 6931,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 274
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757324.208, "dur": 0.025,
+    "args": {
+      "External id": 6932,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[16, 8]], "Ev Idx": 275
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757324.595, "dur": 0.026,
+    "args": {
+      "External id": 6933,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[3, 16]], "Ev Idx": 276
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757330.873, "dur": 6.712,
+    "args": {
+      "External id": 6934,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [13, 1], [], [], [13, 1]], "Input Dims": [[13], [3, 8], [8, 13], [], [], [3, 13]], "Ev Idx": 277
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757331.815, "dur": 1.389,
+    "args": {
+      "External id": 6935,"Record function id": 0, "Concrete Inputs": ["", "[3, 13]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[13], [], []], "Ev Idx": 278
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757332.572, "dur": 0.417,
+    "args": {
+      "External id": 6936,"Record function id": 0, "Concrete Inputs": ["", "[3, 13]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[13], [], [], []], "Ev Idx": 279
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757333.827, "dur": 1.252,
+    "args": {
+      "External id": 6937,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[13, 1], [0, 1], []], "Input Dims": [[3, 13], [3, 13], []], "Ev Idx": 280
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757335.648, "dur": 0.086,
+    "args": {
+      "External id": 6938,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[13, 1]], "Input Dims": [[3, 13]], "Ev Idx": 281
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757336.133, "dur": 0.026,
+    "args": {
+      "External id": 6939,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[13, 1]], "Input Dims": [[8, 13]], "Ev Idx": 282
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757336.550, "dur": 0.023,
+    "args": {
+      "External id": 6940,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 283
+    }
+  },
+  {
+    "ph": "X", "cat": "user_annotation", "name": "request/small_cpu_float64_rewired_torch_compile", "pid": 465037, "tid": 465037,
+    "ts": 409133757384.409, "dur": 373.801,
+    "args": {
+      "External id": 6941,"Record function id": 0, "Ev Idx": 284
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "TorchDynamo Cache Lookup", "pid": 465037, "tid": 465037,
+    "ts": 409133757402.445, "dur": 9.963,
+    "args": {
+      "External id": 6942,"Record function id": 0, "Ev Idx": 285
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "Torch-Compiled Region: 0/1", "pid": 465037, "tid": 465037,
+    "ts": 409133757413.629, "dur": 320.343,
+    "args": {
+      "External id": 6943,"Record function id": 0, "Ev Idx": 286
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "Pregraph bytecode", "pid": 465037, "tid": 465037,
+    "ts": 409133757419.595, "dur": 3.655,
+    "args": {
+      "External id": 6944,"Record function id": 0, "Ev Idx": 287
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "AOTDispatcher Runtime Wrapper Prologue", "pid": 465037, "tid": 465037,
+    "ts": 409133757433.796, "dur": 3.641,
+    "args": {
+      "External id": 6945,"Record function id": 0, "Ev Idx": 288
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757469.275, "dur": 12.301,
+    "args": {
+      "External id": 6946,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 289
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757471.314, "dur": 2.461,
+    "args": {
+      "External id": 6947,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 290
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757472.624, "dur": 0.832,
+    "args": {
+      "External id": 6948,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 291
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757474.697, "dur": 2.923,
+    "args": {
+      "External id": 6949,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 292
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757478.386, "dur": 0.134,
+    "args": {
+      "External id": 6950,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 293
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757478.971, "dur": 0.037,
+    "args": {
+      "External id": 6951,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 294
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757479.372, "dur": 0.028,
+    "args": {
+      "External id": 6952,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 295
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757487.232, "dur": 7.099,
+    "args": {
+      "External id": 6953,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 296
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757488.411, "dur": 1.553,
+    "args": {
+      "External id": 6954,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 297
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757489.257, "dur": 0.488,
+    "args": {
+      "External id": 6955,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 298
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757490.605, "dur": 1.291,
+    "args": {
+      "External id": 6956,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 299
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757492.485, "dur": 0.090,
+    "args": {
+      "External id": 6957,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 300
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757493.002, "dur": 0.024,
+    "args": {
+      "External id": 6958,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 301
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757493.449, "dur": 0.025,
+    "args": {
+      "External id": 6959,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 302
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757500.927, "dur": 2.631,
+    "args": {
+      "External id": 6960,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [9, 3, 1]], "Input Dims": [[2, 3, 4], [2, 4, 3], [2, 3, 3]], "Ev Idx": 303
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757501.995, "dur": 0.055,
+    "args": {
+      "External id": 6961,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 3]], "Ev Idx": 304
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757502.487, "dur": 0.026,
+    "args": {
+      "External id": 6962,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 305
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757510.563, "dur": 7.577,
+    "args": {
+      "External id": 6963,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 306
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757511.658, "dur": 1.726,
+    "args": {
+      "External id": 6964,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 307
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757512.649, "dur": 0.504,
+    "args": {
+      "External id": 6965,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 308
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757514.020, "dur": 1.535,
+    "args": {
+      "External id": 6966,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 309
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757516.168, "dur": 0.082,
+    "args": {
+      "External id": 6967,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 310
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757516.742, "dur": 0.028,
+    "args": {
+      "External id": 6968,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 311
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757517.134, "dur": 0.023,
+    "args": {
+      "External id": 6969,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 312
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757522.959, "dur": 2.016,
+    "args": {
+      "External id": 6970,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[9, 3, 1], [4, 8, 1], [12, 4, 1]], "Input Dims": [[2, 3, 3], [2, 3, 4], [2, 3, 4]], "Ev Idx": 313
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757523.716, "dur": 0.052,
+    "args": {
+      "External id": 6971,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 314
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757524.277, "dur": 0.034,
+    "args": {
+      "External id": 6972,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[9, 3, 1]], "Input Dims": [[2, 3, 3]], "Ev Idx": 315
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757530.957, "dur": 7.186,
+    "args": {
+      "External id": 6973,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 316
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757531.966, "dur": 1.670,
+    "args": {
+      "External id": 6974,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 317
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757532.891, "dur": 0.526,
+    "args": {
+      "External id": 6975,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 318
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757534.309, "dur": 1.362,
+    "args": {
+      "External id": 6976,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 319
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757536.252, "dur": 0.079,
+    "args": {
+      "External id": 6977,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 320
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757536.743, "dur": 0.028,
+    "args": {
+      "External id": 6978,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 321
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757537.200, "dur": 0.023,
+    "args": {
+      "External id": 6979,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 322
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757545.561, "dur": 7.054,
+    "args": {
+      "External id": 6980,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 323
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757546.634, "dur": 1.607,
+    "args": {
+      "External id": 6981,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 324
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757547.495, "dur": 0.512,
+    "args": {
+      "External id": 6982,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 325
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757548.860, "dur": 1.276,
+    "args": {
+      "External id": 6983,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 326
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757550.739, "dur": 0.085,
+    "args": {
+      "External id": 6984,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 327
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757551.289, "dur": 0.029,
+    "args": {
+      "External id": 6985,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 328
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757551.677, "dur": 0.025,
+    "args": {
+      "External id": 6986,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 329
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757557.411, "dur": 6.584,
+    "args": {
+      "External id": 6987,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 330
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757558.408, "dur": 1.436,
+    "args": {
+      "External id": 6988,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 331
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757559.174, "dur": 0.438,
+    "args": {
+      "External id": 6989,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 332
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757560.489, "dur": 1.171,
+    "args": {
+      "External id": 6990,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 333
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757562.277, "dur": 0.077,
+    "args": {
+      "External id": 6991,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 334
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757562.725, "dur": 0.024,
+    "args": {
+      "External id": 6992,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 335
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757563.121, "dur": 0.026,
+    "args": {
+      "External id": 6993,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 336
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757567.653, "dur": 6.372,
+    "args": {
+      "External id": 6994,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 337
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757568.577, "dur": 1.379,
+    "args": {
+      "External id": 6995,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 338
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757569.314, "dur": 0.431,
+    "args": {
+      "External id": 6996,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 339
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757570.599, "dur": 1.143,
+    "args": {
+      "External id": 6997,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 340
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757572.320, "dur": 0.082,
+    "args": {
+      "External id": 6998,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 341
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757572.817, "dur": 0.036,
+    "args": {
+      "External id": 6999,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 342
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757573.221, "dur": 0.031,
+    "args": {
+      "External id": 7000,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 343
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757579.261, "dur": 1.906,
+    "args": {
+      "External id": 7001,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [16, 4, 1]], "Input Dims": [[2, 4, 4], [2, 4, 4], [2, 4, 4]], "Ev Idx": 344
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757579.955, "dur": 0.053,
+    "args": {
+      "External id": 7002,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 4]], "Ev Idx": 345
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757580.433, "dur": 0.030,
+    "args": {
+      "External id": 7003,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 346
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757587.854, "dur": 6.952,
+    "args": {
+      "External id": 7004,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 347
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757588.878, "dur": 1.497,
+    "args": {
+      "External id": 7005,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 348
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757589.689, "dur": 0.477,
+    "args": {
+      "External id": 7006,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 349
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757591.029, "dur": 1.363,
+    "args": {
+      "External id": 7007,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 350
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757592.988, "dur": 0.076,
+    "args": {
+      "External id": 7008,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 351
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757593.505, "dur": 0.028,
+    "args": {
+      "External id": 7009,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 352
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757593.895, "dur": 0.024,
+    "args": {
+      "External id": 7010,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 353
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757598.813, "dur": 1.932,
+    "args": {
+      "External id": 7011,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[16, 4, 1], [4, 8, 1], [16, 4, 1]], "Input Dims": [[2, 4, 4], [2, 4, 4], [2, 4, 4]], "Ev Idx": 354
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757599.654, "dur": 0.047,
+    "args": {
+      "External id": 7012,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 355
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757600.147, "dur": 0.030,
+    "args": {
+      "External id": 7013,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 4, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 356
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757606.786, "dur": 6.821,
+    "args": {
+      "External id": 7014,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 357
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757607.781, "dur": 1.476,
+    "args": {
+      "External id": 7015,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 358
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757608.622, "dur": 0.436,
+    "args": {
+      "External id": 7016,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 359
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757609.921, "dur": 1.309,
+    "args": {
+      "External id": 7017,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 360
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757611.795, "dur": 0.071,
+    "args": {
+      "External id": 7018,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 361
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757612.258, "dur": 0.040,
+    "args": {
+      "External id": 7019,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 362
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757612.674, "dur": 0.024,
+    "args": {
+      "External id": 7020,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 363
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757620.642, "dur": 6.837,
+    "args": {
+      "External id": 7021,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [16, 1], [], [], [16, 1]], "Input Dims": [[16], [4, 8], [8, 16], [], [], [4, 16]], "Ev Idx": 364
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757621.692, "dur": 1.464,
+    "args": {
+      "External id": 7022,"Record function id": 0, "Concrete Inputs": ["", "[4, 16]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[16], [], []], "Ev Idx": 365
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757622.456, "dur": 0.462,
+    "args": {
+      "External id": 7023,"Record function id": 0, "Concrete Inputs": ["", "[4, 16]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[16], [], [], []], "Ev Idx": 366
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757623.809, "dur": 1.244,
+    "args": {
+      "External id": 7024,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[16, 1], [0, 1], []], "Input Dims": [[4, 16], [4, 16], []], "Ev Idx": 367
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757625.648, "dur": 0.087,
+    "args": {
+      "External id": 7025,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[4, 16]], "Ev Idx": 368
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757626.139, "dur": 0.026,
+    "args": {
+      "External id": 7026,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[8, 16]], "Ev Idx": 369
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757626.557, "dur": 0.023,
+    "args": {
+      "External id": 7027,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 370
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757631.470, "dur": 6.389,
+    "args": {
+      "External id": 7028,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [16, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 16], [16, 8], [], [], [4, 8]], "Ev Idx": 371
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757632.362, "dur": 1.393,
+    "args": {
+      "External id": 7029,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 372
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757633.091, "dur": 0.449,
+    "args": {
+      "External id": 7030,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 373
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757634.416, "dur": 1.107,
+    "args": {
+      "External id": 7031,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 374
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757636.130, "dur": 0.082,
+    "args": {
+      "External id": 7032,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 375
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757636.624, "dur": 0.026,
+    "args": {
+      "External id": 7033,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[16, 8]], "Ev Idx": 376
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757637.012, "dur": 0.028,
+    "args": {
+      "External id": 7034,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[4, 16]], "Ev Idx": 377
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757643.587, "dur": 6.614,
+    "args": {
+      "External id": 7035,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 378
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757644.583, "dur": 1.403,
+    "args": {
+      "External id": 7036,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 379
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757645.313, "dur": 0.465,
+    "args": {
+      "External id": 7037,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 380
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757646.626, "dur": 1.221,
+    "args": {
+      "External id": 7038,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 381
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757648.466, "dur": 0.074,
+    "args": {
+      "External id": 7039,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 382
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757648.957, "dur": 0.028,
+    "args": {
+      "External id": 7040,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 383
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757649.375, "dur": 0.024,
+    "args": {
+      "External id": 7041,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 384
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757655.394, "dur": 1.917,
+    "args": {
+      "External id": 7042,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[4, 8, 1], [4, 1, 8], [12, 4, 1]], "Input Dims": [[2, 3, 4], [2, 4, 4], [2, 3, 4]], "Ev Idx": 385
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757656.073, "dur": 0.051,
+    "args": {
+      "External id": 7043,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 1, 8]], "Input Dims": [[2, 4, 4]], "Ev Idx": 386
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757656.582, "dur": 0.031,
+    "args": {
+      "External id": 7044,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 387
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757662.799, "dur": 7.045,
+    "args": {
+      "External id": 7045,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [4, 8], [8, 8], [], [], [4, 8]], "Ev Idx": 388
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757663.849, "dur": 1.475,
+    "args": {
+      "External id": 7046,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 389
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757664.614, "dur": 0.488,
+    "args": {
+      "External id": 7047,"Record function id": 0, "Concrete Inputs": ["", "[4, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 390
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757665.975, "dur": 1.386,
+    "args": {
+      "External id": 7048,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[4, 8], [4, 8], []], "Ev Idx": 391
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757667.983, "dur": 0.075,
+    "args": {
+      "External id": 7049,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 392
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757668.461, "dur": 0.032,
+    "args": {
+      "External id": 7050,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 393
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757668.868, "dur": 0.023,
+    "args": {
+      "External id": 7051,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[4, 8]], "Ev Idx": 394
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::bmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757673.389, "dur": 1.776,
+    "args": {
+      "External id": 7052,"Record function id": 0, "Concrete Inputs": ["", "", ""], "Input type": ["double", "double", "double"], "Input Strides": [[12, 4, 1], [4, 8, 1], [12, 4, 1]], "Input Dims": [[2, 3, 4], [2, 4, 4], [2, 3, 4]], "Ev Idx": 395
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757674.086, "dur": 0.055,
+    "args": {
+      "External id": 7053,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[4, 8, 1]], "Input Dims": [[2, 4, 4]], "Ev Idx": 396
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757674.541, "dur": 0.030,
+    "args": {
+      "External id": 7054,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[12, 4, 1]], "Input Dims": [[2, 3, 4]], "Ev Idx": 397
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757681.481, "dur": 6.819,
+    "args": {
+      "External id": 7055,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 8], [8, 8], [], [], [3, 8]], "Ev Idx": 398
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757682.465, "dur": 1.456,
+    "args": {
+      "External id": 7056,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 399
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757683.238, "dur": 0.445,
+    "args": {
+      "External id": 7057,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 400
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757684.581, "dur": 1.360,
+    "args": {
+      "External id": 7058,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 401
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757686.550, "dur": 0.075,
+    "args": {
+      "External id": 7059,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 402
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757687.018, "dur": 0.024,
+    "args": {
+      "External id": 7060,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[8, 8]], "Ev Idx": 403
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757687.412, "dur": 0.024,
+    "args": {
+      "External id": 7061,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 404
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757694.294, "dur": 6.728,
+    "args": {
+      "External id": 7062,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [16, 1], [], [], [16, 1]], "Input Dims": [[16], [3, 8], [8, 16], [], [], [3, 16]], "Ev Idx": 405
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757695.320, "dur": 1.455,
+    "args": {
+      "External id": 7063,"Record function id": 0, "Concrete Inputs": ["", "[3, 16]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[16], [], []], "Ev Idx": 406
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757696.084, "dur": 0.454,
+    "args": {
+      "External id": 7064,"Record function id": 0, "Concrete Inputs": ["", "[3, 16]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[16], [], [], []], "Ev Idx": 407
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757697.412, "dur": 1.209,
+    "args": {
+      "External id": 7065,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[16, 1], [0, 1], []], "Input Dims": [[3, 16], [3, 16], []], "Ev Idx": 408
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757699.225, "dur": 0.080,
+    "args": {
+      "External id": 7066,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[3, 16]], "Ev Idx": 409
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757699.702, "dur": 0.031,
+    "args": {
+      "External id": 7067,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[8, 16]], "Ev Idx": 410
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757700.110, "dur": 0.025,
+    "args": {
+      "External id": 7068,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 411
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757704.976, "dur": 6.363,
+    "args": {
+      "External id": 7069,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [16, 1], [8, 1], [], [], [8, 1]], "Input Dims": [[8], [3, 16], [16, 8], [], [], [3, 8]], "Ev Idx": 412
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757705.890, "dur": 1.385,
+    "args": {
+      "External id": 7070,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[8], [], []], "Ev Idx": 413
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757706.625, "dur": 0.423,
+    "args": {
+      "External id": 7071,"Record function id": 0, "Concrete Inputs": ["", "[3, 8]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[8], [], [], []], "Ev Idx": 414
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757707.884, "dur": 1.132,
+    "args": {
+      "External id": 7072,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[8, 1], [0, 1], []], "Input Dims": [[3, 8], [3, 8], []], "Ev Idx": 415
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757709.622, "dur": 0.078,
+    "args": {
+      "External id": 7073,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 416
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757710.116, "dur": 0.030,
+    "args": {
+      "External id": 7074,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[16, 8]], "Ev Idx": 417
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757710.527, "dur": 0.023,
+    "args": {
+      "External id": 7075,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[16, 1]], "Input Dims": [[3, 16]], "Ev Idx": 418
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::addmm", "pid": 465037, "tid": 465037,
+    "ts": 409133757716.719, "dur": 6.836,
+    "args": {
+      "External id": 7076,"Record function id": 0, "Concrete Inputs": ["", "", "", "1", "1", ""], "Input type": ["double", "double", "double", "Scalar", "Scalar", "double"], "Input Strides": [[1], [8, 1], [13, 1], [], [], [13, 1]], "Input Dims": [[13], [3, 8], [8, 13], [], [], [3, 13]], "Ev Idx": 419
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::expand", "pid": 465037, "tid": 465037,
+    "ts": 409133757717.685, "dur": 1.390,
+    "args": {
+      "External id": 7077,"Record function id": 0, "Concrete Inputs": ["", "[3, 13]", "False"], "Input type": ["double", "ScalarList", "Scalar"], "Input Strides": [[1], [], []], "Input Dims": [[13], [], []], "Ev Idx": 420
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::as_strided", "pid": 465037, "tid": 465037,
+    "ts": 409133757718.430, "dur": 0.422,
+    "args": {
+      "External id": 7078,"Record function id": 0, "Concrete Inputs": ["", "[3, 13]", "[0, 1]", ""], "Input type": ["double", "ScalarList", "ScalarList", ""], "Input Strides": [[1], [], [], []], "Input Dims": [[13], [], [], []], "Ev Idx": 421
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::copy_", "pid": 465037, "tid": 465037,
+    "ts": 409133757719.722, "dur": 1.283,
+    "args": {
+      "External id": 7079,"Record function id": 0, "Concrete Inputs": ["", "", "False"], "Input type": ["double", "double", "Scalar"], "Input Strides": [[13, 1], [0, 1], []], "Input Dims": [[3, 13], [3, 13], []], "Ev Idx": 422
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757721.626, "dur": 0.082,
+    "args": {
+      "External id": 7080,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[13, 1]], "Input Dims": [[3, 13]], "Ev Idx": 423
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757722.126, "dur": 0.025,
+    "args": {
+      "External id": 7081,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[13, 1]], "Input Dims": [[8, 13]], "Ev Idx": 424
+    }
+  },
+  {
+    "ph": "X", "cat": "cpu_op", "name": "aten::resolve_conj", "pid": 465037, "tid": 465037,
+    "ts": 409133757722.521, "dur": 0.025,
+    "args": {
+      "External id": 7082,"Record function id": 0, "Concrete Inputs": [""], "Input type": ["double"], "Input Strides": [[8, 1]], "Input Dims": [[3, 8]], "Ev Idx": 425
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 465037, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 465037, "tid": 0,
+    "args": {
+      "labels": "CPU"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 465037, "tid": 0,
+    "args": {
+      "sort_index": 465037
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 0, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 0, "tid": 0,
+    "args": {
+      "labels": "GPU 0"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 0, "tid": 0,
+    "args": {
+      "sort_index": 5000000
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 1, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 1, "tid": 0,
+    "args": {
+      "labels": "GPU 1"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 1, "tid": 0,
+    "args": {
+      "sort_index": 5000001
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 2, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 2, "tid": 0,
+    "args": {
+      "labels": "GPU 2"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 2, "tid": 0,
+    "args": {
+      "sort_index": 5000002
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 3, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 3, "tid": 0,
+    "args": {
+      "labels": "GPU 3"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 3, "tid": 0,
+    "args": {
+      "sort_index": 5000003
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 4, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 4, "tid": 0,
+    "args": {
+      "labels": "GPU 4"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 4, "tid": 0,
+    "args": {
+      "sort_index": 5000004
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 5, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 5, "tid": 0,
+    "args": {
+      "labels": "GPU 5"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 5, "tid": 0,
+    "args": {
+      "sort_index": 5000005
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 6, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 6, "tid": 0,
+    "args": {
+      "labels": "GPU 6"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 6, "tid": 0,
+    "args": {
+      "sort_index": 5000006
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 7, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 7, "tid": 0,
+    "args": {
+      "labels": "GPU 7"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 7, "tid": 0,
+    "args": {
+      "sort_index": 5000007
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 8, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 8, "tid": 0,
+    "args": {
+      "labels": "GPU 8"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 8, "tid": 0,
+    "args": {
+      "sort_index": 5000008
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 9, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 9, "tid": 0,
+    "args": {
+      "labels": "GPU 9"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 9, "tid": 0,
+    "args": {
+      "sort_index": 5000009
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 10, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 10, "tid": 0,
+    "args": {
+      "labels": "GPU 10"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 10, "tid": 0,
+    "args": {
+      "sort_index": 5000010
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 11, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 11, "tid": 0,
+    "args": {
+      "labels": "GPU 11"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 11, "tid": 0,
+    "args": {
+      "sort_index": 5000011
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 12, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 12, "tid": 0,
+    "args": {
+      "labels": "GPU 12"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 12, "tid": 0,
+    "args": {
+      "sort_index": 5000012
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 13, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 13, "tid": 0,
+    "args": {
+      "labels": "GPU 13"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 13, "tid": 0,
+    "args": {
+      "sort_index": 5000013
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 14, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 14, "tid": 0,
+    "args": {
+      "labels": "GPU 14"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 14, "tid": 0,
+    "args": {
+      "sort_index": 5000014
+    }
+  },
+  {
+    "name": "process_name", "ph": "M", "ts": 409133756509.135, "pid": 15, "tid": 0,
+    "args": {
+      "name": "python3"
+    }
+  },
+  {
+    "name": "process_labels", "ph": "M", "ts": 409133756509.135, "pid": 15, "tid": 0,
+    "args": {
+      "labels": "GPU 15"
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 15, "tid": 0,
+    "args": {
+      "sort_index": 5000015
+    }
+  },
+  {
+    "name": "thread_name", "ph": "M", "ts": 409133756509.135, "pid": 465037, "tid": 465037,
+    "args": {
+      "name": "thread 465037 (jac)"
+    }
+  },
+  {
+    "name": "thread_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 465037, "tid": 465037,
+    "args": {
+      "sort_index": 465037
+    }
+  },
+  {
+    "name": "thread_name", "ph": "M", "ts": 409133756509.135, "pid": 465037, "tid": 465037,
+    "args": {
+      "name": "thread 465037 (jac)"
+    }
+  },
+  {
+    "name": "thread_sort_index", "ph": "M", "ts": 409133756509.135, "pid": 465037, "tid": 465037,
+    "args": {
+      "sort_index": 465037
+    }
+  },
+  {
+    "ph": "X", "cat": "Trace", "ts": 409133756485.303, "dur": 1282.703,
+    "pid": "Spans", "tid": "PyTorch Profiler",
+    "name": "PyTorch Profiler (0)",
+    "args": {
+      "Op count": 0
+    }
+  },
+  {
+    "name": "process_sort_index", "ph": "M", "ts": 409133756485.303,
+    "pid": "Spans", "tid": 0,
+    "args": {
+      "sort_index": 536870912
+    }
+  },
+  {
+    "name": "Iteration Start: PyTorch Profiler", "ph": "i", "s": "g",
+    "pid": "Traces", "tid": "Trace PyTorch Profiler", "ts": 409133756485.303
+  },
+  {
+    "name": "Record Window End", "ph": "i", "s": "g",
+    "pid": "", "tid": "", "ts": 409133758267.968
+  }
+  ],
+  "traceName": "/home/baichuan/jaseci/jac/examples/transformer_graph/results/profiles/small_cpu_float64_rewired_torch_compile.trace.json"
+}

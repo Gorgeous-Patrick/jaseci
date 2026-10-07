@@ -1,0 +1,2085 @@
+{
+  "environment": {
+    "python": "3.13.7 (main, Sep 18 2025, 01:22:03) [GCC 11.4.0]",
+    "platform": "Linux-6.2.6-76060206-generic-x86_64-with-glibc2.35",
+    "torch": "2.8.0+cu128",
+    "cuda_runtime": "12.8",
+    "device": "cpu",
+    "cpu": "x86_64",
+    "threads": 1,
+    "tf32": false,
+    "pid": 427937,
+    "compile_cache": "/tmp/jac-transformer-inductor",
+    "time_utc": "2026-10-06T05:48:32.307070+00:00"
+  },
+  "arguments": {
+    "mode": "benchmark",
+    "device": "cpu",
+    "output": "results/smoke_cpu",
+    "configs": [
+      "small"
+    ],
+    "dtypes": [
+      "float64"
+    ],
+    "warmup": 2,
+    "samples": 2,
+    "rounds": 1,
+    "no_compile": false,
+    "exclusive_note": ""
+  },
+  "bootstrap": {
+    "torch_baseline_reference_import_ms": 1095.775412999501,
+    "inductor_cache_preexisting": false
+  },
+  "inference_only": true,
+  "measurement_notes": [
+    "Graph walker runs on host; PyTorch tensor math runs on CPU/CUDA.",
+    "Resident tokens/weights; no transfers or scalar reads inside module forwards.",
+    "E2E syncs only request boundaries; CUDA events include host-induced idle gaps.",
+    "Actual kernel durations and CPU categories come from separate profiler runs.",
+    "Handle replay is a scheduling-only microbenchmark, not Transformer inference.",
+    "Baselines retain all intermediate outputs/maps to match graph observability.",
+    "Trace collection disabled for timing, enabled separately for profiler.",
+    "No CUDA graphs, no TF32, one CPU thread, compile workers limited to one."
+  ],
+  "cases": [
+    {
+      "config": {
+        "dimension": 8,
+        "heads": 2,
+        "hidden": 16,
+        "vocabulary": 13,
+        "source_length": 4,
+        "target_length": 3
+      },
+      "config_name": "small",
+      "dtype": "float64",
+      "device": "cpu",
+      "initialization": {
+        "jac_graph_and_seeded_list_parameters_ms": 1.3444599999274942,
+        "parameter_and_input_placement_ms": 0.4334740006015636,
+        "jac_first_forward_including_position_mask_cache_ms": 19.410871,
+        "baseline_snapshot_and_buffers_ms": 1.8262670000694925,
+        "eager_first_forward_ms": 1.083076
+      },
+      "graphs": {
+        "original": {
+          "methods": {
+            "jac_graph": {
+              "end_to_end": {
+                "n": 2,
+                "mean_ms": 1.217539,
+                "median_ms": 1.217539,
+                "p10_ms": 1.2041789999999999,
+                "p90_ms": 1.230899,
+                "p95_ms": 1.232569,
+                "min_ms": 1.200839,
+                "max_ms": 1.234239,
+                "raw_ms": [
+                  1.200839,
+                  1.234239
+                ]
+              },
+              "warmup_total_ms": 2.451106999615149
+            },
+            "torch_eager": {
+              "end_to_end": {
+                "n": 2,
+                "mean_ms": 0.45168949999999997,
+                "median_ms": 0.45168949999999997,
+                "p10_ms": 0.4407227,
+                "p90_ms": 0.46265629999999996,
+                "p95_ms": 0.46402715,
+                "min_ms": 0.437981,
+                "max_ms": 0.465398,
+                "raw_ms": [
+                  0.465398,
+                  0.437981
+                ]
+              },
+              "warmup_total_ms": 0.9181420000459184
+            },
+            "torch_compile": {
+              "end_to_end": {
+                "n": 2,
+                "mean_ms": 0.22449750000000002,
+                "median_ms": 0.22449750000000002,
+                "p10_ms": 0.2200091,
+                "p90_ms": 0.22898590000000002,
+                "p95_ms": 0.22954695,
+                "min_ms": 0.218887,
+                "max_ms": 0.230108,
+                "raw_ms": [
+                  0.230108,
+                  0.218887
+                ]
+              },
+              "warmup_total_ms": 0.48277499990945216
+            }
+          },
+          "round_order": [
+            [
+              "torch_eager",
+              "jac_graph",
+              "torch_compile"
+            ]
+          ],
+          "scheduler_replay": {
+            "end_to_end": {
+              "n": 2,
+              "mean_ms": 0.552868,
+              "median_ms": 0.552868,
+              "p10_ms": 0.5063856,
+              "p90_ms": 0.5993504000000001,
+              "p95_ms": 0.6051607,
+              "min_ms": 0.494765,
+              "max_ms": 0.610971,
+              "raw_ms": [
+                0.610971,
+                0.494765
+              ]
+            },
+            "warmup_total_ms": 1.0965720002786838
+          },
+          "compile": {
+            "status": "passed",
+            "backend": "inductor",
+            "fullgraph": true,
+            "dynamic": false,
+            "cudagraphs": false,
+            "construction_ms": 240.37648999910743,
+            "first_call_compile_and_execution_ms": 13477.11515,
+            "max_probability_error": 2.7755575615628914e-17
+          },
+          "max_intermediate_error": 0.0,
+          "probability_delta_from_original_graph": 0.0,
+          "profiles": {
+            "jac_graph": {
+              "calls": 3,
+              "trace_file": "/home/baichuan/jaseci/jac/examples/transformer_graph/results/smoke_cpu/profiles/small_cpu_float64_original_jac_graph.trace.json",
+              "cpu_exclusive_categories_ms": {
+                "other": 1.2399600000000004,
+                "jac_runtime_server_data": 3.413390000000001,
+                "jac_model_methods": 1.576543,
+                "torch_python_or_c_api": 3.3520650000000005
+              },
+              "cpu_top": [
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 450,
+                  "function": "execute",
+                  "calls": 54,
+                  "exclusive_ms": 0.5455030000000001,
+                  "cumulative_ms": 8.060114
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._ops.profiler._record_function_enter_new>",
+                  "calls": 54,
+                  "exclusive_ms": 0.49529300000000004,
+                  "cumulative_ms": 0.49529300000000004
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'mean' of 'torch._C.TensorBase' objects>",
+                  "calls": 30,
+                  "exclusive_ms": 0.360005,
+                  "cumulative_ms": 0.360005
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+                  "line": 270,
+                  "function": "next_slot",
+                  "calls": 60,
+                  "exclusive_ms": 0.359032,
+                  "cumulative_ms": 0.514317
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 300,
+                  "function": "evaluate",
+                  "calls": 15,
+                  "exclusive_ms": 0.35617200000000004,
+                  "cumulative_ms": 0.800807
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 203,
+                  "function": "walk",
+                  "calls": 57,
+                  "exclusive_ms": 0.355375,
+                  "cumulative_ms": 0.817372
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.matmul>",
+                  "calls": 69,
+                  "exclusive_ms": 0.351739,
+                  "cumulative_ms": 0.351739
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+                  "line": 714,
+                  "function": "hop",
+                  "calls": 57,
+                  "exclusive_ms": 0.301518,
+                  "cumulative_ms": 2.50271
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 1306,
+                  "function": "tree_iter",
+                  "calls": 378,
+                  "exclusive_ms": 0.300107,
+                  "cumulative_ms": 0.978722
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+                  "line": 554,
+                  "function": "refs",
+                  "calls": 57,
+                  "exclusive_ms": 0.25757399999999997,
+                  "cumulative_ms": 1.9538559999999998
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._ops.profiler.>",
+                  "calls": 54,
+                  "exclusive_ms": 0.248455,
+                  "cumulative_ms": 0.248455
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.isinstance>",
+                  "calls": 1593,
+                  "exclusive_ms": 0.231493,
+                  "cumulative_ms": 0.231493
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/autograd/profiler.py",
+                  "line": 781,
+                  "function": "__exit__",
+                  "calls": 54,
+                  "exclusive_ms": 0.205414,
+                  "cumulative_ms": 1.72971
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 679,
+                  "function": "is_namedtuple_class",
+                  "calls": 378,
+                  "exclusive_ms": 0.192363,
+                  "cumulative_ms": 0.33973800000000004
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+                  "line": 770,
+                  "function": "visit",
+                  "calls": 54,
+                  "exclusive_ms": 0.18443,
+                  "cumulative_ms": 0.579152
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 91,
+                  "function": "head_context",
+                  "calls": 9,
+                  "exclusive_ms": 0.158784,
+                  "cumulative_ms": 0.5741800000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 112,
+                  "function": "edge_pair_for",
+                  "calls": 144,
+                  "exclusive_ms": 0.14436900000000003,
+                  "cumulative_ms": 0.272638
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 1012,
+                  "function": "_get_node_type",
+                  "calls": 378,
+                  "exclusive_ms": 0.140573,
+                  "cumulative_ms": 0.48031100000000004
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 285,
+                  "function": "walk_edges",
+                  "calls": 54,
+                  "exclusive_ms": 0.134568,
+                  "cumulative_ms": 0.9531080000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.getattr>",
+                  "calls": 456,
+                  "exclusive_ms": 0.115396,
+                  "cumulative_ms": 0.176696
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.len>",
+                  "calls": 651,
+                  "exclusive_ms": 0.11346500000000001,
+                  "cumulative_ms": 0.21422000000000002
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 27,
+                  "function": "access_gated",
+                  "calls": 57,
+                  "exclusive_ms": 0.111921,
+                  "cumulative_ms": 0.27271100000000004
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 64,
+                  "function": "origin_anchors",
+                  "calls": 57,
+                  "exclusive_ms": 0.108687,
+                  "cumulative_ms": 0.196723
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/autograd/profiler.py",
+                  "line": 775,
+                  "function": "__enter__",
+                  "calls": 54,
+                  "exclusive_ms": 0.096323,
+                  "cumulative_ms": 0.617558
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 20,
+                  "function": "ready",
+                  "calls": 126,
+                  "exclusive_ms": 0.082129,
+                  "cumulative_ms": 0.11141100000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'reshape' of 'torch._C.TensorBase' objects>",
+                  "calls": 36,
+                  "exclusive_ms": 0.081537,
+                  "cumulative_ms": 0.081537
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.dir>",
+                  "calls": 3,
+                  "exclusive_ms": 0.07997100000000001,
+                  "cumulative_ms": 0.07997100000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'append' of 'list' objects>",
+                  "calls": 447,
+                  "exclusive_ms": 0.07963700000000001,
+                  "cumulative_ms": 0.07963700000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 1024,
+                  "function": "tree_is_leaf",
+                  "calls": 216,
+                  "exclusive_ms": 0.078673,
+                  "cumulative_ms": 0.373744
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+                  "line": 561,
+                  "function": "spawn",
+                  "calls": 3,
+                  "exclusive_ms": 0.07852200000000001,
+                  "cumulative_ms": 9.486725000000002
+                }
+              ],
+              "cuda_kernel_count": 0,
+              "kernel_sum_ms": 0.0,
+              "kernel_window_ms": null,
+              "kernel_window_minus_busy_ms": null,
+              "kernels": [],
+              "launch_count": 0,
+              "launch_cpu_ms": 0.0,
+              "node_cpu_ranges": [
+                {
+                  "name": "Jac.node/source",
+                  "duration_ms": 0.032743
+                },
+                {
+                  "name": "Jac.node/target",
+                  "duration_ms": 0.019132000000000003
+                },
+                {
+                  "name": "Jac.node/enc_embed",
+                  "duration_ms": 0.08414
+                },
+                {
+                  "name": "Jac.node/dec_embed",
+                  "duration_ms": 0.047835
+                },
+                {
+                  "name": "Jac.node/enc_pos",
+                  "duration_ms": 0.035404000000000005
+                },
+                {
+                  "name": "Jac.node/dec_pos",
+                  "duration_ms": 0.026694
+                },
+                {
+                  "name": "Jac.node/enc_attn",
+                  "duration_ms": 0.209318
+                },
+                {
+                  "name": "Jac.node/dec_attn",
+                  "duration_ms": 0.19747900000000002
+                },
+                {
+                  "name": "Jac.node/enc_norm1",
+                  "duration_ms": 0.132928
+                },
+                {
+                  "name": "Jac.node/dec_norm1",
+                  "duration_ms": 0.10338800000000001
+                },
+                {
+                  "name": "Jac.node/enc_ffn",
+                  "duration_ms": 0.054817
+                },
+                {
+                  "name": "Jac.node/enc_norm2",
+                  "duration_ms": 0.10219199999999999
+                },
+                {
+                  "name": "Jac.node/cross_attn",
+                  "duration_ms": 0.172617
+                },
+                {
+                  "name": "Jac.node/dec_norm2",
+                  "duration_ms": 0.103143
+                },
+                {
+                  "name": "Jac.node/dec_ffn",
+                  "duration_ms": 0.054922
+                },
+                {
+                  "name": "Jac.node/dec_norm3",
+                  "duration_ms": 0.102006
+                },
+                {
+                  "name": "Jac.node/projection",
+                  "duration_ms": 0.038117
+                },
+                {
+                  "name": "Jac.node/probabilities",
+                  "duration_ms": 0.028677
+                },
+                {
+                  "name": "Jac.node/source",
+                  "duration_ms": 0.018917000000000003
+                },
+                {
+                  "name": "Jac.node/target",
+                  "duration_ms": 0.016622
+                },
+                {
+                  "name": "Jac.node/enc_embed",
+                  "duration_ms": 0.049947000000000005
+                },
+                {
+                  "name": "Jac.node/dec_embed",
+                  "duration_ms": 0.044704
+                },
+                {
+                  "name": "Jac.node/enc_pos",
+                  "duration_ms": 0.028056
+                },
+                {
+                  "name": "Jac.node/dec_pos",
+                  "duration_ms": 0.026014
+                },
+                {
+                  "name": "Jac.node/enc_attn",
+                  "duration_ms": 0.185798
+                },
+                {
+                  "name": "Jac.node/dec_attn",
+                  "duration_ms": 0.190299
+                },
+                {
+                  "name": "Jac.node/enc_norm1",
+                  "duration_ms": 0.106207
+                },
+                {
+                  "name": "Jac.node/dec_norm1",
+                  "duration_ms": 0.09968099999999999
+                },
+                {
+                  "name": "Jac.node/enc_ffn",
+                  "duration_ms": 0.052863999999999994
+                },
+                {
+                  "name": "Jac.node/enc_norm2",
+                  "duration_ms": 0.09967400000000001
+                },
+                {
+                  "name": "Jac.node/cross_attn",
+                  "duration_ms": 0.173952
+                },
+                {
+                  "name": "Jac.node/dec_norm2",
+                  "duration_ms": 0.107814
+                },
+                {
+                  "name": "Jac.node/dec_ffn",
+                  "duration_ms": 0.051905
+                },
+                {
+                  "name": "Jac.node/dec_norm3",
+                  "duration_ms": 0.099465
+                },
+                {
+                  "name": "Jac.node/projection",
+                  "duration_ms": 0.036723
+                },
+                {
+                  "name": "Jac.node/probabilities",
+                  "duration_ms": 0.027249
+                },
+                {
+                  "name": "Jac.node/source",
+                  "duration_ms": 0.018102
+                },
+                {
+                  "name": "Jac.node/target",
+                  "duration_ms": 0.016486
+                },
+                {
+                  "name": "Jac.node/enc_embed",
+                  "duration_ms": 0.050439
+                },
+                {
+                  "name": "Jac.node/dec_embed",
+                  "duration_ms": 0.080104
+                },
+                {
+                  "name": "Jac.node/enc_pos",
+                  "duration_ms": 0.027111999999999997
+                },
+                {
+                  "name": "Jac.node/dec_pos",
+                  "duration_ms": 0.025367
+                },
+                {
+                  "name": "Jac.node/enc_attn",
+                  "duration_ms": 0.171431
+                },
+                {
+                  "name": "Jac.node/dec_attn",
+                  "duration_ms": 0.195746
+                },
+                {
+                  "name": "Jac.node/enc_norm1",
+                  "duration_ms": 0.104729
+                },
+                {
+                  "name": "Jac.node/dec_norm1",
+                  "duration_ms": 0.10240099999999999
+                },
+                {
+                  "name": "Jac.node/enc_ffn",
+                  "duration_ms": 0.051231
+                },
+                {
+                  "name": "Jac.node/enc_norm2",
+                  "duration_ms": 0.099605
+                },
+                {
+                  "name": "Jac.node/cross_attn",
+                  "duration_ms": 0.17098500000000003
+                },
+                {
+                  "name": "Jac.node/dec_norm2",
+                  "duration_ms": 0.10244199999999999
+                },
+                {
+                  "name": "Jac.node/dec_ffn",
+                  "duration_ms": 0.051935
+                },
+                {
+                  "name": "Jac.node/dec_norm3",
+                  "duration_ms": 0.099913
+                },
+                {
+                  "name": "Jac.node/projection",
+                  "duration_ms": 0.036901
+                },
+                {
+                  "name": "Jac.node/probabilities",
+                  "duration_ms": 0.026875
+                }
+              ]
+            },
+            "torch_eager": {
+              "calls": 3,
+              "trace_file": "/home/baichuan/jaseci/jac/examples/transformer_graph/results/smoke_cpu/profiles/small_cpu_float64_original_torch_eager.trace.json",
+              "cpu_exclusive_categories_ms": {
+                "torch_python_or_c_api": 0.9352250000000002,
+                "other": 0.7377540000000001
+              },
+              "cpu_top": [
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.matmul>",
+                  "calls": 69,
+                  "exclusive_ms": 0.275384,
+                  "cumulative_ms": 0.275384
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'mean' of 'torch._C.TensorBase' objects>",
+                  "calls": 30,
+                  "exclusive_ms": 0.26819000000000004,
+                  "cumulative_ms": 0.26819000000000004
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 29,
+                  "function": "attention",
+                  "calls": 9,
+                  "exclusive_ms": 0.250603,
+                  "cumulative_ms": 0.7276720000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 44,
+                  "function": "norm",
+                  "calls": 15,
+                  "exclusive_ms": 0.249653,
+                  "cumulative_ms": 0.586486
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 24,
+                  "function": "eager_forward",
+                  "calls": 3,
+                  "exclusive_ms": 0.125561,
+                  "cumulative_ms": 1.606497
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'reshape' of 'torch._C.TensorBase' objects>",
+                  "calls": 36,
+                  "exclusive_ms": 0.071924,
+                  "cumulative_ms": 0.071924
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'transpose' of 'torch._C.TensorBase' objects>",
+                  "calls": 45,
+                  "exclusive_ms": 0.063216,
+                  "cumulative_ms": 0.063216
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.index_select>",
+                  "calls": 6,
+                  "exclusive_ms": 0.05369,
+                  "cumulative_ms": 0.05369
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.softmax>",
+                  "calls": 12,
+                  "exclusive_ms": 0.047824,
+                  "cumulative_ms": 0.047824
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'contiguous' of 'torch._C.TensorBase' objects>",
+                  "calls": 9,
+                  "exclusive_ms": 0.043762,
+                  "cumulative_ms": 0.043762
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+                  "calls": 1,
+                  "exclusive_ms": 0.042007,
+                  "cumulative_ms": 0.042007
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 51,
+                  "function": "feed_forward",
+                  "calls": 6,
+                  "exclusive_ms": 0.039166000000000006,
+                  "cumulative_ms": 0.08907400000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'square' of 'torch._C.TensorBase' objects>",
+                  "calls": 15,
+                  "exclusive_ms": 0.038052,
+                  "cumulative_ms": 0.038052
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.rsqrt>",
+                  "calls": 15,
+                  "exclusive_ms": 0.030591,
+                  "cumulative_ms": 0.030591
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'masked_fill' of 'torch._C.TensorBase' objects>",
+                  "calls": 3,
+                  "exclusive_ms": 0.027476000000000004,
+                  "cumulative_ms": 0.027476000000000004
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 90,
+                  "function": "__call__",
+                  "calls": 3,
+                  "exclusive_ms": 0.021258000000000003,
+                  "cumulative_ms": 1.627755
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.relu>",
+                  "calls": 6,
+                  "exclusive_ms": 0.015116000000000001,
+                  "cumulative_ms": 0.015116000000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method math.sqrt>",
+                  "calls": 15,
+                  "exclusive_ms": 0.006289,
+                  "cumulative_ms": 0.006289
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_experiments.py",
+                  "line": 42,
+                  "function": "sync",
+                  "calls": 1,
+                  "exclusive_ms": 0.002881,
+                  "cumulative_ms": 0.0032170000000000002
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'startswith' of 'str' objects>",
+                  "calls": 1,
+                  "exclusive_ms": 0.00033600000000000004,
+                  "cumulative_ms": 0.00033600000000000004
+                }
+              ],
+              "cuda_kernel_count": 0,
+              "kernel_sum_ms": 0.0,
+              "kernel_window_ms": null,
+              "kernel_window_minus_busy_ms": null,
+              "kernels": [],
+              "launch_count": 0,
+              "launch_cpu_ms": 0.0,
+              "node_cpu_ranges": []
+            },
+            "torch_compile": {
+              "calls": 3,
+              "trace_file": "/home/baichuan/jaseci/jac/examples/transformer_graph/results/smoke_cpu/profiles/small_cpu_float64_original_torch_compile.trace.json",
+              "cpu_exclusive_categories_ms": {
+                "torch_python_or_c_api": 0.8248179999999998,
+                "other": 0.2646360000000001,
+                "jac_runtime_server_data": 0.0007650000000000001
+              },
+              "cpu_top": [
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.addmm>",
+                  "calls": 51,
+                  "exclusive_ms": 0.24840700000000002,
+                  "cumulative_ms": 0.24840700000000002
+                },
+                {
+                  "file": "/tmp/jac-transformer-inductor/me/cmexjclniiioxtmqjgvbg6lp57golcqkobmxsgmxsi3n2xvsh2mv.py",
+                  "line": 1042,
+                  "function": "call",
+                  "calls": 3,
+                  "exclusive_ms": 0.13768,
+                  "cumulative_ms": 0.693516
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 700,
+                  "function": "compile_wrapper",
+                  "calls": 3,
+                  "exclusive_ms": 0.105116,
+                  "cumulative_ms": 1.022758
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.guards._reinterpret_tensor>",
+                  "calls": 78,
+                  "exclusive_ms": 0.08867300000000002,
+                  "cumulative_ms": 0.08867300000000002
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.guards.assert_size_stride>",
+                  "calls": 153,
+                  "exclusive_ms": 0.08487200000000002,
+                  "cumulative_ms": 0.08487200000000002
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.guards._empty_strided_cpu>",
+                  "calls": 87,
+                  "exclusive_ms": 0.066176,
+                  "cumulative_ms": 0.066176
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+                  "calls": 1,
+                  "exclusive_ms": 0.04132,
+                  "cumulative_ms": 0.04132
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.bmm>",
+                  "calls": 18,
+                  "exclusive_ms": 0.037149,
+                  "cumulative_ms": 0.037149
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 90,
+                  "function": "__call__",
+                  "calls": 3,
+                  "exclusive_ms": 0.023067,
+                  "cumulative_ms": 1.045825
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_inductor/output_code.py",
+                  "line": 581,
+                  "function": "__call__",
+                  "calls": 3,
+                  "exclusive_ms": 0.018548000000000002,
+                  "cumulative_ms": 0.714361
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py",
+                  "line": 341,
+                  "function": "runtime_wrapper",
+                  "calls": 3,
+                  "exclusive_ms": 0.018317,
+                  "cumulative_ms": 0.7722840000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 924,
+                  "function": "_fn",
+                  "calls": 9,
+                  "exclusive_ms": 0.017273000000000004,
+                  "cumulative_ms": 0.828906
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 24,
+                  "function": "eager_forward",
+                  "calls": 3,
+                  "exclusive_ms": 0.015210000000000001,
+                  "cumulative_ms": 0.8524130000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/_aot_autograd/utils.py",
+                  "line": 116,
+                  "function": "call_func_at_runtime_with_args",
+                  "calls": 3,
+                  "exclusive_ms": 0.013455,
+                  "cumulative_ms": 0.7405430000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_config_module.py",
+                  "line": 712,
+                  "function": "change",
+                  "calls": 3,
+                  "exclusive_ms": 0.012759000000000001,
+                  "cumulative_ms": 0.013501
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 132,
+                  "function": "_maybe_set_eval_frame",
+                  "calls": 24,
+                  "exclusive_ms": 0.010926,
+                  "cumulative_ms": 0.017175
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/aot_autograd.py",
+                  "line": 1237,
+                  "function": "forward",
+                  "calls": 3,
+                  "exclusive_ms": 0.010806000000000001,
+                  "cumulative_ms": 0.784973
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.eval_frame.set_eval_frame>",
+                  "calls": 48,
+                  "exclusive_ms": 0.008934000000000001,
+                  "cumulative_ms": 0.008934000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_compile.py",
+                  "line": 41,
+                  "function": "inner",
+                  "calls": 6,
+                  "exclusive_ms": 0.006732,
+                  "cumulative_ms": 0.038759
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/utils.py",
+                  "line": 4671,
+                  "function": "record_pregraph_bytecode_enter",
+                  "calls": 3,
+                  "exclusive_ms": 0.006502000000000001,
+                  "cumulative_ms": 0.007423000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_config_module.py",
+                  "line": 717,
+                  "function": "revert",
+                  "calls": 3,
+                  "exclusive_ms": 0.006361,
+                  "cumulative_ms": 0.007195000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/mutation_guard.py",
+                  "line": 135,
+                  "function": "install_generation_tagging_init",
+                  "calls": 3,
+                  "exclusive_ms": 0.005675,
+                  "cumulative_ms": 0.006675
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method czdjd7d464dwp7xikq7dshur7s3xhejytfmrilaavonx6vjybgjc.kernel.kernel>",
+                  "calls": 9,
+                  "exclusive_ms": 0.004529,
+                  "cumulative_ms": 0.004529
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/guards.py",
+                  "line": 1658,
+                  "function": "fn",
+                  "calls": 3,
+                  "exclusive_ms": 0.004360000000000001,
+                  "cumulative_ms": 0.013231000000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.getattr>",
+                  "calls": 12,
+                  "exclusive_ms": 0.004229,
+                  "cumulative_ms": 0.004229
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/autograd/graph.py",
+                  "line": 217,
+                  "function": "increment_version",
+                  "calls": 3,
+                  "exclusive_ms": 0.0040620000000000005,
+                  "cumulative_ms": 0.010075
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method cda6hs66j7eqel5uck6jdfhwsnqqyjbxiic3x4z6brj5gex6sufy.kernel.kernel>",
+                  "calls": 3,
+                  "exclusive_ms": 0.004022,
+                  "cumulative_ms": 0.004022
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._functorch.pop_dynamic_layer_stack_and_undo_to_depth>",
+                  "calls": 3,
+                  "exclusive_ms": 0.0038970000000000003,
+                  "cumulative_ms": 0.0038970000000000003
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py",
+                  "line": 542,
+                  "function": "wrapper",
+                  "calls": 3,
+                  "exclusive_ms": 0.003868,
+                  "cumulative_ms": 0.718229
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 185,
+                  "function": "_callback_from_stance",
+                  "calls": 12,
+                  "exclusive_ms": 0.0037250000000000004,
+                  "cumulative_ms": 0.0037250000000000004
+                }
+              ],
+              "cuda_kernel_count": 0,
+              "kernel_sum_ms": 0.0,
+              "kernel_window_ms": null,
+              "kernel_window_minus_busy_ms": null,
+              "kernels": [],
+              "launch_count": 0,
+              "launch_cpu_ms": 0.0,
+              "node_cpu_ranges": []
+            }
+          }
+        },
+        "rewired": {
+          "methods": {
+            "jac_graph": {
+              "end_to_end": {
+                "n": 2,
+                "mean_ms": 1.2341955,
+                "median_ms": 1.2341955,
+                "p10_ms": 1.2191671000000002,
+                "p90_ms": 1.2492238999999998,
+                "p95_ms": 1.2511024499999999,
+                "min_ms": 1.21541,
+                "max_ms": 1.252981,
+                "raw_ms": [
+                  1.252981,
+                  1.21541
+                ]
+              },
+              "warmup_total_ms": 2.4545320002289372
+            },
+            "torch_eager": {
+              "end_to_end": {
+                "n": 2,
+                "mean_ms": 0.463832,
+                "median_ms": 0.463832,
+                "p10_ms": 0.45269360000000003,
+                "p90_ms": 0.4749704,
+                "p95_ms": 0.4763627,
+                "min_ms": 0.449909,
+                "max_ms": 0.477755,
+                "raw_ms": [
+                  0.477755,
+                  0.449909
+                ]
+              },
+              "warmup_total_ms": 0.9363760000269394
+            },
+            "torch_compile": {
+              "end_to_end": {
+                "n": 2,
+                "mean_ms": 0.231016,
+                "median_ms": 0.231016,
+                "p10_ms": 0.2233552,
+                "p90_ms": 0.2386768,
+                "p95_ms": 0.2396344,
+                "min_ms": 0.22144,
+                "max_ms": 0.240592,
+                "raw_ms": [
+                  0.240592,
+                  0.22144
+                ]
+              },
+              "warmup_total_ms": 0.5007239997212309
+            }
+          },
+          "round_order": [
+            [
+              "torch_eager",
+              "jac_graph",
+              "torch_compile"
+            ]
+          ],
+          "scheduler_replay": {
+            "end_to_end": {
+              "n": 2,
+              "mean_ms": 0.522038,
+              "median_ms": 0.522038,
+              "p10_ms": 0.5206052,
+              "p90_ms": 0.5234708,
+              "p95_ms": 0.5236499,
+              "min_ms": 0.520247,
+              "max_ms": 0.523829,
+              "raw_ms": [
+                0.523829,
+                0.520247
+              ]
+            },
+            "warmup_total_ms": 1.0685919996831217
+          },
+          "compile": {
+            "status": "passed",
+            "backend": "inductor",
+            "fullgraph": true,
+            "dynamic": false,
+            "cudagraphs": false,
+            "construction_ms": 1.3655230004587793,
+            "first_call_compile_and_execution_ms": 1844.779153,
+            "max_probability_error": 8.326672684688674e-17
+          },
+          "max_intermediate_error": 0.0,
+          "probability_delta_from_original_graph": 0.050559516696150664,
+          "profiles": {
+            "jac_graph": {
+              "calls": 3,
+              "trace_file": "/home/baichuan/jaseci/jac/examples/transformer_graph/results/smoke_cpu/profiles/small_cpu_float64_rewired_jac_graph.trace.json",
+              "cpu_exclusive_categories_ms": {
+                "other": 1.25364,
+                "jac_runtime_server_data": 3.5615590000000004,
+                "jac_model_methods": 1.6093339999999998,
+                "torch_python_or_c_api": 3.455679
+              },
+              "cpu_top": [
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 450,
+                  "function": "execute",
+                  "calls": 54,
+                  "exclusive_ms": 0.5602400000000001,
+                  "cumulative_ms": 8.341721
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._ops.profiler._record_function_enter_new>",
+                  "calls": 54,
+                  "exclusive_ms": 0.490545,
+                  "cumulative_ms": 0.490545
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+                  "line": 270,
+                  "function": "next_slot",
+                  "calls": 60,
+                  "exclusive_ms": 0.38075000000000003,
+                  "cumulative_ms": 0.5425850000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'mean' of 'torch._C.TensorBase' objects>",
+                  "calls": 30,
+                  "exclusive_ms": 0.37247600000000003,
+                  "cumulative_ms": 0.37247600000000003
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 203,
+                  "function": "walk",
+                  "calls": 57,
+                  "exclusive_ms": 0.367711,
+                  "cumulative_ms": 0.852836
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 300,
+                  "function": "evaluate",
+                  "calls": 15,
+                  "exclusive_ms": 0.366221,
+                  "cumulative_ms": 0.8261480000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.matmul>",
+                  "calls": 69,
+                  "exclusive_ms": 0.36221400000000004,
+                  "cumulative_ms": 0.36221400000000004
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+                  "line": 714,
+                  "function": "hop",
+                  "calls": 57,
+                  "exclusive_ms": 0.32344700000000004,
+                  "cumulative_ms": 2.631964
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 1306,
+                  "function": "tree_iter",
+                  "calls": 378,
+                  "exclusive_ms": 0.31256,
+                  "cumulative_ms": 1.0179200000000002
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+                  "line": 554,
+                  "function": "refs",
+                  "calls": 57,
+                  "exclusive_ms": 0.27580000000000005,
+                  "cumulative_ms": 2.044994
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._ops.profiler.>",
+                  "calls": 54,
+                  "exclusive_ms": 0.25611300000000004,
+                  "cumulative_ms": 0.25611300000000004
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.isinstance>",
+                  "calls": 1593,
+                  "exclusive_ms": 0.245035,
+                  "cumulative_ms": 0.245035
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/autograd/profiler.py",
+                  "line": 781,
+                  "function": "__exit__",
+                  "calls": 54,
+                  "exclusive_ms": 0.210919,
+                  "cumulative_ms": 1.7929680000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 679,
+                  "function": "is_namedtuple_class",
+                  "calls": 378,
+                  "exclusive_ms": 0.20423000000000002,
+                  "cumulative_ms": 0.357563
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/runtime.jac",
+                  "line": 770,
+                  "function": "visit",
+                  "calls": 54,
+                  "exclusive_ms": 0.190871,
+                  "cumulative_ms": 0.5929880000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 91,
+                  "function": "head_context",
+                  "calls": 9,
+                  "exclusive_ms": 0.165031,
+                  "cumulative_ms": 0.5939700000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 112,
+                  "function": "edge_pair_for",
+                  "calls": 144,
+                  "exclusive_ms": 0.150621,
+                  "cumulative_ms": 0.288203
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 1012,
+                  "function": "_get_node_type",
+                  "calls": 378,
+                  "exclusive_ms": 0.144938,
+                  "cumulative_ms": 0.5025010000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 285,
+                  "function": "walk_edges",
+                  "calls": 54,
+                  "exclusive_ms": 0.140259,
+                  "cumulative_ms": 0.9971540000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 27,
+                  "function": "access_gated",
+                  "calls": 57,
+                  "exclusive_ms": 0.11900000000000001,
+                  "cumulative_ms": 0.284187
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.len>",
+                  "calls": 651,
+                  "exclusive_ms": 0.11659100000000001,
+                  "cumulative_ms": 0.219633
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/graph_walk.jac",
+                  "line": 64,
+                  "function": "origin_anchors",
+                  "calls": 57,
+                  "exclusive_ms": 0.11108,
+                  "cumulative_ms": 0.20152100000000003
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.getattr>",
+                  "calls": 456,
+                  "exclusive_ms": 0.10418600000000001,
+                  "cumulative_ms": 0.16661700000000002
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/autograd/profiler.py",
+                  "line": 775,
+                  "function": "__enter__",
+                  "calls": 54,
+                  "exclusive_ms": 0.10046500000000001,
+                  "cumulative_ms": 0.6258290000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/osp_kernel.jac",
+                  "line": 561,
+                  "function": "spawn",
+                  "calls": 3,
+                  "exclusive_ms": 0.08597700000000001,
+                  "cumulative_ms": 9.783483
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/model.jac",
+                  "line": 20,
+                  "function": "ready",
+                  "calls": 126,
+                  "exclusive_ms": 0.08482800000000001,
+                  "cumulative_ms": 0.11647
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'append' of 'list' objects>",
+                  "calls": 447,
+                  "exclusive_ms": 0.084676,
+                  "cumulative_ms": 0.084676
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'reshape' of 'torch._C.TensorBase' objects>",
+                  "calls": 36,
+                  "exclusive_ms": 0.08392000000000001,
+                  "cumulative_ms": 0.08392000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/jaclang/runtime/archetype.jac",
+                  "line": 669,
+                  "function": "light_hop_answers",
+                  "calls": 57,
+                  "exclusive_ms": 0.081363,
+                  "cumulative_ms": 0.14989700000000003
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_pytree.py",
+                  "line": 1024,
+                  "function": "tree_is_leaf",
+                  "calls": 216,
+                  "exclusive_ms": 0.080278,
+                  "cumulative_ms": 0.38871100000000003
+                }
+              ],
+              "cuda_kernel_count": 0,
+              "kernel_sum_ms": 0.0,
+              "kernel_window_ms": null,
+              "kernel_window_minus_busy_ms": null,
+              "kernels": [],
+              "launch_count": 0,
+              "launch_cpu_ms": 0.0,
+              "node_cpu_ranges": [
+                {
+                  "name": "Jac.node/source",
+                  "duration_ms": 0.049808
+                },
+                {
+                  "name": "Jac.node/target",
+                  "duration_ms": 0.033042999999999996
+                },
+                {
+                  "name": "Jac.node/enc_embed",
+                  "duration_ms": 0.114854
+                },
+                {
+                  "name": "Jac.node/dec_embed",
+                  "duration_ms": 0.066937
+                },
+                {
+                  "name": "Jac.node/enc_pos",
+                  "duration_ms": 0.034165
+                },
+                {
+                  "name": "Jac.node/dec_pos",
+                  "duration_ms": 0.027561
+                },
+                {
+                  "name": "Jac.node/enc_attn",
+                  "duration_ms": 0.221845
+                },
+                {
+                  "name": "Jac.node/dec_attn",
+                  "duration_ms": 0.21263900000000002
+                },
+                {
+                  "name": "Jac.node/enc_norm1",
+                  "duration_ms": 0.133018
+                },
+                {
+                  "name": "Jac.node/dec_norm1",
+                  "duration_ms": 0.11097199999999999
+                },
+                {
+                  "name": "Jac.node/enc_ffn",
+                  "duration_ms": 0.059676
+                },
+                {
+                  "name": "Jac.node/enc_norm2",
+                  "duration_ms": 0.10782800000000001
+                },
+                {
+                  "name": "Jac.node/cross_attn",
+                  "duration_ms": 0.184939
+                },
+                {
+                  "name": "Jac.node/dec_norm2",
+                  "duration_ms": 0.107086
+                },
+                {
+                  "name": "Jac.node/dec_ffn",
+                  "duration_ms": 0.074262
+                },
+                {
+                  "name": "Jac.node/dec_norm3",
+                  "duration_ms": 0.107121
+                },
+                {
+                  "name": "Jac.node/projection",
+                  "duration_ms": 0.040530000000000004
+                },
+                {
+                  "name": "Jac.node/probabilities",
+                  "duration_ms": 0.030327000000000003
+                },
+                {
+                  "name": "Jac.node/source",
+                  "duration_ms": 0.018636
+                },
+                {
+                  "name": "Jac.node/target",
+                  "duration_ms": 0.01716
+                },
+                {
+                  "name": "Jac.node/enc_embed",
+                  "duration_ms": 0.062712
+                },
+                {
+                  "name": "Jac.node/dec_embed",
+                  "duration_ms": 0.055130000000000005
+                },
+                {
+                  "name": "Jac.node/enc_pos",
+                  "duration_ms": 0.030872
+                },
+                {
+                  "name": "Jac.node/dec_pos",
+                  "duration_ms": 0.028739
+                },
+                {
+                  "name": "Jac.node/enc_attn",
+                  "duration_ms": 0.206661
+                },
+                {
+                  "name": "Jac.node/dec_attn",
+                  "duration_ms": 0.215855
+                },
+                {
+                  "name": "Jac.node/enc_norm1",
+                  "duration_ms": 0.116113
+                },
+                {
+                  "name": "Jac.node/dec_norm1",
+                  "duration_ms": 0.104575
+                },
+                {
+                  "name": "Jac.node/enc_ffn",
+                  "duration_ms": 0.101603
+                },
+                {
+                  "name": "Jac.node/enc_norm2",
+                  "duration_ms": 0.18785300000000002
+                },
+                {
+                  "name": "Jac.node/cross_attn",
+                  "duration_ms": 0.292224
+                },
+                {
+                  "name": "Jac.node/dec_norm2",
+                  "duration_ms": 0.12606699999999998
+                },
+                {
+                  "name": "Jac.node/dec_ffn",
+                  "duration_ms": 0.059558
+                },
+                {
+                  "name": "Jac.node/dec_norm3",
+                  "duration_ms": 0.10852500000000001
+                },
+                {
+                  "name": "Jac.node/projection",
+                  "duration_ms": 0.041428
+                },
+                {
+                  "name": "Jac.node/probabilities",
+                  "duration_ms": 0.030439
+                },
+                {
+                  "name": "Jac.node/source",
+                  "duration_ms": 0.01891
+                },
+                {
+                  "name": "Jac.node/target",
+                  "duration_ms": 0.019404
+                },
+                {
+                  "name": "Jac.node/enc_embed",
+                  "duration_ms": 0.06507399999999999
+                },
+                {
+                  "name": "Jac.node/dec_embed",
+                  "duration_ms": 0.093669
+                },
+                {
+                  "name": "Jac.node/enc_pos",
+                  "duration_ms": 0.033019
+                },
+                {
+                  "name": "Jac.node/dec_pos",
+                  "duration_ms": 0.028627
+                },
+                {
+                  "name": "Jac.node/enc_attn",
+                  "duration_ms": 0.245175
+                },
+                {
+                  "name": "Jac.node/dec_attn",
+                  "duration_ms": 0.26824400000000004
+                },
+                {
+                  "name": "Jac.node/enc_norm1",
+                  "duration_ms": 0.167623
+                },
+                {
+                  "name": "Jac.node/dec_norm1",
+                  "duration_ms": 0.146422
+                },
+                {
+                  "name": "Jac.node/enc_ffn",
+                  "duration_ms": 0.064514
+                },
+                {
+                  "name": "Jac.node/enc_norm2",
+                  "duration_ms": 0.13916599999999998
+                },
+                {
+                  "name": "Jac.node/cross_attn",
+                  "duration_ms": 0.216909
+                },
+                {
+                  "name": "Jac.node/dec_norm2",
+                  "duration_ms": 0.115384
+                },
+                {
+                  "name": "Jac.node/dec_ffn",
+                  "duration_ms": 0.063788
+                },
+                {
+                  "name": "Jac.node/dec_norm3",
+                  "duration_ms": 0.13711
+                },
+                {
+                  "name": "Jac.node/projection",
+                  "duration_ms": 0.043472000000000004
+                },
+                {
+                  "name": "Jac.node/probabilities",
+                  "duration_ms": 0.031613
+                }
+              ]
+            },
+            "torch_eager": {
+              "calls": 3,
+              "trace_file": "/home/baichuan/jaseci/jac/examples/transformer_graph/results/smoke_cpu/profiles/small_cpu_float64_rewired_torch_eager.trace.json",
+              "cpu_exclusive_categories_ms": {
+                "torch_python_or_c_api": 1.0194990000000002,
+                "other": 0.777093
+              },
+              "cpu_top": [
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.matmul>",
+                  "calls": 69,
+                  "exclusive_ms": 0.293109,
+                  "cumulative_ms": 0.293109
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'mean' of 'torch._C.TensorBase' objects>",
+                  "calls": 30,
+                  "exclusive_ms": 0.281242,
+                  "cumulative_ms": 0.281242
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 44,
+                  "function": "norm",
+                  "calls": 15,
+                  "exclusive_ms": 0.260883,
+                  "cumulative_ms": 0.616456
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 29,
+                  "function": "attention",
+                  "calls": 9,
+                  "exclusive_ms": 0.25692600000000004,
+                  "cumulative_ms": 0.7708820000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 24,
+                  "function": "eager_forward",
+                  "calls": 3,
+                  "exclusive_ms": 0.13849,
+                  "cumulative_ms": 1.724363
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.index_select>",
+                  "calls": 6,
+                  "exclusive_ms": 0.07964700000000001,
+                  "cumulative_ms": 0.07964700000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'reshape' of 'torch._C.TensorBase' objects>",
+                  "calls": 36,
+                  "exclusive_ms": 0.07606900000000001,
+                  "cumulative_ms": 0.07606900000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'transpose' of 'torch._C.TensorBase' objects>",
+                  "calls": 45,
+                  "exclusive_ms": 0.065077,
+                  "cumulative_ms": 0.065077
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.softmax>",
+                  "calls": 12,
+                  "exclusive_ms": 0.054258,
+                  "cumulative_ms": 0.054258
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'contiguous' of 'torch._C.TensorBase' objects>",
+                  "calls": 9,
+                  "exclusive_ms": 0.049894,
+                  "cumulative_ms": 0.049894
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+                  "calls": 1,
+                  "exclusive_ms": 0.043985,
+                  "cumulative_ms": 0.043985
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 51,
+                  "function": "feed_forward",
+                  "calls": 6,
+                  "exclusive_ms": 0.041536000000000003,
+                  "cumulative_ms": 0.09349900000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'square' of 'torch._C.TensorBase' objects>",
+                  "calls": 15,
+                  "exclusive_ms": 0.041199000000000006,
+                  "cumulative_ms": 0.041199000000000006
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.rsqrt>",
+                  "calls": 15,
+                  "exclusive_ms": 0.033132,
+                  "cumulative_ms": 0.033132
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'masked_fill' of 'torch._C.TensorBase' objects>",
+                  "calls": 3,
+                  "exclusive_ms": 0.029006000000000004,
+                  "cumulative_ms": 0.029006000000000004
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 90,
+                  "function": "__call__",
+                  "calls": 3,
+                  "exclusive_ms": 0.024595000000000002,
+                  "cumulative_ms": 1.748958
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.relu>",
+                  "calls": 6,
+                  "exclusive_ms": 0.016866000000000003,
+                  "cumulative_ms": 0.016866000000000003
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method math.sqrt>",
+                  "calls": 15,
+                  "exclusive_ms": 0.0070290000000000005,
+                  "cumulative_ms": 0.0070290000000000005
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_experiments.py",
+                  "line": 42,
+                  "function": "sync",
+                  "calls": 1,
+                  "exclusive_ms": 0.0033410000000000002,
+                  "cumulative_ms": 0.0036490000000000003
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'startswith' of 'str' objects>",
+                  "calls": 1,
+                  "exclusive_ms": 0.000308,
+                  "cumulative_ms": 0.000308
+                }
+              ],
+              "cuda_kernel_count": 0,
+              "kernel_sum_ms": 0.0,
+              "kernel_window_ms": null,
+              "kernel_window_minus_busy_ms": null,
+              "kernels": [],
+              "launch_count": 0,
+              "launch_cpu_ms": 0.0,
+              "node_cpu_ranges": []
+            },
+            "torch_compile": {
+              "calls": 3,
+              "trace_file": "/home/baichuan/jaseci/jac/examples/transformer_graph/results/smoke_cpu/profiles/small_cpu_float64_rewired_torch_compile.trace.json",
+              "cpu_exclusive_categories_ms": {
+                "torch_python_or_c_api": 0.8496549999999999,
+                "other": 0.275875,
+                "jac_runtime_server_data": 0.0007790000000000001
+              },
+              "cpu_top": [
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.addmm>",
+                  "calls": 51,
+                  "exclusive_ms": 0.259292,
+                  "cumulative_ms": 0.259292
+                },
+                {
+                  "file": "/tmp/jac-transformer-inductor/ej/cejzsrpezmm7lacuisvimfp3nzu2vcvlxupg64bfgqanah7uyc6w.py",
+                  "line": 1038,
+                  "function": "call",
+                  "calls": 3,
+                  "exclusive_ms": 0.146265,
+                  "cumulative_ms": 0.718148
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 700,
+                  "function": "compile_wrapper",
+                  "calls": 3,
+                  "exclusive_ms": 0.107993,
+                  "cumulative_ms": 1.0565000000000002
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.guards._reinterpret_tensor>",
+                  "calls": 78,
+                  "exclusive_ms": 0.09258500000000001,
+                  "cumulative_ms": 0.09258500000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.guards.assert_size_stride>",
+                  "calls": 153,
+                  "exclusive_ms": 0.08336400000000001,
+                  "cumulative_ms": 0.08336400000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.guards._empty_strided_cpu>",
+                  "calls": 87,
+                  "exclusive_ms": 0.067558,
+                  "cumulative_ms": 0.067558
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+                  "calls": 1,
+                  "exclusive_ms": 0.043259,
+                  "cumulative_ms": 0.043259
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch.bmm>",
+                  "calls": 18,
+                  "exclusive_ms": 0.038967,
+                  "cumulative_ms": 0.038967
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 90,
+                  "function": "__call__",
+                  "calls": 3,
+                  "exclusive_ms": 0.023335,
+                  "cumulative_ms": 1.079835
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py",
+                  "line": 341,
+                  "function": "runtime_wrapper",
+                  "calls": 3,
+                  "exclusive_ms": 0.019878000000000003,
+                  "cumulative_ms": 0.800085
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_inductor/output_code.py",
+                  "line": 581,
+                  "function": "__call__",
+                  "calls": 3,
+                  "exclusive_ms": 0.019248,
+                  "cumulative_ms": 0.7399020000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 924,
+                  "function": "_fn",
+                  "calls": 9,
+                  "exclusive_ms": 0.018558,
+                  "cumulative_ms": 0.859094
+                },
+                {
+                  "file": "/home/baichuan/jaseci/jac/examples/transformer_graph/tensor_baseline.py",
+                  "line": 24,
+                  "function": "eager_forward",
+                  "calls": 3,
+                  "exclusive_ms": 0.015639999999999998,
+                  "cumulative_ms": 0.8839140000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/_aot_autograd/utils.py",
+                  "line": 116,
+                  "function": "call_func_at_runtime_with_args",
+                  "calls": 3,
+                  "exclusive_ms": 0.012841000000000002,
+                  "cumulative_ms": 0.7653740000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_config_module.py",
+                  "line": 712,
+                  "function": "change",
+                  "calls": 3,
+                  "exclusive_ms": 0.012059,
+                  "cumulative_ms": 0.012804000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/aot_autograd.py",
+                  "line": 1237,
+                  "function": "forward",
+                  "calls": 3,
+                  "exclusive_ms": 0.011349000000000001,
+                  "cumulative_ms": 0.8137000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 132,
+                  "function": "_maybe_set_eval_frame",
+                  "calls": 24,
+                  "exclusive_ms": 0.011195,
+                  "cumulative_ms": 0.017415000000000003
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._dynamo.eval_frame.set_eval_frame>",
+                  "calls": 48,
+                  "exclusive_ms": 0.009303,
+                  "cumulative_ms": 0.009303
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_compile.py",
+                  "line": 41,
+                  "function": "inner",
+                  "calls": 6,
+                  "exclusive_ms": 0.007389000000000001,
+                  "cumulative_ms": 0.040589
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/utils.py",
+                  "line": 4671,
+                  "function": "record_pregraph_bytecode_enter",
+                  "calls": 3,
+                  "exclusive_ms": 0.0067410000000000005,
+                  "cumulative_ms": 0.007575
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/utils/_config_module.py",
+                  "line": 717,
+                  "function": "revert",
+                  "calls": 3,
+                  "exclusive_ms": 0.0066240000000000005,
+                  "cumulative_ms": 0.007553000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/mutation_guard.py",
+                  "line": 135,
+                  "function": "install_generation_tagging_init",
+                  "calls": 3,
+                  "exclusive_ms": 0.005263,
+                  "cumulative_ms": 0.006255
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/guards.py",
+                  "line": 1658,
+                  "function": "fn",
+                  "calls": 3,
+                  "exclusive_ms": 0.004745,
+                  "cumulative_ms": 0.014060000000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/autograd/graph.py",
+                  "line": 217,
+                  "function": "increment_version",
+                  "calls": 3,
+                  "exclusive_ms": 0.004532,
+                  "cumulative_ms": 0.011304
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method torch._C._increment_version>",
+                  "calls": 3,
+                  "exclusive_ms": 0.004325,
+                  "cumulative_ms": 0.004759
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method czdjd7d464dwp7xikq7dshur7s3xhejytfmrilaavonx6vjybgjc.kernel.kernel>",
+                  "calls": 9,
+                  "exclusive_ms": 0.004227000000000001,
+                  "cumulative_ms": 0.004227000000000001
+                },
+                {
+                  "file": "~",
+                  "line": 0,
+                  "function": "<built-in method builtins.getattr>",
+                  "calls": 12,
+                  "exclusive_ms": 0.004024,
+                  "cumulative_ms": 0.004024
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py",
+                  "line": 542,
+                  "function": "wrapper",
+                  "calls": 3,
+                  "exclusive_ms": 0.004004,
+                  "cumulative_ms": 0.7439060000000001
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_dynamo/eval_frame.py",
+                  "line": 185,
+                  "function": "_callback_from_stance",
+                  "calls": 12,
+                  "exclusive_ms": 0.0036630000000000005,
+                  "cumulative_ms": 0.0036630000000000005
+                },
+                {
+                  "file": "/home/baichuan/jaseci/.venv/lib/python3.13/site-packages/torch/_functorch/_aot_autograd/utils.py",
+                  "line": 505,
+                  "function": "top_saved_tensors_hooks",
+                  "calls": 3,
+                  "exclusive_ms": 0.003608,
+                  "cumulative_ms": 0.006485
+                }
+              ],
+              "cuda_kernel_count": 0,
+              "kernel_sum_ms": 0.0,
+              "kernel_window_ms": null,
+              "kernel_window_minus_busy_ms": null,
+              "kernels": [],
+              "launch_count": 0,
+              "launch_cpu_ms": 0.0,
+              "node_cpu_ranges": []
+            }
+          }
+        }
+      }
+    }
+  ],
+  "completed_utc": "2026-10-06T05:48:48.090106+00:00"
+}

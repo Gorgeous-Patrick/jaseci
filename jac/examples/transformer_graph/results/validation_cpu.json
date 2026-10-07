@@ -1,0 +1,442 @@
+{
+  "environment": {
+    "python": "3.13.7 (main, Sep 18 2025, 01:22:03) [GCC 11.4.0]",
+    "platform": "Linux-6.2.6-76060206-generic-x86_64-with-glibc2.35",
+    "torch": "2.8.0+cu128",
+    "cuda_runtime": "12.8",
+    "device": "cpu",
+    "cpu": "x86_64",
+    "threads": 1,
+    "tf32": false,
+    "pid": 449558,
+    "compile_cache": "/tmp/jac-transformer-inductor",
+    "time_utc": "2026-10-06T05:52:59.980379+00:00"
+  },
+  "arguments": {
+    "mode": "validate",
+    "device": "cpu",
+    "output": "results",
+    "configs": [
+      "small",
+      "medium"
+    ],
+    "dtypes": [
+      "float64",
+      "float32"
+    ],
+    "warmup": 5,
+    "samples": 12,
+    "rounds": 3,
+    "no_compile": false,
+    "check_compile": true,
+    "exclusive_note": ""
+  },
+  "bootstrap": {
+    "torch_baseline_reference_import_ms": 1043.4699030001866,
+    "inductor_cache_preexisting": true
+  },
+  "inference_only": true,
+  "measurement_notes": [
+    "Graph walker runs on host; PyTorch tensor math runs on CPU/CUDA.",
+    "Resident tokens/weights; no transfers or scalar reads inside module forwards.",
+    "E2E syncs only request boundaries; CUDA events include host-induced idle gaps.",
+    "Actual kernel durations and CPU categories come from separate profiler runs.",
+    "Handle replay is a scheduling-only microbenchmark, not Transformer inference.",
+    "Baselines retain all intermediate outputs/maps to match graph observability.",
+    "Trace collection disabled for timing, enabled separately for profiler.",
+    "No CUDA graphs, no TF32, one CPU thread, compile workers limited to one."
+  ],
+  "validation": {
+    "status": "passed",
+    "device": "cpu",
+    "cpu_vs_independent_max_error": 1.1102230246251565e-15,
+    "tensor_baseline_max_error": 0.0,
+    "intermediate_errors": {
+      "source": 0.0,
+      "target": 0.0,
+      "enc_embed": 0.0,
+      "enc_pos": 0.0,
+      "enc_attn": 0.0,
+      "enc_norm1": 0.0,
+      "enc_ffn": 0.0,
+      "enc_norm2": 0.0,
+      "dec_embed": 0.0,
+      "dec_pos": 0.0,
+      "dec_attn": 0.0,
+      "dec_norm1": 0.0,
+      "cross_attn": 0.0,
+      "dec_norm2": 0.0,
+      "dec_ffn": 0.0,
+      "dec_norm3": 0.0,
+      "projection": 0.0,
+      "probabilities": 0.0,
+      "enc_attn_map": 0.0,
+      "dec_attn_map": 0.0,
+      "cross_attn_map": 0.0
+    },
+    "length_errors": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "encoder_influence": 0.046071107218941115,
+    "rewire_error": 0.0,
+    "rewire_probability_delta": 0.050559516696150664,
+    "mutation_error": 0.0,
+    "float32_error": 0.0,
+    "greedy": [
+      1,
+      6,
+      5,
+      12,
+      5
+    ],
+    "resident_parameter_addresses_stable": true,
+    "resident_tensor_audit": [],
+    "trace": [
+      "source",
+      "target",
+      "enc_embed",
+      "dec_embed",
+      "enc_pos",
+      "dec_pos",
+      "enc_attn",
+      "dec_attn",
+      "enc_norm1",
+      "dec_norm1",
+      "enc_ffn",
+      "enc_norm2",
+      "cross_attn",
+      "dec_norm2",
+      "dec_ffn",
+      "dec_norm3",
+      "projection",
+      "probabilities"
+    ],
+    "deliveries": [
+      [
+        "source",
+        "enc_embed",
+        "x"
+      ],
+      [
+        "target",
+        "dec_embed",
+        "x"
+      ],
+      [
+        "enc_embed",
+        "enc_pos",
+        "x"
+      ],
+      [
+        "dec_embed",
+        "dec_pos",
+        "x"
+      ],
+      [
+        "enc_pos",
+        "enc_attn",
+        "x"
+      ],
+      [
+        "enc_pos",
+        "enc_norm1",
+        "skip"
+      ],
+      [
+        "dec_pos",
+        "dec_attn",
+        "x"
+      ],
+      [
+        "dec_pos",
+        "dec_norm1",
+        "skip"
+      ],
+      [
+        "enc_attn",
+        "enc_norm1",
+        "main"
+      ],
+      [
+        "dec_attn",
+        "dec_norm1",
+        "main"
+      ],
+      [
+        "enc_norm1",
+        "enc_ffn",
+        "x"
+      ],
+      [
+        "enc_norm1",
+        "enc_norm2",
+        "skip"
+      ],
+      [
+        "dec_norm1",
+        "cross_attn",
+        "x"
+      ],
+      [
+        "dec_norm1",
+        "dec_norm2",
+        "skip"
+      ],
+      [
+        "enc_ffn",
+        "enc_norm2",
+        "main"
+      ],
+      [
+        "enc_norm2",
+        "cross_attn",
+        "memory"
+      ],
+      [
+        "cross_attn",
+        "dec_norm2",
+        "main"
+      ],
+      [
+        "dec_norm2",
+        "dec_ffn",
+        "x"
+      ],
+      [
+        "dec_norm2",
+        "dec_norm3",
+        "skip"
+      ],
+      [
+        "dec_ffn",
+        "dec_norm3",
+        "main"
+      ],
+      [
+        "dec_norm3",
+        "projection",
+        "x"
+      ],
+      [
+        "projection",
+        "probabilities",
+        "x"
+      ]
+    ],
+    "cross_device_comparison": "list vs CPU tensors",
+    "checks": [
+      "identical weights/inputs for list/CPU/requested device",
+      "all intermediates and attention maps",
+      "shapes/finite/probabilities",
+      "causal/future-token isolation",
+      "memory/residual identity",
+      "length/reset/old-return isolation",
+      "tensor residency/no per-node sync",
+      "actual graph rewire/restore/delete",
+      "named parameter mutation",
+      "greedy",
+      "float32"
+    ]
+  },
+  "configuration_validation": {
+    "small_float64": {
+      "config": {
+        "dimension": 8,
+        "heads": 2,
+        "hidden": 16,
+        "vocabulary": 13,
+        "source_length": 4,
+        "target_length": 3
+      },
+      "dtype": "float64",
+      "max_error": 0.0,
+      "errors": {
+        "source": 0.0,
+        "target": 0.0,
+        "enc_embed": 0.0,
+        "enc_pos": 0.0,
+        "enc_attn": 0.0,
+        "enc_norm1": 0.0,
+        "enc_ffn": 0.0,
+        "enc_norm2": 0.0,
+        "dec_embed": 0.0,
+        "dec_pos": 0.0,
+        "dec_attn": 0.0,
+        "dec_norm1": 0.0,
+        "cross_attn": 0.0,
+        "dec_norm2": 0.0,
+        "dec_ffn": 0.0,
+        "dec_norm3": 0.0,
+        "projection": 0.0,
+        "probabilities": 0.0,
+        "enc_attn_map": 0.0,
+        "dec_attn_map": 0.0,
+        "cross_attn_map": 0.0
+      },
+      "cpu_device_max_error": 0.0,
+      "rewired_max_error": 0.0,
+      "rewired_probability_delta": 0.050559516696150664,
+      "compile": {
+        "original": {
+          "status": "passed",
+          "max_error": 8.881784197001252e-16
+        },
+        "rewired": {
+          "status": "passed",
+          "max_error": 4.440892098500626e-16
+        }
+      },
+      "status": "passed"
+    },
+    "small_float32": {
+      "config": {
+        "dimension": 8,
+        "heads": 2,
+        "hidden": 16,
+        "vocabulary": 13,
+        "source_length": 4,
+        "target_length": 3
+      },
+      "dtype": "float32",
+      "max_error": 0.0,
+      "errors": {
+        "source": 0.0,
+        "target": 0.0,
+        "enc_embed": 0.0,
+        "enc_pos": 0.0,
+        "enc_attn": 0.0,
+        "enc_norm1": 0.0,
+        "enc_ffn": 0.0,
+        "enc_norm2": 0.0,
+        "dec_embed": 0.0,
+        "dec_pos": 0.0,
+        "dec_attn": 0.0,
+        "dec_norm1": 0.0,
+        "cross_attn": 0.0,
+        "dec_norm2": 0.0,
+        "dec_ffn": 0.0,
+        "dec_norm3": 0.0,
+        "projection": 0.0,
+        "probabilities": 0.0,
+        "enc_attn_map": 0.0,
+        "dec_attn_map": 0.0,
+        "cross_attn_map": 0.0
+      },
+      "cpu_device_max_error": 0.0,
+      "rewired_max_error": 0.0,
+      "rewired_probability_delta": 0.05055950582027435,
+      "compile": {
+        "original": {
+          "status": "passed",
+          "max_error": 4.76837158203125e-07
+        },
+        "rewired": {
+          "status": "passed",
+          "max_error": 5.960464477539062e-07
+        }
+      },
+      "status": "passed"
+    },
+    "medium_float64": {
+      "config": {
+        "dimension": 256,
+        "heads": 8,
+        "hidden": 1024,
+        "vocabulary": 1024,
+        "source_length": 128,
+        "target_length": 96
+      },
+      "dtype": "float64",
+      "max_error": 0.0,
+      "errors": {
+        "source": 0.0,
+        "target": 0.0,
+        "enc_embed": 0.0,
+        "enc_pos": 0.0,
+        "enc_attn": 0.0,
+        "enc_norm1": 0.0,
+        "enc_ffn": 0.0,
+        "enc_norm2": 0.0,
+        "dec_embed": 0.0,
+        "dec_pos": 0.0,
+        "dec_attn": 0.0,
+        "dec_norm1": 0.0,
+        "cross_attn": 0.0,
+        "dec_norm2": 0.0,
+        "dec_ffn": 0.0,
+        "dec_norm3": 0.0,
+        "projection": 0.0,
+        "probabilities": 0.0,
+        "enc_attn_map": 0.0,
+        "dec_attn_map": 0.0,
+        "cross_attn_map": 0.0
+      },
+      "cpu_device_max_error": 0.0,
+      "rewired_max_error": 0.0,
+      "rewired_probability_delta": 0.02844916317311229,
+      "compile": {
+        "original": {
+          "status": "passed",
+          "max_error": 4.440892098500626e-15
+        },
+        "rewired": {
+          "status": "passed",
+          "max_error": 4.884981308350689e-15
+        }
+      },
+      "status": "passed"
+    },
+    "medium_float32": {
+      "config": {
+        "dimension": 256,
+        "heads": 8,
+        "hidden": 1024,
+        "vocabulary": 1024,
+        "source_length": 128,
+        "target_length": 96
+      },
+      "dtype": "float32",
+      "max_error": 0.0,
+      "errors": {
+        "source": 0.0,
+        "target": 0.0,
+        "enc_embed": 0.0,
+        "enc_pos": 0.0,
+        "enc_attn": 0.0,
+        "enc_norm1": 0.0,
+        "enc_ffn": 0.0,
+        "enc_norm2": 0.0,
+        "dec_embed": 0.0,
+        "dec_pos": 0.0,
+        "dec_attn": 0.0,
+        "dec_norm1": 0.0,
+        "cross_attn": 0.0,
+        "dec_norm2": 0.0,
+        "dec_ffn": 0.0,
+        "dec_norm3": 0.0,
+        "projection": 0.0,
+        "probabilities": 0.0,
+        "enc_attn_map": 0.0,
+        "dec_attn_map": 0.0,
+        "cross_attn_map": 0.0
+      },
+      "cpu_device_max_error": 0.0,
+      "rewired_max_error": 0.0,
+      "rewired_probability_delta": 0.02844920940697193,
+      "compile": {
+        "original": {
+          "status": "passed",
+          "max_error": 2.384185791015625e-06
+        },
+        "rewired": {
+          "status": "passed",
+          "max_error": 2.384185791015625e-06
+        }
+      },
+      "status": "passed"
+    }
+  },
+  "completed_utc": "2026-10-06T05:53:36.454687+00:00"
+}

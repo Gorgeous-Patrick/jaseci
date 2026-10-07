@@ -1,0 +1,3 @@
+# Historical measurements and profiler output retain their original bytes.
+* -text -whitespace
+*.prof binary
