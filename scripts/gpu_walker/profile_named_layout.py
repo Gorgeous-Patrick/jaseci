@@ -24,7 +24,7 @@ def main():
     manifest = json.loads((args.input / 'inputs.json').read_text())
     case = next(c for c in manifest['cases'] if c['id'] == args.case)
     info = next(i for i in case['layouts'] if i['label'] == args.layout)
-    schemas, _ = schemas_and_modules()
+    schemas, _ = schemas_and_modules([case['source_key']])
     schema = schemas[case['source_key']]
     if hashlib.sha256(schema.ptx.encode()).hexdigest() != manifest['sources'][case['source_key']]['ptx_sha256']:
         raise ValueError('PTX differs from recorded benchmark')

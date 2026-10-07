@@ -32,7 +32,7 @@ def main():
         geometries = {c['id']: [c['kernel'], (c['walkers']+manifest['block_size']-1)//manifest['block_size'], 1, 1, manifest['block_size'], 1, 1] for c in cases}
         attach_profile(args.trace, records, geometries)
     else:
-        schemas, _ = schemas_and_modules()
+        schemas, _ = schemas_and_modules({c['source_key'] for c in cases})
         for key, schema in schemas.items():
             if hashlib.sha256(schema.ptx.encode()).hexdigest() != manifest['sources'][key]['ptx_sha256']:
                 raise ValueError('PTX differs from input snapshot')

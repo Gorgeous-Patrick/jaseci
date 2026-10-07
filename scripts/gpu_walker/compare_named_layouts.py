@@ -60,6 +60,7 @@ def save_layout(folder, label, buffers, timings, seed=None):
     identity_order = getattr(buffers, 'prediction', {}).get('order')
     return dict(label=label, seed=seed, files=files, timings=timings,
                 identity_order=identity_order,
+                prediction_strategy=getattr(buffers, 'prediction', {}).get('strategy'),
                 identity_order_sha256=hashlib.sha256(array('q', identity_order).tobytes()).hexdigest() if identity_order is not None else None,
                 payload_bytes=sum(len(buf) * buf.itemsize for buf in arrays),
                 queue_capacity=getattr(buffers, 'queue_capacity', None),
@@ -249,22 +250,27 @@ def run_case(case, schemas, args, pack=None):
         for session in measured.values(): session.close()
 
 
-def schemas_and_modules():
+def schemas_and_modules(source_keys=None):
     from jaclang.runtime.runtime import JacRuntime
     from jaclang.runtime import gpu
     from jaclang.compiler.backends.native.llvm import binding as llvm
     llvm.initialize_all_targets(); llvm.initialize_all_asmprinters()
     folder = REPO / 'jac/examples/gpu'
+    selected = set(('Chain', 'Dot') if source_keys is None else source_keys)
+    if not selected or not selected <= {'Chain', 'Dot'}:
+        raise ValueError('Select Chain and/or Dot schemas')
     modules = {key: JacRuntime.jac_import(target=name, base_path=str(folder))[0]
-               for key, name in (('Chain', 'chain'), ('Dot', 'named_cursors'))}
-    schemas = {'Chain': gpu.walker_schema(modules['Chain'].ChainSum, 'chain'),
-               'Dot': gpu.walker_schema(modules['Dot'].Dot, 'csr')}
+               for key, name in (('Chain', 'chain'), ('Dot', 'named_cursors')) if key in selected}
+    schemas = {key: gpu.walker_schema(getattr(module, 'ChainSum' if key == 'Chain' else 'Dot'),
+                                    'chain' if key == 'Chain' else 'csr')
+               for key, module in modules.items()}
     return schemas, modules
 
 
 def execute_replay(manifest, args, schemas):
     from jaclang.runtime.gpu_cuda import CudaSession
-    sentinel = CudaSession(schemas['Chain'].ptx, schemas['Chain'].kernel_name)
+    schema = next(iter(schemas.values()))
+    sentinel = CudaSession(schema.ptx, schema.kernel_name)
     driver = sentinel.driver
     for name in ('cuProfilerStart', 'cuProfilerStop'):
         fn = getattr(driver.library, name); fn.argtypes, fn.restype = [], c_int_type()
@@ -309,7 +315,7 @@ def main():
         manifest = json.loads((args.output / 'inputs.json').read_text())
         for key in ('seeds', 'warmup', 'repeats', 'block_size', 'device'):
             setattr(args, key, manifest[key])
-        schemas, modules = schemas_and_modules()
+        schemas, modules = schemas_and_modules(manifest['sources'])
         for key, schema in schemas.items():
             if hashlib.sha256(schema.ptx.encode()).hexdigest() != manifest['sources'][key]['ptx_sha256']:
                 raise ValueError('PTX changed since packed input recording')
@@ -332,7 +338,7 @@ def main():
             parser.error(f'Case {kind} {s} exceeds configured host/device bounds')
     args.output.mkdir(parents=True, exist_ok=False)
     before = telemetry(); started = time.perf_counter()
-    schemas, modules = schemas_and_modules()
+    schemas, modules = schemas_and_modules({'Chain' if kind == 'chain' else 'Dot' for kind, _ in cases})
     source_paths = ['scripts/gpu_walker/compare_named_layouts.py', 'scripts/gpu_walker/layout_benchmark.py',
                     'scripts/gpu_walker/compare_layouts.py', 'jac/jaclang/runtime/gpu_cursors.py',
                     'jac/jaclang/runtime/gpu.jac', 'jac/jaclang/runtime/gpu_cuda.jac',

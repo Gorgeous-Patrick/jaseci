@@ -359,3 +359,40 @@ the recorded SHA256 before recording deterministic discovery identity orders.
 `profile_layout_cpu.py` produces CPU-only `.prof` files; `replay_layout_timings.py`
 checks longer resident replay distributions; `analyze_layout_trace.py` extracts
 correlated CUDA launch APIs and actual device copy events.
+
+### Cursor concatenation prediction (2026-10-07)
+
+The current `predicted` policy concatenates each cursor's complete multi-source
+batch BFS in declaration order, deduplicates shared identities at first occurrence,
+and appends unpredicted nodes in original discovery order. The former rank
+interleaving implementation and mode are removed. The 2026-10-06 recorded
+experiments remain historical evidence of that former policy.
+
+Named-only experiments avoid compiling unrelated legacy Chain schemas:
+
+```sh
+PYTHONPATH=jac python scripts/gpu_walker/compare_named_layouts.py \
+  --chain-cases --dot-cases 128x8 1024x32 \
+  --matmul-cases 4x4x4 3x5x2 16x32x24 32x64x48 64x128x64 \
+  --seeds 928 929 930 --warmup 6 --repeats 16 --profile \
+  --output /tmp/jac-layout-cursor-concat-20261007
+```
+
+`audit_matmul_cursor_layout.py --output /tmp/concat-audit` records actual physical
+indices/identity labels for 4×4 and rectangular matmul, preserves every typed input
+and SHA256, and asserts complete A batch BFS precedes complete B batch BFS.
+Labels are recovered from Current heads/CSR; matrix coordinates do not influence
+packing. `analyze_layout_sectors.py --input <recorded-input-folder>` separately
+models distinct aligned 32-byte sectors for each logical load/cursor/warp/round.
+Its output is **theoretical addresses**, not executed instruction counts,
+hardware requests/transactions, cache misses, DRAM bytes or a bottleneck profile.
+Never use that model in place of unavailable Nsight Compute counters.
+
+The [2026-10-07 results](../../docs/design/gpu-cursor-concatenation-results.md)
+include full small-matrix index audits, all-case identity/hash checks, paired
+seed timing distributions, independent Nsight traces and CPU process-time
+profiles. Nsight Compute returned `ERR_NVGPUCTRPERM`; theoretical address sectors
+are reported separately and do not establish hardware cache/transaction/DRAM
+behavior. Raw artifacts remain in `dist/gpu-cursor-concat-20261007/` and
+`/tmp/jac-layout-cursor-concat-20261007/`. The former 2026-10-06 report measures
+the removed rank-interleaving policy and is retained as historical evidence.

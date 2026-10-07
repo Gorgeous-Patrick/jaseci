@@ -393,8 +393,8 @@ def discovery_order(seeds, adjacency, budget):
 def predict_layout(seed_rows, adjacency, node_count, budget=1000000):
     """Each channel is multi-source across the whole batch, lane order first.
 
-    Merge channel candidates by discovery rank then declaration order; conflicts
-    use the first occurrence. Remaining nodes keep discovery order on fallback.
+    Concatenate complete channel candidates in declaration order. A shared node
+    keeps its first occurrence. Remaining nodes keep discovery order on fallback.
     """
     candidates = []
     stats = []
@@ -404,13 +404,13 @@ def predict_layout(seed_rows, adjacency, node_count, budget=1000000):
         stats.append(stat)
     merged = []
     seen = set()
-    for rank in range(max(map(len, candidates), default=0)):
-        for order in candidates:
-            if rank < len(order) and order[rank] not in seen:
-                seen.add(order[rank])
-                merged.append(order[rank])
+    for order in candidates:
+        for node in order:
+            if node not in seen:
+                seen.add(node)
+                merged.append(node)
     merged.extend((i for i in range(node_count) if i not in seen))
-    return (merged, dict(strategy='rank_then_cursor_first_occurrence', channels=stats, fallback='unpredicted nodes retain graph discovery order', candidate_orders=candidates))
+    return (merged, dict(strategy='cursor_concatenation_first_occurrence', channels=stats, fallback='unpredicted nodes retain graph discovery order', candidate_orders=candidates))
 
 def pack_cursors(schema, walkers, starts, queue_capacity=1024, max_visits=1000000, report_capacity=1024, *, layout='predicted', prediction_budget=1000000, random_seed=0, max_nodes=1000000, max_queue_bytes=512 * 1024 * 1024):
     from jaclang.runtime import gpu

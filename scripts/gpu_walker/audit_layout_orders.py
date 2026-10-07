@@ -17,7 +17,7 @@ def main():
     p.add_argument('--output',type=Path,required=True)
     args=p.parse_args();args.output.mkdir(parents=True,exist_ok=False)
     manifest=json.loads((args.input/'inputs.json').read_text())
-    schemas,modules=schemas_and_modules()
+    schemas,modules=schemas_and_modules({c['source_key'] for c in manifest['cases']})
     audits=[]
     for original in manifest['cases']:
         with memory_context():

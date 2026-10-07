@@ -10,11 +10,12 @@ import hashlib
 import json
 from pathlib import Path
 import pstats
+import time
 from compare_named_layouts import prepare_case, schemas_and_modules, memory_context, write_json
 
 
 def profile_call(path, fn):
-    profiler = cProfile.Profile()
+    profiler = cProfile.Profile(timer=time.process_time)
     value = profiler.runcall(fn)
     profiler.dump_stats(str(path))
     stats = pstats.Stats(profiler)
@@ -34,8 +35,8 @@ def main():
     if len(shape)!=3 or min(shape)<1 or (shape[0]+shape[2])*shape[1]+shape[0]*shape[2]>150000:
         p.error('Require bounded positive MxKxN')
     args.output.mkdir(parents=True, exist_ok=False)
-    schemas, modules = schemas_and_modules()
-    result = dict(shape=shape, evidence='CPU cProfile; no CUDA', profiles={})
+    schemas, modules = schemas_and_modules(['Dot'])
+    result = dict(shape=shape, evidence='CPU cProfile; no CUDA', clock='process_time', profiles={})
     with memory_context():
         value, preparation = profile_call(args.output/'preparation.prof', lambda: prepare_case('matmul',shape,schemas,modules,[928,929,930],args.output,2))
         case, pack = value

@@ -69,8 +69,10 @@ never deduplicated in execution queues.
 For each cursor, BFS starts from the **entire batch** of seeds in lane order
 (and seed-list order within a lane). Discovery uses an identity set and produces
 a candidate node order. It does not concatenate complete paths per walker.
-Candidates merge by discovery rank, then cursor declaration order. The first
-occurrence of a shared identity wins; conflicting orders cannot all be honored.
+Candidates concatenate in cursor declaration order: the complete first cursor
+BFS sequence precedes the next cursor's sequence. The first occurrence of a
+shared identity wins; later channels omit already placed identities, so
+conflicting orders cannot all be honored.
 Remaining identities retain conservative graph discovery order. This deterministic
 heuristic is not an optimal layout algorithm and provides no guaranteed speedup.
 Node storage is shared by identity, not by values; all heads and adjacency targets
@@ -130,8 +132,16 @@ acceleration from successful compilation or from host JIT/mock timings.
 
 ## Recorded device evidence
 
-The [isolated layout and profiling report](gpu-cursor-layout-results.md) supersedes
-the preliminary timing below. It retains seed distributions, actual layout hash
+The [2026-10-07 cursor-concatenation experiment](gpu-cursor-concatenation-results.md)
+audits complete A-then-B physical identity order, records Current/new
+Predicted/Random CUDA timing and separate profiling, and distinguishes theoretical
+address sectors from the unavailable hardware counters. This is the current
+prediction policy's evidence.
+
+The [historical isolated layout and profiling report](gpu-cursor-layout-results.md) supersedes
+the preliminary timing below. Both historical experiments used the old
+rank-interleaved merge, removed on 2026-10-07; they are not measurements of the
+current cursor-concatenation prediction. The report retains seed distributions, actual layout hash
 and identity-order audits, Nsight kernel/copy/API traces and CPU profiles. Nsight
 Compute counter collection was denied; GPU bottleneck mechanisms remain an
 explicit evidence gap.

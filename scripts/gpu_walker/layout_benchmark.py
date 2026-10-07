@@ -51,7 +51,7 @@ def permute_cursors(buffers, order):
         status=array('I', [0xffffffff]) * len(buffers.status),
         extra_initial=[array(a.typecode, a) for a in buffers.extra_initial],
         extra_results=[array(a.typecode, [0]) * len(a) for a in buffers.extra_results],
-        timings={}, prediction=dict(layout='permutation', order=order))
+        timings={}, prediction=dict(layout='permutation', strategy='physical_random_permutation', order=order))
     if buffers.reports is not None:
         result.reports = replace(buffers.reports,
             counts=array('Q', [0]) * len(buffers.reports.counts),

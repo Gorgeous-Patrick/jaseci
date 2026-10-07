@@ -147,6 +147,46 @@ class NamedGpuTests(unittest.TestCase):
         batch = self.check_batch('Dot', [dict(a=a, b=a), dict(a=a, b=b)])
         self.assertEqual(len(batch.nodes), 2)
 
+    def test_cursor_concatenation_complete_sequences_shared_and_fallback(self):
+        a = [[3], [], [], [6], [], [], [], [], [], []]
+        b = [[], [4, 6], [], [], [7], [], [], [], [], []]
+        c = [[], [], [5], [], [], [8], [], [], [3], []]
+        order, meta = self.multi.predict_layout([[0], [1], [2]], [a, b, c], 10)
+        self.assertEqual(meta['strategy'], 'cursor_concatenation_first_occurrence')
+        self.assertEqual(meta['candidate_orders'], [[0, 3, 6], [1, 4, 6, 7], [2, 5, 8, 3]])
+        self.assertEqual(order, [0, 3, 6, 1, 4, 7, 2, 5, 8, 9])
+        self.assertEqual(len(set(order)), 10)
+        order, meta = self.multi.predict_layout([[0], [1], [2]], [a, b, c], 10, budget=1)
+        self.assertEqual(order, [0, 3, 1, 4, 6, 2, 5, 7, 8, 9])
+        self.assertTrue(all(s['truncated'] for s in meta['channels']))
+
+    def test_whole_batch_bfs_precedes_next_cursor(self):
+        a = [[4], [5], [], [], [], [], [], []]
+        b = [[], [], [6], [7], [], [], [], []]
+        order, meta = self.multi.predict_layout([[0, 1], [2, 3]], [a, b], 8)
+        self.assertEqual(meta['candidate_orders'], [[0, 1, 4, 5], [2, 3, 6, 7]])
+        self.assertEqual(order, [0, 1, 4, 5, 2, 3, 6, 7])
+
+    def test_matmul_identity_order_complete_a_then_b(self):
+        for m, k, n in ((4, 4, 4), (3, 5, 2)):
+            walkers, starts, _ = self.module.build_matmul(
+                [[i*k+q+1 for q in range(k)] for i in range(m)],
+                [[q*n+j+1 for j in range(n)] for q in range(k)])
+            current = self.multi.pack_cursors(self.schemas['Dot'], walkers, starts, 2, layout='current')
+            predicted = self.multi.pack_cursors(self.schemas['Dot'], walkers, starts, 2)
+            buffers = current.buffers
+            size, lanes = len(current.nodes), m*n
+            expected = []
+            for ch, count in ((0, m), (1, n)):
+                slots = [buffers.heads[ch*lanes+(i*n if ch == 0 else i)] for i in range(count)]
+                for step in range(k):
+                    expected.extend(id(current.nodes[slot]) for slot in slots)
+                    if step < k-1:
+                        slots = [buffers.targets[buffers.offsets[ch*(size+1)+slot]] for slot in slots]
+            self.assertEqual([id(node) for node in predicted.nodes], expected)
+            self.assertEqual(len(set(expected)), (m+n)*k)
+            self.check_batch('Dot', starts, capacity=2)
+
     def test_random_integer_matmul_shared_inputs_and_output_fields(self):
         rng = random.Random(237)
         for m, n, k in [(2, 2, 3), (3, 4, 5), (1, 3, 2)]:
