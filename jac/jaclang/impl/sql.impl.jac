@@ -570,22 +570,17 @@ impl validate_union(ast: UnionNode) {
     }
 }
 
-impl QueryGraph.visit_source(src: Source) -> None {
+impl QueryGraph.scan_source(src: Source) -> None {
     if isinstance(src, CteUse) {
         self.visit_source(src.target);
         return;
     }
     if isinstance(src, Cte) {
-        if id(src) not in self.bound_ctes and not `any([c is src for c in self.ctes]) {
+        if not `any([c is src for c in self.ctes]) {
             self.ctes.append(src);
         }
         return;
     }
-    identity = id(src);
-    if identity in self.seen_sources {
-        return;
-    }
-    self.seen_sources.add(identity);
     if isinstance(src, Table) {
         if src.name {
             self.physical_names.add(src.name[-1]);
@@ -617,14 +612,10 @@ impl QueryGraph.collect(query: RelationNode) {
     }
 }
 
-impl QueryGraph.visit_expr(expr: ExprNode) -> None {
+impl QueryGraph.scan_expr(expr: ExprNode) -> None {
     if not isinstance(expr, ExprNode) {
         raise SqlError('Expected a scalar SQL expression');
     }
-    if id(expr) in self.seen_expressions {
-        return;
-    }
-    self.seen_expressions.add(id(expr));
     if isinstance(expr, SlotNode) {
         _validate_slot_name(expr.name);
         if expr.name in self.slot_types
@@ -644,79 +635,63 @@ impl QueryGraph.visit_expr(expr: ExprNode) -> None {
     }
 }
 
-impl QueryGraph.visit_query(query: RelationNode) -> None {
-    if not isinstance(query, RelationNode) {
-        raise SqlError('Expected a relation ast');
-    }
-    identity = id(query);
-    if identity in self.active_queries {
-        raise SqlError('Cyclic AST: use a recursive CTE reference');
-    }
-    if identity in self.seen_queries {
-        return;
-    }
-    self.active_queries.add(identity);
-    try {
-        if isinstance(query, SelectNode) {
-            if query.source is not None {
-                self.visit_source(query.source);
+impl QueryGraph.scan_query(query: RelationNode) -> None {
+    if isinstance(query, SelectNode) {
+        if query.source is not None {
+            self.visit_source(query.source);
+        }
+        for join in query.joins {
+            self.visit_source(join.source);
+            if join.condition is not None {
+                self.visit_expr(join.condition);
             }
-            for join in query.joins {
-                self.visit_source(join.source);
-                if join.condition is not None {
-                    self.visit_expr(join.condition);
-                }
+        }
+        for projection in query.projections {
+            self.visit_expr(projection.expr);
+        }
+        for expr in query.groups {
+            self.visit_expr(expr);
+        }
+        if query.predicate is not None {
+            self.visit_expr(query.predicate);
+        }
+        if query.having is not None {
+            self.visit_expr(query.having);
+        }
+        for e in query.distinct_on {
+            self.visit_expr(e);
+        }
+        for ordering in query.ordering {
+            self.visit_expr(ordering.expr);
+        }
+    } elif isinstance(query, UnionNode) {
+        self.visit_query(query.left);
+        self.visit_query(query.right);
+    } elif isinstance(query, WithNode) {
+        for c in query.bindings {
+            if c.definition is None {
+                raise SqlError('CTE reference has no definition');
             }
-            for projection in query.projections {
-                self.visit_expr(projection.expr);
-            }
-            for expr in query.groups {
-                self.visit_expr(expr);
-            }
-            if query.predicate is not None {
-                self.visit_expr(query.predicate);
-            }
-            if query.having is not None {
-                self.visit_expr(query.having);
-            }
-            for e in query.distinct_on {
+            self.visit_query(c.definition);
+        }
+        self.visit_query(query.body);
+        local = {id(c) for c in query.bindings};
+        self.ctes = [
+            c
+            for c in self.ctes
+            if id(c) not in local
+        ];
+    } elif isinstance(query, OrderedNode) {
+        self.visit_query(query.body);
+    } elif isinstance(query, ValuesNode) {
+        for row in query.rows {
+            for e in row {
                 self.visit_expr(e);
             }
-            for ordering in query.ordering {
-                self.visit_expr(ordering.expr);
-            }
-        } elif isinstance(query, UnionNode) {
-            self.visit_query(query.left);
-            self.visit_query(query.right);
-        } elif isinstance(query, WithNode) {
-            previous = self.bound_ctes;
-            self.bound_ctes = previous | {id(c) for c in query.bindings};
-            try {
-                for c in query.bindings {
-                    if c.definition is None {
-                        raise SqlError('CTE reference has no definition');
-                    }
-                    self.visit_query(c.definition);
-                }
-                self.visit_query(query.body);
-            } finally {
-                self.bound_ctes = previous;
-            }
-        } elif isinstance(query, OrderedNode) {
-            self.visit_query(query.body);
-        } elif isinstance(query, ValuesNode) {
-            for row in query.rows {
-                for e in row {
-                    self.visit_expr(e);
-                }
-            }
-        } else {
-            raise SqlError('Unknown relational ast');
         }
-    } finally {
-        self.active_queries.remove(identity);
+    } else {
+        raise SqlError('Unknown relational ast');
     }
-    self.seen_queries.add(identity);
 }
 
 
@@ -765,7 +740,8 @@ impl QueryValidator.order_cte(reference: Cte) -> None {
         raise SqlError('CTE reference has no definition');
     }
     self.cte_states[identity] = 1;
-    scan = QueryGraph();
+    scan = self.dependency_graph if self.dependency_graph is not None else QueryGraph();
+    scan.ctes = [];
     scan.visit_query(reference.definition);
     for dependency in scan.ctes {
         if dependency is reference {
@@ -784,6 +760,7 @@ impl QueryValidator.analyze[R, C](query: Relation[R, C]) -> ValidatedQuery {
     if not isinstance(query, Relation) {
         raise SqlError('Expected a relation, not a scalar or command');
     }
+    self.local_ctes = set();
     self.expression_cache = {};
     self.query_cache = {};
     self.cte_cache = {};
@@ -797,6 +774,7 @@ impl QueryValidator.analyze[R, C](query: Relation[R, C]) -> ValidatedQuery {
     self.alias_counter = 0;
     self.cte_counter = 0;
     scan = QueryGraph();
+    self.dependency_graph = scan;
     scan.collect(query.ast);
     self.used_names = scan.physical_names | scan.explicit_aliases;
     for reference in scan.ctes {
@@ -1102,18 +1080,24 @@ impl QueryValidator.query_body(
             raise SqlError('WITH cardinality differs from body');
         }
         bindings = self.local_bindings(ast.bindings, ctes);
-        self.local_orders[id(ast)] = tuple(bindings);
-        available = list(ctes);
-        free: set[str] = set();
-        for reference in bindings {
-            if id(reference) not in self.cte_names {
-                self.cte_names[id(reference)] = self.fresh_name('_cte');
+        previous = self.local_ctes;
+        self.local_ctes = previous | {id(c) for c in bindings};
+        try {
+            self.local_orders[id(ast)] = tuple(bindings);
+            available = list(ctes);
+            free: set[str] = set();
+            for reference in bindings {
+                if id(reference) not in self.cte_names {
+                    self.cte_names[id(reference)] = self.fresh_name('_cte');
+                }
+                free |= self.validate_cte(reference, outer, available);
+                available.append(reference);
             }
-            free |= self.validate_cte(reference, outer, available);
-            available.append(reference);
+            facts = self.query(ast.body, outer, available);
+            return QueryFacts(external=free | facts.external);
+        } finally {
+            self.local_ctes = previous;
         }
-        facts = self.query(ast.body, outer, available);
-        return QueryFacts(external=free | facts.external);
     }
     if isinstance(ast, OrderedNode) {
         if ast.cardinality != 'many' {
@@ -1299,6 +1283,22 @@ impl PostgresRenderer.render(plan: ValidatedQuery) -> CompiledSQL {
     body = plan.query;
     bindings = list(plan.ctes);
     while isinstance(body, WithNode) {
+        if `any(
+            [
+                c is existing for c in self.local_orders[id(body)]
+                for existing in bindings
+            ]
+        ) {
+            prefix = self.with_sql(tuple(bindings), '');
+            return CompiledSQL(
+                sql=prefix
+                    + 'SELECT * FROM ('
+                    + self.query(body)
+                    + ') AS "_with_scope"',
+                params=dict(self.params),
+                slots=plan.slots
+            );
+        }
         bindings.extend(self.local_orders[id(body)]);
         body = body.body;
     }
@@ -2126,9 +2126,14 @@ impl QueryValidator.local_bindings(
     bindings: tuple[Cte, ...], available: list[Cte]
 ) -> list[Cte] {
     if len({id(c) for c in bindings}) != len(bindings)
-        or `any([c is prior for c in bindings for prior in available]) {
+        or `any([id(c) in self.local_ctes for c in bindings]) {
         raise SqlError('Duplicate CTE binding');
     }
+    available = [
+        c
+        for c in available
+        if not `any([c is b for b in bindings])
+    ];
     pending = list(bindings);
     result: list[Cte] = [];
     while pending {
@@ -2137,7 +2142,10 @@ impl QueryValidator.local_bindings(
             if reference.definition is None {
                 raise SqlError('CTE reference has no definition');
             }
-            scan = QueryGraph();
+            scan = self.dependency_graph
+                if self.dependency_graph is not None
+                else QueryGraph();
+            scan.ctes = [];
             scan.visit_query(reference.definition);
             deps = [
                 d
@@ -2778,4 +2786,73 @@ impl CompiledSQL.bind(
         params[name] = _freeze_sql_value(value);
     }
     return CompiledSQL(sql=self.sql, params=params);
+}
+
+impl QueryGraph.add_dependencies(dependencies: tuple[Cte, ...]) -> None {
+    known = {id(c) for c in self.ctes};
+    for reference in dependencies {
+        if id(reference) not in known {
+            self.ctes.append(reference);
+            known.add(id(reference));
+        }
+    }
+}
+
+impl QueryGraph.visit_source(src: Source) -> None {
+    if not isinstance(src, Source) {
+        raise SqlError('Invalid SQL graph node');
+    }
+    identity = id(src);
+    if identity not in self.source_dependencies {
+        previous = self.ctes;
+        self.ctes = [];
+        try {
+            self.scan_source(src);
+            self.source_dependencies[identity] = tuple(self.ctes);
+        } finally {
+            self.ctes = previous;
+        }
+    }
+    self.add_dependencies(self.source_dependencies[identity]);
+}
+
+impl QueryGraph.visit_expr(expr: ExprNode) -> None {
+    if not isinstance(expr, ExprNode) {
+        raise SqlError('Invalid SQL graph node');
+    }
+    identity = id(expr);
+    if identity not in self.expression_dependencies {
+        previous = self.ctes;
+        self.ctes = [];
+        try {
+            self.scan_expr(expr);
+            self.expression_dependencies[identity] = tuple(self.ctes);
+        } finally {
+            self.ctes = previous;
+        }
+    }
+    self.add_dependencies(self.expression_dependencies[identity]);
+}
+
+impl QueryGraph.visit_query(query: RelationNode) -> None {
+    if not isinstance(query, RelationNode) {
+        raise SqlError('Invalid SQL graph node');
+    }
+    identity = id(query);
+    if identity in self.active_queries {
+        raise SqlError('Cyclic AST: use a recursive CTE reference');
+    }
+    if identity not in self.query_dependencies {
+        previous = self.ctes;
+        self.ctes = [];
+        self.active_queries.add(identity);
+        try {
+            self.scan_query(query);
+            self.query_dependencies[identity] = tuple(self.ctes);
+        } finally {
+            self.ctes = previous;
+            self.active_queries.remove(identity);
+        }
+    }
+    self.add_dependencies(self.query_dependencies[identity]);
 }

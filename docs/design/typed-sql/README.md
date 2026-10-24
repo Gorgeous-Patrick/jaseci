@@ -132,6 +132,9 @@ This retains local CTEs inside a recursive step or correlated subquery. Local
 bindings can reference enclosing CTEs and visible outer columns. `cte(query,
 materialized=True)` and `materialized=False` select PostgreSQL materialization
 attributes. Consecutive local WITH wrappers are normalized at rendering.
+A shared query can be used both inside a local WITH and through automatic CTE
+binding elsewhere. The compiler preserves both binding scopes; duplicate explicit
+bindings in the same or enclosing local scope are rejected.
 
 Recursion has an explicit single-assignment forward reference:
 
@@ -162,7 +165,8 @@ query predicate. Parenthesized wrappers preserve arm-local ordering and limits.
 ## Compilation and immutability
 
 1. `QueryGraph` traverses structural containment and queues automatic CTE references.
-   Explicit local bindings stay inside their lexical query scope.
+   Explicit local bindings stay inside their lexical query scope. Structural dependency
+   summaries are cached per immutable node and reused at every occurrence.
 2. `QueryValidator` checks expression signatures, types, scope, grouping, windows,
    cardinality and recursive-reference placement. It resolves generated names and
    returns a `ValidatedQuery` plan.
@@ -176,9 +180,9 @@ Low-level AST construction receives the same semantic analysis as public builder
 
 ## Verification
 
-The suite contains 160 native Jac test entries: 56 SQLite cases, the same
-56 PostgreSQL cases, 39 PostgreSQL feature cases, four static-check tests and
-five cache regression tests.
+The suite contains 163 native Jac test entries: 56 SQLite cases, the same
+56 PostgreSQL cases, 41 PostgreSQL feature cases, four static-check tests and
+six cache regression tests.
 The static fixtures verify all 31 invalid calls at their expected source lines;
 positive checking covers the module and a valid-call fixture.
 

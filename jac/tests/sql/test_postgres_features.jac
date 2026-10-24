@@ -1037,6 +1037,36 @@ class FeatureTests(PostgresTests) {
             compiled.bind({'ids': (1, 'wrong')});
         }
     }
+
+    def test_shared_cte_query_scopes(self: FeatureTests) -> object {
+        key = s.field('n', s.int64_type());
+        for materialized in [None, True, False] {
+            c = s.cte(s.select([s.named('n', s.int64(1))]), materialized=materialized);
+            body = s.select(s.project_all(c), source=c);
+            derived = body.as_source();
+            wrapped = s.select(s.project_all(derived), source=derived);
+            shared = s.exists(body);
+            left_expr = s.select([s.named('present', shared)]);
+            right_expr = s.select([s.named('present', shared)]);
+            for (left, right, expected) in [
+                (body, body, [(1, ), (1, )]),
+                (wrapped, wrapped, [(1, ), (1, )]),
+                (body, wrapped, [(1, ), (1, )]),
+                (left_expr, right_expr, [(True, ), (True, )])
+            ] {
+                local = s.with_ctes(left, [c]);
+                self.assertEqual(self.execute(s.union_all(local, right)), expected);
+                self.assertEqual(self.execute(s.union_all(right, local)), expected);
+            }
+        }
+    }
+
+    def test_root_local_and_automatic_cte_scopes(self: FeatureTests) -> object {
+        c = s.cte(s.select([s.named('n', s.int64(1))]), materialized=True);
+        d = s.cte(s.select(s.project_all(c), source=c));
+        body = s.select(s.project_all(d), source=d);
+        self.assertEqual(self.execute(s.with_ctes(body, [c])), [(1, )]);
+    }
 }
 
 test "PostgreSQL features: boolean comparison and case" {
@@ -1193,4 +1223,12 @@ test "PostgreSQL features: boolean or aggregate" {
 
 test "PostgreSQL features: named slot array bind" {
     run_case(FeatureTests("test_named_slot_array_bind"));
+}
+
+test "PostgreSQL features: shared CTE query scopes" {
+    run_case(FeatureTests("test_shared_cte_query_scopes"));
+}
+
+test "PostgreSQL features: root local and automatic CTE scopes" {
+    run_case(FeatureTests("test_root_local_and_automatic_cte_scopes"));
 }

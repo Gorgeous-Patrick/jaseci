@@ -67,3 +67,20 @@ test "SQL cache: analyze clears previous results" {
     validator.analyze(next_query);
     assert not (old_keys & set(validator.query_cache));
 }
+
+
+test "SQL cache: replay free CTE dependencies without rescanning structure" {
+    import from unittest.mock { patch }
+    c = s.cte(s.select([s.named('n', s.int64(1))]));
+    body = s.select(s.project_all(c), source=c);
+    local = s.with_ctes(body, [c]);
+    scan = s.QueryGraph();
+    with patch.object(scan, 'scan_query', wraps=scan.scan_query) as scanner {
+        scan.visit_query(local.ast);
+        assert not scan.ctes;
+        scans = scanner.call_count;
+        scan.visit_query(body.ast);
+        assert scanner.call_count == scans;
+        assert len(scan.ctes) == 1 and scan.ctes[0] is c;
+    }
+}
