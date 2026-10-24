@@ -2739,10 +2739,13 @@ impl QueryValidator.validate_cte(
 impl _validate_slot_name(name: str) {
     if not isinstance(name, str)
         or not name
+        or name in ('sql', 'self')
         or not name.isascii()
         or not (name[0].isalpha() or name[0] == '_')
         or not all([c.isalnum() or c == '_' for c in name]) {
-        raise SqlError('Parameter slot requires an ASCII identifier');
+        raise SqlError(
+            'Parameter slot requires an ASCII identifier other than sql or self'
+        );
     }
 }
 

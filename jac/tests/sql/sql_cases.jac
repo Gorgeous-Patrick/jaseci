@@ -936,6 +936,8 @@ class SQLTests(unittest.TestCase) {
     def test_named_slot_names_are_validated(self: SQLTests) -> object {
         for name in [
             '',
+            'sql',
+            'self',
             '1age',
             'x); DROP TABLE people; --',
             'x:y',

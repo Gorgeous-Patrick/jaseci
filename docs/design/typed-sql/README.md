@@ -236,7 +236,8 @@ SQL text, fixed parameter values and a tuple of slot names/types. It retains no
 AST. `bind` checks exact parameter names and value types, copies the fixed
 parameters and returns a new `CompiledSQL`; the original remains reusable.
 Repeated names share a parameter and must have identical types. Names use ASCII
-letters, digits and underscores, starting with a letter or underscore. Generated
+letters, digits and underscores, starting with a letter or underscore.
+`sql` and `self` are reserved by the PostgreSQL driver calling convention. Generated
 literal parameter names avoid collisions with slots. Text values are bound by
 the driver, including strings containing SQL syntax.
 
