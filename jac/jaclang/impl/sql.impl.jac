@@ -1,5 +1,5 @@
 impl SqlValue.__setattr__(name: str, value: any) {
-    if name in self.__dict__ {
+    if name == '_schema_cache' or name in self.__dict__ {
         raise SqlError('SQL values are immutable; construct a new value');
     }
     object.__setattr__(self, name, _freeze_sql_value(value));
@@ -558,7 +558,7 @@ impl _schema_equal(a: Schema, b: Schema, names: bool = True) -> bool {
 }
 
 impl validate_union(ast: UnionNode) {
-    _set_schema(ast.left, ast.right, ast.operation);
+    ast.schema;
     if ast.cardinality != 'many' or type(ast.keep_duplicates) is not bool {
         raise SqlError('UNION schema/cardinality mismatch');
     }
@@ -619,6 +619,14 @@ impl QueryGraph.visit_expr(expr: ExprNode) -> None {
         return;
     }
     self.seen_expressions.add(id(expr));
+    if isinstance(expr, SlotNode) {
+        _validate_slot_name(expr.name);
+        if expr.name in self.slot_types
+            and not same_type(self.slot_types[expr.name], expr.dtype) {
+            raise SqlError('Conflicting types for parameter slot: ' + expr.name);
+        }
+        self.slot_types[expr.name] = expr.dtype;
+    }
     if isinstance(expr, ColumnNode) {
         self.visit_source(expr.source);
     } elif isinstance(expr, (ScalarNode, ExistsNode)) {
@@ -770,6 +778,9 @@ impl QueryValidator.analyze(query: Relation[R, C]) -> ValidatedQuery {
     if not isinstance(query, Relation) {
         raise SqlError('Expected a relation, not a scalar or command');
     }
+    self.expression_cache = {};
+    self.query_cache = {};
+    self.cte_cache = {};
     self.active_queries = set();
     self.aliases = {};
     self.cte_names = {};
@@ -799,6 +810,7 @@ impl QueryValidator.analyze(query: Relation[R, C]) -> ValidatedQuery {
     }
     return ValidatedQuery(
         query=query.ast,
+        slots=tuple(scan.slot_types.items()),
         ctes=tuple(self.ordered_ctes),
         aliases=dict(self.aliases),
         cte_names=dict(self.cte_names),
@@ -855,7 +867,7 @@ impl QueryValidator.source(
     raise SqlError('Unknown SQL source ast');
 }
 
-impl QueryValidator.expr(
+impl QueryValidator.expr_uncached(
     ast: ExprNode, scope: list[Source], local: list[Source], ctes: list[Cte]
 ) -> Checked {
     if not isinstance(ast, ExprNode) {
@@ -871,6 +883,10 @@ impl QueryValidator.expr(
             raise SqlError('Column type differs from source schema');
         }
         return Checked(free={_key(ast.source, ast.name)});
+    }
+    if isinstance(ast, SlotNode) {
+        _validate_slot_name(ast.name);
+        return Checked(free=set());
     }
     if isinstance(ast, ParamNode) {
         validate_value(ast.dtype, ast.value);
@@ -1020,9 +1036,15 @@ impl QueryValidator.query(
     if id(ast) in self.active_queries {
         raise SqlError('Cyclic AST: use a recursive CTE reference');
     }
+    key = (id(ast), tuple(id(s) for s in outer), tuple(id(c) for c in ctes));
+    if key in self.query_cache {
+        return self.query_cache[key];
+    }
     self.active_queries.add(id(ast));
     try {
-        return self.query_body(ast, outer, ctes);
+        facts = self.query_body(ast, outer, ctes);
+        self.query_cache[key] = facts;
+        return facts;
     } finally {
         self.active_queries.remove(id(ast));
     }
@@ -1031,7 +1053,6 @@ impl QueryValidator.query(
 impl QueryValidator.query_body(
     ast: RelationNode, outer: list[Source], ctes: list[Cte]
 ) -> QueryFacts {
-    Schema(tuple(ast.schema.fields));
     if isinstance(ast, SelectNode) {
         return self.select_sql(ast, outer, ctes);
     }
@@ -1111,8 +1132,7 @@ impl QueryValidator.query_body(
 impl QueryValidator.select_sql(
     ast: SelectNode, outer: list[Source], ctes: list[Cte]
 ) -> QueryFacts {
-    fields = [p.field for p in ast.projections];
-    Schema(tuple(fields));
+    ast.schema;
     for projection in ast.projections {
         if not same_type(projection.field.dtype, projection.expr.dtype) {
             raise SqlError(
@@ -1265,6 +1285,7 @@ impl PostgresRenderer.alias_for(src: Source) -> str {
 impl PostgresRenderer.render(plan: ValidatedQuery) -> CompiledSQL {
     self.params = {};
     self.parameter_ids = {};
+    self.slot_types = dict(plan.slots);
     self.aliases = plan.aliases;
     self.cte_names = plan.cte_names;
     self.local_orders = plan.local_orders;
@@ -1276,7 +1297,9 @@ impl PostgresRenderer.render(plan: ValidatedQuery) -> CompiledSQL {
         body = body.body;
     }
     prefix = self.with_sql(tuple(bindings), '');
-    return CompiledSQL(sql=prefix + self.query(body), params=dict(self.params));
+    return CompiledSQL(
+        sql=prefix + self.query(body), params=dict(self.params), slots=plan.slots
+    );
 }
 
 impl PostgresRenderer.source(src: Source) -> str {
@@ -1296,10 +1319,18 @@ impl PostgresRenderer.expr(ast: ExprNode) -> str {
     if isinstance(ast, ColumnNode) {
         return self.alias_for(ast.source) + '.' + quote_identifier(ast.name);
     }
+    if isinstance(ast, SlotNode) {
+        return 'CAST(:' + ast.name + ' AS ' + ast.dtype.name + ')';
+    }
     if isinstance(ast, ParamNode) {
         identity = id(ast);
         if identity not in self.parameter_ids {
-            key = 'p' + str(len(self.params));
+            index = len(self.params);
+            key = 'p' + str(index);
+            while key in self.slot_types or key in self.params {
+                index += 1;
+                key = 'p' + str(index);
+            }
             self.parameter_ids[identity] = key;
             self.params[key] = ast.value;
         }
@@ -2129,7 +2160,7 @@ impl QueryValidator.local_bindings(
     return result;
 }
 
-impl QueryValidator.validate_cte(
+impl QueryValidator.validate_cte_uncached(
     reference: Cte, outer: list[Source], available: list[Cte]
 ) -> set[str] {
     definition = reference.definition;
@@ -2182,12 +2213,10 @@ impl QueryValidator.extended_expr(
         if ast.op == 'AGGREGATE' {
             term = ast.term;
             if not isinstance(term, AggregateNode) or term.distinct {
-                raise SqlError(
-                    'Window has_group_aggregate requires a non-distinct has_group_aggregate'
-                );
+                raise SqlError('Window aggregate requires a non-distinct aggregate');
             }
             if not same_type(ast.dtype, _aggregate_type(term)) {
-                raise SqlError('Window has_group_aggregate result type mismatch');
+                raise SqlError('Window aggregate result type mismatch');
             }
             args = [self.expr(e, scope, local, ctes) for e in _children(term)];
             if `any([a.window for a in args]) {
@@ -2535,6 +2564,9 @@ impl _expr_key(expr: ExprNode) -> tuple[any, ...] {
     if isinstance(expr, ColumnNode) {
         return ('column', dtype, id(expr.source), expr.name);
     }
+    if isinstance(expr, SlotNode) {
+        return ('slot', dtype, expr.name);
+    }
     if isinstance(expr, ParamNode) {
         return ('parameter', dtype, id(expr));
     }
@@ -2670,4 +2702,70 @@ impl bool_or(
     return ScalarExpr(
         AggregateNode(dtype=DataType('boolean', True), op='BOOL_OR', term=term.ast)
     );
+}
+
+impl QueryValidator.expr(
+    ast: ExprNode, scope: list[Source], local: list[Source], ctes: list[Cte]
+) -> Checked {
+    key = (
+        id(ast),
+        tuple(id(s) for s in scope),
+        tuple(id(s) for s in local),
+        tuple(id(c) for c in ctes)
+    );
+    if key not in self.expression_cache {
+        self.expression_cache[key] = self.expr_uncached(ast, scope, local, ctes);
+    }
+    return self.expression_cache[key];
+}
+
+impl QueryValidator.validate_cte(
+    reference: Cte, outer: list[Source], available: list[Cte]
+) -> set[str] {
+    key = (id(reference), tuple(id(s) for s in outer), tuple(id(c) for c in available));
+    if key not in self.cte_cache {
+        self.cte_cache[key] = self.validate_cte_uncached(reference, outer, available);
+    }
+    return self.cte_cache[key];
+}
+
+impl _validate_slot_name(name: str) {
+    if not isinstance(name, str)
+        or not name
+        or not name.isascii()
+        or not (name[0].isalpha() or name[0] == '_')
+        or not all([c.isalnum() or c == '_' for c in name]) {
+        raise SqlError('Parameter slot requires an ASCII identifier');
+    }
+}
+
+impl slot(name: str, dtype: SqlType[T]) -> ScalarExpr[T] {
+    _validate_slot_name(name);
+    return ScalarExpr(SlotNode(dtype=dtype.data, name=name));
+}
+
+impl CompiledSQL.bind(
+    values:
+        dict[
+            str,
+            bool
+                | int
+                | float
+                | str
+                | UUID
+                | Decimal
+                | tuple[bool | int | float | str | UUID | Decimal | None, ...]
+                | None
+        ]
+) -> CompiledSQL {
+    if set(values) != {name for (name, dtype) in self.slots} {
+        raise SqlError('Parameter names must match the compiled slots');
+    }
+    params = dict(self.params);
+    for (name, dtype) in self.slots {
+        value = values[name];
+        validate_value(dtype, value);
+        params[name] = _freeze_sql_value(value);
+    }
+    return CompiledSQL(sql=self.sql, params=params);
 }

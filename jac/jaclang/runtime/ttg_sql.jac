@@ -1,4 +1,5 @@
 import from uuid { UUID }
+import from functools { lru_cache }
 import jaclang.sql as q;
 
 
@@ -266,17 +267,12 @@ def _partition_count(source: any) -> any {
     return q.over(q.count(), partition_by=[e.ast for e in _group_keys(source)]);
 }
 
-def compile_specialized(
-    specs: list[dict],
-    origins: list[UUID],
-    limit: int,
-    max_depth: int,
-    include_roots: bool = False,
-    complete_optimization: bool = True
+def _build_specialized(
+    specs: list[dict], include_roots: bool = False, complete_optimization: bool = True
 ) -> q.CompiledSQL {
-    bound_limit = q.int64(limit);
-    bound_depth = q.int64(max_depth);
-    numeric_limit = q.numeric(limit);
+    bound_limit = q.slot('limit', q.int64_type());
+    bound_depth = q.slot('max_depth', q.int64_type());
+    numeric_limit = q.cast(bound_limit, q.numeric_type());
     walk_fields = [
         q.field('depth', q.int64_type()),
         q.field('bfs_ord', q.int64_type()),
@@ -295,7 +291,7 @@ def compile_specialized(
     seed_id = q.field('id', q.uuid_type());
     seed_ord = q.field('ord', q.int64_type());
     seeds = q.unnest(
-        q.param(q.array_type(q.uuid_type()), tuple(origins)), seed_id, seed_ord
+        q.slot('origin_ids', q.array_type(q.uuid_type())), seed_id, seed_ord
     );
     seed_nodes = _anchors();
     anchor = _select(
@@ -1081,13 +1077,8 @@ def _output(source: any, kind: int) -> any {
     );
 }
 
-def compile_layered(
-    specs: list[dict],
-    frontier_ids: list[UUID],
-    seen_ids: list[UUID],
-    limit: int,
-    has_undirected: bool,
-    include_roots: bool = False
+def _build_layered(
+    specs: list[dict], has_undirected: bool, include_roots: bool = False
 ) -> q.CompiledSQL {
     spec_fields = [
         q.field('idx', q.int64_type()),
@@ -1133,7 +1124,7 @@ def compile_layered(
     spec_source = q.cte(q.values(spec_fields, spec_rows));
     hops = q.cte(q.values(hop_fields, hop_rows));
     seeds = q.unnest(
-        q.param(q.array_type(q.uuid_type()), tuple(frontier_ids)),
+        q.slot('frontier_ids', q.array_type(q.uuid_type())),
         q.field('id', q.uuid_type()),
         q.field('ord', q.int64_type())
     );
@@ -1380,7 +1371,7 @@ def compile_layered(
             )
         )
     );
-    seen_array = q.param(q.array_type(q.uuid_type()), tuple(seen_ids));
+    seen_array = q.slot('seen_ids', q.array_type(q.uuid_type()));
     filtered = q.cte(
         _select(
             additions,
@@ -1390,7 +1381,7 @@ def compile_layered(
                     _present(_c(additions, 'id')),
                     _either(
                         [
-                            q.boolean(not bool(seen_ids)),
+                            q.slot('seen_empty', q.bool_type()),
                             _negated(q.any_eq(_c(additions, 'id'), seen_array))
                         ]
                     )
@@ -1429,7 +1420,9 @@ def compile_layered(
         _select(
             ordered_plan,
             _pick(ordered_plan, _names(ordered_plan)),
-            predicate=_cmp(_c(ordered_plan, 'ord'), q.int64(limit), '<=')
+            predicate=_cmp(
+                _c(ordered_plan, 'ord'), q.slot('limit', q.int64_type()), '<='
+            )
         )
     );
     plan = _plan_rows(prefetch, False);
@@ -1455,4 +1448,74 @@ def compile_undirected_probe -> q.CompiledSQL {
         )
     );
     return q.compile_sql(_select(None, [('present', q.exists(q.limit_one(query)))]));
+}
+
+
+def _spec_key(specs: list[dict]) -> tuple[any, ...] {
+    return tuple(
+        (
+            int(spec['idx']),
+            spec.get('from_type'),
+            bool(spec.get('is_visit')),
+            tuple(
+                (hop[0], hop[1], int(hop[2] or 2)) for hop in (spec.get('chain') or [])
+            )
+        ) for spec in specs
+    );
+}
+
+def _specs_from_key(key: tuple[any, ...]) -> list[dict] {
+    return [
+        {'idx': item[0], 'from_type': item[1], 'is_visit': item[2], 'chain': item[3]}
+        for item in key
+    ];
+}
+
+@lru_cache(maxsize=128)
+def _specialized_plan(
+    key: tuple[any, ...], include_roots: bool, complete_optimization: bool
+) -> q.CompiledSQL {
+    return _build_specialized(
+        _specs_from_key(key), include_roots, complete_optimization
+    );
+}
+
+@lru_cache(maxsize=128)
+def _layered_plan(
+    key: tuple[any, ...], has_undirected: bool, include_roots: bool
+) -> q.CompiledSQL {
+    return _build_layered(_specs_from_key(key), has_undirected, include_roots);
+}
+
+def compile_specialized(
+    specs: list[dict],
+    origins: list[UUID],
+    limit: int,
+    max_depth: int,
+    include_roots: bool = False,
+    complete_optimization: bool = True
+) -> q.CompiledSQL {
+    plan = _specialized_plan(_spec_key(specs), include_roots, complete_optimization);
+    return plan.bind(
+        {'origin_ids': tuple(origins), 'limit': limit, 'max_depth': max_depth}
+    );
+}
+
+def compile_layered(
+    specs: list[dict],
+    frontier_ids: list[UUID],
+    seen_ids: list[UUID],
+    limit: int,
+    has_undirected: bool,
+    include_roots: bool = False
+) -> q.CompiledSQL {
+    plan = _layered_plan(_spec_key(specs), has_undirected, include_roots);
+    return plan.bind(
+        {
+            'frontier_ids': tuple(frontier_ids),
+            'seen_ids': tuple(seen_ids),
+            'seen_empty': not bool(seen_ids),
+            'limit': limit
+        }
+    );
 }

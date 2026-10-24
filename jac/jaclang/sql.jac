@@ -166,6 +166,10 @@ obj ParamNode(ExprNode) {
             | None;
 }
 
+obj SlotNode(ExprNode) {
+    has name: str;
+}
+
 obj BinaryNode(ExprNode) {
     has op: str,
         left: ExprNode,
@@ -246,7 +250,14 @@ obj SelectNode(RelationNode) {
 
     has schema: Schema {
         getter {
-            return Schema(tuple(p.field for p in self.projections));
+            if '_schema_cache' not in self.__dict__ {
+                object.__setattr__(
+                    self,
+                    '_schema_cache',
+                    Schema(tuple(p.field for p in self.projections))
+                );
+            }
+            return self.__dict__['_schema_cache'];
         }
     }
 }
@@ -259,7 +270,14 @@ obj UnionNode(RelationNode) {
 
     has schema: Schema {
         getter {
-            return _set_schema(self.left, self.right, self.operation);
+            if '_schema_cache' not in self.__dict__ {
+                object.__setattr__(
+                    self,
+                    '_schema_cache',
+                    _set_schema(self.left, self.right, self.operation)
+                );
+            }
+            return self.__dict__['_schema_cache'];
         }
     }
 }
@@ -285,7 +303,23 @@ obj CompiledSQL {
                     | Decimal
                     | tuple[bool | int | float | str | UUID | Decimal | None, ...]
                     | None
-            ];
+            ],
+        slots: tuple[tuple[str, DataType], ...] = ();
+
+    def bind(
+        values:
+            dict[
+                str,
+                bool
+                    | int
+                    | float
+                    | str
+                    | UUID
+                    | Decimal
+                    | tuple[bool | int | float | str | UUID | Decimal | None, ...]
+                    | None
+            ]
+    ) -> CompiledSQL;
 }
 
 
@@ -321,6 +355,10 @@ def param[T](
             | tuple[bool | int | float | str | UUID | Decimal | None, ...]
             | None
 ) -> ScalarExpr[T];
+
+def slot[T](name: str, dtype: SqlType[T]) -> ScalarExpr[T];
+
+def _validate_slot_name(name: str);
 
 def int64(value: int) -> ScalarExpr[SqlInt64];
 
@@ -440,7 +478,8 @@ obj ValidatedQuery {
         ctes: tuple[Cte, ...],
         aliases: dict[int, str],
         cte_names: dict[int, str],
-        local_orders: dict[int, tuple[Cte, ...]];
+        local_orders: dict[int, tuple[Cte, ...]],
+        slots: tuple[tuple[str, DataType], ...] = ();
 }
 
 
@@ -456,7 +495,8 @@ def _schema_equal(a: Schema, b: Schema, names: bool = True) -> bool;
 def validate_union(ast: UnionNode);
 
 obj QueryGraph {
-    has ctes: list[Cte] = [],
+    has slot_types: dict[str, DataType] = {},
+        ctes: list[Cte] = [],
         bound_ctes: set[int] = set(),
         physical_names: set[str] = set(),
         explicit_aliases: set[str] = set(),
@@ -473,7 +513,11 @@ obj QueryGraph {
 
 
 obj QueryValidator {
-    has active_queries: set[int] = set(),
+    has expression_cache:
+        dict[tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]], Checked] = {},
+        query_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], QueryFacts] = {},
+        cte_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], set[str]] = {},
+        active_queries: set[int] = set(),
         aliases: dict[int, str] = {},
         cte_names: dict[int, str] = {},
         used_names: set[str] = set(),
@@ -507,6 +551,14 @@ obj QueryValidator {
         ast: ExprNode, scope: list[Source], local: list[Source], ctes: list[Cte]
     ) -> Checked;
 
+    def expr_uncached(
+        ast: ExprNode, scope: list[Source], local: list[Source], ctes: list[Cte]
+    ) -> Checked;
+
+    def validate_cte_uncached(
+        reference: Cte, outer: list[Source], available: list[Cte]
+    ) -> set[str];
+
     def query(ast: RelationNode, outer: list[Source], ctes: list[Cte]) -> QueryFacts;
     def query_body(
         ast: RelationNode, outer: list[Source], ctes: list[Cte]
@@ -531,6 +583,7 @@ obj PostgresRenderer {
                 | tuple[bool | int | float | str | UUID | Decimal | None, ...]
                 | None
         ] = {},
+        slot_types: dict[str, DataType] = {},
         parameter_ids: dict[int, str] = {},
         aliases: dict[int, str] = {},
         cte_names: dict[int, str] = {},
@@ -856,8 +909,8 @@ def sub_int32(
     left: ScalarExpr[SqlInt32], right: ScalarExpr[SqlInt32]
 ) -> ScalarExpr[SqlInt32];
 
-def field[T](name: str, dtype: SqlType[T]) -> Field[T];
-
 def bool_or(
     term: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]];
+
+def field[T](name: str, dtype: SqlType[T]) -> Field[T];
