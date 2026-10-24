@@ -215,7 +215,7 @@ and [aggregate functions](https://www.postgresql.org/docs/current/functions-aggr
 Immutable SELECT and set-operation nodes retain their derived schemas. Within
 one compilation, validation results are reused only for the same ordered source
 and CTE scopes. Caches reset for each compilation; scope, projection, recursive
-union and parameter checks remain enforced. See [performance measurements](performance/README.md).
+union and parameter checks remain enforced.
 
 ## Compile once and bind values
 
