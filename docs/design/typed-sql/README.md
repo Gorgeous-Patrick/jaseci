@@ -58,15 +58,6 @@ Parameters: `{"p0": 30}`. Identifiers are quoted and values have separate bindin
 Reusing a parameter expression reuses its binding. Casts retain declared SQL types
 in standalone values, VALUES rows and recursive anchors.
 
-Runnable examples:
-
-- [`typed_sql.jac`](../../../jac/examples/sql/typed_sql.jac): selection, joins,
-  scalar aggregates and automatically collected CTEs.
-- [`advanced_queries.jac`](../../../jac/examples/sql/advanced_queries.jac): nullable
-  LEFT JOIN, array expansion, cumulative window budgets and recursive local CTEs.
-- [`cte_name_collision.jac`](../../../jac/examples/sql/cte_name_collision.jac):
-  physical and temporary reads executed on PostgreSQL.
-
 ## Supported structures
 
 | Area | Constructors and behavior |
@@ -189,15 +180,14 @@ The suite contains 160 native Jac test entries: 56 SQLite cases, the same
 56 PostgreSQL cases, 39 PostgreSQL feature cases, four static-check tests and
 five cache regression tests.
 The static fixtures verify all 31 invalid calls at their expected source lines;
-positive checking covers the module and all three construction examples.
+positive checking covers the module and a valid-call fixture.
 
 ```sh
 jac test jac/tests/sql/test_sql.jac jac/tests/sql/test_types.jac jac/tests/sql/test_cache.jac -j 1 -v
 JAC_SQL_PG_SOCKET=/path/to/.s.PGSQL.PORT \
   jac test jac/tests/sql/test_postgres.jac jac/tests/sql/test_postgres_features.jac -j 1 -v
 jac fmt --check --lintfix jac/jaclang/sql.jac \
-  jac/jaclang/impl/sql.impl.jac jac/tests/sql/*.jac jac/examples/sql/*.jac
-jac run jac/examples/sql/advanced_queries.jac
+  jac/jaclang/impl/sql.impl.jac jac/tests/sql/*.jac
 ```
 
 PostgreSQL fixtures use a disposable cluster, account `sql_test`, database
@@ -240,5 +230,3 @@ letters, digits and underscores, starting with a letter or underscore.
 `sql` and `self` are reserved by the PostgreSQL driver calling convention. Generated
 literal parameter names avoid collisions with slots. Text values are bound by
 the driver, including strings containing SQL syntax.
-
-See the runnable [binding example](../../../jac/examples/sql/bind_parameters.jac).

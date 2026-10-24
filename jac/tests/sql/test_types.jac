@@ -8,7 +8,7 @@ import unittest;
 import from .sql_cases { run_case }
 glob ROOT = Path(__file__).resolve().parents[3];
 class StaticTypes(unittest.TestCase) {
-    def test_positive_example_and_module(self: StaticTypes) -> object {
+    def test_positive_module_and_calls(self: StaticTypes) -> object {
         result = subprocess.run(
             [
                 sys.executable,
@@ -16,16 +16,14 @@ class StaticTypes(unittest.TestCase) {
                 'jaclang',
                 'check',
                 'jac/jaclang/sql.jac',
-                'jac/examples/sql/typed_sql.jac',
-                'jac/examples/sql/advanced_queries.jac',
-                'jac/examples/sql/bind_parameters.jac'
+                'jac/tests/sql/fixtures/valid_calls.jac'
             ],
             cwd=ROOT,
             capture_output=True,
             text=True
         );
         self.assertEqual(result.returncode, 0, (result.stdout + result.stderr));
-        self.assertIn('4 passed', (result.stdout + result.stderr));
+        self.assertIn('2 passed', (result.stdout + result.stderr));
     }
 
     def test_all_bad_calls_are_rejected_at_their_lines(self: StaticTypes) -> object {
@@ -83,8 +81,8 @@ class StaticTypes(unittest.TestCase) {
 }
 
 
-test "Static types: positive example and module" {
-    run_case(StaticTypes("test_positive_example_and_module"));
+test "Static types: positive module and calls" {
+    run_case(StaticTypes("test_positive_module_and_calls"));
 }
 
 test "Static types: all bad calls are rejected at their lines" {
