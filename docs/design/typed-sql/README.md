@@ -58,15 +58,6 @@ Parameters: `{"p0": 30}`. Identifiers are quoted and values have separate bindin
 Reusing a parameter expression reuses its binding. Casts retain declared SQL types
 in standalone values, VALUES rows and recursive anchors.
 
-Runnable examples:
-
-- [`typed_sql.jac`](../../../jac/examples/sql/typed_sql.jac): selection, joins,
-  scalar aggregates and automatically collected CTEs.
-- [`advanced_queries.jac`](../../../jac/examples/sql/advanced_queries.jac): nullable
-  LEFT JOIN, array expansion, cumulative window budgets and recursive local CTEs.
-- [`cte_name_collision.jac`](../../../jac/examples/sql/cte_name_collision.jac):
-  physical and temporary reads executed on PostgreSQL.
-
 ## Supported structures
 
 | Area | Constructors and behavior |
@@ -141,6 +132,9 @@ This retains local CTEs inside a recursive step or correlated subquery. Local
 bindings can reference enclosing CTEs and visible outer columns. `cte(query,
 materialized=True)` and `materialized=False` select PostgreSQL materialization
 attributes. Consecutive local WITH wrappers are normalized at rendering.
+A shared query can be used both inside a local WITH and through automatic CTE
+binding elsewhere. The compiler preserves both binding scopes; duplicate explicit
+bindings in the same or enclosing local scope are rejected.
 
 Recursion has an explicit single-assignment forward reference:
 
@@ -171,7 +165,8 @@ query predicate. Parenthesized wrappers preserve arm-local ordering and limits.
 ## Compilation and immutability
 
 1. `QueryGraph` traverses structural containment and queues automatic CTE references.
-   Explicit local bindings stay inside their lexical query scope.
+   Explicit local bindings stay inside their lexical query scope. Structural dependency
+   summaries are cached per immutable node and reused at every occurrence.
 2. `QueryValidator` checks expression signatures, types, scope, grouping, windows,
    cardinality and recursive-reference placement. It resolves generated names and
    returns a `ValidatedQuery` plan.
@@ -185,19 +180,18 @@ Low-level AST construction receives the same semantic analysis as public builder
 
 ## Verification
 
-The suite contains 160 native Jac test entries: 56 SQLite cases, the same
-56 PostgreSQL cases, 39 PostgreSQL feature cases, four static-check tests and
-five cache regression tests.
+The suite contains 163 native Jac test entries: 56 SQLite cases, the same
+56 PostgreSQL cases, 41 PostgreSQL feature cases, four static-check tests and
+six cache regression tests.
 The static fixtures verify all 31 invalid calls at their expected source lines;
-positive checking covers the module and all three construction examples.
+positive checking covers the module and a valid-call fixture.
 
 ```sh
 jac test jac/tests/sql/test_sql.jac jac/tests/sql/test_types.jac jac/tests/sql/test_cache.jac -v
 JAC_SQL_PG_SOCKET=/path/to/.s.PGSQL.PORT \
   jac test jac/tests/sql/test_postgres.jac jac/tests/sql/test_postgres_features.jac -v
 jac fmt --check --lintfix jac/jaclang/sql.jac \
-  jac/jaclang/impl/sql.impl.jac jac/tests/sql/*.jac jac/examples/sql/*.jac
-jac run jac/examples/sql/advanced_queries.jac
+  jac/jaclang/impl/sql.impl.jac jac/tests/sql/*.jac
 ```
 
 PostgreSQL fixtures use a disposable cluster, account `sql_test`, database
@@ -215,7 +209,7 @@ and [aggregate functions](https://www.postgresql.org/docs/current/functions-aggr
 Immutable SELECT and set-operation nodes retain their derived schemas. Within
 one compilation, validation results are reused only for the same ordered source
 and CTE scopes. Caches reset for each compilation; scope, projection, recursive
-union and parameter checks remain enforced. See [performance measurements](../../../benchmarks/ttg-sql/README.md).
+union and parameter checks remain enforced.
 
 ## Compile once and bind values
 
@@ -236,8 +230,7 @@ SQL text, fixed parameter values and a tuple of slot names/types. It retains no
 AST. `bind` checks exact parameter names and value types, copies the fixed
 parameters and returns a new `CompiledSQL`; the original remains reusable.
 Repeated names share a parameter and must have identical types. Names use ASCII
-letters, digits and underscores, starting with a letter or underscore. Generated
+letters, digits and underscores, starting with a letter or underscore.
+`sql` and `self` are reserved by the PostgreSQL driver calling convention. Generated
 literal parameter names avoid collisions with slots. Text values are bound by
 the driver, including strings containing SQL syntax.
-
-See the runnable [binding example](../../../jac/examples/sql/bind_parameters.jac).

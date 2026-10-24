@@ -497,14 +497,17 @@ def validate_union(ast: UnionNode);
 obj QueryGraph {
     has slot_types: dict[str, DataType] = {},
         ctes: list[Cte] = [],
-        bound_ctes: set[int] = set(),
         physical_names: set[str] = set(),
         explicit_aliases: set[str] = set(),
-        seen_sources: set[int] = set(),
-        seen_queries: set[int] = set(),
-        active_queries: set[int] = set(),
-        seen_expressions: set[int] = set();
+        source_dependencies: dict[int, tuple[Cte, ...]] = {},
+        query_dependencies: dict[int, tuple[Cte, ...]] = {},
+        expression_dependencies: dict[int, tuple[Cte, ...]] = {},
+        active_queries: set[int] = set();
 
+    def add_dependencies(dependencies: tuple[Cte, ...]) -> None;
+    def scan_source(src: Source) -> None;
+    def scan_expr(expr: ExprNode) -> None;
+    def scan_query(query: RelationNode) -> None;
     def visit_source(src: Source) -> None;
     def collect(query: RelationNode);
     def visit_expr(expr: ExprNode) -> None;
@@ -513,8 +516,13 @@ obj QueryGraph {
 
 
 obj QueryValidator {
-    has expression_cache:
-        dict[tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]], Checked] = {},
+    has dependency_graph: QueryGraph | None = None,
+        local_ctes: set[int] = set(),
+        expression_cache:
+            dict[
+                tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]],
+                Checked
+            ] = {},
         query_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], QueryFacts] = {},
         cte_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], set[str]] = {},
         active_queries: set[int] = set(),
