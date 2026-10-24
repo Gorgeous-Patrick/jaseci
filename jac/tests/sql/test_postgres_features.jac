@@ -1067,6 +1067,57 @@ class FeatureTests(PostgresTests) {
         body = s.select(s.project_all(d), source=d);
         self.assertEqual(self.execute(s.with_ctes(body, [c])), [(1, )]);
     }
+
+    def test_array_cast_null_element_contract(self: FeatureTests) -> object {
+        dtype = s.array_type(s.int64_type());
+        for text in ['{NULL}', '{1,NULL}', '{1,2}'] {
+            with self.assertRaises(s.SqlError) {
+                s.cast(s.text(text), dtype);
+            }
+        }
+        with self.assertRaises(s.SqlError) {
+            s.cast(s.slot('input', s.text_type()), dtype);
+        }
+        raw = s.ScalarExpr(s.CastNode(dtype=dtype.data, term=s.text('{NULL}').ast));
+        with self.assertRaises(s.SqlError) {
+            s.compile_sql(s.select([s.named('ids', raw)]));
+        }
+        converted = s.cast(s.array_param(s.int32_type(), [1, 2]), dtype);
+        key = s.field('n', s.int64_type());
+        source = s.unnest(converted, key);
+        self.assertEqual(
+            self.execute(s.select(s.project_all(source), source=source)), [(1, ), (2, )]
+        );
+        serialized = s.cast(converted, s.text_type());
+        self.assertEqual(
+            self.execute(s.select([s.named('text', serialized)])), [('{1,2}', )]
+        );
+    }
+
+    def test_limit_one_preserves_distinct_semantics(self: FeatureTests) -> object {
+        ordinary = s.select(
+            [s.named('age', self.people.col(self.age))],
+            source=self.people,
+            distinct=True
+        );
+        limited = s.limit_one(ordinary);
+        self.assertTrue(limited.ast.distinct);
+        self.assertIn('SELECT DISTINCT ', s.compile_sql(limited).sql);
+        output = s.named('n', s.int64(1));
+        original = s.select([output], source=self.people, distinct_on=[s.count().ast]);
+        for empty in [False, True] {
+            if empty {
+                self.db.execute('DELETE FROM people');
+            }
+            self.assertEqual(self.execute(original), [(1, )]);
+            limited = s.limit_one(original);
+            self.assertEqual(self.execute(limited), [(1, )]);
+            self.assertEqual(
+                self.execute(s.select([s.named('n', s.scalar(limited, output.key()))])),
+                [(1, )]
+            );
+        }
+    }
 }
 
 test "PostgreSQL features: boolean comparison and case" {
@@ -1231,4 +1282,12 @@ test "PostgreSQL features: shared CTE query scopes" {
 
 test "PostgreSQL features: root local and automatic CTE scopes" {
     run_case(FeatureTests("test_root_local_and_automatic_cte_scopes"));
+}
+
+test "PostgreSQL features: array casts preserve non-null element contract" {
+    run_case(FeatureTests("test_array_cast_null_element_contract"));
+}
+
+test "PostgreSQL features: limit_one preserves distinct semantics" {
+    run_case(FeatureTests("test_limit_one_preserves_distinct_semantics"));
 }

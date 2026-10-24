@@ -426,7 +426,9 @@ impl limit_one(query: Relation[R, C]) -> Relation[R, AtMostOne] {
         groups=q.groups,
         having=q.having,
         ordering=q.ordering,
-        limit=1
+        limit=1,
+        distinct=q.distinct,
+        distinct_on=q.distinct_on
     );
     return Relation(ast);
 }
@@ -2678,6 +2680,9 @@ impl _set_schema(left: RelationNode, right: RelationNode, operation: str) -> Sch
 impl _cast_allowed(source: DataType, target: DataType) -> bool {
     if source.name == target.name {
         return True;
+    }
+    if target.name.endswith('[]') and not source.name.endswith('[]') {
+        return False;
     }
     if source.name == 'text' or target.name == 'text' {
         return True;
