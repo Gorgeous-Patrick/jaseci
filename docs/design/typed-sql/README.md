@@ -18,7 +18,8 @@ standard-library UUID and Decimal types. Forks can copy both files and the tests
 SELECT is a relational expression. Scalar-subquery conversion is explicit:
 `scalar` accepts an at-most-one or exactly-one, single-column relation and returns
 a nullable value; `scalar_one` preserves the type of a proven exactly-one result.
-`limit_one` constructs the first proof and `aggregate` constructs the second.
+`limit_one` constructs the first proof while preserving the SELECT clauses,
+including DISTINCT and DISTINCT ON; `aggregate` constructs the second.
 The analyzer verifies these proofs against query structure.
 
 Typed `Field[T]` keys identify columns. Row shape is a checked `Schema` value;
@@ -78,7 +79,9 @@ in standalone values, VALUES rows and recursive anchors.
 Numeric values use Decimal or integers. SUM follows PostgreSQL result types:
 `sum_int32` returns nullable Int64; `sum_int64` and `sum_numeric` return nullable
 Numeric; `sum_` returns nullable Float64. Array constructors validate a non-null
-scalar element contract and snapshot parameter sequences as tuples. Physical table
+scalar element contract and snapshot parameter sequences as tuples. Scalar-to-array
+casts are rejected because SQL array text can contain NULL elements; use typed
+array constructors or parameters. Physical table
 schemas are contracts supplied by the integrating application.
 
 `case_` requires identical branch types; `case_nullable` joins nullable and
@@ -180,8 +183,8 @@ Low-level AST construction receives the same semantic analysis as public builder
 
 ## Verification
 
-The suite contains 163 native Jac test entries: 56 SQLite cases, the same
-56 PostgreSQL cases, 41 PostgreSQL feature cases, four static-check tests and
+The suite contains 165 native Jac test entries: 56 SQLite cases, the same
+56 PostgreSQL cases, 43 PostgreSQL feature cases, four static-check tests and
 six cache regression tests.
 The static fixtures verify all 31 invalid calls at their expected source lines;
 positive checking covers the module and a valid-call fixture.
