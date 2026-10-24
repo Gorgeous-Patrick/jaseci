@@ -35,7 +35,7 @@ SELECT and set-operation schemas are derived lazily once on immutable nodes. The
 
 ## Reproduce
 
-Use the TTG checkout at `714e45988` with the SQL branch cache changes ported into its SQL module (retain its Jac 0.36 syntax adaptations). Copy `ttg_sql_benchmark.jac` from this directory to `jac/tests/runtimelib/bench_ttg_sql.jac` and create `benchmarks/ttg-sql/`. With the TTG Jac/PostgreSQL environment configured:
+Use the TTG checkout at `714e45988` with the SQL branch cache changes ported into its SQL module (retain its Jac 0.36 syntax adaptations). Copy the TTG source template `ttg_sql_benchmark.jac.txt` from this directory to `jac/tests/runtimelib/bench_ttg_sql.jac` and create `benchmarks/ttg-sql/`. With the TTG Jac/PostgreSQL environment configured:
 
 ```sh
 jac test jac/tests/runtimelib/bench_ttg_sql.jac --filter "SQL performance measurements" -v
