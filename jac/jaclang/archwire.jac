@@ -1494,8 +1494,9 @@ graph import {
             | runtime.builtin._get_archetype_alias.factory.decorator
             | server.endpoints.walkers
             | server.server
-            | server.session.Session._load_edges { Serializer },
+            | server.session.Session._expired { Serializer },
         server.session { frozen_fields },
+        server.session.Session._load_edges { Serializer },
         server.session.Session._materialize { Serializer },
         server.session.Session._serialize { Serializer },
         server.session.Session._unflushed { Serializer },
@@ -1857,7 +1858,6 @@ graph import {
         client.cli.setup { kind_has_client },
         compiler.placement.placement.project_has_server
             | compiler.placement.placement_pins { kind_codespace },
-        dist.seal.build_serve_manifest { kind_has_server },
         dist.source.project.export_project { kind_has_client, kind_has_server },
     ]
     project.app_kinds --> [
@@ -6871,7 +6871,6 @@ graph import compiler {
             E0052,
             E0055,
             E0058,
-            E0059,
             E0063,
             E0065,
             E0066,
@@ -7349,7 +7348,8 @@ graph import compiler {
             binding_sites,
             binds_target,
             confined_to,
-            enclosing_loop
+            enclosing_loop,
+            in_loop_else
         },
         backends.native.na_ir_gen_pass {
             LoopLinks,
@@ -7358,7 +7358,9 @@ graph import compiler {
             enclosing_loop,
             frame_owns
         },
-        backends.py.jcir_gen_pass { LoopLinks, LoopStmt, PassLink },
+        backends.py.jcir_gen_pass { LoopLinks, LoopStmt, PassLink, in_loop_else },
+        passes.ast_validation_pass { in_loop_else },
+        passes.cfg_build_pass { enclosing_loop },
     ]
     frontend.module_facts ++> [
         backends.es.esast_gen_pass
@@ -15314,6 +15316,7 @@ graph import runtime {
         },
         runtime.JacBuiltin.log_report { _current_scope, osp_report },
         runtime.JacGraph.clear_edges { osp_forget },
+        runtime.JacWalker.async_spawn_call { _current_scope },
         runtime.JacWalker.disengage { osp_disengage },
         runtime.JacWalker.spawn_call { osp_spawn },
         runtime.JacWalker.visit { osp_visit, scope_of },
@@ -15367,7 +15370,7 @@ graph import runtime {
             | osp_kernel_sv._sv_on_complete
             | prepared_loader.PreparedFinder.find_spec { JacRuntime },
         archetype.NodeAnchor.all_edges { JacRuntimeInterface },
-        archetype.Root.__getattr__ { JacRuntime },
+        archetype.Root.__getattr__ | osp_kernel_sv._sv_settle { JacRuntime },
         archetype._dirty_delattr { JacRuntime },
         archetype._dirty_setattr { JacRuntime },
         interop_bridge._pyb_import_module { JacModule },
