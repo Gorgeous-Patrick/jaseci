@@ -1,12 +1,12 @@
 {
   "summary": {
     "same": 49,
-    "refused": 79,
+    "refused": 82,
     "fails": 0,
     "differs": 1,
     "hangs": 0,
     "crashes": 1,
-    "skipped": 58
+    "skipped": 59
   },
   "programs": {
     "examples/chess/chess.jac": {
@@ -148,6 +148,19 @@
     "examples/raylib_shooter/web/main.jac": {
       "class": "skipped",
       "reason": "the Python tier fails"
+    },
+    "examples/sql/advanced_queries.jac": {
+      "class": "refused"
+    },
+    "examples/sql/bind_parameters.jac": {
+      "class": "refused"
+    },
+    "examples/sql/cte_name_collision.jac": {
+      "class": "skipped",
+      "reason": "the Python tier fails"
+    },
+    "examples/sql/typed_sql.jac": {
+      "class": "refused"
     },
     "examples/tiny_jacyac/cli.jac": {
       "class": "skipped",

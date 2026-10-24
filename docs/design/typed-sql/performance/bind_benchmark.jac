@@ -14,7 +14,11 @@ with entry {
             where=s.gt(people.col(age), s.slot('min_age', s.int64_type()))
         )
     );
-    results: list[dict[str, float]] = [];
+}
+
+glob results: list[dict[str, float]] = [];
+
+with entry {
     for round_idx in range(8) {
         start = perf_counter_ns();
         for idx in range(500) {
