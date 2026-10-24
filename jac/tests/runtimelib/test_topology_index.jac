@@ -10,8 +10,16 @@ import from jaclang.runtime.runtime { JacRuntime }
 import from jaclang.runtime.topology_index { TopologyIndex }
 import from jaclang.runtime.ttg {
     JacTTGGenerator,
-    _ttg_render_specialized_set_based_sql
+    _ttg_render_specialized_set_based_sql,
+    _resolve_sql_visit_bfs_layered_budgeted
 }
+
+import from jaclang.runtime.ttg_sql { compile_specialized, compile_layered }
+import from .fixtures.ttg_sql_legacy {
+    _ttg_render_specialized_set_based_sql as legacy_specialized,
+    layered_sql as legacy_layered
+}
+import from unittest.mock { patch }
 
 
 node GTIProfile {
@@ -141,9 +149,7 @@ def _seed_cross_root(ctx: ExecutionContext) -> tuple[UUID, UUID, UUID, UUID, UUI
 }
 
 
-def _seed_partial_layer(
-    ctx: ExecutionContext
-) -> tuple[UUID, list[UUID], list[UUID]] {
+def _seed_partial_layer(ctx: ExecutionContext) -> tuple[UUID, list[UUID], list[UUID]] {
     ranch = _root(ctx);
     alice = _owned_node(ctx, ranch, GTIProfile(name="alice"));
     bob_ids: list[UUID] = [];
@@ -208,19 +214,14 @@ test "topology index resolves chains with type ancestry" {
     );
     idx.add_node(tweet_id, "GTITweet", ["GTITweet"], root_id);
     idx.add_edge(
-        follow_id,
-        alice_id,
-        bob_id,
-        "GTIStrongFollow",
-        ["GTIStrongFollow", "GTIFollow"]
+        follow_id, alice_id, bob_id, "GTIStrongFollow", ["GTIStrongFollow", "GTIFollow"]
     );
     idx.add_edge(post_id, bob_id, tweet_id, "GTIPost", ["GTIPost"]);
 
     assert idx.resolve_chain(
-        [alice_id],
-        [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
-        10
-    ) == [tweet_id];
+        [alice_id], [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)], 10
+    )
+        == [tweet_id];
 }
 
 
@@ -237,7 +238,6 @@ test "builder warms owner topology from seed nodes across roots" {
             JacRuntime.exec_ctx = old;
             ctx1.close();
         }
-
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
@@ -247,14 +247,14 @@ test "builder warms owner topology from seed nodes across roots" {
             assert idx.has_root(alice_root_id);
             assert not idx.has_root(bob_root_id);
             assert idx.owner_root_for(bob_id) == bob_root_id;
-            assert idx.resolve_chain(
-                [alice_id], [("GTIFollow", "GTIProfile", 2)], 10
-            ) == [bob_id];
+            assert idx.resolve_chain([alice_id], [("GTIFollow", "GTIProfile", 2)], 10)
+                == [bob_id];
             assert idx.resolve_chain(
                 [alice_id],
                 [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
                 10
-            ) == [];
+            )
+                == [];
 
             idx = ctx2.mem.warm_topology_for_nodes([bob_id]);
             assert idx.has_root(bob_root_id);
@@ -262,7 +262,8 @@ test "builder warms owner topology from seed nodes across roots" {
                 [alice_id],
                 [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
                 10
-            ) == [tweet_id];
+            )
+                == [tweet_id];
         } finally {
             JacRuntime.exec_ctx = old;
             ctx2.close();
@@ -284,20 +285,16 @@ test "filtered hop warm indexes only matching frontier adjacency" {
             JacRuntime.exec_ctx = old;
             ctx1.close();
         }
-
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
             (alice_root_id, bob_root_id, alice_id, bob_id, tweet_id) = ids;
-            idx = ctx2.mem.warm_topology_for_hop(
-                [alice_id], "GTIPost", "GTITweet", 2
-            );
+            idx = ctx2.mem.warm_topology_for_hop([alice_id], "GTIPost", "GTITweet", 2);
             assert isinstance(idx, TopologyIndex);
             assert not idx.has_root(alice_root_id);
             assert idx.node_type(alice_id) == "GTIProfile";
-            assert idx.resolve_chain(
-                [alice_id], [("GTIFollow", "GTIProfile", 2)], 10
-            ) == [];
+            assert idx.resolve_chain([alice_id], [("GTIFollow", "GTIProfile", 2)], 10)
+                == [];
 
             idx = ctx2.mem.warm_topology_for_hop(
                 [alice_id], "GTIFollow", "GTIProfile", 2
@@ -305,21 +302,22 @@ test "filtered hop warm indexes only matching frontier adjacency" {
             assert not idx.has_root(alice_root_id);
             assert not idx.has_root(bob_root_id);
             assert idx.owner_root_for(bob_id) == bob_root_id;
-            assert idx.resolve_chain(
-                [alice_id], [("GTIFollow", "GTIProfile", 2)], 10
-            ) == [bob_id];
+            assert idx.resolve_chain([alice_id], [("GTIFollow", "GTIProfile", 2)], 10)
+                == [bob_id];
             assert idx.resolve_chain(
                 [alice_id],
                 [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
                 10
-            ) == [];
+            )
+                == [];
 
             idx = ctx2.mem.warm_topology_for_hop([bob_id], "GTIPost", "GTITweet", 2);
             assert idx.resolve_chain(
                 [alice_id],
                 [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
                 10
-            ) == [tweet_id];
+            )
+                == [tweet_id];
         } finally {
             JacRuntime.exec_ctx = old;
             ctx2.close();
@@ -342,7 +340,6 @@ test "TTG dedups overlapping candidates before applying layer budget" {
             JacRuntime.exec_ctx = old;
             ctx1.close();
         }
-
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
@@ -390,7 +387,6 @@ test "TTG partial layer marks only complete expansion groups loaded" {
             JacRuntime.exec_ctx = old;
             ctx1.close();
         }
-
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
@@ -400,7 +396,11 @@ test "TTG partial layer marks only complete expansion groups loaded" {
             plan = JacTTGGenerator.get_ttg_prefetch_list(
                 GTIPartialLayerTraverse(), alice, ctx2.mem, max_length=10
             );
-            prefetched_tweets = [uid for uid in tweet_ids if uid in plan];
+            prefetched_tweets = [
+                uid
+                for uid in tweet_ids
+                if uid in plan
+            ];
             assert len(prefetched_tweets) > 0 , plan;
             idx = ctx2.mem.__topology_index__;
             assert isinstance(idx, TopologyIndex);
@@ -434,7 +434,6 @@ test "TTG uses warmed topology to continue across owner roots" {
             JacRuntime.exec_ctx = old;
             ctx1.close();
         }
-
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
@@ -499,7 +498,6 @@ test "TTG specialized SQL lowers a multi-hop visit chain" {
             JacRuntime.exec_ctx = old;
             ctx1.close();
         }
-
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
@@ -521,7 +519,8 @@ test "TTG specialized SQL lowers a multi-hop visit chain" {
                 [alice_id],
                 [("GTIFollow", "GTIProfile", 2), ("GTIPost", "GTITweet", 2)],
                 10
-            ) == [tweet_id];
+            )
+                == [tweet_id];
             assert idx.owner_root_for(tweet_id) == bob_root_id;
         } finally {
             if old_owner_roots is None {
@@ -564,7 +563,6 @@ test "TTG extractor skips explicit non-current edge-ref origins" {
             JacRuntime.exec_ctx = old;
             ctx1.close();
         }
-
         ctx2 = _ctx(td);
         JacRuntime.exec_ctx = ctx2;
         try {
@@ -589,40 +587,396 @@ test "TTG extractor skips explicit non-current edge-ref origins" {
 
 
 test "TTG complete-hop SQL optimization has env escape hatch" {
-    specs = [{
-        "idx": 0,
-        "from_type": "GTIProfile",
-        "chain": [("GTIFollow", "GTIProfile", 2)],
-        "is_visit": True,
-        "origin_name": ""
-    }];
+    specs = [
+        {
+            "idx": 0,
+            "from_type": "GTIProfile",
+            "chain": [("GTIFollow", "GTIProfile", 2)],
+            "is_visit": True,
+            "origin_name": ""
+        }
+    ];
     old = os.environ.get("JAC_TTG_OPT_COMPLETE_HOPS");
     try {
         os.environ.pop("JAC_TTG_OPT_COMPLETE_HOPS", None);
         sql = _ttg_render_specialized_set_based_sql(
-            specs,
-            {"origin_ids": [], "limit": 10, "max_depth": 10}
+            specs, {"origin_ids": [], "limit": 10, "max_depth": 10}
         );
-        assert "expected_complete_status AS" in sql;
-        assert "exp.group_complete" in sql;
-        assert "AND an.id IS NOT NULL" in sql;
-        assert "AND ae.id IS NOT NULL" in sql;
-        assert "CAST(:include_owner_roots AS boolean)" in sql;
+        assert "BOOL_AND(" in sql;
+        assert '"group_complete"' in sql;
+        assert "IS NOT NULL" in sql;
+        assert "MATERIALIZED" in sql;
+        assert " AS boolean)" in sql;
 
         os.environ["JAC_TTG_OPT_COMPLETE_HOPS"] = "0";
         fallback_sql = _ttg_render_specialized_set_based_sql(
-            specs,
-            {"origin_ids": [], "limit": 10, "max_depth": 10}
+            specs, {"origin_ids": [], "limit": 10, "max_depth": 10}
         );
-        assert "expected_complete_status AS" not in fallback_sql;
-        assert "AND NOT EXISTS (" in fallback_sql;
-        assert "FROM expected_complete_edges exp" in fallback_sql;
-        assert "NOT exp.group_complete" in fallback_sql;
+        assert "BOOL_AND(" not in fallback_sql;
+        assert "NOT EXISTS (" in fallback_sql;
+        assert '"group_complete"' in fallback_sql;
+        assert "(NOT " in fallback_sql;
     } finally {
         if old is None {
             os.environ.pop("JAC_TTG_OPT_COMPLETE_HOPS", None);
         } else {
             os.environ["JAC_TTG_OPT_COMPLETE_HOPS"] = old;
+        }
+    }
+}
+
+
+test "TTG structured specialized query matches frozen SQL rows" {
+    with TemporaryDirectory() as td {
+        previous = JacRuntime.exec_ctx;
+        ctx = _ctx(td);
+        JacRuntime.exec_ctx = ctx;
+        try {
+            (alice, bobs, shared, tweets) = _seed_overlap_budget(ctx);
+            ctx.mem.commit();
+            specs = [
+                {
+                    'idx': 0,
+                    'from_type': 'GTIProfile',
+                    'chain': [('GTIFollow', 'GTIProfile', 2)],
+                    'is_visit': True,
+                    'origin_name': ''
+                },
+                {
+                    'idx': 1,
+                    'from_type': 'GTIProfile',
+                    'chain': [('GTIPost', 'GTITweet', 2)],
+                    'is_visit': True,
+                    'origin_name': ''
+                }
+            ];
+            store = ctx.mem.store;
+            assert store is not None;
+            params: dict[str, object] = {
+                'origin_ids': [str(alice)],
+                'limit': 12,
+                'max_depth': 12
+            };
+            with patch.dict(
+                os.environ,
+                {'JAC_TTG_PREFETCH_OWNER_ROOTS': '0', 'JAC_TTG_OPT_COMPLETE_HOPS': '1'}
+            ) {
+                expected_sql = legacy_specialized(specs, params);
+                expected = store.rows(expected_sql, params);
+                compiled = compile_specialized(specs, [alice], 12, 12);
+                actual = store.rows(compiled.sql, compiled.params);
+                assert actual == expected , (actual, expected, compiled.sql);
+            }
+        } finally {
+            JacRuntime.exec_ctx = previous;
+            ctx.close();
+        }
+    }
+}
+
+def _sql_comparison_specs -> list[list[dict]] {
+    result: list[list[dict]] = [];
+    for direction in [1, 2, 3] {
+        result.append(
+            [
+                {
+                    'idx': 0,
+                    'from_type': 'GTIProfile',
+                    'chain': [('GTIFollow', 'GTIProfile', direction)],
+                    'is_visit': True,
+                    'origin_name': ''
+                }
+            ]
+        );
+    }
+    result.append(
+        [
+            {
+                'idx': 0,
+                'from_type': 'GTIProfile',
+                'chain': [('GTIFollow', 'GTIProfile', 2), ('GTIPost', 'GTITweet', 2)],
+                'is_visit': True,
+                'origin_name': ''
+            }
+        ]
+    );
+    result.append(
+        [
+            {
+                'idx': 0,
+                'from_type': 'GTIProfile',
+                'chain': [('GTIFollow', 'GTIProfile', 2)],
+                'is_visit': True,
+                'origin_name': ''
+            },
+            {
+                'idx': 1,
+                'from_type': 'GTIProfile',
+                'chain': [('GTIPost', 'GTITweet', 2)],
+                'is_visit': False,
+                'origin_name': ''
+            }
+        ]
+    );
+    result.append(
+        [
+            {
+                'idx': 0,
+                'from_type': None,
+                'chain': [(None, None, 3)],
+                'is_visit': True,
+                'origin_name': ''
+            }
+        ]
+    );
+    return result;
+}
+
+test "TTG structured specialized matches legacy matrix" {
+    with TemporaryDirectory() as td {
+        previous = JacRuntime.exec_ctx;
+        ctx = _ctx(td);
+        JacRuntime.exec_ctx = ctx;
+        try {
+            (alice, bobs, shared, tweets) = _seed_overlap_budget(ctx);
+            cross = _seed_cross_root(ctx);
+            alice_anchor = ctx.mem.get(alice);
+            bob_anchor = ctx.mem.get(bobs[0]);
+            assert isinstance(alice_anchor, NodeAnchor);
+            assert isinstance(bob_anchor, NodeAnchor);
+            _connect(ctx, bob_anchor, alice_anchor, _as_any(GTIFollow()));
+            ctx.mem.commit();
+            store = ctx.mem.store;
+            assert store is not None;
+            origins = [alice, bobs[0], cross[2]];
+            compared = 0;
+            for specs in _sql_comparison_specs() {
+                for limit in [0, 1, 5, 12] {
+                    for include_roots in [False, True] {
+                        for optimized in [False, True] {
+                            params: dict[str, object] = {
+                                'origin_ids': [str(uid) for uid in origins],
+                                'limit': limit,
+                                'max_depth': max(1, limit)
+                            };
+                            with patch.dict(
+                                os.environ,
+                                {
+                                    'JAC_TTG_PREFETCH_OWNER_ROOTS': '1'
+                                        if include_roots
+                                        else '0',
+                                    'JAC_TTG_OPT_COMPLETE_HOPS': '1'
+                                        if optimized
+                                        else '0'
+                                }
+                            ) {
+                                expected = store.rows(
+                                    legacy_specialized(specs, params), params
+                                );
+                                compiled = compile_specialized(
+                                    specs,
+                                    origins,
+                                    limit,
+                                    max(1, limit),
+                                    include_roots,
+                                    optimized
+                                );
+                                actual = store.rows(compiled.sql, compiled.params);
+                                assert actual == expected , (
+                                    specs,
+                                    limit,
+                                    include_roots,
+                                    optimized,
+                                    actual,
+                                    expected
+                                );
+                                compared += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            assert compared == 96 , compared;
+        } finally {
+            JacRuntime.exec_ctx = previous;
+            ctx.close();
+        }
+    }
+}
+
+test "TTG structured layered query matches legacy matrix" {
+    with TemporaryDirectory() as td {
+        previous = JacRuntime.exec_ctx;
+        ctx = _ctx(td);
+        JacRuntime.exec_ctx = ctx;
+        try {
+            (alice, bobs, shared, tweets) = _seed_overlap_budget(ctx);
+            ctx.mem.commit();
+            store = ctx.mem.store;
+            assert store is not None;
+            origins = [alice, bobs[0]];
+            compared = 0;
+            for specs in _sql_comparison_specs() {
+                for has_undirected in [False, True] {
+                    for include_roots in [False, True] {
+                        for seen in [[], [alice, bobs[1]]] {
+                            with patch.dict(
+                                os.environ,
+                                {
+                                    'JAC_TTG_PREFETCH_OWNER_ROOTS': '1'
+                                        if include_roots
+                                        else '0'
+                                }
+                            ) {
+                                (sql, params) = legacy_layered(
+                                    specs, 12, has_undirected
+                                );
+                                params['frontier_ids'] = [str(uid) for uid in origins];
+                                params['seen_ids'] = [str(uid) for uid in seen]
+                                    if seen
+                                    else ['00000000-0000-0000-0000-000000000000'];
+                                params['seen_count'] = len(seen);
+                                params['limit'] = 12;
+                                expected = store.rows(sql, params);
+                                compiled = compile_layered(
+                                    specs,
+                                    origins,
+                                    seen,
+                                    12,
+                                    has_undirected,
+                                    include_roots
+                                );
+                                actual = store.rows(compiled.sql, compiled.params);
+                                assert actual == expected , (
+                                    specs,
+                                    has_undirected,
+                                    include_roots,
+                                    seen,
+                                    actual,
+                                    expected
+                                );
+                                compared += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            assert compared == 48 , compared;
+        } finally {
+            JacRuntime.exec_ctx = previous;
+            ctx.close();
+        }
+    }
+}
+
+
+def _legacy_layered_plan(
+    store: any, origins: list[UUID], specs: list[dict], limit: int, has_undirected: bool
+) -> tuple[list[UUID], dict[UUID, str]] {
+    (sql, base) = legacy_layered(specs, limit, has_undirected);
+    prefetch: list[UUID] = [];
+    seen: set[UUID] = set();
+    expanded: set[UUID] = set();
+    frontier = list(origins);
+    depth = 0;
+    types: dict[UUID, str] = {};
+    while frontier and len(prefetch) < limit and depth < limit {
+        params = dict(base);
+        params['frontier_ids'] = [str(uid) for uid in frontier];
+        params['seen_ids'] = [str(uid) for uid in seen]
+            if seen
+            else ['00000000-0000-0000-0000-000000000000'];
+        params['seen_count'] = len(seen);
+        params['limit'] = limit - len(prefetch);
+        rows = store.rows(sql, params);
+        next_frontier: list[UUID] = [];
+        next_seen: set[UUID] = set();
+        for row in rows {
+            uid = UUID(str(row[1]));
+            if uid in seen {
+                continue;
+            }
+            if len(prefetch) >= limit {
+                break;
+            }
+            seen.add(uid);
+            prefetch.append(uid);
+            types[uid] = str(row[2] or 'unknown');
+            if bool(row[5]) and uid not in expanded and uid not in next_seen {
+                next_seen.add(uid);
+                next_frontier.append(uid);
+            }
+        }
+        expanded.update(frontier);
+        frontier = next_frontier;
+        depth += 1;
+    }
+    return (prefetch, types);
+}
+
+test "TTG layered runtime matches legacy iteration with undirected edges" {
+    with TemporaryDirectory() as td {
+        previous = JacRuntime.exec_ctx;
+        ctx = _ctx(td);
+        JacRuntime.exec_ctx = ctx;
+        try {
+            (alice, bobs, shared, tweets) = _seed_overlap_budget(ctx);
+            ctx.mem.commit();
+            store = ctx.mem.store;
+            assert store is not None;
+            origins = [alice, bobs[0]];
+            compared = 0;
+            for undirected in [False, True] {
+                if undirected {
+                    alice_anchor = ctx.mem.get(alice);
+                    assert isinstance(alice_anchor, NodeAnchor);
+                    owner = _root(ctx);
+                    outside = _owned_node(
+                        ctx, owner, GTIProfile(name='undirected-only')
+                    );
+                    connection = _connect(
+                        ctx, outside, alice_anchor, _as_any(GTIFollow())
+                    );
+                    connection.is_undirected = True;
+                    ctx.mem.put(connection);
+                    ctx.mem.commit();
+                }
+                for specs in _sql_comparison_specs() {
+                    for limit in [3, 12, 30] {
+                        for roots in [False, True] {
+                            with patch.dict(
+                                os.environ,
+                                {'JAC_TTG_PREFETCH_OWNER_ROOTS': '1' if roots else '0'}
+                            ) {
+                                (expected, expected_types) = _legacy_layered_plan(
+                                    store, origins, specs, limit, undirected
+                                );
+                                actual_types: dict[UUID, str] = {};
+                                actual = _resolve_sql_visit_bfs_layered_budgeted(
+                                    ctx.mem, origins, specs, limit, actual_types
+                                );
+                                assert actual == expected , (
+                                    specs,
+                                    limit,
+                                    roots,
+                                    undirected,
+                                    actual,
+                                    expected
+                                );
+                                assert actual_types == expected_types , (
+                                    actual_types,
+                                    expected_types
+                                );
+                                compared += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            assert compared == 72 , compared;
+        } finally {
+            JacRuntime.exec_ctx = previous;
+            ctx.close();
         }
     }
 }
