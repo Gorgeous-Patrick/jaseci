@@ -881,7 +881,7 @@ def _nullable_boolean(
 def _validate_frame(frame: WindowFrame);
 def _children(expr: ExprNode) -> tuple[ExprNode, ...];
 def _merge_checked(items: list[Checked]) -> Checked;
-def _sum(term: ExprNode) -> ExprNode;
+def _sum(term: ExprNode, result: DataType) -> ExprNode;
 def _aggregate_type(ast: AggregateNode) -> DataType;
 def _validate_order(order: Order);
 

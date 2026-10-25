@@ -78,6 +78,27 @@ class StaticTypes(unittest.TestCase) {
         };
         self.assertEqual(actual, expected, output);
     }
+
+    def test_typed_builder_arguments(self: StaticTypes) -> object {
+        fixture = ROOT / 'jac/tests/sql/fixtures/invalid_typed_builders.jac';
+        result = subprocess.run(
+            [sys.executable, '-m', 'jaclang', 'check', str(fixture)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True
+        );
+        output = result.stdout + result.stderr;
+        self.assertNotEqual(result.returncode, 0, output);
+        expected = {
+            i
+            for (i, line) in enumerate(fixture.read_text().splitlines(), 1)
+            if '# invalid' in line
+        };
+        actual = {
+            int(x) for x in re.findall(r'invalid_typed_builders\.jac:(\d+):\d+', output)
+        };
+        self.assertEqual(actual, expected, output);
+    }
 }
 
 
@@ -95,4 +116,8 @@ test "Static types: temporary names are not API arguments" {
 
 test "Static types: advanced SQL arguments" {
     run_case(StaticTypes("test_advanced_invalid_arguments"));
+}
+
+test "Static types: typed builders reject invalid arguments" {
+    run_case(StaticTypes("test_typed_builder_arguments"));
 }

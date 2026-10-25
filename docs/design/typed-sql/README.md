@@ -25,6 +25,10 @@ The analyzer verifies these proofs against query structure.
 Typed `Field[T]` keys identify columns. Row shape is a checked `Schema` value;
 column lookup checks names, SQL types and nullability. Jac checks expression
 categories and typed arguments; query analysis checks dynamic row shape and scope.
+Constructors omit duplicate checks for statically established argument contracts.
+Constraints not encoded by the signatures remain checked. SQL compilation checks context-dependent semantics
+and dynamic schemas. Value checks such as integer bounds, nonempty operands and
+parameter binding remain where their values become available.
 
 ## Construction example
 
@@ -183,10 +187,10 @@ Low-level AST construction receives the same semantic analysis as public builder
 
 ## Verification
 
-The suite contains 165 native Jac test entries: 56 SQLite cases, the same
-56 PostgreSQL cases, 43 PostgreSQL feature cases, four static-check tests and
-six cache regression tests.
-The static fixtures verify all 31 invalid calls at their expected source lines;
+The suite contains 167 native Jac test entries: 56 SQLite cases, the same
+56 PostgreSQL cases, 43 PostgreSQL feature cases, five static-check tests and
+seven builder/cache regression tests.
+The static fixtures verify all 52 invalid calls at their expected source lines;
 positive checking covers the module and a valid-call fixture.
 
 ```sh

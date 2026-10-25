@@ -1012,7 +1012,7 @@ class FeatureTests(PostgresTests) {
         self.db.execute('DELETE FROM people');
         self.assertEqual(self.execute(query), [(None, )]);
         with self.assertRaises(s.SqlError) {
-            s.bool_or(s.int64(1));
+            s.compile_sql(s.select([s.named('bad', s.bool_or(s.int64(1)))]));
         }
     }
 

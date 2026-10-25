@@ -386,22 +386,19 @@ class SQLTests(unittest.TestCase) {
 
     def test_wrong_expression_categories_and_types(self: SQLTests) -> object {
         with self.assertRaises(s.SqlError) {
-            s.eq(s.int64(1), s.text('a'));
+            s.compile_sql(s.select([s.named('bad', s.eq(s.int64(1), s.text('a')))]));
         }
         with self.assertRaises(s.SqlError) {
-            s.add(s.text('a'), s.text('b'));
+            s.compile_sql(s.select([s.named('bad', s.add(s.text('a'), s.text('b')))]));
         }
         with self.assertRaises(s.SqlError) {
-            s.and_([s.int64(1)]);
+            s.compile_sql(s.select([s.named('bad', s.and_([s.int64(1)]))]));
         }
         with self.assertRaises(s.SqlError) {
-            s.select([s.named('n', s.int64(1))], where=s.int64(1));
+            s.compile_sql(s.select([s.named('n', s.int64(1))], where=s.int64(1)));
         }
         with self.assertRaises(s.SqlError) {
             s.compile_sql(s.int64(1));
-        }
-        with self.assertRaises(s.SqlError) {
-            s.named('n', s.select([s.named('n', s.int64(1))]));
         }
     }
 

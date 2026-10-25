@@ -247,9 +247,9 @@ impl validate_value(
 impl _compare[T](
     left: ScalarExpr[T], right: ScalarExpr[T], op: str
 ) -> ScalarExpr[SqlBool] {
-    if not same_type(left.ast.dtype, right.ast.dtype) or left.ast.dtype.nullable {
+    if left.ast.dtype.nullable {
         raise SqlError(
-            'Comparison requires identical non-null SQL types; use eq_nullable for NULL'
+            'Comparison requires non-null SQL types; use eq_nullable for NULL'
         );
     }
     return ScalarExpr(
@@ -272,9 +272,6 @@ impl gt[T](left: ScalarExpr[T], right: ScalarExpr[T]) -> ScalarExpr[SqlBool] {
 impl eq_nullable[T](
     left: ScalarExpr[Nullable[T]], right: ScalarExpr[Nullable[T]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if not same_type(left.ast.dtype, right.ast.dtype) or not left.ast.dtype.nullable {
-        raise SqlError('eq_nullable requires identical nullable types');
-    }
     return ScalarExpr(
         BinaryNode(
             dtype=DataType('boolean', True), op='=', left=left.ast, right=right.ast
@@ -285,11 +282,6 @@ impl eq_nullable[T](
 impl add(
     left: ScalarExpr[SqlInt64], right: ScalarExpr[SqlInt64]
 ) -> ScalarExpr[SqlInt64] {
-    for term in [left.ast, right.ast] {
-        if term.dtype.name != 'bigint' or term.dtype.nullable {
-            raise SqlError('add requires non-null int64 operands');
-        }
-    }
     return ScalarExpr(
         BinaryNode(dtype=DataType('bigint'), op='+', left=left.ast, right=right.ast)
     );
@@ -299,20 +291,12 @@ impl and_(terms: list[ScalarExpr[SqlBool]]) -> ScalarExpr[SqlBool] {
     if not terms {
         raise SqlError('and_ requires at least one operand');
     }
-    for term in terms {
-        if term.ast.dtype.name != 'boolean' or term.ast.dtype.nullable {
-            raise SqlError('and_ requires non-null boolean operands');
-        }
-    }
     return ScalarExpr(
         BoolNode(dtype=DataType('boolean'), op='AND', terms=tuple(t.ast for t in terms))
     );
 }
 
 impl is_null[T](term: ScalarExpr[Nullable[T]]) -> ScalarExpr[SqlBool] {
-    if not term.ast.dtype.nullable {
-        raise SqlError('is_null expects a nullable expression');
-    }
     return ScalarExpr(
         UnaryNode(dtype=DataType('boolean'), op='IS NULL', term=term.ast)
     );
@@ -333,9 +317,6 @@ impl count -> ScalarExpr[SqlInt64] {
 }
 
 impl sum_(term: ScalarExpr[SqlFloat64]) -> ScalarExpr[Nullable[SqlFloat64]] {
-    if term.ast.dtype.name != 'double precision' or term.ast.dtype.nullable {
-        raise SqlError('sum_ expects float64');
-    }
     return ScalarExpr(
         AggregateNode(dtype=DataType('double precision', True), op='SUM', term=term.ast)
     );
@@ -344,18 +325,12 @@ impl sum_(term: ScalarExpr[SqlFloat64]) -> ScalarExpr[Nullable[SqlFloat64]] {
 impl coalesce[T](
     term: ScalarExpr[Nullable[T]], fallback: ScalarExpr[T]
 ) -> ScalarExpr[T] {
-    a = term.ast.dtype;
-    b = fallback.ast.dtype;
-    if not a.nullable or b.nullable or a.name != b.name {
-        raise SqlError('Invalid COALESCE types');
-    }
-    return ScalarExpr(CoalesceNode(dtype=b, term=term.ast, fallback=fallback.ast));
+    return ScalarExpr(
+        CoalesceNode(dtype=fallback.ast.dtype, term=term.ast, fallback=fallback.ast)
+    );
 }
 
 impl named[T](name: str, expr: ScalarExpr[T]) -> Projection[T] {
-    if not isinstance(expr, ScalarExpr) {
-        raise SqlError('Projection requires a scalar expression');
-    }
     return Projection(field=Field(name=name, dtype=expr.ast.dtype), expr=expr.ast);
 }
 
@@ -370,9 +345,6 @@ impl desc[T](expr: ScalarExpr[T], nulls: str = '') -> Order {
 impl inner_join(
     source: Source, on: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> Join {
-    if on.ast.dtype.name != 'boolean' {
-        raise SqlError('JOIN ON requires a boolean');
-    }
     return Join(source=source, condition=on.ast);
 }
 
@@ -388,12 +360,6 @@ impl select(
     distinct: bool = False,
     distinct_on: list[ExprNode] = []
 ) -> Relation[Schema, Many] {
-    if where is not None and where.ast.dtype.name != 'boolean' {
-        raise SqlError('WHERE requires a boolean');
-    }
-    if having is not None and having.ast.dtype.name != 'boolean' {
-        raise SqlError('HAVING requires a boolean');
-    }
     if limit is not None and (type(limit) is not int or limit < 0) {
         raise SqlError('LIMIT must be a non-negative integer');
     }
@@ -1560,9 +1526,8 @@ impl compare_nullable[T](
 }
 
 impl or_(terms: list[ScalarExpr[SqlBool]]) -> ScalarExpr[SqlBool] {
-    if not terms
-        or not all([same_type(t.ast.dtype, DataType('boolean')) for t in terms]) {
-        raise SqlError('OR requires non-null booleans');
+    if not terms {
+        raise SqlError('OR requires at least one operand');
     }
     return ScalarExpr(
         BoolNode(dtype=DataType('boolean'), op='OR', terms=tuple(t.ast for t in terms))
@@ -1572,8 +1537,8 @@ impl or_(terms: list[ScalarExpr[SqlBool]]) -> ScalarExpr[SqlBool] {
 impl _nullable_boolean(
     op: str, terms: list[ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if not terms or not all([t.ast.dtype.name == 'boolean' for t in terms]) {
-        raise SqlError('Boolean terms required');
+    if not terms {
+        raise SqlError('Boolean operation requires at least one operand');
     }
     return ScalarExpr(
         BoolNode(
@@ -1595,18 +1560,12 @@ impl or_nullable(
 }
 
 impl not_(term: ScalarExpr[SqlBool]) -> ScalarExpr[SqlBool] {
-    if not same_type(term.ast.dtype, DataType('boolean')) {
-        raise SqlError('NOT requires a boolean');
-    }
     return ScalarExpr(UnaryNode(dtype=term.ast.dtype, op='NOT', term=term.ast));
 }
 
 impl not_nullable(
     term: ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if not same_type(term.ast.dtype, DataType('boolean', True)) {
-        raise SqlError('Nullable NOT requires a nullable boolean');
-    }
     return ScalarExpr(UnaryNode(dtype=term.ast.dtype, op='NOT', term=term.ast));
 }
 
@@ -1631,10 +1590,6 @@ impl in_[T](term: ScalarExpr[T], items: list[ScalarExpr[T]]) -> ScalarExpr[SqlBo
 impl sub(
     left: ScalarExpr[SqlInt64], right: ScalarExpr[SqlInt64]
 ) -> ScalarExpr[SqlInt64] {
-    if not same_type(left.ast.dtype, DataType('bigint'))
-        or not same_type(right.ast.dtype, DataType('bigint')) {
-        raise SqlError('Subtraction requires int64 operands');
-    }
     return ScalarExpr(
         BinaryNode(dtype=DataType('bigint'), op='-', left=left.ast, right=right.ast)
     );
@@ -1737,38 +1692,25 @@ impl _call_type(op: str, args: tuple[ExprNode, ...]) -> DataType {
     raise SqlError('Invalid typed SQL function: ' + op);
 }
 
-impl _sum(term: ExprNode) -> ExprNode {
-    ast = AggregateNode(dtype=DataType('numeric', True), op='SUM', term=term);
-    return AggregateNode(dtype=_aggregate_type(ast), op='SUM', term=term);
+impl _sum(term: ExprNode, result: DataType) -> ExprNode {
+    return AggregateNode(dtype=result, op='SUM', term=term);
 }
 
 impl sum_int32(term: ScalarExpr[SqlInt32]) -> ScalarExpr[Nullable[SqlInt64]] {
-    if term.ast.dtype.name != 'integer' or term.ast.dtype.nullable {
-        raise SqlError('Invalid sum_int32 input type');
-    }
-    return ScalarExpr(_sum(term.ast));
+    return ScalarExpr(_sum(term.ast, DataType('bigint', True)));
 }
 
 impl sum_int64(term: ScalarExpr[SqlInt64]) -> ScalarExpr[Nullable[SqlNumeric]] {
-    if term.ast.dtype.name != 'bigint' or term.ast.dtype.nullable {
-        raise SqlError('Invalid sum_int64 input type');
-    }
-    return ScalarExpr(_sum(term.ast));
+    return ScalarExpr(_sum(term.ast, DataType('numeric', True)));
 }
 
 impl sum_numeric(term: ScalarExpr[SqlNumeric]) -> ScalarExpr[Nullable[SqlNumeric]] {
-    if term.ast.dtype.name != 'numeric' or term.ast.dtype.nullable {
-        raise SqlError('Invalid sum_numeric input type');
-    }
-    return ScalarExpr(_sum(term.ast));
+    return ScalarExpr(_sum(term.ast, DataType('numeric', True)));
 }
 
 impl bool_and(
     term: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if term.ast.dtype.name != 'boolean' {
-        raise SqlError('BOOL_AND requires a boolean');
-    }
     return ScalarExpr(
         AggregateNode(dtype=DataType('boolean', True), op='BOOL_AND', term=term.ast)
     );
@@ -1786,7 +1728,6 @@ impl string_agg(
         delimiter=delimiter.ast,
         distinct=distinct
     );
-    _aggregate_type(ast);
     return ScalarExpr(ast);
 }
 
@@ -2716,9 +2657,6 @@ impl sub_int32(
 impl bool_or(
     term: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if term.ast.dtype.name != 'boolean' {
-        raise SqlError('BOOL_OR requires a boolean');
-    }
     return ScalarExpr(
         AggregateNode(dtype=DataType('boolean', True), op='BOOL_OR', term=term.ast)
     );

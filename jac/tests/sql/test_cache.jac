@@ -84,3 +84,43 @@ test "SQL cache: replay free CTE dependencies without rescanning structure" {
         assert len(scan.ctes) == 1 and scan.ctes[0] is c;
     }
 }
+
+test "SQL constructors: typed operations skip duplicate signature analysis" {
+    import from unittest.mock { patch }
+    integer = s.int64(1);
+    small = s.int32(1);
+    numeric = s.numeric(1);
+    floating = s.param(s.float64_type(), 1.0);
+    truth = s.boolean(True);
+    text = s.text('x');
+    optional = s.param(s.nullable(s.int64_type()), None);
+    maybe_bool = s.param(s.nullable(s.bool_type()), None);
+    source = s.table('people', [s.field('n', s.int64_type())]);
+    with patch.object(
+        s, 'same_type', side_effect=AssertionError('constructor repeated type analysis')
+    ), patch.object(
+        s,
+        '_aggregate_type',
+        side_effect=AssertionError('constructor repeated aggregate analysis')
+    ) {
+        expression = s.add(integer, s.sub(integer, integer));
+        s.eq_nullable(optional, optional);
+        s.coalesce(optional, integer);
+        s.is_null(optional);
+        s.and_([truth, s.not_(truth)]);
+        s.or_([truth]);
+        s.and_nullable([truth, maybe_bool]);
+        s.or_nullable([truth, maybe_bool]);
+        s.not_nullable(maybe_bool);
+        s.sum_(floating);
+        s.sum_int32(small);
+        s.sum_int64(integer);
+        s.sum_numeric(numeric);
+        s.bool_and(truth);
+        s.bool_or(maybe_bool);
+        s.string_agg(text, text);
+        s.inner_join(source, truth);
+        query = s.select([s.named('n', expression)], where=truth);
+    }
+    s.compile_sql(query);
+}
