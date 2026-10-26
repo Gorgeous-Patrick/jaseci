@@ -67,11 +67,7 @@ impl Source.ref -> Source {
 }
 
 impl Source.col[T](key: Field[T]) -> ScalarExpr[T] {
-    actual = self.schema.find(key.name);
-    if not same_type(actual.dtype, key.dtype) {
-        raise SqlError(f"Column type mismatch: {key.name}");
-    }
-    return ScalarExpr(ast=ColumnNode(dtype=actual.dtype, source=self, name=key.name));
+    return ScalarExpr(ast=ColumnNode(dtype=key.dtype, source=self, name=key.name));
 }
 
 impl CteBinding.__setattr__(name: str, value: any) {

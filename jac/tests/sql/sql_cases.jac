@@ -178,7 +178,9 @@ class SQLTests(unittest.TestCase) {
             [('Ann', ), ('Bob', ), ('Cora', )]
         );
         with self.assertRaisesRegex(s.SqlError, 'Unknown column') {
-            source.col(self.age);
+            _checked_sql(
+                s.select([s.named('age', source.col(self.age))], source=source)
+            );
         }
         with self.assertRaisesRegex(s.SqlError, 'outside scope') {
             _checked_sql(s.select([s.named('name', self.people.col(self.name))]));
@@ -747,7 +749,12 @@ class SQLTests(unittest.TestCase) {
 
     def test_source_field_schema_validation(self: SQLTests) -> object {
         with self.assertRaises(s.SqlError) {
-            self.people.col(s.field('age', s.text_type()));
+            _checked_sql(
+                s.select(
+                    [s.named('age', self.people.col(s.field('age', s.text_type())))],
+                    source=self.people
+                )
+            );
         }
         with self.assertRaises(s.SqlError) {
             s.table('bad', [self.id, self.id], 'b');

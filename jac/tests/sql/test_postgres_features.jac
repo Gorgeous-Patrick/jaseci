@@ -238,7 +238,7 @@ class FeatureTests(PostgresTests) {
         );
         self.assertEqual(self.execute(query), [(1, 1), (2, None), (3, None)]);
         with self.assertRaises(s.SqlError) {
-            pets.col(owner);
+            _checked_sql(s.select([s.named('owner', pets.col(owner))], source=pets));
         }
         raw = s.Join(
             source=self.people.ref(), condition=s.boolean(True).ast, kind='LEFT'

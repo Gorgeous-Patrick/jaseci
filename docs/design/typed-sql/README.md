@@ -22,7 +22,10 @@ a nullable value; `scalar_one` preserves the type of a proven exactly-one result
 including DISTINCT and DISTINCT ON; `aggregate` constructs the second.
 The explicit diagnostic analyzer can verify these proofs against query structure.
 
-Typed `Field[T]` keys identify columns. Jac's static checker checks expression
+Typed `Field[T]` keys identify columns. `source.col(key)` creates a column reference
+directly from the key's name and SQL type without deriving or searching the source
+schema. Callers supply keys matching their source; explicit diagnostics can check
+that correspondence. Jac's static checker checks expression
 categories and typed arguments. Builders retain local value constraints such as
 integer bounds, nonempty operands, and supported operations. `compile_sql` plans
 CTE definitions and generated names, renders SQL, and collects parameters. It
@@ -190,9 +193,9 @@ local to one compilation. Recursive CTE definitions use single-assignment bindin
 
 ## Verification
 
-The suite contains 171 native Jac test entries: 56 SQLite cases, the same
+The suite contains 172 native Jac test entries: 56 SQLite cases, the same
 56 PostgreSQL cases, 43 PostgreSQL feature cases, five static-check tests and
-eleven builder/cache regression tests.
+twelve builder/cache regression tests.
 The static fixtures verify all 52 invalid calls at their expected source lines;
 positive checking covers the module and a valid-call fixture.
 

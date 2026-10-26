@@ -195,3 +195,24 @@ test "SQL compilation: low-level AST typing is the caller contract" {
     assert 'text' in compiled.sql;
     assert list(compiled.params.values()) == ['abc'];
 }
+
+
+test "SQL columns: typed field access does not derive or search schemas" {
+    import from unittest.mock { patch }
+    key = s.field('n', s.int64_type());
+    a = s.select([s.named('n', s.int64(1))]);
+    b = s.select([s.named('n', s.int64(2))]);
+    source = s.union_all(a, b).as_source();
+    with patch.object(
+        s.Schema, 'find', side_effect=AssertionError('unexpected field lookup')
+    ), patch.object(
+        s, '_set_schema', side_effect=AssertionError('unexpected schema derivation')
+    ) {
+        column = source.col(key);
+    }
+    assert column.ast.dtype is key.dtype;
+    column_ast: any = column.ast;
+    assert column_ast.name == 'n';
+    assert column_ast.source is source;
+    s.compile_sql(s.select([s.named('n', column)], source=source));
+}
