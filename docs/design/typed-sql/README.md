@@ -1,6 +1,6 @@
 # Typed SQL module
 
-`jaclang.sql` represents PostgreSQL queries as immutable, typed structural values.
+`jaclang.sql` represents PostgreSQL queries as typed structural values.
 `compile_sql(query)` analyzes a query and returns SQL plus named parameter bindings.
 The portable module consists of [`sql.jac`](../../../jac/jaclang/sql.jac) and
 [`impl/sql.impl.jac`](../../../jac/jaclang/impl/sql.impl.jac). Its imports are the
@@ -20,11 +20,19 @@ SELECT is a relational expression. Scalar-subquery conversion is explicit:
 a nullable value; `scalar_one` preserves the type of a proven exactly-one result.
 `limit_one` constructs the first proof while preserving the SELECT clauses,
 including DISTINCT and DISTINCT ON; `aggregate` constructs the second.
-The analyzer verifies these proofs against query structure.
+The explicit diagnostic analyzer can verify these proofs against query structure.
 
-Typed `Field[T]` keys identify columns. Row shape is a checked `Schema` value;
-column lookup checks names, SQL types and nullability. Jac checks expression
-categories and typed arguments; query analysis checks dynamic row shape and scope.
+Typed `Field[T]` keys identify columns. `source.col(key)` creates a column reference
+directly from the key's name and SQL type without deriving or searching the source
+schema. Callers supply keys matching their source; explicit diagnostics can check
+that correspondence. Jac's static checker checks expression
+categories and typed arguments. Builders retain local value constraints such as
+integer bounds, nonempty operands, and supported operations. `compile_sql` plans
+CTE definitions and generated names, renders SQL, and collects parameters. It
+trusts the typed builder contract instead of running whole-query semantic analysis.
+Dynamic SQL semantics such as grouping and visibility are checked by PostgreSQL.
+Internal callers can explicitly run `QueryValidator().analyze(query)` for detailed
+AST diagnostics. Direct AST edits and `Any` can bypass the static contract.
 
 ## Construction example
 
@@ -110,13 +118,13 @@ joined = select(
 
 `query.as_source(lateral=True)` can reference preceding sources in its enclosing
 FROM/JOIN sequence. An ordinary derived source can refer to ancestor query scopes.
-Table functions receive the preceding-source scope implicitly. Analysis checks
+Table functions receive the preceding-source scope implicitly. Explicit diagnostics check
 JOIN visibility sequentially and propagates outer dependencies to enclosing
 queries. GROUP BY coverage checks local columns while retaining those outer
 references for the enclosing query's checks.
 
 `ordered(query, [asc(output(key))])` orders a set result by its typed output columns.
-DISTINCT ON checks leading ORDER BY keys, including permitted permutations.
+Explicit diagnostics check DISTINCT ON leading ORDER BY keys, including permitted permutations.
 
 An empty `in_(term, [])` renders membership in a typed empty subquery, retaining
 `term` in the SQL. Aggregates and windows inside that term preserve the SELECT's
@@ -137,7 +145,8 @@ materialized=True)` and `materialized=False` select PostgreSQL materialization
 attributes. Consecutive local WITH wrappers are normalized at rendering.
 A shared query can be used both inside a local WITH and through automatic CTE
 binding elsewhere. The compiler preserves both binding scopes; duplicate explicit
-bindings in the same or enclosing local scope are rejected.
+bindings within one WITH are rejected by structural planning. Explicit diagnostics
+also check nested binding visibility.
 
 Recursion has an explicit single-assignment forward reference:
 
@@ -155,44 +164,45 @@ step = with_ctes(
 define_cte(walk, union_all(anchor, step), recursive=True);
 ```
 
-Recursive definitions use UNION or UNION ALL. The analyzer checks the anchor,
+Recursive definitions use UNION or UNION ALL. The explicit diagnostic analyzer checks the anchor,
 compatible output schemas and exactly one structural self-reference in the step.
 That reference can occur through derived queries or a local CTE definition.
 Windows and local deduplication/budget stages retain their own query regions.
 Ordinary grouping aggregates may feed window arguments, partition keys and order
 keys; their grouping and row-count facts propagate to the enclosing SELECT.
 Direct recursive aggregation, scalar-subquery self-reference and references on
-an outer join's nullable side are rejected. Recursive termination follows the
+an outer join's nullable side are rejected by explicit diagnostics. Recursive termination follows the
 query predicate. Parenthesized wrappers preserve arm-local ordering and limits.
 
-## Compilation and immutability
+## Compilation and AST lifetime
 
-1. `QueryGraph` traverses structural containment and queues automatic CTE references.
-   Explicit local bindings stay inside their lexical query scope. Structural dependency
-   summaries are cached per immutable node and reused at every occurrence.
-2. `QueryValidator` checks expression signatures, types, scope, grouping, windows,
-   cardinality and recursive-reference placement. It resolves generated names and
-   returns a `ValidatedQuery` plan.
-3. `PostgresRenderer` serializes that plan and assigns parameter bindings.
+1. `QueryGraph` collects structural dependencies, parameter slots, source bindings
+   and local WITH wrappers. Shared structural summaries are reused per compilation.
+2. `QueryPlanner` orders CTE definitions and assigns generated names in a rendering plan.
+3. `PostgresRenderer` emits SQL text and bound parameters. A compile-local schema
+   dictionary supplies output column names where SQL rendering needs them.
 
-Query values, expressions, schemas and field definitions reject reassignment and
-deletion. Nested sequence inputs are copied into tuples. Rebuild a query to change
-it. SELECT schema derives from projections; set schemas derive from their arms;
-source bindings read their targets. Recursive CTEs close through one-time binding.
-Low-level AST construction receives the same semantic analysis as public builders.
+`compile_sql` does not call `QueryValidator`, infer every expression's type, or
+compute scope/grouping facts. The existing diagnostic analyzer remains available
+for explicit checks and malformed-AST regression coverage.
+
+AST values can be edited between compilations. Each compilation produces independent
+SQL text, parameter values and slot metadata. No AST or schema cache is retained in
+`CompiledSQL`. Compile again to use AST edits. All dependency and schema caches are
+local to one compilation. Recursive CTE definitions use single-assignment binding.
 
 ## Verification
 
-The suite contains 165 native Jac test entries: 56 SQLite cases, the same
-56 PostgreSQL cases, 43 PostgreSQL feature cases, four static-check tests and
-six cache regression tests.
-The static fixtures verify all 31 invalid calls at their expected source lines;
+The suite contains 172 native Jac test entries: 56 SQLite cases, the same
+56 PostgreSQL cases, 43 PostgreSQL feature cases, five static-check tests and
+twelve builder/cache regression tests.
+The static fixtures verify all 52 invalid calls at their expected source lines;
 positive checking covers the module and a valid-call fixture.
 
 ```sh
-jac test jac/tests/sql/test_sql.jac jac/tests/sql/test_types.jac jac/tests/sql/test_cache.jac -v
+jac test jac/tests/sql/test_sql.jac jac/tests/sql/test_types.jac jac/tests/sql/test_cache.jac -j 1 -v
 JAC_SQL_PG_SOCKET=/path/to/.s.PGSQL.PORT \
-  jac test jac/tests/sql/test_postgres.jac jac/tests/sql/test_postgres_features.jac -v
+  jac test jac/tests/sql/test_postgres.jac jac/tests/sql/test_postgres_features.jac -j 1 -v
 jac fmt --check --lintfix jac/jaclang/sql.jac \
   jac/jaclang/impl/sql.impl.jac jac/tests/sql/*.jac
 ```
@@ -201,18 +211,18 @@ PostgreSQL fixtures use a disposable cluster, account `sql_test`, database
 `postgres`, and transaction-local tables rolled back after each test. Coverage
 includes combined recursive frontier/dedup/window queries, nullable parent columns,
 multiple recursive CTEs, standalone step reuse, parameter quoting, scope/type
-rejections and module portability under a different name.
+diagnostics and module portability under a different name.
 
 PostgreSQL semantics references: [WITH queries](https://www.postgresql.org/docs/current/queries-with.html),
 [table expressions](https://www.postgresql.org/docs/current/queries-table-expressions.html),
 and [aggregate functions](https://www.postgresql.org/docs/current/functions-aggregate.html).
 
-## Validation reuse
+## Explicit diagnostics
 
-Immutable SELECT and set-operation nodes retain their derived schemas. Within
-one compilation, validation results are reused only for the same ordered source
-and CTE scopes. Caches reset for each compilation; scope, projection, recursive
-union and parameter checks remain enforced.
+`QueryValidator().analyze(query)` performs optional type, visibility, grouping and
+recursive-placement analysis. Its scope-sensitive caches reset for each analysis.
+Tests for intentionally malformed low-level ASTs invoke this diagnostic path
+explicitly. Positive execution tests use the lightweight `compile_sql` path.
 
 ## Compile once and bind values
 

@@ -85,3 +85,53 @@ test "TTG bind: structure flags and mutated specs select distinct plans" {
         assert compiler.call_count == 8;
     }
 }
+
+
+test "TTG columns: local field descriptors and column references are reused" {
+    import from jaclang.runtime.ttg_sql { _BuildColumns }
+    a = q.select([q.named('n', q.int64(1)), q.named('m', q.int64(2))]);
+    b = q.select([q.named('n', q.int64(3)), q.named('m', q.int64(4))]);
+    source = q.union_all(a, b).as_source();
+    previous_keys = set(source.__dict__);
+    cols = _BuildColumns();
+    with patch.object(
+        q.Schema, 'find', side_effect=AssertionError('field lookup repeated')
+    ), patch.object(
+        q, '_set_schema', side_effect=AssertionError('schema derivation repeated')
+    ) {
+        n = cols.col(source, 'n');
+        assert cols.col(source, 'n') is n;
+        assert cols.pick(source, ['n', 'm'])[0][1] is n;
+        assert cols.names(source) == ['n', 'm'];
+    }
+    assert set(source.__dict__) == previous_keys;
+}
+
+
+test "TTG columns: constructor contexts do not retain stale field types" {
+    import from jaclang.runtime.ttg_sql { _BuildColumns }
+    query = q.select([q.named('n', q.int64(1))]);
+    source = query.as_source();
+    first = _BuildColumns();
+    old_column = first.col(source, 'n');
+    replacement = q.select([q.named('n', q.text('changed'))]);
+    query.ast.projections = replacement.ast.projections;
+    second = _BuildColumns();
+    new_column = second.col(source, 'n');
+    assert old_column.ast.dtype.name == 'bigint';
+    assert new_column.ast.dtype.name == 'text';
+    assert old_column is not new_column;
+}
+
+
+test "TTG columns: source bindings keep distinct column identities" {
+    import from jaclang.runtime.ttg_sql { _BuildColumns }
+    source = q.table('people', [q.field('id', q.int64_type())]);
+    other = source.ref();
+    cols = _BuildColumns();
+    a = cols.col(source, 'id');
+    b = cols.col(other, 'id');
+    assert a is not b;
+    assert a.ast.source is source;
+    assert b.ast.source is other;
+}

@@ -80,24 +80,24 @@ test "SQLite: aggregate validation" {
     run_case(SQLTests("test_aggregate_validation"));
 }
 
-test "SQLite: query and expression are immutable" {
-    run_case(SQLTests("test_query_and_expression_are_immutable"));
+test "SQLite: compiled query survives ast edits" {
+    run_case(SQLTests("test_compiled_query_survives_ast_edits"));
 }
 
 test "SQLite: source field schema validation" {
     run_case(SQLTests("test_source_field_schema_validation"));
 }
 
-test "SQLite: projection expression is immutable" {
-    run_case(SQLTests("test_projection_expression_is_immutable"));
+test "SQLite: edited projection type is checked" {
+    run_case(SQLTests("test_edited_projection_type_is_checked"));
 }
 
 test "SQLite: derived schema comes from query" {
     run_case(SQLTests("test_derived_schema_comes_from_query"));
 }
 
-test "SQLite: projection nullability is immutable" {
-    run_case(SQLTests("test_projection_nullability_is_immutable"));
+test "SQLite: edited projection nullability is checked" {
+    run_case(SQLTests("test_edited_projection_nullability_is_checked"));
 }
 
 test "SQLite: query rebuild preserves original" {
@@ -152,8 +152,8 @@ test "SQLite: auto source aliases for self join" {
     run_case(SQLTests("test_auto_source_aliases_for_self_join"));
 }
 
-test "SQLite: recursive union is immutable" {
-    run_case(SQLTests("test_recursive_union_is_immutable"));
+test "SQLite: edited recursive union is checked" {
+    run_case(SQLTests("test_edited_recursive_union_is_checked"));
 }
 
 test "SQLite: recursive step can be reused" {

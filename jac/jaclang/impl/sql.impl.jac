@@ -1,14 +1,3 @@
-impl SqlValue.__setattr__(name: str, value: any) {
-    if name == '_schema_cache' or name in self.__dict__ {
-        raise SqlError('SQL values are immutable; construct a new value');
-    }
-    object.__setattr__(self, name, _freeze_sql_value(value));
-}
-
-impl SqlValue.__delattr__(name: str) {
-    raise SqlError('SQL values are immutable; construct a new value');
-}
-
 impl DataType.postinit{
     if type(self.name) is not str or type(self.nullable) is not bool {
         raise SqlError('Invalid SQL type metadata');
@@ -78,11 +67,7 @@ impl Source.ref -> Source {
 }
 
 impl Source.col(key: Field[T]) -> ScalarExpr[T] {
-    actual = self.schema.find(key.name);
-    if not same_type(actual.dtype, key.dtype) {
-        raise SqlError(f"Column type mismatch: {key.name}");
-    }
-    return ScalarExpr(ast=ColumnNode(dtype=actual.dtype, source=self, name=key.name));
+    return ScalarExpr(ast=ColumnNode(dtype=key.dtype, source=self, name=key.name));
 }
 
 impl CteBinding.__setattr__(name: str, value: any) {
@@ -247,9 +232,9 @@ impl validate_value(
 impl _compare(
     left: ScalarExpr[T], right: ScalarExpr[T], op: str
 ) -> ScalarExpr[SqlBool] {
-    if not same_type(left.ast.dtype, right.ast.dtype) or left.ast.dtype.nullable {
+    if left.ast.dtype.nullable {
         raise SqlError(
-            'Comparison requires identical non-null SQL types; use eq_nullable for NULL'
+            'Comparison requires non-null SQL types; use eq_nullable for NULL'
         );
     }
     return ScalarExpr(
@@ -272,9 +257,6 @@ impl gt(left: ScalarExpr[T], right: ScalarExpr[T]) -> ScalarExpr[SqlBool] {
 impl eq_nullable(
     left: ScalarExpr[Nullable[T]], right: ScalarExpr[Nullable[T]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if not same_type(left.ast.dtype, right.ast.dtype) or not left.ast.dtype.nullable {
-        raise SqlError('eq_nullable requires identical nullable types');
-    }
     return ScalarExpr(
         BinaryNode(
             dtype=DataType('boolean', True), op='=', left=left.ast, right=right.ast
@@ -285,11 +267,6 @@ impl eq_nullable(
 impl add(
     left: ScalarExpr[SqlInt64], right: ScalarExpr[SqlInt64]
 ) -> ScalarExpr[SqlInt64] {
-    for term in [left.ast, right.ast] {
-        if term.dtype.name != 'bigint' or term.dtype.nullable {
-            raise SqlError('add requires non-null int64 operands');
-        }
-    }
     return ScalarExpr(
         BinaryNode(dtype=DataType('bigint'), op='+', left=left.ast, right=right.ast)
     );
@@ -299,20 +276,12 @@ impl and_(terms: list[ScalarExpr[SqlBool]]) -> ScalarExpr[SqlBool] {
     if not terms {
         raise SqlError('and_ requires at least one operand');
     }
-    for term in terms {
-        if term.ast.dtype.name != 'boolean' or term.ast.dtype.nullable {
-            raise SqlError('and_ requires non-null boolean operands');
-        }
-    }
     return ScalarExpr(
         BoolNode(dtype=DataType('boolean'), op='AND', terms=tuple(t.ast for t in terms))
     );
 }
 
 impl is_null(term: ScalarExpr[Nullable[T]]) -> ScalarExpr[SqlBool] {
-    if not term.ast.dtype.nullable {
-        raise SqlError('is_null expects a nullable expression');
-    }
     return ScalarExpr(
         UnaryNode(dtype=DataType('boolean'), op='IS NULL', term=term.ast)
     );
@@ -333,27 +302,18 @@ impl count -> ScalarExpr[SqlInt64] {
 }
 
 impl sum_(term: ScalarExpr[SqlFloat64]) -> ScalarExpr[Nullable[SqlFloat64]] {
-    if term.ast.dtype.name != 'double precision' or term.ast.dtype.nullable {
-        raise SqlError('sum_ expects float64');
-    }
     return ScalarExpr(
         AggregateNode(dtype=DataType('double precision', True), op='SUM', term=term.ast)
     );
 }
 
 impl coalesce(term: ScalarExpr[Nullable[T]], fallback: ScalarExpr[T]) -> ScalarExpr[T] {
-    a = term.ast.dtype;
-    b = fallback.ast.dtype;
-    if not a.nullable or b.nullable or a.name != b.name {
-        raise SqlError('Invalid COALESCE types');
-    }
-    return ScalarExpr(CoalesceNode(dtype=b, term=term.ast, fallback=fallback.ast));
+    return ScalarExpr(
+        CoalesceNode(dtype=fallback.ast.dtype, term=term.ast, fallback=fallback.ast)
+    );
 }
 
 impl named(name: str, expr: ScalarExpr[T]) -> Projection[T] {
-    if not isinstance(expr, ScalarExpr) {
-        raise SqlError('Projection requires a scalar expression');
-    }
     return Projection(field=Field(name=name, dtype=expr.ast.dtype), expr=expr.ast);
 }
 
@@ -368,9 +328,6 @@ impl desc(expr: ScalarExpr[T], nulls: str = '') -> Order {
 impl inner_join(
     source: Source, on: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> Join {
-    if on.ast.dtype.name != 'boolean' {
-        raise SqlError('JOIN ON requires a boolean');
-    }
     return Join(source=source, condition=on.ast);
 }
 
@@ -386,12 +343,6 @@ impl select(
     distinct: bool = False,
     distinct_on: list[ExprNode] = []
 ) -> Relation[Schema, Many] {
-    if where is not None and where.ast.dtype.name != 'boolean' {
-        raise SqlError('WHERE requires a boolean');
-    }
-    if having is not None and having.ast.dtype.name != 'boolean' {
-        raise SqlError('HAVING requires a boolean');
-    }
     if limit is not None and (type(limit) is not int or limit < 0) {
         raise SqlError('LIMIT must be a non-negative integer');
     }
@@ -559,8 +510,8 @@ impl _schema_equal(a: Schema, b: Schema, names: bool = True) -> bool {
     );
 }
 
-impl validate_union(ast: UnionNode) {
-    ast.schema;
+impl validate_union(ast: UnionNode, schemas: dict[int, Schema] | None = None) {
+    _compile_schema(ast, schemas if schemas is not None else {});
     if ast.cardinality != 'many' or type(ast.keep_duplicates) is not bool {
         raise SqlError('UNION schema/cardinality mismatch');
     }
@@ -691,7 +642,7 @@ impl QueryGraph.scan_query(query: RelationNode) -> None {
 }
 
 
-impl QueryValidator.fresh_name(prefix: str) -> str {
+impl QueryPlanner.fresh_name(prefix: str) -> str {
     while True {
         index = self.cte_counter if prefix == '_cte' else self.alias_counter;
         if prefix == '_cte' {
@@ -707,7 +658,7 @@ impl QueryValidator.fresh_name(prefix: str) -> str {
     }
 }
 
-impl QueryValidator.alias_for(src: Source) -> str {
+impl QueryPlanner.alias_for(src: Source) -> str {
     if isinstance(src, Table) and src.alias {
         validate_identifier(src.alias);
         self.aliases[id(src)] = src.alias;
@@ -723,7 +674,7 @@ impl QueryValidator.alias_for(src: Source) -> str {
     return self.aliases[identity];
 }
 
-impl QueryValidator.order_cte(reference: Cte) -> None {
+impl QueryPlanner.order_cte(reference: Cte) -> None {
     identity = id(reference);
     state = self.cte_states.get(identity, 0);
     if state == 2 {
@@ -752,7 +703,10 @@ impl QueryValidator.order_cte(reference: Cte) -> None {
     self.ordered_ctes.append(reference);
 }
 
-impl QueryValidator.analyze(query: Relation[R, C]) -> ValidatedQuery {
+impl QueryValidator.analyze(
+    query: Relation[R, C], schemas: dict[int, Schema] | None = None
+) -> ValidatedQuery {
+    self.schemas = schemas if schemas is not None else {};
     if not isinstance(query, Relation) {
         raise SqlError('Expected a relation, not a scalar or command');
     }
@@ -830,7 +784,7 @@ impl QueryValidator.source(
             and not same_type(src.ordinality.dtype, DataType('bigint')) {
             raise SqlError('Invalid ordinality type');
         }
-        Schema(tuple(src.schema.fields));
+        Schema(tuple(_compile_schema(src, self.schemas).fields));
         result = self.expr(src.argument, lateral_scope, lateral_scope, ctes);
         if result.aggregate or result.window {
             raise SqlError('Table function cannot contain an aggregate or window');
@@ -858,7 +812,7 @@ impl QueryValidator.expr_uncached(
         if not `any([s is ast.source for s in scope]) {
             raise SqlError(f'Column source is outside scope: {ast.name}');
         }
-        actual = ast.source.schema.find(ast.name);
+        actual = _compile_schema(ast.source, self.schemas).find(ast.name);
         if not same_type(actual.dtype, ast.dtype) {
             raise SqlError('Column type differs from source schema');
         }
@@ -959,7 +913,10 @@ impl QueryValidator.expr_uncached(
         if `any([t.aggregate or t.window for t in terms]) {
             raise SqlError('Nested aggregates/windows require a subquery');
         }
-        local_keys = {_key(s, f.name) for s in local for f in s.schema.fields};
+        local_keys = {
+            _key(s, f.name) for s in local
+            for f in _compile_schema(s, self.schemas).fields
+        };
         free = _merge_checked(terms).free;
         if not free <= local_keys {
             raise SqlError(
@@ -982,7 +939,7 @@ impl QueryValidator.expr_uncached(
     }
     if isinstance(ast, ScalarNode) {
         q = self.query(ast.query, scope, ctes);
-        fields = ast.query.schema.fields;
+        fields = _compile_schema(ast.query, self.schemas).fields;
         allowed = ('exactly_one_aggregate', )
             if ast.require_one
             else ('exactly_one_aggregate', 'at_most_one');
@@ -1037,7 +994,7 @@ impl QueryValidator.query_body(
         return self.select_sql(ast, outer, ctes);
     }
     if isinstance(ast, UnionNode) {
-        validate_union(ast);
+        validate_union(ast, self.schemas);
         a = self.query(ast.left, outer, ctes);
         b = self.query(ast.right, outer, ctes);
         return QueryFacts(external=a.external | b.external);
@@ -1051,12 +1008,14 @@ impl QueryValidator.query_body(
         }
         external: set[str] = set();
         for row in ast.rows {
-            if len(row) != len(ast.schema.fields)
+            if len(row) != len(_compile_schema(ast, self.schemas).fields)
                 or not all(
                     [
                         e.dtype.name == f.dtype.name
                             and (not e.dtype.nullable or f.dtype.nullable)
-                        for (e, f) in zip(row, ast.schema.fields)
+                        for (e, f) in zip(
+                            row, _compile_schema(ast, self.schemas).fields
+                        )
                     ]
                 ) {
                 raise SqlError('VALUES row schema mismatch');
@@ -1106,7 +1065,9 @@ impl QueryValidator.query_body(
             _validate_order(order);
             e = order.expr;
             if not isinstance(e, OutputNode)
-                or not same_type(ast.schema.find(e.name).dtype, e.dtype) {
+                or not same_type(
+                    _compile_schema(ast, self.schemas).find(e.name).dtype, e.dtype
+                ) {
                 raise SqlError('Set ordering requires a typed output column');
             }
         }
@@ -1118,7 +1079,7 @@ impl QueryValidator.query_body(
 impl QueryValidator.select_sql(
     ast: SelectNode, outer: list[Source], ctes: list[Cte]
 ) -> QueryFacts {
-    ast.schema;
+    _compile_schema(ast, self.schemas);
     for projection in ast.projections {
         if not same_type(projection.field.dtype, projection.expr.dtype) {
             raise SqlError(
@@ -1250,7 +1211,9 @@ impl QueryValidator.select_sql(
             'Exactly-one aggregate proof requires an ungrouped, unfiltered aggregate result'
         );
     }
-    local_keys = {_key(s, f.name) for s in local for f in s.schema.fields};
+    local_keys = {
+        _key(s, f.name) for s in local for f in _compile_schema(s, self.schemas).fields
+    };
     for v in checked {
         all_free |= v.free;
         if is_aggregate and not (v.free & local_keys) <= grouped {
@@ -1268,7 +1231,10 @@ impl PostgresRenderer.alias_for(src: Source) -> str {
     return quote_identifier(self.aliases[id(src)]);
 }
 
-impl PostgresRenderer.render(plan: ValidatedQuery) -> CompiledSQL {
+impl PostgresRenderer.render(
+    plan: ValidatedQuery, schemas: dict[int, Schema] | None = None
+) -> CompiledSQL {
+    self.schemas = schemas if schemas is not None else {};
     self.params = {};
     self.parameter_ids = {};
     self.slot_types = dict(plan.slots);
@@ -1292,7 +1258,10 @@ impl PostgresRenderer.render(plan: ValidatedQuery) -> CompiledSQL {
                     + self.query(body)
                     + ') AS "_with_scope"',
                 params=dict(self.params),
-                slots=plan.slots
+                slots=tuple(
+                    (name, DataType(dtype.name, dtype.nullable))
+                    for (name, dtype) in plan.slots
+                )
             );
         }
         bindings.extend(self.local_orders[id(body)]);
@@ -1300,7 +1269,11 @@ impl PostgresRenderer.render(plan: ValidatedQuery) -> CompiledSQL {
     }
     prefix = self.with_sql(tuple(bindings), '');
     return CompiledSQL(
-        sql=prefix + self.query(body), params=dict(self.params), slots=plan.slots
+        sql=prefix + self.query(body),
+        params=dict(self.params),
+        slots=tuple(
+            (name, DataType(dtype.name, dtype.nullable)) for (name, dtype) in plan.slots
+        )
     );
 }
 
@@ -1311,7 +1284,12 @@ impl PostgresRenderer.source(src: Source) -> str {
     if isinstance(target, FunctionSource)
         or (isinstance(target, Derived) and isinstance(target.query, ValuesNode)) {
         columns = ' ('
-            + ', '.join([quote_identifier(f.name) for f in src.schema.fields])
+            + ', '.join(
+                [
+                    quote_identifier(f.name)
+                    for f in _compile_schema(src, self.schemas).fields
+                ]
+            )
             + ')';
     }
     return base + ' AS ' + self.alias_for(src) + columns;
@@ -1334,7 +1312,7 @@ impl PostgresRenderer.expr(ast: ExprNode) -> str {
                 key = 'p' + str(index);
             }
             self.parameter_ids[identity] = key;
-            self.params[key] = ast.value;
+            self.params[key] = _freeze_sql_value(ast.value);
         }
         return 'CAST(:' + self.parameter_ids[identity] + ' AS ' + ast.dtype.name + ')';
     }
@@ -1407,14 +1385,24 @@ impl PostgresRenderer.query(ast: RelationNode) -> str {
                 ['(' + ', '.join([self.expr(e) for e in row]) + ')' for row in ast.rows]
             )
             + ') AS "_values" ('
-            + ', '.join([quote_identifier(f.name) for f in ast.schema.fields])
+            + ', '.join(
+                [
+                    quote_identifier(f.name)
+                    for f in _compile_schema(ast, self.schemas).fields
+                ]
+            )
             + ')';
     }
     if isinstance(ast, OrderedNode) {
         return 'SELECT * FROM ('
             + self.query(ast.body)
             + ') AS "_set" ('
-            + ', '.join([quote_identifier(f.name) for f in ast.schema.fields])
+            + ', '.join(
+                [
+                    quote_identifier(f.name)
+                    for f in _compile_schema(ast, self.schemas).fields
+                ]
+            )
             + ')'
             + (' ORDER BY ' + self.ordering(ast.ordering) if ast.ordering else '')
             + (' LIMIT ' + str(ast.limit) if ast.limit is not None else '');
@@ -1464,8 +1452,9 @@ impl PostgresRenderer.query(ast: RelationNode) -> str {
 
 
 impl compile_sql(query: Relation[R, C]) -> CompiledSQL {
-    plan = QueryValidator().analyze(query);
-    return PostgresRenderer().render(plan);
+    schemas: dict[int, Schema] = {};
+    plan = _plan_sql(query);
+    return PostgresRenderer().render(plan, schemas);
 }
 
 
@@ -1552,9 +1541,8 @@ impl compare_nullable(
 }
 
 impl or_(terms: list[ScalarExpr[SqlBool]]) -> ScalarExpr[SqlBool] {
-    if not terms
-        or not all([same_type(t.ast.dtype, DataType('boolean')) for t in terms]) {
-        raise SqlError('OR requires non-null booleans');
+    if not terms {
+        raise SqlError('OR requires at least one operand');
     }
     return ScalarExpr(
         BoolNode(dtype=DataType('boolean'), op='OR', terms=tuple(t.ast for t in terms))
@@ -1564,8 +1552,8 @@ impl or_(terms: list[ScalarExpr[SqlBool]]) -> ScalarExpr[SqlBool] {
 impl _nullable_boolean(
     op: str, terms: list[ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if not terms or not all([t.ast.dtype.name == 'boolean' for t in terms]) {
-        raise SqlError('Boolean terms required');
+    if not terms {
+        raise SqlError('Boolean operation requires at least one operand');
     }
     return ScalarExpr(
         BoolNode(
@@ -1587,18 +1575,12 @@ impl or_nullable(
 }
 
 impl not_(term: ScalarExpr[SqlBool]) -> ScalarExpr[SqlBool] {
-    if not same_type(term.ast.dtype, DataType('boolean')) {
-        raise SqlError('NOT requires a boolean');
-    }
     return ScalarExpr(UnaryNode(dtype=term.ast.dtype, op='NOT', term=term.ast));
 }
 
 impl not_nullable(
     term: ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if not same_type(term.ast.dtype, DataType('boolean', True)) {
-        raise SqlError('Nullable NOT requires a nullable boolean');
-    }
     return ScalarExpr(UnaryNode(dtype=term.ast.dtype, op='NOT', term=term.ast));
 }
 
@@ -1623,10 +1605,6 @@ impl in_(term: ScalarExpr[T], items: list[ScalarExpr[T]]) -> ScalarExpr[SqlBool]
 impl sub(
     left: ScalarExpr[SqlInt64], right: ScalarExpr[SqlInt64]
 ) -> ScalarExpr[SqlInt64] {
-    if not same_type(left.ast.dtype, DataType('bigint'))
-        or not same_type(right.ast.dtype, DataType('bigint')) {
-        raise SqlError('Subtraction requires int64 operands');
-    }
     return ScalarExpr(
         BinaryNode(dtype=DataType('bigint'), op='-', left=left.ast, right=right.ast)
     );
@@ -1729,38 +1707,25 @@ impl _call_type(op: str, args: tuple[ExprNode, ...]) -> DataType {
     raise SqlError('Invalid typed SQL function: ' + op);
 }
 
-impl _sum(term: ExprNode) -> ExprNode {
-    ast = AggregateNode(dtype=DataType('numeric', True), op='SUM', term=term);
-    return AggregateNode(dtype=_aggregate_type(ast), op='SUM', term=term);
+impl _sum(term: ExprNode, result: DataType) -> ExprNode {
+    return AggregateNode(dtype=result, op='SUM', term=term);
 }
 
 impl sum_int32(term: ScalarExpr[SqlInt32]) -> ScalarExpr[Nullable[SqlInt64]] {
-    if term.ast.dtype.name != 'integer' or term.ast.dtype.nullable {
-        raise SqlError('Invalid sum_int32 input type');
-    }
-    return ScalarExpr(_sum(term.ast));
+    return ScalarExpr(_sum(term.ast, DataType('bigint', True)));
 }
 
 impl sum_int64(term: ScalarExpr[SqlInt64]) -> ScalarExpr[Nullable[SqlNumeric]] {
-    if term.ast.dtype.name != 'bigint' or term.ast.dtype.nullable {
-        raise SqlError('Invalid sum_int64 input type');
-    }
-    return ScalarExpr(_sum(term.ast));
+    return ScalarExpr(_sum(term.ast, DataType('numeric', True)));
 }
 
 impl sum_numeric(term: ScalarExpr[SqlNumeric]) -> ScalarExpr[Nullable[SqlNumeric]] {
-    if term.ast.dtype.name != 'numeric' or term.ast.dtype.nullable {
-        raise SqlError('Invalid sum_numeric input type');
-    }
-    return ScalarExpr(_sum(term.ast));
+    return ScalarExpr(_sum(term.ast, DataType('numeric', True)));
 }
 
 impl bool_and(
     term: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if term.ast.dtype.name != 'boolean' {
-        raise SqlError('BOOL_AND requires a boolean');
-    }
     return ScalarExpr(
         AggregateNode(dtype=DataType('boolean', True), op='BOOL_AND', term=term.ast)
     );
@@ -1778,7 +1743,6 @@ impl string_agg(
         delimiter=delimiter.ast,
         distinct=distinct
     );
-    _aggregate_type(ast);
     return ScalarExpr(ast);
 }
 
@@ -2116,7 +2080,7 @@ impl ge(left: ScalarExpr[T], right: ScalarExpr[T]) -> ScalarExpr[SqlBool] {
     return _compare(left, right, '>=');
 }
 
-impl QueryValidator.local_bindings(
+impl QueryPlanner.local_bindings(
     bindings: tuple[Cte, ...], available: list[Cte]
 ) -> list[Cte] {
     if len({id(c) for c in bindings}) != len(bindings)
@@ -2181,14 +2145,18 @@ impl QueryValidator.validate_cte_uncached(
         and type(reference.materialized) is not bool {
         raise SqlError('Invalid materialization option');
     }
-    if not _schema_equal(reference.schema, definition.schema, False) {
+    if not _schema_equal(
+        _compile_schema(reference, self.schemas),
+        _compile_schema(definition, self.schemas),
+        False
+    ) {
         raise SqlError('CTE output schema mismatch');
     }
     if reference.recursive {
         if not isinstance(definition, UnionNode) or definition.operation != 'UNION' {
             raise SqlError('Recursive binding requires UNION or UNION ALL');
         }
-        validate_union(definition);
+        validate_union(definition, self.schemas);
         validate_recursive_step(reference, definition.right);
         anchor = self.query(definition.left, outer, available);
         step = self.query(definition.right, outer, available + [reference]);
@@ -2219,7 +2187,7 @@ impl QueryValidator.extended_expr(
         }
         group_facts = _merge_checked(children);
         free = group_facts.free;
-        has_group_aggregate = group_facts.aggregate;
+        has_aggregate = group_facts.aggregate;
         if ast.op == 'AGGREGATE' {
             term = ast.term;
             if not isinstance(term, AggregateNode) or term.distinct {
@@ -2234,11 +2202,11 @@ impl QueryValidator.extended_expr(
             }
             argument_facts = _merge_checked(args);
             free |= argument_facts.free;
-            has_group_aggregate = has_group_aggregate or argument_facts.aggregate;
+            has_aggregate = has_aggregate or argument_facts.aggregate;
         } elif ast.term is not None or not same_type(ast.dtype, DataType('bigint')) {
             raise SqlError('Invalid ranking window signature');
         }
-        return Checked(free=free, aggregate=has_group_aggregate, window=True);
+        return Checked(free=free, aggregate=has_aggregate, window=True);
     }
     children = [self.expr(e, scope, local, ctes) for e in _children(ast)];
     if isinstance(ast, CallNode) {
@@ -2322,7 +2290,10 @@ impl PostgresRenderer.with_sql(bindings: tuple[Cte, ...], body: str) -> str {
             if reference.materialized is None
             else ('MATERIALIZED ' if reference.materialized else 'NOT MATERIALIZED ');
         columns = ', '.join(
-            [quote_identifier(f.name) for f in reference.schema.fields]
+            [
+                quote_identifier(f.name)
+                for f in _compile_schema(reference, self.schemas).fields
+            ]
         );
         definitions.append(
             quote_identifier(self.cte_names[id(reference)])
@@ -2405,10 +2376,10 @@ impl PostgresRenderer.extended_expr(ast: ExprNode) -> str {
             + ')';
     }
     if isinstance(ast, MembershipNode) {
-        membership_sql = ', '.join([self.expr(e) for e in ast.items])
+        rendered_values = ', '.join([self.expr(e) for e in ast.items])
             if ast.items
             else 'SELECT CAST(NULL AS ' + ast.term.dtype.name + ') WHERE FALSE';
-        return '(' + self.expr(ast.term) + ' IN (' + membership_sql + '))';
+        return '(' + self.expr(ast.term) + ' IN (' + rendered_values + '))';
     }
     if isinstance(ast, AnyNode) {
         return '(' + self.expr(ast.term) + ' = ANY(' + self.expr(ast.array) + '))';
@@ -2459,8 +2430,8 @@ impl _source_recursive_count(source: Source, ref: Cte) -> int {
         _scan_recursive_expr(source.argument, ref);
     }
     if isinstance(source, NullableSource) {
-        self_references = _source_recursive_count(source.target, ref);
-        if self_references {
+        reference_count = _source_recursive_count(source.target, ref);
+        if reference_count {
             raise SqlError(
                 'Recursive reference cannot occur on the nullable side of an outer join'
             );
@@ -2496,25 +2467,25 @@ impl _contains_aggregate(expr: ExprNode) -> bool {
 
 impl _recursive_count(query: RelationNode, ref: Cte) -> int {
     if isinstance(query, WithNode) {
-        self_references = _recursive_count(query.body, ref);
+        reference_count = _recursive_count(query.body, ref);
         for binding in query.bindings {
             if binding.definition is None {
                 raise SqlError('CTE reference has no definition');
             }
-            self_references += _recursive_count(binding.definition, ref);
+            reference_count += _recursive_count(binding.definition, ref);
         }
-        return self_references;
+        return reference_count;
     }
     if isinstance(query, OrderedNode) {
         return _recursive_count(query.body, ref);
     }
     if isinstance(query, UnionNode) {
-        self_references = _recursive_count(query.left, ref)
+        reference_count = _recursive_count(query.left, ref)
             + _recursive_count(query.right, ref);
-        if self_references and query.operation != 'UNION' {
+        if reference_count and query.operation != 'UNION' {
             raise SqlError('Recursive set terms require UNION');
         }
-        return self_references;
+        return reference_count;
     }
     if isinstance(query, ValuesNode) {
         for row in query.rows {
@@ -2529,7 +2500,7 @@ impl _recursive_count(query: RelationNode, ref: Cte) -> int {
     }
     sources = ([query.source] if query.source is not None else [])
         + [j.source for j in query.joins];
-    self_references = sum([_source_recursive_count(s, ref) for s in sources]);
+    reference_count = sum([_source_recursive_count(s, ref) for s in sources]);
     direct = `any(
         [s is ref or (isinstance(s, CteUse) and s.target is ref) for s in sources]
     );
@@ -2559,7 +2530,7 @@ impl _recursive_count(query: RelationNode, ref: Cte) -> int {
     for e in expressions {
         _scan_recursive_expr(e, ref);
     }
-    return self_references;
+    return reference_count;
 }
 
 impl _freeze_sql_value(value: any) -> any {
@@ -2656,23 +2627,29 @@ impl project_all(source: Source) -> list[ProjectionDef] {
 }
 
 impl _set_schema(left: RelationNode, right: RelationNode, operation: str) -> Schema {
-    a = left.schema.fields;
-    b = right.schema.fields;
-    if len(a) != len(b)
-        or not all([x.dtype.name == y.dtype.name for (x, y) in zip(a, b)])
+    return _merge_set_schema(left.schema, right.schema, operation);
+}
+
+impl _merge_set_schema(a: Schema, b: Schema, operation: str) -> Schema {
+    left_fields = a.fields;
+    right_fields = b.fields;
+    if len(left_fields) != len(right_fields)
+        or not all(
+            [x.dtype.name == y.dtype.name for (x, y) in zip(left_fields, right_fields)]
+        )
         or operation not in ('UNION', 'EXCEPT', 'INTERSECT') {
         raise SqlError('UNION schema/cardinality mismatch');
     }
     fields: list[FieldDef] = [];
-    for (x, y) in zip(a, b) {
-        allows_null = (x.dtype.nullable or y.dtype.nullable)
+    for (x, y) in zip(left_fields, right_fields) {
+        is_nullable = (x.dtype.nullable or y.dtype.nullable)
             if operation == 'UNION'
             else (
                 x.dtype.nullable
                     if operation == 'EXCEPT'
                     else (x.dtype.nullable and y.dtype.nullable)
             );
-        fields.append(FieldDef(x.name, DataType(x.dtype.name, allows_null)));
+        fields.append(FieldDef(x.name, DataType(x.dtype.name, is_nullable)));
     }
     return Schema(tuple(fields));
 }
@@ -2690,8 +2667,8 @@ impl _cast_allowed(source: DataType, target: DataType) -> bool {
     if source.name.endswith('[]') and target.name.endswith('[]') {
         return _cast_allowed(DataType(source.name[:-2]), DataType(target.name[:-2]));
     }
-    numeric_types = ('integer', 'bigint', 'numeric', 'double precision');
-    return source.name in numeric_types and target.name in numeric_types;
+    numeric_names = ('integer', 'bigint', 'numeric', 'double precision');
+    return source.name in numeric_names and target.name in numeric_names;
 }
 
 impl add_int32(
@@ -2709,9 +2686,6 @@ impl sub_int32(
 impl bool_or(
     term: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
-    if term.ast.dtype.name != 'boolean' {
-        raise SqlError('BOOL_OR requires a boolean');
-    }
     return ScalarExpr(
         AggregateNode(dtype=DataType('boolean', True), op='BOOL_OR', term=term.ast)
     );
@@ -2801,6 +2775,7 @@ impl QueryGraph.visit_source(src: Source) -> None {
         raise SqlError('Invalid SQL graph node');
     }
     identity = id(src);
+    self.sources[identity] = src;
     if identity not in self.source_dependencies {
         previous = self.ctes;
         self.ctes = [];
@@ -2837,6 +2812,7 @@ impl QueryGraph.visit_query(query: RelationNode) -> None {
         raise SqlError('Invalid SQL graph node');
     }
     identity = id(query);
+    self.queries[identity] = query;
     if identity in self.active_queries {
         raise SqlError('Cyclic AST: use a recursive CTE reference');
     }
@@ -2853,4 +2829,90 @@ impl QueryGraph.visit_query(query: RelationNode) -> None {
         }
     }
     self.add_dependencies(self.query_dependencies[identity]);
+}
+
+
+impl _compile_schema(
+    item: Source | RelationNode, schemas: dict[int, Schema]
+) -> Schema {
+    key = id(item);
+    if key in schemas {
+        return schemas[key];
+    }
+    result: Schema;
+    if isinstance(item, SelectNode) {
+        result = Schema(tuple(p.field for p in item.projections));
+    } elif isinstance(item, UnionNode) {
+        result = _merge_set_schema(
+            _compile_schema(item.left, schemas),
+            _compile_schema(item.right, schemas),
+            item.operation
+        );
+    } elif isinstance(item, Derived) {
+        result = _compile_schema(item.query, schemas);
+    } elif isinstance(item, Cte) {
+        if item.declared_schema is not None {
+            result = item.declared_schema;
+        } elif item.definition is not None {
+            result = _compile_schema(item.definition, schemas);
+        } else {
+            raise SqlError('CTE reference has no schema');
+        }
+    } elif isinstance(item, CteUse) or isinstance(item, NullableSource) {
+        target_schema = _compile_schema(item.target, schemas);
+        result = Schema(
+            tuple(
+                FieldDef(f.name, DataType(f.dtype.name, True))
+                for f in target_schema.fields
+            )
+        )
+            if isinstance(item, NullableSource)
+            else target_schema;
+    } elif isinstance(item, WithNode) or isinstance(item, OrderedNode) {
+        result = _compile_schema(item.body, schemas);
+    } else {
+        result = item.schema;
+    }
+    schemas[key] = result;
+    return result;
+}
+
+
+impl _plan_sql(query: Relation[R, C]) -> ValidatedQuery {
+    scan = QueryGraph();
+    scan.collect(query.ast);
+    planner = QueryPlanner(dependency_graph=scan);
+    planner.used_names = scan.physical_names | scan.explicit_aliases;
+    for reference in list(scan.ctes) {
+        planner.order_cte(reference);
+    }
+    references = list(planner.ordered_ctes);
+    for ast in scan.queries.values() {
+        if isinstance(ast, WithNode) {
+            references.extend(ast.bindings);
+        }
+    }
+    for reference in references {
+        if id(reference) not in planner.cte_names {
+            planner.cte_names[id(reference)] = planner.fresh_name('_cte');
+        }
+    }
+    for ast in scan.queries.values() {
+        if isinstance(ast, WithNode) {
+            planner.local_orders[id(ast)] = tuple(
+                planner.local_bindings(ast.bindings, references)
+            );
+        }
+    }
+    for src in scan.sources.values() {
+        planner.alias_for(src);
+    }
+    return ValidatedQuery(
+        query=query.ast,
+        slots=tuple(scan.slot_types.items()),
+        ctes=tuple(planner.ordered_ctes),
+        aliases=planner.aliases,
+        cte_names=planner.cte_names,
+        local_orders=planner.local_orders
+    );
 }

@@ -81,24 +81,24 @@ test "PostgreSQL: aggregate validation" {
     run_case(PostgresTests("test_aggregate_validation"));
 }
 
-test "PostgreSQL: query and expression are immutable" {
-    run_case(PostgresTests("test_query_and_expression_are_immutable"));
+test "PostgreSQL: compiled query survives ast edits" {
+    run_case(PostgresTests("test_compiled_query_survives_ast_edits"));
 }
 
 test "PostgreSQL: source field schema validation" {
     run_case(PostgresTests("test_source_field_schema_validation"));
 }
 
-test "PostgreSQL: projection expression is immutable" {
-    run_case(PostgresTests("test_projection_expression_is_immutable"));
+test "PostgreSQL: edited projection type is checked" {
+    run_case(PostgresTests("test_edited_projection_type_is_checked"));
 }
 
 test "PostgreSQL: derived schema comes from query" {
     run_case(PostgresTests("test_derived_schema_comes_from_query"));
 }
 
-test "PostgreSQL: projection nullability is immutable" {
-    run_case(PostgresTests("test_projection_nullability_is_immutable"));
+test "PostgreSQL: edited projection nullability is checked" {
+    run_case(PostgresTests("test_edited_projection_nullability_is_checked"));
 }
 
 test "PostgreSQL: query rebuild preserves original" {
@@ -153,8 +153,8 @@ test "PostgreSQL: auto source aliases for self join" {
     run_case(PostgresTests("test_auto_source_aliases_for_self_join"));
 }
 
-test "PostgreSQL: recursive union is immutable" {
-    run_case(PostgresTests("test_recursive_union_is_immutable"));
+test "PostgreSQL: edited recursive union is checked" {
+    run_case(PostgresTests("test_edited_recursive_union_is_checked"));
 }
 
 test "PostgreSQL: recursive step can be reused" {

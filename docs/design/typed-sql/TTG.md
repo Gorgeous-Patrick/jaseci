@@ -1,34 +1,47 @@
-# TTG SQL AST integration
+# TTG SQL construction
 
-TTG uses the reusable `jaclang.sql` module for both specialized set-based queries
-and layered BFS queries. The adapter lives in `jac/jaclang/runtime/ttg_sql.jac`;
-the existing runtime retains traversal, caching, and topology ingestion.
+TTG uses `jaclang.sql` for specialized set-based and layered BFS queries. The
+adapter is `jac/jaclang/runtime/ttg_sql.jac`. Its public compilation and runtime
+traversal interfaces are unchanged.
 
-The SQL module was ported from SQL branch commit `968a76d0c` to Jac 0.36.
-Compatibility changes preserve the public typed API. PostgreSQL `BOOL_OR` was
-added for frontier aggregation.
+The SQL module is synchronized from SQL branch commit `aab98c5ab`. It uses static
+expression signatures, lightweight structural CTE planning, parameterized rendering,
+and named runtime slots. Whole-query semantic analysis is an explicit diagnostic
+operation. The Jac 0.36 port removes impl-header type parameters, parenthesizes
+comprehension operands, renames locals shadowing SQL functions, and places the
+`field` declaration after object definitions to avoid generated-field collisions.
 
-Verification:
+## Constructor-local field information
 
-- 165 SQL tests pass, including SQLite, PostgreSQL, and static checks.
-- 13 topology/runtime tests and three compiled-template reuse tests pass.
-- 145 full-row query comparisons against frozen SQL from `758366971` pass.
-- 72 layered traversal comparisons pass across budgets, root inclusion,
-  direction patterns, and actual undirected edges.
+Each uncached builder creates one `_BuildColumns` local variable and passes it to
+its helper functions. It derives each source's schema through one local schema
+dictionary, indexes field definitions by name, and constructs typed column
+references from those definitions. Repeated access to the same source and column
+reuses that expression. Separate source bindings keep distinct expressions.
 
-The frozen SQL oracle is `jac/tests/runtimelib/fixtures/ttg_sql_legacy.jac`.
-Run `jac test jac/tests/runtimelib/test_topology_index.jac -v` to repeat the
-runtime comparisons with the branch's configured PostgreSQL distribution.
-The adapter caches up to 128 compiled SQL templates per path. Request-specific
-IDs, budgets and depth are bound without reconstructing the AST. Structural flags
-and canonical specification contents identify distinct templates. The cached
-values contain SQL, fixed constants and parameter metadata; no AST is retained.
+The context retains source identities until the build completes. Schema summaries,
+field dictionaries, and expressions belong to that build; they are not attached to
+AST objects, global caches, or the compiled result. A later build creates a fresh
+context. The builders keep their graph stable during construction; forward CTE
+bindings use their declared output fields.
 
-See [performance measurements](../../../benchmarks/ttg-sql/README.md) for raw
-samples, first-call compilation, warm binding and database-call timing.
+Each specialized/layered path also has a process-local LRU cache of at most 128
+compiled templates. Origin/frontier/seen IDs, limits and depth are runtime bindings.
+Template keys snapshot specifications and structural flags. Compiled templates
+contain SQL, fixed parameters and slot metadata, with no AST or build context.
 
-Shared CTE queries now reuse structural dependency summaries across local and
-automatic binding scopes. Driver-reserved slot names `sql` and `self` are rejected.
+## Verification
 
-`limit_one` preserves DISTINCT clauses. Scalar-to-array casts are rejected to
-preserve the non-null array-element contract.
+- 172 SQL tests cover SQLite, PostgreSQL, static signatures and builder contracts.
+- Six TTG tests cover template reuse, context isolation and source binding identity.
+- 13 topology/runtime tests pass, including 145 full-row comparisons against the
+  frozen string generator and 72 complete layered traversal comparisons.
+
+The frozen oracle is `jac/tests/runtimelib/fixtures/ttg_sql_legacy.jac`.
+
+```sh
+jac test jac/tests/runtimelib/test_ttg_sql_bind.jac -v
+jac test jac/tests/runtimelib/test_topology_index.jac -v
+```
+
+Performance measurements and temporary harnesses are maintained separately.

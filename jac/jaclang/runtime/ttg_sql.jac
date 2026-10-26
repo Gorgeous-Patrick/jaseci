@@ -3,23 +3,44 @@ import from functools { lru_cache }
 import jaclang.sql as q;
 
 
-def _c(source: any, name: str) -> any {
-    definition = source.schema.find(name);
-    return q.ScalarExpr(q.ColumnNode(dtype=definition.dtype, source=source, name=name));
+obj _BuildColumns {
+    has schemas: dict[int, q.Schema] = {},
+        sources: dict[int, any] = {},
+        fields: dict[int, dict[str, q.FieldDef]] = {},
+        columns: dict[tuple[int, str], any] = {};
+
+    def schema(source: any) -> q.Schema {
+        self.sources[id(source)] = source;
+        return q._compile_schema(source, self.schemas);
+    }
+
+    def col(source: any, name: str) -> any {
+        key = (id(source), name);
+        if key not in self.columns {
+            identity = id(source);
+            if identity not in self.fields {
+                self.fields[identity] = {f.name: f for f in self.schema(source).fields};
+            }
+            definition = self.fields[identity][name];
+            self.columns[key] = source.col(q.Field(name=name, dtype=definition.dtype));
+        }
+        return self.columns[key];
+    }
+
+    def pick(
+        source: any, names: list[str], overrides: dict[str, any] = {}
+    ) -> list[tuple[str, any]] {
+        return [
+            (name, overrides[name] if name in overrides else self.col(source, name))
+            for name in names
+        ];
+    }
+
+    def names(source: any) -> list[str] {
+        return [f.name for f in self.schema(source).fields];
+    }
 }
 
-def _pick(
-    source: any, names: list[str], overrides: dict[str, any] = {}
-) -> list[tuple[str, any]] {
-    return [
-        (name, overrides[name] if name in overrides else _c(source, name))
-        for name in names
-    ];
-}
-
-def _names(source: any) -> list[str] {
-    return [f.name for f in source.schema.fields];
-}
 
 def _all(terms: list[any]) -> any {
     if not terms {
@@ -102,15 +123,15 @@ def _expected(value: any) -> any {
     return q.param(q.nullable(q.text_type()), value);
 }
 
-def _match(arch_type: any, expected: any) -> any {
+def _match(cols: _BuildColumns, arch_type: any, expected: any) -> any {
     ancestry = _types();
     inherited = _select(
         ancestry,
         [('one', q.int64(1))],
         predicate=_all(
             [
-                _cmp(_c(ancestry, 'type_name'), arch_type),
-                _cmp(_c(ancestry, 'ancestor'), expected)
+                _cmp(cols.col(ancestry, 'type_name'), arch_type),
+                _cmp(cols.col(ancestry, 'ancestor'), expected)
             ]
         )
     );
@@ -118,20 +139,20 @@ def _match(arch_type: any, expected: any) -> any {
     return _either([missing, _cmp(arch_type, expected), q.exists(inherited)]);
 }
 
-def _owner(anchor: any) -> any {
+def _owner(cols: _BuildColumns, anchor: any) -> any {
     return q.case_nullable(
         [
             (
                 _all(
                     [
-                        _cmp(_c(anchor, 'kind'), q.text('NodeAnchor')),
-                        _cmp(_c(anchor, 'arch_type'), q.text('Root'))
+                        _cmp(cols.col(anchor, 'kind'), q.text('NodeAnchor')),
+                        _cmp(cols.col(anchor, 'arch_type'), q.text('Root'))
                     ]
                 ),
-                _c(anchor, 'id')
+                cols.col(anchor, 'id')
             )
         ],
-        _c(anchor, 'root_id')
+        cols.col(anchor, 'root_id')
     );
 }
 
@@ -147,74 +168,81 @@ def _union(queries: list[any], distinct: bool = False) -> any {
 }
 
 def _edge_branch(
-    origin: any, source_name: str, target_name: str, edge_type: any, node_type: any
+    cols: _BuildColumns,
+    origin: any,
+    source_name: str,
+    target_name: str,
+    edge_type: any,
+    node_type: any
 ) -> any {
     edge_source = _anchors();
     target = _anchors();
     condition = _all(
         [
-            _cmp(_c(target, 'id'), _c(edge_source, target_name)),
-            _cmp(_c(target, 'kind'), q.text('NodeAnchor'))
+            _cmp(cols.col(target, 'id'), cols.col(edge_source, target_name)),
+            _cmp(cols.col(target, 'kind'), q.text('NodeAnchor'))
         ]
     );
     return _select(
         edge_source,
         [
-            ('edge_id', _c(edge_source, 'id')),
-            ('edge_seq', q.coalesce(_c(edge_source, 'seq'), q.int64(0))),
-            ('node_id', _c(target, 'id')),
-            ('arch_type', _c(target, 'arch_type'))
+            ('edge_id', cols.col(edge_source, 'id')),
+            ('edge_seq', q.coalesce(cols.col(edge_source, 'seq'), q.int64(0))),
+            ('node_id', cols.col(target, 'id')),
+            ('arch_type', cols.col(target, 'arch_type'))
         ],
         joins=[q.inner_join(target, condition)],
         predicate=_all(
             [
-                _cmp(_c(edge_source, 'kind'), q.text('EdgeAnchor')),
-                _cmp(_c(edge_source, source_name), origin),
-                _present(_c(edge_source, target_name)),
-                _match(_c(edge_source, 'arch_type'), edge_type),
-                _match(_c(target, 'arch_type'), node_type)
+                _cmp(cols.col(edge_source, 'kind'), q.text('EdgeAnchor')),
+                _cmp(cols.col(edge_source, source_name), origin),
+                _present(cols.col(edge_source, target_name)),
+                _match(cols, cols.col(edge_source, 'arch_type'), edge_type),
+                _match(cols, cols.col(target, 'arch_type'), node_type)
             ]
         )
     );
 }
 
-def _hop(origin: any, prior: list[any], hop: any) -> any {
+def _hop(cols: _BuildColumns, origin: any, prior: list[any], hop: any) -> any {
     direction = int(hop[2] or 2);
     branches: list[any] = [];
     edge_type = _expected(hop[0]);
     node_type = _expected(hop[1]);
     if direction in (2, 3) {
-        branches.append(_edge_branch(origin, 'src', 'dst', edge_type, node_type));
+        branches.append(_edge_branch(cols, origin, 'src', 'dst', edge_type, node_type));
     }
     if direction in (1, 3) {
-        branches.append(_edge_branch(origin, 'dst', 'src', edge_type, node_type));
+        branches.append(_edge_branch(cols, origin, 'dst', 'src', edge_type, node_type));
     }
     if not branches {
         raise ValueError(f'Unsupported TTG direction {direction}');
     }
     edges = _union(branches).as_source(lateral=True);
-    conditions = [_cmp(_c(edges, 'node_id'), origin, '<>')]
-        + [_cmp(_c(edges, 'node_id'), n, '<>') for n in prior];
+    conditions = [_cmp(cols.col(edges, 'node_id'), origin, '<>')]
+        + [_cmp(cols.col(edges, 'node_id'), n, '<>') for n in prior];
     return _select(
-        edges, _pick(edges, _names(edges)), predicate=_all(conditions)
+        edges, cols.pick(edges, cols.names(edges)), predicate=_all(conditions)
     ).as_source(
         lateral=True
     );
 }
 
-def _hop_key(source: any) -> any {
+def _hop_key(cols: _BuildColumns, source: any) -> any {
     return q.concat(
         [
             q.lpad(
-                q.cast(_c(source, 'edge_seq'), q.text_type()), q.int32(20), q.text('0')
+                q.cast(cols.col(source, 'edge_seq'), q.text_type()),
+                q.int32(20),
+                q.text('0')
             ),
             q.text(':'),
-            q.cast(_c(source, 'edge_id'), q.text_type())
+            q.cast(cols.col(source, 'edge_id'), q.text_type())
         ]
     );
 }
 
-def _frontier_spec(frontier: any, spec: dict) -> any {
+def _frontier_spec(cols: _BuildColumns, frontier: any, spec: dict) -> any {
     chain = spec.get('chain') or [];
     if not chain {
         raise ValueError('TTG requires a nonempty hop chain');
@@ -223,15 +251,15 @@ def _frontier_spec(frontier: any, spec: dict) -> any {
     joins: list[any] = [];
     edge_ids: list[any] = [];
     keys: list[any] = [];
-    origin = _c(frontier, 'node_id');
+    origin = cols.col(frontier, 'node_id');
     final_source: any = None;
     for hop in chain {
-        final_source = _hop(origin, prior, hop);
+        final_source = _hop(cols, origin, prior, hop);
         joins.append(q.cross_join(final_source));
-        origin = _c(final_source, 'node_id');
+        origin = cols.col(final_source, 'node_id');
         prior.append(origin);
-        edge_ids.append(_c(final_source, 'edge_id'));
-        keys.append(_hop_key(final_source));
+        edge_ids.append(cols.col(final_source, 'edge_id'));
+        keys.append(_hop_key(cols, final_source));
     }
     step_order = keys[0];
     for key in keys[1:] {
@@ -240,12 +268,12 @@ def _frontier_spec(frontier: any, spec: dict) -> any {
     return _select(
         frontier,
         [
-            ('depth', q.add(_c(frontier, 'depth'), q.int64(1))),
+            ('depth', q.add(cols.col(frontier, 'depth'), q.int64(1))),
             ('node_id', origin),
-            ('arch_type', _c(final_source, 'arch_type')),
-            ('parent_depth', _c(frontier, 'depth')),
-            ('parent_bfs_ord', _c(frontier, 'bfs_ord')),
-            ('parent_node_id', _c(frontier, 'node_id')),
+            ('arch_type', cols.col(final_source, 'arch_type')),
+            ('parent_depth', cols.col(frontier, 'depth')),
+            ('parent_bfs_ord', cols.col(frontier, 'bfs_ord')),
+            ('parent_node_id', cols.col(frontier, 'node_id')),
             ('step_nodes', q.array(q.uuid_type(), prior)),
             ('step_edges', q.array(q.uuid_type(), edge_ids)),
             ('step_ord', step_order),
@@ -253,23 +281,27 @@ def _frontier_spec(frontier: any, spec: dict) -> any {
             ('spec_idx', q.int64(int(spec['idx'])))
         ],
         joins=joins,
-        predicate=_match(_c(frontier, 'arch_type'), _expected(spec.get('from_type')))
+        predicate=_match(
+            cols, cols.col(frontier, 'arch_type'), _expected(spec.get('from_type'))
+        )
     );
 }
 
-def _group_keys(source: any) -> list[any] {
+def _group_keys(cols: _BuildColumns, source: any) -> list[any] {
     return [
-        _c(source, name) for name in ['parent_bfs_ord', 'spec_idx', 'parent_node_id']
+        cols.col(source, name)
+        for name in ['parent_bfs_ord', 'spec_idx', 'parent_node_id']
     ];
 }
 
-def _partition_count(source: any) -> any {
-    return q.over(q.count(), partition_by=[e.ast for e in _group_keys(source)]);
+def _partition_count(cols: _BuildColumns, source: any) -> any {
+    return q.over(q.count(), partition_by=[e.ast for e in _group_keys(cols, source)]);
 }
 
 def _build_specialized(
     specs: list[dict], include_roots: bool = False, complete_optimization: bool = True
 ) -> q.CompiledSQL {
+    cols = _BuildColumns();
     bound_limit = q.slot('limit', q.int64_type());
     bound_depth = q.slot('max_depth', q.int64_type());
     numeric_limit = q.cast(bound_limit, q.numeric_type());
@@ -298,13 +330,13 @@ def _build_specialized(
         seeds,
         [
             ('depth', q.int64(0)),
-            ('bfs_ord', _c(seeds, 'ord')),
-            ('node_id', _c(seeds, 'id')),
-            ('arch_type', _c(seed_nodes, 'arch_type')),
+            ('bfs_ord', cols.col(seeds, 'ord')),
+            ('node_id', cols.col(seeds, 'id')),
+            ('arch_type', cols.col(seed_nodes, 'arch_type')),
             ('parent_depth', q.null(q.int64_type())),
             ('parent_bfs_ord', q.null(q.int64_type())),
             ('parent_node_id', q.null(q.uuid_type())),
-            ('step_nodes', q.array(q.uuid_type(), [_c(seeds, 'id')])),
+            ('step_nodes', q.array(q.uuid_type(), [cols.col(seeds, 'id')])),
             ('step_edges', q.array(q.uuid_type(), [])),
             ('is_frontier', q.boolean(True)),
             ('step_spec_idx', q.null(q.int64_type())),
@@ -315,8 +347,8 @@ def _build_specialized(
                 seed_nodes,
                 _all(
                     [
-                        _cmp(_c(seed_nodes, 'id'), _c(seeds, 'id')),
-                        _cmp(_c(seed_nodes, 'kind'), q.text('NodeAnchor'))
+                        _cmp(cols.col(seed_nodes, 'id'), cols.col(seeds, 'id')),
+                        _cmp(cols.col(seed_nodes, 'kind'), q.text('NodeAnchor'))
                     ]
                 )
             )
@@ -325,48 +357,53 @@ def _build_specialized(
     frontier = q.cte(
         _select(
             walk,
-            _pick(walk, _names(walk)),
+            cols.pick(walk, cols.names(walk)),
             predicate=_all(
-                [_c(walk, 'is_frontier'), _cmp(_c(walk, 'depth'), bound_depth, '<')]
+                [
+                    cols.col(walk, 'is_frontier'),
+                    _cmp(cols.col(walk, 'depth'), bound_depth, '<')
+                ]
             )
         ),
         materialized=True
     );
     frontier_nodes = q.cte(
-        _select(frontier, _pick(frontier, ['node_id'])), materialized=True
+        _select(frontier, cols.pick(frontier, ['node_id'])), materialized=True
     );
-    raw = q.cte(_union([_frontier_spec(frontier, spec) for spec in specs]));
+    raw = q.cte(_union([_frontier_spec(cols, frontier, spec) for spec in specs]));
     already = q.exists(
         _select(
             frontier_nodes,
             [('one', q.int64(1))],
-            predicate=_cmp(_c(frontier_nodes, 'node_id'), _c(raw, 'node_id'))
+            predicate=_cmp(
+                cols.col(frontier_nodes, 'node_id'), cols.col(raw, 'node_id')
+            )
         )
     );
     annotated = q.cte(
         _select(
             raw,
-            _pick(raw, _names(raw))
+            cols.pick(raw, cols.names(raw))
                 + [
                     ('already_frontier', already),
-                    ('raw_group_count', _partition_count(raw))
+                    ('raw_group_count', _partition_count(cols, raw))
                 ]
         )
     );
     unseen = q.cte(
         _select(
             annotated,
-            _pick(annotated, _names(annotated)),
-            predicate=q.not_(_c(annotated, 'already_frontier'))
+            cols.pick(annotated, cols.names(annotated)),
+            predicate=q.not_(cols.col(annotated, 'already_frontier'))
         )
     );
     dedup = q.cte(
         _select(
             unseen,
-            _pick(unseen, _names(unseen)),
-            distinct_on=[_c(unseen, 'node_id')],
+            cols.pick(unseen, cols.names(unseen)),
+            distinct_on=[cols.col(unseen, 'node_id')],
             order=[
-                q.asc(_c(unseen, k))
+                q.asc(cols.col(unseen, k))
                 for k in [
                     'node_id',
                     'parent_bfs_ord',
@@ -380,78 +417,88 @@ def _build_specialized(
     dedup_grouped = q.cte(
         _select(
             dedup,
-            _pick(dedup, _names(dedup))
-                + [('dedup_group_count', _partition_count(dedup))]
+            cols.pick(dedup, cols.names(dedup))
+                + [('dedup_group_count', _partition_count(cols, dedup))]
         )
     );
-    group_order = [q.asc(e) for e in _group_keys(dedup_grouped)];
+    group_order = [q.asc(e) for e in _group_keys(cols, dedup_grouped)];
     grouped = q.cte(
         _select(
             dedup_grouped,
-            _pick(dedup_grouped, _names(dedup_grouped))
+            cols.pick(dedup_grouped, cols.names(dedup_grouped))
                 + [
                     ('group_ord', q.dense_rank(order_by=group_order)),
                     (
                         'group_row_rank',
                         q.row_number(
-                            partition_by=[e.ast for e in _group_keys(dedup_grouped)],
+                            partition_by=[
+                                e.ast for e in _group_keys(cols, dedup_grouped)
+                            ],
                             order_by=[
-                                q.asc(_c(dedup_grouped, 'step_ord')),
-                                q.asc(_c(dedup_grouped, 'node_id'))
+                                q.asc(cols.col(dedup_grouped, 'step_ord')),
+                                q.asc(cols.col(dedup_grouped, 'node_id'))
                             ]
                         )
                     ),
-                    ('group_count', _partition_count(dedup_grouped))
+                    ('group_count', _partition_count(cols, dedup_grouped))
                 ]
         )
     );
     distinct_groups = q.cte(
-        _select(grouped, _pick(grouped, ['group_ord', 'group_count']), distinct=True)
+        _select(
+            grouped, cols.pick(grouped, ['group_ord', 'group_count']), distinct=True
+        )
     );
-    order_groups = [q.asc(_c(distinct_groups, 'group_ord'))];
+    order_groups = [q.asc(cols.col(distinct_groups, 'group_ord'))];
     prior_count = q.coalesce(
         q.over(
-            q.sum_int64(_c(distinct_groups, 'group_count')),
+            q.sum_int64(cols.col(distinct_groups, 'group_count')),
             order_by=order_groups,
             frame=q.rows_between(q.unbounded_preceding(), q.preceding(1))
         ),
         q.numeric(0)
     );
     cume_count = q.over(
-        q.sum_int64(_c(distinct_groups, 'group_count')),
+        q.sum_int64(cols.col(distinct_groups, 'group_count')),
         order_by=order_groups,
         frame=q.rows_between(q.unbounded_preceding(), q.current_row())
     );
     budget = q.cte(
         _select(
             distinct_groups,
-            _pick(distinct_groups, _names(distinct_groups))
+            cols.pick(distinct_groups, cols.names(distinct_groups))
                 + [('group_prior_count', prior_count), ('group_cume_count', cume_count)]
         )
     );
     complete = _all(
         [
-            _cmp(_c(budget, 'group_cume_count'), numeric_limit, '<='),
-            _cmp(_c(grouped, 'dedup_group_count'), _c(grouped, 'raw_group_count'))
+            _cmp(cols.col(budget, 'group_cume_count'), numeric_limit, '<='),
+            _cmp(
+                cols.col(grouped, 'dedup_group_count'),
+                cols.col(grouped, 'raw_group_count')
+            )
         ]
     );
     budgeted = q.cte(
         _select(
             grouped,
-            _pick(grouped, _names(grouped))
-                + _pick(budget, ['group_prior_count', 'group_cume_count'])
+            cols.pick(grouped, cols.names(grouped))
+                + cols.pick(budget, ['group_prior_count', 'group_cume_count'])
                 + [('group_complete', complete)],
             joins=[
                 q.inner_join(
-                    budget, _cmp(_c(budget, 'group_ord'), _c(grouped, 'group_ord'))
+                    budget,
+                    _cmp(cols.col(budget, 'group_ord'), cols.col(grouped, 'group_ord'))
                 )
             ],
             predicate=_all(
                 [
-                    _cmp(_c(budget, 'group_prior_count'), numeric_limit, '<'),
+                    _cmp(cols.col(budget, 'group_prior_count'), numeric_limit, '<'),
                     _cmp(
-                        q.cast(_c(grouped, 'group_row_rank'), q.numeric_type()),
-                        q.numeric_sub(numeric_limit, _c(budget, 'group_prior_count')),
+                        q.cast(cols.col(grouped, 'group_row_rank'), q.numeric_type()),
+                        q.numeric_sub(
+                            numeric_limit, cols.col(budget, 'group_prior_count')
+                        ),
                         '<='
                     )
                 ]
@@ -461,13 +508,13 @@ def _build_specialized(
     ranked = q.cte(
         _select(
             budgeted,
-            _pick(budgeted, _names(budgeted))
+            cols.pick(budgeted, cols.names(budgeted))
                 + [
                     (
                         'local_rank',
                         q.row_number(
                             order_by=[
-                                q.asc(_c(budgeted, k))
+                                q.asc(cols.col(budgeted, k))
                                 for k in ['group_ord', 'group_row_rank', 'node_id']
                             ]
                         )
@@ -478,9 +525,9 @@ def _build_specialized(
     );
     step = _select(
         ranked,
-        _pick(ranked, ['depth'], {})
-            + [('bfs_ord', _c(ranked, 'local_rank'))]
-            + _pick(
+        cols.pick(ranked, ['depth'], {})
+            + [('bfs_ord', cols.col(ranked, 'local_rank'))]
+            + cols.pick(
                 ranked,
                 [
                     'node_id',
@@ -497,13 +544,13 @@ def _build_specialized(
                     'is_frontier',
                     _all(
                         [
-                            _c(ranked, 'is_frontier'),
-                            _cmp(_c(ranked, 'layer_count'), bound_limit, '<')
+                            cols.col(ranked, 'is_frontier'),
+                            _cmp(cols.col(ranked, 'layer_count'), bound_limit, '<')
                         ]
                     )
                 ),
-                ('step_spec_idx', _c(ranked, 'spec_idx')),
-                ('step_group_complete', _c(ranked, 'group_complete'))
+                ('step_spec_idx', cols.col(ranked, 'spec_idx')),
+                ('step_group_complete', cols.col(ranked, 'group_complete'))
             ]
     );
     local = [
@@ -525,9 +572,9 @@ def _build_specialized(
     candidate = q.cte(
         _select(
             walk,
-            _pick(walk, ['depth', 'bfs_ord'])
-                + [('target_id', _c(walk, 'node_id'))]
-                + _pick(
+            cols.pick(walk, ['depth', 'bfs_ord'])
+                + [('target_id', cols.col(walk, 'node_id'))]
+                + cols.pick(
                     walk,
                     [
                         'parent_depth',
@@ -539,17 +586,19 @@ def _build_specialized(
                     ]
                 )
                 + [
-                    ('spec_idx', _c(walk, 'step_spec_idx')),
-                    ('group_complete', _c(walk, 'step_group_complete')),
-                    ('owner_root', _owner(anchor_source))
+                    ('spec_idx', cols.col(walk, 'step_spec_idx')),
+                    ('group_complete', cols.col(walk, 'step_group_complete')),
+                    ('owner_root', _owner(cols, anchor_source))
                 ],
             joins=[
                 q.inner_join(
                     anchor_source,
                     _all(
                         [
-                            _cmp(_c(anchor_source, 'id'), _c(walk, 'node_id')),
-                            _cmp(_c(anchor_source, 'kind'), q.text('NodeAnchor'))
+                            _cmp(
+                                cols.col(anchor_source, 'id'), cols.col(walk, 'node_id')
+                            ),
+                            _cmp(cols.col(anchor_source, 'kind'), q.text('NodeAnchor'))
                         ]
                     )
                 )
@@ -567,9 +616,9 @@ def _build_specialized(
         'step_edges',
         'spec_idx'
     ];
-    path_columns = _pick(candidate, ['depth', 'bfs_ord'])
-        + [('path_node_id', _c(candidate, 'target_id'))]
-        + _pick(
+    path_columns = cols.pick(candidate, ['depth', 'bfs_ord'])
+        + [('path_node_id', cols.col(candidate, 'target_id'))]
+        + cols.pick(
             candidate,
             [
                 'parent_depth',
@@ -585,8 +634,8 @@ def _build_specialized(
         path_columns
             + [
                 ('sub_ord', q.int64(0)),
-                ('id', _c(candidate, 'target_id')),
-                ('is_frontier', _c(candidate, 'is_frontier'))
+                ('id', cols.col(candidate, 'target_id')),
+                ('is_frontier', cols.col(candidate, 'is_frontier'))
             ]
     );
     owner_additions = _select(
@@ -594,14 +643,18 @@ def _build_specialized(
         path_columns
             + [
                 ('sub_ord', q.int64(1)),
-                ('id', _c(candidate, 'owner_root')),
+                ('id', cols.col(candidate, 'owner_root')),
                 ('is_frontier', q.boolean(False))
             ],
         predicate=_all(
             [
-                _present(_c(candidate, 'owner_root')),
+                _present(cols.col(candidate, 'owner_root')),
                 q.boolean(include_roots),
-                _cmp(_c(candidate, 'owner_root'), _c(candidate, 'target_id'), '<>')
+                _cmp(
+                    cols.col(candidate, 'owner_root'),
+                    cols.col(candidate, 'target_id'),
+                    '<>'
+                )
             ]
         )
     );
@@ -610,23 +663,28 @@ def _build_specialized(
         _select(
             additions,
             [
-                ('id', _c(additions, 'id')),
-                ('is_frontier', q.bool_or(_c(additions, 'is_frontier')))
+                ('id', cols.col(additions, 'id')),
+                ('is_frontier', q.bool_or(cols.col(additions, 'is_frontier')))
             ],
-            predicate=_present(_c(additions, 'id')),
-            groups=[_c(additions, 'id')]
+            predicate=_present(cols.col(additions, 'id')),
+            groups=[cols.col(additions, 'id')]
         )
     );
     dedup_additions = q.cte(
         _select(
             additions,
-            _pick(additions, ['id'] + path_names + ['sub_ord'])
-                + [('is_frontier', _c(flags, 'is_frontier'))],
-            joins=[q.inner_join(flags, _cmp(_c(flags, 'id'), _c(additions, 'id')))],
-            predicate=_present(_c(additions, 'id')),
-            distinct_on=[_c(additions, 'id')],
+            cols.pick(additions, ['id'] + path_names + ['sub_ord'])
+                + [('is_frontier', cols.col(flags, 'is_frontier'))],
+            joins=[
+                q.inner_join(
+                    flags, _cmp(cols.col(flags, 'id'), cols.col(additions, 'id'))
+                )
+            ],
+            predicate=_present(cols.col(additions, 'id')),
+            distinct_on=[cols.col(additions, 'id')],
             order=[
-                q.asc(_c(additions, k)) for k in ['id', 'depth', 'bfs_ord', 'sub_ord']
+                q.asc(cols.col(additions, k))
+                for k in ['id', 'depth', 'bfs_ord', 'sub_ord']
             ]
         )
     );
@@ -634,13 +692,13 @@ def _build_specialized(
     ordered_plan = q.cte(
         _select(
             dedup_additions,
-            _pick(dedup_additions, plan_fields)
+            cols.pick(dedup_additions, plan_fields)
                 + [
                     (
                         'ord',
                         q.row_number(
                             order_by=[
-                                q.asc(_c(dedup_additions, k))
+                                q.asc(cols.col(dedup_additions, k))
                                 for k in ['depth', 'bfs_ord', 'sub_ord', 'id']
                             ]
                         )
@@ -651,8 +709,8 @@ def _build_specialized(
     prefetch = q.cte(
         _select(
             ordered_plan,
-            _pick(ordered_plan, plan_fields + ['ord']),
-            predicate=_cmp(_c(ordered_plan, 'ord'), bound_limit, '<=')
+            cols.pick(ordered_plan, plan_fields + ['ord']),
+            predicate=_cmp(cols.col(ordered_plan, 'ord'), bound_limit, '<=')
         )
     );
     stats = q.cte(q.aggregate([q.named('total', q.count())], source=ordered_plan));
@@ -671,31 +729,49 @@ def _build_specialized(
         q.union_all(
             _select(
                 prefetch,
-                _pick(prefetch, chosen_names, {'node_id': _c(prefetch, 'path_node_id')})
+                cols.pick(
+                    prefetch,
+                    chosen_names,
+                    {'node_id': cols.col(prefetch, 'path_node_id')}
+                )
             ),
             _select(
                 candidate,
-                _pick(candidate, chosen_names, {'node_id': _c(candidate, 'target_id')}),
+                cols.pick(
+                    candidate,
+                    chosen_names,
+                    {'node_id': cols.col(candidate, 'target_id')}
+                ),
                 joins=[q.cross_join(stats)],
-                predicate=_cmp(_c(stats, 'total'), bound_limit, '<=')
+                predicate=_cmp(cols.col(stats, 'total'), bound_limit, '<=')
             )
         )
     );
-    chosen = q.cte_ref(list(selected.schema.fields));
+    chosen = q.cte_ref(list(cols.schema(selected).fields));
     parent = walk.ref();
     child = chosen.ref();
     ancestry_step = _select(
         parent,
-        _pick(parent, chosen_names, {'spec_idx': _c(parent, 'step_spec_idx')}),
+        cols.pick(
+            parent, chosen_names, {'spec_idx': cols.col(parent, 'step_spec_idx')}
+        ),
         joins=[
             q.inner_join(
                 child,
                 _all(
                     [
-                        _present(_c(child, 'parent_node_id')),
-                        _cmp(_c(parent, 'depth'), _c(child, 'parent_depth')),
-                        _cmp(_c(parent, 'bfs_ord'), _c(child, 'parent_bfs_ord')),
-                        _cmp(_c(parent, 'node_id'), _c(child, 'parent_node_id'))
+                        _present(cols.col(child, 'parent_node_id')),
+                        _cmp(
+                            cols.col(parent, 'depth'), cols.col(child, 'parent_depth')
+                        ),
+                        _cmp(
+                            cols.col(parent, 'bfs_ord'),
+                            cols.col(child, 'parent_bfs_ord')
+                        ),
+                        _cmp(
+                            cols.col(parent, 'node_id'),
+                            cols.col(child, 'parent_node_id')
+                        )
                     ]
                 )
             )
@@ -703,35 +779,43 @@ def _build_specialized(
     );
     q.define_cte(
         chosen,
-        q.union(_select(selected, _pick(selected, chosen_names)), ancestry_step),
+        q.union(_select(selected, cols.pick(selected, chosen_names)), ancestry_step),
         recursive=True
     );
-    plan = _plan_rows(prefetch, True);
-    pn = q.unnest(_c(chosen, 'step_nodes'), q.field('id', q.uuid_type()));
-    pe = q.unnest(_c(chosen, 'step_edges'), q.field('id', q.uuid_type()));
+    plan = _plan_rows(cols, prefetch, True);
+    pn = q.unnest(cols.col(chosen, 'step_nodes'), q.field('id', q.uuid_type()));
+    pe = q.unnest(cols.col(chosen, 'step_edges'), q.field('id', q.uuid_type()));
     node_ids = q.cte(
         q.except_(
             _select(
-                chosen, [('id', _c(pn, 'id'))], joins=[q.cross_join(pn)], distinct=True
+                chosen,
+                [('id', cols.col(pn, 'id'))],
+                joins=[q.cross_join(pn)],
+                distinct=True
             ),
             _select(
                 prefetch,
-                _pick(prefetch, ['id']),
-                predicate=_present(_c(prefetch, 'id'))
+                cols.pick(prefetch, ['id']),
+                predicate=_present(cols.col(prefetch, 'id'))
             )
         )
     );
     edge_ids = q.cte(
-        _select(chosen, [('id', _c(pe, 'id'))], joins=[q.cross_join(pe)], distinct=True)
+        _select(
+            chosen,
+            [('id', cols.col(pe, 'id'))],
+            joins=[q.cross_join(pe)],
+            distinct=True
+        )
     );
     available_nodes = q.cte(
         q.union(
             _select(
                 prefetch,
-                _pick(prefetch, ['id']),
-                predicate=_present(_c(prefetch, 'id'))
+                cols.pick(prefetch, ['id']),
+                predicate=_present(cols.col(prefetch, 'id'))
             ),
-            _select(node_ids, _pick(node_ids, ['id']))
+            _select(node_ids, cols.pick(node_ids, ['id']))
         )
     );
     complete_specs = [
@@ -743,14 +827,18 @@ def _build_specialized(
         _select(
             walk,
             [
-                ('origin_id', _c(walk, 'node_id')),
+                ('origin_id', cols.col(walk, 'node_id')),
                 ('spec_idx', q.int64(int(spec['idx'])))
             ],
             predicate=_all(
                 [
-                    _c(walk, 'is_frontier'),
-                    _cmp(_c(walk, 'depth'), bound_depth, '<'),
-                    _match(_c(walk, 'arch_type'), _expected(spec.get('from_type')))
+                    cols.col(walk, 'is_frontier'),
+                    _cmp(cols.col(walk, 'depth'), bound_depth, '<'),
+                    _match(
+                        cols,
+                        cols.col(walk, 'arch_type'),
+                        _expected(spec.get('from_type'))
+                    )
                 ]
             ),
             distinct=True
@@ -768,10 +856,12 @@ def _build_specialized(
                 predicate=q.boolean(False)
             )
     );
-    exp_edges = q.unnest(_c(candidate, 'step_edges'), q.field('id', q.uuid_type()));
+    exp_edges = q.unnest(
+        cols.col(candidate, 'step_edges'), q.field('id', q.uuid_type())
+    );
     relevant = _either(
         [
-            _cmp(_c(candidate, 'spec_idx'), q.int64(int(spec['idx'])))
+            _cmp(cols.col(candidate, 'spec_idx'), q.int64(int(spec['idx'])))
             for spec in complete_specs
         ]
     );
@@ -779,31 +869,37 @@ def _build_specialized(
         _select(
             candidate,
             [
-                ('origin_id', _c(candidate, 'parent_node_id')),
-                ('spec_idx', _c(candidate, 'spec_idx')),
-                ('target_id', _c(candidate, 'target_id')),
-                ('edge_id', _c(exp_edges, 'id')),
-                ('group_complete', _c(candidate, 'group_complete'))
+                ('origin_id', cols.col(candidate, 'parent_node_id')),
+                ('spec_idx', cols.col(candidate, 'spec_idx')),
+                ('target_id', cols.col(candidate, 'target_id')),
+                ('edge_id', cols.col(exp_edges, 'id')),
+                ('group_complete', cols.col(candidate, 'group_complete'))
             ],
             joins=[q.cross_join(exp_edges)],
-            predicate=_all([_present(_c(candidate, 'parent_node_id')), relevant])
+            predicate=_all([_present(cols.col(candidate, 'parent_node_id')), relevant])
         )
     );
     complete_hops = _complete_rows(
-        complete_origins, expected, available_nodes, edge_ids, complete_optimization
+        cols,
+        complete_origins,
+        expected,
+        available_nodes,
+        edge_ids,
+        complete_optimization
     );
-    topology_nodes = _topology_rows(node_ids, False);
-    topology_edges = _topology_rows(edge_ids, True);
+    topology_nodes = _topology_rows(cols, node_ids, False);
+    topology_edges = _topology_rows(cols, edge_ids, True);
     result = _union(
         [
-            _output(plan, 0),
-            _output(topology_nodes, 1),
-            _output(topology_edges, 2),
-            _output(complete_hops, 3)
+            _output(cols, plan, 0),
+            _output(cols, topology_nodes, 1),
+            _output(cols, topology_edges, 2),
+            _output(cols, complete_hops, 3)
         ]
     );
     outputs = {
-        f.name: q.Field(name=f.name, dtype=f.dtype) for f in result.ast.schema.fields
+        f.name: q.Field(name=f.name, dtype=f.dtype)
+        for f in cols.schema(result.ast).fields
     };
     return q.compile_sql(
         q.ordered(
@@ -818,28 +914,30 @@ def _build_specialized(
     );
 }
 
-def _plan_rows(prefetch: any, specialized: bool) -> any {
+def _plan_rows(cols: _BuildColumns, prefetch: any, specialized: bool) -> any {
     anchors = _anchors();
     ancestry = q.optional_source(_types());
-    columns = _pick(
+    columns = cols.pick(
         prefetch, ['ord', 'id'] + (['depth'] if specialized else []) + ['is_frontier']
     );
     columns += [
-        ('arch_type', _c(anchors, 'arch_type')),
-        ('owner_root', _owner(anchors)),
+        ('arch_type', cols.col(anchors, 'arch_type')),
+        ('owner_root', _owner(cols, anchors)),
         (
             'ancestors',
             q.coalesce(
-                q.string_agg(_c(ancestry, 'ancestor'), q.text(','), distinct=True),
-                _c(anchors, 'arch_type')
+                q.string_agg(
+                    cols.col(ancestry, 'ancestor'), q.text(','), distinct=True
+                ),
+                cols.col(anchors, 'arch_type')
             )
         )
     ];
     groups = [
-        _c(prefetch, k)
+        cols.col(prefetch, k)
         for k in (['ord', 'id'] + (['depth'] if specialized else []) + ['is_frontier'])
     ];
-    groups += [_c(anchors, k) for k in ['id', 'kind', 'arch_type', 'root_id']];
+    groups += [cols.col(anchors, k) for k in ['id', 'kind', 'arch_type', 'root_id']];
     return q.cte(
         _select(
             prefetch,
@@ -849,13 +947,16 @@ def _plan_rows(prefetch: any, specialized: bool) -> any {
                     anchors,
                     _all(
                         [
-                            _cmp(_c(anchors, 'id'), _c(prefetch, 'id')),
-                            _cmp(_c(anchors, 'kind'), q.text('NodeAnchor'))
+                            _cmp(cols.col(anchors, 'id'), cols.col(prefetch, 'id')),
+                            _cmp(cols.col(anchors, 'kind'), q.text('NodeAnchor'))
                         ]
                     )
                 ),
                 q.left_join(
-                    ancestry, _cmp(_c(ancestry, 'type_name'), _c(anchors, 'arch_type'))
+                    ancestry,
+                    _cmp(
+                        cols.col(ancestry, 'type_name'), cols.col(anchors, 'arch_type')
+                    )
                 )
             ],
             groups=groups
@@ -863,24 +964,26 @@ def _plan_rows(prefetch: any, specialized: bool) -> any {
     );
 }
 
-def _topology_rows(ids: any, edges: bool) -> any {
+def _topology_rows(cols: _BuildColumns, ids: any, edges: bool) -> any {
     anchors = _anchors();
     ancestry = q.optional_source(_types());
     names = ['id', 'arch_type']
         + (['src', 'dst', 'undirected', 'seq'] if edges else []);
-    columns = _pick(anchors, names)
-        + ([] if edges else [('owner_root', _owner(anchors))]);
+    columns = cols.pick(anchors, names)
+        + ([] if edges else [('owner_root', _owner(cols, anchors))]);
     columns += [
         (
             'ancestors',
             q.coalesce(
-                q.string_agg(_c(ancestry, 'ancestor'), q.text(','), distinct=True),
-                _c(anchors, 'arch_type')
+                q.string_agg(
+                    cols.col(ancestry, 'ancestor'), q.text(','), distinct=True
+                ),
+                cols.col(anchors, 'arch_type')
             )
         )
     ];
     groups = [
-        _c(anchors, k)
+        cols.col(anchors, k)
         for k in (
             ['id', 'arch_type', 'src', 'dst', 'undirected', 'seq']
                 if edges
@@ -892,13 +995,17 @@ def _topology_rows(ids: any, edges: bool) -> any {
             anchors,
             columns,
             joins=[
-                q.inner_join(ids, _cmp(_c(ids, 'id'), _c(anchors, 'id'))),
+                q.inner_join(ids, _cmp(cols.col(ids, 'id'), cols.col(anchors, 'id'))),
                 q.left_join(
-                    ancestry, _cmp(_c(ancestry, 'type_name'), _c(anchors, 'arch_type'))
+                    ancestry,
+                    _cmp(
+                        cols.col(ancestry, 'type_name'), cols.col(anchors, 'arch_type')
+                    )
                 )
             ],
             predicate=_cmp(
-                _c(anchors, 'kind'), q.text('EdgeAnchor' if edges else 'NodeAnchor')
+                cols.col(anchors, 'kind'),
+                q.text('EdgeAnchor' if edges else 'NodeAnchor')
             ),
             groups=groups
         )
@@ -906,6 +1013,7 @@ def _topology_rows(ids: any, edges: bool) -> any {
 }
 
 def _complete_rows(
+    cols: _BuildColumns,
     origins: any,
     expected: any,
     available_nodes: any,
@@ -918,24 +1026,28 @@ def _complete_rows(
         all_available = q.bool_and(
             _all(
                 [
-                    _c(expected, 'group_complete'),
-                    _present(_c(nodes, 'id')),
-                    _present(_c(edges, 'id'))
+                    cols.col(expected, 'group_complete'),
+                    _present(cols.col(nodes, 'id')),
+                    _present(cols.col(edges, 'id'))
                 ]
             )
         );
         status = q.cte(
             _select(
                 expected,
-                _pick(expected, ['origin_id', 'spec_idx'])
+                cols.pick(expected, ['origin_id', 'spec_idx'])
                     + [('all_available', all_available)],
                 joins=[
                     q.left_join(
-                        nodes, _cmp(_c(nodes, 'id'), _c(expected, 'target_id'))
+                        nodes,
+                        _cmp(cols.col(nodes, 'id'), cols.col(expected, 'target_id'))
                     ),
-                    q.left_join(edges, _cmp(_c(edges, 'id'), _c(expected, 'edge_id')))
+                    q.left_join(
+                        edges,
+                        _cmp(cols.col(edges, 'id'), cols.col(expected, 'edge_id'))
+                    )
                 ],
-                groups=[_c(expected, 'origin_id'), _c(expected, 'spec_idx')]
+                groups=[cols.col(expected, 'origin_id'), cols.col(expected, 'spec_idx')]
             )
         );
         optional_status = q.optional_source(status);
@@ -943,21 +1055,27 @@ def _complete_rows(
             optional_status,
             _all(
                 [
-                    _cmp(_c(optional_status, 'origin_id'), _c(origins, 'origin_id')),
-                    _cmp(_c(optional_status, 'spec_idx'), _c(origins, 'spec_idx'))
+                    _cmp(
+                        cols.col(optional_status, 'origin_id'),
+                        cols.col(origins, 'origin_id')
+                    ),
+                    _cmp(
+                        cols.col(optional_status, 'spec_idx'),
+                        cols.col(origins, 'spec_idx')
+                    )
                 ]
             )
         );
         return q.cte(
             _select(
                 origins,
-                _pick(origins, ['origin_id', 'spec_idx']),
+                cols.pick(origins, ['origin_id', 'spec_idx']),
                 joins=[join],
                 predicate=_all(
                     [
-                        _present(_c(origins, 'origin_id')),
-                        _present(_c(origins, 'spec_idx')),
-                        _c(optional_status, 'all_available')
+                        _present(cols.col(origins, 'origin_id')),
+                        _present(cols.col(origins, 'spec_idx')),
+                        cols.col(optional_status, 'all_available')
                     ]
                 )
             )
@@ -973,8 +1091,8 @@ def _complete_rows(
             [('one', q.int64(1))],
             predicate=_all(
                 [
-                    _cmp(_c(exp1, 'origin_id'), _c(origins, 'origin_id')),
-                    _cmp(_c(exp1, 'spec_idx'), _c(origins, 'spec_idx'))
+                    _cmp(cols.col(exp1, 'origin_id'), cols.col(origins, 'origin_id')),
+                    _cmp(cols.col(exp1, 'spec_idx'), cols.col(origins, 'spec_idx'))
                 ]
             )
         )
@@ -984,7 +1102,7 @@ def _complete_rows(
             _select(
                 nodes,
                 [('one', q.int64(1))],
-                predicate=_cmp(_c(nodes, 'id'), _c(exp2, 'target_id'))
+                predicate=_cmp(cols.col(nodes, 'id'), cols.col(exp2, 'target_id'))
             )
         )
     );
@@ -993,7 +1111,7 @@ def _complete_rows(
             _select(
                 edges,
                 [('one', q.int64(1))],
-                predicate=_cmp(_c(edges, 'id'), _c(exp2, 'edge_id'))
+                predicate=_cmp(cols.col(edges, 'id'), cols.col(exp2, 'edge_id'))
             )
         )
     );
@@ -1003,11 +1121,11 @@ def _complete_rows(
             [('one', q.int64(1))],
             predicate=_all(
                 [
-                    _cmp(_c(exp2, 'origin_id'), _c(origins, 'origin_id')),
-                    _cmp(_c(exp2, 'spec_idx'), _c(origins, 'spec_idx')),
+                    _cmp(cols.col(exp2, 'origin_id'), cols.col(origins, 'origin_id')),
+                    _cmp(cols.col(exp2, 'spec_idx'), cols.col(origins, 'spec_idx')),
                     _either(
                         [
-                            _negated(_c(exp2, 'group_complete')),
+                            _negated(cols.col(exp2, 'group_complete')),
                             node_missing,
                             edge_missing
                         ]
@@ -1019,11 +1137,11 @@ def _complete_rows(
     return q.cte(
         _select(
             origins,
-            _pick(origins, ['origin_id', 'spec_idx']),
+            cols.pick(origins, ['origin_id', 'spec_idx']),
             predicate=_all(
                 [
-                    _present(_c(origins, 'origin_id')),
-                    _present(_c(origins, 'spec_idx')),
+                    _present(cols.col(origins, 'origin_id')),
+                    _present(cols.col(origins, 'spec_idx')),
                     existing,
                     q.not_(bad)
                 ]
@@ -1032,42 +1150,48 @@ def _complete_rows(
     );
 }
 
-def _output(source: any, kind: int) -> any {
+def _output(cols: _BuildColumns, source: any, kind: int) -> any {
     return _select(
         source,
         [
             ('row_kind', q.int64(kind)),
-            ('ord', _c(source, 'ord') if kind == 0 else q.null(q.int64_type())),
-            ('id', _c(source, 'origin_id' if kind == 3 else 'id')),
+            ('ord', cols.col(source, 'ord') if kind == 0 else q.null(q.int64_type())),
+            ('id', cols.col(source, 'origin_id' if kind == 3 else 'id')),
             (
                 'arch_type',
-                q.null(q.text_type()) if kind == 3 else _c(source, 'arch_type')
+                q.null(q.text_type()) if kind == 3 else cols.col(source, 'arch_type')
             ),
             (
                 'owner_root',
-                _c(source, 'owner_root') if kind in (0, 1) else q.null(q.uuid_type())
+                cols.col(source, 'owner_root')
+                    if kind in (0, 1)
+                    else q.null(q.uuid_type())
             ),
-            ('src', _c(source, 'src') if kind == 2 else q.null(q.uuid_type())),
-            ('dst', _c(source, 'dst') if kind == 2 else q.null(q.uuid_type())),
+            ('src', cols.col(source, 'src') if kind == 2 else q.null(q.uuid_type())),
+            ('dst', cols.col(source, 'dst') if kind == 2 else q.null(q.uuid_type())),
             (
                 'undirected',
-                _c(source, 'is_frontier')
+                cols.col(source, 'is_frontier')
                     if kind == 0
-                    else (_c(source, 'undirected') if kind == 2 else q.boolean(False))
+                    else (
+                        cols.col(source, 'undirected')
+                            if kind == 2
+                            else q.boolean(False)
+                    )
             ),
             (
                 'ancestors',
-                q.null(q.text_type()) if kind == 3 else _c(source, 'ancestors')
+                q.null(q.text_type()) if kind == 3 else cols.col(source, 'ancestors')
             ),
             (
                 'seq',
-                _c(source, 'depth')
+                cols.col(source, 'depth')
                     if kind == 0
                     else (
-                        _c(source, 'seq')
+                        cols.col(source, 'seq')
                             if kind == 2
                             else (
-                                _c(source, 'spec_idx')
+                                cols.col(source, 'spec_idx')
                                     if kind == 3
                                     else q.null(q.int64_type())
                             )
@@ -1080,6 +1204,7 @@ def _output(source: any, kind: int) -> any {
 def _build_layered(
     specs: list[dict], has_undirected: bool, include_roots: bool = False
 ) -> q.CompiledSQL {
+    cols = _BuildColumns();
     spec_fields = [
         q.field('idx', q.int64_type()),
         q.field('from_type', q.nullable(q.text_type())),
@@ -1132,14 +1257,17 @@ def _build_layered(
     frontier = q.cte(
         _select(
             seeds,
-            [('node_id', _c(seeds, 'id')), ('frontier_ord', _c(seeds, 'ord'))],
+            [
+                ('node_id', cols.col(seeds, 'id')),
+                ('frontier_ord', cols.col(seeds, 'ord'))
+            ],
             joins=[
                 q.inner_join(
                     seed_node,
                     _all(
                         [
-                            _cmp(_c(seed_node, 'id'), _c(seeds, 'id')),
-                            _cmp(_c(seed_node, 'kind'), q.text('NodeAnchor'))
+                            _cmp(cols.col(seed_node, 'id'), cols.col(seeds, 'id')),
+                            _cmp(cols.col(seed_node, 'kind'), q.text('NodeAnchor'))
                         ]
                     )
                 )
@@ -1161,13 +1289,13 @@ def _build_layered(
     anchor = _select(
         frontier,
         [
-            ('spec_idx', _c(spec_source, 'idx')),
-            ('chain_len', _c(spec_source, 'chain_len')),
-            ('is_visit', _c(spec_source, 'is_visit')),
-            ('seed_ord', _c(frontier, 'frontier_ord')),
+            ('spec_idx', cols.col(spec_source, 'idx')),
+            ('chain_len', cols.col(spec_source, 'chain_len')),
+            ('is_visit', cols.col(spec_source, 'is_visit')),
+            ('seed_ord', cols.col(frontier, 'frontier_ord')),
             ('hop_idx', q.int64(0)),
-            ('node_id', _c(frontier, 'node_id')),
-            ('path_nodes', q.array(q.uuid_type(), [_c(frontier, 'node_id')])),
+            ('node_id', cols.col(frontier, 'node_id')),
+            ('path_nodes', q.array(q.uuid_type(), [cols.col(frontier, 'node_id')])),
             ('hop_ord', q.array(q.int64_type(), []))
         ],
         joins=[
@@ -1175,8 +1303,8 @@ def _build_layered(
                 current,
                 _all(
                     [
-                        _cmp(_c(current, 'id'), _c(frontier, 'node_id')),
-                        _cmp(_c(current, 'kind'), q.text('NodeAnchor'))
+                        _cmp(cols.col(current, 'id'), cols.col(frontier, 'node_id')),
+                        _cmp(cols.col(current, 'kind'), q.text('NodeAnchor'))
                     ]
                 )
             ),
@@ -1184,8 +1312,12 @@ def _build_layered(
                 spec_source,
                 _all(
                     [
-                        _cmp(_c(spec_source, 'chain_len'), q.int64(0), '>'),
-                        _match(_c(current, 'arch_type'), _c(spec_source, 'from_type'))
+                        _cmp(cols.col(spec_source, 'chain_len'), q.int64(0), '>'),
+                        _match(
+                            cols,
+                            cols.col(current, 'arch_type'),
+                            cols.col(spec_source, 'from_type')
+                        )
                     ]
                 )
             )
@@ -1194,45 +1326,60 @@ def _build_layered(
     edge_source = _anchors();
     target = _anchors();
     base_conditions = [
-        _cmp(_c(edge_source, 'kind'), q.text('EdgeAnchor')),
-        _present(_c(edge_source, 'src')),
-        _present(_c(edge_source, 'dst'))
+        _cmp(cols.col(edge_source, 'kind'), q.text('EdgeAnchor')),
+        _present(cols.col(edge_source, 'src')),
+        _present(cols.col(edge_source, 'dst'))
     ];
     direct_out = not has_undirected and all([d == 2 for d in directions]);
     direct_in = not has_undirected and all([d == 1 for d in directions]);
     if direct_out or direct_in {
         base_conditions.append(
-            _cmp(_c(edge_source, 'src' if direct_out else 'dst'), _c(walk, 'node_id'))
+            _cmp(
+                cols.col(edge_source, 'src' if direct_out else 'dst'),
+                cols.col(walk, 'node_id')
+            )
         );
-        target_id = _c(edge_source, 'dst' if direct_out else 'src');
+        target_id = cols.col(edge_source, 'dst' if direct_out else 'src');
     } else {
         base_conditions.append(
             _either(
                 [
                     _all(
                         [
-                            q.in_(_c(hops, 'direction'), [q.int64(2), q.int64(3)]),
-                            _cmp(_c(edge_source, 'src'), _c(walk, 'node_id'))
+                            q.in_(
+                                cols.col(hops, 'direction'), [q.int64(2), q.int64(3)]
+                            ),
+                            _cmp(
+                                cols.col(edge_source, 'src'), cols.col(walk, 'node_id')
+                            )
                         ]
                     ),
                     _all(
                         [
-                            q.in_(_c(hops, 'direction'), [q.int64(1), q.int64(3)]),
-                            _cmp(_c(edge_source, 'dst'), _c(walk, 'node_id'))
+                            q.in_(
+                                cols.col(hops, 'direction'), [q.int64(1), q.int64(3)]
+                            ),
+                            _cmp(
+                                cols.col(edge_source, 'dst'), cols.col(walk, 'node_id')
+                            )
                         ]
                     ),
                     _all(
                         [
-                            _cmp(_c(hops, 'direction'), q.int64(1)),
-                            _c(edge_source, 'undirected'),
-                            _cmp(_c(edge_source, 'src'), _c(walk, 'node_id'))
+                            _cmp(cols.col(hops, 'direction'), q.int64(1)),
+                            cols.col(edge_source, 'undirected'),
+                            _cmp(
+                                cols.col(edge_source, 'src'), cols.col(walk, 'node_id')
+                            )
                         ]
                     ),
                     _all(
                         [
-                            _cmp(_c(hops, 'direction'), q.int64(2)),
-                            _c(edge_source, 'undirected'),
-                            _cmp(_c(edge_source, 'dst'), _c(walk, 'node_id'))
+                            _cmp(cols.col(hops, 'direction'), q.int64(2)),
+                            cols.col(edge_source, 'undirected'),
+                            _cmp(
+                                cols.col(edge_source, 'dst'), cols.col(walk, 'node_id')
+                            )
                         ]
                     )
                 ]
@@ -1241,28 +1388,28 @@ def _build_layered(
         target_id = q.case_(
             [
                 (
-                    _cmp(_c(edge_source, 'src'), _c(walk, 'node_id')),
-                    _c(edge_source, 'dst')
+                    _cmp(cols.col(edge_source, 'src'), cols.col(walk, 'node_id')),
+                    cols.col(edge_source, 'dst')
                 )
             ],
-            _c(edge_source, 'src')
+            cols.col(edge_source, 'src')
         );
     }
     step = _select(
         walk,
-        _pick(walk, ['spec_idx', 'chain_len', 'is_visit', 'seed_ord'])
+        cols.pick(walk, ['spec_idx', 'chain_len', 'is_visit', 'seed_ord'])
             + [
-                ('hop_idx', q.add(_c(hops, 'hop_idx'), q.int64(1))),
-                ('node_id', _c(target, 'id')),
+                ('hop_idx', q.add(cols.col(hops, 'hop_idx'), q.int64(1))),
+                ('node_id', cols.col(target, 'id')),
                 (
                     'path_nodes',
-                    q.array_append(_c(walk, 'path_nodes'), _c(target, 'id'))
+                    q.array_append(cols.col(walk, 'path_nodes'), cols.col(target, 'id'))
                 ),
                 (
                     'hop_ord',
                     q.array_append(
-                        _c(walk, 'hop_ord'),
-                        q.coalesce(_c(edge_source, 'seq'), q.int64(0))
+                        cols.col(walk, 'hop_ord'),
+                        q.coalesce(cols.col(edge_source, 'seq'), q.int64(0))
                     )
                 )
             ],
@@ -1271,8 +1418,8 @@ def _build_layered(
                 hops,
                 _all(
                     [
-                        _cmp(_c(hops, 'spec_idx'), _c(walk, 'spec_idx')),
-                        _cmp(_c(hops, 'hop_idx'), _c(walk, 'hop_idx'))
+                        _cmp(cols.col(hops, 'spec_idx'), cols.col(walk, 'spec_idx')),
+                        _cmp(cols.col(hops, 'hop_idx'), cols.col(walk, 'hop_idx'))
                     ]
                 )
             ),
@@ -1281,18 +1428,24 @@ def _build_layered(
                 target,
                 _all(
                     [
-                        _cmp(_c(target, 'id'), target_id),
-                        _cmp(_c(target, 'kind'), q.text('NodeAnchor'))
+                        _cmp(cols.col(target, 'id'), target_id),
+                        _cmp(cols.col(target, 'kind'), q.text('NodeAnchor'))
                     ]
                 )
             )
         ],
         predicate=_all(
             [
-                _cmp(_c(walk, 'hop_idx'), _c(walk, 'chain_len'), '<'),
-                _match(_c(edge_source, 'arch_type'), _c(hops, 'edge_type')),
-                _match(_c(target, 'arch_type'), _c(hops, 'node_type')),
-                _negated(q.any_eq(_c(target, 'id'), _c(walk, 'path_nodes')))
+                _cmp(cols.col(walk, 'hop_idx'), cols.col(walk, 'chain_len'), '<'),
+                _match(
+                    cols,
+                    cols.col(edge_source, 'arch_type'),
+                    cols.col(hops, 'edge_type')
+                ),
+                _match(
+                    cols, cols.col(target, 'arch_type'), cols.col(hops, 'node_type')
+                ),
+                _negated(q.any_eq(cols.col(target, 'id'), cols.col(walk, 'path_nodes')))
             ]
         )
     );
@@ -1301,36 +1454,40 @@ def _build_layered(
         frontier,
         [
             ('phase', q.int64(0)),
-            ('seed_ord', _c(frontier, 'frontier_ord')),
+            ('seed_ord', cols.col(frontier, 'frontier_ord')),
             ('spec_idx', q.int64(-1)),
             ('hop_ord', q.array(q.int64_type(), [])),
-            ('target_id', _c(frontier, 'node_id')),
+            ('target_id', cols.col(frontier, 'node_id')),
             ('is_frontier', q.boolean(False))
         ]
     );
     visited_rows = _select(
         walk,
         [('phase', q.int64(1))]
-            + _pick(walk, ['seed_ord', 'spec_idx', 'hop_ord'])
+            + cols.pick(walk, ['seed_ord', 'spec_idx', 'hop_ord'])
             + [
-                ('target_id', _c(walk, 'node_id')),
-                ('is_frontier', _c(walk, 'is_visit'))
+                ('target_id', cols.col(walk, 'node_id')),
+                ('is_frontier', cols.col(walk, 'is_visit'))
             ],
-        predicate=_cmp(_c(walk, 'hop_idx'), _c(walk, 'chain_len'))
+        predicate=_cmp(cols.col(walk, 'hop_idx'), cols.col(walk, 'chain_len'))
     );
     candidates = q.cte(q.union_all(seed_rows, visited_rows));
     anchors = _anchors();
     node_rows = q.cte(
         _select(
             candidates,
-            _pick(candidates, _names(candidates)) + [('owner_root', _owner(anchors))],
+            cols.pick(candidates, cols.names(candidates))
+                + [('owner_root', _owner(cols, anchors))],
             joins=[
                 q.inner_join(
                     anchors,
                     _all(
                         [
-                            _cmp(_c(anchors, 'id'), _c(candidates, 'target_id')),
-                            _cmp(_c(anchors, 'kind'), q.text('NodeAnchor'))
+                            _cmp(
+                                cols.col(anchors, 'id'),
+                                cols.col(candidates, 'target_id')
+                            ),
+                            _cmp(cols.col(anchors, 'kind'), q.text('NodeAnchor'))
                         ]
                     )
                 )
@@ -1342,28 +1499,28 @@ def _build_layered(
         q.union_all(
             _select(
                 node_rows,
-                _pick(node_rows, ordering_names)
+                cols.pick(node_rows, ordering_names)
                     + [
                         ('sub_ord', q.int64(0)),
-                        ('id', _c(node_rows, 'target_id')),
-                        ('is_frontier', _c(node_rows, 'is_frontier'))
+                        ('id', cols.col(node_rows, 'target_id')),
+                        ('is_frontier', cols.col(node_rows, 'is_frontier'))
                     ]
             ),
             _select(
                 node_rows,
-                _pick(node_rows, ordering_names)
+                cols.pick(node_rows, ordering_names)
                     + [
                         ('sub_ord', q.int64(1)),
-                        ('id', _c(node_rows, 'owner_root')),
+                        ('id', cols.col(node_rows, 'owner_root')),
                         ('is_frontier', q.boolean(False))
                     ],
                 predicate=_all(
                     [
-                        _present(_c(node_rows, 'owner_root')),
+                        _present(cols.col(node_rows, 'owner_root')),
                         q.boolean(include_roots),
                         _cmp(
-                            _c(node_rows, 'owner_root'),
-                            _c(node_rows, 'target_id'),
+                            cols.col(node_rows, 'owner_root'),
+                            cols.col(node_rows, 'target_id'),
                             '<>'
                         )
                     ]
@@ -1375,14 +1532,14 @@ def _build_layered(
     filtered = q.cte(
         _select(
             additions,
-            _pick(additions, _names(additions)),
+            cols.pick(additions, cols.names(additions)),
             predicate=_all(
                 [
-                    _present(_c(additions, 'id')),
+                    _present(cols.col(additions, 'id')),
                     _either(
                         [
                             q.slot('seen_empty', q.bool_type()),
-                            _negated(q.any_eq(_c(additions, 'id'), seen_array))
+                            _negated(q.any_eq(cols.col(additions, 'id'), seen_array))
                         ]
                     )
                 ]
@@ -1392,23 +1549,24 @@ def _build_layered(
     dedup = q.cte(
         _select(
             filtered,
-            _pick(filtered, ['id'] + ordering_names + ['sub_ord', 'is_frontier']),
-            distinct_on=[_c(filtered, 'id')],
+            cols.pick(filtered, ['id'] + ordering_names + ['sub_ord', 'is_frontier']),
+            distinct_on=[cols.col(filtered, 'id')],
             order=[
-                q.asc(_c(filtered, k)) for k in (['id'] + ordering_names + ['sub_ord'])
+                q.asc(cols.col(filtered, k))
+                for k in (['id'] + ordering_names + ['sub_ord'])
             ]
         )
     );
     ordered_plan = q.cte(
         _select(
             dedup,
-            _pick(dedup, ['id', 'is_frontier'])
+            cols.pick(dedup, ['id', 'is_frontier'])
                 + [
                     (
                         'ord',
                         q.row_number(
                             order_by=[
-                                q.asc(_c(dedup, k))
+                                q.asc(cols.col(dedup, k))
                                 for k in (ordering_names + ['sub_ord', 'id'])
                             ]
                         )
@@ -1419,32 +1577,36 @@ def _build_layered(
     prefetch = q.cte(
         _select(
             ordered_plan,
-            _pick(ordered_plan, _names(ordered_plan)),
+            cols.pick(ordered_plan, cols.names(ordered_plan)),
             predicate=_cmp(
-                _c(ordered_plan, 'ord'), q.slot('limit', q.int64_type()), '<='
+                cols.col(ordered_plan, 'ord'), q.slot('limit', q.int64_type()), '<='
             )
         )
     );
-    plan = _plan_rows(prefetch, False);
+    plan = _plan_rows(cols, prefetch, False);
     return q.compile_sql(
         _select(
             plan,
-            _pick(
+            cols.pick(
                 plan,
                 ['ord', 'id', 'arch_type', 'owner_root', 'ancestors', 'is_frontier']
             ),
-            order=[q.asc(_c(plan, 'ord'))]
+            order=[q.asc(cols.col(plan, 'ord'))]
         )
     );
 }
 
 def compile_undirected_probe -> q.CompiledSQL {
+    cols = _BuildColumns();
     edges = _anchors();
     query = _select(
         edges,
         [('one', q.int64(1))],
         predicate=_all(
-            [_cmp(_c(edges, 'kind'), q.text('EdgeAnchor')), _c(edges, 'undirected')]
+            [
+                _cmp(cols.col(edges, 'kind'), q.text('EdgeAnchor')),
+                cols.col(edges, 'undirected')
+            ]
         )
     );
     return q.compile_sql(_select(None, [('present', q.exists(q.limit_one(query)))]));
