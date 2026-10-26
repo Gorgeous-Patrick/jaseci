@@ -32,7 +32,7 @@ contain SQL, fixed parameters and slot metadata, with no AST or build context.
 
 ## Verification
 
-- 172 SQL tests cover SQLite, PostgreSQL, static signatures and builder contracts.
+- 176 SQL tests cover SQLite, PostgreSQL, static signatures and builder contracts.
 - Six TTG tests cover template reuse, context isolation and source binding identity.
 - 13 topology/runtime tests pass, including 145 full-row comparisons against the
   frozen string generator and 72 complete layered traversal comparisons.

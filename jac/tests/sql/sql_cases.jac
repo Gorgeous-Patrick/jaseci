@@ -61,6 +61,64 @@ class SQLTests(unittest.TestCase) {
         }
     }
 
+    def test_sort_options_are_closed(self: SQLTests) -> object {
+        for make_order in [s.asc, s.desc] {
+            for invalid in [
+                'LAST, (SELECT 1)',
+                'FIRST; SELECT 1',
+                'last',
+                'NULLS LAST'
+            ] {
+                with self.subTest(invalid=invalid), self.assertRaises(s.SqlError) {
+                    make_order(s.int64(1), nulls=invalid);
+                }
+            }
+            for valid in ['', 'FIRST', 'LAST'] {
+                query = s.select(
+                    [s.named('n', s.int64(1))],
+                    order_by=[make_order(s.int64(1), nulls=valid)]
+                );
+                compiled = s.compile_sql(query);
+                self.assertIn(
+                    (' NULLS ' + valid) if valid else 'ORDER BY', compiled.sql
+                );
+                self.assertEqual(self.execute(query), [(1, )]);
+            }
+        }
+    }
+
+    def test_exactly_one_is_checked_at_construction(self: SQLTests) -> object {
+        inner = s.aggregate([s.named('n', s.count())], source=self.people);
+        nested = s.scalar_one(inner, s.field('n', s.int64_type()));
+        window = s.row_number(order_by=[s.asc(s.int64(1))]);
+        for empty in [False, True] {
+            if empty {
+                self.db.execute('DELETE FROM people');
+            }
+            for term in [
+                s.int64(1),
+                self.people.col(self.age),
+                nested,
+                s.exists(inner),
+                window
+            ] {
+                with self.subTest(empty=empty), self.assertRaises(s.SqlError) {
+                    s.aggregate([s.named('n', term)], source=self.people);
+                }
+            }
+            expression = s.add(s.count(), s.int64(1));
+            query = s.aggregate(
+                [s.named('n', expression)], source=self.people, where=s.boolean(False)
+            );
+            scalar = s.scalar_one(query, s.field('n', s.int64_type()));
+            self.assertEqual(self.execute(s.select([s.named('n', scalar)])), [(1, )]);
+            count = s.scalar_one(inner, s.field('n', s.int64_type()));
+            self.assertEqual(
+                self.execute(s.select([s.named('n', count)])), [(0 if empty else 3, )]
+            );
+        }
+    }
+
     def test_select_parameters_and_order(self: SQLTests) -> object {
         q = s.select(
             [s.named('name', self.people.col(self.name))],
@@ -435,12 +493,16 @@ class SQLTests(unittest.TestCase) {
                 [s.named('age', self.people.col(self.age))],
                 source=self.people,
                 where=s.gt(s.count(), s.int64(1))
-            ),
-            s.aggregate([s.named('age', self.people.col(self.age))], source=self.people)
+            )
         ] {
             with self.subTest(q=q), self.assertRaises(s.SqlError) {
                 _checked_sql(q);
             }
+        }
+        with self.assertRaises(s.SqlError) {
+            s.aggregate(
+                [s.named('age', self.people.col(self.age))], source=self.people
+            );
         }
     }
 

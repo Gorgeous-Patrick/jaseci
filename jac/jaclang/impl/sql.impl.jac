@@ -318,10 +318,16 @@ impl named(name: str, expr: ScalarExpr[T]) -> Projection[T] {
 }
 
 impl asc(expr: ScalarExpr[T], nulls: str = '') -> Order {
+    if nulls not in ('', 'FIRST', 'LAST') {
+        raise SqlError('NULLS ordering must be empty, FIRST or LAST');
+    }
     return Order(expr=expr.ast, descending=False, nulls=nulls);
 }
 
 impl desc(expr: ScalarExpr[T], nulls: str = '') -> Order {
+    if nulls not in ('', 'FIRST', 'LAST') {
+        raise SqlError('NULLS ordering must be empty, FIRST or LAST');
+    }
     return Order(expr=expr.ast, descending=True, nulls=nulls);
 }
 
@@ -389,6 +395,9 @@ impl aggregate(
     source: Source | None = None,
     where: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]] | None = None
 ) -> Relation[Schema, ExactlyOne] {
+    if not `any([_contains_aggregate(p.expr) for p in projections]) {
+        raise SqlError('Exactly-one aggregate requires an aggregate in this SELECT');
+    }
     q = select(projections, source=source, where=where);
     ast = q.ast;
     if not isinstance(ast, SelectNode) {
