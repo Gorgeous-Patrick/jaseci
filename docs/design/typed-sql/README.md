@@ -178,6 +178,36 @@ Direct recursive aggregation, scalar-subquery self-reference and references on
 an outer join's nullable side are rejected by explicit diagnostics. Recursive termination follows the
 query predicate. Parenthesized wrappers preserve arm-local ordering and limits.
 
+### Runnable directory traversal
+
+The complete [recursive directory example](../../../jac/examples/sql/recursive_directory.jac)
+creates seven fixed directory/file nodes and runs the generated query in SQLite's
+in-memory database. It needs no database server or extra dependencies. From the
+repository root:
+
+```sh
+jac run jac/examples/sql/recursive_directory.jac
+```
+
+The selected root is bound through `slot('root_id', int64_type())`. The anchor
+selects that root; the recursive step joins each directory to its children and
+extends their path and depth. `define_cte(..., recursive=True)` connects both arms.
+
+```text
+project/
+├── README.md
+└── src/
+    ├── lib/
+    │   └── helper.jac
+    └── main.jac
+unrelated.txt
+```
+
+The program prints the SQL, bound parameters, expected rows and actual rows, then
+asserts that both row lists match. The result contains six rows under `project`,
+including depth 0 for the root and depth 3 for `project/src/lib/helper.jac`.
+`unrelated.txt` belongs to a different root and is excluded.
+
 ## Compilation and AST lifetime
 
 1. `QueryGraph` collects structural dependencies, parameter slots, source bindings
