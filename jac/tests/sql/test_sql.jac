@@ -223,3 +223,13 @@ test "SQLite: named slot does_not_retain_ast" {
 test "SQLite: named slot injection_is_bound" {
     run_case(SQLTests("test_named_slot_injection_is_bound"));
 }
+
+
+test "SQLite: sort options are closed" {
+    run_case(SQLTests("test_sort_options_are_closed"));
+}
+
+
+test "SQLite: exactly one is checked at construction" {
+    run_case(SQLTests("test_exactly_one_is_checked_at_construction"));
+}

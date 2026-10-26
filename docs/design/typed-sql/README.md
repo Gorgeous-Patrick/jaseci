@@ -34,6 +34,10 @@ Dynamic SQL semantics such as grouping and visibility are checked by PostgreSQL.
 Internal callers can explicitly run `QueryValidator().analyze(query)` for detailed
 AST diagnostics. Direct AST edits and `Any` can bypass the static contract.
 
+Sort builders accept only empty, FIRST or LAST null positioning. `aggregate`
+requires a grouping aggregate in its SELECT expressions before assigning ExactlyOne;
+subquery-only aggregates and plain windows do not establish that row-count contract.
+
 ## Construction example
 
 ```jac
@@ -193,8 +197,8 @@ local to one compilation. Recursive CTE definitions use single-assignment bindin
 
 ## Verification
 
-The suite contains 172 native Jac test entries: 56 SQLite cases, the same
-56 PostgreSQL cases, 43 PostgreSQL feature cases, five static-check tests and
+The suite contains 176 native Jac test entries: 58 SQLite cases, the same
+58 PostgreSQL cases, 43 PostgreSQL feature cases, five static-check tests and
 twelve builder/cache regression tests.
 The static fixtures verify all 52 invalid calls at their expected source lines;
 positive checking covers the module and a valid-call fixture.

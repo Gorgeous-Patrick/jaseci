@@ -224,3 +224,13 @@ test "PostgreSQL: named slot does_not_retain_ast" {
 test "PostgreSQL: named slot injection_is_bound" {
     run_case(PostgresTests("test_named_slot_injection_is_bound"));
 }
+
+
+test "PostgreSQL: sort options are closed" {
+    run_case(PostgresTests("test_sort_options_are_closed"));
+}
+
+
+test "PostgreSQL: exactly one is checked at construction" {
+    run_case(PostgresTests("test_exactly_one_is_checked_at_construction"));
+}
