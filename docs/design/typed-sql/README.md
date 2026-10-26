@@ -180,13 +180,13 @@ query predicate. Parenthesized wrappers preserve arm-local ordering and limits.
 
 ### Runnable directory traversal
 
-The complete [recursive directory example](../../../jac/examples/sql/recursive_directory.jac)
+The complete [recursive directory example](recursive_directory.jac)
 creates seven fixed directory/file nodes and runs the generated query in SQLite's
 in-memory database. It needs no database server or extra dependencies. From the
 repository root:
 
 ```sh
-jac run jac/examples/sql/recursive_directory.jac
+jac run docs/design/typed-sql/recursive_directory.jac
 ```
 
 The selected root is bound through `slot('root_id', int64_type())`. The anchor

@@ -1,7 +1,7 @@
 """Traverse a fixed directory tree with a recursive SQL query.
 
 Run from the repository root:
-    jac run jac/examples/sql/recursive_directory.jac
+    jac run docs/design/typed-sql/recursive_directory.jac
 
 SQLite runs the generated query in memory; no database server is required.
 """
