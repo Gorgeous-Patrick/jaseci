@@ -145,7 +145,7 @@ test "SQL compilation: slot metadata and array parameters are snapshots" {
 }
 
 
-test "SQL compilation: schemas are reused only within one compile" {
+test "SQL diagnostics: schemas are reused only within one analysis" {
     import from unittest.mock { patch }
     check = TestCase();
     left = s.select([s.named('n', s.int64(1))]);
@@ -153,9 +153,9 @@ test "SQL compilation: schemas are reused only within one compile" {
     union = s.union_all(left, right);
     original_keys = set(union.ast.__dict__);
     with patch.object(s, '_merge_set_schema', wraps=s._merge_set_schema) as merge {
-        s.compile_sql(union);
+        s.QueryValidator().analyze(union);
         assert merge.call_count == 1;
-        s.compile_sql(union);
+        s.QueryValidator().analyze(union);
         assert merge.call_count == 2;
     }
     assert set(union.ast.__dict__) == original_keys;
@@ -163,6 +163,35 @@ test "SQL compilation: schemas are reused only within one compile" {
     ast: any = union.ast;
     setattr(ast, 'right', replacement.ast);
     with check.assertRaises(s.SqlError) {
-        s.compile_sql(union);
+        s.QueryValidator().analyze(union);
     }
+}
+
+
+test "SQL compilation: typed builders render without semantic analysis" {
+    import from unittest.mock { patch }
+    query = s.select(
+        [s.named('n', s.add(s.int64(1), s.slot('increment', s.int64_type())))]
+    );
+    with patch.object(
+        s.QueryValidator, 'analyze', side_effect=AssertionError('unexpected analysis')
+    ), patch.object(
+        s.QueryValidator,
+        'expr_uncached',
+        side_effect=AssertionError('unexpected expression checking')
+    ) {
+        compiled = s.compile_sql(query);
+    }
+    assert compiled.bind({'increment': 2}).params['increment'] == 2;
+    assert ' + ' in compiled.sql;
+}
+
+
+test "SQL compilation: low-level AST typing is the caller contract" {
+    query = s.select([s.named('n', s.int64(1))]);
+    ast: any = query.ast;
+    ast.projections[0].expr = s.text('abc').ast;
+    compiled = s.compile_sql(query);
+    assert 'text' in compiled.sql;
+    assert list(compiled.params.values()) == ['abc'];
 }

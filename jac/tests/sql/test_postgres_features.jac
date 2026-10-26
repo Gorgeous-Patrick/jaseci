@@ -4,7 +4,7 @@ import from decimal { Decimal }
 import from uuid { UUID }
 import jaclang.sql as sql;
 import from .postgres_cases { PostgresTests }
-import from .sql_cases { run_case }
+import from .sql_cases { run_case, _checked_sql }
 glob s: any = sql;
 
 class FeatureTests(PostgresTests) {
@@ -174,7 +174,7 @@ class FeatureTests(PostgresTests) {
         );
         for rows in [[], [[s.text('x')]], [[s.int64(1), s.int64(2)]]] {
             with self.assertRaises(s.SqlError) {
-                s.compile_sql(s.values([key], rows));
+                _checked_sql(s.values([key], rows));
             }
         }
         maybe = s.field('n', s.nullable(s.int64_type()));
@@ -203,7 +203,7 @@ class FeatureTests(PostgresTests) {
         self.assertEqual(self.execute(body), [(1, 2), (1, 3)]);
         nonlateral = inner.as_source();
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select(
                     [s.named('id', self.people.col(self.id))],
                     source=self.people,
@@ -212,7 +212,7 @@ class FeatureTests(PostgresTests) {
             );
         }
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', source.col(key))], source=source));
+            _checked_sql(s.select([s.named('n', source.col(key))], source=source));
         }
     }
 
@@ -244,7 +244,7 @@ class FeatureTests(PostgresTests) {
             source=self.people.ref(), condition=s.boolean(True).ast, kind='LEFT'
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select([s.named('n', s.int64(1))], source=self.people, joins=[raw])
             );
         }
@@ -320,7 +320,7 @@ class FeatureTests(PostgresTests) {
         );
         self.assertEqual(self.execute(query), [(20, 1), (40, 3)]);
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select(
                     [s.named('age', self.people.col(self.age))],
                     source=self.people,
@@ -330,7 +330,7 @@ class FeatureTests(PostgresTests) {
             );
         }
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select(
                     [s.named('age', self.people.col(self.age))],
                     source=self.people,
@@ -360,7 +360,7 @@ class FeatureTests(PostgresTests) {
             [(3, )]
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.ordered(a, [s.asc(s.int64(1))]));
+            _checked_sql(s.ordered(a, [s.asc(s.int64(1))]));
         }
     }
 
@@ -381,7 +381,7 @@ class FeatureTests(PostgresTests) {
         );
         self.assertEqual(self.execute(query), [(1, ), (None, )]);
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select(
                     [s.named('n', s.int64(1))],
                     order_by=[s.asc(s.int64(1), nulls='LAST; SELECT 1')]
@@ -515,7 +515,7 @@ class FeatureTests(PostgresTests) {
             )
         ] {
             with self.assertRaises(s.SqlError) {
-                s.compile_sql(query);
+                _checked_sql(query);
             }
         }
         with self.assertRaises(s.SqlError) {
@@ -559,7 +559,7 @@ class FeatureTests(PostgresTests) {
         );
         self.assertEqual(self.execute(query), [(1, ), (2, ), (3, )]);
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', local.col(key))], source=local));
+            _checked_sql(s.select([s.named('n', local.col(key))], source=local));
         }
     }
 
@@ -568,11 +568,11 @@ class FeatureTests(PostgresTests) {
         local = s.cte(s.select([s.named('n', s.int64(1))]));
         body = s.select([s.named('n', local.col(key))], source=local);
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.with_ctes(body, [local, local]));
+            _checked_sql(s.with_ctes(body, [local, local]));
         }
         nested = s.with_ctes(body, [local]);
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.with_ctes(nested, [local]));
+            _checked_sql(s.with_ctes(nested, [local]));
         }
     }
 
@@ -655,7 +655,7 @@ class FeatureTests(PostgresTests) {
             recursive=True
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', walk.col(key))], source=walk));
+            _checked_sql(s.select([s.named('n', walk.col(key))], source=walk));
         }
     }
 
@@ -790,7 +790,7 @@ class FeatureTests(PostgresTests) {
             )
         ] {
             with self.assertRaises(s.SqlError) {
-                s.compile_sql(s.Relation(ast));
+                _checked_sql(s.Relation(ast));
             }
         }
     }
@@ -817,7 +817,7 @@ class FeatureTests(PostgresTests) {
             joins=[s.cross_join(premature), s.cross_join(later)]
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(invalid);
+            _checked_sql(invalid);
         }
     }
 
@@ -899,13 +899,13 @@ class FeatureTests(PostgresTests) {
             )
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', raw)]));
+            _checked_sql(s.select([s.named('n', raw)]));
         }
         bad = s.Join(
             source=self.people.ref(), condition=s.boolean(False).ast, kind='CROSS'
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select([s.named('n', s.int64(1))], source=self.people, joins=[bad])
             );
         }
@@ -914,7 +914,7 @@ class FeatureTests(PostgresTests) {
         }
         source = s.cte(s.select([s.named('n', s.int64(1))]), materialized='invalid');
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select(
                     [s.named('n', source.col(s.field('n', s.int64_type())))],
                     source=source
@@ -941,7 +941,7 @@ class FeatureTests(PostgresTests) {
         );
         ordinary = relation.as_source();
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(
+            _checked_sql(
                 s.select(
                     [s.named('n', ordinary.col(key))],
                     source=self.people,
@@ -950,7 +950,7 @@ class FeatureTests(PostgresTests) {
             );
         }
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select(s.project_all(src), source=src));
+            _checked_sql(s.select(s.project_all(src), source=src));
         }
     }
 
@@ -974,7 +974,7 @@ class FeatureTests(PostgresTests) {
             [s.named('n', result), s.named('count', s.count())], source=self.people
         );
         with self.assertRaisesRegex(s.SqlError, 'GROUP BY') {
-            s.compile_sql(invalid);
+            _checked_sql(invalid);
         }
         nested_source = s.values([key], [[self.people.col(self.id)]]).as_source();
         nested = s.limit_one(
@@ -999,7 +999,7 @@ class FeatureTests(PostgresTests) {
             recursive=True
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select(s.project_all(walk), source=walk));
+            _checked_sql(s.select(s.project_all(walk), source=walk));
         }
     }
 
@@ -1012,7 +1012,7 @@ class FeatureTests(PostgresTests) {
         self.db.execute('DELETE FROM people');
         self.assertEqual(self.execute(query), [(None, )]);
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('bad', s.bool_or(s.int64(1)))]));
+            _checked_sql(s.select([s.named('bad', s.bool_or(s.int64(1)))]));
         }
     }
 
@@ -1080,7 +1080,7 @@ class FeatureTests(PostgresTests) {
         }
         raw = s.ScalarExpr(s.CastNode(dtype=dtype.data, term=s.text('{NULL}').ast));
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('ids', raw)]));
+            _checked_sql(s.select([s.named('ids', raw)]));
         }
         converted = s.cast(s.array_param(s.int32_type(), [1, 2]), dtype);
         key = s.field('n', s.int64_type());

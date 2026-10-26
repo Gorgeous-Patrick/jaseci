@@ -8,6 +8,13 @@ import unittest;
 import from uuid { UUID }
 import jaclang.sql as sql;
 glob s: any = sql;
+# Explicit diagnostic coverage for malformed low-level ASTs and dynamic misuse.
+# Normal execution tests use compile_sql directly.
+def _checked_sql(query: any) -> any {
+    s.QueryValidator().analyze(query);
+    return s.compile_sql(query);
+}
+
 class SQLTests(unittest.TestCase) {
     def setUp(self: SQLTests) -> object {
         self.id = s.field('id', s.int64_type());
@@ -174,7 +181,7 @@ class SQLTests(unittest.TestCase) {
             source.col(self.age);
         }
         with self.assertRaisesRegex(s.SqlError, 'outside scope') {
-            s.compile_sql(s.select([s.named('name', self.people.col(self.name))]));
+            _checked_sql(s.select([s.named('name', self.people.col(self.name))]));
         }
     }
 
@@ -194,7 +201,7 @@ class SQLTests(unittest.TestCase) {
         self.assertEqual(self.execute(body), [(7, )]);
         missing = s.cte_ref([key]);
         with self.assertRaisesRegex(s.SqlError, 'no definition') {
-            s.compile_sql(s.select([s.named('n', missing.col(key))], source=missing));
+            _checked_sql(s.select([s.named('n', missing.col(key))], source=missing));
         }
     }
 
@@ -228,7 +235,7 @@ class SQLTests(unittest.TestCase) {
         replacement = s.select([s.named('n', s.text('abc'))], source=ref);
         combined.ast.right = replacement.ast;
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', ref.col(key))], source=ref));
+            _checked_sql(s.select([s.named('n', ref.col(key))], source=ref));
         }
         combined.ast.right = step.ast;
         body = s.select(
@@ -246,7 +253,7 @@ class SQLTests(unittest.TestCase) {
         bad = s.cte_ref([key]);
         with self.assertRaisesRegex(s.SqlError, 'UNION schema/cardinality mismatch') {
             s.define_cte(bad, invalid, recursive=True);
-            s.compile_sql(s.select([s.named('n', bad.col(key))], source=bad));
+            _checked_sql(s.select([s.named('n', bad.col(key))], source=bad));
         }
     }
 
@@ -305,7 +312,7 @@ class SQLTests(unittest.TestCase) {
         bad_body = s.select([s.named('n', bad.col(key))], source=bad);
         s.define_cte(bad, s.union_all(bad_body, bad_body), recursive=True);
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(bad_body);
+            _checked_sql(bad_body);
         }
     }
 
@@ -322,7 +329,7 @@ class SQLTests(unittest.TestCase) {
             s.define_cte(ref, s.union_all(anchor, step), recursive=True);
             body = s.select([s.named('n', ref.col(key))], source=ref);
             with self.subTest(mode=mode), self.assertRaises(s.SqlError) {
-                s.compile_sql(body);
+                _checked_sql(body);
             }
         }
     }
@@ -380,19 +387,19 @@ class SQLTests(unittest.TestCase) {
 
     def test_wrong_expression_categories_and_types(self: SQLTests) -> object {
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('bad', s.eq(s.int64(1), s.text('a')))]));
+            _checked_sql(s.select([s.named('bad', s.eq(s.int64(1), s.text('a')))]));
         }
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('bad', s.add(s.text('a'), s.text('b')))]));
+            _checked_sql(s.select([s.named('bad', s.add(s.text('a'), s.text('b')))]));
         }
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('bad', s.and_([s.int64(1)]))]));
+            _checked_sql(s.select([s.named('bad', s.and_([s.int64(1)]))]));
         }
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', s.int64(1))], where=s.int64(1)));
+            _checked_sql(s.select([s.named('n', s.int64(1))], where=s.int64(1)));
         }
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.int64(1));
+            _checked_sql(s.int64(1));
         }
     }
 
@@ -403,7 +410,7 @@ class SQLTests(unittest.TestCase) {
             [s.named('n', self.people.col(self.id))], source=self.people, joins=[join]
         );
         with self.assertRaisesRegex(s.SqlError, 'Duplicate') {
-            s.compile_sql(q);
+            _checked_sql(q);
         }
         future = s.table('people', [self.id], 'future');
         other = s.table('people', [self.id], 'o');
@@ -412,7 +419,7 @@ class SQLTests(unittest.TestCase) {
             [s.named('n', self.people.col(self.id))], source=self.people, joins=[bad]
         );
         with self.assertRaisesRegex(s.SqlError, 'outside scope') {
-            s.compile_sql(q);
+            _checked_sql(q);
         }
     }
 
@@ -430,7 +437,7 @@ class SQLTests(unittest.TestCase) {
             s.aggregate([s.named('age', self.people.col(self.age))], source=self.people)
         ] {
             with self.subTest(q=q), self.assertRaises(s.SqlError) {
-                s.compile_sql(q);
+                _checked_sql(q);
             }
         }
     }
@@ -451,7 +458,7 @@ class SQLTests(unittest.TestCase) {
         original_params = dict(compiled.params);
         q.ast.projections[0].expr = s.text('abc').ast;
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(q);
+            _checked_sql(q);
         }
         self.assertEqual(compiled.params, original_params);
     }
@@ -473,7 +480,7 @@ class SQLTests(unittest.TestCase) {
         s.compile_sql(q);
         q.ast.projections[0].expr = s.param(s.nullable(s.int64_type()), None).ast;
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(q);
+            _checked_sql(q);
         }
         q.ast.projections[0].field.dtype.nullable = True;
         self.execute(q);
@@ -541,7 +548,7 @@ class SQLTests(unittest.TestCase) {
             [s.named('n', s.add(s.count(), other.col(self.id)))], source=other
         );
         with self.assertRaisesRegex(s.SqlError, 'GROUP BY') {
-            s.compile_sql(invalid);
+            _checked_sql(invalid);
         }
         invalid_outer = s.aggregate(
             [
@@ -551,7 +558,7 @@ class SQLTests(unittest.TestCase) {
             source=self.people
         );
         with self.assertRaisesRegex(s.SqlError, 'GROUP BY') {
-            s.compile_sql(invalid_outer);
+            _checked_sql(invalid_outer);
         }
     }
 
@@ -573,20 +580,20 @@ class SQLTests(unittest.TestCase) {
         projection = s.ProjectionDef(field=field, expr=s.text('abc').ast);
         bad = s.select([projection]);
         with self.assertRaisesRegex(s.SqlError, 'projection n') {
-            s.compile_sql(bad);
+            _checked_sql(bad);
         }
         derived = bad.as_source();
         outer = s.select(
             [s.named('n', s.add(derived.col(field), s.int64(1)))], source=derived
         );
         with self.assertRaisesRegex(s.SqlError, 'projection n') {
-            s.compile_sql(outer);
+            _checked_sql(outer);
         }
         nullable = s.ProjectionDef(
             field=field, expr=s.param(s.nullable(s.int64_type()), None).ast
         );
         with self.assertRaisesRegex(s.SqlError, 'projection n') {
-            s.compile_sql(s.select([nullable]));
+            _checked_sql(s.select([nullable]));
         }
         cte = s.cte(s.select([s.named('n', s.int64(1))]));
         with self.assertRaisesRegex(s.SqlError, 'already defined') {
@@ -692,14 +699,14 @@ class SQLTests(unittest.TestCase) {
         key = s.field('n', s.int64_type());
         missing = s.cte_ref([key]);
         with self.assertRaisesRegex(s.SqlError, 'no definition') {
-            s.compile_sql(s.select([s.named('n', missing.col(key))], source=missing));
+            _checked_sql(s.select([s.named('n', missing.col(key))], source=missing));
         }
         a = s.cte_ref([key]);
         b = s.cte_ref([key]);
         s.define_cte(a, s.select([s.named('n', b.col(key))], source=b));
         s.define_cte(b, s.select([s.named('n', a.col(key))], source=a));
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', a.col(key))], source=a));
+            _checked_sql(s.select([s.named('n', a.col(key))], source=a));
         }
         with self.assertRaisesRegex(s.SqlError, 'already defined') {
             s.define_cte(a, s.select([s.named('n', s.int64(1))]));
@@ -710,7 +717,7 @@ class SQLTests(unittest.TestCase) {
         captured = s.cte(s.select([s.named('id', self.people.col(self.id))]));
         body = s.select([s.named('id', captured.col(self.id))], source=captured);
         with self.assertRaisesRegex(s.SqlError, 'outside scope') {
-            s.compile_sql(body);
+            _checked_sql(body);
         }
     }
 
@@ -848,13 +855,13 @@ class SQLTests(unittest.TestCase) {
             group_by=[self.people.col(self.age).ast]
         );
         with self.assertRaisesRegex(s.SqlError, 'GROUP BY') {
-            s.compile_sql(invalid);
+            _checked_sql(invalid);
         }
         bad_arg = s.over(
             s.sum_int64(self.people.col(self.id)), order_by=[s.desc(s.count())]
         );
         with self.assertRaisesRegex(s.SqlError, 'GROUP BY') {
-            s.compile_sql(s.select([s.named('n', bad_arg)], source=self.people));
+            _checked_sql(s.select([s.named('n', bad_arg)], source=self.people));
         }
         valid_key = s.row_number(
             order_by=[s.desc(s.add(s.count(), self.people.col(self.age)))]
@@ -870,11 +877,11 @@ class SQLTests(unittest.TestCase) {
             order_by=[s.asc(s.row_number(order_by=[s.desc(s.count())]))]
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', nested)], source=self.people));
+            _checked_sql(s.select([s.named('n', nested)], source=self.people));
         }
         argument = s.over(s.sum_int64(s.row_number()));
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(s.select([s.named('n', argument)], source=self.people));
+            _checked_sql(s.select([s.named('n', argument)], source=self.people));
         }
     }
 
@@ -950,7 +957,7 @@ class SQLTests(unittest.TestCase) {
             ]
         );
         with self.assertRaises(s.SqlError) {
-            s.compile_sql(query);
+            _checked_sql(query);
         }
     }
 

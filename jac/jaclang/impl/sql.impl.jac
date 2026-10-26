@@ -652,7 +652,7 @@ impl QueryGraph.scan_query(query: RelationNode) -> None {
 }
 
 
-impl QueryValidator.fresh_name(prefix: str) -> str {
+impl QueryPlanner.fresh_name(prefix: str) -> str {
     while True {
         index = self.cte_counter if prefix == '_cte' else self.alias_counter;
         if prefix == '_cte' {
@@ -668,7 +668,7 @@ impl QueryValidator.fresh_name(prefix: str) -> str {
     }
 }
 
-impl QueryValidator.alias_for(src: Source) -> str {
+impl QueryPlanner.alias_for(src: Source) -> str {
     if isinstance(src, Table) and src.alias {
         validate_identifier(src.alias);
         self.aliases[id(src)] = src.alias;
@@ -684,7 +684,7 @@ impl QueryValidator.alias_for(src: Source) -> str {
     return self.aliases[identity];
 }
 
-impl QueryValidator.order_cte(reference: Cte) -> None {
+impl QueryPlanner.order_cte(reference: Cte) -> None {
     identity = id(reference);
     state = self.cte_states.get(identity, 0);
     if state == 2 {
@@ -1463,7 +1463,7 @@ impl PostgresRenderer.query(ast: RelationNode) -> str {
 
 impl compile_sql[R, C](query: Relation[R, C]) -> CompiledSQL {
     schemas: dict[int, Schema] = {};
-    plan = QueryValidator().analyze(query, schemas);
+    plan = _plan_sql(query);
     return PostgresRenderer().render(plan, schemas);
 }
 
@@ -2092,7 +2092,7 @@ impl ge[T](left: ScalarExpr[T], right: ScalarExpr[T]) -> ScalarExpr[SqlBool] {
     return _compare(left, right, '>=');
 }
 
-impl QueryValidator.local_bindings(
+impl QueryPlanner.local_bindings(
     bindings: tuple[Cte, ...], available: list[Cte]
 ) -> list[Cte] {
     if len({id(c) for c in bindings}) != len(bindings)
@@ -2786,6 +2786,7 @@ impl QueryGraph.visit_source(src: Source) -> None {
         raise SqlError('Invalid SQL graph node');
     }
     identity = id(src);
+    self.sources[identity] = src;
     if identity not in self.source_dependencies {
         previous = self.ctes;
         self.ctes = [];
@@ -2822,6 +2823,7 @@ impl QueryGraph.visit_query(query: RelationNode) -> None {
         raise SqlError('Invalid SQL graph node');
     }
     identity = id(query);
+    self.queries[identity] = query;
     if identity in self.active_queries {
         raise SqlError('Cyclic AST: use a recursive CTE reference');
     }
@@ -2884,4 +2886,44 @@ impl _compile_schema(
     }
     schemas[key] = result;
     return result;
+}
+
+
+impl _plan_sql[R, C](query: Relation[R, C]) -> ValidatedQuery {
+    scan = QueryGraph();
+    scan.collect(query.ast);
+    planner = QueryPlanner(dependency_graph=scan);
+    planner.used_names = scan.physical_names | scan.explicit_aliases;
+    for reference in list(scan.ctes) {
+        planner.order_cte(reference);
+    }
+    references = list(planner.ordered_ctes);
+    for ast in scan.queries.values() {
+        if isinstance(ast, WithNode) {
+            references.extend(ast.bindings);
+        }
+    }
+    for reference in references {
+        if id(reference) not in planner.cte_names {
+            planner.cte_names[id(reference)] = planner.fresh_name('_cte');
+        }
+    }
+    for ast in scan.queries.values() {
+        if isinstance(ast, WithNode) {
+            planner.local_orders[id(ast)] = tuple(
+                planner.local_bindings(ast.bindings, references)
+            );
+        }
+    }
+    for src in scan.sources.values() {
+        planner.alias_for(src);
+    }
+    return ValidatedQuery(
+        query=query.ast,
+        slots=tuple(scan.slot_types.items()),
+        ctes=tuple(planner.ordered_ctes),
+        aliases=planner.aliases,
+        cte_names=planner.cte_names,
+        local_orders=planner.local_orders
+    );
 }

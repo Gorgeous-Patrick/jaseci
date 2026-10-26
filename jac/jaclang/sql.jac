@@ -479,7 +479,9 @@ def _schema_equal(a: Schema, b: Schema, names: bool = True) -> bool;
 def validate_union(ast: UnionNode, schemas: dict[int, Schema] | None = None);
 
 obj QueryGraph {
-    has slot_types: dict[str, DataType] = {},
+    has sources: dict[int, Source] = {},
+        queries: dict[int, RelationNode] = {},
+        slot_types: dict[str, DataType] = {},
         ctes: list[Cte] = [],
         physical_names: set[str] = set(),
         explicit_aliases: set[str] = set(),
@@ -499,18 +501,9 @@ obj QueryGraph {
 }
 
 
-obj QueryValidator {
-    has schemas: dict[int, Schema] = {},
-        dependency_graph: QueryGraph | None = None,
+obj QueryPlanner {
+    has dependency_graph: QueryGraph | None = None,
         local_ctes: set[int] = set(),
-        expression_cache:
-            dict[
-                tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]],
-                Checked
-            ] = {},
-        query_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], QueryFacts] = {},
-        cte_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], set[str]] = {},
-        active_queries: set[int] = set(),
         aliases: dict[int, str] = {},
         cte_names: dict[int, str] = {},
         used_names: set[str] = set(),
@@ -523,6 +516,21 @@ obj QueryValidator {
     def fresh_name(prefix: str) -> str;
     def alias_for(src: Source) -> str;
     def order_cte(reference: Cte) -> None;
+    def local_bindings(bindings: tuple[Cte, ...], available: list[Cte]) -> list[Cte];
+}
+
+
+obj QueryValidator(QueryPlanner) {
+    has schemas: dict[int, Schema] = {},
+        expression_cache:
+            dict[
+                tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]],
+                Checked
+            ] = {},
+        query_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], QueryFacts] = {},
+        cte_cache: dict[tuple[int, tuple[int, ...], tuple[int, ...]], set[str]] = {},
+        active_queries: set[int] = set();
+
     def analyze[R, C](
         query: Relation[R, C], schemas: dict[int, Schema] | None = None
     ) -> ValidatedQuery;
@@ -538,7 +546,6 @@ obj QueryValidator {
         reference: Cte, outer: list[Source], available: list[Cte]
     ) -> set[str];
 
-    def local_bindings(bindings: tuple[Cte, ...], available: list[Cte]) -> list[Cte];
     def extended_expr(
         ast: ExprNode, scope: list[Source], local: list[Source], ctes: list[Cte]
     ) -> Checked;
@@ -916,3 +923,6 @@ def bool_or(
 
 def _compile_schema(item: Source | RelationNode, schemas: dict[int, Schema]) -> Schema;
 def _merge_set_schema(a: Schema, b: Schema, operation: str) -> Schema;
+
+
+def _plan_sql[R, C](query: Relation[R, C]) -> ValidatedQuery;
