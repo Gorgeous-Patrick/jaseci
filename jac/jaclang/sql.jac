@@ -13,10 +13,7 @@ obj Many {}
 obj AtMostOne {}
 obj ExactlyOne {}
 
-obj SqlValue {
-    def __setattr__(name: str, value: any);
-    def __delattr__(name: str);
-}
+obj SqlValue {}
 
 obj DataType(SqlValue) {
     has name: str,
@@ -250,14 +247,7 @@ obj SelectNode(RelationNode) {
 
     has schema: Schema {
         getter {
-            if '_schema_cache' not in self.__dict__ {
-                object.__setattr__(
-                    self,
-                    '_schema_cache',
-                    Schema(tuple(p.field for p in self.projections))
-                );
-            }
-            return self.__dict__['_schema_cache'];
+            return Schema(tuple(p.field for p in self.projections));
         }
     }
 }
@@ -270,14 +260,7 @@ obj UnionNode(RelationNode) {
 
     has schema: Schema {
         getter {
-            if '_schema_cache' not in self.__dict__ {
-                object.__setattr__(
-                    self,
-                    '_schema_cache',
-                    _set_schema(self.left, self.right, self.operation)
-                );
-            }
-            return self.__dict__['_schema_cache'];
+            return _set_schema(self.left, self.right, self.operation);
         }
     }
 }
@@ -493,7 +476,7 @@ def _key(source: Source, name: str) -> str;
 
 def _schema_equal(a: Schema, b: Schema, names: bool = True) -> bool;
 
-def validate_union(ast: UnionNode);
+def validate_union(ast: UnionNode, schemas: dict[int, Schema] | None = None);
 
 obj QueryGraph {
     has slot_types: dict[str, DataType] = {},
@@ -517,7 +500,8 @@ obj QueryGraph {
 
 
 obj QueryValidator {
-    has dependency_graph: QueryGraph | None = None,
+    has schemas: dict[int, Schema] = {},
+        dependency_graph: QueryGraph | None = None,
         local_ctes: set[int] = set(),
         expression_cache:
             dict[
@@ -539,7 +523,10 @@ obj QueryValidator {
     def fresh_name(prefix: str) -> str;
     def alias_for(src: Source) -> str;
     def order_cte(reference: Cte) -> None;
-    def analyze[R, C](query: Relation[R, C]) -> ValidatedQuery;
+    def analyze[R, C](
+        query: Relation[R, C], schemas: dict[int, Schema] | None = None
+    ) -> ValidatedQuery;
+
     def source(
         src: Source,
         ctes: list[Cte],
@@ -580,18 +567,19 @@ obj QueryValidator {
 
 
 obj PostgresRenderer {
-    has params:
-        dict[
-            str,
-            bool
-                | int
-                | float
-                | str
-                | UUID
-                | Decimal
-                | tuple[bool | int | float | str | UUID | Decimal | None, ...]
-                | None
-        ] = {},
+    has schemas: dict[int, Schema] = {},
+        params:
+            dict[
+                str,
+                bool
+                    | int
+                    | float
+                    | str
+                    | UUID
+                    | Decimal
+                    | tuple[bool | int | float | str | UUID | Decimal | None, ...]
+                    | None
+            ] = {},
         slot_types: dict[str, DataType] = {},
         parameter_ids: dict[int, str] = {},
         aliases: dict[int, str] = {},
@@ -599,7 +587,10 @@ obj PostgresRenderer {
         local_orders: dict[int, tuple[Cte, ...]] = {};
 
     def alias_for(src: Source) -> str;
-    def render(plan: ValidatedQuery) -> CompiledSQL;
+    def render(
+        plan: ValidatedQuery, schemas: dict[int, Schema] | None = None
+    ) -> CompiledSQL;
+
     def source(src: Source) -> str;
     def source_body(src: Source) -> str;
     def with_sql(bindings: tuple[Cte, ...], body: str) -> str;
@@ -921,3 +912,7 @@ def sub_int32(
 def bool_or(
     term: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]]
 ) -> ScalarExpr[Nullable[SqlBool]];
+
+
+def _compile_schema(item: Source | RelationNode, schemas: dict[int, Schema]) -> Schema;
+def _merge_set_schema(a: Schema, b: Schema, operation: str) -> Schema;

@@ -1,6 +1,6 @@
 # Typed SQL module
 
-`jaclang.sql` represents PostgreSQL queries as immutable, typed structural values.
+`jaclang.sql` represents PostgreSQL queries as typed structural values.
 `compile_sql(query)` analyzes a query and returns SQL plus named parameter bindings.
 The portable module consists of [`sql.jac`](../../../jac/jaclang/sql.jac) and
 [`impl/sql.impl.jac`](../../../jac/jaclang/impl/sql.impl.jac). Its imports are the
@@ -169,27 +169,31 @@ Direct recursive aggregation, scalar-subquery self-reference and references on
 an outer join's nullable side are rejected. Recursive termination follows the
 query predicate. Parenthesized wrappers preserve arm-local ordering and limits.
 
-## Compilation and immutability
+## Compilation and AST lifetime
 
 1. `QueryGraph` traverses structural containment and queues automatic CTE references.
    Explicit local bindings stay inside their lexical query scope. Structural dependency
-   summaries are cached per immutable node and reused at every occurrence.
+   summaries are cached per node within one compilation and reused at every occurrence.
 2. `QueryValidator` checks expression signatures, types, scope, grouping, windows,
    cardinality and recursive-reference placement. It resolves generated names and
    returns a `ValidatedQuery` plan.
 3. `PostgresRenderer` serializes that plan and assigns parameter bindings.
 
-Query values, expressions, schemas and field definitions reject reassignment and
-deletion. Nested sequence inputs are copied into tuples. Rebuild a query to change
-it. SELECT schema derives from projections; set schemas derive from their arms;
-source bindings read their targets. Recursive CTEs close through one-time binding.
+AST values can be edited between compilations. Each compilation validates the
+current AST and produces independent SQL text and parameter metadata. Previously
+compiled SQL is unaffected by AST edits; compile again to use those edits.
+SELECT and set schemas are derived on access outside compilation. Inside `compile_sql`,
+a local schema dictionary is shared by analysis and rendering and discarded on return.
+No schema cache is stored on AST nodes or retained across compilations.
+Dependency and validation caches are scoped to one compilation. Do not mutate an
+AST during compilation. Recursive CTEs close through one-time binding.
 Low-level AST construction receives the same semantic analysis as public builders.
 
 ## Verification
 
-The suite contains 167 native Jac test entries: 56 SQLite cases, the same
+The suite contains 169 native Jac test entries: 56 SQLite cases, the same
 56 PostgreSQL cases, 43 PostgreSQL feature cases, five static-check tests and
-seven builder/cache regression tests.
+nine builder/cache regression tests.
 The static fixtures verify all 52 invalid calls at their expected source lines;
 positive checking covers the module and a valid-call fixture.
 

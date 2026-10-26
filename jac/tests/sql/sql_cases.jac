@@ -214,7 +214,7 @@ class SQLTests(unittest.TestCase) {
         self.assertEqual(self.execute(body), [(1, ), (2, ), (3, ), (4, )]);
     }
 
-    def test_recursive_union_is_immutable(self: SQLTests) -> object {
+    def test_edited_recursive_union_is_checked(self: SQLTests) -> object {
         key = s.field('n', s.int64_type());
         ref = s.cte_ref([key]);
         anchor = s.select([s.named('n', s.int64(1))]);
@@ -226,17 +226,11 @@ class SQLTests(unittest.TestCase) {
         combined = s.union_all(anchor, step);
         s.define_cte(ref, combined, recursive=True);
         replacement = s.select([s.named('n', s.text('abc'))], source=ref);
-        for (name, value) in [
-            ('right', replacement.ast),
-            ('left', replacement.ast),
-            ('cardinality', 'exactly_one')
-        ] {
-            with self.subTest(name=name), self.assertRaisesRegex(
-                s.SqlError, 'immutable'
-            ) {
-                setattr(combined.ast, name, value);
-            }
+        combined.ast.right = replacement.ast;
+        with self.assertRaises(s.SqlError) {
+            s.compile_sql(s.select([s.named('n', ref.col(key))], source=ref));
         }
+        combined.ast.right = step.ast;
         body = s.select(
             [s.named('n', ref.col(key))], source=ref, order_by=[s.asc(ref.col(key))]
         );
@@ -441,26 +435,25 @@ class SQLTests(unittest.TestCase) {
         }
     }
 
-    def test_query_and_expression_are_immutable(self: SQLTests) -> object {
-        q = s.limit_one(s.select([s.named('n', s.int64(1))]));
-        with self.assertRaisesRegex(s.SqlError, 'immutable') {
-            q.ast.limit = None;
-        }
-        with self.assertRaisesRegex(s.SqlError, 'immutable') {
-            q.ast.projections[0].expr.dtype = s.DataType('text');
-        }
-        with self.assertRaisesRegex(s.SqlError, 'immutable') {
-            del q.ast.limit;
-        }
+    def test_compiled_query_survives_ast_edits(self: SQLTests) -> object {
+        q = s.select([s.named('n', s.int64(1))], limit=1);
+        compiled = s.compile_sql(q);
+        q.ast.limit = 2;
+        updated = s.compile_sql(q);
+        self.assertIn('LIMIT 1', compiled.sql);
+        self.assertIn('LIMIT 2', updated.sql);
         self.assertEqual(self.execute(q), [(1, )]);
     }
 
-    def test_projection_expression_is_immutable(self: SQLTests) -> object {
+    def test_edited_projection_type_is_checked(self: SQLTests) -> object {
         q = s.select([s.named('n', s.int64(1))]);
-        with self.assertRaisesRegex(s.SqlError, 'immutable') {
-            q.ast.projections[0].expr = s.text('abc').ast;
+        compiled = s.compile_sql(q);
+        original_params = dict(compiled.params);
+        q.ast.projections[0].expr = s.text('abc').ast;
+        with self.assertRaises(s.SqlError) {
+            s.compile_sql(q);
         }
-        self.assertEqual(self.execute(q), [(1, )]);
+        self.assertEqual(compiled.params, original_params);
     }
 
     def test_derived_schema_comes_from_query(self: SQLTests) -> object {
@@ -475,14 +468,15 @@ class SQLTests(unittest.TestCase) {
         self.assertEqual(self.execute(outer), [(2, )]);
     }
 
-    def test_projection_nullability_is_immutable(self: SQLTests) -> object {
+    def test_edited_projection_nullability_is_checked(self: SQLTests) -> object {
         q = s.select([s.named('n', s.int64(1))]);
-        with self.assertRaisesRegex(s.SqlError, 'immutable') {
-            q.ast.projections[0].expr = s.param(s.nullable(s.int64_type()), None).ast;
+        s.compile_sql(q);
+        q.ast.projections[0].expr = s.param(s.nullable(s.int64_type()), None).ast;
+        with self.assertRaises(s.SqlError) {
+            s.compile_sql(q);
         }
-        with self.assertRaisesRegex(s.SqlError, 'immutable') {
-            q.ast.projections[0].field.dtype.nullable = True;
-        }
+        q.ast.projections[0].field.dtype.nullable = True;
+        self.execute(q);
     }
 
     def test_query_rebuild_preserves_original(self: SQLTests) -> object {

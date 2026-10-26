@@ -2,18 +2,16 @@
 import jaclang.sql as s;
 import from unittest { TestCase }
 
-test "SQL cache: immutable schemas are reused" {
-    check = TestCase();
+test "SQL cache: schemas reflect AST edits between compilations" {
     a = s.select([s.named('n', s.int64(1))]);
     b = s.select([s.named('n', s.int64(2))]);
     union = s.union_all(a, b);
-    assert a.ast.schema is a.ast.schema;
-    assert union.ast.schema is union.ast.schema;
-    with check.assertRaises(s.SqlError) {
-        ast: any = a.ast;
-        ast._schema_cache = s.Schema((s.FieldDef('wrong', s.DataType('text')), ));
-    }
     s.compile_sql(union);
+    replacement = s.select([s.named('renamed', s.int64(3))]);
+    ast: any = a.ast;
+    replacement_ast: any = replacement.ast;
+    ast.projections = replacement_ast.projections;
+    assert a.ast.schema.fields[0].name == 'renamed';
 }
 
 test "SQL cache: expression visibility is scoped" {
@@ -123,4 +121,48 @@ test "SQL constructors: typed operations skip duplicate signature analysis" {
         query = s.select([s.named('n', expression)], where=truth);
     }
     s.compile_sql(query);
+}
+
+
+test "SQL compilation: slot metadata and array parameters are snapshots" {
+    check = TestCase();
+    dtype = s.int64_type();
+    variable = s.slot('n', dtype);
+    query = s.select([s.named('n', variable)]);
+    compiled = s.compile_sql(query);
+    dtype.data.name = 'text';
+    assert compiled.bind({'n': 3}).params['n'] == 3;
+    with check.assertRaises(s.SqlError) {
+        compiled.bind({'n': 'wrong'});
+    }
+    values: any = [1, 2];
+    parameter = s.param(s.array_type(s.int64_type()), values);
+    array_query = s.select([s.named('values', parameter)]);
+    snapshot = s.compile_sql(array_query);
+    values.append(3);
+    assert list(snapshot.params.values())[0] == (1, 2);
+    assert list(s.compile_sql(array_query).params.values())[0] == (1, 2, 3);
+}
+
+
+test "SQL compilation: schemas are reused only within one compile" {
+    import from unittest.mock { patch }
+    check = TestCase();
+    left = s.select([s.named('n', s.int64(1))]);
+    right = s.select([s.named('n', s.int64(2))]);
+    union = s.union_all(left, right);
+    original_keys = set(union.ast.__dict__);
+    with patch.object(s, '_merge_set_schema', wraps=s._merge_set_schema) as merge {
+        s.compile_sql(union);
+        assert merge.call_count == 1;
+        s.compile_sql(union);
+        assert merge.call_count == 2;
+    }
+    assert set(union.ast.__dict__) == original_keys;
+    replacement = s.select([s.named('n', s.text('wrong'))]);
+    ast: any = union.ast;
+    setattr(ast, 'right', replacement.ast);
+    with check.assertRaises(s.SqlError) {
+        s.compile_sql(union);
+    }
 }
