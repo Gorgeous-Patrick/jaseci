@@ -27,3 +27,12 @@ with entry {
     s.select([s.named('n', s.int64(1))], having=s.int64(1)); # invalid
     s.named('n', s.select([s.named('n', s.int64(1))])); # invalid
 }
+
+with entry {
+    command_id = s.field("id", s.int64_type());
+    command_table = s.table("commands", [command_id]);
+    s.assign(command_id, s.text("bad")); # invalid
+    s.update(command_table, [s.named("id", s.int64(1))]); # invalid
+    s.delete_from(command_table, where=s.int64(1)); # invalid
+    s.create_table(command_table, [command_id]); # invalid
+}

@@ -1,7 +1,7 @@
 # Typed SQL module
 
 `jaclang.sql` represents PostgreSQL queries as typed structural values.
-`compile_sql(query)` analyzes a query and returns SQL plus named parameter bindings.
+`compile_sql(query_or_command)` plans and renders SQL plus named parameter bindings.
 The portable module consists of [`sql.jac`](../../../jac/jaclang/sql.jac) and
 [`impl/sql.impl.jac`](../../../jac/jaclang/impl/sql.impl.jac). Its imports are the
 standard-library UUID and Decimal types. Forks can copy both files and the tests.
@@ -13,7 +13,7 @@ standard-library UUID and Decimal types. Forks can copy both files and the tests
 | `ScalarExpr[T]` | One SQL value |
 | `Relation[R, C]` | Rows with a schema and cardinality proof |
 | `Source` | A table, derived query, CTE or table-function binding |
-| `Command` | Category reserved for data-changing statements |
+| `Command` | INSERT, UPDATE, DELETE and schema-changing statements |
 
 SELECT is a relational expression. Scalar-subquery conversion is explicit:
 `scalar` accepts an at-most-one or exactly-one, single-column relation and returns
@@ -281,3 +281,66 @@ letters, digits and underscores, starting with a letter or underscore.
 `sql` and `self` are reserved by the PostgreSQL driver calling convention. Generated
 literal parameter names avoid collisions with slots. Text values are bound by
 the driver, including strings containing SQL syntax.
+
+## Write statements and schema changes
+
+`Command` is separate from a row-producing `Relation`. Compile statements with
+`compile_command(command)` or `compile_sql(command)`. Both return `CompiledSQL`;
+write predicates, values and RETURNING expressions use the same parameter collector,
+named slots and `bind` implementation as queries. A command with RETURNING remains
+an executable statement, rather than an implicit scalar or FROM source.
+
+```jac
+import from jaclang.sql {
+    field, int64_type, text_type, table, slot, int64, named,
+    insert_into, assign, update, delete_from, eq, compile_command
+}
+with entry {
+    id = field("id", int64_type());
+    name = field("name", text_type());
+    people = table("people", [id, name]);
+    new_name = slot("new_name", text_type());
+    command = insert_into(
+        people, [id, name], [[int64(1).ast, new_name.ast]],
+        returning=[named("id", people.col(id))]
+    );
+    template = compile_command(command);
+    print(template.sql);
+    print(template.bind({"new_name": "Alice"}).params);
+
+    change = update(
+        people, [assign(name, new_name)],
+        where=eq(people.col(id), int64(1))
+    );
+    print(compile_command(change).sql);
+    print(compile_command(delete_from(people, where=eq(people.col(id), int64(1)))).sql);
+}
+```
+
+| Operation | Builders |
+| --- | --- |
+| Insert | `insert_into` (one or more rows), `insert_select`, `insert_default` |
+| Update/delete | `update`, `delete_from`; optional WHERE and RETURNING |
+| Define table | `create_table`, `column_def`; field nullability, PRIMARY KEY, UNIQUE, IF NOT EXISTS |
+| Define index | `create_index`; multi-column, UNIQUE, IF NOT EXISTS |
+| Remove table/index | `drop_table`, `drop_index`; IF EXISTS, CASCADE |
+| Change table | `add_column`, `drop_column`, `rename_column`, `rename_table` |
+| Clear tables | `truncate_tables`; RESTART IDENTITY, CASCADE |
+
+`assign(Field[T], ScalarExpr[T])` checks assignment types through the static API.
+Heterogeneous INSERT rows contain expression AST nodes, like the existing VALUES
+builder; callers match their declared columns and SQL types. Builders reject empty
+row sets, mismatched row widths, duplicate columns and non-table write targets.
+Omitting WHERE updates or deletes all rows, following SQL semantics.
+
+INSERT SELECT and write-expression subqueries discover automatic CTE dependencies;
+explicit `with_ctes` scopes on an input query remain local to that query. Identifiers
+are quoted, and runtime values are bound parameters. Schema-changing statements
+render their structural column/type definitions directly. Execute statements and
+manage transactions through the database connection API.
+
+Run statement tests, including execution against a disposable PostgreSQL cluster:
+
+```sh
+JAC_SQL_PG_SOCKET=/path/to/.s.PGSQL.PORT jac test jac/tests/sql/test_commands.jac -j 1
+```

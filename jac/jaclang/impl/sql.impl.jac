@@ -1466,7 +1466,10 @@ impl PostgresRenderer.query(ast: RelationNode) -> str {
 }
 
 
-impl compile_sql[R, C](query: Relation[R, C]) -> CompiledSQL {
+impl compile_sql[R, C](query: Relation[R, C] | Command) -> CompiledSQL {
+    if isinstance(query, Command) {
+        return compile_command(query);
+    }
     schemas: dict[int, Schema] = {};
     plan = _plan_sql(query);
     return PostgresRenderer().render(plan, schemas);
@@ -2931,4 +2934,385 @@ impl _plan_sql[R, C](query: Relation[R, C]) -> ValidatedQuery {
         cte_names=planner.cte_names,
         local_orders=planner.local_orders
     );
+}
+
+impl _command_table(target: Source) -> Table {
+    if not isinstance(target, Table) {
+        raise SqlError('Statement target must be a physical table');
+    }
+    return target;
+}
+
+impl _command_columns(columns: tuple[FieldDef, ...]) {
+    names = [c.name for c in columns];
+    if len(set(names)) != len(names) {
+        raise SqlError('Duplicate statement columns');
+    }
+}
+
+impl assign[T](key: Field[T], value: ScalarExpr[T]) -> Assignment[T] {
+    return Assignment(field=key, expr=value.ast);
+}
+
+impl insert_into(
+    target: Source,
+    columns: list[FieldDef],
+    rows: list[list[ExprNode]],
+    returning: list[ProjectionDef] = []
+) -> InsertCommand {
+    _command_columns(tuple(columns));
+    if not columns or not rows or any(len(row) != len(columns) for row in rows) {
+        raise SqlError('INSERT requires nonempty columns and matching rows');
+    }
+    return InsertCommand(
+        target=_command_table(target),
+        columns=tuple(columns),
+        rows=tuple(tuple(row) for row in rows),
+        returning=tuple(returning)
+    );
+}
+
+impl insert_select[R, C](
+    target: Source,
+    columns: list[FieldDef],
+    query: Relation[R, C],
+    returning: list[ProjectionDef] = []
+) -> InsertCommand {
+    _command_columns(tuple(columns));
+    if not columns or len(columns) != len(query.ast.schema.fields) {
+        raise SqlError('INSERT SELECT requires matching columns');
+    }
+    return InsertCommand(
+        target=_command_table(target),
+        columns=tuple(columns),
+        query=query.ast,
+        returning=tuple(returning)
+    );
+}
+
+impl insert_default(
+    target: Source, returning: list[ProjectionDef] = []
+) -> InsertCommand {
+    return InsertCommand(
+        target=_command_table(target), columns=(), returning=tuple(returning)
+    );
+}
+
+impl update(
+    target: Source,
+    assignments: list[AssignmentDef],
+    where: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]] | None = None,
+    returning: list[ProjectionDef] = []
+) -> UpdateCommand {
+    if not assignments {
+        raise SqlError('UPDATE requires assignments');
+    }
+    _command_columns(tuple(a.field for a in assignments));
+    return UpdateCommand(
+        target=_command_table(target),
+        assignments=tuple(assignments),
+        predicate=where.ast if where is not None else None,
+        returning=tuple(returning)
+    );
+}
+
+impl delete_from(
+    target: Source,
+    where: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]] | None = None,
+    returning: list[ProjectionDef] = []
+) -> DeleteCommand {
+    return DeleteCommand(
+        target=_command_table(target),
+        predicate=where.ast if where is not None else None,
+        returning=tuple(returning)
+    );
+}
+
+impl column_def[T](
+    key: Field[T], primary_key: bool = False, unique: bool = False
+) -> ColumnDefinition {
+    return ColumnDefinition(field=key, primary_key=primary_key, unique=unique);
+}
+
+impl create_table(
+    target: Source, columns: list[ColumnDefinition], if_not_exists: bool = False
+) -> CreateTableCommand {
+    if not columns {
+        raise SqlError('CREATE TABLE requires columns');
+    }
+    _command_columns(tuple(c.field for c in columns));
+    return CreateTableCommand(
+        target=_command_table(target),
+        columns=tuple(columns),
+        if_not_exists=if_not_exists
+    );
+}
+
+impl create_index(
+    target: Source,
+    name: str,
+    columns: list[FieldDef],
+    unique: bool = False,
+    if_not_exists: bool = False
+) -> CreateIndexCommand {
+    if not columns {
+        raise SqlError('CREATE INDEX requires columns');
+    }
+    _command_columns(tuple(columns));
+    return CreateIndexCommand(
+        target=_command_table(target),
+        name=name,
+        columns=tuple(columns),
+        unique=unique,
+        if_not_exists=if_not_exists
+    );
+}
+
+impl drop_table(
+    target: Source, if_exists: bool = False, cascade: bool = False
+) -> DropCommand {
+    return DropCommand(
+        kind='TABLE',
+        name=_command_table(target).name,
+        if_exists=if_exists,
+        cascade=cascade
+    );
+}
+
+impl drop_index(
+    name: str,
+    namespace: str | None = None,
+    if_exists: bool = False,
+    cascade: bool = False
+) -> DropCommand {
+    return DropCommand(
+        kind='INDEX',
+        name=(name, ) if namespace is None else (namespace, name),
+        if_exists=if_exists,
+        cascade=cascade
+    );
+}
+
+impl add_column(target: Source, column: ColumnDefinition) -> AlterTableCommand {
+    return AlterTableCommand(
+        target=_command_table(target), operation='ADD', column=column
+    );
+}
+
+impl drop_column(target: Source, name: str) -> AlterTableCommand {
+    return AlterTableCommand(
+        target=_command_table(target), operation='DROP', name=name
+    );
+}
+
+impl rename_column(target: Source, name: str, new_name: str) -> AlterTableCommand {
+    return AlterTableCommand(
+        target=_command_table(target),
+        operation='RENAME COLUMN',
+        name=name,
+        new_name=new_name
+    );
+}
+
+impl rename_table(target: Source, new_name: str) -> AlterTableCommand {
+    return AlterTableCommand(
+        target=_command_table(target), operation='RENAME', new_name=new_name
+    );
+}
+
+impl truncate_tables(
+    targets: list[Source], restart_identity: bool = False, cascade: bool = False
+) -> TruncateCommand {
+    if not targets {
+        raise SqlError('TRUNCATE requires tables');
+    }
+    return TruncateCommand(
+        targets=tuple(_command_table(t) for t in targets),
+        restart_identity=restart_identity,
+        cascade=cascade
+    );
+}
+
+impl _table_name(target: Table) -> str {
+    return '.'.join(quote_identifier(n) for n in target.name);
+}
+
+impl _column_definition(column: ColumnDefinition) -> str {
+    return quote_identifier(column.field.name)
+        + ' '
+        + column.field.dtype.name
+        + (' NOT NULL' if not column.field.dtype.nullable else '')
+        + (' PRIMARY KEY' if column.primary_key else '')
+        + (' UNIQUE' if column.unique else '');
+}
+
+impl compile_command(command: Command) -> CompiledSQL {
+    renderer = PostgresRenderer();
+    prefix = '';
+    if isinstance(command, (InsertCommand, UpdateCommand, DeleteCommand)) {
+        expressions = list(command.returning);
+        if isinstance(command, InsertCommand) {
+            for row in command.rows {
+                for expr in row {
+                    expressions.append(
+                        ProjectionDef(FieldDef('_value', expr.dtype), expr)
+                    );
+                }
+            }
+        }
+        if isinstance(command, UpdateCommand) {
+            for a in command.assignments {
+                expressions.append(ProjectionDef(a.field, a.expr));
+            }
+        }
+        predicate = command.predicate
+            if isinstance(command, (UpdateCommand, DeleteCommand))
+            else None;
+        joins: tuple[Join, ...] = ();
+        if isinstance(command, InsertCommand) and command.query is not None {
+            joins = (
+                Join(
+                    source=Derived(alias='', query=command.query),
+                    condition=None,
+                    kind='CROSS'
+                ),
+
+            );
+        }
+        carrier = Relation(
+            ast=SelectNode(
+                cardinality='many',
+                projections=tuple(expressions),
+                source=command.target,
+                joins=joins,
+                predicate=predicate,
+                groups=(),
+                having=None,
+                ordering=(),
+                limit=None
+            )
+        );
+        plan = _plan_sql(carrier);
+        renderer.aliases = plan.aliases;
+        renderer.cte_names = plan.cte_names;
+        renderer.local_orders = plan.local_orders;
+        renderer.slot_types = dict(plan.slots);
+        prefix = renderer.with_sql(plan.ctes, '');
+    }
+    body = _command_sql(command, renderer);
+    return CompiledSQL(
+        sql=prefix + body,
+        params=dict(renderer.params),
+        slots=tuple(
+            (name, DataType(dtype.name, dtype.nullable))
+            for (name, dtype) in renderer.slot_types.items()
+        )
+    );
+}
+
+impl _command_sql(command: Command, renderer: PostgresRenderer) -> str {
+    if isinstance(command, (InsertCommand, UpdateCommand, DeleteCommand)) {
+        target = _table_name(command.target)
+            + ' AS '
+            + renderer.alias_for(command.target);
+        if isinstance(command, InsertCommand) {
+            body = 'INSERT INTO ' + target;
+            if command.columns {
+                body += ' ('
+                    + ', '.join(quote_identifier(c.name) for c in command.columns)
+                    + ')';
+            }
+            if command.query is not None {
+                body += ' ' + renderer.query(command.query);
+            } elif command.rows {
+                body += ' VALUES '
+                    + ', '.join(
+                        '(' + ', '.join(renderer.expr(e) for e in row) + ')'
+                        for row in command.rows
+                    );
+            } else {
+                body += ' DEFAULT VALUES';
+            }
+        } elif isinstance(command, UpdateCommand) {
+            body = 'UPDATE '
+                + target
+                + ' SET '
+                + ', '.join(
+                    quote_identifier(a.field.name) + ' = ' + renderer.expr(a.expr)
+                    for a in command.assignments
+                );
+        } else {
+            body = 'DELETE FROM ' + target;
+        }
+        if isinstance(command, (UpdateCommand, DeleteCommand))
+            and command.predicate is not None {
+            body += ' WHERE ' + renderer.expr(command.predicate);
+        }
+        if command.returning {
+            body += ' RETURNING '
+                + ', '.join(
+                    renderer.expr(p.expr) + ' AS ' + quote_identifier(p.field.name)
+                    for p in command.returning
+                );
+        }
+        return body;
+    }
+    if isinstance(command, CreateTableCommand) {
+        return 'CREATE TABLE '
+            + ('IF NOT EXISTS ' if command.if_not_exists else '')
+            + _table_name(command.target)
+            + ' ('
+            + ', '.join(_column_definition(c) for c in command.columns)
+            + ')';
+    }
+    if isinstance(command, CreateIndexCommand) {
+        return 'CREATE '
+            + ('UNIQUE ' if command.unique else '')
+            + 'INDEX '
+            + ('IF NOT EXISTS ' if command.if_not_exists else '')
+            + quote_identifier(command.name)
+            + ' ON '
+            + _table_name(command.target)
+            + ' ('
+            + ', '.join(quote_identifier(c.name) for c in command.columns)
+            + ')';
+    }
+    if isinstance(command, DropCommand) {
+        if command.kind not in ('TABLE', 'INDEX') {
+            raise SqlError('Unknown DROP kind');
+        }
+        return 'DROP '
+            + command.kind
+            + ' '
+            + ('IF EXISTS ' if command.if_exists else '')
+            + '.'.join(quote_identifier(n) for n in command.name)
+            + (' CASCADE' if command.cascade else '');
+    }
+    if isinstance(command, AlterTableCommand) {
+        body = 'ALTER TABLE ' + _table_name(command.target) + ' ';
+        if command.operation == 'ADD' and command.column is not None {
+            return body + 'ADD COLUMN ' + _column_definition(command.column);
+        }
+        if command.operation == 'DROP' {
+            return body + 'DROP COLUMN ' + quote_identifier(command.name);
+        }
+        if command.operation == 'RENAME COLUMN' {
+            return body
+                + 'RENAME COLUMN '
+                + quote_identifier(command.name)
+                + ' TO '
+                + quote_identifier(command.new_name);
+        }
+        if command.operation == 'RENAME' {
+            return body + 'RENAME TO ' + quote_identifier(command.new_name);
+        }
+        raise SqlError('Unknown ALTER TABLE operation');
+    }
+    if isinstance(command, TruncateCommand) {
+        return 'TRUNCATE TABLE '
+            + ', '.join(_table_name(t) for t in command.targets)
+            + (' RESTART IDENTITY' if command.restart_identity else '')
+            + (' CASCADE' if command.cascade else '');
+    }
+    raise SqlError('Unknown command');
 }

@@ -15,6 +15,6 @@ with entry {
     name = field('name', text_type());
     people = table('people', [name], 'p');
     add(people.col(name), int64(1));
-    compile_sql(Command());
+    scalar_one(Command(), field('n', int64_type()));
     select([int64(1)]);
 }

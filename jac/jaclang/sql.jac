@@ -271,7 +271,150 @@ obj Relation[R, C](SqlValue) {
     def as_source(lateral: bool = False) -> Source;
 }
 
-obj Command {}
+obj Command(SqlValue) {}
+
+obj AssignmentDef(SqlValue) {
+    has field: FieldDef,
+        expr: ExprNode;
+}
+
+obj Assignment[T](AssignmentDef) {}
+
+obj InsertCommand(Command) {
+    has target: Table,
+        columns: tuple[FieldDef, ...],
+        rows: tuple[tuple[ExprNode, ...], ...] = (),
+        query: RelationNode | None = None,
+        returning: tuple[ProjectionDef, ...] = ();
+}
+
+obj UpdateCommand(Command) {
+    has target: Table,
+        assignments: tuple[AssignmentDef, ...],
+        predicate: ExprNode | None = None,
+        returning: tuple[ProjectionDef, ...] = ();
+}
+
+obj DeleteCommand(Command) {
+    has target: Table,
+        predicate: ExprNode | None = None,
+        returning: tuple[ProjectionDef, ...] = ();
+}
+
+obj ColumnDefinition(SqlValue) {
+    has field: FieldDef,
+        primary_key: bool = False,
+        unique: bool = False;
+}
+
+obj CreateTableCommand(Command) {
+    has target: Table,
+        columns: tuple[ColumnDefinition, ...],
+        if_not_exists: bool = False;
+}
+
+obj CreateIndexCommand(Command) {
+    has target: Table,
+        name: str,
+        columns: tuple[FieldDef, ...],
+        unique: bool = False,
+        if_not_exists: bool = False;
+}
+
+obj DropCommand(Command) {
+    has kind: str,
+        name: tuple[str, ...],
+        if_exists: bool = False,
+        cascade: bool = False;
+}
+
+obj AlterTableCommand(Command) {
+    has target: Table,
+        operation: str,
+        name: str = '',
+        new_name: str = '',
+        column: ColumnDefinition | None = None;
+}
+
+obj TruncateCommand(Command) {
+    has targets: tuple[Table, ...],
+        restart_identity: bool = False,
+        cascade: bool = False;
+}
+
+def assign[T](key: Field[T], value: ScalarExpr[T]) -> Assignment[T];
+def insert_into(
+    target: Source,
+    columns: list[FieldDef],
+    rows: list[list[ExprNode]],
+    returning: list[ProjectionDef] = []
+) -> InsertCommand;
+
+def insert_select[R, C](
+    target: Source,
+    columns: list[FieldDef],
+    query: Relation[R, C],
+    returning: list[ProjectionDef] = []
+) -> InsertCommand;
+
+def insert_default(
+    target: Source, returning: list[ProjectionDef] = []
+) -> InsertCommand;
+
+def update(
+    target: Source,
+    assignments: list[AssignmentDef],
+    where: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]] | None = None,
+    returning: list[ProjectionDef] = []
+) -> UpdateCommand;
+
+def delete_from(
+    target: Source,
+    where: ScalarExpr[SqlBool] | ScalarExpr[Nullable[SqlBool]] | None = None,
+    returning: list[ProjectionDef] = []
+) -> DeleteCommand;
+
+def column_def[T](
+    key: Field[T], primary_key: bool = False, unique: bool = False
+) -> ColumnDefinition;
+
+def create_table(
+    target: Source, columns: list[ColumnDefinition], if_not_exists: bool = False
+) -> CreateTableCommand;
+
+def create_index(
+    target: Source,
+    name: str,
+    columns: list[FieldDef],
+    unique: bool = False,
+    if_not_exists: bool = False
+) -> CreateIndexCommand;
+
+def drop_table(
+    target: Source, if_exists: bool = False, cascade: bool = False
+) -> DropCommand;
+
+def drop_index(
+    name: str,
+    namespace: str | None = None,
+    if_exists: bool = False,
+    cascade: bool = False
+) -> DropCommand;
+
+def add_column(target: Source, column: ColumnDefinition) -> AlterTableCommand;
+def drop_column(target: Source, name: str) -> AlterTableCommand;
+def rename_column(target: Source, name: str, new_name: str) -> AlterTableCommand;
+def rename_table(target: Source, new_name: str) -> AlterTableCommand;
+def truncate_tables(
+    targets: list[Source], restart_identity: bool = False, cascade: bool = False
+) -> TruncateCommand;
+
+def compile_command(command: Command) -> CompiledSQL;
+def _command_table(target: Source) -> Table;
+def _command_columns(columns: tuple[FieldDef, ...]);
+def _table_name(target: Table) -> str;
+def _column_definition(column: ColumnDefinition) -> str;
+def _command_sql(command: Command, renderer: PostgresRenderer) -> str;
 
 obj CompiledSQL {
     has sql: str,
@@ -608,7 +751,7 @@ obj PostgresRenderer {
 }
 
 
-def compile_sql[R, C](query: Relation[R, C]) -> CompiledSQL;
+def compile_sql[R, C](query: Relation[R, C] | Command) -> CompiledSQL;
 
 
 def validate_recursive_step(ref: Cte, step: RelationNode);
