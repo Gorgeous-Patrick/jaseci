@@ -1,68 +1,38 @@
-# Jac GPU 多 cursor：布局实验与证据边界
+# Jac GPU Multiple Cursors: Layout Experiments and Evidence Limits
 
-> 历史记录（2026-10-06）：本文 Predicted 使用已移除的按 rank 交错合并，
-> 不是 2026-10-07 起默认的按 cursor 完整 BFS 拼接。历史原始数据保持不变；
-> 新方案需要独立审计与测量，不能将本文结果归因于新方案。
+> Historical record (2026-10-06): Predicted in this report uses the rank-interleaved merge that has since been removed,
+> rather than the complete per-cursor BFS concatenation that became the default on 2026-10-07. Historical raw data is unchanged;
+> the new policy requires independent auditing and measurement, and this report's results cannot be attributed to it.
 
-已实现 GPU 联合 cursor 执行和按整个 batch、多源、各通道分别展开的 BFS
-预测 packer。实验使用真实 RTX 3090；GPU 测量期间 Transformer 停止 GPU 工作，
-测量和最终 CUDA 回归完成后已释放独占时段。未提交、推送或修改系统配置。
+GPU joint-cursor execution and a prediction packer that performs separate multi-source BFS for each channel across the entire batch have been implemented. The experiments used an actual RTX 3090. Transformer GPU work was stopped during GPU measurements, and the exclusive window was released after measurements and the final CUDA regressions. No changes were committed or pushed, and system configuration was not modified.
 
-**GPU 因果证据存在硬性缺口：ncu 2025.2.1 返回 `ERR_NVGPUCTRPERM`；仅提升本次
-进程的 `sudo -n` 尝试返回需要密码。没有 cache、coalescing、实际访存 transactions、
-bandwidth 或 occupancy counter，不能解释这些机制导致的速度差异。** 两份失败日志
-均保留。不等待管理员，不把地址连续度或输入大小当硬件证据。
+**There is a hard gap in GPU causal evidence: ncu 2025.2.1 returned `ERR_NVGPUCTRPERM`; an attempt to elevate only that process with `sudo -n` failed because a password was required. No cache, coalescing, actual memory-transaction, bandwidth, or occupancy counters were obtained, so these mechanisms cannot explain the timing differences.** Both failure logs are retained. No administrator response was awaited, and address contiguity or input size is not treated as hardware evidence.
 
-## 实现与正确性
+## Implementation and Correctness
 
-[语法、语义与 GPU 子集](gpu-named-cursors.md)描述任意编译期固定数量的 cursor、
-各通道稳定当前位置和私有 FIFO、联合 arrival/entry 匹配、重复事件和结束条件。
-旧单通道 chain/CSR 路径保留。动态标量循环、分支、算术和 report 复用现有 lowering。
-GPU 首批支持同触发节点类型的单个联合 ability、每通道至多一次无条件或简单条件 visit；
-更一般触发/visit 组合明确拒绝。CSR 支持有界分支和环；链模式验证单后继、无环。
+The [syntax, semantics, and GPU subset](gpu-named-cursors.md) describe any compile-time-fixed cursor count, stable current positions and private FIFOs per channel, joint arrival/entry matching, repeated events, and termination conditions. The legacy single-channel chain/CSR path is retained. Dynamic scalar loops, branches, arithmetic, and reports reuse existing lowering. The initial GPU subset supports one joint ability with the same trigger node type and at most one unconditional or simple conditional visit per channel; more general trigger/visit combinations are explicitly rejected. CSR supports bounded branching and cycles; chain mode validates single successors and absence of cycles.
 
-物理节点按身份共享一次，字段 SoA；heads、CSR 行与 targets 全部重映射。
-预测只影响物理布局，绝不合并真实到达事件。条件 visit 使用保守关系展开，预算
-或发现集保证预测终止；执行仍按实际条件和 FIFO 进行。
-[可运行示例](../../jac/examples/gpu/named_cursors.jac)包含同类型双 cursor 点积、
-三 cursor、条件 visit、循环及共享 A 行/B 列输入的整数 matmul。每个输入/输出
-Scalar 只保存一个 int；GPU 写 walker.total，host 发布输出节点，未扩展设备写节点能力。
+Physical nodes are shared once by identity, with SoA fields; heads, CSR rows, and targets are all remapped. Prediction affects only physical layout and never merges actual arrival events. Conditional visits use conservative relation expansion, and a budget or discovery set guarantees that prediction terminates; execution still follows the actual conditions and FIFOs. The [runnable examples](../../jac/examples/gpu/named_cursors.jac) include same-type two-cursor dot products, three cursors, conditional visits, loops, and integer matmul with shared A-row/B-column inputs. Each input/output Scalar stores only one int. The GPU writes walker.total, and the host publishes output nodes; device-side node writes were not added.
 
-最终当前工作区 12 项 named-cursor 测试在真实 CUDA 下通过，同时覆盖 CPU reference、
-LLVM host JIT 和 mock ABI。包含三/七 cursor、共享节点、空/不等长队列、类型不匹配、
-CSR 分支/重复到达、条件 visit、无 visit、循环和 report；这些证据与 mock/JIT 明确分开。
-此前旧 GPU host 回归 92 项中 90 通过、2 项 device-only 跳过，后续补跑这两项 CUDA 通过；
-13 项旧整数/循环 CUDA 测试及 11 项仓库 PTX/CPU 测试通过。
-新增物理 permutation/汇总边界测试 2 项通过。
+All 12 named-cursor tests in the final working tree passed on actual CUDA, also covering CPU references, LLVM host JIT, and the mock ABI. Coverage includes three/seven cursors, shared nodes, empty/unequal queues, type mismatches, CSR branching/repeated arrivals, conditional visits, no visits, loops, and reports. This evidence is explicitly separate from mock/JIT results. Earlier, the legacy GPU host regression suite ran 92 tests: 90 passed and 2 device-only tests were skipped; both skipped tests subsequently passed with CUDA. The 13 legacy integer/loop CUDA tests and 11 repository PTX/CPU tests also passed. 2 new physical-permutation/summary-boundary tests passed.
 
-## 方法与原始产物
+## Method and Raw Artifacts
 
-GPU：NVIDIA GeForce RTX 3090，驱动 595.71.05；nsys 2025.1.3.140，ncu 2025.2.1.0。
-测量时源版本 `2c130ccbe08aed1725de9693668aaf3d4386977e`，工作区未提交。
-关键编译/运行时/测量源码逐文件 SHA256 和匹配的源码快照已保留，避免其他 agent
-提交导致 HEAD 不足以描述本次源码。Python 版本、PTX hash、dtype、launch 参数、
-GPU 前后 telemetry 见 inputs.json。未锁定 GPU 时钟。
+GPU: NVIDIA GeForce RTX 3090, driver 595.71.05; nsys 2025.1.3.140, ncu 2025.2.1.0. The source revision during measurement was `2c130ccbe08aed1725de9693668aaf3d4386977e`, with an uncommitted working tree. Per-file SHA256 hashes and matching source snapshots for key compiler/runtime/measurement code are retained, because commits by other agents mean HEAD alone cannot describe the measured source. Python version, PTX hash, dtype, launch parameters, and GPU telemetry before/after measurement are in inputs.json. GPU clocks were not locked.
 
-[主输入与环境](../../dist/gpu-layout-exclusive-20261006/inputs.json)、
-[普通 CSV](../../dist/gpu-layout-exclusive-20261006/wall-events.csv)、
-[nsys 原始报告](../../dist/gpu-layout-exclusive-20261006/trace.nsys-rep)、
-[nsys SQLite](../../dist/gpu-layout-exclusive-20261006/trace.sqlite)、
-[已对齐 kernel CSV](../../dist/gpu-layout-exclusive-20261006/profile-launches.csv)、
-[counter 失败](../../dist/gpu-layout-exclusive-20261006/ncu-matmul-predicted.log)、
-[提权失败](../../dist/gpu-layout-exclusive-20261006/ncu-matmul-predicted-privileged.log)。
-完整副本位于 `dist/gpu-layout-exclusive-20261006/`，包含 typed 输入二进制、
-CSV/JSON、源码快照、raw profiler、CPU .prof 和 SHA256 清单。
-[仓库可读机器报告](../../scripts/gpu_walker/validation/named_layouts_3090_profiled.json)
-保留每 seed 配对统计、完整分布、排列审计和环境。
+[Main inputs and environment](../../dist/gpu-layout-exclusive-20261006/inputs.json),
+[ordinary CSV](../../dist/gpu-layout-exclusive-20261006/wall-events.csv),
+[raw nsys report](../../dist/gpu-layout-exclusive-20261006/trace.nsys-rep),
+[nsys SQLite](../../dist/gpu-layout-exclusive-20261006/trace.sqlite),
+[aligned kernel CSV](../../dist/gpu-layout-exclusive-20261006/profile-launches.csv),
+[counter failure](../../dist/gpu-layout-exclusive-20261006/ncu-matmul-predicted.log),
+and [privilege-elevation failure](../../dist/gpu-layout-exclusive-20261006/ncu-matmul-predicted-privileged.log).
+A complete copy is in `dist/gpu-layout-exclusive-20261006/`, including typed input binaries,
+CSV/JSON, source snapshots, raw profiler data, CPU `.prof` files, and SHA256 manifests.
+The [repository-readable machine report](../../scripts/gpu_walker/validation/named_layouts_3090_profiled.json)
+retains per-seed paired statistics, complete distributions, permutation audits, and the environment.
 
-[runner](../../scripts/gpu_walker/compare_named_layouts.py)复用旧
-compare_layouts.py 的固定 seed、paired sampling 和严格 profiler replay 方法。
-旧单通道原脚本已直接跑通并另存 `/tmp/jac-legacy-layout-profile/`。
-本次统一 runner 使用 seed 928/929/930、block=128、每 seed 6 次预热和 16 次重复，
-每 pair 随机化布局次序。Random 对 Current 已统一去重的物理索引 permutation，
-同步重映射每个字段、通道 heads、CSR 行及 targets，保留行内顺序与 lane 分派。
-每次 launch 全 lane 对 CPU 算术 oracle 和另一个布局校验；选取的 Jac CPU walker
-lane 也差分运行。输入权重、dtype 和 launch 配置完全相同。
+The [runner](../../scripts/gpu_walker/compare_named_layouts.py) reuses the fixed seeds, paired sampling, and strict profiler replay method from the old compare_layouts.py. The old single-channel script also ran successfully, with separate output in `/tmp/jac-legacy-layout-profile/`. The unified runner uses seeds 928/929/930, block=128, 6 warmup rounds and 16 repetitions per seed, and randomized layout order within each pair. Random permutes Current's unified, deduplicated physical indices, consistently remapping every field, channel head, CSR row, and target while preserving within-row order and lane assignment. Every launch checks all lanes against a CPU arithmetic oracle and another layout; selected Jac CPU walker lanes are also run for differential checking. Input weights, dtype, and launch configuration are identical.
 
 ```sh
 python scripts/gpu_walker/compare_named_layouts.py \
@@ -72,37 +42,27 @@ python scripts/gpu_walker/compare_named_layouts.py \
   --output /tmp/jac-layout-exclusive
 ```
 
-需要仓库 .venv、`PYTHONPATH=jac` 和 README 中的 LLVM shim 环境配置。
-显式 CPU/device 规模上限防止 OOM；输入节点分别为 `(M+N)*K`，不为每个乘积复制输入。
-普通计时与 nsys 重放分别运行。nsys 逐一核对了 2,541 次 kernel 的名称、几何及顺序，
-全部对应到 cuLaunchKernel correlation。CUDA event 区间可能含主机 enqueue 间隙；
-下表是另一轮 nsys/CUPTI 的纯 kernel 时间，不混为普通计时。
+This requires the repository .venv, `PYTHONPATH=jac`, and the LLVM shim environment configuration in the README. Explicit CPU/device size limits prevent OOM; the input-node count is `(M+N)*K`, without copying input per product. Ordinary timing and nsys replay run separately. nsys individually checked the names, geometry, and order of 2,541 kernels, aligning every one with its cuLaunchKernel correlation. CUDA event intervals may include host enqueue gaps; the table below reports pure kernel time from a separate nsys/CUPTI run and does not mix it with ordinary timing.
 
-## Current 与 Predicted 是否真的不同
+## Are Current and Predicted Actually Different?
 
-所有实测输入数组已逐个比对 hash。另在 CPU 重建图并重复 pack，只有当每个布局的
-所有重建数组 dtype/count/SHA256 与实测完全相同才接受审计。
-identity label 使用重建图的 conservative-discovery 索引，非跨进程对象地址。
-[审计结果](../../dist/gpu-layout-exclusive-20261006/identity-audit/layout-identity-audit.json)
-和逐用例完整 identity order 已保存。
+The hashes of all measured input arrays were compared individually. The graph was also rebuilt and packed again on the CPU. An audit is accepted only when every rebuilt array's dtype/count/SHA256 for every layout exactly matches the measured data. Identity labels use conservative-discovery indices from the rebuilt graph, not object addresses across processes. The [audit results](../../dist/gpu-layout-exclusive-20261006/identity-audit/layout-identity-audit.json) and complete per-case identity orders are retained.
 
-| 用例 | identity 顺序相同 | 改变位置数 | 所有数组 hash 相同 |
+| Case | Identical identity order | Changed positions | All array hashes identical |
 | --- | --- | ---: | --- |
-| Dot 128×8 | 是 | 0 | 是 |
-| Dot 1024×32 | 是 | 0 | 是 |
-| matmul 16×32×24 | 否 | 1,278 / 1,280 | 否 |
-| matmul 32×64×48 | 否 | 5,118 / 5,120 | 否 |
-| matmul 64×128×64 | 否 | 16,128 / 16,384 | 否 |
+| Dot 128×8 | Yes | 0 | Yes |
+| Dot 1024×32 | Yes | 0 | Yes |
+| matmul 16×32×24 | No | 1,278 / 1,280 | No |
+| matmul 32×64×48 | No | 5,118 / 5,120 | No |
+| matmul 64×128×64 | No | 16,128 / 16,384 | No |
 
-因此 Dot 的 Current/Predicted 计时差仅是同输入的噪声/测量差异待解释，**不是布局效应**。
-matmul 有真实排列差异，但是否解释 GPU 时间仍需有效 counter 证据。
+Thus, Dot's Current/Predicted timing difference is noise/measurement variation for identical inputs that remains to be explained, **not a layout effect**. Matmul has an actual permutation difference, but explaining GPU time still requires valid counter evidence.
 
-## 实测 kernel 与统计波动
+## Measured Kernels and Statistical Variation
 
-第一轮独立 nsys resident kernel，单位 μs，单元格为 median [p10, p90]。
-Current 是现有 discovery/单通道 packer 排列；Predicted 只用于 named walkers。
+The first independent nsys resident-kernel run is reported in μs, as median [p10, p90]. Current is the existing discovery/single-channel-packer order; Predicted applies only to named walkers.
 
-| 用例 | Current | Predicted | Random，合并三个 seed |
+| Case | Current | Predicted | Random, all three seeds combined |
 | --- | ---: | ---: | ---: |
 | chain 128×8 | 3.200 [3.168,3.232] |  -  | 3.168 [3.104,3.200] |
 | chain 1024×64 | 14.431 [14.399,14.432] |  -  | 17.072 [17.023,17.120] |
@@ -112,69 +72,38 @@ Current 是现有 discovery/单通道 packer 排列；Predicted 只用于 named 
 | matmul 32×64×48 | 92.654 [92.574,92.702] | 93.054 [92.958,93.118] | 97.822 [97.470,98.110] |
 | matmul 64×128×64 | 226.955 [184.220,245.115] | 257.994 [186.588,267.642] | 239.403 [199.835,242.139] |
 
-宽分布用例追加固定输入、无构图/pack 的受控重放，16 次预热、64 次重复/seed。
-[普通结果](../../dist/gpu-layout-exclusive-20261006/controlled-normal/records.csv)、
-[独立 nsys](../../dist/gpu-layout-exclusive-20261006/controlled-trace.nsys-rep)、
-[受控配对结果](../../dist/gpu-layout-exclusive-20261006/controlled-profile/records.csv)全部保留。
-受控 nsys 的 Random/Predicted 配对比值：
+Wide-distribution cases received additional controlled replay with fixed inputs and no graph construction/packing: 16 warmup rounds and 64 repetitions per seed. The [ordinary results](../../dist/gpu-layout-exclusive-20261006/controlled-normal/records.csv), [independent nsys trace](../../dist/gpu-layout-exclusive-20261006/controlled-trace.nsys-rep), and [controlled paired results](../../dist/gpu-layout-exclusive-20261006/controlled-profile/records.csv) are all retained. Controlled nsys paired Random/Predicted ratios are:
 
-| 用例 | seed 928 median | seed 929 median | seed 930 median | 合并 median [p10,p90] |
+| Case | seed 928 median | seed 929 median | seed 930 median | Combined median [p10,p90] |
 | --- | ---: | ---: | ---: | ---: |
 | Dot 1024×32 | 1.260 | 1.257 | 1.261 | 1.260 [0.940,1.938] |
 | matmul 64×128×64 | 0.942 | 1.007 | 0.990 | 0.995 [0.813,1.283] |
 
-比值大于 1 表示 Random 较慢。Dot 相对 Random 的中位数差在三 seed 可复现，
-但它并不说明新预测比 Current 更好，因为两者输入相同；matmul 比值跨越 1 且分布宽，
-不能将第一轮单个 median 当稳定收益或稳定退化。小 matmul 的 Random 较快是测量事实，
-GPU 机制原因尚不能解释。也不将未采样的动态时钟或其它因素当成已证实原因。
+A ratio above 1 means Random was slower. Dot's median difference relative to Random is reproducible across the three seeds, but does not mean that the new prediction improves on Current, since their inputs are identical. Matmul ratios span 1 and have wide distributions, so a single median from the first run cannot establish a stable benefit or regression. Faster Random timing for small matmul is a measurement observation whose GPU mechanism remains unexplained. Unsampled dynamic clocks or other factors are not treated as established causes.
 
-## 可由 profiling 支持的成本解释
+## Cost Explanations Supported by Profiling
 
-nsys 实测短 chain 的 kernel 中位数约 3.2 μs，而同用例 one-shot 的 cuLaunchKernel
-API 中位数约 5.81 μs；设备 H2D 合计约 3.78 μs、D2H 约 1.86 μs。
-因此纯 kernel 的小差异不足以代表应用总成本。API 和 kernel 可重叠，不能简单相加。
-共享输入大 matmul 的设备 copy 合计 H2D 约 85.87 μs、D2H 约 5.28 μs，
-cuLaunchKernel API 约 7.01 μs。host API 包含提交/同步等成本，比纯设备 copy 时间更大；
-原始 API 及 copy 记录见 trace-facts.json，不拿它们推断显存带宽瓶颈。
+nsys measured a median short-chain kernel duration of approximately 3.2 μs, while the same case's one-shot cuLaunchKernel API median was approximately 5.81 μs. Total device H2D was approximately 3.78 μs and D2H approximately 1.86 μs. Small differences in pure kernel time therefore do not represent total application cost. API and kernel work can overlap and must not simply be added. For the large shared-input matmul, total device-copy durations were approximately 85.87 μs H2D and 5.28 μs D2H; the cuLaunchKernel API took approximately 7.01 μs. Host APIs include submission/synchronization and other costs, making them longer than pure device copies. Raw API and copy records are in trace-facts.json; these times are not used to infer a device-memory-bandwidth bottleneck.
 
-普通 one-shot 的 matmul 64×128×64，Current/Predicted/Random 的 pack 中位数分别为
-223.416 / 223.182 / 259.365 ms；pack-through-D2H 为 224.202 / 223.986 / 260.154 ms。
-Predicted 的 BFS 阶段中位数为 6.630 ms。相比数百 μs 的 kernel，重建/pack 成本是
-当前一次性执行总成本的主要测量项；即使 resident kernel 节省几十 μs，也不足以
-摊销每次重新 pack。两布局 pack 差异受整段采样波动影响，不能据此说 BFS 免费。
-Graph build 单独计时，graph-through-D2H 是加上该独立测量的组合成本，未包括最终
-输出节点发布；session/context 初始化单列为 setup，稳态 one-shot 复用 session。
+In ordinary one-shot timing for matmul 64×128×64, Current/Predicted/Random median packing costs were 223.416 / 223.182 / 259.365 ms; pack-through-D2H costs were 224.202 / 223.986 / 260.154 ms. Predicted's median BFS stage was 6.630 ms. Compared with kernels taking hundreds of μs, reconstruction/packing costs dominate the current measured one-shot execution cost; even resident savings of tens of μs would not amortize repacking every time. Variation in whole-run sampling affects the packing difference between layouts, so it cannot establish that BFS is free. Graph build is timed separately, and graph-through-D2H adds that independent measurement as a combined cost, excluding final output-node publication. Session/context initialization is listed separately as setup; steady-state one-shot runs reuse the session.
 
-[CPU cProfile](../../dist/gpu-layout-exclusive-20261006/cpu-profile/cpu-profile.json)
-使用同样 64×128×64 图，仅 CPU、每布局三次 pack。Current 的 pack_cursors 累计
-1.984 s，其中嵌套 walk 累计 0.645 s；Predicted 的 predict_layout 累计 0.115 s；
-Random 的 permute_cursors 累计 0.233 s。它证实 collection/query、预测和重排确有
-CPU 开销；profile 时间有 instrumentation overhead，不能替代普通 pack 计时，
-嵌套累计时间也不能相加。`.prof` 原文件和 top functions 均保留。
+The [CPU cProfile](../../dist/gpu-layout-exclusive-20261006/cpu-profile/cpu-profile.json) uses the same 64×128×64 graph, with CPU-only execution and three packs per layout. Current pack_cursors totaled 1.984 s, including 0.645 s in nested walk; Predicted predict_layout totaled 0.115 s; Random permute_cursors totaled 0.233 s. This confirms CPU overhead in collection/queries, prediction, and reordering. Profile times include instrumentation overhead and cannot replace ordinary pack timing; nested cumulative times must not be added.
 
-当前适用结论：独立链相对随机排列的 resident 差异可测；此共享输入 matmul 范围
-没有稳定的新 BFS kernel 收益，逐次 pack 不值得只为可能的微秒收益启用预测。
-这不是 BFS 最优或必快的证据。最小下一步是复用已 pack 的 resident batch，提供
-Current/Predicted 可选策略，并在有临时 ncu 权限后采集同 kernel 的事务/cache/
-occupancy 指标，才决定是否修改共享节点冲突的合并策略。未取得 counter 前不宣称
-图共享、lane 映射、FIFO 分歧、pointer chasing、cache 或计算吞吐是已证实瓶颈。
+Applicable conclusion: resident differences between independent chains and random permutations are measurable. This range of shared-input matmul cases shows no stable new BFS kernel benefit, and predicting on every pack is not justified solely by possible microsecond savings. This is not evidence that BFS is optimal or necessarily faster. The smallest next step is to reuse a packed resident batch, offer Current/Predicted as selectable policies, and collect transaction/cache/occupancy metrics for the same kernel under temporary ncu permissions before deciding whether to change the merge policy for conflicting shared-node orders. Until counters are available, graph sharing, lane mapping, FIFO divergence, pointer chasing, cache behavior, and compute throughput must not be described as established bottlenecks.
 
-## 修改文件与验证入口
+## Modified Files and Validation Entry Points
 
-| 文件 | 用途 |
+| File | Purpose |
 | --- | --- |
-| `jac/jaclang/compiler/backends/native/ptx_walker.jac`, `ptx_csr.jac` | named cursor schema/LLVM lowering 接入，保留旧 dispatch |
-| `jac/jaclang/runtime/gpu_cursors.py` | schema 子集检查、联合 FIFO kernel、预测 packer、SoA ABI 与 CUDA 执行 |
-| `jac/jaclang/runtime/gpu.jac`, `gpu_cuda.jac` | schema、packer、内存计划、session dispatch |
-| `jac/examples/gpu/named_cursors.jac` | Dot/Three/条件/循环/report/共享整数 matmul |
-| `jac/tests/compiler/backends/native/test_ptx_named_cursors.jac`, `scripts/gpu_walker/test_named_cursors.py` | 编译、CPU/JIT/mock/实际 CUDA 正确性与拒绝诊断 |
-| `scripts/gpu_walker/test_integers.py` | 修正临时模块名碰撞，允许组合回归运行 |
-| `scripts/gpu_walker/compare_named_layouts.py`, `layout_benchmark.py`, `test_layout_benchmark.py` | 严格物理 permutation、配对计时、event instrumentation、边界测试 |
-| `profile_named_layout.py`, `replay_layout_timings.py`, `analyze_layout_trace.py`, `profile_layout_cpu.py`, `audit_layout_orders.py` | 分离 counter/受控计时/trace事实/CPU profile/排列审计；均在 `scripts/gpu_walker/` |
-| `docs/design/named-cursors.md`, `gpu-named-cursors.md`, 本文；`scripts/gpu_walker/README.md`, `runtime.md` | 语法、语义、ABI、运行与结果证据 |
-| `scripts/gpu_walker/validation/named_cursors_3090.json`, `named_layouts_3090_profiled.json` | 初步正确性记录及正式测量完整机器报告 |
+| `jac/jaclang/compiler/backends/native/ptx_walker.jac`, `ptx_csr.jac` | Integrate named-cursor schema/LLVM lowering; preserve legacy dispatch |
+| `jac/jaclang/runtime/gpu_cursors.py` | Schema-subset checks, joint FIFO kernel, prediction packer, SoA ABI, and CUDA execution |
+| `jac/jaclang/runtime/gpu.jac`, `gpu_cuda.jac` | Schema, packer, memory planning, and session dispatch |
+| `jac/examples/gpu/named_cursors.jac` | Dot/Three/conditional visits/loops/reports/shared integer matmul |
+| `jac/tests/compiler/backends/native/test_ptx_named_cursors.jac`, `scripts/gpu_walker/test_named_cursors.py` | Compilation, CPU/JIT/mock/actual CUDA correctness, and rejection diagnostics |
+| `scripts/gpu_walker/test_integers.py` | Fix temporary module-name collisions to allow combined regression runs |
+| `scripts/gpu_walker/compare_named_layouts.py`, `layout_benchmark.py`, `test_layout_benchmark.py` | Strict physical permutations, paired timing, event instrumentation, and boundary tests |
+| `profile_named_layout.py`, `replay_layout_timings.py`, `analyze_layout_trace.py`, `profile_layout_cpu.py`, `audit_layout_orders.py` | Separate counters/controlled timing/trace observations/CPU profiling/permutation audits; all under `scripts/gpu_walker/` |
+| `docs/design/named-cursors.md`, `gpu-named-cursors.md`, this report; `scripts/gpu_walker/README.md`, `runtime.md` | Syntax, semantics, ABI, execution, and result evidence |
+| `scripts/gpu_walker/validation/named_cursors_3090.json`, `named_layouts_3090_profiled.json` | Preliminary correctness records and the complete machine-readable report for formal measurements |
 
-实际 CUDA 最终回归日志 [jac-named-exclusive-cuda.log](../../dist/gpu-layout-exclusive-20261006/jac-named-exclusive-cuda.log)，CPU 回归日志
-[jac-named-final-host.log](../../dist/gpu-layout-exclusive-20261006/jac-named-final-host.log) 已随实验产物保留。Python 编译检查及
-`git diff --check` 通过。共享目录中 Transformer/slides/littleX/pycore、数据文件和
-stash 未被本任务改写；其他 agent 的提交/修改通过独立源码 hash 与快照区分。
+The actual CUDA final-regression log, [jac-named-exclusive-cuda.log](../../dist/gpu-layout-exclusive-20261006/jac-named-exclusive-cuda.log), and CPU regression log, [jac-named-final-host.log](../../dist/gpu-layout-exclusive-20261006/jac-named-final-host.log), are retained with the experiment artifacts. Python compilation checks and `git diff --check` passed. This task did not rewrite shared-directory Transformer/slides/littleX/pycore files, data files, or the stash. Independent source hashes and snapshots distinguish this work from other agents' commits/changes.
