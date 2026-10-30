@@ -1125,6 +1125,9 @@ def _resolve_sql_visit_bfs(
     if specs is None {
         raise RuntimeError("TTG SQL BFS cannot lower this walker's visit graph to SQL");
     }
+    if not specs {
+        return [];
+    }
     import os as _os;
     layered_raw = _os.environ.get("JAC_TTG_SQL_LAYERED", "").strip().lower();
     if layered_raw in ("1", "true", "yes", "on") {

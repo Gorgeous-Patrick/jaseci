@@ -9,6 +9,7 @@ import from jaclang.runtime.constructs { WalkerArchetype as Walker }
 import from jaclang.runtime.graph_query { GraphQuery, QHop, QOrder, QPred }
 import from jaclang.runtime.runtime { JacRuntimeInterface }
 glob __all__ = [
+         'ttg_checkpoint',
          'GraphQuery',
          'QHop',
          'QOrder',
@@ -83,3 +84,9 @@ glob __all__ = [
      set_trigger = JacRuntimeInterface.set_trigger,
      thread_run = JacRuntimeInterface.thread_run,
      thread_wait = JacRuntimeInterface.thread_wait;
+
+
+def ttg_checkpoint(wlk: any, serialized: str, point: int, owner: type) {
+    import from jaclang.runtime.ttg_checkpoints { ttg_checkpoint as checkpoint }
+    checkpoint(wlk, serialized, point, owner);
+}

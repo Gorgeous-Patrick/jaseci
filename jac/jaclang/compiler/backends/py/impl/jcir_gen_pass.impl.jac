@@ -3066,6 +3066,10 @@ impl JcirGenPass.exit_visit_stmt(nd: VisitStmt) -> None {
             if nd.else_body
             else [self.nod('Expr', ['value'], [visit_call])]
     );
+    hook = self._ttg_checkpoint(nd);
+    if hook is not None {
+        self.set_out(nd, self.outs(nd) + [hook]);
+    }
 }
 
 impl JcirGenPass.exit_disengage_stmt(nd: DisengageStmt) -> None {
@@ -3095,6 +3099,63 @@ impl JcirGenPass.exit_await_expr(nd: AwaitExpr) -> None {
 
 impl JcirGenPass.exit_cast_expr(nd: CastExpr) -> None {
     self.set_out(nd, self.outs(nd.value));
+}
+
+impl JcirGenPass._ttg_checkpoint(nd: UniNode) -> CgNode | None {
+    ability = nd.find_parent_of_type(Ability);
+    if ability is None {
+        implementation = nd.find_parent_of_type(ImplDef);
+        if implementation is not None
+            and isinstance(implementation.decl_link, Ability) {
+            ability = implementation.decl_link;
+        }
+    }
+    arch = ability.find_parent_of_type(Archetype) if ability is not None else None;
+    if ability is None
+        or not isinstance(ability.signature, EventSignature)
+        or arch is None
+        or arch.arch_type.value != 'walker' {
+        return None;
+    }
+    key = id(arch);
+    if key not in self._ttg_plans {
+        import json;
+        import from jaclang.runtime.ttg_dependencies { compile_checkpoint_plan }
+        plan = compile_checkpoint_plan(arch);
+        self._ttg_plans[key] = (plan, json.dumps(plan, separators=(',', ':')));
+    }
+    (plan, serialized) = self._ttg_plans[key];
+    kind = 'assign' if isinstance(nd, Assignment) else 'visit';
+    for point in plan['points'] {
+        event = plan['events'][point];
+        if event['ability'] == ability.py_resolve_name()
+            and event['kind'] == kind
+            and event['line'] == nd.loc.first_line
+            and event['column'] == nd.loc.col_start {
+            return self.nod(
+                'Expr',
+                ['value'],
+                [
+                    self.nod(
+                        'Call',
+                        ['func', 'args', 'keywords'],
+                        [
+                            self.jaclib_obj('ttg_checkpoint'),
+                            [
+                                self.name_load('self'),
+                                self.const_of(serialized),
+                                self.const_of(point),
+                                self.name_load('__class__')
+                            ],
+                            []
+                        ]
+                    )
+                ],
+                jac_node=nd
+            );
+        }
+    }
+    return None;
 }
 
 impl JcirGenPass.exit_assignment(nd: Assignment) -> None {
@@ -3209,7 +3270,10 @@ impl JcirGenPass.exit_assignment(nd: Assignment) -> None {
             [targets_ast, value if isinstance(value, CgNode) else self.const_of(None)]
         );
     }
-    self.set_out(nd, [assignment_stmt]);
+    hook = self._ttg_checkpoint(nd);
+    self.set_out(
+        nd, [assignment_stmt, hook] if hook is not None else [assignment_stmt]
+    );
 }
 
 impl JcirGenPass.exit_binary_expr(nd: BinaryExpr) -> None {

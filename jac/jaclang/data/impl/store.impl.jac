@@ -446,6 +446,27 @@ impl PgStore._run(sql: str, params: dict) -> list {
 }
 
 
+impl PgStore.rows_in_savepoint(sql: str, params: dict) -> list[tuple] {
+    self._ensure_ready();
+    with self._lock {
+        if not self._in_txn {
+            raise ValueError('Savepoint query requires an active transaction');
+        }
+        conn = self._main();
+        conn.run('SAVEPOINT jac_speculative_read');
+        try {
+            result = conn.run(sql, **params) or [];
+        } except Exception {
+            conn.run('ROLLBACK TO SAVEPOINT jac_speculative_read');
+            conn.run('RELEASE SAVEPOINT jac_speculative_read');
+            raise;
+        }
+        conn.run('RELEASE SAVEPOINT jac_speculative_read');
+        return result;
+    }
+}
+
+
 impl PgStore.is_available -> bool {
     try {
         self._run('SELECT 1', {});

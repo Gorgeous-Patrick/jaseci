@@ -283,12 +283,9 @@ impl JacWalker.spawn_call(
         } except Exception {
             ;
         }
-        (
-            topo_idx_time_ms,
-            ttg_time_ms,
-            prefetch_time_ms,
-            resolve_total_ms
-        ) = run_prefetch_policy(ctx_prefetch, cfg, warch, nd);
+        (topo_idx_time_ms, ttg_time_ms, prefetch_time_ms, resolve_total_ms) = run_prefetch_policy(
+            ctx_prefetch, cfg, warch, nd
+        );
     }
     ttg_block_end = _perf_counter();
     ttg_total_time_ms = (ttg_block_end - ttg_block_start) * 1000;
@@ -305,12 +302,17 @@ impl JacWalker.spawn_call(
     }
     walker_start = _perf_counter();
     try {
-        osp_spawn(
-            make_sv_runtime(capre_entry_hook_enabled),
-            warch,
-            desc_for(`type(warch)),
-            starts
-        );
+        import from jaclang.runtime.ttg_dependency_prefetch {
+            configured_dependency_prefetch
+        }
+        with configured_dependency_prefetch(ctx_prefetch, cfg) {
+            osp_spawn(
+                make_sv_runtime(capre_entry_hook_enabled),
+                warch,
+                desc_for(`type(warch)),
+                starts
+            );
+        }
     } finally {
         walker_end = _perf_counter();
         if history_observe_enabled {

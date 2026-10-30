@@ -65,7 +65,6 @@ impl project_db_name(base_path: str, target_path: (str | None)) -> str {
 glob _scratch_bases: set[str] = set(),
      _scratch: list[ScratchState] = [];
 
-
 glob _access_log_state: list = [None],
      _access_log_lock: threading.Lock = threading.Lock(),
      _access_log_ids: list[UUID] = [],
@@ -214,7 +213,7 @@ impl _tiered_access_log(id: UUID, tier: str, anchor: any = None) -> None {
                 if anchor.root is not None {
                     root_id = str(anchor.root);
                 } elif isinstance(anchor, NodeAnchor)
-                and isinstance(anchor.archetype, Root) {
+                    and isinstance(anchor.archetype, Root) {
                     root_id = str(id);
                 }
             } except Exception {
@@ -402,7 +401,7 @@ def _persist_hash(anchor: Anchor) -> int {
 }
 
 
-def _observe_session_access(id: UUID) -> None {
+def _observe_session_access(id: UUID) {
     try {
         import from jaclang.runtime.prefetch { observe_anchor_access }
         observe_anchor_access(id);
@@ -410,7 +409,7 @@ def _observe_session_access(id: UUID) -> None {
 }
 
 
-def _capre_record_demand_access(mem: any, id: UUID, tier: str) -> None {
+def _capre_record_demand_access(mem: any, id: UUID, tier: str) {
     try {
         import from jaclang.runtime.prefetch_policy_capre_runtime {
             capre_record_demand_access
@@ -420,7 +419,7 @@ def _capre_record_demand_access(mem: any, id: UUID, tier: str) -> None {
 }
 
 
-def _capre_record_demand_l3_request(mem: any, ids: list[UUID]) -> None {
+def _capre_record_demand_l3_request(mem: any, ids: list[UUID]) {
     try {
         import from jaclang.runtime.prefetch_policy_capre_runtime {
             capre_record_demand_l3_request
@@ -821,7 +820,7 @@ impl Session.get_mem -> dict[UUID, Anchor] {
 
 
 impl Session.invalidate_query_cache -> None {
-    lock = getattr(self, "_query_cache_lock", None);
+    lock = self?._query_cache_lock;
     if lock is not None {
         lock.acquire();
     }
@@ -845,7 +844,7 @@ impl Session.query_cache_get(key: any) -> any {
     if not _query_cache_enabled() {
         return None;
     }
-    lock = getattr(self, "_query_cache_lock", None);
+    lock = self?._query_cache_lock;
     if lock is not None {
         lock.acquire();
     }
@@ -863,7 +862,7 @@ impl Session.query_cache_put(key: any, value: any) -> None {
     if not _query_cache_enabled() {
         return;
     }
-    lock = getattr(self, "_query_cache_lock", None);
+    lock = self?._query_cache_lock;
     if lock is not None {
         lock.acquire();
     }
@@ -881,7 +880,7 @@ impl Session.query_cache_put(key: any, value: any) -> None {
 
 
 impl Session.invalidate_topology_index -> None {
-    lock = getattr(self, "_topology_lock", None);
+    lock = self?._topology_lock;
     if lock is not None {
         lock.acquire();
     }
@@ -939,7 +938,12 @@ impl Session.promote_raw(uid: UUID) -> (Anchor | None) {
         return None;
     }
     try {
-        return self._materialize(row, edge_ids=row.adjacency);
+        anchor = self._materialize(row, edge_ids=row.adjacency);
+        import from jaclang.runtime.ttg_dependency_prefetch {
+            record_dependency_promotion
+        }
+        record_dependency_promotion(self, uid);
+        return anchor;
     } except Exception as e {
         logger.warning(f"raw prefetch promotion failed for {uid}: {e}");
         return None;
@@ -1006,9 +1010,7 @@ impl Session.prefetch(ids: Iterable[UUID]) -> None {
     } finally {
         try {
             import from jaclang.runtime.prefetch { prefetch_worker_times_append }
-            prefetch_worker_times_append(
-                (_time.perf_counter() - _pf_start) * 1000
-            );
+            prefetch_worker_times_append((_time.perf_counter() - _pf_start) * 1000);
         } except Exception { }
     }
 }

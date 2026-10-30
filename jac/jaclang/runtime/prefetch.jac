@@ -1,5 +1,3 @@
-"""Runtime prefetch dispatcher and lightweight instrumentation."""
-
 import logging;
 import os;
 import sys as _sys;
@@ -14,7 +12,7 @@ glob logger = logging.getLogger(__name__),
      _prefetch_worker_times: list[float] = [],
      _prefetch_observation_count: int = 0;
 
-def prefetch_worker_times_append(elapsed_ms: float) -> None {
+def prefetch_worker_times_append(elapsed_ms: float) {
     with _prefetch_metrics_lock {
         _prefetch_worker_times.append(elapsed_ms);
     }
@@ -26,19 +24,19 @@ def prefetch_worker_times_snapshot -> list[float] {
     }
 }
 
-def prefetch_worker_times_reset -> None {
+def prefetch_worker_times_reset {
     with _prefetch_metrics_lock {
         _prefetch_worker_times.clear();
     }
 }
 
-def prefetch_observation_begin -> None {
+def prefetch_observation_begin {
     with _prefetch_metrics_lock {
         _prefetch_observation_count += 1;
     }
 }
 
-def prefetch_observation_end -> None {
+def prefetch_observation_end {
     with _prefetch_metrics_lock {
         _prefetch_observation_count = max(_prefetch_observation_count - 1, 0);
     }
@@ -84,7 +82,7 @@ def _signal_done_after_all(threads: list, done: any) {
     done.set();
 }
 
-def _prefetch_worker(mem: any, ids: list) -> None {
+def _prefetch_worker(mem: any, ids: list) {
     try {
         mem.prefetch(ids);
     } except Exception as e {
@@ -93,9 +91,18 @@ def _prefetch_worker(mem: any, ids: list) -> None {
 }
 
 def dispatch_prefetch(
-    ctx: any, prefetch_ids: list, mode: str, workers: int = 1
+    ctx: any, prefetch_ids: list, mode: str, workers: int = 1, append: bool = False
 ) -> None {
-    ctx.mem._prefetch_ids = set(prefetch_ids);
+    if append and not prefetch_ids {
+        return;
+    }
+    previous_threads: list = list(getattr(ctx.mem, '_prefetch_threads', []))
+        if append
+        else [];
+    previous_ids: set = set(getattr(ctx.mem, '_prefetch_ids', set()))
+        if append
+        else set();
+    ctx.mem._prefetch_ids = previous_ids | set(prefetch_ids);
     ctx.mem._prefetch_done = threading.Event();
     if not prefetch_ids {
         ctx.mem._prefetch_done.set();
@@ -110,7 +117,7 @@ def dispatch_prefetch(
     }
     if mode == "thread" {
         shards = _chunk_evenly(prefetch_ids, workers);
-        threads: list = [];
+        threads: list = list(previous_threads);
         for shard in shards {
             t = threading.Thread(
                 target=_prefetch_worker, args=(ctx.mem, shard), daemon=True,
@@ -131,6 +138,9 @@ def dispatch_prefetch(
             ctx.mem._prefetch_done.set();
         }
         return;
+    }
+    for thread in previous_threads {
+        thread.join();
     }
     if workers <= 1 {
         _prefetch_worker(ctx.mem, prefetch_ids);
@@ -168,6 +178,9 @@ def run_prefetch_policy(ctx: any, cfg: any, warch: any, nd: NodeAnchor) -> tuple
     if limit <= 0 and policy not in ("oracle", "capre") {
         return (0.0, 0.0, 0.0, 0.0);
     }
+    if policy == "ttg_dependency" {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
     if policy == "capre" {
         import from jaclang.runtime.prefetch_policy_capre_runtime {
             start_capre_prefetch
@@ -203,7 +216,7 @@ def run_prefetch_policy(ctx: any, cfg: any, warch: any, nd: NodeAnchor) -> tuple
         }
         dispatch_prefetch(ctx, plan.ids, mode, workers);
         dispatch_ms = (_time.perf_counter() - prefetch_start) * 1000;
-        gil_fn = getattr(_sys, "_is_gil_enabled", None);
+        gil_fn = _sys?._is_gil_enabled;
         gil_enabled = gil_fn() if gil_fn is not None else True;
         logger.info(
             f"[PREFETCH] mode={mode or 'sync'} "

@@ -1,5 +1,3 @@
-"""Prefetch prediction policy facade."""
-
 import logging;
 import from typing { cast }
 import from uuid { UUID }
@@ -60,6 +58,9 @@ def get_prefetch_plan(
     }
     if policy == "ttg" {
         return ttg_policy_plan(request);
+    }
+    if policy == "ttg_dependency" {
+        return none_policy_plan(request);
     }
     if policy == "oracle" {
         return oracle_policy_plan(request);

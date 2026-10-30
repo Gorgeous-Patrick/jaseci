@@ -135,3 +135,28 @@ test "TTG columns: source bindings keep distinct column identities" {
     assert a.ast.source is source;
     assert b.ast.source is other;
 }
+
+
+test "TTG empty visit plans do not compile SQL" {
+    import os;
+    import from types { SimpleNamespace }
+    import jaclang.runtime.ttg as ttg;
+    module: any = ttg;
+    mem = SimpleNamespace(store=object());
+    for layered in ['0', '1'] {
+        with patch.dict(os.environ, {'JAC_TTG_SQL_LAYERED': layered}), patch.object(
+            module,
+            '_resolve_sql_visit_bfs_budgeted',
+            side_effect=AssertionError('unexpected SQL')
+        ), patch.object(
+            module,
+            '_resolve_sql_visit_bfs_layered_budgeted',
+            side_effect=AssertionError('unexpected SQL')
+        ) {
+            assert module._resolve_sql_visit_bfs(
+                module.JacTTGGenerator, mem, [UUID(int=1)], [], 128
+            )
+                == [];
+        }
+    }
+}
