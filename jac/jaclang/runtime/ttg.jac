@@ -8,6 +8,19 @@ import from jaclang.runtime.graph_query { QHop }
 
 class JacTTGGenerator {
     @classmethod
+    def get_continuation_plan(
+        cls: type[JacTTGGenerator],
+        graph: any,
+        current: dict,
+        point: int,
+        snapshot: dict,
+        pending: list[dict],
+        resolve: any,
+        max_nodes: int = 200,
+        max_steps: int = 2000
+    ) -> dict;
+
+    @classmethod
     def _resolve_type_name(
         cls: type[JacTTGGenerator], ref: (type | str | None)
     ) -> (str | None);
@@ -38,9 +51,7 @@ class JacTTGGenerator {
     ) -> (str | None);
 
     @classmethod
-    def _edge_ref_origin_is_current(
-        cls: type[JacTTGGenerator], trailer: any
-    ) -> bool;
+    def _edge_ref_origin_is_current(cls: type[JacTTGGenerator], trailer: any) -> bool;
 
     @classmethod
     def _extract_chains_from_trailer(

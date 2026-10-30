@@ -1265,3 +1265,20 @@ impl JacTTGGenerator.get_ttg_prefetch_list(
         cls, sql_prefetch, type_cache, ast_ms, sql_ms, 1, max_length
     );
 }
+
+impl JacTTGGenerator.get_continuation_plan(
+    cls: type[JacTTGGenerator],
+    graph: any,
+    current: dict,
+    point: int,
+    snapshot: dict,
+    pending: list[dict],
+    resolve: any,
+    max_nodes: int = 200,
+    max_steps: int = 2000
+) -> dict {
+    import from jaclang.runtime.ttg_continuation { plan_continuation }
+    return plan_continuation(
+        graph, current, point, snapshot, pending, resolve, max_nodes, max_steps
+    );
+}

@@ -8,12 +8,13 @@ glob _capture: any = ContextVar('ttg_dependency_capture', `default=None);
 obj CheckpointCapture {
     has records: list[dict] = [],
         graphs: dict[tuple[type, str], any] = {},
-        hits: list[dict] = [];
+        hits: list[dict] = [],
+        record_decisions: bool = True;
 }
 
 @contextmanager
-def capture_dependency_checkpoints -> any {
-    capture = CheckpointCapture();
+def capture_dependency_checkpoints(record_decisions: bool = True) -> any {
+    capture = CheckpointCapture(record_decisions=record_decisions);
     token = _capture.set(capture);
     try {
         yield capture;
@@ -43,6 +44,11 @@ def ttg_checkpoint(wlk: any, serialized: str, point: int, owner: type) {
         TraceEffects
     }
     (graph, candidates) = cached_checkpoint_plan(capture, wlk, serialized);
+    import from jaclang.runtime.ttg_dependency_prefetch { prefetch_continuation }
+    prefetch_continuation(graph, scope, point);
+    if not capture.record_decisions {
+        return;
+    }
     event = graph.events[point];
     queue = pending_trace_queue();
     capture.hits.append(
@@ -77,8 +83,7 @@ def ttg_checkpoint(wlk: any, serialized: str, point: int, owner: type) {
                 'decision': decision
             };
             capture.records.append(record);
-            import from jaclang.runtime.ttg_dependency_prefetch { prefetch_checkpoint }
-            prefetch_checkpoint(graph, scope, record);
+            record['prefetch_status'] = 'continuation';
         }
     }
 }

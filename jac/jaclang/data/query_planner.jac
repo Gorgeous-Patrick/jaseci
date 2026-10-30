@@ -33,6 +33,10 @@ def _sql_pairs(
 
 def resolve_query_prefix(mem: Session, q: GraphQuery, upto: int) -> list[UUID];
 
+def resolve_ttg_path(
+    mem: Session, q: GraphQuery, origin_id: UUID, max_rows: int
+) -> (list | None);
+
 
 def resolve_query(mem: Session, q: GraphQuery) -> list[Anchor];
 

@@ -492,12 +492,17 @@ impl JacWalker.async_spawn_call(
         ;
     }
     try {
-        await osp_spawn_async(
-            make_sv_runtime(capre_entry_hook_enabled),
-            warch,
-            desc_for(`type(warch)),
-            `list(`walker.next)
-        );
+        import from jaclang.runtime.ttg_dependency_prefetch {
+            configured_dependency_prefetch
+        }
+        with configured_dependency_prefetch(ctx_prefetch, cfg) {
+            await osp_spawn_async(
+                make_sv_runtime(capre_entry_hook_enabled),
+                warch,
+                desc_for(`type(warch)),
+                `list(`walker.next)
+            );
+        }
     } finally {
         if history_observe_enabled {
             try {

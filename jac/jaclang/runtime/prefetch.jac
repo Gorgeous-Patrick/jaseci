@@ -125,11 +125,38 @@ def dispatch_prefetch(
         return;
     }
     if mode == "process" {
-        logger.warning(
-            "async_prefetch='process' does not populate the parent raw cache on "
-            "the Postgres backend; using thread mode"
-        );
-        mode = "thread";
+        import from jaclang.runtime.ttg_process_reader {
+            ProcessReader,
+            process_prefetch_worker
+        }
+        ctx.mem.read_barrier();
+        readers = getattr(ctx.mem, '_prefetch_process_readers', None);
+        if readers is None or not readers {
+            readers = [ProcessReader(ctx.mem.store) for i in range(max(1, workers))];
+            setattr(ctx.mem, '_prefetch_process_readers', readers);
+        }
+        threads: list = list(previous_threads);
+        for (index, shard) in enumerate(_chunk_evenly(prefetch_ids, workers)) {
+            thread = threading.Thread(
+                target=process_prefetch_worker,
+                args=(ctx.mem, shard, readers[index % len(readers)], observer),
+                daemon=True
+            );
+            thread.start();
+            threads.append(thread);
+        }
+        ctx.mem._prefetch_threads = threads;
+        ctx.mem._prefetch_thread = threads[0] if threads else None;
+        ctx.mem._prefetch_process_pids = [reader.process.pid for reader in readers];
+        ctx.mem._prefetch_process_startup_ms = [
+            reader.startup_ms for reader in readers
+        ];
+        threading.Thread(
+            target=_signal_done_after_all,
+            args=(threads, ctx.mem._prefetch_done),
+            daemon=True
+        ).start();
+        return;
     }
     if mode == "thread" {
         shards = _chunk_evenly(prefetch_ids, workers);

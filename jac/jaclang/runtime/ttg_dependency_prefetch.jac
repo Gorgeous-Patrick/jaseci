@@ -3,7 +3,7 @@ import from contextvars { ContextVar }
 import from logging { getLogger }
 import from time { perf_counter }
 import from threading { get_ident }
-import from uuid { UUID }
+import from uuid { UUID, uuid4 }
 import from jaclang.runtime.ttg_prefetch_model {
     PrefetchDecisionModel,
     PrefetchFeatures,
@@ -36,6 +36,9 @@ obj DependencyPrefetchRun {
         considered: dict[tuple, dict] = {},
         feedback: list[dict] = [];
 
+    has continuations: list[dict] = [];
+    has cache_token: str = '';
+
     def summary -> dict {
         mem = self.ctx.mem;
         with mem._raw_lock {
@@ -51,8 +54,14 @@ obj DependencyPrefetchRun {
             'plans': self.plans,
             'errors': self.errors,
             'model': type(self.model).__name__,
+            'executor': self.mode or 'sync',
+            'worker_process_pids': list(getattr(mem, '_prefetch_process_pids', [])),
+            'worker_process_startup_ms': list(
+                getattr(mem, '_prefetch_process_startup_ms', [])
+            ),
             'feature_provider': type(self.provider).__name__,
-            'feedback': self.feedback
+            'feedback': self.feedback,
+            'continuations': self.continuations
         };
     }
 }
@@ -79,10 +88,11 @@ def dependency_prefetch(
         model=model or _model_override.get() or create_prefetch_model('always'),
         provider=provider or default_prefetch_profile
     );
+    state.cache_token = str(uuid4());
     existing = _capture.get();
     observer = nullcontext(existing)
         if existing is not None
-        else capture_dependency_checkpoints();
+        else capture_dependency_checkpoints(record_decisions=False);
     with observer {
         token = _active.set(state);
         try {
@@ -92,6 +102,8 @@ def dependency_prefetch(
                 for thread in list(getattr(ctx.mem, '_prefetch_threads', [])) {
                     thread.join();
                 }
+                import from jaclang.runtime.ttg_process_reader { close_process_readers }
+                close_process_readers(ctx.mem);
                 finish_prefetch_feedback(state);
             } finally {
                 _active.reset(token);
@@ -141,61 +153,77 @@ def record_dependency_promotion(mem: any, uid: UUID) {
     }
 }
 
-def prefetch_checkpoint(graph: any, scope: any, record: dict) {
+def prefetch_continuation(graph: any, scope: any, point: int) {
     state = _active.get();
-    if state is None {
-        return;
-    }
-    decision = record['decision'];
-    if not (
-        decision.stable and decision.path_determined and decision.execution_preserved
-    ) {
-        record['prefetch_status'] = 'blocked';
+    if state is None or state.owner_thread != get_ident() or scope.disengaged {
         return;
     }
     mem = state.ctx.mem;
-    if mem.store is None {
-        record['prefetch_status'] = 'no_store';
+    if mem.store is None or not scope.path {
         return;
     }
-    record['prefetch_status'] = 'empty';
-    for selected in decision.prediction.visits {
-        remaining = state.max_length - len(state.submitted);
-        if remaining <= 0 {
-            record['prefetch_status'] = 'limit';
-            return;
+    import from jaclang.runtime.archetype { NodeAnchor, NodeArchetype }
+    import from jaclang.runtime.ttg { JacTTGGenerator }
+    import from jaclang.runtime.ttg_continuation { continuation_type }
+    import from jaclang.runtime.graph_query { GraphQuery, QHop }
+    import from jaclang.data.query_planner { resolve_ttg_path }
+    import from jaclang.runtime.prefetch { dispatch_prefetch }
+    anchor = scope.path[-1];
+    if not isinstance(anchor, NodeAnchor) or anchor.id is None {
+        return;
+    }
+    remaining = state.max_length - len(state.submitted);
+    if remaining <= 0 {
+        return;
+    }
+    values: dict = {};
+    for (name, value) in vars(scope.wlk).items() {
+        if type(value) in (bool, int, float, str, type(None)) {
+            values['self.' + name] = value;
+        } elif type(value) is list {
+            values['self.' + name + '::list'] = True;
         }
-        event = graph.events[selected['event']];
-        if not event.hop_chain or event.origin not in ('here', 'root') {
-            record['prefetch_status'] = 'unsupported';
-            continue;
+    }
+    ability = graph.events[point].ability;
+    for (name, value) in vars(anchor.archetype).items() {
+        if type(value) in (bool, int, float, str, type(None)) {
+            values[ability + '::here.' + name] = value;
         }
-        try {
-            origin = state.ctx.user_root if event.origin == 'root' else None;
-            origin_id = UUID(
-                str(origin.id if origin is not None else record['target_id'])
-            );
-            origin_type = type(origin.archetype).__name__
-                if origin is not None
-                else record['target_type'];
-        } except (ValueError, TypeError, AttributeError) {
-            record['prefetch_status'] = 'transient';
-            continue;
+    }
+    ignored = {item.id for item in scope.ignores};
+    pending = [
+        {'id': item.id, 'node_type': type(item.archetype)}
+        for item in scope.next[scope.next_head:]
+        if item not in scope.ignores
+    ];
+    local_paths: dict = {};
+    def resolve(active: dict, event: any) -> any {
+        origin = state.ctx.user_root if event.origin == 'root' else None;
+        origin_id = origin.id if origin is not None else active['id'];
+        if event.origin == 'root' and origin is None {
+            return None;
         }
-        key = (id(scope), origin_id, tuple(event.hop_chain));
-        if key in state.considered {
-            record['prefetch_status'] = 'deduplicated';
-            continue;
+        key = (origin_id, tuple(event.hop_chain));
+        if key in local_paths {
+            return local_paths[key];
+        }
+        reuse_key = ('ttg_continuation', state.cache_token, id(scope), key);
+        reused = mem.query_cache_get(reuse_key);
+        if reused is False {
+            return None;
+        }
+        if reused is not None {
+            return list(reused);
         }
         plan: dict = {
             'origin': str(origin_id),
-            'ability': record['target_ability'],
+            'ability': event.ability,
             'visit_event': event.id,
             'hops': event.hop_chain,
             'ids': [],
             'status': 'considering',
             'candidate_at': perf_counter(),
-            'queue_position': record['target_index'],
+            'queue_position': len(pending),
             'site_key': model_site_key(state, graph, event.id),
             'ability_key': model_ability_key(state, graph, event.ability),
             'decisions': [],
@@ -203,93 +231,132 @@ def prefetch_checkpoint(graph: any, scope: any, record: dict) {
             'decision_ms': 0.0
         };
         state.plans.append(plan);
-        state.considered[key] = plan;
-        first_admission = admit_prefetch(state, plan, 'resolve', remaining);
-        if not first_admission.admit {
+        index = len(state.plans) - 1;
+        state.considered[(id(scope), origin_id, tuple(event.hop_chain))] = plan;
+        admission = admit_prefetch(state, plan, 'resolve', remaining);
+        if not admission.admit {
             plan['status'] = 'model_skipped';
-            record['prefetch_status'] = 'model_skipped';
+            mem.query_cache_put(reuse_key, False);
+            return None;
+        }
+        plan['probe'] = admission.probe;
+        started = perf_counter();
+        hops: list[QHop] = [];
+        for hop in event.hop_chain {
+            edge_type = continuation_type(scope.wlk, str(hop[0]))
+                if hop[0] is not None
+                else None;
+            node_type = continuation_type(scope.wlk, str(hop[1]))
+                if hop[1] is not None
+                else None;
+            if (hop[0] is not None and edge_type is None)
+                or (hop[1] is not None and node_type is None) {
+                plan['status'] = 'unresolved_path_type';
+                return None;
+            }
+            hops.append(QHop(dir=int(hop[2]), `edge=edge_type, nd=node_type));
+        }
+        query = GraphQuery([], hops=hops).`visit();
+        rows = resolve_ttg_path(mem, query, origin_id, max(200, state.max_length));
+        plan['resolve_ms'] = (perf_counter() - started) * 1000;
+        if rows is None {
+            plan['status'] = 'resolution_budget';
+            return None;
+        }
+        targets: list[dict] = [];
+        seen: set[UUID] = set();
+        for row in rows {
+            uid = UUID(str(row[0]));
+            if uid in ignored or uid in seen or uid in mem._deleted {
+                continue;
+            }
+            node_type = continuation_type(scope.wlk, str(row[2]), str(row[3] or ''));
+            if node_type is None or not issubclass(node_type, NodeArchetype) {
+                plan['status'] = 'unresolved_runtime_type';
+                return None;
+            }
+            seen.add(uid);
+            targets.append({'id': uid, 'node_type': node_type, 'plan': index});
+        }
+        plan['resolved_nodes'] = len(targets);
+        plan['status'] = 'resolved';
+        local_paths[key] = targets;
+        mem.query_cache_put(reuse_key, tuple(targets));
+        return targets;
+    }
+    try {
+        outcome = JacTTGGenerator.get_continuation_plan(
+            graph,
+            {
+                'id': anchor.id,
+                'node_type': type(anchor.archetype),
+                'ancestor_types': [type(item.archetype) for item in scope.path]
+            },
+            point,
+            values,
+            pending,
+            resolve,
+            state.max_length
+        );
+    } except Exception as error {
+        state.errors.append(str(error));
+        raise;
+    }
+    state.continuations.append(
+        {
+            'point': point,
+            'ability': ability,
+            'complete': outcome['complete'],
+            'stop': outcome['stop'],
+            'steps': outcome['steps'],
+            'executions': outcome['executions'],
+            'paths': outcome['paths'],
+            'branches': outcome['branches']
+        }
+    );
+    groups: dict[int, list] = {};
+    with mem._raw_lock {
+        excluded = set(mem.__mem__) | set(mem.__raw_mem__) | state.submitted;
+    }
+    for item in outcome['nodes'] {
+        uid = item['id'];
+        if 'plan' not in item or uid in excluded or uid in mem._deleted {
             continue;
         }
-        try {
-            started = perf_counter();
-            import from jaclang.runtime.ttg_sql { compile_layered }
-            import from jaclang.runtime.prefetch { dispatch_prefetch }
-            with mem._raw_lock {
-                cached = set(mem.__raw_mem__);
-            }
-            excluded = set(mem.__mem__) | cached | state.submitted | {origin_id};
-            specs = [
-                {
-                    'idx': 0,
-                    'from_type': origin_type,
-                    'chain': list(event.hop_chain),
-                    'is_visit': True
-                }
-            ];
-            compiled = compile_layered(
-                specs,
-                [origin_id],
-                list(excluded),
-                remaining,
-                True,
-                False,
-                allow_path_revisits=True
-            );
-            rows = _checkpoint_rows(mem, compiled);
-            ids: list[UUID] = [];
-            for row in rows {
-                uid = UUID(str(row[1]));
-                if uid not in excluded and uid not in mem._deleted and uid not in ids {
-                    ids.append(uid);
-                    if len(ids) >= remaining {
-                        break;
-                    }
-                }
-            }
-            plan['resolve_ms'] = (perf_counter() - started) * 1000;
-            plan['ids'] = [str(uid) for uid in ids];
-            plan['resolved_nodes'] = len(ids);
-            state.resolved.add(key);
-            if ids {
-                second_admission = admit_prefetch(
-                    state, plan, 'load', remaining, first_admission.probe
-                );
-                if not second_admission.admit {
-                    plan['status'] = 'model_skipped_load';
-                    record['prefetch_status'] = 'model_skipped_load';
-                    continue;
-                }
-                plan['dispatch_at'] = perf_counter();
-                observer = payload_observer(state, plan);
-                dispatch_prefetch(
-                    state.ctx,
-                    ids,
-                    state.mode,
-                    state.workers,
-                    append=True,
-                    observer=observer
-                );
-                state.submitted.update(ids);
-                plan['status'] = 'submitted';
-                record['prefetch_status'] = 'submitted';
-            } else {
-                plan['status'] = 'empty';
-            }
-        } except Exception as error {
-            plan['status'] = 'error';
-            plan['error'] = str(error);
-            state.errors.append(str(error));
-            record['prefetch_status'] = 'error';
-            _logger.debug(f'Dependency prefetch failed: {error}');
-            raise;
+        if len(excluded & state.submitted) >= state.max_length {
+            break;
         }
+        groups.setdefault(item['plan'], []).append(uid);
+        excluded.add(uid);
     }
-}
-
-def _checkpoint_rows(mem: any, compiled: any) -> list {
-    with mem._lock {
-        mem.read_barrier();
-        return mem.store.rows(compiled.sql, compiled.params);
+    for (index, ids) in groups.items() {
+        ids = ids[:state.max_length - len(state.submitted)];
+        if not ids {
+            break;
+        }
+        plan = state.plans[index];
+        if plan['status'] == 'model_skipped_load' {
+            continue;
+        }
+        admission = admit_prefetch(
+            state, plan, 'load', len(ids), bool(plan.get('probe', False))
+        );
+        if not admission.admit {
+            plan['status'] = 'model_skipped_load';
+            continue;
+        }
+        plan['ids'] = [str(uid) for uid in ids];
+        plan['dispatch_at'] = perf_counter();
+        dispatch_prefetch(
+            state.ctx,
+            ids,
+            state.mode,
+            state.workers,
+            append=True,
+            observer=payload_observer(state, plan)
+        );
+        state.submitted.update(ids);
+        plan['status'] = 'submitted';
     }
 }
 
@@ -393,7 +460,7 @@ def record_model_event(wlk: any, serialized: str, point: int, owner: type) {
             site_key = model_site_key(state, graph, point);
             state.provider.record_visit(ability_key, site_key);
             origin = state.ctx.user_root if event.origin == 'root' else scope.path[-1];
-            if origin.id is None {
+            if origin is None or origin.id is None {
                 return;
             }
             key = (id(scope), origin.id, tuple(event.hop_chain));
@@ -405,6 +472,9 @@ def record_model_event(wlk: any, serialized: str, point: int, owner: type) {
         }
     } except Exception as error {
         state.errors.append('Model observation: ' + str(error));
+    }
+    if event.kind == 'entry' {
+        prefetch_continuation(graph, scope, point);
     }
 }
 

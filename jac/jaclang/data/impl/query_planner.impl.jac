@@ -114,7 +114,9 @@ def _single_node_type_name(hop: any) -> (tuple | None) {
 }
 
 
-def _topology_chain(q: GraphQuery, upto: int) -> (list[tuple[str | None, str | None, int]] | None) {
+def _topology_chain(
+    q: GraphQuery, upto: int
+) -> (list[tuple[str | None, str | None, int]] | None) {
     if q.edges_only or q.order {
         return None;
     }
@@ -147,7 +149,11 @@ def _existing_topology_index(mem: Session) -> any {
         return None;
     }
     for attr in (
-        "resolve_chain", "node_type", "owner_root_for", "has_root", "has_hop"
+        "resolve_chain",
+        "node_type",
+        "owner_root_for",
+        "has_root",
+        "has_hop"
     ) {
         if not hasattr(idx, attr) {
             return None;
@@ -811,4 +817,61 @@ impl LazyRefs.count(self: LazyRefs, item: any) -> int {
 impl LazyRefs.copy(self: LazyRefs) -> list {
     self._realize();
     return list(self);
+}
+
+impl resolve_ttg_path(
+    mem: Session, q: GraphQuery, origin_id: UUID, max_rows: int
+) -> (list | None) {
+    if mem.store is None or not q.hops {
+        return None;
+    }
+    with mem._lock {
+        mem.read_barrier();
+        upto = len(q.hops);
+        acl_root = _acl_pushdown_root(q, upto);
+        if access_gated() and acl_root is None {
+            return None;
+        }
+        compiled = compile_query(
+            q,
+            upto,
+            promotions=getattr(mem.store, 'promotions', None),
+            acl_root=acl_root,
+            include_type=True
+        );
+        if compiled.residual {
+            return None;
+        }
+        compiled.params['origin'] = [str(origin_id)];
+        key = _query_cache_key('ttg_path', compiled.sql, compiled.params, upto);
+        cached = mem.query_cache_get(key);
+        if cached is not None {
+            return list(cached) if len(cached) <= max_rows else None;
+        }
+        rows = mem.store.rows(
+            compiled.sql + ' LIMIT ' + str(int(max_rows) + 1), compiled.params
+        );
+        if len(rows) > max_rows {
+            return None;
+        }
+        mem.query_cache_put(key, tuple([tuple(row) for row in rows]));
+        # The exact same full ordered pairs serve the eventual ordinary visit.
+        # Session graph mutations invalidate both entries through its usual cache.
+        native = compile_query(
+            q,
+            upto,
+            promotions=getattr(mem.store, 'promotions', None),
+            acl_root=acl_root
+        );
+        native.params['origin'] = [str(origin_id)];
+        native_key = _query_cache_key('pairs', native.sql, native.params, upto);
+        pairs = tuple(
+            [
+                (UUID(str(row[0])), UUID(str(row[1])) if row[1] is not None else None)
+                for row in rows
+            ]
+        );
+        mem.query_cache_put(native_key, (pairs, ()));
+        return rows;
+    }
 }

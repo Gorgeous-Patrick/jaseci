@@ -90,7 +90,7 @@ obj WalkerDependencyGraph {
             }
             event = self.events[current];
             try {
-                if event.kind in ('barrier', 'cancel') {
+                if event.kind in ('barrier', 'cancel', 'append') {
                     result.unresolved.append(
                         'Unknown effect or cancellation at ' + str(event.line)
                     );
@@ -249,7 +249,7 @@ obj WalkerDependencyGraph {
                 return result;
             }
             event = self.events[current];
-            if event.kind in ('barrier', 'cancel') {
+            if event.kind in ('barrier', 'cancel', 'append') {
                 result.unresolved.append(
                     'Unsupported effect at ' + event.ability + ':' + str(event.line)
                 );
@@ -527,6 +527,33 @@ obj DependencyBuilder {
         env: dict[str, int],
         controls: list[tuple[int, str]]
     ) -> tuple[int, int, dict[str, int]] {
+        # Verify builtin receiver/argument facts in the continuation interpreter.
+        try {
+            call = pa.parse(
+                _trace_text(ast_node).strip().rstrip(';'), mode='eval'
+            ).body;
+            if isinstance(call, pa.Call)
+                and isinstance(call.func, pa.Attribute)
+                and call.func.attr == 'append'
+                and len(call.args) == 1
+                and not call.keywords {
+                receiver = _trace_attribute(call.func.value);
+                if receiver.startswith('self.') and receiver.count('.') == 1 {
+                    append_reads: set[str] = set();
+                    _trace_check(call.args[0], ability, append_reads);
+                    event = self.event(
+                        'append',
+                        ability,
+                        ast_node,
+                        pa.unparse(call.args[0]),
+                        tuple(sorted(append_reads)),
+                        receiver
+                    );
+                    self.inputs(event, env, controls);
+                    return (event.id, event.id, env);
+                }
+            }
+        } except (ValueError, SyntaxError) { }
         if isinstance(ast_node, uni.Assignment)
             and len(ast_node.target) == 1
             and ast_node.value is not None
@@ -861,7 +888,7 @@ def _trace_effects(graph: WalkerDependencyGraph, start: int) -> TraceEffects {
         if event.writes.startswith('self.') and event.kind == 'assign' {
             result.writes.add(event.writes);
         }
-        if event.kind == 'barrier' {
+        if event.kind in ('barrier', 'append') {
             result.unknown = True;
         }
         if event.kind == 'cancel' {
@@ -995,6 +1022,10 @@ def _trace_field_effects(
         return;
     }
     if getattr(graph.runtime_walker, '__setattr__') is not Archetype.__setattr__ {
+        effects.unknown = True;
+    }
+    if getattr(graph.runtime_walker, '__getattribute__')
+        is not Archetype.__getattribute__ {
         effects.unknown = True;
     }
     for key in keys {

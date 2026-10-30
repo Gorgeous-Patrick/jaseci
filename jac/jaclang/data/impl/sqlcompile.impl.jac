@@ -228,7 +228,8 @@ impl compile_query(
     upto: int,
     promotions: (dict | None) = None,
     count_only: bool = False,
-    acl_root: (str | None) = None
+    acl_root: (str | None) = None,
+    include_type: bool = False
 ) -> CompiledQuery {
     out = CompiledQuery();
     params: dict = {};
@@ -334,8 +335,9 @@ impl compile_query(
     if q.offset {
         tail += f" OFFSET {int(q.offset)}";
     }
+    type_column = f", n{n}.arch_type, n{n}.arch_module" if include_type else '';
     out.sql = (
-        f"SELECT n{n}.id, e{n}.id "
+        f"SELECT n{n}.id, e{n}.id{type_column} "
         f"FROM unnest(CAST(:origin AS uuid[])) WITH ORDINALITY AS f0(id, ord) "
         f"LEFT JOIN anchors s1 ON s1.id = f0.id "
         + ' '.join(joins)

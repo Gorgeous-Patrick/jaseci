@@ -19,5 +19,6 @@ def compile_query(
     upto: int,
     promotions: (dict | None) = None,
     count_only: bool = False,
-    acl_root: (str | None) = None
+    acl_root: (str | None) = None,
+    include_type: bool = False
 ) -> CompiledQuery;

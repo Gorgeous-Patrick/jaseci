@@ -9,8 +9,7 @@ import from jaclang.runtime.runtime { JacRuntime }
 import from jaclang.runtime.context { ExecutionContext }
 import from jaclang.runtime.ttg_dependency_prefetch {
     dependency_prefetch,
-    DependencyPrefetchRun,
-    _checkpoint_rows
+    DependencyPrefetchRun
 }
 import from jaclang.runtime.ttg_checkpoints { capture_dependency_checkpoints }
 import from jaclang.runtime.prefetch { dispatch_prefetch }
@@ -34,67 +33,10 @@ import from .fixtures.ttg_prefetch_walkers {
 }
 import from jaclang.runtime.ttg_dependencies { analyze_walker_dependencies }
 
-def seed_fetch_graph(project: str, value: int = 13, multihop: bool = False) -> dict {
-    ctx = ExecutionContext(
-        base_path_dir=project, full_target_path=str(Path(project, 'fetch.jac'))
-    );
-    JacRuntime.exec_ctx = ctx;
-    a = FetchA(value=value);
-    b = FetchB();
-    root ++> a;
-    a +>:FetchLink:+> b;
-    c0 = FetchC(label='c0');
-    c1 = FetchC(label='c1');
-    c2 = FetchSubC(label='c2');
-    b +>:FetchLink:+> c0;
-    b +>:FetchLink:+> c1;
-    b +>:FetchSubLink:+> c2;
-    cs = [c0, c1, c2];
-    ds = [FetchD(label='d' + str(i)) for i in range(3)];
-    for d in ds {
-        d +>:FetchLink:+> b;
-    }
-    decoy = FetchC(label='wrong-edge');
-    b +>:FetchOther:+> decoy;
-    mids: list[FetchNoise] = [];
-    if multihop {
-        mids = [FetchNoise(), FetchNoise()];
-        for mid in mids {
-            b +>:FetchOther:+> mid;
-        }
-        mids[0] +>:FetchLink:+> c0;
-        mids[0] +>:FetchLink:+> c1;
-        mids[1] +>:FetchLink:+> c0;
-        mids[1] +>:FetchSubLink:+> c2;
-    }
-    a ++> FetchStop();
-    ctx.mem.commit();
-    result = {
-        'start': a.__jac__.id,
-        'c': {n.__jac__.id for n in cs},
-        'd': {n.__jac__.id for n in ds},
-        'decoy': decoy.__jac__.id,
-        'intermediate': {n.__jac__.id for n in mids}
-    };
-    ctx.close();
-    return result;
-}
-
-def open_fetch_context(project: str) -> ExecutionContext {
-    ctx = ExecutionContext(
-        base_path_dir=project, full_target_path=str(Path(project, 'fetch.jac'))
-    );
-    JacRuntime.exec_ctx = ctx;
-    return ctx;
-}
-
-def fetch_origin(ctx: ExecutionContext, uid: any) -> FetchA {
-    assert isinstance(uid, UUID);
-    anchor = ctx.mem.get(uid);
-    assert anchor is not None;
-    arch = anchor.archetype;
-    assert isinstance(arch, FetchA);
-    return arch;
+import from .fixtures.ttg_prefetch_helpers {
+    seed_fetch_graph,
+    open_fetch_context,
+    fetch_origin
 }
 
 test "dependency prefetch: multi-hop path retains types directions and terminal dispatch" {
@@ -179,14 +121,15 @@ test "dependency prefetch: multi-hop and finite cyclic paths consume terminal pa
                         }
                         assert run.errors == [] , str(run.errors);
                         assert seen == expected , str(seen);
-                        assert run.submitted == ids['c'] , str(run.summary());
-                        assert run.promoted == ids['c'] , str(run.summary());
+                        assert run.submitted == ids['c'] | ids['b'] , str(
+                            run.summary()
+                        );
+                        assert run.promoted == run.submitted , str(run.summary());
                         assert not (run.submitted & ids['intermediate']);
                         assert ids['decoy'] not in run.submitted;
-                        assert any(
-                            r.get('prefetch_status') == 'submitted'
-                            for r in capture.records
-                        ) , str(capture.records);
+                        assert any(len(r['paths']) >= 2 for r in run.continuations) , str(
+                            run.continuations
+                        );
                     } finally {
                         ctx.close();
                     }
@@ -214,11 +157,11 @@ test "dependency prefetch: chosen branch and edge subtypes populate and consume 
                         }
                     }
                     assert run.errors == [] , str(run.errors);
-                    assert run.submitted == ids[chosen] , str(run.summary());
-                    assert run.promoted == ids[chosen] , str(run.summary());
+                    assert run.submitted == ids[chosen] | ids['b'] , str(run.summary());
+                    assert run.promoted == run.submitted , str(run.summary());
                     assert sorted(wlk.seen) == [chosen + str(i) for i in range(3)];
                     assert ids['decoy'] not in run.submitted;
-                    assert len(run.plans) == 1 , str(run.plans);
+                    assert len(run.plans) == 2 , str(run.plans);
                     assert run.summary()['unused_cached_ids'] == [];
                     assert run.summary()['unavailable_ids'] == [];
                     statuses = [
@@ -226,7 +169,9 @@ test "dependency prefetch: chosen branch and edge subtypes populate and consume 
                         for r in capture.records
                         if r['target_ability'] == 'choose'
                     ];
-                    assert statuses == ['submitted', 'deduplicated'] , str(statuses);
+                    assert statuses and set(statuses) == {'continuation'} , str(
+                        statuses
+                    );
                 } finally {
                     ctx.close();
                 }
@@ -255,7 +200,7 @@ test "dependency prefetch: configured policy activates with ordinary spawn" {
                 }
                 metrics = getattr(ctx, '_ttg_dependency_metrics');
                 assert set(metrics['submitted_ids'])
-                    == {str(uid) for uid in ids['c']} , str(metrics);
+                    == {str(uid) for uid in (ids['c'] | ids['b'])} , str(metrics);
                 assert set(metrics['promoted_ids']) == set(metrics['submitted_ids']) , str(
                     metrics
                 );
@@ -281,7 +226,8 @@ test "dependency prefetch: cap preserves demand results and skips unselected bra
                     origin spawn wlk;
                 }
                 assert len(run.submitted) == 2;
-                assert run.submitted <= ids['c'];
+                assert ids['b'] <= run.submitted;
+                assert run.submitted <= ids['b'] | ids['c'];
                 assert run.promoted == run.submitted;
                 assert sorted(wlk.seen) == ['c0', 'c1', 'c2'];
             } finally {
@@ -305,10 +251,10 @@ test "dependency prefetch: cancelled queued target submits no work" {
                 with dependency_prefetch(ctx, mode='', model=model) as run {
                     origin spawn FetchCancelled();
                 }
-                assert run.submitted == set();
-                assert run.plans == [];
+                assert run.submitted == ids['stop'];
+                assert not (run.submitted & (ids['b'] | ids['c']));
                 assert run.errors == [];
-                assert model.calls == [];
+                assert model.calls;
             } finally {
                 ctx.close();
             }
@@ -331,9 +277,7 @@ test "dependency prefetch: lookup uses ordinary SQL transaction error handling" 
                 store.rows('INSERT INTO dependency_query_error_test VALUES (7)', {});
                 raised = False;
                 try {
-                    _checkpoint_rows(
-                        ctx.mem, SimpleNamespace(sql='SELECT 1 / 0', params={})
-                    );
+                    store.rows('SELECT 1 / 0', {});
                 } except Exception {
                     raised = True;
                 }
@@ -350,7 +294,7 @@ test "dependency prefetch: lookup uses ordinary SQL transaction error handling" 
 }
 
 test "dependency prefetch: resolver error propagates instead of continuing traversal" {
-    import jaclang.runtime.ttg_sql as sql;
+    import jaclang.data.query_planner as planner;
     original = JacRuntime.exec_ctx;
     try {
         with TemporaryDirectory() as project {
@@ -361,9 +305,11 @@ test "dependency prefetch: resolver error propagates instead of continuing trave
                 wlk = FetchBranch();
                 raised = False;
                 with patch.object(
-                    sql,
-                    'compile_layered',
-                    return_value=SimpleNamespace(sql='SELECT 1 / 0', params={})
+                    planner,
+                    'compile_query',
+                    return_value=SimpleNamespace(
+                        sql='SELECT 1 / 0', params={}, residual={}
+                    )
                 ) {
                     with dependency_prefetch(ctx) as run {
                         try {
@@ -440,10 +386,10 @@ test "dependency prefetch: worker failure preserves foreground demand results" {
                         origin spawn wlk;
                     }
                 }
-                assert run.submitted == ids['c'];
+                assert run.submitted == ids['c'] | ids['b'];
                 assert run.promoted == set();
                 assert set(run.summary()['unavailable_ids'])
-                    == {str(uid) for uid in ids['c']};
+                    == {str(uid) for uid in run.submitted};
                 assert sorted(wlk.seen) == ['c0', 'c1', 'c2'];
             } finally {
                 ctx.close();
@@ -468,10 +414,12 @@ test "dependency prefetch: two selected visit sites load both batches into the s
                     origin spawn wlk;
                 }
                 assert run.errors == [] , str(run.errors);
-                assert run.submitted == ids['c'] | ids['d'] , str(run.summary());
+                assert run.submitted == ids['c'] | ids['d'] | ids['b'] , str(
+                    run.summary()
+                );
                 assert run.promoted == run.submitted , str(run.summary());
                 assert sorted(wlk.seen) == ['c0', 'c1', 'c2', 'd0', 'd1', 'd2'];
-                assert len(run.plans) == 2;
+                assert len(run.plans) == 3;
                 assert run.summary()['unused_cached_ids'] == [];
             } finally {
                 ctx.close();
@@ -507,6 +455,7 @@ obj TestAdmissionModel(PrefetchDecisionModel) {
 
 test "dependency prefetch: replaceable model skips resolution or payload with identical results" {
     import from jaclang.runtime.ttg_prefetch_profile { OnlinePrefetchProfile }
+    import from jaclang.data.query_planner { resolve_ttg_path }
     original = JacRuntime.exec_ctx;
     try {
         for phase in ['resolve', 'load', 'error'] {
@@ -518,22 +467,30 @@ test "dependency prefetch: replaceable model skips resolution or payload with id
                     wlk = FetchBranch();
                     model = TestAdmissionModel(reject_phase=phase);
                     with patch(
-                        'jaclang.runtime.ttg_dependency_prefetch._checkpoint_rows',
-                        wraps=_checkpoint_rows
+                        'jaclang.data.query_planner.resolve_ttg_path',
+                        wraps=resolve_ttg_path
                     ) as rows {
                         with dependency_prefetch(
                             ctx, model=model, provider=OnlinePrefetchProfile()
                         ) as run {
                             origin spawn wlk;
                         }
-                        assert rows.call_count == (1 if phase == 'load' else 0);
+                        assert rows.call_count == (2 if phase == 'load' else 0) , str(
+                            rows.call_count
+                        );
                     }
                     assert sorted(wlk.seen) == ['c0', 'c1', 'c2'];
                     assert run.submitted == set();
-                    assert len(run.plans) == 1;
-                    assert run.feedback[0]['demanded'] , str(run.summary());
+                    assert len(run.plans) == 2;
+                    assert all(item['demanded'] for item in run.feedback) , str(
+                        run.summary()
+                    );
                     assert model.calls
-                        == (['resolve', 'load'] if phase == 'load' else ['resolve']);
+                        == (
+                            ['resolve', 'resolve', 'load', 'load']
+                                if phase == 'load'
+                                else ['resolve', 'resolve']
+                        ) , str(model.calls);
                     assert bool(run.errors) == (phase == 'error');
                 } finally {
                     ctx.close();
@@ -561,10 +518,14 @@ test "dependency prefetch: live profile observes actual branches and payload rea
                         origin spawn FetchBranch();
                     }
                     assert run.errors == [] , str(run.errors);
-                    assert len(run.feedback) == 1 , str(run.summary());
+                    assert len(run.feedback) == 2 , str(run.summary());
                     current_run = run as DependencyPrefetchRun;
                     metrics = current_run.summary();
-                    outcome: dict = metrics['feedback'][0];
+                    outcome: dict = [
+                        item
+                        for item in metrics['feedback']
+                        if ':choose:' in item['ability_key']
+                    ][0];
                     assert outcome['demanded'] , str(outcome);
                     assert outcome['payload_ms'] is not None;
                     assert outcome['overlap_ms'] >= 0;
@@ -618,10 +579,10 @@ test "dependency prefetch: configured model and scoped override select policy" {
                     }
                     metrics: dict = getattr(ctx, '_ttg_dependency_metrics');
                     assert len(metrics['submitted_ids'])
-                        == (3 if use_override else 0) , str(metrics);
+                        == (4 if use_override else 0) , str(metrics);
                     assert metrics['model']
                         == ('AlwaysPrefetch' if use_override else 'ExpectedBenefit');
-                    assert len(metrics['feedback']) == 1 , str(metrics);
+                    assert len(metrics['feedback']) == 2 , str(metrics);
                     assert sorted(wlk.seen) == ['c0', 'c1', 'c2'];
                 } finally {
                     ctx.close();
