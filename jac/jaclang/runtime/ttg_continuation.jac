@@ -111,6 +111,7 @@ def plan_continuation(
         return result;
     }
     queue = list(pending);
+    demanded: set[str] = set();
     exit_types = list(current.get('ancestor_types', [current['node_type']]));
     head = 0;
     active = current;
@@ -145,41 +146,13 @@ def plan_continuation(
             if head >= len(queue) {
                 return _finish_entry_prefix(result, graph, exit_types);
             }
-            if len(result['nodes']) >= max_nodes {
+            if len(result['executions']) >= max_nodes {
                 result['stop'] = 'Node execution budget exhausted';
                 return result;
-            }
-            while head < len(queue) and 'deferred_event' in queue[head] {
-                if result['steps'] >= max_steps {
-                    result['stop'] = 'Abstract execution step budget exhausted';
-                    return result;
-                }
-                result['steps'] += 1;
-                deferred = queue[head];
-                head += 1;
-                visit_event = deferred['deferred_event'];
-                targets = resolve(deferred['origin'], visit_event);
-                if targets is None {
-                    result['stop'] = 'Path resolution declined';
-                    return result;
-                }
-                result['paths'].append(
-                    {
-                        'event': visit_event.id,
-                        'origin': str(deferred['origin']['id']),
-                        'origin_kind': visit_event.origin,
-                        'targets': [str(item['id']) for item in targets]
-                    }
-                );
-                queue[head:head] = targets;
-            }
-            if head >= len(queue) {
-                return _finish_entry_prefix(result, graph, exit_types);
             }
             active = queue[head];
             exit_types.append(active['node_type']);
             head += 1;
-            result['nodes'].append(active);
             result['executions'].append(str(active['id']));
             effects = TraceEffects();
             handlers = _trace_entry_handlers(graph, active['node_type'], effects);
@@ -227,9 +200,34 @@ def plan_continuation(
                     result['stop'] = 'Visit origin or path is unresolved';
                     return result;
                 }
-                # Pure supported continuations preserve topology. Delay SQL until
-                # all preceding entry code is proven, including possible cancel.
-                queue.append({'deferred_event': event, 'origin': active});
+                # Native visit realizes every endpoint payload before enqueueing.
+                # Later ability barriers stop dispatch prediction, not this demand.
+                targets = resolve(active, event);
+                if targets is None {
+                    result['stop'] = 'Path resolution declined';
+                    return result;
+                }
+                result['paths'].append(
+                    {
+                        'event': event.id,
+                        'origin': str(active['id']),
+                        'origin_kind': event.origin,
+                        'targets': [str(item['id']) for item in targets]
+                    }
+                );
+                for item in targets {
+                    identity = str(item['id']);
+                    if identity in demanded {
+                        continue;
+                    }
+                    if len(demanded) >= max_nodes {
+                        result['stop'] = 'Payload budget exhausted';
+                        return result;
+                    }
+                    demanded.add(identity);
+                    result['nodes'].append(item);
+                }
+                queue.extend(targets);
             }
         } except (KeyError, ValueError, TypeError, ArithmeticError) as error {
             result['stop'] = 'Unknown scalar fact: ' + str(error);

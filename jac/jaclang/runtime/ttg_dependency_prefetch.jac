@@ -355,6 +355,8 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
             append=True,
             observer=payload_observer(state, plan)
         );
+        plan['launch_finished_at'] = perf_counter();
+        plan['launch_ms'] = (plan['launch_finished_at'] - plan['dispatch_at']) * 1000;
         state.submitted.update(ids);
         plan['status'] = 'submitted';
     }
@@ -484,7 +486,7 @@ def finish_prefetch_feedback(state: any) {
         overlap: float | None = None;
         if demand_at is not None {
             if 'dispatch_at' in plan {
-                anchor = plan['dispatch_at'];
+                anchor = plan.get('launch_finished_at', plan['dispatch_at']);
             } else {
                 anchor = plan['candidate_at']
                     + (plan.get('resolve_ms', 0.0) + plan['decision_ms']) / 1000;

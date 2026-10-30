@@ -1508,11 +1508,13 @@ impl Session.run_request(body: Callable) -> any {
 
 
 impl Session.close -> None {
-    for thread in getattr(self, '_prefetch_threads', []) {
-        thread.join();
+    if getattr(self, '_prefetch_process_readers', []) {
+        for thread in getattr(self, '_prefetch_threads', []) {
+            thread.join();
+        }
+        import from jaclang.runtime.ttg_process_reader { close_process_readers }
+        close_process_readers(self);
     }
-    import from jaclang.runtime.ttg_process_reader { close_process_readers }
-    close_process_readers(self);
     try {
         self.commit();
     } except Exception as e {

@@ -251,8 +251,8 @@ test "dependency prefetch: cancelled queued target submits no work" {
                 with dependency_prefetch(ctx, mode='', model=model) as run {
                     origin spawn FetchCancelled();
                 }
-                assert run.submitted == ids['stop'];
-                assert not (run.submitted & (ids['b'] | ids['c']));
+                assert run.submitted == ids['stop'] | ids['b'];
+                assert not (run.submitted & ids['c']);
                 assert run.errors == [];
                 assert model.calls;
             } finally {

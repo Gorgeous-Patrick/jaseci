@@ -96,12 +96,16 @@ walker ContinueAppend {
 }
 
 walker ContinueSourceCancel {
+    has entered: bool = False;
+
     can first with ContinueA entry {
         visit [-->[?:ContinueB]];
         disengage;
     }
 
-    can second with ContinueB entry { }
+    can second with ContinueB entry {
+        self.entered = True;
+    }
 }
 
 walker ContinueExit {

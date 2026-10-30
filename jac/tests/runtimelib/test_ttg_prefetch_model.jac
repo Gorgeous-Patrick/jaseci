@@ -13,11 +13,38 @@ import from jaclang.runtime.ttg_prefetch_model {
     _model_override
 }
 import from jaclang.runtime.ttg_prefetch_profile { OnlinePrefetchProfile }
+import from jaclang.runtime.ttg_dependency_prefetch {
+    DependencyPrefetchRun,
+    finish_prefetch_feedback
+}
 
 obj RejectPrefetch(PrefetchDecisionModel) {
     def decide(features: PrefetchFeatures) -> PrefetchAdmission {
         return PrefetchAdmission(False, 'test rejection');
     }
+}
+
+test "feedback overlap excludes synchronous worker launch and readiness waits" {
+    state = DependencyPrefetchRun(
+        ctx=None,
+        model=AlwaysPrefetch(),
+        provider=OnlinePrefetchProfile(),
+        plans=[
+            {
+                'site_key': 'site',
+                'ability_key': 'ability',
+                'demanded': True,
+                'dispatch_at': 1.0,
+                'launch_finished_at': 10.0,
+                'demand_at': 10.002,
+                'payload_ms': 9003.0
+            }
+        ]
+    );
+    finish_prefetch_feedback(state);
+    assert len(state.feedback) == 1;
+    assert abs(state.feedback[0]['overlap_ms'] - 2.0) < 0.00001;
+    assert state.feedback[0]['payload_ms'] == 9003.0;
 }
 
 def measured_features -> PrefetchFeatures {

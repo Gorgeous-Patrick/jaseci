@@ -36,7 +36,7 @@ test "TTG continuation validates builtin list receivers before passing append ef
     assert 'append' in unknown['stop'];
 }
 
-test "TTG continuation defers path SQL until preceding entry code is proven" {
+test "TTG continuation distinguishes eager visit payload demand from cancelled dispatch" {
     graph = analyze_walker_dependencies(ContinueSourceCancel);
     calls: list = [];
     def resolve(active: dict, event: any) -> list[dict] {
@@ -52,8 +52,57 @@ test "TTG continuation defers path SQL until preceding entry code is proven" {
         resolve
     );
     assert not result['complete'];
-    assert result['nodes'] == [];
-    assert calls == [];
+    assert result['executions'] == [];
+    assert [item['id'] for item in result['nodes']] == ['ContinueB'];
+    assert len(calls) == 1;
+}
+
+test "native visit loads its full batch even when queued abilities are cancelled" {
+    original = JacRuntime.exec_ctx;
+    try {
+        with TemporaryDirectory() as project {
+            target = str(Path(project, 'eager_visit.jac'));
+            seed = ExecutionContext(base_path_dir=project, full_target_path=target);
+            JacRuntime.exec_ctx = seed;
+            a = ContinueA();
+            root ++> a;
+            future_ids: set = set();
+            for i in range(3) {
+                b = ContinueB(value=i);
+                a ++> b;
+                future_ids.add(b.__jac__.id);
+            }
+            start_id = a.__jac__.id;
+            seed.close();
+            for prefetch in [False, True] {
+                ctx = ExecutionContext(base_path_dir=project, full_target_path=target);
+                JacRuntime.exec_ctx = ctx;
+                try {
+                    anchor = ctx.mem.get(start_id);
+                    assert anchor is not None;
+                    origin = anchor.archetype;
+                    assert isinstance(origin, ContinueA);
+                    assert not (future_ids & set(ctx.mem.__mem__));
+                    wlk = ContinueSourceCancel();
+                    if prefetch {
+                        with dependency_prefetch(ctx, mode='') as run {
+                            origin spawn wlk;
+                        }
+                        assert run.submitted == future_ids , str(run.summary());
+                        assert run.promoted == future_ids , str(run.summary());
+                    } else {
+                        origin spawn wlk;
+                    }
+                    assert not wlk.entered;
+                    assert future_ids <= set(ctx.mem.__mem__);
+                } finally {
+                    ctx.close();
+                }
+            }
+        }
+    } finally {
+        JacRuntime.exec_ctx = original;
+    }
 }
 
 test "TTG continuation identifies outstanding exit callbacks at the entry frontier" {
