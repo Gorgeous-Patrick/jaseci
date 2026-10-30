@@ -88,7 +88,7 @@ def main():
         expected=load(case['expected'],a.source.parent/case['id'])
         records.append({'id':case['id'],'shape':case['shape'],'nodes':case['nodes'],'lanes':case['walkers'],'expected':save(directory/'expected.bin',expected),'layouts':layouts,'predicted_strategy':'complete cursor-a BFS then complete cursor-b BFS; all A then all B','canonical_discovery_source':str(a.source),'source_current_hashes':[x['sha256'] for x in old['Current']['files']]})
         print(case['id'],'all permutations, graph remaps and lane traversals PASS',flush=True)
-    write(a.output/'inputs.json',{'generator_sha256':sha(Path(__file__)),'source_manifest':str(a.source.relative_to(ROOT)) if a.source.is_absolute() else str(a.source),'source_manifest_sha256':sha(a.source),'source_jac_sha256':source['source_sha256'],'ptx_sha256':sha(a.output/'Dot.ptx'),'seeds':[928,929,930],'cases':records})
+    write(a.output/'inputs.json',{'generator_sha256':sha(Path(__file__)),'source_manifest':str(a.source.resolve()),'source_manifest_sha256':sha(a.source),'source_jac_sha256':source['source_sha256'],'ptx_sha256':sha(a.output/'Dot.ptx'),'seeds':[928,929,930],'cases':records})
 
 
 if __name__=='__main__':main()

@@ -53,7 +53,7 @@ def main():
                     'mean_unique_addresses':sum(x['mean_unique_addresses']*x['warp_events'] for x in data)/events})
             print(case['id'],name,'logical address analysis complete',flush=True)
     write(a.output,{'evidence_type':'deterministic logical address analysis','quantity':'distinct 32-byte address segments per scalar logical warp access',
-        'hardware_counters':'unavailable: ERR_NVGPUCTRPERM; segment counts are address quantities, hardware transactions/cache misses remain unmeasured',
+        'hardware_counters':'not used by this model; consult the separate counter probe for availability; segment counts are not hardware transactions or cache misses',
         'source_sha256':sha(Path(__file__)),'input_sha256':sha(a.inputs),'profile_results_sha256':sha(a.profile),
         'scalar_bytes':8,'warp_lanes':32,'array_base_alignment_verified':256,
         'model_boundary':'Each q/cursor/load/warp is separate. Duplicated lane addresses share a segment. Compiler instruction transformations, cache state and transaction merging are outside this model.',
