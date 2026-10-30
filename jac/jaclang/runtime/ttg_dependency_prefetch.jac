@@ -38,6 +38,7 @@ obj DependencyPrefetchRun {
 
     has continuations: list[dict] = [];
     has cache_token: str = '';
+    has scope_snapshots: dict[int, dict] = {};
 
     def summary -> dict {
         mem = self.ctx.mem;
@@ -162,9 +163,12 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
     if mem.store is None or not scope.path {
         return;
     }
-    import from jaclang.runtime.archetype { NodeAnchor, NodeArchetype }
+    import from jaclang.runtime.archetype { Archetype, NodeAnchor, NodeArchetype }
     import from jaclang.runtime.ttg { JacTTGGenerator }
-    import from jaclang.runtime.ttg_continuation { continuation_type }
+    import from jaclang.runtime.ttg_continuation {
+        continuation_type,
+        known_node_fields
+    }
     import from jaclang.runtime.graph_query { GraphQuery, QHop }
     import from jaclang.data.query_planner { resolve_ttg_path }
     import from jaclang.runtime.prefetch { dispatch_prefetch }
@@ -176,7 +180,27 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
     if remaining <= 0 {
         return;
     }
+    scope_key = id(scope);
+    if scope_key not in state.scope_snapshots {
+        state.scope_snapshots[scope_key] = {
+            'scope': scope,
+            'path_count': 0,
+            'types': set()
+        };
+    }
+    scope_snapshot = state.scope_snapshots[scope_key];
+    for index in range(scope_snapshot['path_count'], len(scope.path)) {
+        scope_snapshot['types'].add(type(scope.path[index].archetype));
+    }
+    scope_snapshot['path_count'] = len(scope.path);
     values: dict = {};
+    if type(scope.wlk).__getattribute__ is not Archetype.__getattribute__
+        or any(
+            isinstance(vars(base).get('__dict__'), property)
+            for base in type(scope.wlk).__mro__
+        ) {
+        return;
+    }
     for (name, value) in vars(scope.wlk).items() {
         if type(value) in (bool, int, float, str, type(None)) {
             values['self.' + name] = value;
@@ -185,17 +209,26 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         }
     }
     ability = graph.events[point].ability;
-    for (name, value) in vars(anchor.archetype).items() {
-        if type(value) in (bool, int, float, str, type(None)) {
-            values[ability + '::here.' + name] = value;
-        }
+    current_facts = known_node_fields(anchor.archetype);
+    for (name, value) in current_facts.items() {
+        values[ability + '::here.' + name] = value;
     }
     ignored = {item.id for item in scope.ignores};
-    pending = [
-        {'id': item.id, 'node_type': type(item.archetype)}
-        for item in scope.next[scope.next_head:]
-        if item not in scope.ignores
-    ];
+    pending: list[dict] = [];
+    pending_truncated = False;
+    for index in range(scope.next_head, len(scope.next)) {
+        item = scope.next[index];
+        if item in scope.ignores {
+            continue;
+        }
+        pending.append(
+            {'id': item.id, 'node_type': type(item.archetype), 'anchor': item}
+        );
+        if len(pending) >= state.max_length {
+            pending_truncated = index + 1 < len(scope.next);
+            break;
+        }
+    }
     local_paths: dict = {};
     def resolve(active: dict, event: any) -> any {
         origin = state.ctx.user_root if event.origin == 'root' else None;
@@ -276,7 +309,12 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
                 return None;
             }
             seen.add(uid);
-            targets.append({'id': uid, 'node_type': node_type, 'plan': index});
+            target: dict = {'id': uid, 'node_type': node_type, 'plan': index};
+            cached_anchor = mem.__mem__.get(uid);
+            if cached_anchor is not None and cached_anchor.is_populated() {
+                target['anchor'] = cached_anchor;
+            }
+            targets.append(target);
         }
         plan['resolved_nodes'] = len(targets);
         plan['status'] = 'resolved';
@@ -290,7 +328,9 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
             {
                 'id': anchor.id,
                 'node_type': type(anchor.archetype),
-                'ancestor_types': [type(item.archetype) for item in scope.path]
+                'facts': current_facts,
+                'pending_truncated': pending_truncated,
+                'ancestor_types': list(scope_snapshot['types'])
             },
             point,
             values,
@@ -311,7 +351,9 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
             'steps': outcome['steps'],
             'executions': outcome['executions'],
             'paths': outcome['paths'],
-            'branches': outcome['branches']
+            'branches': outcome['branches'],
+            'pending_snapshot_count': len(pending),
+            'pending_truncated': pending_truncated
         }
     );
     groups: dict[int, list] = {};

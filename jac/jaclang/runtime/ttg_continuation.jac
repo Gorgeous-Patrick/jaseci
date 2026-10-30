@@ -17,6 +17,28 @@ import from dataclasses { fields }
 import from jaclang.runtime.archetype { NodeArchetype }
 import sys;
 
+def known_node_fields(arch: any) -> dict {
+    if type(arch).__getattribute__ is not NodeArchetype.__getattribute__ {
+        return {};
+    }
+    if any(
+        isinstance(vars(base).get('__dict__'), property) for base in type(arch).__mro__
+    ) {
+        return {};
+    }
+    result: dict = {};
+    for (name, value) in vars(arch).items() {
+        if type(value) in (bool, int, float, str, type(None))
+            and not any(
+                isinstance(vars(base).get(name), property)
+                for base in type(arch).__mro__
+            ) {
+            result[name] = value;
+        }
+    }
+    return result;
+}
+
 def continuation_type(wlk: any, name: str, module_name: str = '') -> any {
     import from jaclang.runtime.runtime { JacRuntime }
     scope_name = module_name or type(wlk).__module__;
@@ -96,16 +118,14 @@ def plan_continuation(
     };
     values = _trace_snapshot(snapshot);
     effects = TraceEffects();
-    _trace_field_effects(
-        graph,
-        set(values)
-            | {
-                e.writes
-                for e in graph.events
-                if e.writes
-            },
-        effects
-    );
+    field_keys = set(values);
+    for event in graph.events {
+        field_keys.update(event.reads);
+        if event.writes {
+            field_keys.add(event.writes);
+        }
+    }
+    _trace_field_effects(graph, field_keys, effects);
     if effects.unknown {
         result['stop'] = 'Walker field access has unknown effects';
         return result;
@@ -115,6 +135,11 @@ def plan_continuation(
     exit_types = list(current.get('ancestor_types', [current['node_type']]));
     head = 0;
     active = current;
+    if not issubclass(active['node_type'], NodeArchetype)
+        or active['node_type'].__getattribute__ is not NodeArchetype.__getattribute__ {
+        result['stop'] = 'Custom node attribute access is unresolved';
+        return result;
+    }
     event = graph.events[point];
     handlers = _trace_entry_handlers(graph, active['node_type'], effects);
     if effects.unknown or event.ability not in handlers {
@@ -134,6 +159,9 @@ def plan_continuation(
                     for (k, v) in values.items()
                     if k.startswith('self.')
                 };
+                for (name, value) in active.get('facts', {}).items() {
+                    values[ability + '::here.' + name] = value;
+                }
                 cursor = graph.entries[ability];
                 continue;
             }
@@ -144,6 +172,10 @@ def plan_continuation(
                 return result;
             }
             if head >= len(queue) {
+                if current.get('pending_truncated', False) {
+                    result['stop'] = 'Pending queue budget exhausted';
+                    return result;
+                }
                 return _finish_entry_prefix(result, graph, exit_types);
             }
             if len(result['executions']) >= max_nodes {
@@ -151,6 +183,15 @@ def plan_continuation(
                 return result;
             }
             active = queue[head];
+            if not issubclass(active['node_type'], NodeArchetype)
+                or active['node_type'].__getattribute__
+                    is not NodeArchetype.__getattribute__ {
+                result['stop'] = 'Custom node attribute access is unresolved';
+                return result;
+            }
+            if 'anchor' in active {
+                active['facts'] = known_node_fields(active['anchor'].archetype);
+            }
             exit_types.append(active['node_type']);
             head += 1;
             result['executions'].append(str(active['id']));

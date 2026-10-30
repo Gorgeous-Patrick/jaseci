@@ -7,6 +7,12 @@ node ContinueB {
 node ContinueC {}
 node ContinueD {}
 
+node ContinueCustom(ContinueA) {
+    def __getattribute__(name: str) -> any {
+        return object.__getattribute__(self, name);
+    }
+}
+
 walker ContinueChain {
     has count: int = 0;
 

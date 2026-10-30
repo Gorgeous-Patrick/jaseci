@@ -12,7 +12,8 @@ import from .fixtures.ttg_continuation_walkers {
     ContinueCycle,
     ContinueAppend,
     ContinueSourceCancel,
-    ContinueExit
+    ContinueExit,
+    ContinueCustom
 }
 
 test "TTG continuation validates builtin list receivers before passing append effects" {
@@ -55,6 +56,65 @@ test "TTG continuation distinguishes eager visit payload demand from cancelled d
     assert result['executions'] == [];
     assert [item['id'] for item in result['nodes']] == ['ContinueB'];
     assert len(calls) == 1;
+}
+
+test "TTG continuation uses known queued node fields before an independent successor" {
+    graph = analyze_walker_dependencies(ContinueUnknown);
+    point = [
+        e.id
+        for e in graph.events
+        if e.ability == 'first' and e.kind == 'visit'
+    ][0];
+    result = JacTTGGenerator.get_continuation_plan(
+        graph,
+        {'id': 'a', 'node_type': ContinueA},
+        point,
+        {'self.count': 7},
+        [
+            {'id': 'b', 'node_type': ContinueB, 'facts': {'value': 0}},
+            {'id': 'c', 'node_type': ContinueC}
+        ],
+        continuation_resolver
+    );
+    assert result['complete'] , str(result);
+    assert result['executions'] == ['b', 'c', 'ContinueD'];
+    assert [item['id'] for item in result['nodes']] == ['ContinueD'];
+}
+
+test "TTG continuation marks a truncated pending queue incomplete" {
+    graph = analyze_walker_dependencies(ContinueChain);
+    point = [
+        e.id
+        for e in graph.events
+        if e.ability == 'first' and e.kind == 'visit'
+    ][0];
+    result = JacTTGGenerator.get_continuation_plan(
+        graph,
+        {'id': 'a', 'node_type': ContinueA, 'pending_truncated': True},
+        point,
+        {'self.count': 0},
+        [{'id': 'd', 'node_type': ContinueD}],
+        continuation_resolver,
+        max_nodes=1
+    );
+    assert result['executions'] == ['d'];
+    assert not result['complete'];
+    assert 'budget' in result['stop'];
+}
+
+test "TTG continuation treats custom node attribute access as an unknown effect" {
+    graph = analyze_walker_dependencies(ContinueChain);
+    result = JacTTGGenerator.get_continuation_plan(
+        graph,
+        {'id': 'a', 'node_type': ContinueCustom},
+        graph.entries['first'],
+        {'self.count': 0},
+        [],
+        continuation_resolver
+    );
+    assert not result['complete'];
+    assert result['nodes'] == [];
+    assert 'attribute access' in result['stop'];
 }
 
 test "native visit loads its full batch even when queued abilities are cancelled" {
