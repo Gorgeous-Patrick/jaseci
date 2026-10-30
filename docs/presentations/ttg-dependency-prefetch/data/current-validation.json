@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-30",
+  "branch": "feat/ttg-dependency-graph",
+  "base": "e0db3d8e7",
+  "new_cases": 9,
+  "runtime_passed": 85,
+  "runtime_failed": 0,
+  "static_files_passed": 11,
+  "static_errors": 0,
+  "static_warnings": "present; see log",
+  "format_lintfix_passed": true,
+  "policy": "ttg_dependency",
+  "plan_version": 2,
+  "selected_branch_assertions": {
+    "outgoing": {
+      "selected_ids": 3,
+      "promoted_ids": 3,
+      "unselected_submitted_ids": 0
+    },
+    "incoming": {
+      "selected_ids": 3,
+      "promoted_ids": 3,
+      "unselected_submitted_ids": 0
+    },
+    "capped": {
+      "submitted_ids": 2,
+      "promoted_ids": 2,
+      "foreground_results": 3
+    },
+    "two_visit_sites": {
+      "submitted_ids": 6,
+      "promoted_ids": 6,
+      "foreground_results": 6
+    }
+  },
+  "performance_measurements": null,
+  "implementation_commit": "9b1ac5ff9",
+  "evidence_kind": "Assertions in PostgreSQL-backed integration tests, with real Session raw-cache promotion observation.",
+  "fixture_source_sha256": "07a2942a4d28adef4f92d41270ab405d0f6a8d4e4b24e7decf889315f801525c"
+}

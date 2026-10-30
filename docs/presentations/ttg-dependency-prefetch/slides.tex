@@ -1,0 +1,451 @@
+\documentclass[12pt]{article}
+\usepackage[paperwidth=32cm,paperheight=18cm,margin=0cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[scaled=0.97]{helvet}
+\usepackage{courier}
+\usepackage{sansmath}
+\usepackage{xcolor,tikz,listings,array,booktabs,amssymb}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric}
+\usepackage[pdftex,colorlinks=true,urlcolor=blue]{hyperref}
+\renewcommand{\familydefault}{\sfdefault}
+\sansmath
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\definecolor{Ink}{HTML}{17212B}
+\definecolor{Blue}{HTML}{2459A6}
+\definecolor{Green}{HTML}{147D64}
+\definecolor{Amber}{HTML}{A66512}
+\definecolor{Red}{HTML}{BA4141}
+\definecolor{Gray}{HTML}{647182}
+\definecolor{Line}{HTML}{D6DEE7}
+\definecolor{Light}{HTML}{F3F6FA}
+\color{Ink}
+\hypersetup{pdftitle={TTG: Dependency-Guided Prefetching in Jac},pdfauthor={Jac TTG Research},pdfsubject={Compiler checkpoints, FIFO queue certificates, selected-visit SQL and cache consumption}}
+\lstdefinelanguage{Jac}{
+ morekeywords={walker,node,edge,has,can,with,entry,visit,if,else,self,here,root},
+ sensitive=true,morecomment=[l]{\#},morestring=[b]"
+}
+\lstset{language=Jac,basicstyle=\ttfamily\fontsize{14}{18}\selectfont,
+ keywordstyle=\color{Blue},stringstyle=\color{Green},commentstyle=\color{Gray},
+ columns=fullflexible,keepspaces=true,showstringspaces=false,breaklines=true,
+ aboveskip=0pt,belowskip=0pt,tabsize=4,gobble=4,xleftmargin=-1.1cm}
+\tikzset{
+ card/.style={draw=Line,fill=white,rounded corners=5pt,line width=1pt,
+   align=center,inner sep=8pt,font=\fontsize{18}{23}\selectfont},
+ good/.style={draw=Green,fill=Green!7},
+ bluebox/.style={draw=Blue,fill=Blue!6},
+ warn/.style={draw=Amber,fill=Amber!7},
+ bad/.style={draw=Red,fill=Red!6},
+ muted/.style={draw=Line,fill=Light,text=Gray},
+ arrow/.style={-{Latex[length=3mm,width=2.2mm]},line width=1.2pt,draw=Ink},
+ data/.style={arrow,draw=Blue},
+ ctrl/.style={arrow,draw=Green},
+ faint/.style={arrow,draw=Gray,dashed},
+ lab/.style={font=\fontsize{14}{18}\selectfont,fill=white,inner sep=3pt}
+}
+\newcommand{\txt}[4]{\node[anchor=north west,inner sep=0pt,align=left,text width=#3cm,font=\fontsize{18}{24}\selectfont] at (#1,#2) {#4};}
+\newcommand{\smalltxt}[4]{\node[anchor=north west,inner sep=0pt,align=left,text width=#3cm,font=\fontsize{15}{20}\selectfont] at (#1,#2) {#4};}
+\newcommand{\boxat}[7]{\node[card,#6,minimum width=#4cm,minimum height=#5cm,text width=\dimexpr#4cm-0.5cm\relax] (#1) at (#2,#3) {#7};}
+\newcommand{\callout}[1]{\boxat{takeaway}{16}{15.5}{29.2}{1.35}{bluebox}{#1}}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\chaptertag}[1]{\textcolor{Blue}{\textbf{#1}}}
+\newenvironment{slide}[2]{%
+ \clearpage\thispagestyle{empty}\null
+ \begin{tikzpicture}[remember picture,overlay]
+ \begin{scope}[shift={(current page.north west)},x=1cm,y=-1cm]
+ \node[anchor=north west,inner sep=0pt,text=Blue,font=\fontsize{11}{14}\selectfont] at (1.3,0.55) {\MakeUppercase{#1}};
+ \node[anchor=north west,inner sep=0pt,font=\bfseries\fontsize{29}{34}\selectfont] at (1.3,1.18) {#2};
+ \draw[Line,line width=0.8pt] (1.3,2.65)--(30.7,2.65);
+ \node[anchor=south west,inner sep=0pt,text=Gray,font=\fontsize{10}{12}\selectfont] at (1.3,17.42) {TTG / Jac \hspace{0.5cm} 30 October 2026 \hspace{0.5cm} implementation: 9b1ac5ff9};
+ \node[anchor=south east,inner sep=0pt,text=Gray,font=\fontsize{11}{13}\selectfont] at (30.7,17.42) {\thepage};
+}{\end{scope}\end{tikzpicture}}
+\begin{document}
+
+% 01
+\begin{slide}{Research overview}{TTG: Dependency-Guided Prefetching in Jac}
+\txt{1.4}{3.6}{27}{\fontsize{27}{34}\selectfont Use cross-ability dependencies to decide\\which future graph accesses are ready to prefetch.}
+\boxat{a}{4.8}{9.1}{5.4}{2.2}{bluebox}{A\\computes walker state}
+\boxat{b}{13}{9.1}{5.4}{2.2}{bluebox}{B\\chooses a path}
+\boxat{c}{23.6}{7.1}{5.4}{1.7}{good}{C / selected}
+\boxat{d}{23.6}{11.2}{5.4}{1.7}{muted}{D / other branch}
+\draw[data] (a)--(b);
+\draw[ctrl] (b.east)--++(1,0)|-(c.west);
+\draw[faint] (b.east)--++(1,0)|-(d.west);
+\smalltxt{1.5}{13.25}{27}{\textbf{Temporal Trace Graph (TTG)}\\
+Static dependency graph \quad + \quad automatic compiler hooks \quad + \quad runtime queue certificates\\Selected-visit SQL and real raw-cache consumption are implemented and validated.}
+\end{slide}
+
+% 02
+\begin{slide}{1 / Research problem}{A reachable branch can still be unnecessary}
+\txt{1.4}{3.3}{28}{A traversal shape can expose both C and D, while a runtime value selects one.}
+\boxat{b}{7.8}{8.2}{4.6}{2}{bluebox}{B\\mode = 13}
+\boxat{c}{19.5}{6.0}{8.1}{2.0}{good}{C branch\\3 payload nodes}
+\boxat{d}{19.5}{10.6}{8.1}{2.0}{muted}{D branch\\3 payload nodes}
+\draw[ctrl] (b.east)--++(2,0)|-(c.west) node[pos=.8,lab,above]{mode $>$ 10};
+\draw[faint] (b.east)--++(2,0)|-(d.west) node[pos=.8,lab,below]{otherwise};
+\smalltxt{2.1}{12.8}{27}{Research question: when can the runtime commit to the selected access path early enough to overlap its data loading with intervening execution?}
+\callout{Predicting a branch requires both a value and a guarantee that intervening work preserves it.}
+\end{slide}
+
+% 03
+\begin{slide}{2 / Running example}{The persisted test graph}
+\boxat{a}{4}{7.6}{4}{1.8}{bluebox}{FetchA\\value = 13}
+\boxat{b}{11}{7.6}{4}{1.8}{bluebox}{FetchB}
+\boxat{c}{23}{5.1}{9.4}{2.2}{good}{c0,\; c1,\; c2\\c2 is a FetchC subtype}
+\boxat{d}{23}{9.4}{9.4}{1.8}{muted}{d0,\; d1,\; d2}
+\boxat{decoy}{23}{12.8}{9.4}{1.6}{bad}{FetchC: wrong-edge}
+\draw[arrow] (a)--(b) node[midway,lab,above]{FetchLink};
+\draw[ctrl] (b.east)--++(1.1,0)|-(c.west) node[pos=.8,lab,above]{FetchLink or subtype};
+\draw[faint] (d.west)-|([xshift=8mm]b.east)--(b.east);
+\smalltxt{15.2}{10.5}{4.5}{D $\rightarrow$ B\\incoming traversal}
+\draw[faint,draw=Red] (b.east)--++(.45,0)|-(decoy.west);
+\smalltxt{1.5}{3.3}{28}{Each C/D node stores a label. A different edge type leads to a decoy C node.}
+\callout{Correct prefetch must preserve node type, edge type, subtype matching and direction.}
+\end{slide}
+
+% 04
+\begin{slide}{2 / Actual Jac source}{One walker, two entry abilities}
+\txt{1.5}{3.3}{13.8}{\textbf{A: compute state and enqueue B}}
+\txt{16.5}{3.3}{14}{\textbf{B: choose a typed visit}}
+\node[anchor=north west,inner sep=10pt,fill=Light,rounded corners] at (1.35,4.3) {
+ \begin{minipage}{13.5cm}
+ \lstinputlisting[firstline=27,lastline=34]{data/fixture-source.txt}
+ \end{minipage}};
+\node[anchor=north west,inner sep=10pt,fill=Light,rounded corners] at (16.35,4.3) {
+ \begin{minipage}{13.5cm}
+ \lstinputlisting[firstline=36,lastline=42]{data/fixture-source.txt}
+ \end{minipage}};
+\boxat{state}{8}{12.0}{12.7}{1.8}{bluebox}{Same FetchBranch instance:\\mode,\; counter,\; seen}
+\boxat{here}{23.1}{12.0}{12.7}{1.8}{good}{Different current node:\\here = A, then here = B}
+\callout{The code shown here is included directly from the PostgreSQL test fixture.}
+\end{slide}
+
+% 05
+\begin{slide}{3 / Shared state}{here moves; the walker state travels}
+\boxat{wa}{7.4}{6.4}{11.4}{3.1}{bluebox}{\textbf{A entry}\\here.value = 13\\self.mode becomes 13}
+\boxat{wb}{24}{6.4}{11.4}{3.1}{bluebox}{\textbf{B entry}\\here is now B\\self.mode is read again}
+\draw[data] (wa)--(wb) node[midway,lab,above]{queued dispatch};
+\boxat{shared}{16}{11.3}{18}{2.4}{good}{\textbf{Shared walker object}\\mode = 13 \hspace{.5cm} counter = 1}
+\draw[data] (wa.south)--(shared.north west);
+\draw[data] (shared.north east)--(wb.south);
+\smalltxt{1.5}{3.3}{28}{The dependency crosses an ability boundary through the walker field, even though each ability has a different current node.}
+\callout{The compiler connects A's definition of self.mode to B's branch input.}
+\end{slide}
+
+% 06
+\begin{slide}{3 / Static analysis}{Build a dependency graph over statements}
+\boxat{read}{4.6}{6.5}{5.8}{1.8}{bluebox}{A: read\\here.value}
+\boxat{def}{13.1}{6.5}{6.6}{1.8}{bluebox}{A: define\\self.mode}
+\boxat{guard}{24.5}{6.5}{7.5}{1.8}{bluebox}{B: branch\\self.mode $>$ 10}
+\boxat{visit}{13.1}{11.0}{6.6}{1.8}{muted}{A: visit B}
+\boxat{vc}{22.3}{11.0}{5.1}{1.8}{good}{B: visit C}
+\boxat{vd}{28.0}{11.0}{4.0}{1.8}{muted}{B: visit D}
+\draw[data] (read)--(def) node[midway,lab,above]{data};
+\draw[data] (def)--(guard) node[midway,lab,above]{walker-state dependency};
+\draw[faint] (visit.north)--(guard.south west) node[midway,lab,below]{dispatch context};
+\draw[ctrl] (guard.south)--(vc.north) node[midway,lab,left]{true};
+\draw[ctrl] (guard.south)--(vd.north) node[midway,lab,right]{false};
+\smalltxt{1.5}{3.3}{28}{Events represent inputs, assignments, branches, visits and merges. Edges represent data, control, order and cross-ability state transfer.}
+\callout{A state-transfer edge is associated with a specific visit site.}
+\end{slide}
+
+% 07
+\begin{slide}{3 / Definitions and merges}{Follow definitions through control flow}
+\boxat{cond}{7.7}{5.4}{8.8}{1.6}{bluebox}{A: conditional assignment}
+\boxat{left}{3.9}{8.4}{5.8}{1.6}{good}{mode = 12}
+\boxat{right}{11.5}{8.4}{5.8}{1.6}{warn}{mode = 2}
+\boxat{phi}{7.7}{11.4}{8.8}{1.6}{bluebox}{$\phi$(12, 2): reaching mode}
+\draw[ctrl] (cond)--(left);
+\draw[ctrl] (cond)--(right);
+\draw[data] (left)--(phi);
+\draw[data] (right)--(phi);
+\boxat{overwrite}{24}{7.7}{11.8}{4.0}{bluebox}{\textbf{An overwrite kills an old input}\\[8pt]B: mode = 0\\B: if mode $>$ 0 ...}
+\smalltxt{18.4}{11.1}{11.5}{B's guard then depends on its own definition, rather than A's incoming mode.}
+\callout{Backward slicing tracks definitions, control edges and merges to find the entry inputs a trace needs.}
+\end{slide}
+
+% 08
+\begin{slide}{3 / Compiler and runtime}{Split the work by available information}
+\boxat{static}{8}{8.5}{13.1}{7.8}{bluebox}{\textbf{Compiler}\\[10pt]Jac source AST\\Dependency graph and relevant inputs\\Candidate hook locations\\Visit origin, types and direction\\[10pt]\textbf{Output: embedded plan + hook calls}}
+\boxat{dynamic}{24}{8.5}{13.1}{7.8}{good}{\textbf{Runtime}\\[10pt]Actual walker field values\\Actual FIFO queue and node classes\\Actual origin node IDs\\Intervening effects and cancellation\\[10pt]\textbf{Output: certificate + selected visits}}
+\draw[data] (static)--(dynamic) node[midway,lab,above]{plan};
+\callout{The runtime decodes an embedded plan once per capture/class; it uses that plan at each reached hook.}
+\end{slide}
+
+% 09
+\begin{slide}{4 / Automatic hooks}{Three candidate points in the A ability}
+\boxat{h1}{5.2}{5.6}{7.2}{2.1}{bluebox}{\textbf{H1: mode assigned}\\mode = 13\\queue is empty}
+\boxat{h2}{16}{5.6}{7.2}{2.1}{good}{\textbf{H2: visit completed}\\B is now queued\\C path can be certified}
+\boxat{h3}{26.8}{5.6}{7.2}{2.1}{bluebox}{\textbf{H3: counter assigned}\\B still queued\\same C path}
+\draw[arrow] (h1)--(h2);
+\draw[arrow] (h2)--(h3);
+\boxat{o1}{5.2}{11.2}{7.2}{2.2}{muted}{No concrete B target\\to query yet}
+\boxat{o2}{16}{11.2}{7.2}{2.2}{good}{Resolve C IDs\\and submit prefetch}
+\boxat{o3}{26.8}{11.2}{7.2}{2.2}{muted}{Deduplicate the\\origin/hop request}
+\draw[faint] (h1)--(o1);
+\draw[ctrl] (h2)--(o2);
+\draw[faint] (h3)--(o3);
+\smalltxt{1.5}{3.2}{28}{Hooks are inserted after dependency-relevant walker-field assignments and supported typed visits.}
+\callout{counter controls A's other visit, so it gets a hook; it does not change B's mode dependency.}
+\end{slide}
+
+% 10
+\begin{slide}{4 / Queue certificates}{B can be predictable before reaching the head}
+\txt{1.5}{3.3}{28}{Start with the actual pending queue:}
+\boxat{a1}{7}{6.1}{5}{1.8}{bluebox}{A1}
+\boxat{a2}{15.9}{6.1}{5}{1.8}{bluebox}{A2}
+\boxat{b}{24.7}{6.1}{5}{1.8}{good}{B}
+\draw[arrow] (a1)--(a2);
+\draw[arrow] (a2)--(b);
+\boxat{r}{8}{10.7}{12.7}{2.8}{good}{\textbf{B needs}\\R = \{self.mode\}}
+\boxat{w}{24}{10.7}{12.7}{2.8}{bluebox}{\textbf{A1/A2 may write}\\W = \{self.counter\}}
+\callout{$R \cap W = \varnothing$: unrelated writes preserve the inputs needed by B's trace.}
+\end{slide}
+
+% 11
+\begin{slide}{4 / Scheduling semantics}{Analyze the interval before B's entry}
+\smalltxt{1.5}{3.3}{28}{The analyzed interval includes the current continuation, earlier queued entry handlers and handlers preceding the target ability.}
+\boxat{cp}{3.3}{7.3}{4}{2.4}{bluebox}{Current\\checkpoint}
+\boxat{tail}{8.7}{7.3}{5}{2.4}{bluebox}{Remaining\\A code}
+\boxat{prefix}{15}{7.3}{5}{2.4}{bluebox}{Queued\\A1 / A2}
+\boxat{b}{21.1}{7.3}{4}{2.4}{good}{B\\entry}
+\boxat{exit}{27.2}{7.3}{4.4}{2.4}{muted}{Deferred\\A exits}
+\draw[arrow] (cp)--(tail);
+\draw[arrow] (tail)--(prefix);
+\draw[arrow] (prefix)--(b);
+\draw[faint] (b)--(exit);
+\draw[Blue,line width=2pt] (1.4,10)--(18.8,10);
+\smalltxt{3.1}{10.6}{15}{Collect potential writes and unknown effects here.}
+\smalltxt{21}{10.6}{9}{Exit writes occur after B entry in this FIFO kernel.}
+\callout{Default visits append at the tail: new work from A1/A2 goes after an already-queued B.}
+\end{slide}
+
+% 12
+\begin{slide}{4 / Overwrite regression}{A visit schedules B; A's continuation still runs}
+\boxat{one}{7.8}{6.4}{12.5}{4.2}{warn}{\textbf{Checkpoint after visit B}\\mode is currently 13\\remaining A code writes mode = 0\\[7pt]\textcolor{Red}{Input stability is blocked}}
+\boxat{two}{24.1}{6.4}{12.5}{4.2}{good}{\textbf{Checkpoint after mode = 0}\\new value is available\\no later relevant overwrite\\[7pt]\textcolor{Green}{Retry with mode = 0}}
+\draw[arrow] (one)--(two) node[midway,lab,above]{A continues};
+\smalltxt{2}{10.5}{28}{Validated overwrite fixture:\\[8pt]\code{if self.mode > 0 { visit [-->[?:DepC]]; }}\\[8pt]At B entry, mode is 0 and that visit is skipped.}
+\callout{A checkpoint uses the remaining control-flow graph, not just the current value.}
+\end{slide}
+
+% 13
+\begin{slide}{4 / Admission gate}{Three independent properties}
+\node[anchor=north west,inner sep=0pt] at (1.5,3.7) {
+\fontsize{17}{24}\selectfont
+\begin{tabular}{p{6.5cm}p{11.5cm}p{9cm}}
+\toprule
+\textbf{Property} & \textbf{Question} & \textbf{Example}\\
+\midrule
+stable & Can intervening code change the required inputs? & counter writes preserve mode\\[12pt]
+path\_determined & Do available values resolve the target ability's trace? & mode = 13 selects C\\[12pt]
+execution\_preserved & Can analyzed preceding work cancel the target? & disengage blocks admission\\
+\bottomrule
+\end{tabular}};
+\boxat{all}{9.2}{12.4}{13.8}{1.8}{good}{All three hold $\rightarrow$ resolve selected visits}
+\boxat{cancel}{24.2}{12.4}{12.2}{1.8}{warn}{Known branch + possible cancellation\\$\rightarrow$ skip prefetch}
+\callout{Path knowledge is conditional on execution; cancellation is checked separately.}
+\end{slide}
+
+% 14
+\begin{slide}{4 / From trace to data}{A selected visit carries its access shape}
+\boxat{prediction}{7.1}{6.1}{11}{2.8}{good}{\textbf{Predicted B trace}\\selected event: visit FetchC\\actual queued B ID is known}
+\boxat{plan}{24.1}{6.1}{12}{4.0}{bluebox}{\textbf{Embedded visit metadata}\\origin: here\\edge: FetchLink\\node: FetchC\\direction: outgoing}
+\draw[data] (prediction)--(plan);
+\boxat{query}{16}{12.2}{22.8}{2}{bluebox}{Instantiate one SQL layer from B's actual ID\\Incoming D uses the corresponding reverse hop.}
+\draw[data] (plan.south)--(query.north east);
+\callout{The type-level prediction selects the visit; graph lookup determines the concrete destination IDs.}
+\end{slide}
+
+% 15
+\begin{slide}{4 / SQL resolution}{Reuse the existing layered SQL template}
+\boxat{front}{4.5}{5.2}{5.8}{1.7}{bluebox}{Frontier: B ID}
+\boxat{edge}{15.9}{5.2}{12}{1.7}{bluebox}{Edge type + direction\\including subtype / undirected matching}
+\boxat{node}{15.9}{8.5}{12}{1.7}{good}{Target node type\\including subtype matching}
+\boxat{exclude}{15.9}{11.5}{12}{1.7}{bluebox}{Exclude resident / raw / submitted IDs}
+\boxat{ids}{27.3}{11.5}{5.6}{1.7}{good}{Budget\\$\rightarrow$ C IDs}
+\draw[data] (front)--(edge);
+\draw[data] (edge)--(node);
+\draw[data] (node)--(exclude);
+\draw[data] (exclude)--(ids);
+\smalltxt{1.5}{8.4}{7.1}{\code{compile_layered}\\[8pt]One selected visit\\One traversal layer}
+\smalltxt{23.1}{5.0}{7.2}{Wrong-edge C is excluded.\\The C subtype is included.}
+\callout{The selected-ID query preserves the visit's access shape and returns the IDs to load.}
+\end{slide}
+
+% 16
+\begin{slide}{4 / Execution pipeline}{Resolve IDs, load payloads, then consume}
+\boxat{hook}{4.5}{5.4}{5.9}{1.8}{bluebox}{Foreground\\hook + SQL IDs}
+\boxat{dispatch}{14.1}{5.4}{7}{1.8}{bluebox}{dispatch\_prefetch\\append batch}
+\boxat{load}{25}{5.4}{8}{1.8}{good}{Background\\Session.prefetch}
+\draw[data] (hook)--(dispatch);
+\draw[data] (dispatch)--(load);
+\boxat{raw}{25}{10.6}{8}{2.2}{good}{Reader load\_full\\reader close\\store\_raw}
+\boxat{consume}{10.3}{10.6}{11.5}{2.2}{bluebox}{B's normal visit-ID lookup\\Session.batch\_get\\promote\_raw}
+\draw[ctrl] (load)--(raw);
+\draw[ctrl] (raw)--(consume) node[midway,lab,above]{raw rows};
+\callout{Promotion records that the foreground actually consumed a requested row from the raw cache.}
+\end{slide}
+
+% 17
+\begin{slide}{4 / Thread timeline}{The opportunity is an overlap window}
+\smalltxt{1.5}{3.3}{28}{Illustrative ordering; horizontal distances do not represent measured durations.}
+\smalltxt{1.5}{5.1}{4}{Foreground}
+\smalltxt{1.5}{9.4}{4}{Worker}
+\draw[arrow] (5.5,6.4)--(30.2,6.4);
+\draw[arrow] (5.5,10.7)--(30.2,10.7);
+\boxat{ids}{8.3}{6.4}{5}{2.0}{bluebox}{H2:\\resolve IDs}
+\boxat{work}{16.2}{6.4}{8.2}{2.0}{bluebox}{A continues\\H3 deduplicates}
+\boxat{demand}{26.1}{6.4}{6.3}{2.0}{good}{B lookup\\consume payload}
+\boxat{payload}{15.1}{10.7}{8.2}{2.0}{good}{Load payload\\and release reader}
+\boxat{ready}{24.9}{10.7}{6.8}{2.0}{good}{Publish raw rows\\signal completion}
+\draw[faint] (ids.south)--(payload.north west);
+\draw[faint] (ready.north)--(demand.south);
+\callout{Demand waits within the existing prefetch wait budget, then uses the normal fallback if needed.}
+\end{slide}
+
+% 18
+\begin{slide}{4 / Deduplication and budget}{Repeated hooks share a bounded plan}
+\boxat{key}{8.1}{5.4}{13.2}{2.4}{bluebox}{\textbf{Request key}\\walk scope + origin ID + hop shape}
+\boxat{repeat}{24}{5.4}{12.5}{2.4}{muted}{H2 submits\\H3 finds the same key\\one resolution plan}
+\draw[data] (key)--(repeat);
+\boxat{cap}{8.1}{10.8}{13.2}{3.2}{good}{\textbf{Validated cap = 2}\\2 IDs submitted\\2 raw-cache promotions}
+\boxat{rest}{24}{10.8}{12.5}{3.2}{bluebox}{\textbf{Foreground needs 3 results}\\remaining data uses demand\\all 3 labels returned}
+\callout{The cap controls speculative work; ordinary traversal still produces the full result.}
+\end{slide}
+
+% 19
+\begin{slide}{4 / Multiple batches}{Completion covers all outstanding workers}
+\smalltxt{1.5}{3.3}{28}{A target ability can select multiple visits. The native two-site fixture requests both C and D.}
+\boxat{one}{7.6}{6.8}{11.8}{2.5}{bluebox}{Batch 1: C IDs\\worker held by test gate}
+\boxat{two}{24}{6.8}{11.8}{2.5}{good}{Batch 2: D IDs\\worker completes first}
+\boxat{done}{16}{11.6}{14}{2.2}{warn}{Combined done event\\remains unset until both finish}
+\draw[data] (one)--(done);
+\draw[data] (two)--(done);
+\callout{Thread-order test: both workers are tracked. PostgreSQL test: 6 submitted IDs, 6 real promotions.}
+\end{slide}
+
+% 20
+\begin{slide}{4 / Transaction safety}{A speculative error preserves earlier writes}
+\boxat{write}{4.1}{6.9}{5.5}{2.5}{bluebox}{Foreground\\INSERT 7}
+\boxat{save}{11.5}{6.9}{6.2}{2.5}{bluebox}{SAVEPOINT\\speculative read}
+\boxat{error}{19.2}{6.9}{6.2}{2.5}{bad}{SELECT 1 / 0\\raises}
+\boxat{recover}{27}{6.9}{5.3}{2.5}{good}{ROLLBACK TO\\RELEASE}
+\draw[arrow] (write)--(save);
+\draw[arrow] (save)--(error);
+\draw[arrow] (error)--(recover);
+\boxat{preserved}{16}{12.1}{22.8}{1.8}{good}{Validated: the earlier row still contains 7; foreground demand continues.}
+\smalltxt{1.5}{3.3}{28}{PgStore.rows\_in\_savepoint uses the connection under its lock. Session preparation and lookup are serialized by the Session lock.}
+\callout{Count SAVEPOINT / RELEASE and recovery commands when measuring database calls.}
+\end{slide}
+
+% 21
+\begin{slide}{5 / Observability}{Separate submission from actual use}
+\node[anchor=north west,inner sep=0pt] at (1.5,3.6) {
+\fontsize{17}{23}\selectfont
+\begin{tabular}{p{8.2cm}p{19.5cm}}
+\toprule
+\textbf{Metric} & \textbf{Meaning}\\
+\midrule
+submitted\_ids & Unique IDs requested for loading\\[9pt]
+promoted\_ids & Requested rows promoted by the owning foreground thread\\[9pt]
+unused\_cached\_ids & Requested rows still in raw cache after workers drain\\[9pt]
+unavailable\_ids & Requested IDs with neither promotion nor a remaining raw row\\[9pt]
+plans / errors & Selected origin/hops, resolved IDs, status, resolution wall time and foreground errors\\
+\bottomrule
+\end{tabular}};
+\callout{Driver traces distinguish worker failure, late fallback and invalidation among unavailable IDs.}
+\end{slide}
+
+% 22
+\begin{slide}{5 / Current integration results}{Verified PostgreSQL behavior}
+\node[anchor=north west,inner sep=0pt] at (1.5,3.6) {
+\fontsize{17}{23}\selectfont
+\begin{tabular}{p{9.6cm}r r p{9cm}}
+\toprule
+\textbf{Case} & \textbf{Submitted} & \textbf{Promoted} & \textbf{Foreground result}\\
+\midrule
+Outgoing C branch & 3 & 3 & c0, c1, c2\\[6pt]
+Incoming D branch & 3 & 3 & d0, d1, d2\\[6pt]
+Budget = 2 & 2 & 2 & all 3 selected labels\\[6pt]
+Two selected sites & 6 & 6 & all 6 C/D labels\\[6pt]
+Worker failure & 3 & 0 & all 3 via demand\\[6pt]
+Selected-path SQL error & 0 & 0 & all 3 via demand\\
+\bottomrule
+\end{tabular}};
+\smalltxt{1.5}{12.9}{28}{Branch cases submit zero unselected-branch IDs and zero decoy-edge IDs.\\Fresh contexts over persisted graphs; assertions inspect real Session promotions.}
+\callout{9 new prefetch cases; 85 targeted runtime tests passed; 11 static and format/lint checks passed.}
+\end{slide}
+
+% 23
+\begin{slide}{5 / Earlier performance evidence}{Historical adapter measurement: 27 October}
+\smalltxt{1.5}{3.25}{28}{16 payload nodes per branch, 16 KiB per node. Configured RTT 5 ms; 20 ms independent wait.\\Medians of 11 trials using an explicit prediction adapter.}
+\node[anchor=north west,inner sep=0pt] at (1.5,5.4) {
+\fontsize{17}{23}\selectfont
+\begin{tabular}{p{9cm}r r r}
+\toprule
+\textbf{Policy} & \textbf{Interval ms} & \textbf{SQL commands} & \textbf{DataRow bytes}\\
+\midrule
+Batched demand & 39.486 & 2 & 271,184\\[10pt]
+Prefetch both branches & 35.544 & 4 & 543,120\\[10pt]
+Dependency-selected & 36.834 & 4 & 271,936\\
+\bottomrule
+\end{tabular}};
+\smalltxt{1.5}{11.5}{28}{Selected prefetch removed 16 unused prefetched nodes and approximately halved returned DataRow bytes versus both-branch prefetch. Timing benefits varied across RTT/overlap settings.}
+\callout{This adapter predates automatic hooks and savepoint isolation. Current-policy timing is a separate measurement stage.}
+\end{slide}
+
+
+% 24
+\begin{slide}{5 / Earlier performance evidence}{Historical timing depends on RTT and overlap}
+\smalltxt{1.5}{3.25}{28}{Selected-minus-batched median interval (\%). Each cell also shows selected vs. batched milliseconds.\\27 October adapter; 11 trials per policy and setting.}
+\smalltxt{5.0}{4.9}{6}{RTT = 0 ms}
+\smalltxt{14.0}{4.9}{6}{RTT = 5 ms}
+\smalltxt{23.0}{4.9}{6}{RTT = 20 ms}
+\smalltxt{1.5}{6.5}{2.5}{0 ms\\wait}
+\boxat{m00}{8}{7.1}{7.4}{2.3}{bad}{\textbf{+22.3\%}\\4.854 vs. 3.970 ms}
+\boxat{m05}{17}{7.1}{7.4}{2.3}{bad}{\textbf{+34.8\%}\\21.603 vs. 16.024 ms}
+\boxat{m020}{26}{7.1}{7.4}{2.3}{bad}{\textbf{+42.3\%}\\72.644 vs. 51.054 ms}
+\smalltxt{1.5}{10.5}{2.5}{20 ms\\wait}
+\boxat{m20}{8}{11.1}{7.4}{2.3}{good}{\textbf{-1.1\%}\\24.484 vs. 24.768 ms}
+\boxat{m25}{17}{11.1}{7.4}{2.3}{good}{\textbf{-6.7\%}\\36.834 vs. 39.486 ms}
+\boxat{m220}{26}{11.1}{7.4}{2.3}{bad}{\textbf{+4.0\%}\\72.741 vs. 69.934 ms}
+\smalltxt{1.5}{13.1}{28}{Wait models independent I/O. Red: higher selected-prefetch median; green: lower median.\\Current-policy evaluation will account for the added hook and savepoint path.}
+\callout{Observed timing varies across settings, motivating measured overlap and cost-based admission.}
+\end{slide}
+
+% 25
+\begin{slide}{5 / Measurement mechanism}{Account for the complete database path}
+\boxat{id}{5.2}{5.9}{7.1}{2.4}{bluebox}{Foreground lookup\\SAVEPOINT\\selected IDs / RELEASE}
+\boxat{payload}{16}{5.9}{7.4}{2.4}{good}{Worker\\payload SELECT\\reader cleanup}
+\boxat{normal}{26.8}{5.9}{7.1}{2.4}{bluebox}{Normal B execution\\visit-ID lookup\\cached or demand payload}
+\draw[data] (id)--(payload);
+\draw[data] (payload)--(normal);
+\boxat{db}{8}{11.4}{12.8}{2.3}{bluebox}{\textbf{DB-call time}\\driver entry through response consumption}
+\boxat{wall}{24}{11.4}{12.8}{2.3}{good}{\textbf{Foreground wall time}\\includes computation, waits and overlap}
+\callout{Retain timestamps: concurrent DB-call durations overlap, so their sum differs from critical-path wall time.}
+\end{slide}
+
+% 26
+\begin{slide}{Research direction}{Turn a valid prediction into a profitable decision}
+\boxat{safe}{8}{6.5}{12.8}{3.3}{good}{\textbf{Current admission}\\stable dependencies\\determined branch\\preserved target execution}
+\boxat{worth}{24}{6.5}{12.8}{3.3}{bluebox}{\textbf{Next: cost admission}\\probability of later use\\available overlap window\\query / transfer / contention cost}
+\draw[arrow] (safe)--(worth);
+\smalltxt{1.5}{11.0}{28}{Measure current-policy DB calls, waiting and unused rows on application workflows.\\Use branch frequencies and measured costs to decide when prefetch is worthwhile.}
+\callout{Jac's ability, visit and FIFO semantics supply the context for cross-ability dependency analysis.}
+\end{slide}
+
+% 27
+\begin{slide}{Evidence and reproduction}{Code, configuration and checks}
+\txt{1.5}{3.4}{28}{\textbf{Implementation commit:} \code{9b1ac5ff9}\\[8pt]\textbf{Branch:} \code{feat/ttg-dependency-graph}}
+\smalltxt{1.5}{6.0}{28}{\textbf{Mechanism and API}\\\code{docs/design/ttg-dependencies/README.md}\\[9pt]
+\textbf{Validation and reproduction commands}\\\code{docs/design/ttg-dependencies/validation.md}\\[9pt]
+\textbf{Current integration tests}\\\code{jac/tests/runtimelib/test_ttg_dependency_prefetch.jac}\\[9pt]
+\textbf{Historical adapter results}\\27 October experiment; preserved medians and driver-boundary method in the deck sources.}
+\boxat{config}{24.4}{6.4}{11.3}{3.4}{bluebox}{\textbf{jac.toml / [run]}\\prefetching = ttg\_dependency\\async\_prefetch = thread\\prefetch\_limit = 200}
+\smalltxt{1.5}{13.0}{28}{\href{https://github.com/Gorgeous-Patrick/jaseci/tree/feat/ttg-dependency-graph}{GitHub branch: Gorgeous-Patrick/jaseci / feat/ttg-dependency-graph}}
+\callout{Source TeX and a reproducible PDF build accompany this presentation.}
+\end{slide}
+\end{document}

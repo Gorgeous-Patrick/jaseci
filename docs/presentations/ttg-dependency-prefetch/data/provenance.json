@@ -1,0 +1,50 @@
+{
+  "source_experiment": "ttg-prefetch-benefit-20261027 / wait_warm_repeat_ids",
+  "source_file_sha256": "fcca5c71c9d3942baa692cf9db5d9bb6c816968c2aec8d775d180844542d4a2d",
+  "metadata": {
+    "python": "3.14.6 (main, Jun 11 2026, 04:03:53) [Clang 22.1.3 ]",
+    "rows_per_branch": 16,
+    "payload_bytes_per_row": 16384,
+    "work_iterations": 0,
+    "rtt_ms": [
+      0,
+      1,
+      5,
+      20
+    ],
+    "policies": [
+      "demand_one_by_one",
+      "demand_batch",
+      "prefetch_all",
+      "dependency_prefetch"
+    ],
+    "rounds": 11,
+    "queue_predecessors": 2,
+    "main_connection": "warmed before timing; fresh empty Session caches every run",
+    "prefetch_wait_ms": "50",
+    "network": "PG protocol-framed local TCP proxy; half RTT before first request and first response of each cycle; startup also delayed; TCP_NODELAY",
+    "id_discovery_reuse": false,
+    "transaction_preopened": true,
+    "independent_window_kind": "Fixed independent I/O-wait model, not CPU computation",
+    "independent_wait_ms": [
+      0,
+      20
+    ],
+    "setup": "Load B through Session.get before timing; leave future C/D data uncached."
+  },
+  "filter": {
+    "rtt_ms": 5,
+    "work_target_ms": 20,
+    "policies": [
+      "demand_batch",
+      "prefetch_all",
+      "dependency_prefetch"
+    ]
+  },
+  "aggregation": "Median of 11 trials per policy; deck rounds interval ms to 3 decimal places.",
+  "execution_path": "Explicit prediction adapter before automatic compiler hooks and savepoint isolation.",
+  "time_boundary": "Checkpoint interval through foreground work and outstanding prefetch completion. DB-call time is elapsed PgWireConnection.run including network/server/driver response handling.",
+  "wire_bytes_boundary": "Returned PostgreSQL DataRow bytes; other frames and TCP/IP headers excluded.",
+  "full_cohort_trials": 264,
+  "matrix": "Median selected vs. batched interval at each of six RTT/independent-wait settings. Percent is the ratio of medians minus one."
+}

@@ -1,0 +1,4 @@
+policy,trials,e2e_ms,demand_wait_ms,db_call_ms,query_count,wire_data_bytes,unused_prefetched_rows
+demand_batch,11,39.48569,19.281271,13.561459,2,271184,0
+prefetch_all,11,35.543984,8.426637,25.133528,4,543120,16
+dependency_prefetch,11,36.833614,8.426347,27.520895000000003,4,271936,0
