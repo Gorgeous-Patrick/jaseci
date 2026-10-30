@@ -25,10 +25,16 @@ import from .fixtures.ttg_prefetch_walkers {
     FetchOther,
     FetchSubLink,
     FetchBranch,
-    FetchCancelled
+    FetchCancelled,
+    FetchMultiHop,
+    FetchMultiCycle,
+    FetchMultiSequence,
+    FetchFilteredMultiHop,
+    FetchNoise
 }
+import from jaclang.runtime.ttg_dependencies { analyze_walker_dependencies }
 
-def seed_fetch_graph(project: str, value: int = 13) -> dict {
+def seed_fetch_graph(project: str, value: int = 13, multihop: bool = False) -> dict {
     ctx = ExecutionContext(
         base_path_dir=project, full_target_path=str(Path(project, 'fetch.jac'))
     );
@@ -50,13 +56,25 @@ def seed_fetch_graph(project: str, value: int = 13) -> dict {
     }
     decoy = FetchC(label='wrong-edge');
     b +>:FetchOther:+> decoy;
+    mids: list[FetchNoise] = [];
+    if multihop {
+        mids = [FetchNoise(), FetchNoise()];
+        for mid in mids {
+            b +>:FetchOther:+> mid;
+        }
+        mids[0] +>:FetchLink:+> c0;
+        mids[0] +>:FetchLink:+> c1;
+        mids[1] +>:FetchLink:+> c0;
+        mids[1] +>:FetchSubLink:+> c2;
+    }
     a ++> FetchStop();
     ctx.mem.commit();
     result = {
         'start': a.__jac__.id,
         'c': {n.__jac__.id for n in cs},
         'd': {n.__jac__.id for n in ds},
-        'decoy': decoy.__jac__.id
+        'decoy': decoy.__jac__.id,
+        'intermediate': {n.__jac__.id for n in mids}
     };
     ctx.close();
     return result;
@@ -77,6 +95,107 @@ def fetch_origin(ctx: ExecutionContext, uid: any) -> FetchA {
     arch = anchor.archetype;
     assert isinstance(arch, FetchA);
     return arch;
+}
+
+test "dependency prefetch: multi-hop path retains types directions and terminal dispatch" {
+    graph = analyze_walker_dependencies(FetchMultiHop);
+    visits = [
+        e
+        for e in graph.events
+        if e.ability == 'choose' and e.kind == 'visit'
+    ];
+    assert len(visits) == 1;
+    assert visits[0].hop_chain
+        == (('FetchOther', 'FetchNoise', 2), ('FetchLink', 'FetchC', 2)) , str(
+        visits[0].hop_chain
+    );
+    assert visits[0].targets == ('FetchC', );
+    assert graph.dispatch[visits[0].id] == ['collect'];
+    assert graph.predict_handler('choose', {}).complete;
+    mixed = analyze_walker_dependencies(FetchMultiSequence).predict_handler(
+        'choose', {}
+    );
+    assert mixed.complete , str(mixed.unresolved);
+    assert len(mixed.visits) == 2;
+    cycle = analyze_walker_dependencies(FetchMultiCycle);
+    event = [
+        e
+        for e in cycle.events
+        if e.ability == 'choose' and e.kind == 'visit'
+    ][0];
+    assert event.hop_chain
+        == (
+            ('FetchOther', 'FetchNoise', 2),
+            ('FetchOther', 'FetchB', 1),
+            ('FetchLink', 'FetchC', 2)
+        ) , str(event.hop_chain);
+}
+
+test "dependency prefetch: multi-hop value filters remain explicit barriers" {
+    graph = analyze_walker_dependencies(FetchFilteredMultiHop);
+    assert not graph.predict_handler('choose', {}).complete;
+    assert any(
+        e.kind == 'barrier'
+        for e in graph.events
+        if e.ability == 'choose'
+    );
+}
+
+def run_multi_walk(origin: FetchA, cyclic: bool) -> list[str] {
+    if cyclic {
+        cycle = FetchMultiCycle();
+        origin spawn cycle;
+        return cycle.seen;
+    }
+    direct = FetchMultiHop();
+    origin spawn direct;
+    assert direct.intermediate_visits == 0;
+    return direct.seen;
+}
+
+test "dependency prefetch: multi-hop and finite cyclic paths consume terminal payloads in native order" {
+    original = JacRuntime.exec_ctx;
+    try {
+        for cyclic in [False, True] {
+            for mode in ['', 'thread'] {
+                with TemporaryDirectory() as project {
+                    ids = seed_fetch_graph(project, multihop=True);
+                    ctx = open_fetch_context(project);
+                    try {
+                        expected = run_multi_walk(
+                            fetch_origin(ctx, ids['start']), cyclic
+                        );
+                        assert set(expected) == {'c0', 'c1', 'c2'} , str(expected);
+                    } finally {
+                        ctx.close();
+                    }
+                    ctx = open_fetch_context(project);
+                    try {
+                        origin = fetch_origin(ctx, ids['start']);
+                        with capture_dependency_checkpoints() as capture {
+                            with dependency_prefetch(ctx, mode=mode) as run {
+                                seen = run_multi_walk(origin, cyclic);
+                            }
+                        }
+                        assert run.errors == [] , str(run.errors);
+                        assert seen == expected , str(seen);
+                        assert run.submitted == ids['c'] , str(run.summary());
+                        assert run.promoted == ids['c'] , str(run.summary());
+                        assert not (run.submitted & ids['intermediate']);
+                        assert ids['decoy'] not in run.submitted;
+                        assert any(
+                            r.get('prefetch_status') == 'submitted'
+                            for r in capture.records
+                        ) , str(capture.records);
+                    } finally {
+                        ctx.close();
+                    }
+                }
+            }
+        }
+    } finally {
+        JacRuntime.exec_ctx = original;
+    }
 }
 
 test "dependency prefetch: chosen branch and edge subtypes populate and consume raw cache" {

@@ -1202,7 +1202,10 @@ def _output(cols: _BuildColumns, source: any, kind: int) -> any {
 }
 
 def _build_layered(
-    specs: list[dict], has_undirected: bool, include_roots: bool = False
+    specs: list[dict],
+    has_undirected: bool,
+    include_roots: bool = False,
+    allow_path_revisits: bool = False
 ) -> q.CompiledSQL {
     cols = _BuildColumns();
     spec_fields = [
@@ -1445,7 +1448,11 @@ def _build_layered(
                 _match(
                     cols, cols.col(target, 'arch_type'), cols.col(hops, 'node_type')
                 ),
-                _negated(q.any_eq(cols.col(target, 'id'), cols.col(walk, 'path_nodes')))
+                q.boolean(True)
+                    if allow_path_revisits
+                    else _negated(
+                        q.any_eq(cols.col(target, 'id'), cols.col(walk, 'path_nodes'))
+                    )
             ]
         )
     );
@@ -1644,9 +1651,14 @@ def _specialized_plan(
 
 @lru_cache(maxsize=128)
 def _layered_plan(
-    key: tuple[any, ...], has_undirected: bool, include_roots: bool
+    key: tuple[any, ...],
+    has_undirected: bool,
+    include_roots: bool,
+    allow_path_revisits: bool = False
 ) -> q.CompiledSQL {
-    return _build_layered(_specs_from_key(key), has_undirected, include_roots);
+    return _build_layered(
+        _specs_from_key(key), has_undirected, include_roots, allow_path_revisits
+    );
 }
 
 def compile_specialized(
@@ -1669,9 +1681,12 @@ def compile_layered(
     seen_ids: list[UUID],
     limit: int,
     has_undirected: bool,
-    include_roots: bool = False
+    include_roots: bool = False,
+    allow_path_revisits: bool = False
 ) -> q.CompiledSQL {
-    plan = _layered_plan(_spec_key(specs), has_undirected, include_roots);
+    plan = _layered_plan(
+        _spec_key(specs), has_undirected, include_roots, allow_path_revisits
+    );
     return plan.bind(
         {
             'frontier_ids': tuple(frontier_ids),

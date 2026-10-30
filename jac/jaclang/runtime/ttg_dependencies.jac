@@ -616,40 +616,49 @@ obj DependencyBuilder {
                 trailers = [ast_node.target];
             }
             targets: list[str] = [];
-            safe = len(trailers) == 1 and ast_node.insert_loc is None;
+            safe = isinstance(ast_node.target, uni.EdgeRefTrailer)
+                and len(trailers) == 1
+                and ast_node.insert_loc is None;
             for trailer in trailers {
                 chain = JacTTGGenerator._extract_chains_from_trailer(ast_node, trailer);
 
-                filters = [
-                    item
-                    for item in trailer.chain
-                    if isinstance(item, uni.FilterCompr)
-                ];
-                if len(chain) == 1
-                    and chain[0][1] is None
-                    and len(filters) == 1
-                    and isinstance(filters[0].f_type, uni.Name) {
-                    chain = [(chain[0][0], filters[0].f_type.value, chain[0][2])];
-                }
+                hop = -1;
                 for item in trailer.chain {
-                    if isinstance(item, uni.EdgeOpRef)
-                        and item.filter_cond is not None {
-                        filter_type = item.filter_cond.f_type;
-                        if filter_type is not None {
-                            if isinstance(filter_type, uni.Name) and len(chain) == 1 {
-                                chain = [(filter_type.value, chain[0][1], chain[0][2])];
-                            } else {
-                                safe = False;
+                    if isinstance(item, uni.EdgeOpRef) {
+                        hop += 1;
+                        if item.filter_cond is not None {
+                            filter_type = item.filter_cond.f_type;
+                            if filter_type is not None {
+                                if isinstance(filter_type, uni.Name)
+                                    and hop < len(chain) {
+                                    chain[hop] = (
+                                        chain[hop][0] or filter_type.value,
+                                        chain[hop][1],
+                                        chain[hop][2]
+                                    );
+                                } else {
+                                    safe = False;
+                                }
                             }
                         }
                     }
-                    if isinstance(item, uni.FilterCompr)
-                        and item.f_type is not None
-                        and not isinstance(item.f_type, uni.Name) {
-                        safe = False;
+                    if isinstance(item, uni.FilterCompr) and item.f_type is not None {
+                        if isinstance(item.f_type, uni.Name)
+                            and 0 <= hop < len(chain) {
+                            chain[hop] = (
+                                chain[hop][0],
+                                chain[hop][1] or item.f_type.value,
+                                chain[hop][2]
+                            );
+                        } else {
+                            safe = False;
+                        }
                     }
                 }
-                safe = safe and len(chain) == 1 and chain[0][1] is not None;
+                safe = safe
+                    and bool(chain)
+                    and hop + 1 == len(chain)
+                    and chain[-1][1] is not None;
                 for item in trailer.get_all_sub_nodes(uni.FilterCompr) {
                     if item.compares {
                         safe = False;

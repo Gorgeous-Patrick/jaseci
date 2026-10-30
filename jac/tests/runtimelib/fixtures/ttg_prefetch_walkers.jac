@@ -90,3 +90,53 @@ walker FetchBoth {
         self.seen.append(here.label);
     }
 }
+
+walker FetchMultiHop {
+    has seen: list[str] = [],
+        intermediate_visits: int = 0;
+
+    can start with FetchA entry {
+        visit [->:FetchLink:->[?:FetchB]];
+    }
+
+    can choose with FetchB entry {
+        visit [->:FetchOther:->[?:FetchNoise]->:FetchLink:->[?:FetchC]];
+    }
+
+    can intermediate with FetchNoise entry {
+        self.intermediate_visits += 1;
+    }
+
+    can collect with FetchC entry {
+        self.seen.append(here.label);
+    }
+}
+
+walker FetchFilteredMultiHop {
+    can choose with FetchB entry {
+        visit [->:FetchOther:->[?:FetchNoise]->:FetchLink:->[?:FetchC, label=='c0']];
+    }
+}
+
+walker FetchMultiSequence {
+    can choose with FetchB entry {
+        visit [->:FetchLink:->[?:FetchC]];
+        visit [->:FetchOther:->[?:FetchNoise]->:FetchLink:->[?:FetchC]];
+    }
+}
+
+walker FetchMultiCycle {
+    has seen: list[str] = [];
+
+    can start with FetchA entry {
+        visit [->:FetchLink:->[?:FetchB]];
+    }
+
+    can choose with FetchB entry {
+        visit [->:FetchOther:->[?:FetchNoise]<-:FetchOther:<-[?:FetchB]->:FetchLink:->[?:FetchC]];
+    }
+
+    can collect with FetchC entry {
+        self.seen.append(here.label);
+    }
+}

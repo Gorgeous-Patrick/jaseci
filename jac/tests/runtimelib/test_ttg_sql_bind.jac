@@ -75,14 +75,15 @@ test "TTG bind: structure flags and mutated specs select distinct plans" {
         compile_layered(specs, [], [], 1, False, False);
         compile_layered(specs, [], [], 1, True, False);
         compile_layered(specs, [], [], 1, False, True);
-        assert compiler.call_count == 6;
+        compile_layered(specs, [], [], 1, False, False, allow_path_revisits=True);
+        assert compiler.call_count == 7;
         specs[0]['chain'] = [('Follow', 'Profile', 1)];
         compile_specialized(specs, [], 1, 1);
         compile_layered(specs, [], [], 1, False);
-        assert compiler.call_count == 8;
+        assert compiler.call_count == 9;
         compile_specialized(_specs(), [], 9, 9);
         compile_layered(_specs(), [], [], 9, False);
-        assert compiler.call_count == 8;
+        assert compiler.call_count == 9;
     }
 }
 

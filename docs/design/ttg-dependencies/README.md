@@ -230,15 +230,24 @@ Ordinary `spawn` activates a per-walk dependency-prefetch scope. Compiler hooks
 produce certificates and the policy accepts those with `stable`,
 `path_determined` and `execution_preserved` all true. Plan version 2 retains
 visit edge type, target type, direction and origin. Supported plans use
-single-hop typed visits from the queued target (`here`) or the active user root.
+typed single-hop and multi-hop visits from the queued target (`here`) or the
+active user root. Each hop retains its edge type, node type and direction;
+only the final node type determines ability dispatch. Intermediate path nodes
+do not enter the walker queue merely because the path crosses them.
 Field-filtered visits and unknown effects remain conservative barriers.
 
 For each selected visit, the existing `compile_layered` template resolves one
-layer from the actual origin ID. SQL retains edge/node subtype constraints and
+complete finite path from the actual origin ID. SQL retains edge/node subtype constraints and
 direction, including undirected edges. The resolver excludes resident, raw-cached
 and already-submitted IDs before applying the remaining prefetch budget. The
 policy deduplicates identical origin/hop queries within a walk, including
 certificates produced by repeated hooks.
+
+Dependency path resolution permits repeated nodes within a finite path: for
+example, `B -> N -> B -> C` still resolves `C`. Recursion is bounded by the
+declared hop count. The legacy TTG resolver keeps its existing simple-path
+default. Only terminal payloads are submitted to the loader; the original
+`visit` continues to control actual queue ordering and duplicate handling.
 
 `dispatch_prefetch(..., append=True)` merges outstanding IDs and threads into
 the current wait group. Each new completion event covers all batches still

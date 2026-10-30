@@ -227,7 +227,13 @@ def prefetch_checkpoint(graph: any, scope: any, record: dict) {
                 }
             ];
             compiled = compile_layered(
-                specs, [origin_id], list(excluded), remaining, True, False
+                specs,
+                [origin_id],
+                list(excluded),
+                remaining,
+                True,
+                False,
+                allow_path_revisits=True
             );
             rows = _checkpoint_rows(mem, compiled);
             ids: list[UUID] = [];
