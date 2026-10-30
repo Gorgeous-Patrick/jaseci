@@ -254,12 +254,10 @@ the current wait group. Each new completion event covers all batches still
 tracked by the session. The scope drains its background workers on exit. Payload
 loading and raw-cache promotion use the existing Session implementation.
 
-Speculative ID lookup uses `PgStore.rows_in_savepoint` inside the active
-transaction. Local SQL errors roll back to that savepoint while preserving prior
-foreground writes. This API uses the connection directly under the Store lock,
-because the ordinary Store error path rolls back the full transaction.
-Resolution errors are recorded and foreground traversal proceeds through its
-normal demand path. Worker failures leave the same demand fallback available.
+ID lookup uses ordinary `PgStore.rows` inside the active transaction, without
+savepoint commands. Foreground planning and lookup errors are recorded and
+propagated through the normal request error path. Background worker failures
+leave the ordinary demand-loading fallback available.
 
 For direct integration tests, `dependency_prefetch(ctx, max_length=200,
 mode="thread", workers=1)` exposes a run object. Configured spawns publish their
@@ -275,11 +273,11 @@ final summary at `ctx._ttg_dependency_metrics`:
 - `errors`: planning/resolution/dispatch errors observed by the foreground hook.
 
 ID-resolution wall time includes SQL construction, locking and execution. DB-call
-profiling should separately record the driver boundary and count savepoint
-commands, selected-path lookup, payload loading, reader cleanup and subsequent
+profiling should separately record the driver boundary and count
+selected-path lookup, payload loading, reader cleanup and subsequent
 demand lookup. Branch probabilities and cost-based admission are separate work.
 
 `test_ttg_dependency_prefetch.jac` uses persisted graphs, fresh contexts and real
 PostgreSQL. It covers both branches, reverse edges, node/edge subtypes, decoy-edge
 rejection, repeated-hook deduplication, consumed raw rows, budget fallback,
-cancellation, configured activation, local SQL recovery and failed workers.
+cancellation, configured activation, ordinary SQL errors and failed workers.

@@ -318,7 +318,7 @@ test "dependency prefetch: cancelled queued target submits no work" {
     }
 }
 
-test "dependency prefetch: speculative SQL error rolls back its savepoint only" {
+test "dependency prefetch: lookup uses ordinary SQL transaction error handling" {
     original = JacRuntime.exec_ctx;
     try {
         with TemporaryDirectory() as project {
@@ -326,9 +326,9 @@ test "dependency prefetch: speculative SQL error rolls back its savepoint only" 
             try {
                 store = ctx.mem.store;
                 assert store is not None;
-                store.rows('CREATE TABLE dependency_savepoint_test (n integer)', {});
+                store.rows('CREATE TABLE dependency_query_error_test (n integer)', {});
                 ctx.mem.read_barrier();
-                store.rows('INSERT INTO dependency_savepoint_test VALUES (7)', {});
+                store.rows('INSERT INTO dependency_query_error_test VALUES (7)', {});
                 raised = False;
                 try {
                     _checkpoint_rows(
@@ -338,8 +338,8 @@ test "dependency prefetch: speculative SQL error rolls back its savepoint only" 
                     raised = True;
                 }
                 assert raised;
-                assert store.rows('SELECT n FROM dependency_savepoint_test', {})[0][0]
-                    == 7;
+                assert store.rows('SELECT n FROM dependency_query_error_test', {})
+                    == [];
             } finally {
                 ctx.close();
             }
@@ -349,7 +349,7 @@ test "dependency prefetch: speculative SQL error rolls back its savepoint only" 
     }
 }
 
-test "dependency prefetch: resolver error falls back to correct foreground traversal" {
+test "dependency prefetch: resolver error propagates instead of continuing traversal" {
     import jaclang.runtime.ttg_sql as sql;
     original = JacRuntime.exec_ctx;
     try {
@@ -359,18 +359,24 @@ test "dependency prefetch: resolver error falls back to correct foreground trave
             try {
                 origin = fetch_origin(ctx, ids['start']);
                 wlk = FetchBranch();
+                raised = False;
                 with patch.object(
                     sql,
                     'compile_layered',
                     return_value=SimpleNamespace(sql='SELECT 1 / 0', params={})
                 ) {
                     with dependency_prefetch(ctx) as run {
-                        origin spawn wlk;
+                        try {
+                            origin spawn wlk;
+                        } except Exception {
+                            raised = True;
+                        }
                     }
                 }
+                assert raised;
                 assert run.submitted == set();
                 assert run.errors;
-                assert sorted(wlk.seen) == ['c0', 'c1', 'c2'];
+                assert wlk.seen == [];
             } finally {
                 ctx.close();
             }

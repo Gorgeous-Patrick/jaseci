@@ -62,6 +62,6 @@ The second phase treats resolution cost as already incurred. The model exposes m
 
 ## Measurement boundaries
 
-The default provider averages resolution, payload-ready and overlap observations separately. Missing measurements remain absent. Resolution time covers SQL construction, savepoint-protected lookup and ID processing. Payload-ready latency runs from dispatch to worker completion; with multiple workers it uses the final completion. Demand is timestamped before the ordinary visit evaluates its graph query, so payload waiting does not inflate the overlap estimate. Decision time is logged separately.
+The default provider averages resolution, payload-ready and overlap observations separately. Missing measurements remain absent. Resolution time covers SQL construction, ordinary transactional lookup and ID processing. Payload-ready latency runs from dispatch to worker completion; with multiple workers it uses the final completion. Demand is timestamped before the ordinary visit evaluates its graph query, so payload waiting does not inflate the overlap estimate. Decision time is logged separately.
 
 These are runtime costs relevant to admission, rather than database-only RTT measurements. The heuristic is an initial policy for experimentation. Its score uses mean costs, and workload contention, cache changes and target-size variation can affect predictions. Compare it with `always` and disabled prefetch using fresh or explicitly warmed profiles, and report measured outcomes.

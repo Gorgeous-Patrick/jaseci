@@ -155,7 +155,6 @@ obj PgStore(Store) {
     def root_ids -> list[UUID];
     def subtype_names(type_name: str) -> list[str];
     def rows(sql: str, params: dict) -> list[tuple];
-    def rows_in_savepoint(sql: str, params: dict) -> list[tuple];
     def kv_get(key: str) -> (str | None);
     def kv_put(key: str, value: str) -> None;
     def kv_put_ttl(key: str, value: str, ttl_seconds: int) -> None;

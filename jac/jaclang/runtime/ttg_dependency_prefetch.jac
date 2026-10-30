@@ -280,7 +280,8 @@ def prefetch_checkpoint(graph: any, scope: any, record: dict) {
             plan['error'] = str(error);
             state.errors.append(str(error));
             record['prefetch_status'] = 'error';
-            _logger.debug(f'Dependency prefetch skipped: {error}');
+            _logger.debug(f'Dependency prefetch failed: {error}');
+            raise;
         }
     }
 }
@@ -288,7 +289,7 @@ def prefetch_checkpoint(graph: any, scope: any, record: dict) {
 def _checkpoint_rows(mem: any, compiled: any) -> list {
     with mem._lock {
         mem.read_barrier();
-        return mem.store.rows_in_savepoint(compiled.sql, compiled.params);
+        return mem.store.rows(compiled.sql, compiled.params);
     }
 }
 
