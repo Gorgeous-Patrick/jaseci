@@ -2027,6 +2027,13 @@ impl JcirGenPass.exit_ability(nd: Ability) -> None {
             else [self.nod('Pass', [], [], jac_node=body_loc_node)]
                 if nd.is_abstract
                 else self.resolve_stmt_block(stmt_body, doc=nd.doc);
+    if not nd.is_abstract {
+        observer = self._ttg_checkpoint(nd, observe=True);
+        if observer is not None {
+            index = 1 if nd.doc is not None else 0;
+            body = body[:index] + [observer] + body[index:];
+        }
+    }
     if (nd.is_abstract and nd.body) {
         self.emit(E5004, node_override=nd, name=str(nd.sym_name));
     }
@@ -3067,6 +3074,10 @@ impl JcirGenPass.exit_visit_stmt(nd: VisitStmt) -> None {
             else [self.nod('Expr', ['value'], [visit_call])]
     );
     hook = self._ttg_checkpoint(nd);
+    observer = self._ttg_checkpoint(nd, observe=True);
+    if observer is not None {
+        self.set_out(nd, [observer] + self.outs(nd));
+    }
     if hook is not None {
         self.set_out(nd, self.outs(nd) + [hook]);
     }
@@ -3101,8 +3112,8 @@ impl JcirGenPass.exit_cast_expr(nd: CastExpr) -> None {
     self.set_out(nd, self.outs(nd.value));
 }
 
-impl JcirGenPass._ttg_checkpoint(nd: UniNode) -> CgNode | None {
-    ability = nd.find_parent_of_type(Ability);
+impl JcirGenPass._ttg_checkpoint(nd: UniNode, observe: bool = False) -> CgNode | None {
+    ability = nd if isinstance(nd, Ability) else nd.find_parent_of_type(Ability);
     if ability is None {
         implementation = nd.find_parent_of_type(ImplDef);
         if implementation is not None
@@ -3114,7 +3125,8 @@ impl JcirGenPass._ttg_checkpoint(nd: UniNode) -> CgNode | None {
     if ability is None
         or not isinstance(ability.signature, EventSignature)
         or arch is None
-        or arch.arch_type.value != 'walker' {
+        or arch.arch_type.value != 'walker'
+        or ability.signature.event.value != 'entry' {
         return None;
     }
     key = id(arch);
@@ -3125,8 +3137,13 @@ impl JcirGenPass._ttg_checkpoint(nd: UniNode) -> CgNode | None {
         self._ttg_plans[key] = (plan, json.dumps(plan, separators=(',', ':')));
     }
     (plan, serialized) = self._ttg_plans[key];
-    kind = 'assign' if isinstance(nd, Assignment) else 'visit';
-    for point in plan['points'] {
+    kind = 'entry'
+        if isinstance(nd, Ability)
+        else ('assign' if isinstance(nd, Assignment) else 'visit');
+    points = [plan['entries'][ability.py_resolve_name()]]
+        if kind == 'entry'
+        else plan['points'];
+    for point in points {
         event = plan['events'][point];
         if event['ability'] == ability.py_resolve_name()
             and event['kind'] == kind
@@ -3140,7 +3157,9 @@ impl JcirGenPass._ttg_checkpoint(nd: UniNode) -> CgNode | None {
                         'Call',
                         ['func', 'args', 'keywords'],
                         [
-                            self.jaclib_obj('ttg_checkpoint'),
+                            self.jaclib_obj(
+                                'ttg_prefetch_observe' if observe else 'ttg_checkpoint'
+                            ),
                             [
                                 self.name_load('self'),
                                 self.const_of(serialized),

@@ -82,16 +82,32 @@ def _signal_done_after_all(threads: list, done: any) {
     done.set();
 }
 
-def _prefetch_worker(mem: any, ids: list) {
+def _prefetch_worker(mem: any, ids: list, observer: any = None) {
+    started = _time.perf_counter();
+    failure: str | None = None;
     try {
         mem.prefetch(ids);
     } except Exception as e {
+        failure = str(e);
         logger.debug(f"prefetch worker failed: {e}");
+    } finally {
+        if observer is not None {
+            try {
+                observer(ids, (_time.perf_counter() - started) * 1000, failure);
+            } except Exception as error {
+                logger.debug(f"prefetch observer failed: {error}");
+            }
+        }
     }
 }
 
 def dispatch_prefetch(
-    ctx: any, prefetch_ids: list, mode: str, workers: int = 1, append: bool = False
+    ctx: any,
+    prefetch_ids: list,
+    mode: str,
+    workers: int = 1,
+    append: bool = False,
+    observer: any = None
 ) -> None {
     if append and not prefetch_ids {
         return;
@@ -120,7 +136,7 @@ def dispatch_prefetch(
         threads: list = list(previous_threads);
         for shard in shards {
             t = threading.Thread(
-                target=_prefetch_worker, args=(ctx.mem, shard), daemon=True,
+                target=_prefetch_worker, args=(ctx.mem, shard, observer), daemon=True,
             );
             t.start();
             threads.append(t);
@@ -143,14 +159,14 @@ def dispatch_prefetch(
         thread.join();
     }
     if workers <= 1 {
-        _prefetch_worker(ctx.mem, prefetch_ids);
+        _prefetch_worker(ctx.mem, prefetch_ids, observer);
         ctx.mem._prefetch_done.set();
         return;
     }
     shards = _chunk_evenly(prefetch_ids, workers);
     threads: list = [];
     for shard in shards {
-        t = threading.Thread(target=_prefetch_worker, args=(ctx.mem, shard));
+        t = threading.Thread(target=_prefetch_worker, args=(ctx.mem, shard, observer));
         t.start();
         threads.append(t);
     }

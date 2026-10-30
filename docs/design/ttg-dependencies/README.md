@@ -2,6 +2,8 @@
 
 Branch: `feat/ttg-dependency-graph`.
 
+See [replaceable prefetch admission](admission-model.md) for the decision-model interface, measured features and initial cost policy.
+
 The dependency graph connects a value computed in an A handler to a branch in a B
 handler reached through `visit`. Its context is a particular visit site, rather
 than a pair of node types.

@@ -9,6 +9,7 @@ import from jaclang.runtime.runtime { JacRuntime }
 import from jaclang.runtime.context { ExecutionContext }
 import from jaclang.runtime.ttg_dependency_prefetch {
     dependency_prefetch,
+    DependencyPrefetchRun,
     _checkpoint_rows
 }
 import from jaclang.runtime.ttg_checkpoints { capture_dependency_checkpoints }
@@ -181,12 +182,14 @@ test "dependency prefetch: cancelled queued target submits no work" {
             ctx = open_fetch_context(project);
             try {
                 origin = fetch_origin(ctx, ids['start']);
-                with dependency_prefetch(ctx, mode='') as run {
+                model = TestAdmissionModel(reject_phase='never');
+                with dependency_prefetch(ctx, mode='', model=model) as run {
                     origin spawn FetchCancelled();
                 }
                 assert run.submitted == set();
                 assert run.plans == [];
                 assert run.errors == [];
+                assert model.calls == [];
             } finally {
                 ctx.close();
             }
@@ -347,6 +350,157 @@ test "dependency prefetch: two selected visit sites load both batches into the s
                 assert run.summary()['unused_cached_ids'] == [];
             } finally {
                 ctx.close();
+            }
+        }
+    } finally {
+        JacRuntime.exec_ctx = original;
+    }
+}
+
+import from jaclang.runtime.ttg_prefetch_model {
+    PrefetchDecisionModel,
+    PrefetchFeatures,
+    PrefetchAdmission,
+    PrefetchOutcome
+}
+
+obj TestAdmissionModel(PrefetchDecisionModel) {
+    has reject_phase: str = 'resolve',
+        calls: list[str] = [];
+
+    def decide(features: PrefetchFeatures) -> PrefetchAdmission {
+        import from jaclang.runtime.ttg_prefetch_model { PrefetchAdmission }
+        self.calls.append(features.phase);
+        if self.reject_phase == 'error' {
+            raise ValueError('model failure');
+        }
+        return PrefetchAdmission(features.phase != self.reject_phase, 'test admission');
+    }
+
+    def observe(outcome: PrefetchOutcome) { }
+}
+
+test "dependency prefetch: replaceable model skips resolution or payload with identical results" {
+    import from jaclang.runtime.ttg_prefetch_profile { OnlinePrefetchProfile }
+    original = JacRuntime.exec_ctx;
+    try {
+        for phase in ['resolve', 'load', 'error'] {
+            with TemporaryDirectory() as project {
+                ids = seed_fetch_graph(project);
+                ctx = open_fetch_context(project);
+                try {
+                    origin = fetch_origin(ctx, ids['start']);
+                    wlk = FetchBranch();
+                    model = TestAdmissionModel(reject_phase=phase);
+                    with patch(
+                        'jaclang.runtime.ttg_dependency_prefetch._checkpoint_rows',
+                        wraps=_checkpoint_rows
+                    ) as rows {
+                        with dependency_prefetch(
+                            ctx, model=model, provider=OnlinePrefetchProfile()
+                        ) as run {
+                            origin spawn wlk;
+                        }
+                        assert rows.call_count == (1 if phase == 'load' else 0);
+                    }
+                    assert sorted(wlk.seen) == ['c0', 'c1', 'c2'];
+                    assert run.submitted == set();
+                    assert len(run.plans) == 1;
+                    assert run.feedback[0]['demanded'] , str(run.summary());
+                    assert model.calls
+                        == (['resolve', 'load'] if phase == 'load' else ['resolve']);
+                    assert bool(run.errors) == (phase == 'error');
+                } finally {
+                    ctx.close();
+                }
+            }
+        }
+    } finally {
+        JacRuntime.exec_ctx = original;
+    }
+}
+
+test "dependency prefetch: live profile observes actual branches and payload readiness" {
+    import from jaclang.runtime.ttg_prefetch_profile { OnlinePrefetchProfile }
+    original = JacRuntime.exec_ctx;
+    profile = OnlinePrefetchProfile();
+    outcomes: list = [];
+    try {
+        for value in [13, 3] {
+            with TemporaryDirectory() as project {
+                ids = seed_fetch_graph(project, value);
+                ctx = open_fetch_context(project);
+                try {
+                    origin = fetch_origin(ctx, ids['start']);
+                    with dependency_prefetch(ctx, provider=profile) as run {
+                        origin spawn FetchBranch();
+                    }
+                    assert run.errors == [] , str(run.errors);
+                    assert len(run.feedback) == 1 , str(run.summary());
+                    current_run = run as DependencyPrefetchRun;
+                    metrics = current_run.summary();
+                    outcome: dict = metrics['feedback'][0];
+                    assert outcome['demanded'] , str(outcome);
+                    assert outcome['payload_ms'] is not None;
+                    assert outcome['overlap_ms'] >= 0;
+                    assert outcome['resolved_nodes'] == 3;
+                    outcomes.append(outcome);
+                } finally {
+                    ctx.close();
+                }
+            }
+        }
+        assert outcomes[0]['ability_key'] == outcomes[1]['ability_key'];
+        branch = profile.branches[outcomes[0]['ability_key']];
+        assert branch['entries'] == 2 , str(branch);
+        for outcome in outcomes {
+            assert branch['visits'][outcome['site_key']] == 1 , str(branch);
+        }
+    } finally {
+        JacRuntime.exec_ctx = original;
+    }
+}
+
+test "dependency prefetch: configured model and scoped override select policy" {
+    import jaclang.project.config as config;
+    import from jaclang.runtime.ttg_prefetch_model {
+        use_prefetch_model,
+        AlwaysPrefetch
+    }
+    cfg = config.get_config();
+    assert cfg is not None;
+    original = JacRuntime.exec_ctx;
+    try {
+        with TemporaryDirectory() as project {
+            ids = seed_fetch_graph(project);
+            for use_override in [False, True] {
+                ctx = open_fetch_context(project);
+                try {
+                    origin = fetch_origin(ctx, ids['start']);
+                    wlk = FetchBranch();
+                    with patch.object(cfg.run, 'prefetching', 'ttg_dependency'), patch.object(
+                        cfg.run, 'async_prefetch', ''
+                    ), patch.object(
+                        cfg.run, 'ttg_prefetch_model', 'expected_benefit'
+                    ) {
+                        if use_override {
+                            with use_prefetch_model(AlwaysPrefetch()) {
+                                origin spawn wlk;
+                            }
+                        } else {
+                            origin spawn wlk;
+                        }
+                    }
+                    metrics: dict = getattr(ctx, '_ttg_dependency_metrics');
+                    assert len(metrics['submitted_ids'])
+                        == (3 if use_override else 0) , str(metrics);
+                    assert metrics['model']
+                        == ('AlwaysPrefetch' if use_override else 'ExpectedBenefit');
+                    assert len(metrics['feedback']) == 1 , str(metrics);
+                    assert sorted(wlk.seen) == ['c0', 'c1', 'c2'];
+                } finally {
+                    ctx.close();
+                }
             }
         }
     } finally {

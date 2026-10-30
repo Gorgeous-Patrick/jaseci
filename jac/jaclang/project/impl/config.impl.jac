@@ -1139,15 +1139,28 @@ impl _parse_toml_data(
             sql_log=run_data.get("sql_log", ""),
             prefetching=run_data.get("prefetching", ""),
             prefetch_oracle_file=run_data.get("prefetch_oracle_file", ""),
-            prefetch_oracle_topology_file=run_data.get("prefetch_oracle_topology_file", ""),
-            prefetch_oracle_record_topology_file=run_data.get("prefetch_oracle_record_topology_file", ""),
+            prefetch_oracle_topology_file=run_data.get(
+                "prefetch_oracle_topology_file", ""
+            ),
+            prefetch_oracle_record_topology_file=run_data.get(
+                "prefetch_oracle_record_topology_file", ""
+            ),
             prefetch_markov_file=run_data.get("prefetch_markov_file", ""),
-            prefetch_markov_topology_file=run_data.get("prefetch_markov_topology_file", ""),
-            prefetch_markov_record_topology_file=run_data.get("prefetch_markov_record_topology_file", ""),
+            prefetch_markov_topology_file=run_data.get(
+                "prefetch_markov_topology_file", ""
+            ),
+            prefetch_markov_record_topology_file=run_data.get(
+                "prefetch_markov_record_topology_file", ""
+            ),
             prefetch_coaccess_file=run_data.get("prefetch_coaccess_file", ""),
-            prefetch_coaccess_topology_file=run_data.get("prefetch_coaccess_topology_file", ""),
-            prefetch_coaccess_record_topology_file=run_data.get("prefetch_coaccess_record_topology_file", ""),
+            prefetch_coaccess_topology_file=run_data.get(
+                "prefetch_coaccess_topology_file", ""
+            ),
+            prefetch_coaccess_record_topology_file=run_data.get(
+                "prefetch_coaccess_record_topology_file", ""
+            ),
             prefetch_limit=run_data.get("prefetch_limit", 200),
+            ttg_prefetch_model=run_data.get("ttg_prefetch_model", "always"),
             async_prefetch=run_data.get("async_prefetch", ""),
             prefetch_workers=run_data.get("prefetch_workers", 1),
             capre_enabled=run_data.get("capre_enabled", True),

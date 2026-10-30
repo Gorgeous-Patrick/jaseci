@@ -10,6 +10,7 @@ import from jaclang.runtime.graph_query { GraphQuery, QHop, QOrder, QPred }
 import from jaclang.runtime.runtime { JacRuntimeInterface }
 glob __all__ = [
          'ttg_checkpoint',
+         'ttg_prefetch_observe',
          'GraphQuery',
          'QHop',
          'QOrder',
@@ -89,4 +90,10 @@ glob __all__ = [
 def ttg_checkpoint(wlk: any, serialized: str, point: int, owner: type) {
     import from jaclang.runtime.ttg_checkpoints { ttg_checkpoint as checkpoint }
     checkpoint(wlk, serialized, point, owner);
+}
+
+
+def ttg_prefetch_observe(wlk: any, serialized: str, point: int, owner: type) {
+    import from jaclang.runtime.ttg_dependency_prefetch { record_model_event }
+    record_model_event(wlk, serialized, point, owner);
 }

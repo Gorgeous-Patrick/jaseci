@@ -535,7 +535,7 @@ obj JcirGenPass(BaseAstGenPass[CgItem]) {
     def exit_await_expr(nd: AwaitExpr) -> None;
     def exit_cast_expr(nd: CastExpr) -> None;
     def exit_assignment(nd: Assignment) -> None;
-    def _ttg_checkpoint(nd: UniNode) -> CgNode | None;
+    def _ttg_checkpoint(nd: UniNode, observe: bool = False) -> CgNode | None;
     def exit_binary_expr(nd: BinaryExpr) -> None;
     def translate_jac_bin_op(nd: BinaryExpr) -> list;
     def exit_compare_expr(nd: CompareExpr) -> None;

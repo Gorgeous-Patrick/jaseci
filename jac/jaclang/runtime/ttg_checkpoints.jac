@@ -1,4 +1,5 @@
 import json;
+import from hashlib { sha256 }
 import from contextlib { contextmanager }
 import from contextvars { ContextVar }
 
@@ -36,18 +37,12 @@ def ttg_checkpoint(wlk: any, serialized: str, point: int, owner: type) {
         return;
     }
     import from jaclang.runtime.ttg_dependencies {
-        checkpoint_graph,
         decide_live_pending,
         pending_trace_queue,
         _trace_entry_handlers,
         TraceEffects
     }
-    key = (type(wlk), serialized);
-    if key not in capture.graphs {
-        spec = json.loads(serialized);
-        capture.graphs[key] = (checkpoint_graph(spec, type(wlk)), spec['candidates']);
-    }
-    (graph, candidates) = capture.graphs[key];
+    (graph, candidates) = cached_checkpoint_plan(capture, wlk, serialized);
     event = graph.events[point];
     queue = pending_trace_queue();
     capture.hits.append(
@@ -86,4 +81,24 @@ def ttg_checkpoint(wlk: any, serialized: str, point: int, owner: type) {
             prefetch_checkpoint(graph, scope, record);
         }
     }
+}
+
+
+def cached_checkpoint_plan(
+    capture: CheckpointCapture, wlk: any, serialized: str
+) -> tuple {
+    key = (type(wlk), serialized);
+    if key not in capture.graphs {
+        import from jaclang.runtime.ttg_dependencies { checkpoint_graph }
+        spec = json.loads(serialized);
+        graph = checkpoint_graph(spec, type(wlk));
+        prefix = type(wlk).__module__
+            + '.'
+            + type(wlk).__qualname__
+            + ':'
+            + sha256(serialized.encode()).hexdigest();
+        setattr(graph, '_model_prefix', prefix);
+        capture.graphs[key] = (graph, spec['candidates']);
+    }
+    return capture.graphs[key];
 }
