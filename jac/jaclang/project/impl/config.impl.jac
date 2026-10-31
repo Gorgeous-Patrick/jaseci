@@ -1161,6 +1161,7 @@ impl _parse_toml_data(
             ),
             prefetch_limit=run_data.get("prefetch_limit", 200),
             ttg_prefetch_model=run_data.get("ttg_prefetch_model", "always"),
+            ttg_fused_sql=run_data.get("ttg_fused_sql", False),
             async_prefetch=run_data.get("async_prefetch", ""),
             prefetch_workers=run_data.get("prefetch_workers", 1),
             capre_enabled=run_data.get("capre_enabled", True),

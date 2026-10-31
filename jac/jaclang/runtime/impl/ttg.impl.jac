@@ -1275,10 +1275,19 @@ impl JacTTGGenerator.get_continuation_plan(
     pending: list[dict],
     resolve: any,
     max_nodes: int = 200,
-    max_steps: int = 2000
+    max_steps: int = 32768,
+    resolve_state: bool = False
 ) -> dict {
     import from jaclang.runtime.ttg_continuation { plan_continuation }
     return plan_continuation(
-        graph, current, point, snapshot, pending, resolve, max_nodes, max_steps
+        graph,
+        current,
+        point,
+        snapshot,
+        pending,
+        resolve,
+        max_nodes,
+        max_steps,
+        resolve_state=resolve_state
     );
 }

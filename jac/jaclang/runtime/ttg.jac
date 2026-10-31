@@ -1,5 +1,3 @@
-"""TTG (Temporal Trace Graph) prefetch generator for the Postgres runtime."""
-
 import jaclang.compiler.frontend.unitree as uni;
 import from uuid { UUID }
 
@@ -17,7 +15,8 @@ class JacTTGGenerator {
         pending: list[dict],
         resolve: any,
         max_nodes: int = 200,
-        max_steps: int = 2000
+        max_steps: int = 32768,
+        resolve_state: bool = False
     ) -> dict;
 
     @classmethod

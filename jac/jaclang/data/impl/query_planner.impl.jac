@@ -96,7 +96,10 @@ def _type_name(tp: any) -> (str | None) {
         return None;
     }
     name = str(getattr(tp, "__name__", ""));
-    return name if name else None;
+    if name == "" {
+        return None;
+    }
+    return name;
 }
 
 
@@ -144,7 +147,7 @@ def _topology_chain(
 
 
 def _existing_topology_index(mem: Session) -> any {
-    idx = getattr(mem, "_topology_index", None);
+    idx = mem?._topology_index;
     if idx is None {
         return None;
     }
@@ -835,7 +838,7 @@ impl resolve_ttg_path(
         compiled = compile_query(
             q,
             upto,
-            promotions=getattr(mem.store, 'promotions', None),
+            promotions=mem.store?.promotions,
             acl_root=acl_root,
             include_type=True
         );
@@ -855,13 +858,8 @@ impl resolve_ttg_path(
             return None;
         }
         mem.query_cache_put(key, tuple([tuple(row) for row in rows]));
-        # The exact same full ordered pairs serve the eventual ordinary visit.
-        # Session graph mutations invalidate both entries through its usual cache.
         native = compile_query(
-            q,
-            upto,
-            promotions=getattr(mem.store, 'promotions', None),
-            acl_root=acl_root
+            q, upto, promotions=mem.store?.promotions, acl_root=acl_root
         );
         native.params['origin'] = [str(origin_id)];
         native_key = _query_cache_key('pairs', native.sql, native.params, upto);
@@ -874,4 +872,47 @@ impl resolve_ttg_path(
         mem.query_cache_put(native_key, (pairs, ()));
         return rows;
     }
+}
+
+
+impl cache_ttg_paths(mem: Session, paths: list) -> bool {
+    staged: list = [];
+    for (query, origin_id, rows) in paths {
+        upto = len(query.hops);
+        acl_root = _acl_pushdown_root(query, upto);
+        if access_gated() and acl_root is None {
+            return False;
+        }
+        typed = compile_query(
+            query,
+            upto,
+            promotions=mem.store?.promotions,
+            acl_root=acl_root,
+            include_type=True
+        );
+        native = compile_query(
+            query, upto, promotions=mem.store?.promotions, acl_root=acl_root
+        );
+        if typed.residual or native.residual {
+            return False;
+        }
+        typed.params['origin'] = [str(origin_id)];
+        native.params['origin'] = [str(origin_id)];
+        normalized = tuple(tuple(row) for row in rows);
+        pairs = tuple(
+            (UUID(str(row[0])), UUID(str(row[1])) if row[1] is not None else None)
+            for row in rows
+        );
+        staged.append(
+            (_query_cache_key('ttg_path', typed.sql, typed.params, upto), normalized)
+        );
+        staged.append(
+            (_query_cache_key('pairs', native.sql, native.params, upto), (pairs, ()))
+        );
+    }
+
+    for (key, value) in staged {
+        mem.query_cache_put(key, value);
+    }
+    return True;
 }

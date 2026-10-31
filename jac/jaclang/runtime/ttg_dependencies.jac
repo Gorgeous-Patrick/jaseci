@@ -96,10 +96,21 @@ obj WalkerDependencyGraph {
                     );
                     return result;
                 }
-                if event.kind == 'assign' {
+                if event.kind in ('assign', 'scalar_update') {
+                    if event.kind == 'scalar_update'
+                        and type(values.get(event.writes)) not in (int, float) {
+                        raise ValueError(
+                            'Augmented receiver is not a known numeric scalar'
+                        );
+                    }
                     values[event.writes] = _trace_eval(
                         event.expression, values, ability
                     );
+                } elif event.kind == 'output' {
+                    output = _trace_eval(event.expression, values, event.ability);
+                    if type(output) not in (bool, int, float, str, type(None)) {
+                        raise ValueError('Output value has unresolved effects');
+                    }
                 } elif event.kind == 'branch' {
                     choice = bool(_trace_eval(event.expression, values, ability));
                     result.branches.append({'event': event.id, 'taken': choice});
@@ -143,7 +154,7 @@ obj WalkerDependencyGraph {
         if point is not None {
             if point < 0
                 or point >= len(self.events)
-                or self.events[point].kind not in ('assign', 'visit')
+                or self.events[point].kind not in ('assign', 'scalar_update', 'visit')
                 or current_type is None {
                 raise ValueError(
                     'Current handler checkpoint requires a completed assignment or visit and current node type'
@@ -231,7 +242,7 @@ obj WalkerDependencyGraph {
         }
         if point < 0
             or point >= len(self.events)
-            or self.events[point].kind not in ('assign', 'visit') {
+            or self.events[point].kind not in ('assign', 'scalar_update', 'visit') {
             raise ValueError('Checkpoint must identify a completed assignment event');
         }
 
@@ -256,10 +267,21 @@ obj WalkerDependencyGraph {
                 return result;
             }
             try {
-                if event.kind == 'assign' {
+                if event.kind in ('assign', 'scalar_update') {
+                    if event.kind == 'scalar_update'
+                        and type(values.get(event.writes)) not in (int, float) {
+                        raise ValueError(
+                            'Augmented receiver is not a known numeric scalar'
+                        );
+                    }
                     values[event.writes] = _trace_eval(
                         event.expression, values, event.ability
                     );
+                } elif event.kind == 'output' {
+                    output = _trace_eval(event.expression, values, event.ability);
+                    if type(output) not in (bool, int, float, str, type(None)) {
+                        raise ValueError('Output value has unresolved effects');
+                    }
                 } elif event.kind == 'branch' {
                     choice = bool(_trace_eval(event.expression, values, event.ability));
                     result.branches.append({'event': event.id, 'taken': choice});
@@ -400,7 +422,11 @@ def _trace_value(ast_node: any, values: dict[str, any], ability: str) -> any {
         return ast_node.value;
     }
     if isinstance(ast_node, (pa.Name, pa.Attribute)) {
-        return values[_trace_key(_trace_attribute(ast_node), ability)];
+        key = _trace_key(_trace_attribute(ast_node), ability);
+        if values.get(key + '::unsafe', False) {
+            raise ValueError('Observed unsafe scalar field: ' + key);
+        }
+        return values[key];
     }
     if isinstance(ast_node, pa.BinOp) {
         functions = {
@@ -527,7 +553,6 @@ obj DependencyBuilder {
         env: dict[str, int],
         controls: list[tuple[int, str]]
     ) -> tuple[int, int, dict[str, int]] {
-        # Verify builtin receiver/argument facts in the continuation interpreter.
         try {
             call = pa.parse(
                 _trace_text(ast_node).strip().rstrip(';'), mode='eval'
@@ -556,8 +581,7 @@ obj DependencyBuilder {
         } except (ValueError, SyntaxError) { }
         if isinstance(ast_node, uni.Assignment)
             and len(ast_node.target) == 1
-            and ast_node.value is not None
-            and ast_node.aug_op is None {
+            and ast_node.value is not None {
             try {
                 (text, reads) = _trace_expr(ast_node.value, ability);
                 name = _trace_attribute(
@@ -569,11 +593,36 @@ obj DependencyBuilder {
                         'Node and aliased writes require memory-effect analysis'
                     );
                 }
+                kind = 'assign';
+                if ast_node.aug_op is not None {
+                    op = ast_node.aug_op.value;
+                    if op not in ('+=', '-=', '*=', '/=', '//=', '%=') {
+                        raise ValueError('Unsupported augmented assignment');
+                    }
+                    kind = 'scalar_update';
+                    text = name + ' ' + op[:-1] + ' (' + text + ')';
+                    update_reads: set[str] = set(reads);
+                    update_reads.add(_trace_key(name, ability));
+                    reads = tuple(sorted(update_reads));
+                }
                 event = self.event(
-                    'assign', ability, ast_node, text, reads, _trace_key(name, ability)
+                    kind, ability, ast_node, text, reads, _trace_key(name, ability)
                 );
                 self.inputs(event, env, controls);
                 env[event.writes] = event.id;
+                return (event.id, event.id, env);
+            } except (ValueError, SyntaxError) { }
+        }
+        if isinstance(ast_node, uni.ReportStmt) {
+            try {
+                (text, reads) = _trace_expr(ast_node.expr, ability);
+
+                leaf = pa.parse(text, mode='eval').body;
+                if not isinstance(leaf, (pa.Constant, pa.Name, pa.Attribute)) {
+                    raise ValueError('Output expression requires evaluation');
+                }
+                event = self.event('output', ability, ast_node, text, reads);
+                self.inputs(event, env, controls);
                 return (event.id, event.id, env);
             } except (ValueError, SyntaxError) { }
         }
@@ -682,10 +731,7 @@ obj DependencyBuilder {
                         }
                     }
                 }
-                safe = safe
-                    and bool(chain)
-                    and hop + 1 == len(chain)
-                    and chain[-1][1] is not None;
+                safe = safe and bool(chain) and hop + 1 == len(chain);
                 for item in trailer.get_all_sub_nodes(uni.FilterCompr) {
                     if item.compares {
                         safe = False;
@@ -832,6 +878,23 @@ def analyze_walker_ast(arch: uni.Archetype) -> WalkerDependencyGraph {
 }
 
 
+def _trace_safe_storage(arch_type: type) -> bool {
+    import from types { GetSetDescriptorType, MemberDescriptorType }
+    for base in arch_type.__mro__ {
+        descriptor = vars(base).get('__dict__');
+        if descriptor is None {
+            continue;
+        }
+        if type(descriptor) not in (GetSetDescriptorType, MemberDescriptorType) {
+            return False;
+        }
+        if descriptor.__name__ != '__dict__' {
+            return False;
+        }
+    }
+    return True;
+}
+
 def _trace_snapshot(snapshot: dict[str, any]) -> dict[str, any] {
     values: dict[str, any] = {};
     for (key, value) in snapshot.items() {
@@ -885,10 +948,12 @@ def _trace_effects(graph: WalkerDependencyGraph, start: int) -> TraceEffects {
         }
         seen.add(current);
         event = graph.events[current];
-        if event.writes.startswith('self.') and event.kind == 'assign' {
+        if event.writes.startswith('self.')
+            and event.kind in ('assign', 'scalar_update') {
             result.writes.add(event.writes);
         }
-        if event.kind in ('barrier', 'append') {
+
+        if event.kind in ('barrier', 'append', 'output') {
             result.unknown = True;
         }
         if event.kind == 'cancel' {
@@ -983,13 +1048,19 @@ def decide_live_pending(
     graph: WalkerDependencyGraph, point: int, target_index: int, ability: str
 ) -> QueueTraceDecision {
     import from jaclang.runtime.osp_kernel { _current_scope }
-    import from jaclang.runtime.archetype { NodeAnchor }
+    import from jaclang.runtime.archetype { NodeAnchor, Archetype }
     scope = _current_scope();
     if scope is None or not scope.path or not isinstance(scope.path[-1], NodeAnchor) {
         raise ValueError('Checkpoint requires an active node handler');
     }
     if type(scope.wlk) is not graph.runtime_walker {
         raise ValueError('Dependency graph does not match the running walker');
+    }
+    if type(scope.wlk).__getattribute__ is not Archetype.__getattribute__
+        or not _trace_safe_storage(type(scope.wlk)) {
+        return QueueTraceDecision(
+            reasons=['Walker dictionary storage has unknown effects']
+        );
     }
     values: dict[str, any] = {};
     for (name, value) in vars(scope.wlk).items() {
@@ -1021,6 +1092,9 @@ def _trace_field_effects(
         effects.unknown = True;
         return;
     }
+    if not _trace_safe_storage(graph.runtime_walker) {
+        effects.unknown = True;
+    }
     if getattr(graph.runtime_walker, '__setattr__') is not Archetype.__setattr__ {
         effects.unknown = True;
     }
@@ -1034,7 +1108,7 @@ def _trace_field_effects(
         }
         for base in graph.runtime_walker.__mro__ {
             descriptor = vars(base).get(key[5:]);
-            if isinstance(descriptor, property) {
+            if any('__get__' in vars(owner) for owner in type(descriptor).__mro__) {
                 effects.unknown = True;
             }
         }
@@ -1060,7 +1134,7 @@ def compile_checkpoint_plan(arch: uni.Archetype) -> dict {
         for e in graph.events
         if e.kind == 'visit'
             or (
-                e.kind == 'assign'
+                e.kind in ('assign', 'scalar_update')
                 and e.writes.startswith('self.')
                 and e.writes in needed
             )

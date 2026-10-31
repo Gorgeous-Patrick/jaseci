@@ -8,6 +8,7 @@ obj SqlInt64 {}
 obj SqlFloat64 {}
 obj SqlText {}
 obj SqlUUID {}
+obj SqlJSON {}
 obj Nullable[T] {}
 obj Many {}
 obj AtMostOne {}
@@ -928,3 +929,18 @@ def _plan_sql[R, C](query: Relation[R, C]) -> ValidatedQuery;
 
 
 def field[T](name: str, dtype: SqlType[T]) -> Field[T];
+
+
+def json_type -> SqlType[SqlJSON];
+def json_get(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]], key: ScalarExpr[SqlText]
+) -> ScalarExpr[Nullable[SqlJSON]];
+
+def json_text(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]], key: ScalarExpr[SqlText]
+) -> ScalarExpr[Nullable[SqlText]];
+
+def json_has_key(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]],
+    key: ScalarExpr[SqlText] | ScalarExpr[Nullable[SqlText]]
+) -> ScalarExpr[Nullable[SqlBool]];

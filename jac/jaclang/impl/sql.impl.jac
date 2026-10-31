@@ -11,7 +11,8 @@ impl DataType.postinit{
             'numeric',
             'double precision',
             'text',
-            'uuid'
+            'uuid',
+            'jsonb'
         ) {
         raise SqlError(f"Unsupported SQL type: {self.name}");
     }
@@ -1678,6 +1679,17 @@ impl _call(op: str, args: tuple[ExprNode, ...]) -> ExprNode {
 }
 
 impl _call_type(op: str, args: tuple[ExprNode, ...]) -> DataType {
+    if op in ('JSON_GET', 'JSON_TEXT', 'JSON_HAS_KEY')
+        and len(args) == 2
+        and args[0].dtype.name == 'jsonb'
+        and args[1].dtype.name == 'text' {
+        return DataType(
+            'jsonb'
+                if op == 'JSON_GET'
+                else ('text' if op == 'JSON_TEXT' else 'boolean'),
+            True
+        );
+    }
     if op == 'CONCAT' and args and all([a.dtype.name == 'text' for a in args]) {
         return DataType('text');
     }
@@ -2348,6 +2360,12 @@ impl PostgresRenderer.source_body(src: Source) -> str {
 impl PostgresRenderer.extended_expr(ast: ExprNode) -> str {
     if isinstance(ast, CallNode) {
         args = [self.expr(e) for e in ast.args];
+        if ast.op in ('JSON_GET', 'JSON_TEXT', 'JSON_HAS_KEY') {
+            op = '->'
+                if ast.op == 'JSON_GET'
+                else ('->>' if ast.op == 'JSON_TEXT' else '?');
+            return '(' + args[0] + ' ' + op + ' ' + args[1] + ')';
+        }
         if ast.op
             in (
                 'ARRAY_CONCAT',
@@ -2924,4 +2942,28 @@ impl _plan_sql(query: Relation[R, C]) -> ValidatedQuery {
         cte_names=planner.cte_names,
         local_orders=planner.local_orders
     );
+}
+
+
+impl json_type -> SqlType[SqlJSON] {
+    return SqlType(DataType('jsonb'));
+}
+
+impl json_get(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]], key: ScalarExpr[SqlText]
+) -> ScalarExpr[Nullable[SqlJSON]] {
+    return ScalarExpr(_call('JSON_GET', (value.ast, key.ast)));
+}
+
+impl json_text(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]], key: ScalarExpr[SqlText]
+) -> ScalarExpr[Nullable[SqlText]] {
+    return ScalarExpr(_call('JSON_TEXT', (value.ast, key.ast)));
+}
+
+impl json_has_key(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]],
+    key: ScalarExpr[SqlText] | ScalarExpr[Nullable[SqlText]]
+) -> ScalarExpr[Nullable[SqlBool]] {
+    return ScalarExpr(_call('JSON_HAS_KEY', (value.ast, key.ast)));
 }

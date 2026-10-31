@@ -6,6 +6,7 @@ import from threading { get_ident }
 import from uuid { UUID, uuid4 }
 import from jaclang.runtime.ttg_prefetch_model {
     PrefetchDecisionModel,
+    AlwaysPrefetch,
     PrefetchFeatures,
     PrefetchAdmission,
     PrefetchOutcome,
@@ -34,11 +35,12 @@ obj DependencyPrefetchRun {
         model: PrefetchDecisionModel | None = None,
         provider: PrefetchFeatureProvider | None = None,
         considered: dict[tuple, dict] = {},
-        feedback: list[dict] = [];
-
-    has continuations: list[dict] = [];
-    has cache_token: str = '';
-    has scope_snapshots: dict[int, dict] = {};
+        feedback: list[dict] = [],
+        continuations: list[dict] = [],
+        cache_token: str = '',
+        fused_sql: bool = False,
+        fusion: dict = {},
+        scope_snapshots: dict[int, dict] = {};
 
     def summary -> dict {
         mem = self.ctx.mem;
@@ -62,7 +64,8 @@ obj DependencyPrefetchRun {
             ),
             'feature_provider': type(self.provider).__name__,
             'feedback': self.feedback,
-            'continuations': self.continuations
+            'continuations': self.continuations,
+            'fusion': self.fusion
         };
     }
 }
@@ -74,7 +77,8 @@ def dependency_prefetch(
     mode: str = 'thread',
     workers: int = 1,
     model: PrefetchDecisionModel | None = None,
-    provider: PrefetchFeatureProvider | None = None
+    provider: PrefetchFeatureProvider | None = None,
+    fused_sql: bool = False
 ) -> any {
     import from jaclang.runtime.ttg_checkpoints {
         _capture,
@@ -90,6 +94,24 @@ def dependency_prefetch(
         provider=provider or default_prefetch_profile
     );
     state.cache_token = str(uuid4());
+    state.fused_sql = fused_sql and type(state.model) is AlwaysPrefetch;
+    state.fusion = {
+        'enabled': state.fused_sql,
+        'requested': fused_sql,
+        'effective_mode': 'fused_sql' if state.fused_sql else 'per_path',
+        'fallback_reason': 'Fusion requires exact AlwaysPrefetch'
+            if fused_sql and not state.fused_sql
+            else '',
+        'admission': 'AlwaysPrefetch only; shared batch costs are diagnostic and excluded from training',
+        'queries': 0,
+        'overflow': 0,
+        'cache_paths': 0,
+        'cache_empty_paths': 0,
+        'cache_hits': 0,
+        'fallback_resolver_calls': 0,
+        'payload_dispatches': 0,
+        'regions': []
+    };
     existing = _capture.get();
     observer = nullcontext(existing)
         if existing is not None
@@ -128,6 +150,7 @@ def configured_dependency_prefetch(ctx: any, cfg: any) -> any {
         max_length=int(run_cfg.prefetch_limit),
         mode=str(getattr(run_cfg, 'async_prefetch', '')),
         workers=int(getattr(run_cfg, 'prefetch_workers', 1) or 1),
+        fused_sql=bool(getattr(run_cfg, 'ttg_fused_sql', False)),
         model=_model_override.get()
             or create_prefetch_model(
                 str(getattr(run_cfg, 'ttg_prefetch_model', 'always'))
@@ -194,11 +217,9 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
     }
     scope_snapshot['path_count'] = len(scope.path);
     values: dict = {};
+    import from jaclang.runtime.ttg_dependencies { _trace_safe_storage }
     if type(scope.wlk).__getattribute__ is not Archetype.__getattribute__
-        or any(
-            isinstance(vars(base).get('__dict__'), property)
-            for base in type(scope.wlk).__mro__
-        ) {
+        or not _trace_safe_storage(type(scope.wlk)) {
         return;
     }
     for (name, value) in vars(scope.wlk).items() {
@@ -230,6 +251,8 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         }
     }
     local_paths: dict = {};
+    fused_paths: dict = {};
+    attempted_regions: set = set();
     def resolve(active: dict, event: any) -> any {
         origin = state.ctx.user_root if event.origin == 'root' else None;
         origin_id = origin.id if origin is not None else active['id'];
@@ -290,7 +313,34 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
             hops.append(QHop(dir=int(hop[2]), `edge=edge_type, nd=node_type));
         }
         query = GraphQuery([], hops=hops).`visit();
-        rows = resolve_ttg_path(mem, query, origin_id, max(200, state.max_length));
+        rows: any = None;
+        if state.fused_sql {
+            if key not in fused_paths and key not in attempted_regions {
+                attempted_regions.add(key);
+                import from jaclang.runtime.ttg_fusion { resolve_fused_region }
+                fused = resolve_fused_region(
+                    mem,
+                    scope.wlk,
+                    graph,
+                    active,
+                    event,
+                    state.ctx.user_root,
+                    state.max_length,
+                    state.fusion
+                );
+                if fused is not None {
+                    fused_paths.update(fused);
+                }
+            }
+            if key in fused_paths {
+                rows = fused_paths[key];
+                state.fusion['cache_hits'] += 1;
+            }
+        }
+        if rows is None {
+            state.fusion['fallback_resolver_calls'] += 1;
+            rows = resolve_ttg_path(mem, query, origin_id, max(200, state.max_length));
+        }
         plan['resolve_ms'] = (perf_counter() - started) * 1000;
         if rows is None {
             plan['status'] = 'resolution_budget';
@@ -336,7 +386,9 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
             values,
             pending,
             resolve,
-            state.max_length
+            state.max_length,
+            max_steps=32768,
+            resolve_state=state.fused_sql
         );
     } except Exception as error {
         state.errors.append(str(error));
@@ -371,6 +423,10 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         groups.setdefault(item['plan'], []).append(uid);
         excluded.add(uid);
     }
+    if state.fused_sql {
+        dispatch_fused_payload(state, groups);
+        return;
+    }
     for (index, ids) in groups.items() {
         ids = ids[:state.max_length - len(state.submitted)];
         if not ids {
@@ -389,6 +445,7 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         }
         plan['ids'] = [str(uid) for uid in ids];
         plan['dispatch_at'] = perf_counter();
+        state.fusion['payload_dispatches'] += 1;
         dispatch_prefetch(
             state.ctx,
             ids,
@@ -544,7 +601,14 @@ def finish_prefetch_feedback(state: any) {
             overlap_ms=overlap,
             resolved_nodes=plan.get('resolved_nodes')
         );
-        state.feedback.append(outcome.to_dict());
+        feedback = outcome.to_dict();
+        if state.fused_sql {
+            feedback['training_observed'] = False;
+            feedback['cost_scope'] = 'Shared fused batch diagnostic';
+            state.feedback.append(feedback);
+            continue;
+        }
+        state.feedback.append(feedback);
         for observer in [state.provider, state.model] {
             try {
                 observer.observe(outcome);
@@ -553,4 +617,53 @@ def finish_prefetch_feedback(state: any) {
             }
         }
     }
+}
+
+
+def dispatch_fused_payload(state: any, groups: dict) {
+    import from jaclang.runtime.prefetch { dispatch_prefetch }
+    combined: list = [];
+    admitted: list = [];
+    for (index, candidates) in groups.items() {
+        ids = candidates[:state.max_length - len(state.submitted) - len(combined)];
+        if not ids {
+            break;
+        }
+        plan = state.plans[index];
+        admission = admit_prefetch(
+            state, plan, 'load', len(ids), bool(plan.get('probe', False))
+        );
+        if not admission.admit {
+            plan['status'] = 'model_skipped_load';
+            continue;
+        }
+        plan['ids'] = [str(uid) for uid in ids];
+        plan['dispatch_at'] = perf_counter();
+        admitted.append((plan, set(ids), payload_observer(state, plan)));
+        combined.extend(ids);
+    }
+    if not combined {
+        return;
+    }
+    def completed(ids: list, elapsed_ms: float, error: str | None) {
+        loaded = set(ids);
+        for (plan, members, observer) in admitted {
+            selected = list(loaded & members);
+            if selected {
+                observer(selected, elapsed_ms, error);
+            }
+        }
+    }
+    state.fusion['payload_dispatches'] += 1;
+    dispatch_prefetch(
+        state.ctx, combined, state.mode, state.workers, append=True, observer=completed
+    );
+    finished = perf_counter();
+    for (plan, members, observer) in admitted {
+        plan['launch_finished_at'] = finished;
+        plan['launch_ms'] = (finished - plan['dispatch_at']) * 1000;
+        plan['status'] = 'submitted';
+        plan['fused_payload_batch_size'] = len(combined);
+    }
+    state.submitted.update(combined);
 }

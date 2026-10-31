@@ -1,11 +1,6 @@
-"""Execute a bounded abstract continuation in the walker's FIFO entry order.
-
-The resolver returns ordered, concrete node identities and runtime types. It
-does not execute abilities. Unknown effects stop the proven prefix; payload
-deduplication never deduplicates executions or walker state transitions.
-"""
 import from jaclang.runtime.ttg_dependencies {
     _trace_snapshot,
+    _trace_safe_storage,
     _trace_eval,
     _trace_entry_handlers,
     _trace_node_effects,
@@ -17,23 +12,78 @@ import from dataclasses { fields }
 import from jaclang.runtime.archetype { NodeArchetype }
 import sys;
 
+def _plain_scalar_field(node_type: type, name: str, types: tuple) -> bool {
+    if not _trace_safe_storage(node_type) {
+        return False;
+    }
+    if any(
+        name in vars(base)
+            and any(
+                '__get__' in vars(owner) for owner in type(vars(base)[name]).__mro__
+            ) for base in node_type.__mro__
+    ) {
+        return False;
+    }
+    return any(
+        field.name == name and field.type in types for field in fields(node_type)
+    );
+}
+
+def _integer_expression(
+    expression: str, values: dict, unknowns: set[str], node_type: type, ability: str
+) -> bool {
+    import from jaclang.runtime.ttg_dependencies { _trace_attribute, _trace_key }
+    def check(expr_node: any) -> bool {
+        if isinstance(expr_node, pyast.Constant) {
+            return type(expr_node.value) is int;
+        }
+        if isinstance(expr_node, (pyast.Name, pyast.Attribute)) {
+            name = _trace_attribute(expr_node);
+            key = _trace_key(name, ability);
+            if values.get(key + '::unsafe', False) {
+                return False;
+            }
+            if key in values {
+                return type(values[key]) is int;
+            }
+            return key in unknowns
+                or (
+                    name.startswith('here.')
+                    and _plain_scalar_field(node_type, name[5:], (int, 'int'))
+                );
+        }
+        if isinstance(expr_node, pyast.BinOp)
+            and isinstance(expr_node.op, (pyast.Add, pyast.Sub, pyast.Mult)) {
+            return check(expr_node.left) and check(expr_node.right);
+        }
+        if isinstance(expr_node, pyast.UnaryOp)
+            and isinstance(expr_node.op, (pyast.UAdd, pyast.USub)) {
+            return check(expr_node.operand);
+        }
+        return False;
+    }
+    return check(pyast.parse(expression, mode='eval').body);
+}
+
 def known_node_fields(arch: any) -> dict {
     if type(arch).__getattribute__ is not NodeArchetype.__getattribute__ {
         return {};
     }
-    if any(
-        isinstance(vars(base).get('__dict__'), property) for base in type(arch).__mro__
-    ) {
+    if not _trace_safe_storage(type(arch)) {
         return {};
     }
     result: dict = {};
     for (name, value) in vars(arch).items() {
-        if type(value) in (bool, int, float, str, type(None))
-            and not any(
-                isinstance(vars(base).get(name), property)
-                for base in type(arch).__mro__
-            ) {
+        descriptor = any(
+            name in vars(base)
+                and any(
+                    '__get__' in vars(owner) for owner in type(vars(base)[name]).__mro__
+                ) for base in type(arch).__mro__
+        );
+        if not descriptor and type(value) in (bool, int, float, str, type(None)) {
             result[name] = value;
+        } else {
+            result[name + '::unsafe'] = True;
         }
     }
     return result;
@@ -61,6 +111,9 @@ def continuation_type(wlk: any, name: str, module_name: str = '') -> any {
 }
 
 def _append_argument_known(event: any, values: dict, node_type: type) -> bool {
+    if any(values.get(key + '::unsafe', False) for key in event.reads) {
+        return False;
+    }
     try {
         _trace_eval(event.expression, values, event.ability);
         return True;
@@ -79,8 +132,11 @@ def _append_argument_known(event: any, values: dict, node_type: type) -> bool {
             return False;
         }
         return not any(
-            isinstance(vars(base).get(tree.attr), property)
-            for base in node_type.__mro__
+            tree.attr in vars(base)
+                and any(
+                    '__get__' in vars(owner)
+                    for owner in type(vars(base)[tree.attr]).__mro__
+                ) for base in node_type.__mro__
         );
     }
 }
@@ -105,7 +161,11 @@ def plan_continuation(
     pending: list[dict],
     resolve: any,
     max_nodes: int = 200,
-    max_steps: int = 2000
+    max_steps: int = 32768,
+    transition_trace: list | None = None,
+    resume_event: int | None = None,
+    resolve_state: bool = False,
+    initial_unknown_ints: set[str] | None = None
 ) -> dict {
     result: dict = {
         'nodes': [],
@@ -131,11 +191,14 @@ def plan_continuation(
         return result;
     }
     queue = list(pending);
+
+    unknown_ints: set[str] = set(initial_unknown_ints or ());
     demanded: set[str] = set();
     exit_types = list(current.get('ancestor_types', [current['node_type']]));
     head = 0;
     active = current;
     if not issubclass(active['node_type'], NodeArchetype)
+        or not _trace_safe_storage(active['node_type'])
         or active['node_type'].__getattribute__ is not NodeArchetype.__getattribute__ {
         result['stop'] = 'Custom node attribute access is unresolved';
         return result;
@@ -147,13 +210,19 @@ def plan_continuation(
         return result;
     }
     handler_index = handlers.index(event.ability);
-    cursor = event.next_id;
+    transition_guard_head = 0;
+    cursor = event.next_id if resume_event is None else resume_event;
     while result['steps'] < max_steps {
         result['steps'] += 1;
         if cursor == -1 {
             handler_index += 1;
             if handler_index < len(handlers) {
                 ability = handlers[handler_index];
+                unknown_ints = {
+                    key
+                    for key in unknown_ints
+                    if key.startswith('self.')
+                };
                 values = {
                     k: v
                     for (k, v) in values.items()
@@ -184,6 +253,7 @@ def plan_continuation(
             }
             active = queue[head];
             if not issubclass(active['node_type'], NodeArchetype)
+                or not _trace_safe_storage(active['node_type'])
                 or active['node_type'].__getattribute__
                     is not NodeArchetype.__getattribute__ {
                 result['stop'] = 'Custom node attribute access is unresolved';
@@ -201,6 +271,11 @@ def plan_continuation(
                 result['stop'] = 'Future entry dispatch is unresolved';
                 return result;
             }
+            unknown_ints = {
+                key
+                for key in unknown_ints
+                if key.startswith('self.')
+            };
             values = {
                 k: v
                 for (k, v) in values.items()
@@ -219,11 +294,56 @@ def plan_continuation(
                     + str(event.line);
                 return result;
             }
-            if event.kind == 'assign' {
-                values[event.writes] = _trace_eval(
-                    event.expression, values, event.ability
-                );
+            if event.kind in ('assign', 'scalar_update') {
+                if event.kind == 'scalar_update'
+                    and type(values.get(event.writes)) not in (int, float)
+                    and event.writes not in unknown_ints {
+                    result['stop'] = 'Augmented receiver is not a known numeric scalar';
+                    return result;
+                }
+                try {
+                    value = _trace_eval(event.expression, values, event.ability);
+                    values[event.writes] = value;
+                    unknown_ints.discard(event.writes);
+                } except KeyError {
+                    if not _integer_expression(
+                        event.expression,
+                        values,
+                        unknown_ints,
+                        active['node_type'],
+                        event.ability
+                    ) {
+                        raise ValueError('Assignment may have unresolved effects');
+                    }
+                    values.pop(event.writes, None);
+                    unknown_ints.add(event.writes);
+                }
                 values.pop(event.writes + '::list', None);
+            } elif event.kind == 'output' {
+                for key in event.reads {
+                    if values.get(key + '::unsafe', False) {
+                        result['stop'] = 'Output value has observed unsafe effects';
+                        return result;
+                    }
+                    if key in unknown_ints {
+                        continue;
+                    }
+                    if key in values
+                        and type(values[key]) in (bool, int, float, str, type(None)) {
+                        continue;
+                    }
+                    prefix = event.ability + '::here.';
+                    if key.startswith(prefix)
+                        and _plain_scalar_field(
+                            active['node_type'],
+                            key[len(prefix):],
+                            (bool, int, float, str, 'bool', 'int', 'float', 'str')
+                        ) {
+                        continue;
+                    }
+                    result['stop'] = 'Output value has unresolved effects';
+                    return result;
+                }
             } elif event.kind == 'append' {
                 if not values.get(event.writes + '::list', False)
                     or not _append_argument_known(event, values, active['node_type']) {
@@ -241,9 +361,31 @@ def plan_continuation(
                     result['stop'] = 'Visit origin or path is unresolved';
                     return result;
                 }
-                # Native visit realizes every endpoint payload before enqueueing.
-                # Later ability barriers stop dispatch prediction, not this demand.
-                targets = resolve(active, event);
+                if transition_trace is not None {
+                    transition_trace.append(
+                        {
+                            'event': event.id,
+                            'ability': event.ability,
+                            'resume_event': event.next_id,
+                            'ability_activation': len(result['executions']),
+                            'pending_count': len(queue) - head,
+                            'scalar_state': dict(values),
+                            'unknown_integers': sorted(unknown_ints),
+                            'guards': list(result['branches'][transition_guard_head:])
+                        }
+                    );
+                    transition_guard_head = len(result['branches']);
+                }
+                resolution_active = active;
+                if resolve_state {
+                    resolution_active = dict(active);
+                    resolution_active['transition_state'] = dict(values);
+                    resolution_active['transition_unknown_integers'] = set(
+                        unknown_ints
+                    );
+                    resolution_active['transition_pending'] = queue[head:];
+                }
+                targets = resolve(resolution_active, event);
                 if targets is None {
                     result['stop'] = 'Path resolution declined';
                     return result;

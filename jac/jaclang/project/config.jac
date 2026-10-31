@@ -53,6 +53,7 @@ obj RunConfig {
         prefetch_coaccess_record_topology_file: str = "",
         prefetch_limit: int = 200,
         ttg_prefetch_model: str = "always",
+        ttg_fused_sql: bool = False,
         async_prefetch: str = "",
         prefetch_workers: int = 1,
         capre_enabled: bool = True,

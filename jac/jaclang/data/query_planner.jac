@@ -79,3 +79,6 @@ class LazyRefs(list) {
     def count(self: LazyRefs, item: any) -> int;
     def copy(self: LazyRefs) -> list;
 }
+
+
+def cache_ttg_paths(mem: Session, paths: list) -> bool;
