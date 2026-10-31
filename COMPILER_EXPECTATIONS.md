@@ -17,6 +17,12 @@ and a [teaching walkthrough and commands](scripts/gpu_walker/layout_bench/README
 It has not been run. The subtree application benchmark below remains a proposed
 follow-up.
 
+Implementation added October 31: four [Jac GPU application benchmarks](scripts/gpu_walker/app_bench/README.md)
+now cover hierarchical monitoring, dependency DAG queries, event sequences, and
+sparse row aggregation. They compare serial Jac with the full public GPU runtime
+call; their source was added without executing any app or measurement. The
+full subtree layout extension and broader parameter sweep below remain future work.
+
 ## 1. Compile the actual Jac program
 
 For the supported GPU subset, the compiler must lower the selected Jac ability
