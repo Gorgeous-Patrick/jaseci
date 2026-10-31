@@ -187,8 +187,9 @@ def resolve_fused_region(
             hops.append(QHop(dir=int(hop[2]), `edge=edge_type, nd=node_type));
         }
         query = GraphQuery([], hops=hops).`visit();
-        visibility = _acl_pushdown_root(query, len(hops));
+        visibility = _acl_pushdown_root(query, len(hops), mem);
         if access_gated() and visibility is None {
+            metrics['fallback_reason'] = 'ACL pushdown is unproved for dynamic or custom access';
             return None;
         }
         if queries and actor != visibility {

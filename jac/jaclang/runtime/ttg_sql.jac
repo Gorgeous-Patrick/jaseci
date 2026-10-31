@@ -1696,3 +1696,29 @@ def compile_layered(
         }
     );
 }
+
+
+@lru_cache(maxsize=1)
+def compile_acl_type_catalog -> q.CompiledSQL {
+    cols = _BuildColumns();
+    catalog = q.table(
+        'anchors',
+        [
+            q.field('kind', q.text_type()),
+            q.field('arch_type', q.text_type()),
+            q.field('arch_module', q.nullable(q.text_type()))
+        ]
+    );
+    return q.compile_sql(
+        _select(
+            catalog,
+            cols.pick(catalog, ['arch_type', 'arch_module']),
+            predicate=_cmp(cols.col(catalog, 'kind'), q.text('NodeAnchor')),
+            distinct=True,
+            order=[
+                q.asc(cols.col(catalog, 'arch_type')),
+                q.asc(cols.col(catalog, 'arch_module'))
+            ]
+        )
+    );
+}

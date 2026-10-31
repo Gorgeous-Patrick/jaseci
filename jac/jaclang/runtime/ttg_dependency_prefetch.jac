@@ -343,7 +343,9 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         }
         plan['resolve_ms'] = (perf_counter() - started) * 1000;
         if rows is None {
-            plan['status'] = 'resolution_budget';
+            plan['status'] = str(
+                getattr(mem, '_ttg_path_decline_reason', 'resolution_budget')
+            );
             return None;
         }
         targets: list[dict] = [];

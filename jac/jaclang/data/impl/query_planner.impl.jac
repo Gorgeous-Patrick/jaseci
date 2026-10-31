@@ -21,21 +21,21 @@ def _effective_bound(q: GraphQuery) -> (tuple[(int | None), int] | None) {
 }
 
 
-def _acl_pushdown_root(q: GraphQuery, upto: int) -> (str | None) {
+def _acl_pushdown_root(q: GraphQuery, upto: int, mem: any = None) -> (str | None) {
     if not access_gated() {
         return None;
     }
     import from jaclang.runtime.runtime { JacRuntimeInterface }
-    import from jaclang.runtime.archetype { Archetype }
-    base = Archetype?.__jac_access__;
+    import from jaclang.data.ttg_acl { standard_node_access, standard_catalog_access }
     for hop in q.hops[:upto] {
         nd = hop.nd;
         if nd is None {
-            return None;
-        }
-        types = nd if isinstance(nd, tuple) else (nd, );
-        for nt in types {
-            if nt?.__jac_access__ is not base {
+            if upto != 1 or not standard_catalog_access(mem) {
+                return None;
+            }
+        } else {
+            types = nd if isinstance(nd, tuple) else (nd, );
+            if not all(standard_node_access(nt) for nt in types) {
                 return None;
             }
         }
@@ -258,7 +258,7 @@ impl _sql_pairs(
         return ([], []);
     }
     mem.read_barrier();
-    acl_root = _acl_pushdown_root(q, upto);
+    acl_root = _acl_pushdown_root(q, upto, mem);
     bound = _effective_bound(q);
     push = bound is not None and (acl_root is not None or _bound_pushable());
     eff = q;
@@ -456,7 +456,7 @@ impl resolve_query(mem: Session, q: GraphQuery) -> list[Anchor] {
 
 
 def _acl_fully_pushed(mem: Session, q: GraphQuery) -> bool {
-    if mem.store is None or _acl_pushdown_root(q, len(q.hops)) is None {
+    if mem.store is None or _acl_pushdown_root(q, len(q.hops), mem) is None {
         return False;
     }
     origins = origin_anchors(q);
@@ -831,8 +831,10 @@ impl resolve_ttg_path(
     with mem._lock {
         mem.read_barrier();
         upto = len(q.hops);
-        acl_root = _acl_pushdown_root(q, upto);
+        setattr(mem, '_ttg_path_decline_reason', 'resolution_budget');
+        acl_root = _acl_pushdown_root(q, upto, mem);
         if access_gated() and acl_root is None {
+            setattr(mem, '_ttg_path_decline_reason', 'acl_unproved');
             return None;
         }
         compiled = compile_query(
@@ -879,7 +881,7 @@ impl cache_ttg_paths(mem: Session, paths: list) -> bool {
     staged: list = [];
     for (query, origin_id, rows) in paths {
         upto = len(query.hops);
-        acl_root = _acl_pushdown_root(query, upto);
+        acl_root = _acl_pushdown_root(query, upto, mem);
         if access_gated() and acl_root is None {
             return False;
         }
