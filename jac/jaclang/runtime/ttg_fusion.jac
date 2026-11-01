@@ -184,6 +184,12 @@ def resolve_fused_region(
                 or (hop[1] is not None and node_type is None) {
                 return None;
             }
+            import from jaclang.runtime.ttg_frontier { template_type_matches }
+            if not template_type_matches(edge_type, hop[0])
+                or not template_type_matches(node_type, hop[1]) {
+                metrics['fallback_reason'] = 'Legacy fused type token is an alias or custom metaclass';
+                return None;
+            }
             hops.append(QHop(dir=int(hop[2]), `edge=edge_type, nd=node_type));
         }
         query = GraphQuery([], hops=hops).`visit();

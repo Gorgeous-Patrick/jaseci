@@ -74,7 +74,13 @@ def standard_catalog_access(mem: any) -> bool {
                 for (name, module_name, node_type) in cached['types']
             );
         }
-        compiled = compile_acl_type_catalog();
+        emitted = mem.query_cache_get(('ttg_compiled_catalog_v1', ));
+        if emitted is not None {
+            import from jaclang.runtime.ttg_templates { bind_template }
+            compiled = bind_template(emitted, {});
+        } else {
+            compiled = compile_acl_type_catalog();
+        }
         rows = mem.store.rows(compiled.sql, compiled.params);
         approved = True;
         types: list = [];

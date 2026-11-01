@@ -104,6 +104,9 @@ def dependency_prefetch(
             else '',
         'admission': 'AlwaysPrefetch only; shared batch costs are diagnostic and excluded from training',
         'queries': 0,
+        'template_queries': 0,
+        'frontier_origins': 0,
+        'legacy_fusion_calls': 0,
         'overflow': 0,
         'cache_paths': 0,
         'cache_empty_paths': 0,
@@ -253,6 +256,8 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
     local_paths: dict = {};
     fused_paths: dict = {};
     attempted_regions: set = set();
+    frontier_demands: list = [];
+    frontier_attempted: list = [];
     def resolve(active: dict, event: any) -> any {
         origin = state.ctx.user_root if event.origin == 'root' else None;
         origin_id = origin.id if origin is not None else active['id'];
@@ -315,7 +320,32 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         query = GraphQuery([], hops=hops).`visit();
         rows: any = None;
         if state.fused_sql {
-            if key not in fused_paths and key not in attempted_regions {
+            if graph.sql_templates and not frontier_attempted {
+                state.fusion['sql_construction'] = 'compiler_emitted_templates';
+                frontier_attempted.append(True);
+                import from jaclang.runtime.ttg_frontier { resolve_frontier }
+                frontier = resolve_frontier(
+                    mem,
+                    scope.wlk,
+                    graph,
+                    active,
+                    event,
+                    active.get('transition_pending', []),
+                    state.ctx.user_root,
+                    state.max_length,
+                    state.fusion
+                );
+                if frontier is not None {
+                    fused_paths.update(frontier[0]);
+                    frontier_demands.extend(frontier[1]);
+                }
+            }
+            if not graph.sql_templates
+                and key not in fused_paths
+                and key not in attempted_regions {
+                state.fusion['sql_construction'] = 'legacy_runtime_builder';
+                state.fusion['fallback_reason'] = 'Legacy checkpoint artifact has no emitted SQL templates';
+                state.fusion['legacy_fusion_calls'] += 1;
                 attempted_regions.add(key);
                 import from jaclang.runtime.ttg_fusion { resolve_fused_region }
                 fused = resolve_fused_region(
@@ -395,6 +425,20 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
     } except Exception as error {
         state.errors.append(str(error));
         raise;
+    }
+    # Complete payload demands for the queued prefix, even if native prediction
+    # stopped at disengage. Actual execution still follows the native queue.
+    for (future_active, future_event) in frontier_demands {
+        future_origin = state.ctx.user_root.id
+            if future_event.origin == 'root' and state.ctx.user_root is not None
+            else future_active['id'];
+        if (future_origin, tuple(future_event.hop_chain)) in fused_paths {
+            for target in resolve(future_active, future_event) or [] {
+                if not any(n['id'] == target['id'] for n in outcome['nodes']) {
+                    outcome['nodes'].append(target);
+                }
+            }
+        }
     }
     state.continuations.append(
         {

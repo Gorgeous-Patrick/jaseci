@@ -67,7 +67,8 @@ obj WalkerDependencyGraph {
         edges: list[TraceDependency] = [],
         entries: dict[str, int] = {},
         handlers: dict[str, list[str]] = {},
-        dispatch: dict[int, list[str]] = {};
+        dispatch: dict[int, list[str]] = {},
+        sql_templates: dict = {};
 
     def dependencies(event_id: int) -> list[TraceDependency] {
         return [
@@ -1117,6 +1118,7 @@ def _trace_field_effects(
 
 
 def compile_checkpoint_plan(arch: uni.Archetype) -> dict {
+    import from jaclang.runtime.ttg_templates { compile_templates }
     graph = analyze_walker_ast(arch);
     candidates = [
         name
@@ -1141,6 +1143,7 @@ def compile_checkpoint_plan(arch: uni.Archetype) -> dict {
     ];
     return {
         'version': 2,
+        'sql_templates': compile_templates(graph.events),
         'walker_name': graph.walker_name,
         'entries': graph.entries,
         'handlers': graph.handlers,
@@ -1193,6 +1196,8 @@ def checkpoint_graph(spec: dict, walker_type: type) -> WalkerDependencyGraph {
         graph.events.append(TraceEvent(**fields));
     }
     graph.edges = [TraceDependency(**item) for item in spec['edges']];
+    import from jaclang.runtime.ttg_templates { hydrate_templates }
+    graph.sql_templates = hydrate_templates(spec.get('sql_templates', {}));
     graph.entries = dict(spec['entries']);
     graph.handlers = dict(spec['handlers']);
     graph.dispatch = {int(k): v for (k, v) in spec['dispatch'].items()};

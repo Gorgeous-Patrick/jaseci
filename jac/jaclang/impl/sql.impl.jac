@@ -452,6 +452,21 @@ impl scalar_one(query: Relation[R, ExactlyOne], key: Field[T]) -> ScalarExpr[T] 
     return ScalarExpr(ScalarNode(dtype=actual.dtype, query=q, require_one=True));
 }
 
+impl in_query(
+    term: ScalarExpr[T], query: Relation[R, C], key: Field[T]
+) -> ScalarExpr[SqlBool] {
+    fields = query.ast.schema.fields;
+    if len(fields) != 1
+        or term.ast.dtype.nullable
+        or not same_type(query.ast.schema.find(key.name).dtype, key.dtype)
+        or not same_type(fields[0].dtype, term.ast.dtype) {
+        raise SqlError('IN query requires one matching non-null output column');
+    }
+    return ScalarExpr(
+        QueryMembershipNode(dtype=DataType('boolean'), term=term.ast, query=query.ast)
+    );
+}
+
 impl exists(query: Relation[R, C]) -> ScalarExpr[SqlBool] {
     return ScalarExpr(ExistsNode(dtype=DataType('boolean'), query=query.ast));
 }
@@ -583,6 +598,9 @@ impl QueryGraph.scan_expr(expr: ExprNode) -> None {
     }
     if isinstance(expr, ColumnNode) {
         self.visit_source(expr.source);
+    } elif isinstance(expr, QueryMembershipNode) {
+        self.visit_expr(expr.term);
+        self.visit_query(expr.query);
     } elif isinstance(expr, (ScalarNode, ExistsNode)) {
         self.visit_query(expr.query);
     } else {
@@ -640,6 +658,9 @@ impl QueryGraph.scan_query(query: RelationNode) -> None {
         ];
     } elif isinstance(query, OrderedNode) {
         self.visit_query(query.body);
+        if isinstance(query.limit, SlotNode) {
+            self.visit_expr(query.limit);
+        }
     } elif isinstance(query, ValuesNode) {
         for row in query.rows {
             for e in row {
@@ -964,6 +985,19 @@ impl QueryValidator.expr_uncached(
         }
         return Checked(free=q.external);
     }
+    if isinstance(ast, QueryMembershipNode) {
+        facts = self.query(ast.query, scope, ctes);
+        fields = _compile_schema(ast.query, self.schemas).fields;
+        if len(fields) != 1
+            or ast.term.dtype.nullable
+            or not same_type(fields[0].dtype, ast.term.dtype)
+            or not same_type(ast.dtype, DataType('boolean')) {
+            raise SqlError('IN query requires matching non-null types and one column');
+        }
+        return _merge_checked(
+            [self.expr(ast.term, scope, local, ctes), Checked(free=facts.external)]
+        );
+    }
     if isinstance(ast, ExistsNode) {
         q = self.query(ast.query, scope, ctes);
         if not same_type(ast.dtype, DataType('boolean')) {
@@ -1068,7 +1102,13 @@ impl QueryValidator.query_body(
         if ast.cardinality != 'many' {
             raise SqlError('Invalid ordered-result cardinality');
         }
-        if ast.limit is not None and (type(ast.limit) is not int or ast.limit < 0) {
+        if isinstance(ast.limit, SlotNode) {
+            if ast.limit.dtype.name != 'bigint' or ast.limit.dtype.nullable {
+                raise SqlError('LIMIT slot requires a non-null bigint');
+            }
+            self.expr(ast.limit, [], [], ctes);
+        } elif ast.limit is not None
+            and (type(ast.limit) is not int or ast.limit < 0) {
             raise SqlError('Invalid LIMIT');
         }
         for order in ast.ordering {
@@ -1248,6 +1288,7 @@ impl PostgresRenderer.render(
     self.params = {};
     self.parameter_ids = {};
     self.slot_types = dict(plan.slots);
+    self.nonnegative_slots = set();
     self.aliases = plan.aliases;
     self.cte_names = plan.cte_names;
     self.local_orders = plan.local_orders;
@@ -1268,6 +1309,7 @@ impl PostgresRenderer.render(
                     + self.query(body)
                     + ') AS "_with_scope"',
                 params=dict(self.params),
+                nonnegative_slots=tuple(sorted(self.nonnegative_slots)),
                 slots=tuple(
                     (name, DataType(dtype.name, dtype.nullable))
                     for (name, dtype) in plan.slots
@@ -1281,6 +1323,7 @@ impl PostgresRenderer.render(
     return CompiledSQL(
         sql=prefix + self.query(body),
         params=dict(self.params),
+        nonnegative_slots=tuple(sorted(self.nonnegative_slots)),
         slots=tuple(
             (name, DataType(dtype.name, dtype.nullable)) for (name, dtype) in plan.slots
         )
@@ -1362,6 +1405,9 @@ impl PostgresRenderer.expr(ast: ExprNode) -> str {
     if isinstance(ast, ScalarNode) {
         return '(' + self.query(ast.query) + ')';
     }
+    if isinstance(ast, QueryMembershipNode) {
+        return '(' + self.expr(ast.term) + ' IN (' + self.query(ast.query) + '))';
+    }
     if isinstance(ast, ExistsNode) {
         return 'EXISTS (' + self.query(ast.query) + ')';
     }
@@ -1404,6 +1450,9 @@ impl PostgresRenderer.query(ast: RelationNode) -> str {
             + ')';
     }
     if isinstance(ast, OrderedNode) {
+        if isinstance(ast.limit, SlotNode) {
+            self.nonnegative_slots.add(ast.limit.name);
+        }
         return 'SELECT * FROM ('
             + self.query(ast.body)
             + ') AS "_set" ('
@@ -1415,7 +1464,16 @@ impl PostgresRenderer.query(ast: RelationNode) -> str {
             )
             + ')'
             + (' ORDER BY ' + self.ordering(ast.ordering) if ast.ordering else '')
-            + (' LIMIT ' + str(ast.limit) if ast.limit is not None else '');
+            + (
+                ' LIMIT '
+                    + (
+                        self.expr(ast.limit)
+                            if isinstance(ast.limit, SlotNode)
+                            else str(ast.limit)
+                    )
+                    if ast.limit is not None
+                    else ''
+            );
     }
     if not isinstance(ast, SelectNode) {
         raise SqlError('Unvalidated relation');
@@ -1898,11 +1956,17 @@ impl output(key: Field[T]) -> ScalarExpr[T] {
 }
 
 impl ordered(
-    query: Relation[R, C], order_by: list[Order], limit: int | None = None
+    query: Relation[R, C],
+    order_by: list[Order],
+    limit: int | ScalarExpr[SqlInt64] | None = None
 ) -> Relation[R, Many] {
+    bound: any = limit.ast if isinstance(limit, ScalarExpr) else limit;
+    if isinstance(limit, ScalarExpr) and not isinstance(bound, SlotNode) {
+        raise SqlError('Dynamic ordered LIMIT requires a typed slot');
+    }
     return Relation(
         OrderedNode(
-            cardinality='many', body=query.ast, ordering=tuple(order_by), limit=limit
+            cardinality='many', body=query.ast, ordering=tuple(order_by), limit=bound
         )
     );
 }
@@ -2036,6 +2100,9 @@ impl _children(expr: ExprNode) -> tuple[ExprNode, ...] {
     }
     if isinstance(expr, ArrayNode) {
         return expr.items;
+    }
+    if isinstance(expr, QueryMembershipNode) {
+        return (expr.term, );
     }
     if isinstance(expr, MembershipNode) {
         return (expr.term, ) + expr.items;
@@ -2468,7 +2535,7 @@ impl _source_recursive_count(source: Source, ref: Cte) -> int {
 }
 
 impl _scan_recursive_expr(expr: ExprNode, ref: Cte) {
-    if isinstance(expr, (ScalarNode, ExistsNode)) {
+    if isinstance(expr, (ScalarNode, ExistsNode, QueryMembershipNode)) {
         if _recursive_count(expr.query, ref) {
             raise SqlError('Recursive reference cannot occur in a scalar subquery');
         }
@@ -2580,6 +2647,9 @@ impl _expr_key(expr: ExprNode) -> tuple[any, ...] {
     }
     if isinstance(expr, OutputNode) {
         return ('output', dtype, expr.name);
+    }
+    if isinstance(expr, QueryMembershipNode) {
+        return ('in_query', dtype, id(expr.query), _expr_key(expr.term));
     }
     if isinstance(expr, (ScalarNode, ExistsNode)) {
         return (type(expr).__name__, dtype, id(expr.query));
@@ -2782,6 +2852,9 @@ impl CompiledSQL.bind(
     for (name, dtype) in self.slots {
         value = values[name];
         validate_value(dtype, value);
+        if name in self.nonnegative_slots and value < 0 {
+            raise SqlError('LIMIT slot cannot be negative');
+        }
         params[name] = _freeze_sql_value(value);
     }
     return CompiledSQL(sql=self.sql, params=params);

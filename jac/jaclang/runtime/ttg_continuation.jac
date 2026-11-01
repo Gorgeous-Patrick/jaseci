@@ -165,7 +165,8 @@ def plan_continuation(
     transition_trace: list | None = None,
     resume_event: int | None = None,
     resolve_state: bool = False,
-    initial_unknown_ints: set[str] | None = None
+    initial_unknown_ints: set[str] | None = None,
+    queued_trigger_assumption: bool = False
 ) -> dict {
     result: dict = {
         'nodes': [],
@@ -286,6 +287,13 @@ def plan_continuation(
         }
         event = graph.events[cursor];
         try {
+            if event.kind == 'cancel' and queued_trigger_assumption {
+                # Prediction may overfetch already queued entries. Native
+                # disengage and remaining statements are never executed here.
+                handler_index = len(handlers);
+                cursor = -1;
+                continue;
+            }
             if event.kind in ('barrier', 'cancel') {
                 result['stop'] = event.kind
                     + ' at '

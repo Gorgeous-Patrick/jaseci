@@ -205,6 +205,11 @@ obj ScalarNode(ExprNode) {
         require_one: bool;
 }
 
+obj QueryMembershipNode(ExprNode) {
+    has term: ExprNode,
+        query: RelationNode;
+}
+
 obj ExistsNode(ExprNode) {
     has query: RelationNode;
 }
@@ -288,7 +293,8 @@ obj CompiledSQL {
                     | tuple[bool | int | float | str | UUID | Decimal | None, ...]
                     | None
             ],
-        slots: tuple[tuple[str, DataType], ...] = ();
+        slots: tuple[tuple[str, DataType], ...] = (),
+        nonnegative_slots: tuple[str, ...] = ();
 
     def bind(
         values:
@@ -433,6 +439,10 @@ def scalar[R, T](
 def scalar_one[R, T](query: Relation[R, ExactlyOne], key: Field[T]) -> ScalarExpr[T];
 
 def exists[R, C](query: Relation[R, C]) -> ScalarExpr[SqlBool];
+
+def in_query[R, C, T](
+    term: ScalarExpr[T], query: Relation[R, C], key: Field[T]
+) -> ScalarExpr[SqlBool];
 
 def union_all[R, C, D](
     left: Relation[R, C], right: Relation[R, D]
@@ -588,6 +598,7 @@ obj PostgresRenderer {
                     | None
             ] = {},
         slot_types: dict[str, DataType] = {},
+        nonnegative_slots: set[str] = set(),
         parameter_ids: dict[int, str] = {},
         aliases: dict[int, str] = {},
         cte_names: dict[int, str] = {},
@@ -718,7 +729,7 @@ obj WithNode(RelationNode) {
 obj OrderedNode(RelationNode) {
     has body: RelationNode,
         ordering: tuple[Order, ...],
-        limit: int | None;
+        limit: int | SlotNode | None;
 
     has schema: Schema {
         getter {
@@ -845,7 +856,9 @@ def intersect[R, C, D](
 
 def output[T](key: Field[T]) -> ScalarExpr[T];
 def ordered[R, C](
-    query: Relation[R, C], order_by: list[Order], limit: int | None = None
+    query: Relation[R, C],
+    order_by: list[Order],
+    limit: int | ScalarExpr[SqlInt64] | None = None
 ) -> Relation[R, Many];
 
 def with_ctes[R, C](query: Relation[R, C], bindings: list[Cte]) -> Relation[R, C];

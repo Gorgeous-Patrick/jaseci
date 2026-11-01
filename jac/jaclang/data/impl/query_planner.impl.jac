@@ -259,6 +259,16 @@ impl _sql_pairs(
     }
     mem.read_barrier();
     acl_root = _acl_pushdown_root(q, upto, mem);
+    import from jaclang.runtime.ttg_templates { cache_key }
+    emitted_key = cache_key(q, origin_ids, acl_root);
+    if upto == len(q.hops)
+        and emitted_key is not None
+        and (not access_gated() or acl_root is not None) {
+        emitted = mem.query_cache_get(emitted_key);
+        if emitted is not None {
+            return (list(emitted[0]), list(emitted[1]));
+        }
+    }
     bound = _effective_bound(q);
     push = bound is not None and (acl_root is not None or _bound_pushable());
     eff = q;

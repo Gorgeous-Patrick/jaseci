@@ -1,5 +1,9 @@
 """Authenticated untyped paths use one shared, snapshot-scoped ACL proof."""
 import from pathlib { Path }
+import from contextlib { ExitStack }
+import jaclang.data.query_planner as planner;
+import jaclang.runtime.ttg_fusion_sql as fusion_sql;
+import jaclang.runtime.ttg_sql as ttg_sql;
 import json;
 import os;
 import from uuid { UUID }
@@ -131,10 +135,42 @@ test "Authenticated heterogeneous untyped paths activate both modes with shared 
                     'cache_identity': id(ctx.mem._query_cache)
                 };
                 with patch.object(store, 'rows', wraps=store.rows) as rows {
-                    with dependency_prefetch(
-                        ctx, max_length=2048, mode='process', fused_sql=enabled
-                    ) as run {
-                        origin spawn wlk;
+                    with ExitStack() as compiled_guards {
+                        install_guard: any = compiled_guards.enter_context;
+                        if enabled {
+                            install_guard(
+                                patch.object(
+                                    planner,
+                                    'compile_query',
+                                    side_effect=AssertionError(
+                                        'runtime native path builder'
+                                    )
+                                )
+                            );
+                            install_guard(
+                                patch.object(
+                                    fusion_sql,
+                                    'compile_fused_region',
+                                    side_effect=AssertionError(
+                                        'runtime fused SQL AST builder'
+                                    )
+                                )
+                            );
+                            install_guard(
+                                patch.object(
+                                    ttg_sql,
+                                    'compile_acl_type_catalog',
+                                    side_effect=AssertionError(
+                                        'runtime ACL catalog AST builder'
+                                    )
+                                )
+                            );
+                        }
+                        with dependency_prefetch(
+                            ctx, max_length=2048, mode='process', fused_sql=enabled
+                        ) as run {
+                            origin spawn wlk;
+                        }
                     }
                     assert wlk.reports == [0, 1, 2, 3, 4, 5] and wlk.visited == 6;
                     assert len(run.submitted) == 5 , str(run.summary());
