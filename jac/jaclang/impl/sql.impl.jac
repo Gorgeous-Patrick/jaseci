@@ -1737,6 +1737,9 @@ impl _call(op: str, args: tuple[ExprNode, ...]) -> ExprNode {
 }
 
 impl _call_type(op: str, args: tuple[ExprNode, ...]) -> DataType {
+    if op == 'JSON_KIND' and len(args) == 1 and args[0].dtype.name == 'jsonb' {
+        return DataType('text', True);
+    }
     if op in ('JSON_GET', 'JSON_TEXT', 'JSON_HAS_KEY')
         and len(args) == 2
         and args[0].dtype.name == 'jsonb'
@@ -2427,6 +2430,9 @@ impl PostgresRenderer.source_body(src: Source) -> str {
 impl PostgresRenderer.extended_expr(ast: ExprNode) -> str {
     if isinstance(ast, CallNode) {
         args = [self.expr(e) for e in ast.args];
+        if ast.op == 'JSON_KIND' {
+            return 'jsonb_typeof(' + args[0] + ')';
+        }
         if ast.op in ('JSON_GET', 'JSON_TEXT', 'JSON_HAS_KEY') {
             op = '->'
                 if ast.op == 'JSON_GET'
@@ -3039,4 +3045,10 @@ impl json_has_key(
     key: ScalarExpr[SqlText] | ScalarExpr[Nullable[SqlText]]
 ) -> ScalarExpr[Nullable[SqlBool]] {
     return ScalarExpr(_call('JSON_HAS_KEY', (value.ast, key.ast)));
+}
+
+impl json_kind(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]]
+) -> ScalarExpr[Nullable[SqlText]] {
+    return ScalarExpr(_call('JSON_KIND', (value.ast, )));
 }

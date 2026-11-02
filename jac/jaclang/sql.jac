@@ -957,3 +957,8 @@ def json_has_key(
     value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]],
     key: ScalarExpr[SqlText] | ScalarExpr[Nullable[SqlText]]
 ) -> ScalarExpr[Nullable[SqlBool]];
+
+# JSON scalar kind is nullable for a missing SQL value; JSON null returns "null".
+def json_kind(
+    value: ScalarExpr[SqlJSON] | ScalarExpr[Nullable[SqlJSON]]
+) -> ScalarExpr[Nullable[SqlText]];

@@ -105,6 +105,13 @@ def dependency_prefetch(
         'admission': 'AlwaysPrefetch only; shared batch costs are diagnostic and excluded from training',
         'queries': 0,
         'template_queries': 0,
+        'region_queries': 0,
+        'region_cache_paths': 0,
+        'region_origins': 0,
+        'region_reuses': 0,
+        'region_fallbacks': 0,
+        'region_fallback_reason': '',
+        'region_fallback_reasons': {},
         'frontier_origins': 0,
         'legacy_fusion_calls': 0,
         'overflow': 0,
@@ -253,11 +260,86 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
             break;
         }
     }
+    import from jaclang.runtime.ttg_regions { region_coverage_key }
+    if state.fused_sql
+        and graph.events[point].kind != 'entry'
+        and mem.query_cache_get(
+            region_coverage_key(
+                graph,
+                scope,
+                scope.wlk,
+                ability,
+                anchor.id,
+                state.ctx.user_root,
+                state.cache_token
+            )
+        )
+            is not None {
+        return;
+    }
+    if state.fused_sql and graph.events[point].kind == 'entry' {
+        import from jaclang.runtime.ttg_regions { resolve_interability_region }
+        resolved = resolve_interability_region(
+            mem,
+            graph,
+            scope.wlk,
+            scope,
+            point,
+            {'id': anchor.id, 'node_type': type(anchor.archetype)},
+            pending,
+            state.ctx.user_root,
+            state.max_length,
+            state.fusion,
+            state.cache_token
+        );
+        if resolved is not None {
+            state.fusion['sql_construction'] = 'compiler_emitted_interability_regions';
+            state.fusion['effective_region_mode'] = 'static_single_successor';
+            if resolved['reused'] {
+                return;
+            }
+            plan: dict = {
+                'origin': str(anchor.id),
+                'ability': ability,
+                'visit_event': point,
+                'hops': [],
+                'ids': [],
+                'status': 'resolved',
+                'decisions': [],
+                'demanded': False,
+                'decision_ms': 0.0,
+                'queue_position': 0,
+                'candidate_at': perf_counter(),
+                'resolved_nodes': len(resolved['payload']),
+                'site_key': model_site_key(state, graph, point),
+                'ability_key': model_ability_key(state, graph, ability)
+            };
+            state.plans.append(plan);
+            with mem._raw_lock {
+                excluded = set(mem.__mem__) | set(mem.__raw_mem__) | state.submitted;
+            }
+            ids: list = [];
+            for row in resolved['payload'] {
+                uid = row[0];
+                if uid not in excluded
+                    and uid not in mem._deleted
+                    and uid not in ignored {
+                    ids.append(uid);
+                    excluded.add(uid);
+                }
+            }
+            ids = ids[:remaining];
+            if ids {
+                dispatch_fused_payload(state, {len(state.plans) - 1: ids});
+            }
+            return;
+        }
+    }
     local_paths: dict = {};
     fused_paths: dict = {};
     attempted_regions: set = set();
     frontier_demands: list = [];
-    frontier_attempted: list = [];
+    frontier_attempted: set = set();
     def resolve(active: dict, event: any) -> any {
         origin = state.ctx.user_root if event.origin == 'root' else None;
         origin_id = origin.id if origin is not None else active['id'];
@@ -320,9 +402,36 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         query = GraphQuery([], hops=hops).`visit();
         rows: any = None;
         if state.fused_sql {
-            if graph.sql_templates and not frontier_attempted {
+            if graph.sql_templates {
+                import from jaclang.runtime.ttg_templates { cached_emitted_path }
+                cached = cached_emitted_path(
+                    mem, query, origin_id, graph.sql_templates, event.id
+                );
+                if cached is not None {
+                    rows = list(cached);
+                    state.fusion['native_path_reuses'] = state.fusion.get(
+                        'native_path_reuses', 0
+                    )
+                        + 1;
+                }
+            }
+            frontier_key = (event.ability, str(active['id']), event.id);
+            independent = graph.interability_regions.get('summaries', {}).get(
+                event.ability, {}
+            ).get(
+                'frontier_independent_prefix', False
+            );
+            if rows is None
+                and key not in fused_paths
+                and graph.sql_templates
+                and frontier_key not in frontier_attempted
+                and (not frontier_attempted or independent) {
                 state.fusion['sql_construction'] = 'compiler_emitted_templates';
-                frontier_attempted.append(True);
+                frontier_attempted.add(frontier_key);
+                state.fusion['frontier_region_attempts'] = state.fusion.get(
+                    'frontier_region_attempts', 0
+                )
+                    + 1;
                 import from jaclang.runtime.ttg_frontier { resolve_frontier }
                 frontier = resolve_frontier(
                     mem,

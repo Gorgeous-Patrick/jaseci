@@ -68,7 +68,8 @@ obj WalkerDependencyGraph {
         entries: dict[str, int] = {},
         handlers: dict[str, list[str]] = {},
         dispatch: dict[int, list[str]] = {},
-        sql_templates: dict = {};
+        sql_templates: dict = {},
+        interability_regions: dict = {};
 
     def dependencies(event_id: int) -> list[TraceDependency] {
         return [
@@ -1120,6 +1121,7 @@ def _trace_field_effects(
 def compile_checkpoint_plan(arch: uni.Archetype) -> dict {
     import from jaclang.runtime.ttg_templates { compile_templates }
     graph = analyze_walker_ast(arch);
+    import from jaclang.runtime.ttg_regions { compile_interability_regions }
     candidates = [
         name
         for name in graph.entries
@@ -1144,6 +1146,7 @@ def compile_checkpoint_plan(arch: uni.Archetype) -> dict {
     return {
         'version': 2,
         'sql_templates': compile_templates(graph.events),
+        'interability_regions': compile_interability_regions(graph),
         'walker_name': graph.walker_name,
         'entries': graph.entries,
         'handlers': graph.handlers,
@@ -1198,6 +1201,9 @@ def checkpoint_graph(spec: dict, walker_type: type) -> WalkerDependencyGraph {
     graph.edges = [TraceDependency(**item) for item in spec['edges']];
     import from jaclang.runtime.ttg_templates { hydrate_templates }
     graph.sql_templates = hydrate_templates(spec.get('sql_templates', {}));
+    graph.interability_regions = hydrate_templates(
+        spec.get('interability_regions', {})
+    );
     graph.entries = dict(spec['entries']);
     graph.handlers = dict(spec['handlers']);
     graph.dispatch = {int(k): v for (k, v) in spec['dispatch'].items()};

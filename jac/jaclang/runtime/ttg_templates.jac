@@ -294,3 +294,37 @@ def publish_paths(mem: any, staged: list) -> bool {
     }
     return True;
 }
+
+
+def cached_emitted_path(
+    mem: any, query: any, origin_id: any, bundle: dict, event: int
+) -> any {
+    # Reuse a complete typed native path without constructing an AST or issuing SQL.
+    import from jaclang.data.query_planner { _acl_pushdown_root, _query_cache_key }
+    import from jaclang.runtime.graph_walk { access_gated }
+    with mem._lock {
+        mem.read_barrier();
+        if 'catalog' in bundle {
+            mem.query_cache_put(('ttg_compiled_catalog_v1', ), bundle['catalog']);
+        }
+        actor = _acl_pushdown_root(query, len(query.hops), mem);
+        if access_gated() and actor is None {
+            return None;
+        }
+        native = select_template(bundle, 'native', actor is not None, event);
+        if native is None {
+            return None;
+        }
+        descriptor = native['typed'];
+        values: dict = {'origin': (str(origin_id), )};
+        for (name, dtype, nullable) in descriptor['slots'] {
+            if name != 'origin' {
+                values[name] = actor;
+            }
+        }
+        compiled = bind_template(descriptor, values);
+        return mem.query_cache_get(
+            _query_cache_key('ttg_path', compiled.sql, compiled.params, len(query.hops))
+        );
+    }
+}

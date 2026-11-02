@@ -142,6 +142,26 @@ test "dependency prefetch: multi-hop and finite cyclic paths consume terminal pa
 }
 
 test "dependency prefetch: chosen branch and edge subtypes populate and consume raw cache" {
+    import jaclang.runtime.prefetch as prefetch_module;
+    original_dispatch: any = dispatch_prefetch;
+    def complete_dispatch(
+        ctx: any,
+        prefetch_ids: list,
+        mode: str,
+        workers: int = 1,
+        append: bool = False,
+        observer: any = None
+    ) {
+        original_dispatch(
+            ctx, prefetch_ids, mode, workers, append=append, observer=observer
+        );
+        # This checks completed raw-cache promotion, not the production deadline.
+        # Preserve thread execution while synchronizing before native demand.
+        for thread in list(getattr(ctx.mem, '_prefetch_threads', [])) {
+            thread.join(timeout=5);
+            assert not thread.is_alive() , 'Test prefetch worker did not complete';
+        }
+    }
     original = JacRuntime.exec_ctx;
     try {
         for (value, chosen, mode) in [(13, 'c', ''), (3, 'd', 'thread')] {
@@ -151,7 +171,11 @@ test "dependency prefetch: chosen branch and edge subtypes populate and consume 
                 try {
                     origin = fetch_origin(ctx, ids['start']);
                     wlk = FetchBranch();
-                    with capture_dependency_checkpoints() as capture {
+                    with patch.object(
+                        prefetch_module,
+                        'dispatch_prefetch',
+                        side_effect=complete_dispatch
+                    ), capture_dependency_checkpoints() as capture {
                         with dependency_prefetch(ctx, mode=mode) as run {
                             origin spawn wlk;
                         }
