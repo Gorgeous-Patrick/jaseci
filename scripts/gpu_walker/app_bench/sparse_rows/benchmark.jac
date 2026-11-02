@@ -42,7 +42,7 @@ def build_rows(row_count: int, max_members: int) -> tuple[list[Entry], list[list
     expected: list[list[int]] = [];
     edge_count = 0;
     for row in range(row_count) {
-        root = Entry(value=0);
+        root_id = Entry(value=0);
         degree = (row * 17) % (max_members + 1);
         total = 0;
         for slot in range(degree) {
@@ -51,10 +51,10 @@ def build_rows(row_count: int, max_members: int) -> tuple[list[Entry], list[list
                 value = 1;
             }
             member = Entry(value=value);
-            root +>:Member():+> member;
+            root_id +>:Member():+> member;
             total += value;
         }
-        starts.append(root);
+        starts.append(root_id);
         expected.append([total, degree + 1]);
         edge_count += degree;
     }
@@ -64,12 +64,12 @@ def build_rows(row_count: int, max_members: int) -> tuple[list[Entry], list[list
 def serial(starts: list[Entry], expected: list[list[int]]) -> float {
     walkers = [RowSum() for _ in starts];
     begin = time.perf_counter();
-    for (start, walker) in zip(starts, walkers) {
-        start spawn walker;
+    for (start, wk) in zip(starts, walkers) {
+        start spawn wk;
     }
     milliseconds = (time.perf_counter() - begin) * 1000;
     require(
-        ([ [walker.total, walker.visited] for walker in walkers] == expected),
+        ([ [wk.total, wk.visited] for wk in walkers] == expected),
         'Serial Jac differs from the independent row oracle'
     );
     return milliseconds;
@@ -83,7 +83,7 @@ def gpu_call(gpu: any, starts: list[Entry], expected: list[list[int]]) -> tuple[
     require(result.gpu_executed, 'CUDA kernel was not executed');
     require((result.status == [0] * len(starts)), 'GPU walker status failed');
     require(
-        ([ [walker.total, walker.visited] for walker in walkers] == expected),
+        ([ [wk.total, wk.visited] for wk in walkers] == expected),
         'GPU walker fields differ from the row oracle'
     );
     require(
@@ -193,9 +193,10 @@ def main(argv: list[str] | None = None) {
             ];
             writer: any = csv.DictWriter(stream, fieldnames=columns);
             writer.writeheader();
-            for case in record['cases'] {
-                writer.writerow({key: case[key] for key in columns});
+            for case_row in record['cases'] {
+                writer.writerow({key: case_row[key] for key in columns});
             }
+        }
         record['status'] = 'complete';
     } except BaseException as error {
         record['status'] = 'failed';

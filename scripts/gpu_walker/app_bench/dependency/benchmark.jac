@@ -35,7 +35,7 @@ def write_json(path: Path, data: any) {
 }
 
 def case_data(layers: int, width: int, irregular: bool) -> tuple[list[list[int]], list[int], list[int]] {
-    """Layered finite DAG; adjacent tasks share successors in the next layer."""
+    # Layered finite DAG; adjacent tasks share successors in the next layer.
     children: list[list[int]] = [[] for _ in range(layers * width)];
     costs = [1 + ((i * 7 + 3) % 17) for i in range(layers * width)];
     severities = [(i * 13 + 5) % 11 for i in range(layers * width)];
@@ -49,7 +49,7 @@ def case_data(layers: int, width: int, irregular: bool) -> tuple[list[list[int]]
             }
         }
     }
-    return children, costs, severities;
+    return (children, costs, severities);
 }
 
 def query_indices(layers: int, width: int, count: int) -> tuple[list[int], list[int]] {
@@ -58,12 +58,12 @@ def query_indices(layers: int, width: int, count: int) -> tuple[list[int], list[
         for q in range(count)
     ];
     thresholds = [(q * 3) % 12 for q in range(count)];
-    return starts, thresholds;
+    return (starts, thresholds);
 }
 
-def oracle(children: list[list[int]], costs: list[int], severities: list[int], root: int, threshold: int) -> tuple[list[int], int] {
-    """Independent index-based FIFO oracle: repeated DAG arrivals count again."""
-    pending = deque([root]);
+def oracle(children: list[list[int]], costs: list[int], severities: list[int], root_id: int, threshold: int) -> tuple[list[int], int] {
+    # Independent index-based FIFO oracle: repeated DAG arrivals count again.
+    pending = deque([root_id]);
     total = risk = visits = 0;
     peak = 1;
     while pending {
@@ -74,11 +74,11 @@ def oracle(children: list[list[int]], costs: list[int], severities: list[int], r
         pending.extend(children[current]);
         peak = max(peak, len(pending));
     }
-    return [total, risk, visits, threshold], peak;
+    return ([total, risk, visits, threshold], peak);
 }
 
-def state(walker: DependencyExposure) -> list[int] {
-    return [walker.total_cost, walker.high_risk, walker.visits, walker.threshold];
+def state(wk: DependencyExposure) -> list[int] {
+    return [wk.total_cost, wk.high_risk, wk.visits, wk.threshold];
 }
 
 def build_nodes(children: list[list[int]], costs: list[int], severities: list[int]) -> list[Task] {
@@ -137,14 +137,14 @@ def run(output: Path) {
     try {
         for (case_index, (name, layers, width, count, irregular)) in enumerate(CASES) {
             began = time.perf_counter_ns();
-            children, costs, severities = case_data(layers, width, irregular);
+            (children, costs, severities) = case_data(layers, width, irregular);
             nodes = build_nodes(children, costs, severities);
             build_ms = (time.perf_counter_ns() - began) / 1_000_000;
-            root_indices, thresholds = query_indices(layers, width, count);
+            (root_indices, thresholds) = query_indices(layers, width, count);
             starts = [nodes[index] for index in root_indices];
             oracle_results = [
-                oracle(children, costs, severities, root, threshold)
-                for (root, threshold) in zip(root_indices, thresholds)
+                oracle(children, costs, severities, root_id, threshold)
+                for (root_id, threshold) in zip(root_indices, thresholds)
             ];
             expected = [item[0] for item in oracle_results];
             capacity = max(item[1] for item in oracle_results);
@@ -187,14 +187,14 @@ def run(output: Path) {
                             walkers = [DependencyExposure(threshold=value) for value in thresholds];
                             began = time.perf_counter_ns();
                             if arm == 'cpu' {
-                                for (start, walker) in zip(starts, walkers) {
-                                    start spawn walker;
+                                for (start, wk) in zip(starts, walkers) {
+                                    start spawn wk;
                                 }
                             } else {
                                 execution = gpu.run_walkers(walkers, starts);
                             }
                             duration_ms = (time.perf_counter_ns() - began) / 1_000_000;
-                            actual = [state(walker) for walker in walkers];
+                            actual = [state(wk) for wk in walkers];
                             assert actual == expected;
                             if arm == 'gpu' {
                                 assert execution.gpu_executed;
@@ -214,6 +214,7 @@ def run(output: Path) {
                 assert execution is not None;
                 metadata['gpu'] = execution.gpu_name;
                 metadata['payload_bytes'] = execution.memory.payload_bytes();
+            }
             measured_cpu = [r['duration_ms'] for r in metadata['records'] if r['phase'] == 'measured' and r['arm'] == 'cpu'];
             measured_gpu = [r['duration_ms'] for r in metadata['records'] if r['phase'] == 'measured' and r['arm'] == 'gpu'];
             metadata['median_cpu_ms'] = statistics.median(measured_cpu);

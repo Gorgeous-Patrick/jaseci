@@ -49,7 +49,7 @@ def make_workload(batch: int, length: int) -> tuple[list[Event], list[Event]] {
     starts: list[Event] = [];
     nodes: list[Event] = [];
     for lane in range(batch) {
-        previous: any = None;
+        previous: Event | None = None;
         for hop in range(length) {
             current = Event(
                 amount=amount_for(lane, hop),
@@ -66,7 +66,7 @@ def make_workload(batch: int, length: int) -> tuple[list[Event], list[Event]] {
             previous = current;
         }
     }
-    return starts, nodes;
+    return (starts, nodes);
 }
 
 def expected_scores(nodes: list[Event], batch: int, length: int) -> list[int] {

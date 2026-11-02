@@ -14,7 +14,7 @@ test "screening oracle counts flags and repeated recipient exposure" {
 }
 
 test "screening graph has bounded two-hop fanout and shared payees" {
-    starts, rows, watchlisted, thresholds, transfers = app.make_case(6, 3, 4);
+    (starts, rows, watchlisted, thresholds, transfers) = app.make_case(6, 3, 4);
     assert len(starts) == 6 and len(rows) == 6 and len(thresholds) == 6;
     assert len(watchlisted) == 3;
     assert transfers == sum(len(row) for row in rows);
@@ -36,7 +36,7 @@ test "Jac walker counts a shared recipient once per transfer" {
     account +>:Flow():+> second;
     first +>:Flow():+> recipient;
     second +>:Flow():+> recipient;
-    walker = FraudScreen(threshold=1000);
-    account spawn walker;
-    assert app.output(walker) == [1000, 1, 1500, 2, 5];
+    wk = FraudScreen(threshold=1000);
+    account spawn wk;
+    assert app.output(wk) == [1000, 1, 1500, 2, 5];
 }

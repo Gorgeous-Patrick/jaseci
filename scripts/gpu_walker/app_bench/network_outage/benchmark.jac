@@ -34,8 +34,8 @@ def write_json(path: Path, data: any) {
     path.write_text(json.dumps(data, indent=2) + '\n');
 }
 
-def topology(cores: int, regions_per_core: int, access_per_region: int, endpoints_per_access: int) -> tuple {
-    """Raw directed links include flags for independently powered backups."""
+def topology(cores: int, regions_per_core: int, access_per_region: int, endpoints_per_access: int) -> tuple[list[int], list[int], list[int], list[list[tuple[int, bool]]], list[list[int]]] {
+    # Raw directed links include flags for independently powered backups.
     kinds: list[int] = [];
     households: list[int] = [];
     criticality: list[int] = [];
@@ -75,18 +75,19 @@ def topology(cores: int, regions_per_core: int, access_per_region: int, endpoint
                 }
             }
         }
-    return kinds, households, criticality, links, groups;
+    }
+    return (kinds, households, criticality, links, groups);
 }
 
 def queries(groups: list[list[int]], count: int) -> tuple[list[int], list[int]] {
     roots = [groups[q % 4][(q * 17 + q // 4) % len(groups[q % 4])] for q in range(count)];
     floors = [1 + (q % 3) for q in range(count)];
-    return roots, floors;
+    return (roots, floors);
 }
 
-def oracle(households: list[int], criticality: list[int], links: list[list[tuple[int, bool]]], root: int, floor: int) -> tuple[list[int], int] {
-    """Traverse raw links, stopping failure propagation at live backup links."""
-    pending = deque([root]);
+def oracle(households: list[int], criticality: list[int], links: list[list[tuple[int, bool]]], root_id: int, floor: int) -> tuple[list[int], int] {
+    # Traverse raw links, stopping failure propagation at live backup links.
+    pending = deque([root_id]);
     affected = critical = visits = 0;
     peak = 1;
     while pending {
@@ -101,11 +102,11 @@ def oracle(households: list[int], criticality: list[int], links: list[list[tuple
         }
         peak = max(peak, len(pending));
     }
-    return [affected, critical, visits, floor], peak;
+    return ([affected, critical, visits, floor], peak);
 }
 
-def state(walker: OutageImpact) -> list[int] {
-    return [walker.affected_households, walker.critical_sites, walker.visited, walker.priority_floor];
+def state(wk: OutageImpact) -> list[int] {
+    return [wk.affected_households, wk.critical_sites, wk.visited, wk.priority_floor];
 }
 
 def build_nodes(kinds: list[int], households: list[int], criticality: list[int], links: list[list[tuple[int, bool]]]) -> list[NetworkAsset] {
@@ -167,14 +168,14 @@ def run(output: Path) {
     try {
         for (case_index, (name, cores, regions, access, endpoints, count)) in enumerate(CASES) {
             began = time.perf_counter_ns();
-            kinds, households, criticality, links, groups = topology(cores, regions, access, endpoints);
+            (kinds, households, criticality, links, groups) = topology(cores, regions, access, endpoints);
             nodes = build_nodes(kinds, households, criticality, links);
             build_ms = (time.perf_counter_ns() - began) / 1_000_000;
-            root_indices, floors = queries(groups, count);
+            (root_indices, floors) = queries(groups, count);
             starts = [nodes[index] for index in root_indices];
             oracle_results = [
-                oracle(households, criticality, links, root, floor)
-                for (root, floor) in zip(root_indices, floors)
+                oracle(households, criticality, links, root_id, floor)
+                for (root_id, floor) in zip(root_indices, floors)
             ];
             expected = [item[0] for item in oracle_results];
             capacity = max(item[1] for item in oracle_results);
@@ -221,14 +222,14 @@ def run(output: Path) {
                             walkers = [OutageImpact(priority_floor=value) for value in floors];
                             began = time.perf_counter_ns();
                             if arm == 'cpu' {
-                                for (start, walker) in zip(starts, walkers) {
-                                    start spawn walker;
+                                for (start, wk) in zip(starts, walkers) {
+                                    start spawn wk;
                                 }
                             } else {
                                 execution = gpu.run_walkers(walkers, starts);
                             }
                             duration_ms = (time.perf_counter_ns() - began) / 1_000_000;
-                            actual = [state(walker) for walker in walkers];
+                            actual = [state(wk) for wk in walkers];
                             assert actual == expected;
                             if arm == 'gpu' {
                                 assert execution.gpu_executed;
@@ -248,6 +249,7 @@ def run(output: Path) {
                 assert execution is not None;
                 metadata['gpu'] = execution.gpu_name;
                 metadata['payload_bytes'] = execution.memory.payload_bytes();
+            }
             measured_cpu = [r['duration_ms'] for r in metadata['records'] if r['phase'] == 'measured' and r['arm'] == 'cpu'];
             measured_gpu = [r['duration_ms'] for r in metadata['records'] if r['phase'] == 'measured' and r['arm'] == 'gpu'];
             metadata['median_cpu_ms'] = statistics.median(measured_cpu);

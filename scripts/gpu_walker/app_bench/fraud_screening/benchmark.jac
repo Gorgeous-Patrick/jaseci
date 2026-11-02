@@ -38,8 +38,8 @@ def require(condition: bool, message: str) {
     }
 }
 
-def make_case(payers: int, payees: int, maximum_transfers: int) -> any {
-    """Construct the Jac graph and a separate table used by the oracle."""
+def make_case(payers: int, payees: int, maximum_transfers: int) -> tuple[list[LedgerEntity], list[list[tuple[int, int, int, int]]], list[int], list[int], int] {
+    # Construct the Jac graph and a separate table used by the oracle.
     recipients = [
         LedgerEntity(kind=3, amount=0, cross_border=0, odd_hour=0,
                      watchlisted=int(index % 13 == 0))
@@ -72,11 +72,11 @@ def make_case(payers: int, payees: int, maximum_transfers: int) -> any {
         }
         rows.append(row);
     }
-    return starts, rows, watchlisted, thresholds, transfer_count;
+    return (starts, rows, watchlisted, thresholds, transfer_count);
 }
 
 def oracle(rows: any, watchlisted: any, thresholds: any) -> list[list[int]] {
-    """Calculate expected outputs from primitive tables, without Jac traversal."""
+    # Calculate expected outputs from primitive tables, without Jac traversal.
     result: list[list[int]] = [];
     for (row, threshold) in zip(rows, thresholds) {
         flagged = 0;
@@ -94,15 +94,15 @@ def oracle(rows: any, watchlisted: any, thresholds: any) -> list[list[int]] {
     return result;
 }
 
-def output(walker: FraudScreen) -> list[int] {
-    return [walker.threshold, walker.flagged_transfers, walker.flagged_amount,
-            walker.watchlist_exposures, walker.visited];
+def output(wk: FraudScreen) -> list[int] {
+    return [wk.threshold, wk.flagged_transfers, wk.flagged_amount,
+            wk.watchlist_exposures, wk.visited];
 }
 
 def run_case(name: str, payers: int, payees: int, maximum_transfers: int,
              device: int, warmup: int, repeats: int) -> dict[str, any] {
     begin = time.perf_counter_ns();
-    starts, rows, watchlisted, thresholds, transfer_count = make_case(
+    (starts, rows, watchlisted, thresholds, transfer_count) = make_case(
         payers, payees, maximum_transfers
     );
     construction_ms = (time.perf_counter_ns() - begin) / 1_000_000;
@@ -128,8 +128,8 @@ def run_case(name: str, payers: int, payees: int, maximum_transfers: int,
                     walkers = [FraudScreen(threshold=threshold) for threshold in thresholds];
                     begin = time.perf_counter_ns();
                     if arm == 'serial_jac' {
-                        for (start, walker) in zip(starts, walkers) {
-                            start spawn walker;
+                        for (start, wk) in zip(starts, walkers) {
+                            start spawn wk;
                         }
                         result: any = None;
                     } else {
@@ -149,7 +149,7 @@ def run_case(name: str, payers: int, payees: int, maximum_transfers: int,
                                     f'GPU result field {field} differs from the oracle');
                         }
                     }
-                    require([output(walker) for walker in walkers] == expected,
+                    require([output(wk) for wk in walkers] == expected,
                             f'{arm} walker fields differ from the oracle');
                     rounds.append({
                         'phase': phase, 'pair': pair, 'arm': arm,
@@ -190,9 +190,9 @@ def main(argv: list[str] | None = None) {
     parser = argparse.ArgumentParser(description=__doc__);
     parser.add_argument('action', choices=['plan', 'run']);
     parser.add_argument('--output', type=Path, required=True);
-    parser.add_argument('--device', type=int, default=0);
-    parser.add_argument('--warmup', type=int, default=3);
-    parser.add_argument('--repeats', type=int, default=15);
+    parser.add_argument('--device', type=int, `default=0);
+    parser.add_argument('--warmup', type=int, `default=3);
+    parser.add_argument('--repeats', type=int, `default=15);
     options = parser.parse_args(argv);
     if options.action == 'plan' {
         print('Plan only: no graph construction, result directory, or GPU execution.');

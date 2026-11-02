@@ -66,11 +66,11 @@ def make_case(sites: int, buildings: int, devices: int) -> any {
             }
         }
     }
-    return nodes, children, kinds, readings, alerts, site_ids, building_ids, device_ids;
+    return (nodes, children, kinds, readings, alerts, site_ids, building_ids, device_ids);
 }
 
-def oracle(children: any, kinds: any, readings: any, alerts: any, root: int, threshold: int) -> tuple[list[int], int] {
-    pending = [root];
+def oracle(children: any, kinds: any, readings: any, alerts: any, root_id: int, threshold: int) -> tuple[list[int], int] {
+    pending = [root_id];
     head = 0;
     count = 0;
     total = 0;
@@ -87,31 +87,31 @@ def oracle(children: any, kinds: any, readings: any, alerts: any, root: int, thr
         pending.extend(children[current]);
         peak = max(peak, len(pending) - head);
     }
-    return [count, total, has_alert, head, threshold], peak;
+    return ([count, total, has_alert, head, threshold], peak);
 }
 
-def state(walker: Monitor) -> list[int] {
-    return [walker.count, walker.total, int(walker.has_alert), walker.visited, walker.threshold];
+def state(wk: Monitor) -> list[int] {
+    return [wk.count, wk.total, int(wk.has_alert), wk.visited, wk.threshold];
 }
 
 def check_batch(walkers: any, expected: any) {
-    if [state(walker) for walker in walkers] != expected {
+    if [state(wk) for wk in walkers] != expected {
         raise ValueError('Monitoring output disagreed with the independent oracle');
     }
 }
 
 def run_case(name: str, sites: int, buildings: int, devices: int, queries: int, device: int, warmup: int, repeats: int) -> dict[str, any] {
     start = time.perf_counter();
-    nodes, children, kinds, readings, alerts, site_ids, building_ids, device_ids = make_case(sites, buildings, devices);
+    (nodes, children, kinds, readings, alerts, site_ids, building_ids, device_ids) = make_case(sites, buildings, devices);
     graph_ms = (time.perf_counter() - start) * 1000;
     root_choices = [site_ids, building_ids, device_ids];
     roots = [root_choices[i % 3][(i // 3) % len(root_choices[i % 3])] for i in range(queries)];
     thresholds = [(-250, 0, 250, 500)[i % 4] for i in range(queries)];
-    oracle_rows = [oracle(children, kinds, readings, alerts, root, threshold) for root, threshold in zip(roots, thresholds)];
+    oracle_rows = [oracle(children, kinds, readings, alerts, root_id, threshold) for (root_id, threshold) in zip(roots, thresholds)];
     expected = [row[0] for row in oracle_rows];
     capacity = max(row[1] for row in oracle_rows);
     max_visits = max(row[3] for row in expected);
-    starts = [nodes[root] for root in roots];
+    starts: list[Asset] = [nodes[root_id] for root_id in roots];
     input_hash = sha256(json.dumps([children, kinds, readings, alerts, roots, thresholds]).encode()).hexdigest();
     start = time.perf_counter();
     with GpuWalkerRuntime(
@@ -130,8 +130,8 @@ def run_case(name: str, sites: int, buildings: int, devices: int, queries: int, 
                 result: any = None;
                 start = time.perf_counter();
                 if arm == 'serial_jac' {
-                    for root, walker in zip(starts, walkers) {
-                        root spawn walker;
+                    for (root_id, wk) in zip(starts, walkers) {
+                        root_id spawn wk;
                     }
                     status = [0] * queries;
                 } else {
@@ -148,7 +148,7 @@ def run_case(name: str, sites: int, buildings: int, devices: int, queries: int, 
                 }
                 check_batch(walkers, expected);
                 if arm == 'gpu_runtime' {
-                    for index, field in enumerate(['count', 'total', 'has_alert', 'visited', 'threshold']) {
+                    for (index, field) in enumerate(['count', 'total', 'has_alert', 'visited', 'threshold']) {
                         if [int(value) for value in result.fields[field]] != [row[index] for row in expected] {
                             raise ValueError(f'GPU result field {field} disagreed with the oracle');
                         }
@@ -192,12 +192,12 @@ def main(argv: list[str] | None = None) {
     parser = argparse.ArgumentParser(description=__doc__);
     parser.add_argument('action', choices=['plan', 'run']);
     parser.add_argument('--output', `type=Path, required=True);
-    parser.add_argument('--device', `type=int, default=0);
-    parser.add_argument('--warmup', `type=int, default=3);
-    parser.add_argument('--repeats', `type=int, default=15);
+    parser.add_argument('--device', `type=int, `default=0);
+    parser.add_argument('--warmup', `type=int, `default=3);
+    parser.add_argument('--repeats', `type=int, `default=15);
     options = parser.parse_args(argv);
     if options.action == 'plan' {
-        for name, sites, buildings, devices, queries in CASES {
+        for (name, sites, buildings, devices, queries) in CASES {
             print(f'{name}: {sites} sites, {buildings} buildings/site, {devices} devices/building, {queries} queries');
         }
         return;
@@ -238,7 +238,7 @@ def main(argv: list[str] | None = None) {
     output.mkdir(parents=True, exist_ok=False);
     (output / 'results.json').write_text(json.dumps(results, indent=2) + '\n');
     try {
-        for name, sites, buildings, devices, queries in CASES {
+        for (name, sites, buildings, devices, queries) in CASES {
             results['cases'].append(run_case(name, sites, buildings, devices, queries, options.device, options.warmup, options.repeats));
             (output / 'results.json').write_text(json.dumps(results, indent=2) + '\n');
         }

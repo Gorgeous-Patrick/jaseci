@@ -5,14 +5,14 @@ import from model {
 }
 
 test "event-chain arithmetic oracle matches ordinary Jac traversal" {
-    starts, nodes = make_workload(2, 3);
+    (starts, nodes) = make_workload(2, 3);
     assert len(starts) == 2 and len(nodes) == 6;
     expected = expected_scores(nodes, 2, 3);
     assert expected == [-24, 23];
     for lane in range(2) {
-        walker = RiskScore(score=initial_score(lane));
-        starts[lane] spawn walker;
-        assert walker.score == expected[lane];
-        assert walker.visited == 3;
+        wk = RiskScore(score=initial_score(lane));
+        starts[lane] spawn wk;
+        assert wk.score == expected[lane];
+        assert wk.visited == 3;
     }
 }

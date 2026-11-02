@@ -17,7 +17,7 @@ import sys;
 import time;
 import from jaclang.runtime.gpu { GpuWalkerRuntime }
 import from model {
-    RiskScore, expected_scores, initial_score, make_workload
+    Event, RiskScore, expected_scores, initial_score, make_workload
 }
 
 glob CASES: tuple[tuple[int, int], ...] = (
@@ -47,19 +47,19 @@ def fresh_walkers(batch: int) -> list[RiskScore] {
     return [RiskScore(score=initial_score(lane)) for lane in range(batch)];
 }
 
-def measure_serial(starts: any, batch: int, length: int, oracle: list[int]) -> float {
+def measure_serial(starts: list[Event], batch: int, length: int, oracle: list[int]) -> float {
     walkers = fresh_walkers(batch);
     begin = time.perf_counter_ns();
-    for (start, walker) in zip(starts, walkers) {
-        start spawn walker;
+    for (start, wk) in zip(starts, walkers) {
+        start spawn wk;
     }
     elapsed_ms = (time.perf_counter_ns() - begin) / 1_000_000;
-    check_equal([walker.score for walker in walkers], oracle, "Serial Jac score");
-    check_equal([walker.visited for walker in walkers], [length] * batch, "Serial Jac visits");
+    check_equal([wk.score for wk in walkers], oracle, "Serial Jac score");
+    check_equal([wk.visited for wk in walkers], [length] * batch, "Serial Jac visits");
     return elapsed_ms;
 }
 
-def measure_gpu(gpu: any, starts: any, batch: int, length: int, oracle: list[int]) -> tuple[float, any] {
+def measure_gpu(gpu: any, starts: list[Event], batch: int, length: int, oracle: list[int]) -> tuple[float, any] {
     walkers = fresh_walkers(batch);
     begin = time.perf_counter_ns();
     result = gpu.run_walkers(walkers, starts);
@@ -69,14 +69,14 @@ def measure_gpu(gpu: any, starts: any, batch: int, length: int, oracle: list[int
     }
     check_equal(result.fields["score"], oracle, "GPU score output");
     check_equal(result.fields["visited"], [length] * batch, "GPU visit output");
-    check_equal([walker.score for walker in walkers], oracle, "GPU score publication");
-    check_equal([walker.visited for walker in walkers], [length] * batch, "GPU visit publication");
-    return elapsed_ms, result;
+    check_equal([wk.score for wk in walkers], oracle, "GPU score publication");
+    check_equal([wk.visited for wk in walkers], [length] * batch, "GPU visit publication");
+    return (elapsed_ms, result);
 }
 
 def measure_case(batch: int, length: int, case_seed: int) -> dict[str, any] {
     begin = time.perf_counter_ns();
-    starts, nodes = make_workload(batch, length);
+    (starts, nodes) = make_workload(batch, length);
     build_ms = (time.perf_counter_ns() - begin) / 1_000_000;
     oracle = expected_scores(nodes, batch, length);
     if len(nodes) != batch * length or len(starts) != batch {
@@ -97,7 +97,7 @@ def measure_case(batch: int, length: int, case_seed: int) -> dict[str, any] {
                     if arm == "serial" {
                         elapsed_ms = measure_serial(starts, batch, length, oracle);
                     } else {
-                        elapsed_ms, result = measure_gpu(gpu, starts, batch, length, oracle);
+                        (elapsed_ms, result) = measure_gpu(gpu, starts, batch, length, oracle);
                         gpu_name = result.gpu_name;
                         payload_bytes = result.memory.payload_bytes();
                     }

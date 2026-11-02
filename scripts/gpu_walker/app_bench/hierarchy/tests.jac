@@ -12,7 +12,7 @@ test "monitoring oracle counts only qualifying devices" {
 }
 
 test "monitoring builder creates a complete hierarchy" {
-    nodes, children, kinds, readings, alerts, sites, buildings, devices = app.make_case(1, 2, 3);
+    (nodes, children, kinds, readings, alerts, sites, buildings, devices) = app.make_case(1, 2, 3);
     assert len(nodes) == 10;
     assert len(sites) == 1 and len(buildings) == 2 and len(devices) == 6;
     assert sum(len(row) for row in children) == len(nodes) - 1;
