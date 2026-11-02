@@ -22,6 +22,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--codegen', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--variants', nargs='+', choices=['baseline', 'O2', 'hoist_sroa'],
+                        default=['baseline', 'O2', 'hoist_sroa'])
     args = parser.parse_args()
     from jaclang.runtime import gpu_cursors as multi
     from jaclang.runtime.runtime import JacRuntime
@@ -63,7 +65,7 @@ def main():
     x = fixture(); x.seed_counts[0] = 0; add('empty_channel', x, 0)
 
     d = Driver()
-    labels = ['baseline', 'O2', 'hoist_sroa']
+    labels = args.variants
     kernels = {label: d.kernel(args.codegen / (label+'.ptx'), schema.kernel_name) for label in labels}
     d.lib.cuFuncGetAttribute.argtypes = [c.POINTER(c.c_int), c.c_int, c.c_void_p]
     d.lib.cuFuncGetAttribute.restype = c.c_int
