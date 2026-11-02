@@ -17,7 +17,8 @@ with ordinary Jac traversal.
 
 The reported question is when the **public GPU batch call** becomes faster than
 ordinary serial Jac on the same graph and batch. Each case saves graph-building
-time and runtime construction/PTX setup time separately. During each of three
+time and runtime construction/PTX setup time separately. The first GPU warmup
+also initializes the CUDA session. During each of three
 warmup and 15 measured rounds, serial and GPU arms run in a seeded randomized
 order with fresh walker state. The measured GPU interval is `run_walkers`, so it
 includes packing, uploads, kernel execution, downloads, status handling, and

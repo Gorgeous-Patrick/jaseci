@@ -13,8 +13,9 @@ oracle. Every serial and GPU result is checked against that oracle on every
 round, and every GPU status must be zero. Fresh walkers prevent prior rounds from
 affecting later ones. Both arms run in randomized order for three warmups and
 15 measured pairs. Medians and all per-round samples go to `results.json`; a
-compact table goes to `comparison.csv`. Graph construction and GPU runtime setup
-are reported separately. The GPU interval includes packing, allocation or reuse,
+compact table goes to `comparison.csv`. Graph construction and runtime object/PTX
+setup are reported separately; the first GPU warmup initializes the CUDA
+session. The GPU interval includes packing, allocation or reuse,
 transfers, execution, and copyback. This app does not isolate kernel time.
 Walker creation is outside both measured intervals.
 

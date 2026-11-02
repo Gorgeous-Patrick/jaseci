@@ -16,8 +16,9 @@ rotate through `-250`, `0`, `250` and `500`.
 An independent list-based traversal calculates every expected output. Each round
 uses fresh walkers and randomizes serial Jac versus public GPU runtime order.
 Every output and GPU status is checked after timing. Default timing is three
-warmup and 15 measured rounds. Graph construction and GPU setup/compilation are
-recorded separately. The GPU batch time includes packing, transfers, kernel
+warmup and 15 measured rounds. Graph construction and runtime object/PTX setup
+are recorded separately; the first GPU warmup initializes the CUDA session.
+The GPU batch time includes packing, transfers, kernel
 execution, copyback and publication; it is an application metric, not pure
 kernel time.
 Queue capacity and visit bounds come from the independent oracle's largest

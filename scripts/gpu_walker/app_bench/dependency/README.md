@@ -24,7 +24,8 @@ context. The runtime still controls actual allocation against available VRAM.
 | `irregular` | 7 layers × 64 tasks, degree 0–2 | 512 | Divergent traversal lengths |
 
 For each case, graph construction and one serial/oracle validation pass happen
-before timing. Runtime setup and compilation are reported separately. The timed
+before timing. Runtime object/PTX setup is reported separately; the first GPU
+warmup initializes the CUDA session. The timed
 CPU call spawns a fresh batch of walkers serially. The timed GPU call invokes
 `GpuWalkerRuntime.run_walkers` on an existing runtime; it includes packing,
 transfers, kernel execution, copyback, and publication. Walker object creation

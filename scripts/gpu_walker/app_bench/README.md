@@ -1,6 +1,6 @@
 # Jac GPU application benchmarks
 
-These four Jac applications measure the **public GPU runtime call** against
+These six Jac applications measure the **public GPU runtime call** against
 ordinary serial Jac traversal on the same generated graph and query batch.
 They complement the [matrix multiplication layout benchmark](../layout_bench/README.md),
 which measures GPU kernel time while changing only physical node placement.
@@ -12,16 +12,18 @@ No new GPU measurements were collected while adding these applications.
 | Dependency analysis | Shared finite dependency DAGs; aggregate scores with repeated arrivals | [dependency](dependency/README.md) |
 | Event sequence scoring | Independent event chains; conditional weighted risk scores | [sequence](sequence/README.md) |
 | Sparse row aggregation | Irregular fanout; one sum and visit count per row | [sparse rows](sparse_rows/README.md) |
+| Network outage impact | Core, regional, and access assets; downstream households and critical services exposed by a failure | [network outage](network_outage/README.md) |
+| Payment fraud screening | Accounts, transfers, and shared recipients; flagged transfers and watchlist exposure | [fraud screening](fraud_screening/README.md) |
 
 Each app defines the actual traversal in Jac. Its benchmark creates real graph
 objects, computes an independent arithmetic oracle, checks serial Jac against
 that oracle, then checks every GPU result, publication into walker fields, and
 status after each call. Fresh walkers avoid state leaking between rounds. Each
-case retains raw paired samples. The default protocol uses three warmup rounds and
-15 measured rounds,
-seeded randomized CPU/GPU order, separate graph creation and runtime setup
-times, and source provenance. No minimum speedup is required; a ratio below 1
-is a GPU regression.
+case retains raw paired samples. The default protocol uses three warmup rounds
+and 15 measured rounds, seeded randomized CPU/GPU order, separate graph
+creation and runtime object/PTX setup times, and source provenance. The first
+GPU warmup also initializes the CUDA session. No minimum speedup is required;
+a ratio below 1 is a GPU regression.
 
 The reported GPU interval includes the public runtime's graph packing, device
 transfers, kernel execution, result copyback, and publication. It is deliberately
@@ -32,8 +34,10 @@ CUDA reference or a random-versus-predicted layout arm. The existing [subtree
 study](../subtree_query/README.md) has a separate handwritten CSR reference.
 
 From the repository root, use each app's `plan` action to inspect intended
-cases, or an explicit `run` on a supported Linux NVIDIA host. The four paths
-are `hierarchy`, `dependency`, `sequence`, and `sparse_rows`. Example:
+cases, or an explicit `run` on a supported Linux NVIDIA host. The six paths
+are `hierarchy`, `dependency`, `sequence`, `sparse_rows`, `network_outage`,
+and `fraud_screening`. See the repository-wide
+[GPU run guide](../../../GPU_BENCHMARK_RUN_GUIDE.md). Example:
 
 ```bash
 jac run --backend python scripts/gpu_walker/app_bench/sparse_rows/benchmark.jac plan --output /tmp/jac-sparse-rows
