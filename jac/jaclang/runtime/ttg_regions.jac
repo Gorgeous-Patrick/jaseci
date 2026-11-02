@@ -362,6 +362,13 @@ def compile_interability_regions(graph: any) -> dict {
         }
         regions[str(summary['entry'])] = certificate;
     }
+    import from jaclang.runtime.ttg_region_dag { compile_dag_regions }
+    for (entry_id, certificate) in compile_dag_regions(graph).items() {
+        if entry_id not in regions
+            or len(certificate['rules']) > len(regions[entry_id]['rules']) {
+            regions[entry_id] = certificate;
+        }
+    }
     return {
         'version': 1,
         'summaries': summaries,
@@ -660,6 +667,23 @@ def resolve_interability_region(
     certificate = bundle.get('regions', {}).get(str(point));
     if certificate is None {
         return None;
+    }
+    if certificate.get('kind') == 'finite_dag' {
+        import from jaclang.runtime.ttg_region_dag { resolve_dag_region }
+        return resolve_dag_region(
+            mem,
+            graph,
+            wlk,
+            scope,
+            point,
+            current,
+            pending,
+            user_root,
+            max_rows,
+            metrics,
+            cache_token,
+            certificate
+        );
     }
     def decline(reason: str) -> any {
         metrics['region_fallbacks'] = metrics.get('region_fallbacks', 0) + 1;

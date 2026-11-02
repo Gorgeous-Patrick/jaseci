@@ -130,3 +130,52 @@ walker RegionFrontier {
         report here.value;
     }
 }
+
+node DagProfile {}
+node DagTweet {
+    has value: int = 0;
+}
+
+node DagCustomTweet(DagTweet) {
+    def __jac_access__ -> any {
+        raise AssertionError('Access hook must not run during certification');
+    }
+}
+
+edge DagPost {}
+edge DagFollow {}
+walker DagFeed {
+    has feed: list[int] = [];
+
+    can run with Root entry {
+        visit [-->[?:DagProfile]];
+    }
+
+    can collect with DagProfile entry {
+        visit [->:DagPost:->[?:DagTweet]];
+        visit [->:DagFollow:->[?:DagProfile]->:DagPost:->[?:DagTweet]];
+    }
+
+    can gather with DagTweet entry {
+        self.feed.append(here.value);
+    }
+
+    can deliver with Root exit {
+        report self.feed;
+    }
+}
+
+walker DagShared {
+    has seen: int = 0;
+
+    can run with Root entry {
+        visit [-->[?:DagProfile]];
+    }
+
+    can collect with DagProfile entry {
+        self.seen += 1;
+        if self.seen < 2 {
+            visit [->:DagPost:->[?:DagTweet]];
+        }
+    }
+}

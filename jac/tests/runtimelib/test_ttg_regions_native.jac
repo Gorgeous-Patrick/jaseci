@@ -32,7 +32,13 @@ import from .fixtures.ttg_region_walkers {
     RegionFrontEdge,
     RegionFrontLeft,
     RegionFrontRight,
-    RegionFrontier
+    RegionFrontier,
+    DagFeed,
+    DagCustomTweet,
+    DagProfile,
+    DagTweet,
+    DagPost,
+    DagFollow
 }
 
 
@@ -76,10 +82,18 @@ def region_chain(
 
 
 def region_run(
-    project: str, uid: UUID, wlk: any, enabled: bool, strict_cache: bool = False
+    project: str,
+    uid: UUID,
+    wlk: any,
+    enabled: bool,
+    strict_cache: bool = False,
+    actor: str = ''
 ) -> tuple {
     ctx = region_context(project);
     try {
+        if actor {
+            ctx.set_user_root(actor);
+        }
         origin = ctx.mem.get(uid).archetype;
         calls: list = [];
         store: any = ctx.mem.store;
@@ -555,7 +569,7 @@ test "Authenticated published paths include ordered empty native cache with zero
 }
 
 
-test "A later independent collect region batches both paths once after an untyped root" {
+test "One cross ability query composes root and both collect paths with duplicate native visits" {
     old = JacRuntime.exec_ctx;
     try {
         project = region_project();
@@ -573,15 +587,196 @@ test "A later independent collect region batches both paths once after an untype
             ctx.close();
         }
         plain = region_run(project, uid, RegionFrontier(), False);
-        fused = region_run(project, uid, RegionFrontier(), True);
+        fused = region_run(project, uid, RegionFrontier(), True, True);
         assert plain[0] == [31, 31] and fused[0] == plain[0];
-        assert fused[1]['fusion']['template_queries'] == 2 , str(fused[1]);
-        assert fused[1]['fusion']['frontier_region_attempts'] == 2;
+        assert fused[1]['fusion']['region_queries'] == 1 , str(fused[1]);
+        assert fused[1]['fusion']['region_cache_paths'] == 3;
         assert fused[1]['fusion']['fallback_resolver_calls'] == 0;
         assert any(
-            r.get('kind') == 'batch' and len(r.get('demands', [])) == 2
+            r.get('kind') == 'static_interability_dag' and len(r.get('paths', [])) == 3
             for r in fused[1]['fusion']['regions']
         );
+    } finally {
+        JacRuntime.exec_ctx = old;
+    }
+}
+
+test "Real Root fanout and multihop feed preserve FIFO duplicates empties and native exit" {
+    import from jaclang.runtime.archetype { Root, AccessLevel }
+    old = JacRuntime.exec_ctx;
+    try {
+        for size in (0, 1, 2) {
+            project = region_project();
+            ctx = region_context(project);
+            try {
+                origin = Root();
+                anchor: any = origin.__jac__;
+                anchor.persistent = True;
+                setattr(anchor, 'root', anchor.id);
+                ctx.mem.put(anchor);
+                uid = anchor.id;
+                ctx.set_user_root(str(uid));
+                other = DagProfile();
+                # Not a direct root child: only reached by Follow.
+                leaf = DagTweet(value=20);
+                other +>:DagPost:+> leaf;
+                for i in range(size) {
+                    profile = DagProfile();
+                    origin ++> profile;
+                    profile +>:DagPost:+> DagTweet(value=i);
+                    profile +>:DagFollow:+> other;
+                }
+                hidden = DagTweet(value=999);
+                denied: any = hidden.__jac__;
+                denied.persistent = True;
+                setattr(denied, 'root', UUID(int=123456));
+                denied.own_access().all = AccessLevel.NO_ACCESS;
+                ctx.mem.put(denied);
+                other +>:DagPost:+> hidden;
+            } finally {
+                ctx.close();
+            }
+            plain = region_run(project, uid, DagFeed(), False, actor=str(uid));
+            fused = region_run(project, uid, DagFeed(), True, True, actor=str(uid));
+            assert plain[0]
+                == [([] if size == 0 else [0, 20] if size == 1 else [0, 20, 1, 20])];
+            assert fused[0] == plain[0] , str(fused[0]);
+            assert fused[1]['fusion']['region_queries'] == 1 , str(fused[1]);
+            assert fused[1]['fusion']['region_cache_paths'] == 1 + size * 2;
+            assert fused[1]['fusion']['fallback_resolver_calls'] == 0;
+        }
+    } finally {
+        JacRuntime.exec_ctx = old;
+    }
+}
+
+test "DAG overflow and altered entry dispatch never publish partial native paths" {
+    import from types { SimpleNamespace }
+    old = JacRuntime.exec_ctx;
+    try {
+        project = region_project();
+        ctx = region_context(project);
+        try {
+            start = RegionFrontRoot();
+            hub = RegionFrontHub();
+            root ++> start;
+            start +>:RegionFrontEdge:+> hub;
+            hub +>:RegionFrontLeft:+> RegionC(value=1);
+            hub +>:RegionFrontRight:+> RegionC(value=2);
+            uid = start.__jac__.id;
+        } finally {
+            ctx.close();
+        }
+        ctx = region_context(project);
+        try {
+            wlk = RegionFrontier();
+            arch = JacTTGGenerator._find_walker_ast_node(RegionFrontier);
+            assert arch is not None;
+            spec = compile_checkpoint_plan(arch);
+            graph = checkpoint_graph(spec, RegionFrontier);
+            scope = SimpleNamespace(path=[ctx.mem.get(uid)], ignores=[]);
+            for altered in (False, True) {
+                import from contextlib { nullcontext }
+                metrics: dict = {
+                    'queries': 0,
+                    'cache_paths': 0,
+                    'cache_empty_paths': 0,
+                    'regions': []
+                };
+                callback = SimpleNamespace(trigger=RegionFrontier);
+                change = patch.object(RegionFrontHub, '_jac_entry_funcs_', [callback])
+                    if altered
+                    else nullcontext();
+                with change, patch(
+                    'jaclang.runtime.ttg_region_dag.publish_paths',
+                    side_effect=AssertionError('partial publication')
+                ) {
+                    result = resolve_interability_region(
+                        ctx.mem,
+                        graph,
+                        wlk,
+                        scope,
+                        spec['entries']['start'],
+                        {'id': uid, 'node_type': RegionFrontRoot},
+                        [],
+                        None,
+                        2 if not altered else 20,
+                        metrics
+                    );
+                }
+                assert result is None and metrics['cache_paths'] == 0;
+                assert metrics['queries'] == (0 if altered else 1);
+                assert 'dispatch' in metrics['region_fallback_reason']
+                    if altered
+                    else 'budget' in metrics['region_fallback_reason'];
+            }
+        } finally {
+            ctx.close();
+        }
+    } finally {
+        JacRuntime.exec_ctx = old;
+    }
+}
+
+test "DAG inline descendant ACL proof rejects before publication without invoking hooks" {
+    import from types { SimpleNamespace }
+    import from jaclang.runtime.archetype { Root }
+    old = JacRuntime.exec_ctx;
+    try {
+        project = region_project();
+        ctx = region_context(project);
+        try {
+            actor: any = Root().__jac__;
+            actor.persistent = True;
+            setattr(actor, 'root', actor.id);
+            ctx.mem.put(actor);
+            custom: any = DagCustomTweet().__jac__;
+            custom.persistent = True;
+            setattr(custom, 'root', actor.id);
+            ctx.mem.put(custom);
+            uid = actor.id;
+        } finally {
+            ctx.close();
+        }
+        ctx = region_context(project);
+        try {
+            ctx.set_user_root(str(uid));
+            wlk = DagFeed();
+            arch = JacTTGGenerator._find_walker_ast_node(DagFeed);
+            assert arch is not None;
+            spec = compile_checkpoint_plan(arch);
+            graph = checkpoint_graph(spec, DagFeed);
+            scope = SimpleNamespace(path=[ctx.mem.get(uid)], ignores=[]);
+            metrics: dict = {
+                'queries': 0,
+                'cache_paths': 0,
+                'cache_empty_paths': 0,
+                'regions': []
+            };
+            with patch(
+                'jaclang.runtime.ttg_region_dag.publish_paths',
+                side_effect=AssertionError('publication')
+            ) {
+                result = resolve_interability_region(
+                    ctx.mem,
+                    graph,
+                    wlk,
+                    scope,
+                    spec['entries']['run'],
+                    {'id': uid, 'node_type': Root},
+                    [],
+                    ctx.user_root,
+                    20,
+                    metrics
+                );
+            }
+            assert result is None
+                and metrics['queries'] == 1
+                and metrics['cache_paths'] == 0;
+            assert 'ACL catalog' in metrics['region_fallback_reason'];
+        } finally {
+            ctx.close();
+        }
     } finally {
         JacRuntime.exec_ctx = old;
     }

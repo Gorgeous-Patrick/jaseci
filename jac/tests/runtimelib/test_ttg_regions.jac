@@ -12,6 +12,8 @@ import from jaclang.runtime.ttg_dependencies {
 import from jaclang.runtime.ttg_regions { summarize_abilities }
 import from jaclang.runtime.ttg_templates { bind_template }
 import from .fixtures.ttg_region_walkers {
+    DagFeed,
+    DagShared,
     RegionTraverse,
     RegionReduction,
     RegionGuard,
@@ -21,6 +23,25 @@ import from .fixtures.ttg_region_walkers {
     RegionUnknown,
     RegionCounterOutput,
     RegionDivision
+}
+
+test "Finite fanout composes wildcard root and two multihop visits with one bound origin" {
+    spec = region_spec(DagFeed);
+    certificate = spec['interability_regions']['regions'][str(spec['entries']['run'])];
+    assert certificate['kind'] == 'finite_dag';
+    assert [r['ability'] for r in certificate['rules']]
+        == ['run', 'collect', 'collect'];
+    assert [r['parent'] for r in certificate['rules']] == [-1, 0, 0];
+    assert [len(r['hops']) for r in certificate['rules']] == [1, 1, 2];
+    desc = certificate['templates']['gated'];
+    assert {s[0] for s in desc['slots']}
+        == {'origin', 'row_limit', 'actor_uuid', 'actor_text'};
+    assert 'UNION ALL' in desc['sql'] and 'WITH RECURSIVE' not in desc['sql'];
+    shared = region_spec(DagShared);
+    prefix = shared['interability_regions']['regions'][str(shared['entries']['run'])];
+    assert len(prefix['rules']) == 1;
+    assert str(shared['entries']['collect'])
+        not in shared['interability_regions']['regions'];
 }
 
 

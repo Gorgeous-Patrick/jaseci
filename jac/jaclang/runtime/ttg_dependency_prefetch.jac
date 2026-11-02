@@ -294,7 +294,9 @@ def prefetch_continuation(graph: any, scope: any, point: int) {
         );
         if resolved is not None {
             state.fusion['sql_construction'] = 'compiler_emitted_interability_regions';
-            state.fusion['effective_region_mode'] = 'static_single_successor';
+            state.fusion['effective_region_mode'] = resolved.get(
+                'kind', 'static_single_successor'
+            );
             if resolved['reused'] {
                 return;
             }
