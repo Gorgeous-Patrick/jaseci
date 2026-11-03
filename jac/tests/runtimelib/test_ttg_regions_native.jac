@@ -15,6 +15,9 @@ import from jaclang.runtime.ttg_dependencies {
 import from jaclang.runtime.ttg { JacTTGGenerator }
 import from jaclang.runtime.ttg_regions { resolve_interability_region }
 import from .fixtures.ttg_region_walkers {
+    SliceOutputBranch,
+    SliceIdentityMap,
+    SliceBorrowedMap,
     RegionItem,
     RegionNext,
     RegionTraverse,
@@ -87,7 +90,8 @@ def region_run(
     wlk: any,
     enabled: bool,
     strict_cache: bool = False,
-    actor: str = ''
+    actor: str = '',
+    executor: str = 'process'
 ) -> tuple {
     ctx = region_context(project);
     try {
@@ -131,7 +135,7 @@ def region_run(
             planner, '_sql_pairs', side_effect=pairs
         ), compiler_guard, topology_guard {
             with dependency_prefetch(
-                ctx, max_length=2048, mode='process', workers=1, fused_sql=enabled
+                ctx, max_length=2048, mode=executor, workers=1, fused_sql=enabled
             ) as run {
                 origin spawn wlk;
             }
@@ -779,5 +783,184 @@ test "DAG inline descendant ACL proof rejects before publication without invokin
         }
     } finally {
         JacRuntime.exec_ctx = old;
+    }
+}
+
+
+test "Access slice native thread preserves output branches identities and rejects borrowed maps" {
+    import sys;
+    if os.environ.get('TTG_REQUIRE_GIL_OFF') == '1' {
+        assert not sys._is_gil_enabled();
+    }
+    old = JacRuntime.exec_ctx;
+    try {
+        project = region_project();
+        ids = region_chain(project, 5);
+        plain = SliceOutputBranch();
+        optimized = SliceOutputBranch();
+        region_run(project, ids[0], plain, False, executor='thread');
+        observed = region_run(
+            project, ids[0], optimized, True, True, executor='thread'
+        );
+        assert optimized.total == plain.total == 5;
+        assert optimized.first == plain.first == False;
+        assert observed[1]['fusion']['region_queries'] == 1;
+        first = SliceIdentityMap();
+        second = SliceIdentityMap();
+        region_run(project, ids[0], first, False, executor='thread');
+        diagnostic = region_run(
+            project, ids[0], SliceIdentityMap(), True, executor='thread'
+        );
+        assert diagnostic[1]['fusion']['region_queries'] == 1 , str(
+            diagnostic[1]['fusion']
+        );
+        observed = region_run(project, ids[0], second, True, True, executor='thread');
+        assert first.depths == second.depths == {ids[-1].hex: 0};
+        assert observed[1]['fusion']['region_queries'] == 1;
+        borrowed: dict[str, int] = {};
+        third = SliceBorrowedMap(depths=borrowed);
+        observed = region_run(project, ids[0], third, True, executor='thread');
+        assert len(borrowed) == 5;
+        assert observed[1]['fusion']['region_queries'] == 0;
+        assert 'Output map ownership is unproved; a fresh dominating allocation is required'
+            in observed[1]['fusion']['region_fallback_reasons'];
+        def fake_jid(value: any) -> str {
+            return 'shadowed';
+        }
+        with patch.dict(
+            vars(sys.modules[SliceIdentityMap.__module__]), {'jid': fake_jid}
+        ) {
+            shadowed = SliceIdentityMap();
+            rejected = region_run(project, ids[0], shadowed, True, executor='thread');
+            assert rejected[1]['fusion']['region_queries'] == 0;
+            assert 'Identity helper binding is shadowed'
+                in rejected[1]['fusion']['region_fallback_reasons'];
+            assert shadowed.depths == {'shadowed': 0};
+        }
+        if os.environ.get('TTG_REQUIRE_GIL_OFF') == '1' {
+            assert not sys._is_gil_enabled();
+        }
+    } finally {
+        JacRuntime.exec_ctx = old;
+    }
+}
+
+test "Output tree thread filtered branches preserve output and loop visit caches" {
+    import sys;
+    import sysconfig;
+    if os.environ.get('TTG_REQUIRE_GIL_OFF') == '1' {
+        assert sysconfig.get_config_var('Py_GIL_DISABLED') == 1;
+        assert not sys._is_gil_enabled();
+    }
+    import from .fixtures.ttg_region_walkers {
+        OutputFolder,
+        OutputContains,
+        OutputTree
+    }
+    project = region_project();
+    ctx = region_context(project);
+    nodes = [OutputFolder(name=str(i), trashed=i == 3) for i in range(8)];
+    root ++> nodes[0];
+    for (a, b) in [(0, 1), (0, 2), (0, 3), (1, 4), (1, 5), (2, 6), (3, 7)] {
+        nodes[a] +>:OutputContains:+> nodes[b];
+    }
+    uid = nodes[0].__jac__.id;
+    ctx.close();
+    baseline = OutputTree();
+    baseline_result = region_run(project, uid, baseline, False, executor='thread');
+    fused = OutputTree();
+    result = region_run(project, uid, fused, True, executor='thread');
+    assert [(e.id, e.name, e.depth, e.path) for e in fused.entries]
+        == [(e.id, e.name, e.depth, e.path) for e in baseline.entries];
+    assert [e.path for e in fused.entries]
+        == ['0', '0/1', '0/1/4', '0/1/5', '0/2', '0/2/6'];
+    assert result[1]['fusion']['region_queries'] == 1 , str(result[1]);
+    assert result[1]['fusion']['region_cache_paths'] == 6 , str(result[1]);
+    strict = OutputTree();
+    strict_result = region_run(project, uid, strict, True, True, executor='thread');
+    assert [e.path for e in strict.entries] == [e.path for e in baseline.entries];
+    assert strict_result[1]['fusion']['region_queries'] == 1;
+    if os.environ.get('TTG_REQUIRE_GIL_OFF') == '1' {
+        assert not sys._is_gil_enabled();
+    }
+}
+
+test "Output tree refuses cycle row overflow and malformed predicate atomically" {
+    import from types { SimpleNamespace }
+    import from contextlib { nullcontext }
+    import from .fixtures.ttg_region_walkers {
+        OutputFolder,
+        OutputContains,
+        OutputTree
+    }
+    for variant in ('cycle', 'overflow', 'malformed', 'foreign_exit') {
+        project = region_project();
+        ctx = region_context(project);
+        a = OutputFolder(name='a');
+        b = OutputFolder(name='b');
+        root ++> a;
+        a +>:OutputContains:+> b;
+        if variant == 'cycle' {
+            b +>:OutputContains:+> a;
+        }
+        uid = a.__jac__.id;
+        bid = b.__jac__.id;
+        ctx.close();
+        ctx = region_context(project);
+        try {
+            if variant == 'malformed' {
+                ctx.mem.read_barrier();
+                store: any = ctx.mem.store;
+                store.rows(
+                    "UPDATE anchors SET props=jsonb_set(props,'{archetype,trashed}',CAST(:value AS jsonb)) WHERE id=:id",
+                    {'id': str(bid), 'value': json.dumps('false')}
+                );
+            }
+            origin = ctx.mem.get(uid);
+            wlk = OutputTree();
+            arch = JacTTGGenerator._find_walker_ast_node(OutputTree);
+            assert arch is not None;
+            spec = compile_checkpoint_plan(arch);
+            graph = checkpoint_graph(spec, OutputTree);
+            scope: any = SimpleNamespace(path=[origin], ignores=[]);
+            metrics: dict = {
+                'queries': 0,
+                'regions': [],
+                'cache_paths': 0,
+                'cache_empty_paths': 0
+            };
+            extra_exit = patch.object(OutputTree, '_jac_exit_funcs_', [SimpleNamespace(name='foreign', trigger=OutputFolder)]) if variant == 'foreign_exit' else nullcontext();
+            with extra_exit, patch(
+                'jaclang.runtime.ttg_templates.publish_paths',
+                side_effect=AssertionError('partial publication')
+            ) {
+                result = resolve_interability_region(
+                    ctx.mem,
+                    graph,
+                    wlk,
+                    scope,
+                    spec['entries']['walk'],
+                    {'id': uid, 'node_type': OutputFolder},
+                    [],
+                    None,
+                    1 if variant == 'overflow' else 20,
+                    metrics
+                );
+            }
+            assert result is None;
+            reason: str = metrics['region_fallback_reason'];
+            assert (
+                'cycle' in reason
+                    if variant == 'cycle'
+                    else (
+                        'budget' in reason
+                            if variant == 'overflow'
+                            else ('exit dispatch' in reason if variant == 'foreign_exit' else 'Malformed' in reason)
+                    )
+            ) , reason;
+            assert metrics['cache_paths'] == 0;
+        } finally {
+            ctx.close();
+        }
     }
 }

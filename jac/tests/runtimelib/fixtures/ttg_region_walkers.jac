@@ -179,3 +179,113 @@ walker DagShared {
         }
     }
 }
+
+
+walker SliceOutputBranch {
+    has first: bool = True,
+        total: int = 0;
+
+    can walk with RegionItem entry {
+        if self.first {
+            self.total = 0;
+            self.first = False;
+        }
+        self.total += 1;
+        visit [->:RegionNext:->[?:RegionItem]];
+    }
+}
+
+walker SliceIdentityMap {
+    has depths: dict[str, int] = {};
+
+    can walk with RegionItem entry {
+        self.depths = {};
+        key = jid(here);
+        self.depths[key] = 0;
+        visit [->:RegionNext:->[?:RegionItem]];
+    }
+}
+
+walker SliceMapAccess {
+    has depths: dict[str, int] = {};
+
+    can walk with RegionItem entry {
+        key = jid(here);
+        self.depths[key] = 0;
+        if self.depths[key] < 3 {
+            visit [->:RegionNext:->[?:RegionItem]];
+        }
+    }
+}
+
+walker SliceSharedAccess {
+    has count: int = 0;
+
+    can first with RegionA entry {
+        self.count += 1;
+        visit [->:RegionAB:->[?:RegionB]];
+    }
+
+    can second with RegionB entry {
+        if self.count < 3 {
+            visit [->:RegionBC:->[?:RegionC]];
+        }
+    }
+}
+
+walker SliceBorrowedMap {
+    has depths: dict[str, int] = {};
+
+    can walk with RegionItem entry {
+        key = jid(here);
+        self.depths[key] = 0;
+        visit [->:RegionNext:->[?:RegionItem]];
+    }
+}
+
+node OutputFolder {
+    has name: str = '',
+        trashed: bool = False;
+}
+
+edge OutputContains {}
+obj OutputRow {
+    has id: str = '',
+        name: str = '',
+        depth: int = 0,
+        path: str = '';
+}
+
+walker OutputTree {
+    has start_id: str = '',
+        depths: dict[str, int] = {},
+        paths: dict[str, str] = {},
+        entries: list[OutputRow] = [];
+
+    can walk with OutputFolder entry {
+        cur_id = jid(here);
+        if not self.start_id {
+            self.start_id = cur_id;
+            self.depths[cur_id] = 0;
+            self.paths[cur_id] = here.name;
+        }
+        depth = self.depths.get(cur_id, 0);
+        path = self.paths.get(cur_id, here.name);
+        self.entries.append(
+            OutputRow(id=cur_id, name=here.name, depth=depth, path=path)
+        );
+        for child in [here->:OutputContains:->[?:OutputFolder, trashed==False]] {
+            child_id = jid(child);
+            self.depths[child_id] = depth + 1;
+            self.paths[child_id] = path + '/' + child.name;
+        }
+        visit [here->:OutputContains:->[?:OutputFolder, trashed==False]];
+    }
+
+    can done with OutputFolder exit {
+        if jid(here) == self.start_id {
+            self.entries.sort(key=lambda (e: OutputRow) { e.path; });
+            report self.entries;
+        }
+    }
+}

@@ -12,6 +12,10 @@ import from jaclang.runtime.ttg_dependencies {
 import from jaclang.runtime.ttg_regions { summarize_abilities }
 import from jaclang.runtime.ttg_templates { bind_template }
 import from .fixtures.ttg_region_walkers {
+    SliceOutputBranch,
+    SliceIdentityMap,
+    SliceMapAccess,
+    SliceSharedAccess,
     DagFeed,
     DagShared,
     RegionTraverse,
@@ -144,4 +148,21 @@ test "JSON kind validates nullable JSON and rejects non-JSON operands" {
         invalid = True;
     }
     assert invalid;
+}
+
+
+test "Access slicing excludes output conditions and summarized identities, retains sibling controls" {
+    for cls in (SliceOutputBranch, SliceIdentityMap) {
+        spec = region_spec(cls);
+        item = spec['interability_regions']['summaries']['walk'];
+        assert item['eligible'] , str(item);
+        assert item['access_slice']['output_only'];
+        assert spec['interability_regions']['regions'];
+    }
+    spec = region_spec(SliceMapAccess);
+    assert not spec['interability_regions']['regions'];
+    spec = region_spec(SliceSharedAccess);
+    assert 'self.count'
+        in spec['interability_regions']['summaries']['first']['shared_access_reads'];
+    assert not spec['interability_regions']['summaries']['first']['eligible'];
 }

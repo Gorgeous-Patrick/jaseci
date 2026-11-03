@@ -211,8 +211,7 @@ def compile_templates(events: list) -> dict {
 
 
 def native_shape(query: any, upto: int) -> any {
-    if not query.from_visit
-        or upto != len(query.hops)
+    if upto != len(query.hops)
         or query.edges_only
         or query.slc is not None
         or query.order
@@ -223,13 +222,23 @@ def native_shape(query: any, upto: int) -> any {
     }
     shape: list = [];
     for hop in query.hops {
-        if hop.preds
-            or hop.epreds
-            or hop.only is not None
-            or isinstance(hop.nd, tuple) {
+        if hop.epreds or hop.only is not None or isinstance(hop.nd, tuple) {
             return None;
         }
-        shape.append((hop.`edge, hop.nd, hop.dir));
+        predicates: list = [];
+        for predicate in hop.preds {
+            if type(predicate.field) is not str
+                or predicate.op != '=='
+                or type(predicate.value) is not bool {
+                return None;
+            }
+            predicates.append((predicate.field, predicate.op, predicate.value));
+        }
+        if predicates {
+            shape.append((hop.`edge, hop.nd, hop.dir, tuple(predicates)));
+        } else {
+            shape.append((hop.`edge, hop.nd, hop.dir));
+        }
     }
     return tuple(shape);
 }

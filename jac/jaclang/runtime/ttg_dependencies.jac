@@ -21,7 +21,8 @@ obj TraceEvent {
         next_id: int = -1,
         true_id: int = -1,
         false_id: int = -1,
-        definitions: dict[str, int] = {};
+        definitions: dict[str, int] = {},
+        effect: dict = {};
 }
 
 obj TraceDependency {
@@ -757,6 +758,65 @@ obj DependencyBuilder {
             return (event.id, event.id, env);
         }
         event = self.event('barrier', ability, ast_node);
+        # Summaries are conditional contracts, never an unconditional bypass
+        # in the legacy statement interpreter.
+        if isinstance(ast_node, uni.Assignment)
+            and len(ast_node.target) == 1
+            and ast_node.value is not None
+            and ast_node.aug_op is None {
+            try {
+                left = pa.parse(_trace_text(ast_node.target[0]), mode='eval').body;
+                right = pa.parse(_trace_text(ast_node.value), mode='eval').body;
+                if isinstance(left, pa.Attribute)
+                    and isinstance(left.value, pa.Name)
+                    and left.value.id == 'self'
+                    and isinstance(right, pa.Dict)
+                    and not right.keys {
+                    event.writes = 'self.' + left.attr;
+                    event.effect = {'contract': 'fresh_output_map'};
+                } elif isinstance(left, pa.Name)
+                    and isinstance(right, pa.Call)
+                    and isinstance(right.func, pa.Name)
+                    and right.func.id == 'jid'
+                    and len(right.args) == 1
+                    and not right.keywords
+                    and isinstance(right.args[0], pa.Name)
+                    and right.args[0].id == 'here' {
+                    event.writes = _trace_key(left.id, ability);
+                    event.reads = (_trace_key('here', ability), );
+                    event.effect = {'contract': 'node_identity', 'binding': 'jid'};
+                } elif isinstance(left, pa.Subscript)
+                    and isinstance(left.value, pa.Attribute)
+                    and isinstance(left.value.value, pa.Name)
+                    and left.value.value.id == 'self'
+                    and isinstance(left.slice, pa.Name)
+                    and _trace_key(left.slice.id, ability) in env
+                    and self.graph.events[
+                        env[_trace_key(left.slice.id, ability)]
+                    ].effect.get(
+                        'contract'
+                    )
+                        == 'node_identity'
+                    and isinstance(right, pa.Constant)
+                    and type(right.value) in (bool, int, str, type(None)) {
+                    event.writes = 'self.' + left.value.attr;
+                    event.reads = (_trace_key(left.slice.id, ability), );
+                    event.effect = {
+                        'contract': 'identity_map_write',
+                        'field': event.writes,
+                        'fresh': event.writes in env
+                            and self.graph.events[env[event.writes]].effect.get(
+                                'contract'
+                            )
+                                == 'fresh_output_map'
+                    };
+                }
+                if event.effect {
+                    event.expression = pa.unparse(right);
+                    env[event.writes] = event.id;
+                }
+            } except (ValueError, SyntaxError, KeyError) { }
+        }
         self.inputs(event, env, controls);
         return (event.id, event.id, env);
     }
@@ -1143,10 +1203,22 @@ def compile_checkpoint_plan(arch: uni.Archetype) -> dict {
                 and e.writes in needed
             )
     ];
+    regions = compile_interability_regions(graph);
+    import from jaclang.runtime.ttg_output_tree {
+        compile_effect_certificate,
+        compile_tree_templates
+    }
+    output_tree = compile_effect_certificate(arch);
+    if output_tree is not None {
+        output_tree['entry'] = graph.entries[output_tree['ability']];
+        regions['regions'][str(output_tree['entry'])] = compile_tree_templates(
+            output_tree
+        );
+    }
     return {
         'version': 2,
         'sql_templates': compile_templates(graph.events),
-        'interability_regions': compile_interability_regions(graph),
+        'interability_regions': regions,
         'walker_name': graph.walker_name,
         'entries': graph.entries,
         'handlers': graph.handlers,
@@ -1169,6 +1241,7 @@ def compile_checkpoint_plan(arch: uni.Archetype) -> dict {
                 'next_id': e.next_id,
                 'true_id': e.true_id,
                 'false_id': e.false_id,
+                'effect': e.effect,
                 'definitions': e.definitions
             } for e in graph.events
         ],

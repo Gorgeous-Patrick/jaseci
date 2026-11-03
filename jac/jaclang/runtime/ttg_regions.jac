@@ -93,16 +93,22 @@ def _integer_output(expression: str) -> bool {
 
 def summarize_abilities(graph: any) -> dict {
     # Effect and guarded-visit summaries are computed once by the compiler.
-    access_reads: set = set();
-    for event in graph.events {
-        if event.kind in ('branch', 'visit') {
-            access_reads.update(
-                key
-                for key in event.reads
-                if key.startswith('self.')
-            );
-        }
-    }
+    import from jaclang.runtime.ttg_access_slice { access_slice }
+    sliced: dict = access_slice(
+        [
+            {
+                'id': e.id,
+                'kind': e.kind,
+                'ability': e.ability,
+                'reads': list(e.reads),
+                'writes': e.writes,
+                'effect': e.effect
+            } for e in graph.events
+        ],
+        [{'source': e.source, 'target': e.target, 'kind': e.kind} for e in graph.edges]
+    );
+    ignored = set(sliced['output_only']);
+    access_reads: set = set(sliced['shared_access_reads']);
     integer_fields: set = set();
     for e in graph.events {
         if e.kind in ('assign', 'scalar_update', 'append') {
@@ -139,7 +145,18 @@ def summarize_abilities(graph: any) -> dict {
         rejected: list = [];
         outputs: list = [];
         for event in events {
-            if event.kind in ('barrier', 'cancel') {
+            if event.kind == 'barrier' and event.id in ignored and event.effect {
+                outputs.append(
+                    {
+                        'event': event.id,
+                        'kind': event.effect['contract'],
+                        'writes': event.writes,
+                        'reads': list(event.reads),
+                        'expression': event.expression,
+                        'effect': event.effect
+                    }
+                );
+            } elif event.kind in ('barrier', 'cancel') {
                 rejected.append(
                     {
                         'event': event.id,
@@ -147,8 +164,7 @@ def summarize_abilities(graph: any) -> dict {
                     }
                 );
             } elif event.kind in ('assign', 'scalar_update', 'append') {
-                if not event.writes.startswith('self.')
-                    or event.writes in access_reads {
+                if event.id not in ignored {
                     rejected.append(
                         {
                             'event': event.id,
@@ -242,7 +258,37 @@ def summarize_abilities(graph: any) -> dict {
         }
         # Every branch must be representable, even if it only guards output.
         for event in events {
-            if event.kind == 'branch' {
+            if event.kind == 'branch' and event.id in ignored {
+                # Dependency independence is not permission to invoke a custom
+                # truthiness/comparison hook. The runtime checks exact scalars.
+                expression = pa.parse(event.expression, mode='eval').body;
+                if any(
+                    isinstance(
+                        n,
+                        (pa.Call, pa.Subscript, pa.BinOp, pa.Lt, pa.LtE, pa.Gt, pa.GtE)
+                    ) for n in pa.walk(expression)
+                )
+                    or any(
+                        '::' in key and '::here.' not in key for key in event.reads
+                    ) {
+                    rejected.append(
+                        {
+                            'event': event.id,
+                            'reason': 'Output condition has unproved effects'
+                        }
+                    );
+                } else {
+                    outputs.append(
+                        {
+                            'event': event.id,
+                            'kind': 'output_condition',
+                            'writes': '',
+                            'reads': list(event.reads),
+                            'expression': event.expression
+                        }
+                    );
+                }
+            } elif event.kind == 'branch' {
                 try {
                     _boolean_guard(event.expression);
                 } except (ValueError, SyntaxError) {
@@ -254,6 +300,7 @@ def summarize_abilities(graph: any) -> dict {
         }
         summaries[ability] = {
             'ability': ability,
+            'access_slice': sliced,
             'entry': entry_id,
             'source_type': types[0] if len(types) == 1 else '',
             'eligible': not rejected,
@@ -264,7 +311,16 @@ def summarize_abilities(graph: any) -> dict {
             'shared_access_reads': sorted(access_reads),
             'visit': visits[0].id if visits else -1,
             'guard': guard,
-            'guard_fields': _guard_fields(guard),
+            'guard_fields': sorted(
+                set(_guard_fields(guard))
+                    | {
+                        read.split('::here.', 1)[1]
+                        for output in outputs
+                        if output['kind'] == 'output_condition'
+                        for read in output['reads']
+                        if '::here.' in read
+                    }
+            ),
             'dispatch': list(graph.dispatch.get(visits[0].id, [])) if visits else [],
             'external_dependencies': [
                 'origin identity',
@@ -668,6 +724,23 @@ def resolve_interability_region(
     if certificate is None {
         return None;
     }
+    if certificate.get('kind') == 'output_tree' {
+        import from jaclang.runtime.ttg_output_tree { resolve_output_tree }
+        return resolve_output_tree(
+            mem,
+            graph,
+            wlk,
+            scope,
+            point,
+            current,
+            pending,
+            user_root,
+            max_rows,
+            metrics,
+            cache_token,
+            certificate
+        );
+    }
     if certificate.get('kind') == 'finite_dag' {
         import from jaclang.runtime.ttg_region_dag { resolve_dag_region }
         return resolve_dag_region(
@@ -767,6 +840,43 @@ def resolve_interability_region(
             }
         }
         for output in bundle['summaries'][rule['ability']]['outputs'] {
+            if output['kind'] == 'node_identity' {
+                descriptor = next(
+                    (
+                        vars(owner)['__jac__']
+                        for owner in source.__mro__
+                        if '__jac__' in vars(owner)
+                    ),
+                    None
+                );
+                if descriptor is not vars(NodeArchetype)['__jac__'] {
+                    return decline(
+                        'Identity anchor descriptor is not the framework builtin'
+                    );
+                }
+                import sys;
+                namespace = vars(sys.modules[type(wlk).__module__]);
+                import from jaclang.runtime.runtime { JacPersistence }
+                if namespace.get('jid') is not JacPersistence.object_ref
+                    or any(e.writes.endswith('::jid') for e in graph.events) {
+                    return decline('Identity helper binding is shadowed');
+                }
+            }
+            if output['kind'] == 'identity_map_write'
+                and not output['effect'].get('fresh', False) {
+                return decline(
+                    'Output map ownership is unproved; a fresh dominating allocation is required'
+                );
+            }
+            if output['kind'] == 'output_condition'
+                and any(
+                    type(vars(wlk).get(key[5:]))
+                        not in (bool, int, float, str, type(None))
+                    for key in output['reads']
+                    if key.startswith('self.')
+                ) {
+                return decline('Output condition requires exact scalar state');
+            }
             if output.get('integer', False) {
                 if not all(
                     type(vars(wlk).get(key[5:])) is int
@@ -883,6 +993,16 @@ def resolve_interability_region(
             }
             cached = mem.__mem__.get(uid);
             if cached is not None and cached.is_populated() {
+                if any(
+                    o['kind'] == 'node_identity'
+                    for o in bundle['summaries'][rules[phase]['ability']]['outputs']
+                ) {
+                    import from jaclang.runtime.archetype { NodeAnchor }
+                    if type(cached) is not NodeAnchor
+                        or vars(cached.archetype).get('__jac__') is not cached {
+                        return decline('Cached node identity has an overridden anchor');
+                    }
+                }
                 observed = known_node_fields(cached.archetype);
                 if any(
                     observed.get(name + '::unsafe', False)
